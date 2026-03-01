@@ -1,0 +1,27 @@
+# Flutter/Dart
+.build/
+.dart_tool/
+.packages
+pubspec.lock
+
+# IDE
+.idea/
+.vscode/
+
+# macOS
+.DS_Store
+
+# Flutter build outputs
+/build/
+/ios/Flutter/Flutter.framework
+/ios/Flutter/Flutter.podspec
+
+# Android
+/android/.gradle
+/android/app/build
+
+# Web
+/web/build
+
+# Environment files
+.env
