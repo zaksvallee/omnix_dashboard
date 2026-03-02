@@ -37,8 +37,12 @@ class ExecutiveSummaryGenerator {
     final compliancePercent =
         (report.slaComplianceRate * 100).toStringAsFixed(1);
 
-    return "SLA compliance for the reporting period was $compliancePercent%. "
-        "${report.totalSlaBreaches} breach events were detected and logged.";
+    final tierLabel = report.slaTierName.toUpperCase();
+
+    return "Client is operating under the $tierLabel SLA tier. "
+        "SLA compliance for the reporting period was $compliancePercent%. "
+        "${report.totalSlaBreaches} breach events were detected and logged, "
+        "with ${report.totalSlaOverrides} override actions formally recorded.";
   }
 
   static String _buildRiskSummary(MonthlyReport report) {

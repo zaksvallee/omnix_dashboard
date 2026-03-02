@@ -1,3 +1,4 @@
+import '../../crm/sla_profile.dart';
 import '../incident_record.dart';
 import '../incident_enums.dart';
 import 'sla_policy.dart';
@@ -15,10 +16,15 @@ class SLAClock {
 
   static SLAClock evaluate({
     required IncidentRecord record,
+    required SLAProfile profile,
     required DateTime nowUtc,
   }) {
     final start = DateTime.parse(record.detectedAt).toUtc();
-    final minutes = SLAPolicy.resolveSlaMinutes(record.severity);
+
+    final minutes = SLAPolicy.resolveSlaMinutes(
+      severity: record.severity,
+      profile: profile,
+    );
 
     final due = start.add(Duration(minutes: minutes));
 

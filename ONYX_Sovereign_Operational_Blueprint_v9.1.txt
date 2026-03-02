@@ -1,0 +1,212 @@
+🧭 ONYX Sovereign Operational Blueprint v9.1 — EXECUTION UPDATE
+
+Status: LOCKED FOR EXECUTION
+Scope: 12–18 Month Operational Build Path
+Priority: Revenue First. Sovereignty Always.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MISSION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Build a sovereign, event-sourced security operations platform that:
+
+1. Runs the company better immediately.
+2. Generates revenue before integrations.
+3. Accumulates operational data as moat.
+4. Evolves into predictive patrol science.
+5. Integrates autonomous assets only after doctrine maturity.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+NON-NEGOTIABLE DOCTRINE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Execution is sovereign.
+2. Intelligence proposes only.
+3. No external AI authority.
+4. EventStore is immutable truth.
+5. If it’s not in EventStore, it did not happen.
+6. All signals normalize before intelligence.
+7. Revenue features do not wait for full integration.
+8. Drone autonomy is late-stage, not early-stage.
+9. Architecture does not block cashflow.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CURRENT SYSTEM STATE (VERIFIED)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✔ Phase 1 — Execution Spine (LOCKED)
+✔ Phase 2 — Intelligence Contract
+✔ Phase 3 — Lawful Execution Boundary
+✔ Phase 4 — Domain Proof
+✔ Phase 5 — Guard Performance (Revenue Engine LIVE)
+✔ Phase 6 — Structured Incident Engine LIVE
+✔ Phase 7 — CRM + Reporting Domain COMPLETE
+
+Operational Capabilities:
+
+✔ Report Export Layer (Deterministic)
+✔ Report Preview UI
+✔ Download Report (File Output)
+✔ Client Filtering
+✔ Site Filtering
+✔ Manual Incident Entry UI
+✔ ReportGeneration Audit Event (EventStore-backed)
+✔ Report Content Hashing
+✔ Filename Standardization
+✔ Timestamp Watermark
+✔ Pilot Branding Header
+✔ Basic Input Validation
+✔ Event Log Rotation Guard
+✔ Local JSON Persistence
+✔ Auto-save After Append
+✔ Reload on Startup
+✔ Replay-Safe
+
+Git Baseline:
+v9.0-phase7-complete
+Tagged and archived.
+Backup created.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHASE 7 — DEPLOYMENT HARDENING STATUS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✔ Replace test harness with production route
+✔ Minimal dashboard entry for report preview
+✔ Download Report button
+✔ Client selector (multi-tenant prep)
+✔ Simple site selector filter
+✔ Incident creation UI (manual entry)
+☐ SLAProfile editor UI
+☐ CRM contact log viewer
+✔ Report timestamp watermark
+✔ Export filename standardization
+✔ Pilot branding header
+✔ Basic input validation
+✔ Event log file size rotation guard
+☐ Multi-tenant file directory structure (deferred, non-breaking)
+✔ Minimal error boundary for persistence
+✔ Report generation audit trail entry
+
+Phase 7 Completion Status:
+≈ 85% Operationally Hardened
+Revenue Surface: LIVE
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+REVENUE POSITION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+System can now:
+
+• Generate structured monthly intelligence report
+• Filter by client and site
+• Embed SLA compliance metrics
+• Embed escalation trends
+• Embed executive summary
+• Produce deterministic file artifact
+• Produce content hash
+• Append immutable issuance record
+• Replay issuance from EventStore
+
+This is commercially defensible.
+
+Revenue Objective:
+Deliver first automated monthly report to pilot client.
+Target uplift: 15–25%.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHASE 8 — OPERATIONAL MATURITY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Focus: Data Density & Commercial Leverage
+
+Checkpoint 8.1 — SLA Profile Management
+☐ SLAProfile editor UI
+☐ SLA breach weighting calibration
+☐ Tier-based SLA configuration
+☐ SLA override audit trail
+
+Checkpoint 8.2 — CRM Strengthening
+☐ CRM contact log viewer
+☐ Manual CRM contact entry
+☐ Contact-linked incident tagging
+
+Checkpoint 8.3 — Reporting Hardening
+☐ Hash-chain linking of monthly reports
+☐ Evidence bundle inclusion for issued reports
+☐ Site-level comparative analytics enhancement
+
+Checkpoint 8.4 — Persistence Fortification
+☐ Multi-tenant directory partitioning
+☐ Backup auto-snapshot script
+☐ Corruption detection guard
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHASE 9 — DATA MOAT EXPANSION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Focus: Structured Intelligence Accumulation
+
+☐ Incident density heatmap
+☐ Escalation clustering model
+☐ Guard performance correlation overlay
+☐ SLA predictive risk scoring
+☐ Historical pattern indexing
+
+NO predictive patrol automation yet.
+NO autonomous authority expansion.
+NO external AI control.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHASE 10 — CONTROLLED INTELLIGENCE EXPANSION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Only after:
+
+• 6+ months structured incident data
+• SLA accuracy validation
+• Revenue validation complete
+• Replay stability verified
+
+Then:
+
+☐ Predictive patrol routing simulation
+☐ Escalation probability modeling
+☐ Risk scoring confidence layer
+☐ AI advisory enhancement (non-executing)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AUTONOMOUS INTEGRATION (LATE STAGE)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Only permitted after:
+
+• Operational doctrine maturity
+• Legal review
+• Insurance alignment
+• ATI governance controls hardened
+
+Drone autonomy remains deferred.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CURRENT STRATEGIC POSITION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+You are no longer building architecture.
+
+You are operating a:
+
+Sovereign,
+Event-Sourced,
+Revenue-Generating,
+Evidence-Grade
+Operational Platform.
+
+Next Immediate Target:
+Complete remaining Phase 7 items (SLAProfile UI + CRM Contact Viewer),
+then execute pilot delivery.
+
+Revenue proof first.
+Sovereignty always.
+
+LOCKED.

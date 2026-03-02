@@ -1,3 +1,4 @@
+import '../../crm/sla_profile.dart';
 import '../incident_event.dart';
 import '../incident_record.dart';
 import 'sla_clock.dart';
@@ -6,6 +7,7 @@ class SLABreachEvaluator {
   static IncidentEvent? evaluate({
     required List<IncidentEvent> history,
     required IncidentRecord record,
+    required SLAProfile profile,
     required DateTime nowUtc,
   }) {
     final alreadyBreached = history.any(
@@ -16,6 +18,7 @@ class SLABreachEvaluator {
 
     final clock = SLAClock.evaluate(
       record: record,
+      profile: profile,
       nowUtc: nowUtc,
     );
 

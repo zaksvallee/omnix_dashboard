@@ -1,16 +1,20 @@
+import '../../crm/sla_profile.dart';
 import '../incident_enums.dart';
 
 class SLAPolicy {
-  static int resolveSlaMinutes(IncidentSeverity severity) {
+  static int resolveSlaMinutes({
+    required IncidentSeverity severity,
+    required SLAProfile profile,
+  }) {
     switch (severity) {
       case IncidentSeverity.low:
-        return 120;
+        return profile.lowMinutes;
       case IncidentSeverity.medium:
-        return 60;
+        return profile.mediumMinutes;
       case IncidentSeverity.high:
-        return 30;
+        return profile.highMinutes;
       case IncidentSeverity.critical:
-        return 10;
+        return profile.criticalMinutes;
     }
   }
 }

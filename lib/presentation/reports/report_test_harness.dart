@@ -1,6 +1,3 @@
-import 'dart:io';
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 
 import '../../domain/store/in_memory_event_store.dart';
@@ -8,8 +5,6 @@ import '../../domain/incidents/incident_event.dart';
 import '../../domain/crm/crm_event.dart';
 import '../../domain/crm/reporting/report_bundle.dart';
 import '../../domain/crm/reporting/report_bundle_assembler.dart';
-import '../../domain/crm/export/plain_text_report_exporter.dart';
-import '../../domain/events/report_generated.dart';
 import 'report_preview_page.dart';
 
 class ReportTestHarnessPage extends StatefulWidget {
@@ -31,9 +26,6 @@ class ReportTestHarnessPage extends StatefulWidget {
 
 class _ReportTestHarnessPageState
     extends State<ReportTestHarnessPage> {
-
-  bool _loading = false;
-  String? _error;
 
   String _currentMonth(DateTime now) =>
       "${now.year}-${now.month.toString().padLeft(2, '0')}";
@@ -58,8 +50,7 @@ class _ReportTestHarnessPageState
 
     final crmEvents = allEvents
         .whereType<CRMEvent>()
-        .where((e) =>
-            e.payload['clientId'] == widget.selectedClient)
+        .where((e) => e.aggregateId == widget.selectedClient)
         .toList();
 
     return ReportBundleAssembler.build(
@@ -71,99 +62,15 @@ class _ReportTestHarnessPageState
     );
   }
 
-  String _hashContent(String content) {
-    final bytes = utf8.encode(content);
-    return base64Url.encode(bytes).substring(0, 16);
-  }
+  void _generatePreview() {
+    final now = DateTime.now().toUtc();
+    final bundle = _buildBundle(now);
 
-  void _appendAuditEvent(
-    DateTime now,
-    String month,
-    String hash,
-  ) {
-    widget.store.append(
-      ReportGenerated(
-        eventId:
-            "REPORT-${widget.selectedClient}-${widget.selectedSite}-$month-$hash",
-        sequence: 0,
-        version: 1,
-        occurredAt: now,
-        clientId: widget.selectedClient,
-        month: month,
-        contentHash: hash,
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ReportPreviewPage(bundle: bundle),
       ),
     );
-  }
-
-  void _generatePreview() {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-
-    try {
-      final now = DateTime.now().toUtc();
-      final bundle = _buildBundle(now);
-      final export = PlainTextReportExporter.export(bundle);
-
-      if (export.content.isEmpty) {
-        throw Exception("Report content is empty");
-      }
-
-      final hash = _hashContent(export.content);
-      _appendAuditEvent(now, export.month, hash);
-
-      setState(() {
-        _loading = false;
-      });
-
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => ReportPreviewPage(bundle: bundle),
-        ),
-      );
-    } catch (_) {
-      setState(() {
-        _loading = false;
-        _error = "Failed to generate report";
-      });
-    }
-  }
-
-  Future<void> _downloadReport() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-
-    try {
-      final now = DateTime.now().toUtc();
-      final bundle = _buildBundle(now);
-      final export = PlainTextReportExporter.export(bundle);
-
-      if (export.content.isEmpty) {
-        throw Exception("Report content is empty");
-      }
-
-      final hash = _hashContent(export.content);
-
-      final filename =
-          "report_${export.clientId}_${widget.selectedSite}_${export.month}_$hash.txt";
-
-      final file = File(filename);
-      await file.writeAsString(export.content);
-
-      _appendAuditEvent(now, export.month, hash);
-
-      setState(() {
-        _loading = false;
-      });
-    } catch (_) {
-      setState(() {
-        _loading = false;
-        _error = "Failed to download report";
-      });
-    }
   }
 
   @override
@@ -179,34 +86,13 @@ class _ReportTestHarnessPageState
           children: [
             Text(
               "Client: ${widget.selectedClient} | Site: ${widget.selectedSite}",
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 32),
-            if (_loading)
-              const Center(child: CircularProgressIndicator())
-            else
-              Row(
-                children: [
-                  ElevatedButton(
-                    onPressed: _generatePreview,
-                    child: const Text("Preview Report"),
-                  ),
-                  const SizedBox(width: 16),
-                  OutlinedButton(
-                    onPressed: _downloadReport,
-                    child: const Text("Download Report"),
-                  ),
-                ],
-              ),
-            if (_error != null) ...[
-              const SizedBox(height: 24),
-              Text(
-                _error!,
-                style: const TextStyle(color: Colors.red),
-              ),
-            ],
+            ElevatedButton(
+              onPressed: _generatePreview,
+              child: const Text("Preview Report"),
+            ),
           ],
         ),
       ),

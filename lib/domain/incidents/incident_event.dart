@@ -5,7 +5,8 @@ enum IncidentEventType {
   incidentEscalated,
   incidentResolved,
   incidentClosed,
-  incidentSlaBreached
+  incidentSlaBreached,
+  incidentSlaOverrideRecorded
 }
 
 class IncidentEvent {

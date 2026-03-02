@@ -7,6 +7,11 @@ class SLAProfile {
   final int highMinutes;
   final int criticalMinutes;
 
+  final double lowWeight;
+  final double mediumWeight;
+  final double highWeight;
+  final double criticalWeight;
+
   final String createdAt;
 
   const SLAProfile({
@@ -16,6 +21,10 @@ class SLAProfile {
     required this.mediumMinutes,
     required this.highMinutes,
     required this.criticalMinutes,
+    this.lowWeight = 1.0,
+    this.mediumWeight = 2.0,
+    this.highWeight = 3.0,
+    this.criticalWeight = 5.0,
     required this.createdAt,
   });
 }

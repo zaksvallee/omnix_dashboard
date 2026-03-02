@@ -1,6 +1,7 @@
 import 'client.dart';
 import 'site.dart';
 import 'sla_profile.dart';
+import 'sla_tier.dart';
 import 'crm_event.dart';
 import 'client_contact.dart';
 
@@ -8,12 +9,14 @@ class ClientAggregate {
   final Client client;
   final List<Site> sites;
   final SLAProfile? slaProfile;
+  final SLATier? slaTier;
   final List<ClientContact> contacts;
 
   const ClientAggregate({
     required this.client,
     required this.sites,
     required this.slaProfile,
+    required this.slaTier,
     required this.contacts,
   });
 
@@ -25,6 +28,7 @@ class ClientAggregate {
     Client? client;
     final sites = <Site>[];
     SLAProfile? slaProfile;
+    SLATier? slaTier;
     final contacts = <ClientContact>[];
 
     for (final event in events) {
@@ -62,6 +66,14 @@ class ClientAggregate {
           );
           break;
 
+        case CRMEventType.slaTierAssigned:
+          final tierName = event.payload['tier'] as String?;
+          if (tierName != null) {
+            slaTier = SLATier.values
+                .firstWhere((t) => t.name == tierName);
+          }
+          break;
+
         case CRMEventType.clientContactLogged:
           contacts.add(
             ClientContact(
@@ -83,6 +95,7 @@ class ClientAggregate {
       client: client,
       sites: sites,
       slaProfile: slaProfile,
+      slaTier: slaTier,
       contacts: contacts,
     );
   }

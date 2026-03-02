@@ -68,6 +68,19 @@ class IncidentTimelineBuilder {
           );
           break;
 
+        case IncidentEventType.incidentSlaOverrideRecorded:
+          timeline.add(
+            TimelineEntry(
+              label: 'SLA Override Recorded',
+              timestamp: event.timestamp,
+              metadata: {
+                'operator_id': event.metadata['operator_id'],
+                'reason': event.metadata['reason'],
+              },
+            ),
+          );
+          break;
+
         case IncidentEventType.incidentResolved:
           timeline.add(
             TimelineEntry(

@@ -63,6 +63,11 @@ class IncidentProjection {
             newStatus: IncidentStatus.escalated,
           );
           break;
+
+        case IncidentEventType.incidentSlaOverrideRecorded:
+          // Override does NOT change incident state.
+          // It only affects SLA compliance projection.
+          break;
       }
     }
 

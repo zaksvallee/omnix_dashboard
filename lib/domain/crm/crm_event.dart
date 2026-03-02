@@ -3,6 +3,7 @@ enum CRMEventType {
   siteAdded,
   slaProfileAttached,
   slaProfileUpdated,
+  slaTierAssigned,
   clientContactLogged,
 }
 

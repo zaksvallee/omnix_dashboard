@@ -1,0 +1,4 @@
+enum ReportAudience {
+  client,
+  internal,
+}
