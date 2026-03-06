@@ -79,7 +79,7 @@ class OnyxPageHeader extends StatelessWidget {
       children: [
         Expanded(
           child: Container(
-            padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+            padding: const EdgeInsets.fromLTRB(8, 7, 8, 7),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0x180D1F39), Color(0x000D1F39)],
@@ -107,7 +107,7 @@ class OnyxPageHeader extends StatelessWidget {
                   title,
                   style: GoogleFonts.rajdhani(
                     color: const Color(0xFFE8F1FF),
-                    fontSize: 26,
+                    fontSize: 24,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -116,7 +116,7 @@ class OnyxPageHeader extends StatelessWidget {
                   subtitle,
                   style: GoogleFonts.inter(
                     color: const Color(0xFF8EA4C2),
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -127,7 +127,7 @@ class OnyxPageHeader extends StatelessWidget {
         if (actions.isNotEmpty) ...[
           const SizedBox(width: 10),
           Container(
-            padding: const EdgeInsets.all(4),
+            padding: const EdgeInsets.all(3),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xFF0C182B), Color(0xFF091528)],
@@ -239,8 +239,8 @@ class OnyxSectionCard extends StatelessWidget {
             ? Expanded(child: SingleChildScrollView(child: child))
             : child;
         return Container(
-            width: double.infinity,
-            padding: padding ?? const EdgeInsets.all(8),
+          width: double.infinity,
+          padding: padding ?? const EdgeInsets.all(8),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [Color(0xFF081326), Color(0xFF0A172C)],
@@ -314,7 +314,7 @@ class OnyxSummaryStat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF0D1A2D), Color(0xFF0A1628)],
@@ -342,7 +342,7 @@ class OnyxSummaryStat extends StatelessWidget {
               borderRadius: BorderRadius.circular(999),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 7),
           Text(
             label,
             style: GoogleFonts.inter(
@@ -356,7 +356,7 @@ class OnyxSummaryStat extends StatelessWidget {
             value,
             style: GoogleFonts.rajdhani(
               color: accent,
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
           ),
