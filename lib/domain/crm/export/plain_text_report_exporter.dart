@@ -7,7 +7,6 @@ class PlainTextReportExporter {
     ReportBundle bundle, {
     required ReportAudience audience,
   }) {
-    final generatedAt = DateTime.now().toUtc();
     final monthly = bundle.monthlyReport;
     final summary = bundle.executiveSummary;
 
@@ -25,7 +24,7 @@ class PlainTextReportExporter {
     buffer.writeln("Client: ${monthly.clientId}");
     buffer.writeln("Month: ${monthly.month}");
     buffer.writeln("SLA Tier: $tierLabel");
-    buffer.writeln("Generated (UTC): ${generatedAt.toIso8601String()}");
+    buffer.writeln("Projection Month (UTC): ${monthly.month}");
     buffer.writeln("Evidence Mode: Event-Sourced Deterministic Projection");
     buffer.writeln("----------------------------------------");
     buffer.writeln();

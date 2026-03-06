@@ -5,10 +5,10 @@ import 'package:crypto/crypto.dart';
 import '../events/dispatch_event.dart';
 import '../events/decision_created.dart';
 import '../events/execution_completed.dart';
-import '../../infrastructure/events/supabase_client_ledger_repository.dart';
+import 'client_ledger_repository.dart';
 
 class ClientLedgerService {
-  final SupabaseClientLedgerRepository repository;
+  final ClientLedgerRepository repository;
 
   ClientLedgerService(this.repository);
 

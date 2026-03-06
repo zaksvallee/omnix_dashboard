@@ -4,11 +4,13 @@ import '../../crm/sla_profile.dart';
 import '../../crm/client.dart';
 import '../../crm/client_aggregate.dart';
 import '../../crm/sla_tier.dart';
+import '../../events/dispatch_event.dart';
 
 import 'monthly_report_projection.dart';
 import 'executive_summary_generator.dart';
 import 'multi_site_comparison_projection.dart';
 import 'escalation_trend_projection.dart';
+import 'dispatch_performance_projection.dart';
 import 'report_bundle.dart';
 import 'report_sections.dart';
 
@@ -19,6 +21,7 @@ class ReportBundleAssembler {
     required String previousMonth,
     required List<IncidentEvent> incidentEvents,
     required List<CRMEvent> crmEvents,
+    required List<DispatchEvent> dispatchEvents,
   }) {
 
     ClientAggregate aggregate;
@@ -87,13 +90,18 @@ class ReportBundleAssembler {
       reportingPeriod: currentMonth,
     );
 
-    final guardPerformance = <GuardPerformanceSnapshot>[];
+    final guardPerformance =
+        DispatchPerformanceProjection.buildGuardPerformance(
+      clientId: clientId,
+      month: currentMonth,
+      events: dispatchEvents,
+    );
 
-    final patrolPerformance = PatrolPerformanceSnapshot(
-      scheduledPatrols: 0,
-      completedPatrols: 0,
-      missedPatrols: 0,
-      completionRate: 0.0,
+    final patrolPerformance =
+        DispatchPerformanceProjection.buildPatrolPerformance(
+      clientId: clientId,
+      month: currentMonth,
+      events: dispatchEvents,
     );
 
     final incidentDetails = incidentEvents.map((e) {

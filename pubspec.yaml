@@ -12,9 +12,14 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.8
   crypto: ^3.0.7
+  http: ^1.5.0
   supabase_flutter: ^2.12.0
   pdf: ^3.11.3
   printing: ^5.14.2
+  google_fonts: ^6.3.2
+  shared_preferences: ^2.5.4
+  file_picker: ^8.1.2
+  image: ^4.5.4
 
 dev_dependencies:
   flutter_test:
@@ -25,3 +30,42 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/onyx_logo.png
+    - assets/telemetry_payload_fixtures/fsk_standard_sample.json
+    - assets/telemetry_payload_fixtures/fsk_legacy_ptt_sample.json
+    - assets/fonts/Inter-Regular.ttf
+    - assets/fonts/Inter-Medium.ttf
+    - assets/fonts/Inter-SemiBold.ttf
+    - assets/fonts/Inter-Bold.ttf
+    - assets/fonts/Inter-ExtraBold.ttf
+    - assets/fonts/Inter-Black.ttf
+    - assets/fonts/Inter-Variable.ttf
+    - assets/fonts/Rajdhani-Regular.ttf
+    - assets/fonts/Rajdhani-Bold.ttf
+    - assets/fonts/Rajdhani-ExtraBold.ttf
+    - assets/fonts/Rajdhani-Black.ttf
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Inter-ExtraBold.ttf
+          weight: 800
+        - asset: assets/fonts/Inter-Black.ttf
+          weight: 900
+        - asset: assets/fonts/Inter-Variable.ttf
+    - family: Rajdhani
+      fonts:
+        - asset: assets/fonts/Rajdhani-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Rajdhani-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Rajdhani-ExtraBold.ttf
+          weight: 800
+        - asset: assets/fonts/Rajdhani-Black.ttf
+          weight: 900
