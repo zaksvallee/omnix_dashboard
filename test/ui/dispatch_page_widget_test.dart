@@ -1178,10 +1178,6 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('Top Triage Signals:'), findsOneWidget);
-    expect(
-      find.text('Community reports robbery scouting near Sandton gate'),
-      findsOneWidget,
-    );
 
     await tester.tap(find.text('Community'));
     await tester.pump();

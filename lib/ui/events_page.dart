@@ -79,264 +79,275 @@ class _EventsPageState extends State<EventsPage> {
       body: OnyxPageScaffold(
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: LayoutBuilder(
-            builder: (context, viewport) {
-              final useScrollFallback = viewport.maxHeight < 720;
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1540),
+              child: LayoutBuilder(
+                builder: (context, viewport) {
+                  final useScrollFallback = viewport.maxHeight < 720;
 
-              Widget timelinePane({
-                required bool showSideDrawer,
-                required bool useExpandedList,
-              }) {
-                final timelineList = filtered.isEmpty
-                    ? _emptyState()
-                    : ListView.separated(
-                        shrinkWrap: !useExpandedList,
-                        primary: useExpandedList,
-                        physics: useExpandedList
-                            ? null
-                            : const NeverScrollableScrollPhysics(),
-                        itemCount: filtered.length,
-                        separatorBuilder: (context, index) =>
-                            const SizedBox(height: 10),
-                        itemBuilder: (context, index) {
-                          final row = filtered[index];
-                          final event = row.event;
-                          final info = row.info;
-                          final isSelected =
-                              _selected?.eventId == event.eventId;
+                  Widget timelinePane({
+                    required bool showSideDrawer,
+                    required bool useExpandedList,
+                  }) {
+                    final timelineList = filtered.isEmpty
+                        ? _emptyState()
+                        : ListView.separated(
+                            shrinkWrap: !useExpandedList,
+                            primary: useExpandedList,
+                            physics: useExpandedList
+                                ? null
+                                : const NeverScrollableScrollPhysics(),
+                            itemCount: filtered.length,
+                            separatorBuilder: (context, index) =>
+                                const SizedBox(height: 10),
+                            itemBuilder: (context, index) {
+                              final row = filtered[index];
+                              final event = row.event;
+                              final info = row.info;
+                              final isSelected =
+                                  _selected?.eventId == event.eventId;
 
-                          return InkWell(
-                            onTap: () {
-                              setState(() => _selected = event);
-                              if (!showSideDrawer) {
-                                Scaffold.of(context).openEndDrawer();
-                              }
-                            },
-                            borderRadius: BorderRadius.circular(16),
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: _timelineRowDecoration(
-                                isSelected: isSelected,
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    margin: const EdgeInsets.only(top: 2),
-                                    width: 10,
-                                    height: 10,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: info.color,
-                                    ),
+                              return InkWell(
+                                onTap: () {
+                                  setState(() => _selected = event);
+                                  if (!showSideDrawer) {
+                                    Scaffold.of(context).openEndDrawer();
+                                  }
+                                },
+                                borderRadius: BorderRadius.circular(16),
+                                child: Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: _timelineRowDecoration(
+                                    isSelected: isSelected,
                                   ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        margin: const EdgeInsets.only(top: 2),
+                                        width: 10,
+                                        height: 10,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: info.color,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            Expanded(
-                                              child: Text(
-                                                info.label,
-                                                style: GoogleFonts.rajdhani(
-                                                  color: info.color,
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.w700,
+                                            Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    info.label,
+                                                    style: GoogleFonts.rajdhani(
+                                                      color: info.color,
+                                                      fontSize: 18,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
+                                                  ),
                                                 ),
+                                                Text(
+                                                  "UTC ${event.occurredAt.toIso8601String()}",
+                                                  style: GoogleFonts.inter(
+                                                    color: const Color(
+                                                      0xFF89A0BE,
+                                                    ),
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                  textAlign: TextAlign.end,
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Wrap(
+                                              spacing: 8,
+                                              runSpacing: 8,
+                                              children: [
+                                                _pill("SEQ ${event.sequence}"),
+                                                if (row.siteId != null)
+                                                  _pill(row.siteId!),
+                                                if (row.guardId != null)
+                                                  _pill(row.guardId!),
+                                                if (isSelected)
+                                                  _pill(
+                                                    "SELECTED",
+                                                    color: const Color(
+                                                      0xFF9FD9FF,
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              info.summary,
+                                              style: GoogleFonts.inter(
+                                                color: const Color(0xFFE4EEFF),
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                                height: 1.35,
                                               ),
                                             ),
+                                            const SizedBox(height: 6),
                                             Text(
-                                              "UTC ${event.occurredAt.toIso8601String()}",
+                                              "Event ID ${event.eventId}",
                                               style: GoogleFonts.inter(
-                                                color: const Color(0xFF89A0BE),
-                                                fontSize: 11,
+                                                color: const Color(0xFF7289AA),
+                                                fontSize: 12,
                                                 fontWeight: FontWeight.w600,
                                               ),
-                                              textAlign: TextAlign.end,
                                             ),
                                           ],
                                         ),
-                                        const SizedBox(height: 6),
-                                        Wrap(
-                                          spacing: 8,
-                                          runSpacing: 8,
-                                          children: [
-                                            _pill("SEQ ${event.sequence}"),
-                                            if (row.siteId != null)
-                                              _pill(row.siteId!),
-                                            if (row.guardId != null)
-                                              _pill(row.guardId!),
-                                            if (isSelected)
-                                              _pill(
-                                                "SELECTED",
-                                                color: const Color(0xFF9FD9FF),
-                                              ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          info.summary,
-                                          style: GoogleFonts.inter(
-                                            color: const Color(0xFFE4EEFF),
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w600,
-                                            height: 1.35,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          "Event ID ${event.eventId}",
-                                          style: GoogleFonts.inter(
-                                            color: const Color(0xFF7289AA),
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
-                                ],
+                                ),
+                              );
+                            },
+                          );
+
+                    return Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: _surfaceCardDecoration(),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 42,
+                            height: 3,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF3C79BB),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            "Timeline Feed",
+                            style: GoogleFonts.rajdhani(
+                              color: const Color(0xFFE6F0FF),
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "Newest first, with summary-first cards instead of raw dense rows.",
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF7E95B4),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          if (useExpandedList)
+                            Expanded(child: timelineList)
+                          else
+                            timelineList,
+                        ],
+                      ),
+                    );
+                  }
+
+                  Widget mainLayout() {
+                    return LayoutBuilder(
+                      builder: (context, constraints) {
+                        final showSideDrawer = constraints.maxWidth >= 1120;
+                        final sidePaneWidth = constraints.maxWidth >= 1480
+                            ? 360.0
+                            : 320.0;
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: timelinePane(
+                                showSideDrawer: showSideDrawer,
+                                useExpandedList: !useScrollFallback,
                               ),
                             ),
-                          );
-                        },
-                      );
+                            if (showSideDrawer) ...[
+                              const SizedBox(width: 10),
+                              SizedBox(
+                                width: sidePaneWidth,
+                                child: selected == null
+                                    ? _emptyDetailPane()
+                                    : _selectedDetailPane(selected),
+                              ),
+                            ],
+                          ],
+                        );
+                      },
+                    );
+                  }
 
-                return Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: _surfaceCardDecoration(),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 42,
-                        height: 3,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF3C79BB),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        "Timeline Feed",
-                        style: GoogleFonts.rajdhani(
-                          color: const Color(0xFFE6F0FF),
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "Newest first, with summary-first cards instead of raw dense rows.",
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF7E95B4),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      if (useExpandedList)
-                        Expanded(child: timelineList)
-                      else
-                        timelineList,
-                    ],
-                  ),
-                );
-              }
-
-              Widget mainLayout() {
-                return LayoutBuilder(
-                  builder: (context, constraints) {
-                    final showSideDrawer = constraints.maxWidth >= 1120;
-                    final sidePaneWidth = constraints.maxWidth >= 1480
-                        ? 360.0
-                        : 320.0;
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  if (useScrollFallback) {
+                    return ListView(
                       children: [
-                        Expanded(
-                          child: timelinePane(
-                            showSideDrawer: showSideDrawer,
-                            useExpandedList: !useScrollFallback,
-                          ),
+                        const OnyxPageHeader(
+                          title: 'Event Review',
+                          subtitle:
+                              'Readable forensic timeline with a calmer detail surface and faster filter triage.',
                         ),
-                        if (showSideDrawer) ...[
-                          const SizedBox(width: 10),
-                          SizedBox(
-                            width: sidePaneWidth,
-                            child: selected == null
-                                ? _emptyDetailPane()
-                                : _selectedDetailPane(selected),
-                          ),
-                        ],
+                        const SizedBox(height: 10),
+                        _summaryStrip(
+                          totalCount: forensicRows.length,
+                          filteredCount: filtered.length,
+                          latestSequence: timeline.isEmpty
+                              ? null
+                              : timeline.first.sequence,
+                        ),
+                        const SizedBox(height: 8),
+                        _filterBar(
+                          allTypes: allTypes,
+                          allSites: allSites,
+                          allGuards: allGuards,
+                          filteredCount: filtered.length,
+                        ),
+                        const SizedBox(height: 8),
+                        mainLayout(),
                       ],
                     );
-                  },
-                );
-              }
+                  }
 
-              if (useScrollFallback) {
-                return ListView(
-                  children: [
-                    const OnyxPageHeader(
-                      title: 'Event Review',
-                      subtitle:
-                          'Readable forensic timeline with a calmer detail surface and faster filter triage.',
-                    ),
-                    const SizedBox(height: 10),
-                    _summaryStrip(
-                      totalCount: forensicRows.length,
-                      filteredCount: filtered.length,
-                      latestSequence: timeline.isEmpty
-                          ? null
-                          : timeline.first.sequence,
-                    ),
-                    const SizedBox(height: 8),
-                    _filterBar(
-                      allTypes: allTypes,
-                      allSites: allSites,
-                      allGuards: allGuards,
-                      filteredCount: filtered.length,
-                    ),
-                    const SizedBox(height: 8),
-                    mainLayout(),
-                  ],
-                );
-              }
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const OnyxPageHeader(
-                    title: 'Event Review',
-                    subtitle:
-                        'Readable forensic timeline with a calmer detail surface and faster filter triage.',
-                  ),
-                  const SizedBox(height: 12),
-                  _summaryStrip(
-                    totalCount: forensicRows.length,
-                    filteredCount: filtered.length,
-                    latestSequence: timeline.isEmpty
-                        ? null
-                        : timeline.first.sequence,
-                  ),
-                  const SizedBox(height: 10),
-                  _filterBar(
-                    allTypes: allTypes,
-                    allSites: allSites,
-                    allGuards: allGuards,
-                    filteredCount: filtered.length,
-                  ),
-                  const SizedBox(height: 10),
-                  Expanded(child: mainLayout()),
-                ],
-              );
-            },
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const OnyxPageHeader(
+                        title: 'Event Review',
+                        subtitle:
+                            'Readable forensic timeline with a calmer detail surface and faster filter triage.',
+                      ),
+                      const SizedBox(height: 12),
+                      _summaryStrip(
+                        totalCount: forensicRows.length,
+                        filteredCount: filtered.length,
+                        latestSequence: timeline.isEmpty
+                            ? null
+                            : timeline.first.sequence,
+                      ),
+                      const SizedBox(height: 10),
+                      _filterBar(
+                        allTypes: allTypes,
+                        allSites: allSites,
+                        allGuards: allGuards,
+                        filteredCount: filtered.length,
+                      ),
+                      const SizedBox(height: 10),
+                      Expanded(child: mainLayout()),
+                    ],
+                  );
+                },
+              ),
+            ),
           ),
         ),
       ),

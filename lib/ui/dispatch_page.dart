@@ -1079,170 +1079,181 @@ class _DispatchPageState extends State<DispatchPage> {
         child: ListView(
           padding: const EdgeInsets.all(14),
           children: [
-            _dispatchHeroCard(
-              decisions: decisions,
-              executions: executions,
-              denied: denied,
-              compact: compactDensity,
-            ),
-            const SizedBox(height: 10),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final useTwoColumn = constraints.maxWidth >= 1240;
-                final compactDensity = constraints.maxWidth < 1460;
-                final sectionGap = compactDensity ? 8.0 : 10.0;
-                final systemStatusCard = _dispatchShellCard(
-                  title: 'System Status',
-                  subtitle:
-                      'Feed readiness, news-source diagnostics, poll state, and live ingest messaging are grouped here instead of floating between control rows.',
-                  compact: compactDensity,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _operationalWiringBlock(),
-                      SizedBox(height: compactDensity ? 8 : 10),
-                      _newsAndFeedStatusBlock(),
-                      SizedBox(height: compactDensity ? 8 : 10),
-                      _triagePostureBlock(
-                        allIntel: siteIntel,
-                        decisions: decisions,
-                      ),
-                      if (widget.intakeStatus != null) ...[
-                        SizedBox(height: compactDensity ? 8 : 10),
-                        _dispatchStatusLine(
-                          widget.intakeStatus!,
-                          const Color(0xFF7FB0DE),
-                        ),
-                      ],
-                      if (widget.runtimeConfigHint != null) ...[
-                        SizedBox(height: compactDensity ? 6 : 8),
-                        _dispatchStatusLine(
-                          widget.runtimeConfigHint!,
-                          const Color(0xFFFFD6A5),
-                        ),
-                      ],
-                      if (widget.livePollingLabel != null) ...[
-                        SizedBox(height: compactDensity ? 6 : 8),
-                        _dispatchStatusLine(
-                          widget.livePollingLabel!,
-                          const Color(0xFF9FD8AC),
-                        ),
-                      ],
-                      if (widget.livePollingHistory.isNotEmpty) ...[
-                        SizedBox(height: compactDensity ? 8 : 10),
-                        _livePollingHistoryCard(widget.livePollingHistory),
-                      ],
-                    ],
-                  ),
-                );
-                final intelligenceCard = recentNewsIntel.isEmpty
-                    ? null
-                    : _dispatchShellCard(
-                        title: 'Intelligence Review',
-                        subtitle:
-                            'High-signal news and community intelligence stays in its own review block rather than competing with the control workspace.',
-                        compact: compactDensity,
-                        child: _intelligenceBriefingCard(
-                          recentNewsIntel,
-                          allIntel: siteIntel,
-                          decisions: decisions,
-                        ),
-                      );
-                final telemetryCard = widget.intakeTelemetry == null
-                    ? null
-                    : _dispatchShellCard(
-                        title: 'Telemetry & History',
-                        subtitle:
-                            'Performance metrics, ingest history, and benchmark traces are grouped into a dedicated review section.',
-                        compact: compactDensity,
-                        child: Column(
-                          children: [
-                            _telemetryCard(widget.intakeTelemetry!),
-                            _liveIngestHistory(widget.intakeTelemetry!),
-                            _benchmarkHistory(widget.intakeTelemetry!),
-                          ],
-                        ),
-                      );
-                final controlCard = _dispatchShellCard(
-                  title: 'Control Workspace',
-                  subtitle:
-                      'Scenario setup, stress controls, imports, exports, and snapshot tools remain intact but sit inside one clear command zone.',
-                  compact: compactDensity,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _stressControlCard(),
-                      if (widget.stressStatus != null) ...[
-                        SizedBox(height: compactDensity ? 8 : 10),
-                        _dispatchStatusLine(
-                          widget.stressStatus!,
-                          const Color(0xFF9FD8AC),
-                        ),
-                      ],
-                    ],
-                  ),
-                );
-                final queueCard = _dispatchQueueCard(
-                  decisions: decisions,
-                  executionByDispatch: executionByDispatch,
-                  deniedByDispatch: deniedByDispatch,
-                  responsesByDispatch: responsesByDispatch,
-                  closureByDispatch: closureByDispatch,
-                );
-
-                if (!useTwoColumn) {
-                  return Column(
-                    children: [
-                      systemStatusCard,
-                      if (intelligenceCard != null) ...[
-                        SizedBox(height: sectionGap),
-                        intelligenceCard,
-                      ],
-                      SizedBox(height: sectionGap),
-                      controlCard,
-                      if (telemetryCard != null) ...[
-                        SizedBox(height: sectionGap),
-                        telemetryCard,
-                      ],
-                      SizedBox(height: sectionGap),
-                      queueCard,
-                    ],
-                  );
-                }
-
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1540),
+                child: Column(
                   children: [
-                    Expanded(
-                      flex: 9,
-                      child: Column(
-                        children: [
-                          controlCard,
-                          SizedBox(height: sectionGap),
-                          queueCard,
-                        ],
-                      ),
+                    _dispatchHeroCard(
+                      decisions: decisions,
+                      executions: executions,
+                      denied: denied,
+                      compact: compactDensity,
                     ),
-                    SizedBox(width: sectionGap),
-                    Expanded(
-                      flex: 4,
-                      child: Column(
-                        children: [
-                          systemStatusCard,
-                          if (intelligenceCard != null) ...[
-                            SizedBox(height: sectionGap),
-                            intelligenceCard,
+                    const SizedBox(height: 10),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final useTwoColumn = constraints.maxWidth >= 1240;
+                        final compactDensity = constraints.maxWidth < 1460;
+                        final sectionGap = compactDensity ? 8.0 : 10.0;
+                        final systemStatusCard = _dispatchShellCard(
+                          title: 'System Status',
+                          subtitle:
+                              'Feed readiness, news-source diagnostics, poll state, and live ingest messaging are grouped here instead of floating between control rows.',
+                          compact: compactDensity,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _operationalWiringBlock(),
+                              SizedBox(height: compactDensity ? 8 : 10),
+                              _newsAndFeedStatusBlock(),
+                              SizedBox(height: compactDensity ? 8 : 10),
+                              _triagePostureBlock(
+                                allIntel: siteIntel,
+                                decisions: decisions,
+                              ),
+                              if (widget.intakeStatus != null) ...[
+                                SizedBox(height: compactDensity ? 8 : 10),
+                                _dispatchStatusLine(
+                                  widget.intakeStatus!,
+                                  const Color(0xFF7FB0DE),
+                                ),
+                              ],
+                              if (widget.runtimeConfigHint != null) ...[
+                                SizedBox(height: compactDensity ? 6 : 8),
+                                _dispatchStatusLine(
+                                  widget.runtimeConfigHint!,
+                                  const Color(0xFFFFD6A5),
+                                ),
+                              ],
+                              if (widget.livePollingLabel != null) ...[
+                                SizedBox(height: compactDensity ? 6 : 8),
+                                _dispatchStatusLine(
+                                  widget.livePollingLabel!,
+                                  const Color(0xFF9FD8AC),
+                                ),
+                              ],
+                              if (widget.livePollingHistory.isNotEmpty) ...[
+                                SizedBox(height: compactDensity ? 8 : 10),
+                                _livePollingHistoryCard(
+                                  widget.livePollingHistory,
+                                ),
+                              ],
+                            ],
+                          ),
+                        );
+                        final intelligenceCard = recentNewsIntel.isEmpty
+                            ? null
+                            : _dispatchShellCard(
+                                title: 'Intelligence Review',
+                                subtitle:
+                                    'High-signal news and community intelligence stays in its own review block rather than competing with the control workspace.',
+                                compact: compactDensity,
+                                child: _intelligenceBriefingCard(
+                                  recentNewsIntel,
+                                  allIntel: siteIntel,
+                                  decisions: decisions,
+                                ),
+                              );
+                        final telemetryCard = widget.intakeTelemetry == null
+                            ? null
+                            : _dispatchShellCard(
+                                title: 'Telemetry & History',
+                                subtitle:
+                                    'Performance metrics, ingest history, and benchmark traces are grouped into a dedicated review section.',
+                                compact: compactDensity,
+                                child: Column(
+                                  children: [
+                                    _telemetryCard(widget.intakeTelemetry!),
+                                    _liveIngestHistory(widget.intakeTelemetry!),
+                                    _benchmarkHistory(widget.intakeTelemetry!),
+                                  ],
+                                ),
+                              );
+                        final controlCard = _dispatchShellCard(
+                          title: 'Control Workspace',
+                          subtitle:
+                              'Scenario setup, stress controls, imports, exports, and snapshot tools remain intact but sit inside one clear command zone.',
+                          compact: compactDensity,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _stressControlCard(),
+                              if (widget.stressStatus != null) ...[
+                                SizedBox(height: compactDensity ? 8 : 10),
+                                _dispatchStatusLine(
+                                  widget.stressStatus!,
+                                  const Color(0xFF9FD8AC),
+                                ),
+                              ],
+                            ],
+                          ),
+                        );
+                        final queueCard = _dispatchQueueCard(
+                          decisions: decisions,
+                          executionByDispatch: executionByDispatch,
+                          deniedByDispatch: deniedByDispatch,
+                          responsesByDispatch: responsesByDispatch,
+                          closureByDispatch: closureByDispatch,
+                        );
+
+                        if (!useTwoColumn) {
+                          return Column(
+                            children: [
+                              systemStatusCard,
+                              if (intelligenceCard != null) ...[
+                                SizedBox(height: sectionGap),
+                                intelligenceCard,
+                              ],
+                              SizedBox(height: sectionGap),
+                              controlCard,
+                              if (telemetryCard != null) ...[
+                                SizedBox(height: sectionGap),
+                                telemetryCard,
+                              ],
+                              SizedBox(height: sectionGap),
+                              queueCard,
+                            ],
+                          );
+                        }
+
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 9,
+                              child: Column(
+                                children: [
+                                  controlCard,
+                                  SizedBox(height: sectionGap),
+                                  queueCard,
+                                ],
+                              ),
+                            ),
+                            SizedBox(width: sectionGap),
+                            Expanded(
+                              flex: 4,
+                              child: Column(
+                                children: [
+                                  systemStatusCard,
+                                  if (intelligenceCard != null) ...[
+                                    SizedBox(height: sectionGap),
+                                    intelligenceCard,
+                                  ],
+                                  if (telemetryCard != null) ...[
+                                    SizedBox(height: sectionGap),
+                                    telemetryCard,
+                                  ],
+                                ],
+                              ),
+                            ),
                           ],
-                          if (telemetryCard != null) ...[
-                            SizedBox(height: sectionGap),
-                            telemetryCard,
-                          ],
-                        ],
-                      ),
+                        );
+                      },
                     ),
                   ],
-                );
-              },
+                ),
+              ),
             ),
           ],
         ),
