@@ -17,6 +17,12 @@ flutter analyze
 flutter test
 ```
 
+### Fast UI compact smoke
+
+```bash
+make smoke-ui
+```
+
 ### Unified ONYX ops preflight (recommended)
 
 Runs analyze + tests + guard gate in one command.

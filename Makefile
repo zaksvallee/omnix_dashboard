@@ -1,4 +1,4 @@
-.PHONY: run-web analyze test preflight guard-auto guard-predevice guard-pilot
+.PHONY: run-web analyze test smoke-ui preflight guard-auto guard-predevice guard-pilot
 
 CONFIG ?= config/onyx.local.json
 ACTION ?= com.onyx.fsk.SDK_HEARTBEAT
@@ -13,6 +13,9 @@ analyze:
 
 test:
 	flutter test
+
+smoke-ui:
+	./scripts/ui_compact_smoke.sh
 
 preflight:
 	./scripts/onyx_ops_preflight.sh --samples $(SAMPLES) --max-report-age-hours $(MAX_REPORT_AGE_HOURS) --config $(CONFIG)
