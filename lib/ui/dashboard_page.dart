@@ -354,6 +354,8 @@ class _DesktopDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final viewportHeight = MediaQuery.sizeOf(context).height;
+    final railHeight = (viewportHeight - 190).clamp(520.0, 920.0);
     final rightRail = _RightRail(
       snapshot: snapshot,
       threat: threat,
@@ -422,7 +424,11 @@ class _DesktopDashboard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    SizedBox(width: 308, child: rightRail),
+                    SizedBox(
+                      width: 308,
+                      height: railHeight,
+                      child: rightRail,
+                    ),
                   ],
                 ),
             ],
@@ -1053,9 +1059,11 @@ class _RightRail extends StatelessWidget {
       ...recentMediaFailureTraces,
     ].toList(growable: false);
 
-    return Column(
-      children: [
-        _DashboardCard(
+    return Scrollbar(
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            _DashboardCard(
           title: 'Threat Readout',
           subtitle: 'Condensed command view with readable actions.',
           child: Column(
@@ -1097,9 +1105,9 @@ class _RightRail extends StatelessWidget {
               ),
             ],
           ),
-        ),
-        const SizedBox(height: 10),
-        _DashboardCard(
+            ),
+            const SizedBox(height: 10),
+            _DashboardCard(
           title: 'Operational Mix',
           subtitle: 'Core signal buckets without visual clutter.',
           child: Column(
@@ -1133,9 +1141,9 @@ class _RightRail extends StatelessWidget {
               ),
             ],
           ),
-        ),
-        const SizedBox(height: 10),
-        _DashboardCard(
+            ),
+            const SizedBox(height: 10),
+            _DashboardCard(
           title: 'Guard Sync Health',
           subtitle: 'Queue pressure and failure trace from Android guard sync.',
           child: Column(
@@ -2206,9 +2214,9 @@ class _RightRail extends StatelessWidget {
               ),
             ],
           ),
-        ),
-        const SizedBox(height: 10),
-        _DashboardCard(
+            ),
+            const SizedBox(height: 10),
+            _DashboardCard(
           title: 'Command Notes',
           subtitle: 'Readable guidance instead of dense stacked labels.',
           child: Column(
@@ -2236,8 +2244,10 @@ class _RightRail extends StatelessWidget {
               ),
             ],
           ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
