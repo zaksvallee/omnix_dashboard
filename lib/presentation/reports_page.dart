@@ -11,259 +11,268 @@ class ReportsPage extends StatelessWidget {
     return OnyxPageScaffold(
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const OnyxPageHeader(
-              title: 'Reports Command Hub',
-              subtitle:
-                  'Deterministic reporting, replay verification, and export readiness for client-facing intelligence packs.',
-            ),
-            const SizedBox(height: 12),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final columns = constraints.maxWidth >= 1260
-                    ? 3
-                    : constraints.maxWidth >= 860
-                    ? 2
-                    : 1;
-                const spacing = 10.0;
-                final itemWidth =
-                    (constraints.maxWidth - ((columns - 1) * spacing)) /
-                    columns;
-                return Wrap(
-                  spacing: spacing,
-                  runSpacing: spacing,
-                  children: [
-                    SizedBox(
-                      width: itemWidth,
-                      child: const OnyxSummaryStat(
-                        label: 'Report Modes',
-                        value: '3',
-                        accent: Color(0xFF63BDFF),
-                      ),
-                    ),
-                    SizedBox(
-                      width: itemWidth,
-                      child: const OnyxSummaryStat(
-                        label: 'Integrity State',
-                        value: 'Ready',
-                        accent: Color(0xFF59D79B),
-                      ),
-                    ),
-                    SizedBox(
-                      width: itemWidth,
-                      child: const OnyxSummaryStat(
-                        label: 'Export Paths',
-                        value: 'PDF',
-                        accent: Color(0xFFF6C067),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final stackVertically = constraints.maxWidth < 1360;
-
-                  final generationFlowCard = OnyxSectionCard(
-                    title: 'Report Generation Flow',
-                    subtitle:
-                        'Operational PDF generation, receipt hashing, and replay-safe validation are grouped here as one guided output path.',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1540),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const OnyxPageHeader(
+                  title: 'Reports Command Hub',
+                  subtitle:
+                      'Deterministic reporting, replay verification, and export readiness for client-facing intelligence packs.',
+                ),
+                const SizedBox(height: 12),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final columns = constraints.maxWidth >= 1260
+                        ? 3
+                        : constraints.maxWidth >= 860
+                        ? 2
+                        : 1;
+                    const spacing = 10.0;
+                    final itemWidth =
+                        (constraints.maxWidth - ((columns - 1) * spacing)) /
+                        columns;
+                    return Wrap(
+                      spacing: spacing,
+                      runSpacing: spacing,
                       children: [
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          children: const [
-                            _LaneBadge(
-                              label: 'Build',
-                              detail: 'PDF bundle + receipt hash',
-                              accent: Color(0xFF63BDFF),
-                            ),
-                            _LaneBadge(
-                              label: 'Verify',
-                              detail: 'Replay-safe integrity check',
-                              accent: Color(0xFF59D79B),
-                            ),
-                            _LaneBadge(
-                              label: 'Release',
-                              detail: 'Client export handoff',
-                              accent: Color(0xFFF6C067),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                        _flowRow(
-                          icon: Icons.picture_as_pdf_rounded,
-                          title: 'Generate Deterministic PDF',
-                          detail:
-                              'Build client intelligence reports from the current projection snapshot and preserve the exact content hash.',
-                          accent: const Color(0xFF63BDFF),
-                        ),
-                        const SizedBox(height: 12),
-                        _flowRow(
-                          icon: Icons.verified_rounded,
-                          title: 'Replay Verification',
-                          detail:
-                              'Rebuild the same report from its receipt and confirm byte-level content integrity before delivery.',
-                          accent: const Color(0xFF59D79B),
-                        ),
-                        const SizedBox(height: 12),
-                        _flowRow(
-                          icon: Icons.outbox_rounded,
-                          title: 'Client Distribution',
-                          detail:
-                              'Prepare export-ready report bundles for downstream client delivery, audit retention, and print review.',
-                          accent: const Color(0xFFF6C067),
-                        ),
-                      ],
-                    ),
-                  );
-
-                  final outputModulesCard = OnyxSectionCard(
-                    title: 'Output Modules',
-                    subtitle:
-                        'The report system is organized into reusable output lanes so preview, audit, and delivery stay separate.',
-                    child: LayoutBuilder(
-                      builder: (context, moduleConstraints) {
-                        final moduleColumns = moduleConstraints.maxWidth >= 900
-                            ? 3
-                            : 1;
-                        const spacing = 10.0;
-                        final cardWidth =
-                            (moduleConstraints.maxWidth -
-                                ((moduleColumns - 1) * spacing)) /
-                            moduleColumns;
-                        return Wrap(
-                          spacing: spacing,
-                          runSpacing: spacing,
-                          children: [
-                            SizedBox(
-                              width: cardWidth,
-                              child: const _ReportModeCard(
-                                icon: Icons.visibility_rounded,
-                                title: 'Preview',
-                                detail:
-                                    'Inspect generated output before distribution.',
-                                accent: Color(0xFF63BDFF),
-                              ),
-                            ),
-                            SizedBox(
-                              width: cardWidth,
-                              child: const _ReportModeCard(
-                                icon: Icons.history_rounded,
-                                title: 'Receipts',
-                                detail:
-                                    'Track replay receipts and integrity proofs.',
-                                accent: Color(0xFF59D79B),
-                              ),
-                            ),
-                            SizedBox(
-                              width: cardWidth,
-                              child: const _ReportModeCard(
-                                icon: Icons.share_rounded,
-                                title: 'Delivery',
-                                detail:
-                                    'Prepare client-safe delivery and export.',
-                                accent: Color(0xFFF6C067),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  );
-
-                  final readinessBoardCard = OnyxSectionCard(
-                    title: 'Readiness Board',
-                    subtitle:
-                        'Use this board as the operator-facing checkpoint before generating or distributing any report.',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _readinessTile(
-                          title: 'Projection snapshot available',
-                          detail:
-                              'Current reporting inputs are present for deterministic generation.',
-                          color: const Color(0xFF59D79B),
-                        ),
-                        const SizedBox(height: 8),
-                        _readinessTile(
-                          title: 'Replay verification supported',
-                          detail:
-                              'Receipts can be reopened and regenerated for integrity proof.',
-                          color: const Color(0xFF63BDFF),
-                        ),
-                        const SizedBox(height: 8),
-                        _readinessTile(
-                          title: 'Client delivery surface pending',
-                          detail:
-                              'Distribution workflow is staged and ready for client-surface handoff.',
-                          color: const Color(0xFFF6C067),
-                        ),
-                        const SizedBox(height: 14),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF0B182B), Color(0xFF091423)],
-                            ),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: const Color(0xFF17324F)),
-                          ),
-                          child: Text(
-                            'This hub now acts as the operator-facing command layer for generation, verification, and distribution readiness. The deeper preview and receipt-harness flows inherit the same structure below.',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFF9BB0CE),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              height: 1.45,
-                            ),
+                        SizedBox(
+                          width: itemWidth,
+                          child: const OnyxSummaryStat(
+                            label: 'Report Modes',
+                            value: '3',
+                            accent: Color(0xFF63BDFF),
                           ),
                         ),
-                      ],
-                    ),
-                  );
-
-                  if (stackVertically) {
-                    return ListView(
-                      children: [
-                        generationFlowCard,
-                        const SizedBox(height: 8),
-                        outputModulesCard,
-                        const SizedBox(height: 8),
-                        readinessBoardCard,
+                        SizedBox(
+                          width: itemWidth,
+                          child: const OnyxSummaryStat(
+                            label: 'Integrity State',
+                            value: 'Ready',
+                            accent: Color(0xFF59D79B),
+                          ),
+                        ),
+                        SizedBox(
+                          width: itemWidth,
+                          child: const OnyxSummaryStat(
+                            label: 'Export Paths',
+                            value: 'PDF',
+                            accent: Color(0xFFF6C067),
+                          ),
+                        ),
                       ],
                     );
-                  }
+                  },
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final stackVertically = constraints.maxWidth < 1360;
 
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 7,
+                      final generationFlowCard = OnyxSectionCard(
+                        title: 'Report Generation Flow',
+                        subtitle:
+                            'Operational PDF generation, receipt hashing, and replay-safe validation are grouped here as one guided output path.',
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(child: generationFlowCard),
-                            const SizedBox(height: 8),
-                            Expanded(child: outputModulesCard),
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 10,
+                              children: const [
+                                _LaneBadge(
+                                  label: 'Build',
+                                  detail: 'PDF bundle + receipt hash',
+                                  accent: Color(0xFF63BDFF),
+                                ),
+                                _LaneBadge(
+                                  label: 'Verify',
+                                  detail: 'Replay-safe integrity check',
+                                  accent: Color(0xFF59D79B),
+                                ),
+                                _LaneBadge(
+                                  label: 'Release',
+                                  detail: 'Client export handoff',
+                                  accent: Color(0xFFF6C067),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+                            _flowRow(
+                              icon: Icons.picture_as_pdf_rounded,
+                              title: 'Generate Deterministic PDF',
+                              detail:
+                                  'Build client intelligence reports from the current projection snapshot and preserve the exact content hash.',
+                              accent: const Color(0xFF63BDFF),
+                            ),
+                            const SizedBox(height: 12),
+                            _flowRow(
+                              icon: Icons.verified_rounded,
+                              title: 'Replay Verification',
+                              detail:
+                                  'Rebuild the same report from its receipt and confirm byte-level content integrity before delivery.',
+                              accent: const Color(0xFF59D79B),
+                            ),
+                            const SizedBox(height: 12),
+                            _flowRow(
+                              icon: Icons.outbox_rounded,
+                              title: 'Client Distribution',
+                              detail:
+                                  'Prepare export-ready report bundles for downstream client delivery, audit retention, and print review.',
+                              accent: const Color(0xFFF6C067),
+                            ),
                           ],
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(flex: 4, child: readinessBoardCard),
-                    ],
-                  );
-                },
-              ),
+                      );
+
+                      final outputModulesCard = OnyxSectionCard(
+                        title: 'Output Modules',
+                        subtitle:
+                            'The report system is organized into reusable output lanes so preview, audit, and delivery stay separate.',
+                        child: LayoutBuilder(
+                          builder: (context, moduleConstraints) {
+                            final moduleColumns =
+                                moduleConstraints.maxWidth >= 900 ? 3 : 1;
+                            const spacing = 10.0;
+                            final cardWidth =
+                                (moduleConstraints.maxWidth -
+                                    ((moduleColumns - 1) * spacing)) /
+                                moduleColumns;
+                            return Wrap(
+                              spacing: spacing,
+                              runSpacing: spacing,
+                              children: [
+                                SizedBox(
+                                  width: cardWidth,
+                                  child: const _ReportModeCard(
+                                    icon: Icons.visibility_rounded,
+                                    title: 'Preview',
+                                    detail:
+                                        'Inspect generated output before distribution.',
+                                    accent: Color(0xFF63BDFF),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: cardWidth,
+                                  child: const _ReportModeCard(
+                                    icon: Icons.history_rounded,
+                                    title: 'Receipts',
+                                    detail:
+                                        'Track replay receipts and integrity proofs.',
+                                    accent: Color(0xFF59D79B),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: cardWidth,
+                                  child: const _ReportModeCard(
+                                    icon: Icons.share_rounded,
+                                    title: 'Delivery',
+                                    detail:
+                                        'Prepare client-safe delivery and export.',
+                                    accent: Color(0xFFF6C067),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      );
+
+                      final readinessBoardCard = OnyxSectionCard(
+                        title: 'Readiness Board',
+                        subtitle:
+                            'Use this board as the operator-facing checkpoint before generating or distributing any report.',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _readinessTile(
+                              title: 'Projection snapshot available',
+                              detail:
+                                  'Current reporting inputs are present for deterministic generation.',
+                              color: const Color(0xFF59D79B),
+                            ),
+                            const SizedBox(height: 8),
+                            _readinessTile(
+                              title: 'Replay verification supported',
+                              detail:
+                                  'Receipts can be reopened and regenerated for integrity proof.',
+                              color: const Color(0xFF63BDFF),
+                            ),
+                            const SizedBox(height: 8),
+                            _readinessTile(
+                              title: 'Client delivery surface pending',
+                              detail:
+                                  'Distribution workflow is staged and ready for client-surface handoff.',
+                              color: const Color(0xFFF6C067),
+                            ),
+                            const SizedBox(height: 14),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFF0B182B),
+                                    Color(0xFF091423),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: const Color(0xFF17324F),
+                                ),
+                              ),
+                              child: Text(
+                                'This hub now acts as the operator-facing command layer for generation, verification, and distribution readiness. The deeper preview and receipt-harness flows inherit the same structure below.',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF9BB0CE),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.45,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (stackVertically) {
+                        return ListView(
+                          children: [
+                            generationFlowCard,
+                            const SizedBox(height: 8),
+                            outputModulesCard,
+                            const SizedBox(height: 8),
+                            readinessBoardCard,
+                          ],
+                        );
+                      }
+
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 7,
+                            child: Column(
+                              children: [
+                                Expanded(child: generationFlowCard),
+                                const SizedBox(height: 8),
+                                Expanded(child: outputModulesCard),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(flex: 4, child: readinessBoardCard),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

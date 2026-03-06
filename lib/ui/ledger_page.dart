@@ -128,167 +128,179 @@ class _LedgerPageState extends State<LedgerPage> {
         padding: const EdgeInsets.all(12),
         child: ListView(
           children: [
-            OnyxPageHeader(
-              title: 'Evidence Ledger — ${widget.clientId}',
-              subtitle:
-                  'Operational trace, evidence continuity, and replay-safe integrity checks.',
-              actions: [
-                ElevatedButton.icon(
-                  onPressed: _verifyChain,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF194E87),
-                    foregroundColor: const Color(0xFFE6F2FF),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 14,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  icon: const Icon(Icons.verified_rounded),
-                  label: Text(
-                    'Verify Chain',
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final columns = constraints.maxWidth >= 1280
-                    ? 3
-                    : constraints.maxWidth >= 860
-                    ? 2
-                    : 1;
-                const spacing = 10.0;
-                final cardWidth =
-                    (constraints.maxWidth - ((columns - 1) * spacing)) /
-                    columns;
-                return Wrap(
-                  spacing: spacing,
-                  runSpacing: spacing,
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1540),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(
-                      width: cardWidth,
-                      child: OnyxSummaryStat(
-                        label: 'Ledger Source',
-                        value: sourceLabel,
-                        accent: const Color(0xFF63BDFF),
-                      ),
+                    OnyxPageHeader(
+                      title: 'Evidence Ledger — ${widget.clientId}',
+                      subtitle:
+                          'Operational trace, evidence continuity, and replay-safe integrity checks.',
+                      actions: [
+                        ElevatedButton.icon(
+                          onPressed: _verifyChain,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF194E87),
+                            foregroundColor: const Color(0xFFE6F2FF),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 14,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          icon: const Icon(Icons.verified_rounded),
+                          label: Text(
+                            'Verify Chain',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    SizedBox(
-                      width: cardWidth,
-                      child: OnyxSummaryStat(
-                        label: 'Visible Rows',
-                        value: rowCount.toString(),
-                        accent: const Color(0xFF59D79B),
-                      ),
+                    const SizedBox(height: 12),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final columns = constraints.maxWidth >= 1280
+                            ? 3
+                            : constraints.maxWidth >= 860
+                            ? 2
+                            : 1;
+                        const spacing = 10.0;
+                        final cardWidth =
+                            (constraints.maxWidth - ((columns - 1) * spacing)) /
+                            columns;
+                        return Wrap(
+                          spacing: spacing,
+                          runSpacing: spacing,
+                          children: [
+                            SizedBox(
+                              width: cardWidth,
+                              child: OnyxSummaryStat(
+                                label: 'Ledger Source',
+                                value: sourceLabel,
+                                accent: const Color(0xFF63BDFF),
+                              ),
+                            ),
+                            SizedBox(
+                              width: cardWidth,
+                              child: OnyxSummaryStat(
+                                label: 'Visible Rows',
+                                value: rowCount.toString(),
+                                accent: const Color(0xFF59D79B),
+                              ),
+                            ),
+                            SizedBox(
+                              width: cardWidth,
+                              child: OnyxSummaryStat(
+                                label: 'Integrity State',
+                                value: _verificationResult == null
+                                    ? 'Pending'
+                                    : _verificationResult!.contains('VERIFIED')
+                                    ? 'Verified'
+                                    : 'Failed',
+                                accent: _verificationResult == null
+                                    ? const Color(0xFF8CA5C8)
+                                    : _verificationResult!.contains('VERIFIED')
+                                    ? const Color(0xFF59D79B)
+                                    : const Color(0xFFFF8D9A),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
-                    SizedBox(
-                      width: cardWidth,
-                      child: OnyxSummaryStat(
-                        label: 'Integrity State',
-                        value: _verificationResult == null
-                            ? 'Pending'
-                            : _verificationResult!.contains('VERIFIED')
-                            ? 'Verified'
-                            : 'Failed',
-                        accent: _verificationResult == null
-                            ? const Color(0xFF8CA5C8)
-                            : _verificationResult!.contains('VERIFIED')
-                            ? const Color(0xFF59D79B)
-                            : const Color(0xFFFF8D9A),
+                    if (_runtimeConfigHint != null) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          gradient: LinearGradient(
+                            colors: [
+                              const Color(0xFFB18A2A).withValues(alpha: 0.16),
+                              const Color(0xFF0B182B),
+                            ],
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                          ),
+                          border: Border.all(color: const Color(0xFFF0C36C)),
+                        ),
+                        child: Text(
+                          _runtimeConfigHint!,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFFADFA4),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (_verificationResult != null) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          gradient: LinearGradient(
+                            colors: [
+                              (_verificationResult!.contains('VERIFIED')
+                                      ? const Color(0xFF2AAC7D)
+                                      : const Color(0xFFD05667))
+                                  .withValues(alpha: 0.16),
+                              const Color(0xFF0B182B),
+                            ],
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                          ),
+                          border: Border.all(
+                            color: _verificationResult!.contains('VERIFIED')
+                                ? const Color(0xFF46DBA2)
+                                : const Color(0xFFFF7686),
+                          ),
+                        ),
+                        child: Text(
+                          _verificationResult!,
+                          style: GoogleFonts.inter(
+                            color: _verificationResult!.contains('VERIFIED')
+                                ? const Color(0xFF8FF3C9)
+                                : const Color(0xFFFF9AA7),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    OnyxSectionCard(
+                      title: 'Ledger Timeline',
+                      subtitle:
+                          'Review evidence continuity, hashes, and fallback trace rows in one audit surface.',
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final timelineHeight = constraints.maxWidth >= 1280
+                              ? 500.0
+                              : 420.0;
+                          return SizedBox(
+                            height: timelineHeight,
+                            child: showSupabaseRows
+                                ? _buildSupabaseLedger()
+                                : _buildFallbackTimeline(),
+                          );
+                        },
                       ),
                     ),
                   ],
-                );
-              },
-            ),
-            if (_runtimeConfigHint != null) ...[
-              const SizedBox(height: 10),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
                 ),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  gradient: LinearGradient(
-                    colors: [
-                      const Color(0xFFB18A2A).withValues(alpha: 0.16),
-                      const Color(0xFF0B182B),
-                    ],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                  ),
-                  border: Border.all(color: const Color(0xFFF0C36C)),
-                ),
-                child: Text(
-                  _runtimeConfigHint!,
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFFFADFA4),
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-            if (_verificationResult != null) ...[
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  gradient: LinearGradient(
-                    colors: [
-                      (_verificationResult!.contains('VERIFIED')
-                              ? const Color(0xFF2AAC7D)
-                              : const Color(0xFFD05667))
-                          .withValues(alpha: 0.16),
-                      const Color(0xFF0B182B),
-                    ],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                  ),
-                  border: Border.all(
-                    color: _verificationResult!.contains('VERIFIED')
-                        ? const Color(0xFF46DBA2)
-                        : const Color(0xFFFF7686),
-                  ),
-                ),
-                child: Text(
-                  _verificationResult!,
-                  style: GoogleFonts.inter(
-                    color: _verificationResult!.contains('VERIFIED')
-                        ? const Color(0xFF8FF3C9)
-                        : const Color(0xFFFF9AA7),
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-            const SizedBox(height: 12),
-            OnyxSectionCard(
-              title: 'Ledger Timeline',
-              subtitle:
-                  'Review evidence continuity, hashes, and fallback trace rows in one audit surface.',
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final timelineHeight = constraints.maxWidth >= 1280
-                      ? 500.0
-                      : 420.0;
-                  return SizedBox(
-                    height: timelineHeight,
-                    child: showSupabaseRows
-                        ? _buildSupabaseLedger()
-                        : _buildFallbackTimeline(),
-                  );
-                },
               ),
             ),
           ],

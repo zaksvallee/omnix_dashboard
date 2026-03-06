@@ -55,92 +55,97 @@ class _GuardsPageState extends State<GuardsPage> {
     return OnyxPageScaffold(
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const OnyxPageHeader(
-              title: 'Field Team Console',
-              subtitle:
-                  'Guard readiness, patrol discipline, and response exposure in one operational view.',
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1540),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(
-                  width: 260,
-                  child: OnyxSummaryStat(
-                    label: 'Active Guards',
-                    value: guards.length.toString(),
-                    accent: const Color(0xFF63BDFF),
-                  ),
+                const OnyxPageHeader(
+                  title: 'Field Team Console',
+                  subtitle:
+                      'Guard readiness, patrol discipline, and response exposure in one operational view.',
                 ),
-                SizedBox(
-                  width: 260,
-                  child: OnyxSummaryStat(
-                    label: 'Total Check-Ins',
-                    value: totalCheckIns.toString(),
-                    accent: const Color(0xFF59D79B),
-                  ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    SizedBox(
+                      width: 260,
+                      child: OnyxSummaryStat(
+                        label: 'Active Guards',
+                        value: guards.length.toString(),
+                        accent: const Color(0xFF63BDFF),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 260,
+                      child: OnyxSummaryStat(
+                        label: 'Total Check-Ins',
+                        value: totalCheckIns.toString(),
+                        accent: const Color(0xFF59D79B),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 260,
+                      child: OnyxSummaryStat(
+                        label: 'Avg Compliance',
+                        value: '${averageCompliance.toStringAsFixed(0)}%',
+                        accent: const Color(0xFFF6C067),
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(
-                  width: 260,
-                  child: OnyxSummaryStat(
-                    label: 'Avg Compliance',
-                    value: '${averageCompliance.toStringAsFixed(0)}%',
-                    accent: const Color(0xFFF6C067),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: OnyxSectionCard(
+                    title: 'Guard Operations Workspace',
+                    subtitle:
+                        'Track personnel on the left and inspect the selected guard profile on the right.',
+                    padding: const EdgeInsets.all(16),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final stackVertically = constraints.maxWidth < 1320;
+
+                        if (stackVertically) {
+                          return SizedBox(
+                            height: 680,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                SizedBox(
+                                  height: 232,
+                                  child: _guardRoster(guards, selected),
+                                ),
+                                const SizedBox(height: 10),
+                                Expanded(child: _guardDetail(selected)),
+                              ],
+                            ),
+                          );
+                        }
+
+                        return SizedBox(
+                          height: 540,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(
+                                width: 300,
+                                child: _guardRoster(guards, selected),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(child: _guardDetail(selected)),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: OnyxSectionCard(
-                title: 'Guard Operations Workspace',
-                subtitle:
-                    'Track personnel on the left and inspect the selected guard profile on the right.',
-                padding: const EdgeInsets.all(16),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final stackVertically = constraints.maxWidth < 1320;
-
-                    if (stackVertically) {
-                      return SizedBox(
-                        height: 680,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            SizedBox(
-                              height: 232,
-                              child: _guardRoster(guards, selected),
-                            ),
-                            const SizedBox(height: 10),
-                            Expanded(child: _guardDetail(selected)),
-                          ],
-                        ),
-                      );
-                    }
-
-                    return SizedBox(
-                      height: 540,
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(
-                            width: 300,
-                            child: _guardRoster(guards, selected),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(child: _guardDetail(selected)),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

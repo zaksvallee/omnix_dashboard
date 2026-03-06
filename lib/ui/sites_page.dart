@@ -54,92 +54,97 @@ class _SitesPageState extends State<SitesPage> {
     return OnyxPageScaffold(
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const OnyxPageHeader(
-              title: 'Site Command Grid',
-              subtitle:
-                  'Estate-wide posture, dispatch exposure, and site-level operational pressure.',
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1540),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(
-                  width: 260,
-                  child: OnyxSummaryStat(
-                    label: 'Visible Sites',
-                    value: sites.length.toString(),
-                    accent: const Color(0xFF63BDFF),
-                  ),
+                const OnyxPageHeader(
+                  title: 'Site Command Grid',
+                  subtitle:
+                      'Estate-wide posture, dispatch exposure, and site-level operational pressure.',
                 ),
-                SizedBox(
-                  width: 260,
-                  child: OnyxSummaryStat(
-                    label: 'Active Dispatches',
-                    value: activeDispatches.toString(),
-                    accent: const Color(0xFF59D79B),
-                  ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    SizedBox(
+                      width: 260,
+                      child: OnyxSummaryStat(
+                        label: 'Visible Sites',
+                        value: sites.length.toString(),
+                        accent: const Color(0xFF63BDFF),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 260,
+                      child: OnyxSummaryStat(
+                        label: 'Active Dispatches',
+                        value: activeDispatches.toString(),
+                        accent: const Color(0xFF59D79B),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 260,
+                      child: OnyxSummaryStat(
+                        label: 'Average Health',
+                        value: averageHealth.toStringAsFixed(1),
+                        accent: const Color(0xFFF6C067),
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(
-                  width: 260,
-                  child: OnyxSummaryStat(
-                    label: 'Average Health',
-                    value: averageHealth.toStringAsFixed(1),
-                    accent: const Color(0xFFF6C067),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: OnyxSectionCard(
+                    title: 'Site Operations Workspace',
+                    subtitle:
+                        'Review site posture on the left, then inspect operational detail for the selected site.',
+                    padding: const EdgeInsets.all(16),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final stackVertically = constraints.maxWidth < 1320;
+
+                        if (stackVertically) {
+                          return SizedBox(
+                            height: 680,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                SizedBox(
+                                  height: 232,
+                                  child: _siteRoster(sites, selected),
+                                ),
+                                const SizedBox(height: 10),
+                                Expanded(child: _siteDetail(selected)),
+                              ],
+                            ),
+                          );
+                        }
+
+                        return SizedBox(
+                          height: 540,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(
+                                width: 300,
+                                child: _siteRoster(sites, selected),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(child: _siteDetail(selected)),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: OnyxSectionCard(
-                title: 'Site Operations Workspace',
-                subtitle:
-                    'Review site posture on the left, then inspect operational detail for the selected site.',
-                padding: const EdgeInsets.all(16),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final stackVertically = constraints.maxWidth < 1320;
-
-                    if (stackVertically) {
-                      return SizedBox(
-                        height: 680,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            SizedBox(
-                              height: 232,
-                              child: _siteRoster(sites, selected),
-                            ),
-                            const SizedBox(height: 10),
-                            Expanded(child: _siteDetail(selected)),
-                          ],
-                        ),
-                      );
-                    }
-
-                    return SizedBox(
-                      height: 540,
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(
-                            width: 300,
-                            child: _siteRoster(sites, selected),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(child: _siteDetail(selected)),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
