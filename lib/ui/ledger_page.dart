@@ -34,6 +34,8 @@ class LedgerPage extends StatefulWidget {
 }
 
 class _LedgerPageState extends State<LedgerPage> {
+  static const int _maxTimelineRows = 60;
+
   List<Map<String, dynamic>> _rows = [];
   late List<_LedgerTimelineRow> _fallbackRows;
   String? _verificationResult;
@@ -121,7 +123,11 @@ class _LedgerPageState extends State<LedgerPage> {
   Widget build(BuildContext context) {
     final showSupabaseRows = _rows.isNotEmpty;
     final sourceLabel = showSupabaseRows ? 'Supabase' : 'EventStore';
-    final rowCount = showSupabaseRows ? _rows.length : _fallbackRows.length;
+    final totalRows = showSupabaseRows ? _rows.length : _fallbackRows.length;
+    final rowCount = totalRows > _maxTimelineRows
+        ? _maxTimelineRows
+        : totalRows;
+    final hiddenRows = totalRows - rowCount;
 
     return OnyxPageScaffold(
       child: Padding(
@@ -293,8 +299,16 @@ class _LedgerPageState extends State<LedgerPage> {
                           return SizedBox(
                             height: timelineHeight,
                             child: showSupabaseRows
-                                ? _buildSupabaseLedger()
-                                : _buildFallbackTimeline(),
+                                ? _buildSupabaseLedger(
+                                    visibleRows: rowCount,
+                                    hiddenRows: hiddenRows,
+                                    totalRows: totalRows,
+                                  )
+                                : _buildFallbackTimeline(
+                                    visibleRows: rowCount,
+                                    hiddenRows: hiddenRows,
+                                    totalRows: totalRows,
+                                  ),
                           );
                         },
                       ),
@@ -309,12 +323,23 @@ class _LedgerPageState extends State<LedgerPage> {
     );
   }
 
-  Widget _buildSupabaseLedger() {
+  Widget _buildSupabaseLedger({
+    required int visibleRows,
+    required int hiddenRows,
+    required int totalRows,
+  }) {
+    final visible = _rows.take(visibleRows).toList(growable: false);
     return ListView.separated(
-      itemCount: _rows.length,
+      itemCount: visible.length + (hiddenRows > 0 ? 1 : 0),
       separatorBuilder: (context, index) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
-        final row = _rows[index];
+        if (hiddenRows > 0 && index == visible.length) {
+          return _hiddenRowsHint(
+            visibleRows: visibleRows,
+            totalRows: totalRows,
+          );
+        }
+        final row = visible[index];
         final hash = (row['hash'] ?? '').toString();
         final prev = (row['previous_hash'] ?? '').toString();
         return Container(
@@ -364,7 +389,11 @@ class _LedgerPageState extends State<LedgerPage> {
     );
   }
 
-  Widget _buildFallbackTimeline() {
+  Widget _buildFallbackTimeline({
+    required int visibleRows,
+    required int hiddenRows,
+    required int totalRows,
+  }) {
     if (_fallbackRows.isEmpty) {
       return Center(
         child: Text(
@@ -374,11 +403,18 @@ class _LedgerPageState extends State<LedgerPage> {
       );
     }
 
+    final visible = _fallbackRows.take(visibleRows).toList(growable: false);
     return ListView.separated(
-      itemCount: _fallbackRows.length,
+      itemCount: visible.length + (hiddenRows > 0 ? 1 : 0),
       separatorBuilder: (context, index) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
-        final row = _fallbackRows[index];
+        if (hiddenRows > 0 && index == visible.length) {
+          return _hiddenRowsHint(
+            visibleRows: visibleRows,
+            totalRows: totalRows,
+          );
+        }
+        final row = visible[index];
         return Container(
           padding: const EdgeInsets.all(12),
           decoration: _timelineRowDecoration(),
@@ -456,6 +492,21 @@ class _LedgerPageState extends State<LedgerPage> {
           ),
         );
       },
+    );
+  }
+
+  Widget _hiddenRowsHint({required int visibleRows, required int totalRows}) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: _timelineRowDecoration(),
+      child: Text(
+        'Showing $visibleRows of $totalRows rows. Older ledger rows are hidden in this view.',
+        style: GoogleFonts.inter(
+          color: const Color(0xFF90A9CB),
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 

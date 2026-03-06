@@ -109,6 +109,11 @@ class ClientAppPage extends StatefulWidget {
 }
 
 class _ClientAppPageState extends State<ClientAppPage> {
+  static const int _maxNotificationRows = 12;
+  static const int _maxPushQueueRows = 6;
+  static const int _maxIncidentFeedRows = 8;
+  static const int _maxChatRows = 40;
+
   final TextEditingController _chatController = TextEditingController();
   final FocusNode _chatFocusNode = FocusNode();
   final GlobalKey _chatComposerKey = GlobalKey();
@@ -213,6 +218,11 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 ),
               )
               .toList(growable: false);
+    final visibleNotificationRows = visibleNotifications
+        .take(_maxNotificationRows)
+        .toList(growable: false);
+    final hiddenNotificationRows =
+        visibleNotifications.length - visibleNotificationRows.length;
     final chatMessages = _buildChatMessages(visibleNotifications);
     final activeDispatches = _activeDispatchCount(clientEvents);
     final unreadNotifications = notifications
@@ -534,7 +544,11 @@ class _ClientAppPageState extends State<ClientAppPage> {
                               showAllRoomItems: showAllRoomItems,
                               roomDisplayName: activeRoom.displayName,
                             ),
-                            child: _notificationsList(visibleNotifications),
+                            child: _notificationsList(
+                              visibleNotificationRows,
+                              totalCount: visibleNotifications.length,
+                              hiddenCount: hiddenNotificationRows,
+                            ),
                           ),
                         ),
                         SizedBox(
@@ -726,201 +740,226 @@ class _ClientAppPageState extends State<ClientAppPage> {
     );
   }
 
-  Widget _notificationsList(List<_ClientNotification> items) {
+  Widget _notificationsList(
+    List<_ClientNotification> items, {
+    required int totalCount,
+    required int hiddenCount,
+  }) {
     if (items.isEmpty) {
       return _emptyBox(_viewerRole.notificationsEmptyLabel);
     }
     return SizedBox(
       height: 360,
-      child: ListView.separated(
-        itemCount: items.length,
-        itemBuilder: (context, index) {
-          final item = items[index];
-          return Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  item.systemType.cardFillColor,
-                  item.systemType.cardFillColor.withValues(alpha: 0.82),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: item.priority
-                    ? item.systemType.priorityBorderColor
-                    : item.systemType.cardBorderColor,
-              ),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x12000000),
-                  blurRadius: 10,
-                  offset: Offset(0, 6),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    _pill(
-                      item.systemType.label,
-                      item.systemType.textColor,
-                      item.systemType.borderColor,
-                    ),
-                    _pill(
-                      item.priority ? 'Priority' : 'Info',
-                      item.priority
-                          ? const Color(0xFFFFD3D8)
-                          : const Color(0xFFB9D9FF),
-                      item.priority
-                          ? const Color(0xFF8A3D4A)
-                          : const Color(0xFF274E7E),
-                    ),
-                    _pill(
-                      _notificationTargetBadgeLabel(),
-                      const Color(0xFFCBE6FF),
-                      const Color(0xFF35679B),
-                    ),
-                    Text(
-                      item.timeLabel,
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF7FA8D5),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Icon(
-                      item.systemType.icon,
-                      size: 14,
-                      color: item.systemType.textColor,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        item.title,
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFFE5F1FF),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  item.body,
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF9AB4D8),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 4,
-                  children: [
-                    _notificationPrimaryAction(
-                      item,
-                      label: _notificationActionLabelFor(item.systemType),
-                    ),
-                    if (_canSendNotificationActionNow(item.systemType))
-                      _notificationSendNowAction(item),
-                  ],
-                ),
-                if (_sentNotificationMessageKey == item.messageKey) ...[
-                  const SizedBox(height: 4),
-                  TextButton(
-                    onPressed: _showSentMessageInThread,
-                    style: _inlineHandoffButtonStyle(item.systemType.textColor),
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Text(
-                          _notificationSentLabelFor(item.systemType),
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFB9E2FF),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        Text(
-                          _viewSentMessageLabel(),
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: ListView.separated(
+              itemCount: items.length,
+              itemBuilder: (context, index) {
+                final item = items[index];
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        item.systemType.cardFillColor,
+                        item.systemType.cardFillColor.withValues(alpha: 0.82),
                       ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: item.priority
+                          ? item.systemType.priorityBorderColor
+                          : item.systemType.cardBorderColor,
+                    ),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x12000000),
+                        blurRadius: 10,
+                        offset: Offset(0, 6),
+                      ),
+                    ],
                   ),
-                ],
-                if (!_canSendNotificationActionNow(item.systemType)) ...[
-                  const SizedBox(height: 4),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          _pill(
+                            item.systemType.label,
+                            item.systemType.textColor,
+                            item.systemType.borderColor,
+                          ),
+                          _pill(
+                            item.priority ? 'Priority' : 'Info',
+                            item.priority
+                                ? const Color(0xFFFFD3D8)
+                                : const Color(0xFFB9D9FF),
+                            item.priority
+                                ? const Color(0xFF8A3D4A)
+                                : const Color(0xFF274E7E),
+                          ),
+                          _pill(
+                            _notificationTargetBadgeLabel(),
+                            const Color(0xFFCBE6FF),
+                            const Color(0xFF35679B),
+                          ),
+                          Text(
+                            item.timeLabel,
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF7FA8D5),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Icon(
+                            item.systemType.icon,
+                            size: 14,
+                            color: item.systemType.textColor,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              item.title,
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFFE5F1FF),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
                       Text(
-                        _draftRequiredHintFor(item.systemType),
+                        item.body,
                         style: GoogleFonts.inter(
                           color: const Color(0xFF9AB4D8),
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      TextButton(
-                        onPressed: () => _focusDraftNotificationAction(item),
-                        style: _inlineHandoffButtonStyle(
-                          item.systemType.textColor,
-                        ),
-                        child: Text(
-                          _draftReadyLabelFor(item.systemType),
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 4,
+                        children: [
+                          _notificationPrimaryAction(
+                            item,
+                            label: _notificationActionLabelFor(item.systemType),
                           ),
-                        ),
+                          if (_canSendNotificationActionNow(item.systemType))
+                            _notificationSendNowAction(item),
+                        ],
                       ),
-                      if (_draftOpenedMessageKey == item.messageKey)
-                        Text(
-                          _draftOpenedLabelFor(item.systemType),
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFB9E2FF),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
+                      if (_sentNotificationMessageKey == item.messageKey) ...[
+                        const SizedBox(height: 4),
+                        TextButton(
+                          onPressed: _showSentMessageInThread,
+                          style: _inlineHandoffButtonStyle(
+                            item.systemType.textColor,
+                          ),
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(
+                                _notificationSentLabelFor(item.systemType),
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFFB9E2FF),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              Text(
+                                _viewSentMessageLabel(),
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
+                      ],
+                      if (!_canSendNotificationActionNow(item.systemType)) ...[
+                        const SizedBox(height: 4),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              _draftRequiredHintFor(item.systemType),
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF9AB4D8),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () =>
+                                  _focusDraftNotificationAction(item),
+                              style: _inlineHandoffButtonStyle(
+                                item.systemType.textColor,
+                              ),
+                              child: Text(
+                                _draftReadyLabelFor(item.systemType),
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            if (_draftOpenedMessageKey == item.messageKey)
+                              Text(
+                                _draftOpenedLabelFor(item.systemType),
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFFB9E2FF),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                      _acknowledgementControls(
+                        item.messageKey,
+                        item.acknowledgements,
+                      ),
                     ],
                   ),
-                ],
-                const SizedBox(height: 8),
-                _acknowledgementControls(
-                  item.messageKey,
-                  item.acknowledgements,
-                ),
-              ],
+                );
+              },
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
             ),
-          );
-        },
-        separatorBuilder: (_, _) => const SizedBox(height: 10),
+          ),
+          if (hiddenCount > 0) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Showing ${items.length} of $totalCount notifications. $hiddenCount older rows hidden.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF87A5C8),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -929,93 +968,104 @@ class _ClientAppPageState extends State<ClientAppPage> {
     if (items.isEmpty) {
       return _emptyBox(_localizedNoPushNotificationsQueuedYet);
     }
+    final visibleItems = items.take(_maxPushQueueRows).toList(growable: false);
+    final hiddenItems = items.length - visibleItems.length;
     return Column(
-      children: items
-          .take(6)
-          .map(
-            (item) => Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0B182C),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: item.status == ClientPushDeliveryStatus.queued
-                      ? const Color(0xFFB94C63)
-                      : const Color(0xFF2D6A46),
-                ),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.title,
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFE5F1FF),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          item.body,
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF9DB3CF),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          '$_localizedTargetPrefix: ${item.targetChannel.displayLabel} • ${item.timeLabel}',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF7FA2C9),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: item.status == ClientPushDeliveryStatus.queued
-                          ? const Color(0x332D6A46)
-                          : const Color(0x331F5E83),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                        color: item.status == ClientPushDeliveryStatus.queued
-                            ? const Color(0xFF9FD8AC)
-                            : const Color(0xFF8FD1FF),
-                      ),
-                    ),
-                    child: Text(
-                      item.status == ClientPushDeliveryStatus.queued
-                          ? _localizedQueuedStatus
-                          : _localizedDeliveredStatus,
-                      style: GoogleFonts.inter(
-                        color: item.status == ClientPushDeliveryStatus.queued
-                            ? const Color(0xFF9FD8AC)
-                            : const Color(0xFF8FD1FF),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ...visibleItems.map(
+          (item) => Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0B182C),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: item.status == ClientPushDeliveryStatus.queued
+                    ? const Color(0xFFB94C63)
+                    : const Color(0xFF2D6A46),
               ),
             ),
-          )
-          .toList(growable: false),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.title,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFE5F1FF),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        item.body,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF9DB3CF),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '$_localizedTargetPrefix: ${item.targetChannel.displayLabel} • ${item.timeLabel}',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF7FA2C9),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: item.status == ClientPushDeliveryStatus.queued
+                        ? const Color(0x332D6A46)
+                        : const Color(0x331F5E83),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: item.status == ClientPushDeliveryStatus.queued
+                          ? const Color(0xFF9FD8AC)
+                          : const Color(0xFF8FD1FF),
+                    ),
+                  ),
+                  child: Text(
+                    item.status == ClientPushDeliveryStatus.queued
+                        ? _localizedQueuedStatus
+                        : _localizedDeliveredStatus,
+                    style: GoogleFonts.inter(
+                      color: item.status == ClientPushDeliveryStatus.queued
+                          ? const Color(0xFF9FD8AC)
+                          : const Color(0xFF8FD1FF),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (hiddenItems > 0)
+          Text(
+            'Showing ${visibleItems.length} of ${items.length} queue rows. $hiddenItems older rows hidden.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF87A5C8),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+      ],
     );
   }
 
@@ -1374,20 +1424,23 @@ class _ClientAppPageState extends State<ClientAppPage> {
     if (items.isEmpty) {
       return _emptyBox(_viewerRole.incidentFeedEmptyLabel);
     }
+    final visibleItems = items
+        .take(_maxIncidentFeedRows)
+        .toList(growable: false);
     final expandedReference =
         _expandedIncidentReferenceFor(_viewerRole) ??
         (_hasTouchedIncidentExpansionFor(_viewerRole)
             ? null
-            : items.first.referenceLabel);
+            : visibleItems.first.referenceLabel);
     final selectedReference =
         _selectedIncidentReference ??
         (_viewerRole == ClientAppViewerRole.client ? null : expandedReference);
     return SizedBox(
       height: 220,
       child: ListView.separated(
-        itemCount: items.length,
+        itemCount: visibleItems.length,
         itemBuilder: (context, index) {
-          final group = items[index];
+          final group = visibleItems[index];
           final item = group.latestEntry;
           final expanded = expandedReference == group.referenceLabel;
           final selected = selectedReference == group.referenceLabel;
@@ -1554,6 +1607,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
   }
 
   Widget _chatPanel(List<_ClientChatMessage> messages) {
+    final visibleMessages = messages.take(_maxChatRows).toList(growable: false);
     return Column(
       children: [
         Container(
@@ -1590,12 +1644,12 @@ class _ClientAppPageState extends State<ClientAppPage> {
         SizedBox(
           key: _chatThreadKey,
           height: 276,
-          child: messages.isEmpty
+          child: visibleMessages.isEmpty
               ? _emptyBox(_viewerRole.chatEmptyLabel)
               : ListView.separated(
-                  itemCount: messages.length,
+                  itemCount: visibleMessages.length,
                   itemBuilder: (context, index) {
-                    final message = messages[index];
+                    final message = visibleMessages[index];
                     final highlightedThreadMessage =
                         message.messageKey == _threadLandingMessageKey;
                     final incomingSystemType = message.outgoing
