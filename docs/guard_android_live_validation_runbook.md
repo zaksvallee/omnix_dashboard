@@ -107,6 +107,12 @@ Unified auto-gate (uses on-device gate when phone is connected, otherwise pre-de
   --max-report-age-hours 24
 ```
 
+Operator preflight (analyze + tests + auto-gate in one command):
+
+```bash
+./scripts/onyx_ops_preflight.sh
+```
+
 No-device simulation (for CI/local pipeline checks):
 
 ```bash
