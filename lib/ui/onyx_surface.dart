@@ -107,7 +107,7 @@ class OnyxPageHeader extends StatelessWidget {
                   title,
                   style: GoogleFonts.rajdhani(
                     color: const Color(0xFFE8F1FF),
-                    fontSize: 30,
+                    fontSize: 26,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -116,7 +116,7 @@ class OnyxPageHeader extends StatelessWidget {
                   subtitle,
                   style: GoogleFonts.inter(
                     color: const Color(0xFF8EA4C2),
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -127,7 +127,7 @@ class OnyxPageHeader extends StatelessWidget {
         if (actions.isNotEmpty) ...[
           const SizedBox(width: 10),
           Container(
-            padding: const EdgeInsets.all(6),
+            padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xFF0C182B), Color(0xFF091528)],
@@ -176,14 +176,14 @@ class OnyxSectionCard extends StatelessWidget {
         if (compactBoundedLayout) {
           return Container(
             width: double.infinity,
-            padding: padding ?? const EdgeInsets.all(10),
+            padding: padding ?? const EdgeInsets.all(8),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xFF081326), Color(0xFF0A172C)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(color: const Color(0xFF193758)),
               boxShadow: const [
                 BoxShadow(
@@ -210,7 +210,7 @@ class OnyxSectionCard extends StatelessWidget {
                     title,
                     style: GoogleFonts.rajdhani(
                       color: const Color(0xFFE6F1FF),
-                      fontSize: 19,
+                      fontSize: 18,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -239,15 +239,15 @@ class OnyxSectionCard extends StatelessWidget {
             ? Expanded(child: SingleChildScrollView(child: child))
             : child;
         return Container(
-          width: double.infinity,
-          padding: padding ?? const EdgeInsets.all(10),
+            width: double.infinity,
+            padding: padding ?? const EdgeInsets.all(8),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [Color(0xFF081326), Color(0xFF0A172C)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(color: const Color(0xFF193758)),
             boxShadow: const [
               BoxShadow(
@@ -273,7 +273,7 @@ class OnyxSectionCard extends StatelessWidget {
                 title,
                 style: GoogleFonts.rajdhani(
                   color: const Color(0xFFE6F1FF),
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -314,7 +314,7 @@ class OnyxSummaryStat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF0D1A2D), Color(0xFF0A1628)],
@@ -356,7 +356,7 @@ class OnyxSummaryStat extends StatelessWidget {
             value,
             style: GoogleFonts.rajdhani(
               color: accent,
-              fontSize: 22,
+              fontSize: 20,
               fontWeight: FontWeight.w800,
             ),
           ),
