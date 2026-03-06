@@ -113,6 +113,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
   static const int _maxPushQueueRows = 6;
   static const int _maxIncidentFeedRows = 8;
   static const int _maxChatRows = 40;
+  static const int _maxRoomRows = 12;
 
   final TextEditingController _chatController = TextEditingController();
   final FocusNode _chatFocusNode = FocusNode();
@@ -1345,77 +1346,97 @@ class _ClientAppPageState extends State<ClientAppPage> {
   }
 
   Widget _roomsList(List<_ClientRoom> rooms) {
+    final visibleRooms = rooms.take(_maxRoomRows).toList(growable: false);
+    final hiddenRooms = rooms.length - visibleRooms.length;
     return SizedBox(
       height: 360,
-      child: ListView.separated(
-        itemCount: rooms.length,
-        itemBuilder: (context, index) {
-          final room = rooms[index];
-          final selected = room.key == _selectedRoomFor(_viewerRole);
-          return InkWell(
-            onTap: () => _setSelectedRoom(room.key),
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: selected
-                      ? const [Color(0xFF14345A), Color(0xFF102947)]
-                      : const [Color(0xFF0E1C34), Color(0xFF0A1628)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: selected
-                      ? const Color(0xFF3E7BFF)
-                      : const Color(0xFF1F416A),
-                ),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x10000000),
-                    blurRadius: 10,
-                    offset: Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          room.displayName,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: ListView.separated(
+              itemCount: visibleRooms.length,
+              itemBuilder: (context, index) {
+                final room = visibleRooms[index];
+                final selected = room.key == _selectedRoomFor(_viewerRole);
+                return InkWell(
+                  onTap: () => _setSelectedRoom(room.key),
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: selected
+                            ? const [Color(0xFF14345A), Color(0xFF102947)]
+                            : const [Color(0xFF0E1C34), Color(0xFF0A1628)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: selected
+                            ? const Color(0xFF3E7BFF)
+                            : const Color(0xFF1F416A),
+                      ),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x10000000),
+                          blurRadius: 10,
+                          offset: Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                room.displayName,
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFFE5F1FF),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            _pill(
+                              '${room.unread} unread',
+                              const Color(0xFFB9D9FF),
+                              const Color(0xFF274E7E),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          room.summary,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFFE5F1FF),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF9AB4D8),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                      ),
-                      _pill(
-                        '${room.unread} unread',
-                        const Color(0xFFB9D9FF),
-                        const Color(0xFF274E7E),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    room.summary,
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF9AB4D8),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                      ],
                     ),
                   ),
-                ],
+                );
+              },
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
+            ),
+          ),
+          if (hiddenRooms > 0) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Showing ${visibleRooms.length} of ${rooms.length} rooms. $hiddenRooms additional rooms hidden.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF87A5C8),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
               ),
             ),
-          );
-        },
-        separatorBuilder: (_, _) => const SizedBox(height: 10),
+          ],
+        ],
       ),
     );
   }

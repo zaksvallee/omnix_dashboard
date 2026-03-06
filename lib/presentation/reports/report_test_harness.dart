@@ -24,6 +24,8 @@ class ReportTestHarnessPage extends StatefulWidget {
 }
 
 class _ReportTestHarnessPageState extends State<ReportTestHarnessPage> {
+  static const int _maxHistoryRows = 24;
+
   bool _isGenerating = false;
   bool _verifyingHistory = false;
   String? _openingReceiptId;
@@ -192,13 +194,13 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage> {
                     value: _historyRows.isEmpty
                         ? 'Pending'
                         : _historyRows.every((row) => row.replayMatched)
-                            ? 'Matched'
-                            : 'Review',
+                        ? 'Matched'
+                        : 'Review',
                     accent: _historyRows.isEmpty
                         ? const Color(0xFF8CA5C8)
                         : _historyRows.every((row) => row.replayMatched)
-                            ? const Color(0xFF59D79B)
-                            : const Color(0xFFF6C067),
+                        ? const Color(0xFF59D79B)
+                        : const Color(0xFFF6C067),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -279,7 +281,8 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage> {
                               Expanded(
                                 child: _MiniLaneCard(
                                   title: 'Verify',
-                                  detail: 'Re-open receipts and confirm hashes.',
+                                  detail:
+                                      'Re-open receipts and confirm hashes.',
                                   accent: Color(0xFF59D79B),
                                 ),
                               ),
@@ -287,7 +290,8 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage> {
                               Expanded(
                                 child: _MiniLaneCard(
                                   title: 'Review',
-                                  detail: 'Open regenerated preview before release.',
+                                  detail:
+                                      'Open regenerated preview before release.',
                                   accent: Color(0xFFF6C067),
                                 ),
                               ),
@@ -308,150 +312,209 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage> {
                           ? const OnyxEmptyState(
                               label: 'No ReportGenerated receipts yet.',
                             )
-                          : ListView.separated(
-                              itemCount: _historyRows.length,
-                              separatorBuilder: (context, index) =>
-                                  const SizedBox(height: 10),
-                              itemBuilder: (context, index) {
-                                final row = _historyRows[index];
-                                final r = row.event;
-                                final ok = row.replayMatched;
-                                final isOpening =
-                                    _openingReceiptId == r.eventId;
+                          : Builder(
+                              builder: (context) {
+                                final visibleRows = _historyRows
+                                    .take(_maxHistoryRows)
+                                    .toList(growable: false);
+                                final hiddenRows =
+                                    _historyRows.length - visibleRows.length;
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: ListView.separated(
+                                        itemCount: visibleRows.length,
+                                        separatorBuilder: (context, index) =>
+                                            const SizedBox(height: 10),
+                                        itemBuilder: (context, index) {
+                                          final row = visibleRows[index];
+                                          final r = row.event;
+                                          final ok = row.replayMatched;
+                                          final isOpening =
+                                              _openingReceiptId == r.eventId;
 
-                                return InkWell(
-                                  onTap: isOpening
-                                      ? null
-                                      : () => _openHistoryReceipt(row),
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color(0xFF0B1A30),
-                                          Color(0xFF091424),
-                                        ],
-                                      ),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: const Color(0xFF1C385C),
-                                      ),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Text(
-                                              r.eventId,
-                                              style: GoogleFonts.inter(
-                                                color: const Color(0xFFE5EFFF),
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w700,
-                                              ),
+                                          return InkWell(
+                                            onTap: isOpening
+                                                ? null
+                                                : () =>
+                                                      _openHistoryReceipt(row),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
                                             ),
-                                            const Spacer(),
-                                            if (isOpening)
-                                              const SizedBox(
-                                                width: 14,
-                                                height: 14,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                    ),
-                                              ),
-                                            if (isOpening)
-                                              const SizedBox(width: 8),
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 10,
-                                                    vertical: 4,
-                                                  ),
+                                            child: Container(
+                                              padding: const EdgeInsets.all(12),
                                               decoration: BoxDecoration(
+                                                gradient: const LinearGradient(
+                                                  colors: [
+                                                    Color(0xFF0B1A30),
+                                                    Color(0xFF091424),
+                                                  ],
+                                                ),
                                                 borderRadius:
-                                                    BorderRadius.circular(999),
-                                                color:
-                                                    (ok
-                                                            ? const Color(
-                                                                0xFF2AAC7D,
-                                                              )
-                                                            : const Color(
-                                                                0xFFD05667,
-                                                              ))
-                                                        .withValues(
-                                                          alpha: 0.16,
-                                                        ),
+                                                    BorderRadius.circular(12),
                                                 border: Border.all(
-                                                  color: ok
-                                                      ? const Color(0xFF46DBA2)
-                                                      : const Color(0xFFFF7686),
+                                                  color: const Color(
+                                                    0xFF1C385C,
+                                                  ),
                                                 ),
                                               ),
-                                              child: Text(
-                                                ok
-                                                    ? 'REPLAY MATCHED'
-                                                    : 'REPLAY FAILED',
-                                                style: GoogleFonts.inter(
-                                                  color: ok
-                                                      ? const Color(0xFF8FF3C9)
-                                                      : const Color(0xFFFF9AA7),
-                                                  fontWeight: FontWeight.w700,
-                                                  fontSize: 11,
-                                                ),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    children: [
+                                                      Text(
+                                                        r.eventId,
+                                                        style:
+                                                            GoogleFonts.inter(
+                                                              color:
+                                                                  const Color(
+                                                                    0xFFE5EFFF,
+                                                                  ),
+                                                              fontSize: 13,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w700,
+                                                            ),
+                                                      ),
+                                                      const Spacer(),
+                                                      if (isOpening)
+                                                        const SizedBox(
+                                                          width: 14,
+                                                          height: 14,
+                                                          child:
+                                                              CircularProgressIndicator(
+                                                                strokeWidth: 2,
+                                                              ),
+                                                        ),
+                                                      if (isOpening)
+                                                        const SizedBox(
+                                                          width: 8,
+                                                        ),
+                                                      Container(
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 10,
+                                                              vertical: 4,
+                                                            ),
+                                                        decoration: BoxDecoration(
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                999,
+                                                              ),
+                                                          color:
+                                                              (ok
+                                                                      ? const Color(
+                                                                          0xFF2AAC7D,
+                                                                        )
+                                                                      : const Color(
+                                                                          0xFFD05667,
+                                                                        ))
+                                                                  .withValues(
+                                                                    alpha: 0.16,
+                                                                  ),
+                                                          border: Border.all(
+                                                            color: ok
+                                                                ? const Color(
+                                                                    0xFF46DBA2,
+                                                                  )
+                                                                : const Color(
+                                                                    0xFFFF7686,
+                                                                  ),
+                                                          ),
+                                                        ),
+                                                        child: Text(
+                                                          ok
+                                                              ? 'REPLAY MATCHED'
+                                                              : 'REPLAY FAILED',
+                                                          style: GoogleFonts.inter(
+                                                            color: ok
+                                                                ? const Color(
+                                                                    0xFF8FF3C9,
+                                                                  )
+                                                                : const Color(
+                                                                    0xFFFF9AA7,
+                                                                  ),
+                                                            fontWeight:
+                                                                FontWeight.w700,
+                                                            fontSize: 11,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 8),
+                                                  Wrap(
+                                                    spacing: 8,
+                                                    runSpacing: 8,
+                                                    children: [
+                                                      _historyMetaPill(
+                                                        'Month ${r.month}',
+                                                        const Color(0xFF7FC7FF),
+                                                      ),
+                                                      _historyMetaPill(
+                                                        'Seq ${r.eventRangeStart}-${r.eventRangeEnd}',
+                                                        const Color(0xFF8FA6C8),
+                                                      ),
+                                                      _historyMetaPill(
+                                                        'Count ${r.eventCount}',
+                                                        const Color(0xFF8FA6C8),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 8),
+                                                  Text(
+                                                    'Hash ${_short(r.contentHash)} • PDF ${_short(r.pdfHash)}',
+                                                    style: GoogleFonts.inter(
+                                                      color: const Color(
+                                                        0xFF89A8CF,
+                                                      ),
+                                                      fontSize: 12,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    'Generated UTC ${_shortUtc(r.occurredAt)}',
+                                                    style: GoogleFonts.inter(
+                                                      color: const Color(
+                                                        0xFF89A8CF,
+                                                      ),
+                                                      fontSize: 12,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 6),
+                                                  Text(
+                                                    'Tap to open regenerated preview',
+                                                    style: GoogleFonts.inter(
+                                                      color: const Color(
+                                                        0xFF7FB0DE,
+                                                      ),
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Wrap(
-                                          spacing: 8,
-                                          runSpacing: 8,
-                                          children: [
-                                            _historyMetaPill(
-                                              'Month ${r.month}',
-                                              const Color(0xFF7FC7FF),
-                                            ),
-                                            _historyMetaPill(
-                                              'Seq ${r.eventRangeStart}-${r.eventRangeEnd}',
-                                              const Color(0xFF8FA6C8),
-                                            ),
-                                            _historyMetaPill(
-                                              'Count ${r.eventCount}',
-                                              const Color(0xFF8FA6C8),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          'Hash ${_short(r.contentHash)} • PDF ${_short(r.pdfHash)}',
-                                          style: GoogleFonts.inter(
-                                            color: const Color(0xFF89A8CF),
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'Generated UTC ${_shortUtc(r.occurredAt)}',
-                                          style: GoogleFonts.inter(
-                                            color: const Color(0xFF89A8CF),
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          'Tap to open regenerated preview',
-                                          style: GoogleFonts.inter(
-                                            color: const Color(0xFF7FB0DE),
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ],
+                                          );
+                                        },
+                                      ),
                                     ),
-                                  ),
+                                    if (hiddenRows > 0) ...[
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Showing ${visibleRows.length} of ${_historyRows.length} receipts. $hiddenRows older receipts hidden.',
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFF8EA4C2),
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 );
                               },
                             ),

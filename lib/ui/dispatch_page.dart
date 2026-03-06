@@ -197,6 +197,7 @@ class _DispatchPageState extends State<DispatchPage> {
     'DEGRADED',
   };
   static const _triagePolicy = IntelligenceTriagePolicy();
+  static const int _maxDispatchQueueRows = 12;
 
   final Set<String> _expandedDispatchIds = <String>{};
   late final TextEditingController _scenarioLabelController;
@@ -1847,6 +1848,10 @@ class _DispatchPageState extends State<DispatchPage> {
     required Map<String, List<ResponseArrived>> responsesByDispatch,
     required Map<String, IncidentClosed> closureByDispatch,
   }) {
+    final visibleDecisions = decisions
+        .take(_maxDispatchQueueRows)
+        .toList(growable: false);
+    final hiddenDecisions = decisions.length - visibleDecisions.length;
     return _dispatchShellCard(
       title: 'Active Dispatch Queue',
       subtitle:
@@ -1860,181 +1865,203 @@ class _DispatchPageState extends State<DispatchPage> {
                 fontWeight: FontWeight.w600,
               ),
             )
-          : ListView.separated(
-              shrinkWrap: true,
-              primary: false,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: decisions.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 10),
-              itemBuilder: (context, index) {
-                final d = decisions[index];
-                final executed = executionByDispatch[d.dispatchId];
-                final deniedEvt = deniedByDispatch[d.dispatchId];
-                final dispatchResponses =
-                    responsesByDispatch[d.dispatchId] ??
-                    const <ResponseArrived>[];
-                final closure = closureByDispatch[d.dispatchId];
-                final isExecuted = executed != null;
-                final isDenied = deniedEvt != null;
-                final isExpanded = _expandedDispatchIds.contains(d.dispatchId);
-
-                final status = isExecuted
-                    ? (executed.success ? 'EXECUTED' : 'FAILED')
-                    : isDenied
-                    ? 'DENIED'
-                    : 'DECIDED';
-                final statusColor = switch (status) {
-                  'EXECUTED' => const Color(0xFF4ED4A3),
-                  'FAILED' => const Color(0xFFFF6676),
-                  'DENIED' => const Color(0xFFFFB44D),
-                  _ => const Color(0xFF6CC5FF),
-                };
-
-                return Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF0D1B30), Color(0xFF0A172A)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFF203E66)),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  d.dispatchId,
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFFE6F1FF),
-                                    fontSize: 19,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                const SizedBox(height: 5),
-                                Text(
-                                  'Decision UTC: ${d.occurredAt.toIso8601String()}',
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFF93A9C8),
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 11,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(999),
-                              color: statusColor.withValues(alpha: 0.14),
-                              border: Border.all(
-                                color: statusColor.withValues(alpha: 0.75),
-                              ),
-                            ),
-                            child: Text(
-                              status,
-                              style: GoogleFonts.rajdhani(
-                                color: statusColor,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          if (!isExecuted && !isDenied)
-                            ElevatedButton(
-                              onPressed: () => widget.onExecute(d.dispatchId),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF165EA4),
-                                foregroundColor: const Color(0xFFE6F1FF),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                              child: Text(
-                                'Execute',
-                                style: GoogleFonts.inter(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            onPressed: () {
-                              setState(() {
-                                if (isExpanded) {
-                                  _expandedDispatchIds.remove(d.dispatchId);
-                                } else {
-                                  _expandedDispatchIds.add(d.dispatchId);
-                                }
-                              });
-                            },
-                            style: IconButton.styleFrom(
-                              backgroundColor: const Color(0xFF0E1A33),
-                              side: const BorderSide(color: Color(0xFF26456F)),
-                            ),
-                            icon: Icon(
-                              isExpanded
-                                  ? Icons.expand_less_rounded
-                                  : Icons.expand_more_rounded,
-                              color: const Color(0xFFB4C9E7),
-                            ),
-                          ),
-                        ],
-                      ),
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ListView.separated(
+                  shrinkWrap: true,
+                  primary: false,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: visibleDecisions.length,
+                  separatorBuilder: (context, index) =>
                       const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
+                  itemBuilder: (context, index) {
+                    final d = visibleDecisions[index];
+                    final executed = executionByDispatch[d.dispatchId];
+                    final deniedEvt = deniedByDispatch[d.dispatchId];
+                    final dispatchResponses =
+                        responsesByDispatch[d.dispatchId] ??
+                        const <ResponseArrived>[];
+                    final closure = closureByDispatch[d.dispatchId];
+                    final isExecuted = executed != null;
+                    final isDenied = deniedEvt != null;
+                    final isExpanded = _expandedDispatchIds.contains(
+                      d.dispatchId,
+                    );
+
+                    final status = isExecuted
+                        ? (executed.success ? 'EXECUTED' : 'FAILED')
+                        : isDenied
+                        ? 'DENIED'
+                        : 'DECIDED';
+                    final statusColor = switch (status) {
+                      'EXECUTED' => const Color(0xFF4ED4A3),
+                      'FAILED' => const Color(0xFFFF6676),
+                      'DENIED' => const Color(0xFFFFB44D),
+                      _ => const Color(0xFF6CC5FF),
+                    };
+
+                    return Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF0D1B30), Color(0xFF0A172A)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFF203E66)),
+                      ),
+                      child: Column(
                         children: [
-                          _queueMetaPill(d.siteId, const Color(0xFF88CCFF)),
-                          _queueMetaPill(
-                            '${dispatchResponses.length} responses',
-                            dispatchResponses.isEmpty
-                                ? const Color(0xFF8EA4C2)
-                                : const Color(0xFF8CF1C3),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      d.dispatchId,
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFE6F1FF),
+                                        fontSize: 19,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      'Decision UTC: ${d.occurredAt.toIso8601String()}',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF93A9C8),
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 11,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(999),
+                                  color: statusColor.withValues(alpha: 0.14),
+                                  border: Border.all(
+                                    color: statusColor.withValues(alpha: 0.75),
+                                  ),
+                                ),
+                                child: Text(
+                                  status,
+                                  style: GoogleFonts.rajdhani(
+                                    color: statusColor,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              if (!isExecuted && !isDenied)
+                                ElevatedButton(
+                                  onPressed: () =>
+                                      widget.onExecute(d.dispatchId),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF165EA4),
+                                    foregroundColor: const Color(0xFFE6F1FF),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Execute',
+                                    style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    if (isExpanded) {
+                                      _expandedDispatchIds.remove(d.dispatchId);
+                                    } else {
+                                      _expandedDispatchIds.add(d.dispatchId);
+                                    }
+                                  });
+                                },
+                                style: IconButton.styleFrom(
+                                  backgroundColor: const Color(0xFF0E1A33),
+                                  side: const BorderSide(
+                                    color: Color(0xFF26456F),
+                                  ),
+                                ),
+                                icon: Icon(
+                                  isExpanded
+                                      ? Icons.expand_less_rounded
+                                      : Icons.expand_more_rounded,
+                                  color: const Color(0xFFB4C9E7),
+                                ),
+                              ),
+                            ],
                           ),
-                          _queueMetaPill(
-                            closure == null
-                                ? 'Open incident'
-                                : 'Closed incident',
-                            closure == null
-                                ? const Color(0xFFFFD6A5)
-                                : const Color(0xFF8CF1C3),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _queueMetaPill(d.siteId, const Color(0xFF88CCFF)),
+                              _queueMetaPill(
+                                '${dispatchResponses.length} responses',
+                                dispatchResponses.isEmpty
+                                    ? const Color(0xFF8EA4C2)
+                                    : const Color(0xFF8CF1C3),
+                              ),
+                              _queueMetaPill(
+                                closure == null
+                                    ? 'Open incident'
+                                    : 'Closed incident',
+                                closure == null
+                                    ? const Color(0xFFFFD6A5)
+                                    : const Color(0xFF8CF1C3),
+                              ),
+                              _queueMetaPill(
+                                isExecuted || isDenied
+                                    ? 'Review trace'
+                                    : 'Awaiting action',
+                                isExecuted || isDenied
+                                    ? const Color(0xFFB8C8FF)
+                                    : const Color(0xFF9FD8AC),
+                              ),
+                            ],
                           ),
-                          _queueMetaPill(
-                            isExecuted || isDenied
-                                ? 'Review trace'
-                                : 'Awaiting action',
-                            isExecuted || isDenied
-                                ? const Color(0xFFB8C8FF)
-                                : const Color(0xFF9FD8AC),
-                          ),
+                          if (isExpanded) ...[
+                            const SizedBox(height: 12),
+                            _detailCard(
+                              decision: d,
+                              executed: executed,
+                              denied: deniedEvt,
+                              responses: dispatchResponses,
+                              closure: closure,
+                            ),
+                          ],
                         ],
                       ),
-                      if (isExpanded) ...[
-                        const SizedBox(height: 12),
-                        _detailCard(
-                          decision: d,
-                          executed: executed,
-                          denied: deniedEvt,
-                          responses: dispatchResponses,
-                          closure: closure,
-                        ),
-                      ],
-                    ],
+                    );
+                  },
+                ),
+                if (hiddenDecisions > 0) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Showing ${visibleDecisions.length} of ${decisions.length} dispatch decisions. $hiddenDecisions older decisions hidden.',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF8EA4C2),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                );
-              },
+                ],
+              ],
             ),
     );
   }
