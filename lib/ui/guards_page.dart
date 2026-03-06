@@ -276,13 +276,12 @@ class _GuardsPageState extends State<GuardsPage> {
                 if (hiddenGuards > 0)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-                    child: Text(
-                      'Showing ${visibleGuards.length} of ${guards.length} guards. $hiddenGuards additional guards hidden.',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF86A2C8),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    child: OnyxTruncationHint(
+                      visibleCount: visibleGuards.length,
+                      totalCount: guards.length,
+                      subject: 'guards',
+                      hiddenDescriptor: 'additional guards',
+                      color: const Color(0xFF86A2C8),
                     ),
                   ),
               ],
@@ -507,13 +506,11 @@ class _GuardsPageState extends State<GuardsPage> {
             if (guard.traceEventCount > guard.recentTrace.length)
               Padding(
                 padding: const EdgeInsets.only(top: 6),
-                child: Text(
-                  'Showing ${guard.recentTrace.length} of ${guard.traceEventCount} guard events.',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF8EA4C2),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
+                child: OnyxTruncationHint(
+                  visibleCount: guard.recentTrace.length,
+                  totalCount: guard.traceEventCount,
+                  subject: 'guard events',
+                  hiddenDescriptor: 'older events',
                 ),
               ),
           ],

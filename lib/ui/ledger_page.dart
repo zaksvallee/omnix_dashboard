@@ -499,13 +499,13 @@ class _LedgerPageState extends State<LedgerPage> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: _timelineRowDecoration(),
-      child: Text(
-        'Showing $visibleRows of $totalRows rows. Older ledger rows are hidden in this view.',
-        style: GoogleFonts.inter(
-          color: const Color(0xFF90A9CB),
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
+      child: OnyxTruncationHint(
+        visibleCount: visibleRows,
+        totalCount: totalRows,
+        subject: 'ledger rows',
+        hiddenDescriptor: 'older rows',
+        color: const Color(0xFF90A9CB),
+        fontSize: 12,
       ),
     );
   }

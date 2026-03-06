@@ -275,13 +275,12 @@ class _SitesPageState extends State<SitesPage> {
                 if (hiddenSites > 0)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-                    child: Text(
-                      'Showing ${visibleSites.length} of ${sites.length} sites. $hiddenSites additional sites hidden.',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF86A2C8),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    child: OnyxTruncationHint(
+                      visibleCount: visibleSites.length,
+                      totalCount: sites.length,
+                      subject: 'sites',
+                      hiddenDescriptor: 'additional sites',
+                      color: const Color(0xFF86A2C8),
                     ),
                   ),
               ],
@@ -517,13 +516,11 @@ class _SitesPageState extends State<SitesPage> {
             if (site.traceEventCount > site.recentEvents.length)
               Padding(
                 padding: const EdgeInsets.only(top: 6),
-                child: Text(
-                  'Showing ${site.recentEvents.length} of ${site.traceEventCount} site events.',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF8EA4C2),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
+                child: OnyxTruncationHint(
+                  visibleCount: site.recentEvents.length,
+                  totalCount: site.traceEventCount,
+                  subject: 'site events',
+                  hiddenDescriptor: 'older events',
                 ),
               ),
           ],

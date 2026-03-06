@@ -832,9 +832,11 @@ class _SignalAndFeedGrid extends StatelessWidget {
                 if (snapshot.liveSignals.isEmpty)
                   const _MutedLabel(label: 'No live signals yet.')
                 else if (hiddenSignals > 0)
-                  _MutedLabel(
-                    label:
-                        'Showing ${visibleSignals.length} of ${snapshot.liveSignals.length}. $hiddenSignals older signals hidden.',
+                  OnyxTruncationHint(
+                    visibleCount: visibleSignals.length,
+                    totalCount: snapshot.liveSignals.length,
+                    subject: 'signals',
+                    hiddenDescriptor: 'older signals',
                   ),
               ],
             ),
@@ -856,9 +858,11 @@ class _SignalAndFeedGrid extends StatelessWidget {
                 if (snapshot.dispatchFeed.isEmpty)
                   const _MutedLabel(label: 'No dispatch events yet.')
                 else if (hiddenDispatches > 0)
-                  _MutedLabel(
-                    label:
-                        'Showing ${visibleDispatchFeed.length} of ${snapshot.dispatchFeed.length}. $hiddenDispatches older dispatch rows hidden.',
+                  OnyxTruncationHint(
+                    visibleCount: visibleDispatchFeed.length,
+                    totalCount: snapshot.dispatchFeed.length,
+                    subject: 'dispatch rows',
+                    hiddenDescriptor: 'older rows',
                   ),
               ],
             ),
@@ -897,9 +901,11 @@ class _SitePosturePanel extends StatelessWidget {
           if (rankedSites.isEmpty)
             const _MutedLabel(label: 'No site posture data available.'),
           if (rankedSites.length > 6)
-            _MutedLabel(
-              label:
-                  'Showing top 6 by operational load. ${rankedSites.length - 6} additional sites available.',
+            OnyxTruncationHint(
+              visibleCount: 6,
+              totalCount: rankedSites.length,
+              subject: 'sites by operational load',
+              hiddenDescriptor: 'additional sites',
             ),
         ],
       ),

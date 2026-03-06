@@ -261,8 +261,11 @@ class _EventsPageState extends State<EventsPage> {
                                   Expanded(child: timelineList),
                                   if (hiddenRows > 0) ...[
                                     const SizedBox(height: 8),
-                                    _pill(
-                                      '$hiddenRows additional rows hidden (showing first ${visibleRows.length})',
+                                    OnyxTruncationHint(
+                                      visibleCount: visibleRows.length,
+                                      totalCount: filtered.length,
+                                      subject: 'event rows',
+                                      hiddenDescriptor: 'additional rows',
                                       color: const Color(0xFF8FA8CA),
                                     ),
                                   ],
@@ -276,8 +279,11 @@ class _EventsPageState extends State<EventsPage> {
                                 timelineList,
                                 if (hiddenRows > 0) ...[
                                   const SizedBox(height: 8),
-                                  _pill(
-                                    '$hiddenRows additional rows hidden (showing first ${visibleRows.length})',
+                                  OnyxTruncationHint(
+                                    visibleCount: visibleRows.length,
+                                    totalCount: filtered.length,
+                                    subject: 'event rows',
+                                    hiddenDescriptor: 'additional rows',
                                     color: const Color(0xFF8FA8CA),
                                   ),
                                 ],
