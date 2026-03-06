@@ -24,6 +24,7 @@ class EventsPage extends StatefulWidget {
 
 class _EventsPageState extends State<EventsPage> {
   static const int _maxTimelineRows = 50;
+  static const int _maxDetailRows = 24;
   String _typeFilter = _allValue;
   String _siteFilter = _allValue;
   String _guardFilter = _allValue;
@@ -578,6 +579,8 @@ class _EventsPageState extends State<EventsPage> {
 
   Widget _detailDrawer(_ForensicRow row) {
     final details = _detailsFor(row.event);
+    final visibleDetails = details.take(_maxDetailRows).toList(growable: false);
+    final hiddenDetails = details.length - visibleDetails.length;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -610,13 +613,32 @@ class _EventsPageState extends State<EventsPage> {
           _detailHero(row),
           const SizedBox(height: 8),
           Expanded(
-            child: ListView.separated(
-              itemCount: details.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final item = details[index];
-                return _kv(item.$1, item.$2);
-              },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: visibleDetails.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final item = visibleDetails[index];
+                      return _kv(item.$1, item.$2);
+                    },
+                  ),
+                ),
+                if (hiddenDetails > 0) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Showing ${visibleDetails.length} of ${details.length} detail rows. $hiddenDetails rows hidden.',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF8EA5C6),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ],
