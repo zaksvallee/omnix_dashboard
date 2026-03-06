@@ -29,6 +29,7 @@ import 'domain/events/response_arrived.dart';
 import 'domain/evidence/client_ledger_repository.dart';
 import 'domain/evidence/client_ledger_service.dart';
 import 'domain/guard/guard_ops_event.dart';
+import 'domain/guard/guard_event_contract.dart';
 import 'domain/guard/guard_mobile_ops.dart';
 import 'domain/guard/operational_tiers.dart';
 import 'domain/guard/outcome_label_governance.dart';
@@ -1060,6 +1061,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     required Map<String, Object?> payload,
   }) async {
     final repository = await _guardOpsRepositoryFuture;
+    final mergedPayload = _withGuardActorContext(payload);
     await repository.enqueueEvent(
       guardId: 'GUARD-001',
       siteId: _selectedSite,
@@ -1067,10 +1069,29 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       eventType: type,
       deviceId: 'ANDROID-BV5300PRO-001',
       appVersion: 'guard-shell-v1',
-      payload: payload,
+      payload: mergedPayload,
       occurredAt: DateTime.now().toUtc(),
     );
     await _hydrateGuardOpsState();
+  }
+
+  Map<String, Object?> _withGuardActorContext(Map<String, Object?> payload) {
+    final merged = Map<String, Object?>.from(payload);
+    merged.putIfAbsent(
+      GuardEventContractKeys.actorRole,
+      () => _guardOperatorRole.name,
+    );
+    merged.putIfAbsent(GuardEventContractKeys.actorGuardId, () => 'GUARD-001');
+    merged.putIfAbsent(
+      GuardEventContractKeys.actorClientId,
+      () => _selectedClient,
+    );
+    merged.putIfAbsent(GuardEventContractKeys.actorSiteId, () => _selectedSite);
+    merged.putIfAbsent(
+      GuardEventContractKeys.actorShiftId,
+      () => _activeGuardShiftId,
+    );
+    return merged;
   }
 
   Future<void> _queueShiftStartVerification() async {
@@ -1100,7 +1121,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       eventType: GuardOpsEventType.shiftVerificationImage,
       deviceId: 'ANDROID-BV5300PRO-001',
       appVersion: 'guard-shell-v1',
-      payload: {
+      payload: _withGuardActorContext({
         'camera_mode': 'self_verification',
         'uniform_check_required': true,
         'quality_gate_required': true,
@@ -1109,7 +1130,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           'issues': quality.issues.map((issue) => issue.name).toList(),
           'method': quality.method,
         },
-      },
+      }),
       occurredAt: now,
     );
     await repository.enqueueMedia(
@@ -1133,7 +1154,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       eventType: GuardOpsEventType.shiftStart,
       deviceId: 'ANDROID-BV5300PRO-001',
       appVersion: 'guard-shell-v1',
-      payload: {'verification_event_id': verificationEvent.eventId},
+      payload: _withGuardActorContext({
+        'verification_event_id': verificationEvent.eventId,
+      }),
       occurredAt: now,
     );
     await _hydrateGuardOpsState();
@@ -1178,7 +1201,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       eventType: GuardOpsEventType.patrolImageCaptured,
       deviceId: 'ANDROID-BV5300PRO-001',
       appVersion: 'guard-shell-v1',
-      payload: {
+      payload: _withGuardActorContext({
         'checkpoint_id': checkpointId,
         'verification_required': true,
         'quality_gate': {
@@ -1186,7 +1209,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           'issues': quality.issues.map((issue) => issue.name).toList(),
           'method': quality.method,
         },
-      },
+      }),
       occurredAt: now,
     );
     await repository.enqueueMedia(
@@ -1337,7 +1360,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'assignment_id': _defaultGuardAssignment.assignmentId,
         'dispatch_id': _defaultGuardAssignment.dispatchId,
         'status': GuardDutyStatus.enRoute.name,
-        'actor_role': GuardMobileOperatorRole.reaction.name,
+        GuardEventContractKeys.actorRole: GuardMobileOperatorRole.reaction.name,
       },
     );
     await _hydrateGuardSyncState();
@@ -1351,7 +1374,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'assignment_id': _defaultGuardAssignment.assignmentId,
         'dispatch_id': _defaultGuardAssignment.dispatchId,
         'status': GuardDutyStatus.onSite.name,
-        'actor_role': GuardMobileOperatorRole.reaction.name,
+        GuardEventContractKeys.actorRole: GuardMobileOperatorRole.reaction.name,
       },
     );
     await _hydrateGuardSyncState();
@@ -1365,7 +1388,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'assignment_id': _defaultGuardAssignment.assignmentId,
         'dispatch_id': _defaultGuardAssignment.dispatchId,
         'status': GuardDutyStatus.clear.name,
-        'actor_role': GuardMobileOperatorRole.reaction.name,
+        GuardEventContractKeys.actorRole: GuardMobileOperatorRole.reaction.name,
       },
     );
     await _hydrateGuardSyncState();
@@ -1379,7 +1402,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'assignment_id': _defaultGuardAssignment.assignmentId,
         'dispatch_id': _defaultGuardAssignment.dispatchId,
         'status': status.name,
-        'actor_role': GuardMobileOperatorRole.supervisor.name,
+        GuardEventContractKeys.actorRole:
+            GuardMobileOperatorRole.supervisor.name,
       },
     );
     await _hydrateGuardSyncState();
@@ -1389,7 +1413,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     await _enqueueGuardOpsEvent(
       type: GuardOpsEventType.supervisorCoachingAcknowledged,
       payload: {
-        'actor_role': GuardMobileOperatorRole.supervisor.name,
+        GuardEventContractKeys.actorRole:
+            GuardMobileOperatorRole.supervisor.name,
         'rule_id': _effectiveGuardCoachingPrompt(
           prompt: _guardSyncCoachingPolicy.evaluate(
             syncBackendEnabled: _guardSyncUsingBackend,
@@ -2047,7 +2072,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'context': context,
         'snooze_minutes': minutes,
         'snoozed_until_utc': untilUtc.toIso8601String(),
-        'actor_role': actorRole,
+        GuardEventContractKeys.actorRole: actorRole,
       },
     );
     _recordGuardCoachingTelemetry(
