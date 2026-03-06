@@ -1519,14 +1519,14 @@ class _DispatchPageState extends State<DispatchPage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(compact ? 14 : 16),
+      padding: EdgeInsets.all(compact ? 12 : 14),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF081326), Color(0xFF09162A)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(compact ? 16 : 18),
+        borderRadius: BorderRadius.circular(compact ? 14 : 16),
         border: Border.all(color: const Color(0xFF163252)),
         boxShadow: const [
           BoxShadow(
@@ -1543,7 +1543,7 @@ class _DispatchPageState extends State<DispatchPage> {
             title,
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFE6F1FF),
-              fontSize: compact ? 24 : 26,
+              fontSize: compact ? 22 : 24,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1557,7 +1557,7 @@ class _DispatchPageState extends State<DispatchPage> {
               height: 1.35,
             ),
           ),
-          SizedBox(height: compact ? 12 : 14),
+          SizedBox(height: compact ? 10 : 12),
           child,
         ],
       ),
@@ -1700,7 +1700,7 @@ class _DispatchPageState extends State<DispatchPage> {
     VoidCallback? onTap,
   }) {
     final content = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       child: Text(
         text,
         style: GoogleFonts.inter(
@@ -1743,7 +1743,7 @@ class _DispatchPageState extends State<DispatchPage> {
   Widget _dispatchStatusLine(String text, Color color) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: const Color(0xFF0B1A31),
         borderRadius: BorderRadius.circular(12),
@@ -1753,7 +1753,7 @@ class _DispatchPageState extends State<DispatchPage> {
         text,
         style: GoogleFonts.inter(
           color: color,
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -2045,15 +2045,15 @@ class _DispatchPageState extends State<DispatchPage> {
       children: [
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: const Color(0xFF09172A),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(color: const Color(0xFF142B49)),
           ),
           child: Wrap(
-            spacing: 10,
-            runSpacing: 10,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               _profileSummaryBadge(
                 'Feeds',
@@ -2079,20 +2079,20 @@ class _DispatchPageState extends State<DispatchPage> {
             ],
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Wrap(
-          spacing: 10,
-          runSpacing: 10,
+          spacing: 8,
+          runSpacing: 8,
           children: [
             SizedBox(
-              width: 390,
+              width: 368,
               child: _workspaceGroupCard(
                 title: 'Load Profile',
                 subtitle:
                     'Shape ingest volume, replay characteristics, and spread before running.',
                 child: Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     ...IntakeStressPreset.values.map(
                       (preset) => OutlinedButton(
@@ -2190,14 +2190,14 @@ class _DispatchPageState extends State<DispatchPage> {
               ),
             ),
             SizedBox(
-              width: 340,
+              width: 324,
               child: _workspaceGroupCard(
                 title: 'Guardrails',
                 subtitle:
                     'Define replay validation, regression thresholds, and soak depth before execution.',
                 child: Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     FilterChip(
                       label: Text(
@@ -2277,20 +2277,20 @@ class _DispatchPageState extends State<DispatchPage> {
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Wrap(
-          spacing: 10,
-          runSpacing: 10,
+          spacing: 8,
+          runSpacing: 8,
           children: [
             SizedBox(
-              width: 390,
+              width: 368,
               child: _workspaceGroupCard(
                 title: 'Scenario Metadata',
                 subtitle:
                     'Attach the current scenario label, operational tags, and controller note to the next run.',
                 child: Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     _textInput(
                       label: 'Scenario',
@@ -2306,7 +2306,7 @@ class _DispatchPageState extends State<DispatchPage> {
                       label: 'Run Note',
                       controller: _runNoteController,
                       hintText: 'Operator annotation',
-                      width: 260,
+                      width: 236,
                       onChanged: _notifyRunNoteChanged,
                     ),
                   ],
@@ -2314,7 +2314,7 @@ class _DispatchPageState extends State<DispatchPage> {
               ),
             ),
             SizedBox(
-              width: 390,
+              width: 368,
               child: _workspaceGroupCard(
                 title: 'Run Actions',
                 subtitle:
@@ -2353,7 +2353,7 @@ class _DispatchPageState extends State<DispatchPage> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     Text(
                       'Supporting Runs',
                       style: GoogleFonts.inter(
@@ -2365,8 +2365,8 @@ class _DispatchPageState extends State<DispatchPage> {
                     ),
                     const SizedBox(height: 8),
                     Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
                         OutlinedButton.icon(
                           onPressed: widget.stressRunning
@@ -2441,7 +2441,7 @@ class _DispatchPageState extends State<DispatchPage> {
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         _workspaceGroupCard(
           title: 'Persistence, Import & Snapshot Tools',
           subtitle:
@@ -2450,8 +2450,8 @@ class _DispatchPageState extends State<DispatchPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Wrap(
-                spacing: 10,
-                runSpacing: 10,
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   _toolCluster(
                     title: 'State',
@@ -2577,7 +2577,7 @@ class _DispatchPageState extends State<DispatchPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Theme(
                 data: Theme.of(
                   context,
@@ -2596,10 +2596,10 @@ class _DispatchPageState extends State<DispatchPage> {
                     ),
                   ),
                   children: [
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
                         _toolCluster(
                           title: 'Snapshots',
@@ -2746,7 +2746,7 @@ class _DispatchPageState extends State<DispatchPage> {
     required Color accent,
   }) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: const Color(0xFF0B1A31),
         borderRadius: BorderRadius.circular(14),
@@ -2768,7 +2768,7 @@ class _DispatchPageState extends State<DispatchPage> {
             value,
             style: GoogleFonts.rajdhani(
               color: accent,
-              fontSize: 28,
+              fontSize: 26,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -2784,10 +2784,10 @@ class _DispatchPageState extends State<DispatchPage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFF0A1629),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF142D4B)),
       ),
       child: Column(
@@ -2801,12 +2801,12 @@ class _DispatchPageState extends State<DispatchPage> {
               borderRadius: BorderRadius.circular(999),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
             title,
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFE6F1FF),
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -2820,7 +2820,7 @@ class _DispatchPageState extends State<DispatchPage> {
               height: 1.35,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           child,
         ],
       ),
@@ -2829,15 +2829,15 @@ class _DispatchPageState extends State<DispatchPage> {
 
   Widget _toolCluster({required String title, required List<Widget> children}) {
     return Container(
-      width: 276,
-      padding: const EdgeInsets.all(10),
+      width: 256,
+      padding: const EdgeInsets.all(9),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF0C1A2E), Color(0xFF091628)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF1E3C61)),
       ),
       child: Column(
@@ -2852,7 +2852,7 @@ class _DispatchPageState extends State<DispatchPage> {
               letterSpacing: 0.5,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Wrap(spacing: 6, runSpacing: 6, children: children),
         ],
       ),
@@ -2861,7 +2861,7 @@ class _DispatchPageState extends State<DispatchPage> {
 
   Widget _profileSummaryBadge(String label, String value) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
         color: const Color(0xFF0C1C33),
         borderRadius: BorderRadius.circular(999),
