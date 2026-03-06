@@ -37,6 +37,12 @@ Or:
 make preflight
 ```
 
+Fast preflight during active UI iteration:
+
+```bash
+make preflight-smoke
+```
+
 ## Guard Validation Gates
 
 ### Auto gate (recommended)

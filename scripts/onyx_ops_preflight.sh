@@ -3,6 +3,7 @@ set -euo pipefail
 
 RUN_FLUTTER=1
 FULL_TESTS=0
+FLUTTER_MODE="full"
 SAMPLES=3
 MAX_REPORT_AGE_HOURS=24
 CONFIG_FILE="${ONYX_DART_DEFINE_FILE:-config/onyx.local.json}"
@@ -10,11 +11,11 @@ CONFIG_FILE="${ONYX_DART_DEFINE_FILE:-config/onyx.local.json}"
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/onyx_ops_preflight.sh [--skip-flutter] [--full-tests] [--samples 3] [--max-report-age-hours 24] [--config <path>]
+  ./scripts/onyx_ops_preflight.sh [--skip-flutter] [--smoke-ui] [--full-tests] [--samples 3] [--max-report-age-hours 24] [--config <path>]
 
 Purpose:
   One-command ONYX operator preflight:
-  1) flutter analyze + flutter test (unless --skip-flutter)
+  1) flutter checks (default: analyze + full test, optional: smoke-ui)
   2) Guard auto gate (on-device if phone connected, pre-device otherwise)
 USAGE
 }
@@ -27,6 +28,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --full-tests)
       FULL_TESTS=1
+      shift
+      ;;
+    --smoke-ui)
+      FLUTTER_MODE="smoke"
       shift
       ;;
     --samples)
@@ -64,13 +69,18 @@ fi
 echo "== ONYX Ops Preflight =="
 echo "Config: $CONFIG_FILE"
 echo "Flutter checks: $([[ "$RUN_FLUTTER" -eq 1 ]] && echo enabled || echo skipped)"
+echo "Flutter mode: $FLUTTER_MODE"
 echo "Guard samples: $SAMPLES"
 echo "Max report age: ${MAX_REPORT_AGE_HOURS}h"
 echo ""
 
 if [[ "$RUN_FLUTTER" -eq 1 ]]; then
-  flutter analyze
-  flutter test
+  if [[ "$FLUTTER_MODE" == "smoke" ]]; then
+    ./scripts/ui_compact_smoke.sh
+  else
+    flutter analyze
+    flutter test
+  fi
 fi
 
 guard_cmd=(
