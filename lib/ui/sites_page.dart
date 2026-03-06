@@ -488,6 +488,18 @@ class _SitesPageState extends State<SitesPage> {
                       },
                     ),
             ),
+            if (site.traceEventCount > site.recentEvents.length)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  'Showing ${site.recentEvents.length} of ${site.traceEventCount} site events.',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF8EA4C2),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -873,6 +885,7 @@ class _SitesPageState extends State<SitesPage> {
           healthScore: projectionSite?.healthScore ?? 0.0,
           healthStatus: projectionSite?.healthStatus ?? 'STABLE',
           lastEventAtUtc: acc.lastEventAtUtc,
+          traceEventCount: acc.recentTrace.length,
           recentEvents: acc.recentTrace.reversed.take(10).toList(),
         ),
       );
@@ -959,6 +972,7 @@ class _SiteDrillSnapshot {
   final double healthScore;
   final String healthStatus;
   final DateTime lastEventAtUtc;
+  final int traceEventCount;
   final List<String> recentEvents;
 
   const _SiteDrillSnapshot({
@@ -981,6 +995,7 @@ class _SiteDrillSnapshot {
     required this.healthScore,
     required this.healthStatus,
     required this.lastEventAtUtc,
+    required this.traceEventCount,
     required this.recentEvents,
   });
 }

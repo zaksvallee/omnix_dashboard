@@ -478,6 +478,18 @@ class _GuardsPageState extends State<GuardsPage> {
                       },
                     ),
             ),
+            if (guard.traceEventCount > guard.recentTrace.length)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  'Showing ${guard.recentTrace.length} of ${guard.traceEventCount} guard events.',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF8EA4C2),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -816,6 +828,7 @@ class _GuardsPageState extends State<GuardsPage> {
           : (acc.patrolDurationSeconds / acc.patrols) / 60.0;
       final assignments = acc.assignments.toList()..sort();
       final primary = assignments.isEmpty ? 'Unknown' : assignments.first;
+      final traceEventCount = acc.recentTrace.length;
 
       return _GuardSnapshot(
         guardId: acc.guardId,
@@ -830,7 +843,8 @@ class _GuardsPageState extends State<GuardsPage> {
         averagePatrolMinutes: avgPatrol,
         activeHoursCount: acc.activeHours.length,
         lastActivityUtc: acc.lastActivityUtc,
-        recentTrace: acc.recentTrace.reversed.toList(),
+        traceEventCount: traceEventCount,
+        recentTrace: acc.recentTrace.reversed.take(10).toList(),
       );
     }).toList();
 
@@ -876,6 +890,7 @@ class _GuardSnapshot {
   final double averagePatrolMinutes;
   final int activeHoursCount;
   final DateTime lastActivityUtc;
+  final int traceEventCount;
   final List<String> recentTrace;
 
   const _GuardSnapshot({
@@ -891,6 +906,7 @@ class _GuardSnapshot {
     required this.averagePatrolMinutes,
     required this.activeHoursCount,
     required this.lastActivityUtc,
+    required this.traceEventCount,
     required this.recentTrace,
   });
 }
