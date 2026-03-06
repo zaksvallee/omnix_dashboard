@@ -297,6 +297,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
   static const _exportGeneratedStaleWindow = Duration(hours: 2);
   static const _exportRatioHealthyMax = 3.0;
   static const _exportRatioWarnMax = 6.0;
+  static const int _maxHistoryOperationRows = 12;
 
   late _GuardMobileScreen _screen;
   bool _submitting = false;
@@ -1826,6 +1827,11 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
   @override
   Widget build(BuildContext context) {
     final visibleHistoryOperations = _visibleOperationsByMode();
+    final visibleHistoryOperationRows = visibleHistoryOperations
+        .take(_maxHistoryOperationRows)
+        .toList(growable: false);
+    final hiddenHistoryOperationRows =
+        visibleHistoryOperations.length - visibleHistoryOperationRows.length;
     final activeShiftId = widget.activeShiftId.trim();
     final facadeIdOptions = {
       ...widget.availableFacadeIds.where((value) => value.trim().isNotEmpty),
@@ -2219,14 +2225,12 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
                                       )
                                     : ListView.separated(
                                         itemCount:
-                                            visibleHistoryOperations.length > 12
-                                            ? 12
-                                            : visibleHistoryOperations.length,
+                                            visibleHistoryOperationRows.length,
                                         separatorBuilder: (_, _) =>
                                             const SizedBox(height: 8),
                                         itemBuilder: (context, index) {
                                           final operation =
-                                              visibleHistoryOperations[index];
+                                              visibleHistoryOperationRows[index];
                                           return _operationRow(
                                             operation,
                                             selected:
@@ -2248,6 +2252,20 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
                                         },
                                       ),
                               ),
+                              if (hiddenHistoryOperationRows > 0) ...[
+                                const SizedBox(height: 8),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    'Showing ${visibleHistoryOperationRows.length} of ${visibleHistoryOperations.length} operations. $hiddenHistoryOperationRows older operations hidden.',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFF8EA4C2),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
                               const SizedBox(height: 8),
                               _operationDetailPanel(visibleHistoryOperations),
                             ],
