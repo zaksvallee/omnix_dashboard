@@ -69,11 +69,11 @@ class _EventsPageState extends State<EventsPage> {
             return const SizedBox.shrink();
           }
           return Drawer(
-            width: 340,
+            width: 320,
             backgroundColor: const Color(0xFF081426),
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
                 child: _selectedDetailPane(selected),
               ),
             ),
@@ -82,7 +82,7 @@ class _EventsPageState extends State<EventsPage> {
       ),
       body: OnyxPageScaffold(
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(10),
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 1540),
@@ -121,7 +121,7 @@ class _EventsPageState extends State<EventsPage> {
                                 },
                                 borderRadius: BorderRadius.circular(14),
                                 child: Container(
-                                  padding: const EdgeInsets.all(10),
+                                  padding: const EdgeInsets.all(9),
                                   decoration: _timelineRowDecoration(
                                     isSelected: isSelected,
                                   ),
@@ -239,7 +239,7 @@ class _EventsPageState extends State<EventsPage> {
                             "Timeline Feed",
                             style: GoogleFonts.rajdhani(
                               color: const Color(0xFFE6F0FF),
-                              fontSize: 20,
+                              fontSize: 18,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -252,7 +252,7 @@ class _EventsPageState extends State<EventsPage> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 8),
                           if (useExpandedList)
                             Expanded(
                               child: Column(
@@ -333,7 +333,7 @@ class _EventsPageState extends State<EventsPage> {
                           subtitle:
                               'Readable forensic timeline with a calmer detail surface and faster filter triage.',
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 8),
                         _summaryStrip(
                           totalCount: forensicRows.length,
                           filteredCount: filtered.length,
@@ -341,14 +341,14 @@ class _EventsPageState extends State<EventsPage> {
                               ? null
                               : timeline.first.sequence,
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         _filterBar(
                           allTypes: allTypes,
                           allSites: allSites,
                           allGuards: allGuards,
                           filteredCount: filtered.length,
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         mainLayout(),
                       ],
                     );

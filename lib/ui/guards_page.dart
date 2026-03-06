@@ -56,7 +56,7 @@ class _GuardsPageState extends State<GuardsPage> {
 
     return OnyxPageScaffold(
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 1540),
@@ -105,19 +105,19 @@ class _GuardsPageState extends State<GuardsPage> {
                     title: 'Guard Operations Workspace',
                     subtitle:
                         'Track personnel on the left and inspect the selected guard profile on the right.',
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(10),
                     child: LayoutBuilder(
                       builder: (context, constraints) {
                         final stackVertically = constraints.maxWidth < 1320;
 
                         if (stackVertically) {
                           return SizedBox(
-                            height: 680,
+                            height: 640,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 SizedBox(
-                                  height: 232,
+                                  height: 216,
                                   child: _guardRoster(guards, selected),
                                 ),
                                 const SizedBox(height: 6),
@@ -128,12 +128,12 @@ class _GuardsPageState extends State<GuardsPage> {
                         }
 
                         return SizedBox(
-                          height: 540,
+                          height: 508,
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               SizedBox(
-                                width: 280,
+                                width: 268,
                                 child: _guardRoster(guards, selected),
                               ),
                               const SizedBox(width: 8),
@@ -161,7 +161,7 @@ class _GuardsPageState extends State<GuardsPage> {
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
             child: Row(
               children: [
                 Expanded(
@@ -183,7 +183,7 @@ class _GuardsPageState extends State<GuardsPage> {
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.rajdhani(
                           color: const Color(0xFFDCEAFF),
-                          fontSize: 18,
+                          fontSize: 17,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -302,7 +302,7 @@ class _GuardsPageState extends State<GuardsPage> {
     return Container(
       decoration: _workspaceSurfaceDecoration(),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -324,7 +324,7 @@ class _GuardsPageState extends State<GuardsPage> {
                   'Guard ${guard.guardId}',
                   style: GoogleFonts.inter(
                     color: const Color(0xFFE7F0FF),
-                    fontSize: 22,
+                    fontSize: 20,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
