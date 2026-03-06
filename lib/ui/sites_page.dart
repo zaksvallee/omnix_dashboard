@@ -23,6 +23,8 @@ class SitesPage extends StatefulWidget {
 
 class _SitesPageState extends State<SitesPage> {
   static const int _maxRosterRows = 12;
+  static const double _spaceXs = 6;
+  static const double _spaceSm = 8;
 
   int _selectedIndex = 0;
 
@@ -67,7 +69,7 @@ class _SitesPageState extends State<SitesPage> {
                   subtitle:
                       'Estate-wide posture, dispatch exposure, and site-level operational pressure.',
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: _spaceSm),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -98,7 +100,7 @@ class _SitesPageState extends State<SitesPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: _spaceSm),
                 Expanded(
                   child: OnyxSectionCard(
                     title: 'Site Operations Workspace',
@@ -119,7 +121,7 @@ class _SitesPageState extends State<SitesPage> {
                                   height: 216,
                                   child: _siteRoster(sites, selected),
                                 ),
-                                const SizedBox(height: 6),
+                                const SizedBox(height: _spaceXs),
                                 Expanded(child: _siteDetail(selected)),
                               ],
                             ),
@@ -135,7 +137,7 @@ class _SitesPageState extends State<SitesPage> {
                                 width: 268,
                                 child: _siteRoster(sites, selected),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: _spaceSm),
                               Expanded(child: _siteDetail(selected)),
                             ],
                           ),
@@ -163,7 +165,7 @@ class _SitesPageState extends State<SitesPage> {
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, _spaceSm),
             child: Row(
               children: [
                 Expanded(
@@ -178,7 +180,7 @@ class _SitesPageState extends State<SitesPage> {
                           borderRadius: BorderRadius.circular(999),
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: _spaceXs),
                       Text(
                         'Site Roster',
                         maxLines: 1,
@@ -192,7 +194,7 @@ class _SitesPageState extends State<SitesPage> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: _spaceSm),
                 Text(
                   '${sites.length} total',
                   style: GoogleFonts.inter(
@@ -211,10 +213,10 @@ class _SitesPageState extends State<SitesPage> {
               children: [
                 Expanded(
                   child: ListView.separated(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(_spaceSm),
                     itemCount: visibleSites.length,
                     separatorBuilder: (context, index) =>
-                        const SizedBox(height: 6),
+                        const SizedBox(height: _spaceXs),
                     itemBuilder: (context, index) {
                       final site = visibleSites[index];
                       final isSelected = site.siteKey == selected.siteKey;

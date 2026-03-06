@@ -114,6 +114,10 @@ class _ClientAppPageState extends State<ClientAppPage> {
   static const int _maxIncidentFeedRows = 8;
   static const int _maxChatRows = 40;
   static const int _maxRoomRows = 12;
+  static const double _spaceXs = 6;
+  static const double _spaceSm = 8;
+  static const double _spaceMd = 10;
+  static const double _spaceLg = 12;
 
   final TextEditingController _chatController = TextEditingController();
   final FocusNode _chatFocusNode = FocusNode();
@@ -238,7 +242,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
 
     return OnyxPageScaffold(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 1540),
@@ -253,7 +257,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: _spaceSm),
                 Text(
                   _localizedSurfaceSubtitle(_viewerRole),
                   style: GoogleFonts.inter(
@@ -262,7 +266,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: _spaceSm),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,
@@ -297,7 +301,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                                 ? const Color(0xFF8FD1FF)
                                 : const Color(0xFF93A8C9),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: _spaceSm),
                           Text(
                             widget.backendSyncEnabled
                                 ? _localizedConversationSyncLive
@@ -311,7 +315,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                         ],
                       ),
                       if (!widget.backendSyncEnabled) ...[
-                        const SizedBox(height: 6),
+                        const SizedBox(height: _spaceXs),
                         Text(
                           _localizedRunWithLocalDefines,
                           style: GoogleFonts.inter(
@@ -324,7 +328,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: _spaceLg),
                 Text(
                   _localizedLanguageLabel,
                   style: GoogleFonts.inter(
@@ -415,7 +419,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     );
                   },
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: _spaceLg),
                 _panel(
                   title: _localizedPushDeliveryQueueTitle,
                   subtitle: _localizedPushDeliveryQueueSubtitle,
@@ -423,16 +427,16 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _pushSyncStatusStrip(),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: _spaceMd),
                       _backendProbeHistoryList(widget.backendProbeHistory),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: _spaceMd),
                       _pushSyncHistoryList(widget.pushSyncHistory),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: _spaceMd),
                       _pushQueueList(pushQueue),
                     ],
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: _spaceLg),
                 _panel(
                   title: _viewerRole.incidentFeedPanelTitleForLocale(
                     widget.locale,
@@ -486,7 +490,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                       : null,
                   child: _incidentFeedList(incidentFeed),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: _spaceLg),
                 Row(
                   children: [
                     Expanded(
@@ -519,7 +523,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: _spaceLg),
                 LayoutBuilder(
                   builder: (context, constraints) {
                     final columns = constraints.maxWidth >= 1400

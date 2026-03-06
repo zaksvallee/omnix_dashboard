@@ -199,6 +199,10 @@ class _DispatchPageState extends State<DispatchPage> {
   };
   static const _triagePolicy = IntelligenceTriagePolicy();
   static const int _maxDispatchQueueRows = 12;
+  static const double _spaceXs = 6;
+  static const double _spaceSm = 8;
+  static const double _spaceMd = 10;
+  static const double _spaceLg = 12;
 
   final Set<String> _expandedDispatchIds = <String>{};
   late final TextEditingController _scenarioLabelController;
@@ -1079,7 +1083,7 @@ class _DispatchPageState extends State<DispatchPage> {
           ),
         ),
         child: ListView(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(_spaceLg),
           children: [
             Center(
               child: ConstrainedBox(
@@ -1092,12 +1096,12 @@ class _DispatchPageState extends State<DispatchPage> {
                       denied: denied,
                       compact: compactDensity,
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: _spaceMd),
                     LayoutBuilder(
                       builder: (context, constraints) {
                         final useTwoColumn = constraints.maxWidth >= 1240;
                         final compactDensity = constraints.maxWidth < 1460;
-                        final sectionGap = compactDensity ? 8.0 : 10.0;
+                        final sectionGap = compactDensity ? _spaceSm : _spaceMd;
                         final systemStatusCard = _dispatchShellCard(
                           title: 'System Status',
                           subtitle:
@@ -1107,36 +1111,48 @@ class _DispatchPageState extends State<DispatchPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               _operationalWiringBlock(),
-                              SizedBox(height: compactDensity ? 8 : 10),
+                              SizedBox(
+                                height: compactDensity ? _spaceSm : _spaceMd,
+                              ),
                               _newsAndFeedStatusBlock(),
-                              SizedBox(height: compactDensity ? 8 : 10),
+                              SizedBox(
+                                height: compactDensity ? _spaceSm : _spaceMd,
+                              ),
                               _triagePostureBlock(
                                 allIntel: siteIntel,
                                 decisions: decisions,
                               ),
                               if (widget.intakeStatus != null) ...[
-                                SizedBox(height: compactDensity ? 8 : 10),
+                                SizedBox(
+                                  height: compactDensity ? _spaceSm : _spaceMd,
+                                ),
                                 _dispatchStatusLine(
                                   widget.intakeStatus!,
                                   const Color(0xFF7FB0DE),
                                 ),
                               ],
                               if (widget.runtimeConfigHint != null) ...[
-                                SizedBox(height: compactDensity ? 6 : 8),
+                                SizedBox(
+                                  height: compactDensity ? _spaceXs : _spaceSm,
+                                ),
                                 _dispatchStatusLine(
                                   widget.runtimeConfigHint!,
                                   const Color(0xFFFFD6A5),
                                 ),
                               ],
                               if (widget.livePollingLabel != null) ...[
-                                SizedBox(height: compactDensity ? 6 : 8),
+                                SizedBox(
+                                  height: compactDensity ? _spaceXs : _spaceSm,
+                                ),
                                 _dispatchStatusLine(
                                   widget.livePollingLabel!,
                                   const Color(0xFF9FD8AC),
                                 ),
                               ],
                               if (widget.livePollingHistory.isNotEmpty) ...[
-                                SizedBox(height: compactDensity ? 8 : 10),
+                                SizedBox(
+                                  height: compactDensity ? _spaceSm : _spaceMd,
+                                ),
                                 _livePollingHistoryCard(
                                   widget.livePollingHistory,
                                 ),

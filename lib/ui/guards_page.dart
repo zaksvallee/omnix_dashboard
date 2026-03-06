@@ -22,6 +22,8 @@ class GuardsPage extends StatefulWidget {
 
 class _GuardsPageState extends State<GuardsPage> {
   static const int _maxRosterRows = 12;
+  static const double _spaceXs = 6;
+  static const double _spaceSm = 8;
 
   int _selectedIndex = 0;
 
@@ -68,7 +70,7 @@ class _GuardsPageState extends State<GuardsPage> {
                   subtitle:
                       'Guard readiness, patrol discipline, and response exposure in one operational view.',
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: _spaceSm),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -99,7 +101,7 @@ class _GuardsPageState extends State<GuardsPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: _spaceSm),
                 Expanded(
                   child: OnyxSectionCard(
                     title: 'Guard Operations Workspace',
@@ -120,7 +122,7 @@ class _GuardsPageState extends State<GuardsPage> {
                                   height: 216,
                                   child: _guardRoster(guards, selected),
                                 ),
-                                const SizedBox(height: 6),
+                                const SizedBox(height: _spaceXs),
                                 Expanded(child: _guardDetail(selected)),
                               ],
                             ),
@@ -136,7 +138,7 @@ class _GuardsPageState extends State<GuardsPage> {
                                 width: 268,
                                 child: _guardRoster(guards, selected),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: _spaceSm),
                               Expanded(child: _guardDetail(selected)),
                             ],
                           ),
@@ -161,7 +163,7 @@ class _GuardsPageState extends State<GuardsPage> {
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, _spaceSm),
             child: Row(
               children: [
                 Expanded(
@@ -176,7 +178,7 @@ class _GuardsPageState extends State<GuardsPage> {
                           borderRadius: BorderRadius.circular(999),
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: _spaceXs),
                       Text(
                         'Guard Roster',
                         maxLines: 1,
@@ -190,7 +192,7 @@ class _GuardsPageState extends State<GuardsPage> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: _spaceSm),
                 Text(
                   '${guards.length} active',
                   style: GoogleFonts.inter(
@@ -209,10 +211,10 @@ class _GuardsPageState extends State<GuardsPage> {
               children: [
                 Expanded(
                   child: ListView.separated(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(_spaceSm),
                     itemCount: visibleGuards.length,
                     separatorBuilder: (context, index) =>
-                        const SizedBox(height: 6),
+                        const SizedBox(height: _spaceXs),
                     itemBuilder: (context, index) {
                       final guard = visibleGuards[index];
                       final isSelected = guard.guardId == selected.guardId;
