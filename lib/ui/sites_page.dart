@@ -22,6 +22,8 @@ class SitesPage extends StatefulWidget {
 }
 
 class _SitesPageState extends State<SitesPage> {
+  static const int _maxRosterRows = 12;
+
   int _selectedIndex = 0;
 
   @override
@@ -154,6 +156,8 @@ class _SitesPageState extends State<SitesPage> {
     List<_SiteDrillSnapshot> sites,
     _SiteDrillSnapshot selected,
   ) {
+    final visibleSites = sites.take(_maxRosterRows).toList(growable: false);
+    final hiddenSites = sites.length - visibleSites.length;
     return Container(
       decoration: _workspaceSurfaceDecoration(),
       child: Column(
@@ -202,63 +206,85 @@ class _SitesPageState extends State<SitesPage> {
           ),
           const Divider(height: 1, color: Color(0xFF15305A)),
           Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.all(8),
-              itemCount: sites.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 6),
-              itemBuilder: (context, index) {
-                final site = sites[index];
-                final isSelected = site.siteKey == selected.siteKey;
-                final statusColor = _statusColor(site.healthStatus);
-
-                return InkWell(
-                  onTap: () => setState(() => _selectedIndex = index),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.all(9),
-                    decoration: _rowSurfaceDecoration(isSelected: isSelected),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          site.siteId,
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFE7F0FF),
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${site.clientId} / ${site.regionId}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF93AACE),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(8),
+                    itemCount: visibleSites.length,
+                    separatorBuilder: (context, index) =>
                         const SizedBox(height: 6),
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
-                          children: [
-                            _tinyPill(
-                              'Health ${site.healthScore.toStringAsFixed(1)}',
-                              statusColor,
-                            ),
-                            _tinyPill(
-                              'Active ${site.activeDispatches}',
-                              const Color(0xFF4EB8FF),
-                            ),
-                          ],
+                    itemBuilder: (context, index) {
+                      final site = visibleSites[index];
+                      final isSelected = site.siteKey == selected.siteKey;
+                      final statusColor = _statusColor(site.healthStatus);
+
+                      return InkWell(
+                        onTap: () => setState(() => _selectedIndex = index),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.all(9),
+                          decoration: _rowSurfaceDecoration(
+                            isSelected: isSelected,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                site.siteId,
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFFE7F0FF),
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${site.clientId} / ${site.regionId}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF93AACE),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: [
+                                  _tinyPill(
+                                    'Health ${site.healthScore.toStringAsFixed(1)}',
+                                    statusColor,
+                                  ),
+                                  _tinyPill(
+                                    'Active ${site.activeDispatches}',
+                                    const Color(0xFF4EB8FF),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
-                      ],
+                      );
+                    },
+                  ),
+                ),
+                if (hiddenSites > 0)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                    child: Text(
+                      'Showing ${visibleSites.length} of ${sites.length} sites. $hiddenSites additional sites hidden.',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF86A2C8),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                );
-              },
+              ],
             ),
           ),
         ],

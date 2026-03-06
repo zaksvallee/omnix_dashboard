@@ -21,6 +21,8 @@ class GuardsPage extends StatefulWidget {
 }
 
 class _GuardsPageState extends State<GuardsPage> {
+  static const int _maxRosterRows = 12;
+
   int _selectedIndex = 0;
 
   @override
@@ -152,6 +154,8 @@ class _GuardsPageState extends State<GuardsPage> {
   }
 
   Widget _guardRoster(List<_GuardSnapshot> guards, _GuardSnapshot selected) {
+    final visibleGuards = guards.take(_maxRosterRows).toList(growable: false);
+    final hiddenGuards = guards.length - visibleGuards.length;
     return Container(
       decoration: _workspaceSurfaceDecoration(),
       child: Column(
@@ -200,66 +204,88 @@ class _GuardsPageState extends State<GuardsPage> {
           ),
           const Divider(height: 1, color: Color(0xFF15305A)),
           Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.all(8),
-              itemCount: guards.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 6),
-              itemBuilder: (context, index) {
-                final guard = guards[index];
-                final isSelected = guard.guardId == selected.guardId;
-                final complianceColor = guard.complianceScore >= 75
-                    ? const Color(0xFF4CD88E)
-                    : guard.complianceScore >= 50
-                    ? const Color(0xFFF6B24A)
-                    : const Color(0xFFFF6A78);
-
-                return InkWell(
-                  onTap: () => setState(() => _selectedIndex = index),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.all(9),
-                    decoration: _rowSurfaceDecoration(isSelected: isSelected),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          guard.guardId,
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFE7F0FF),
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          guard.primaryAssignment,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF93AACE),
-                            fontSize: 12,
-                          ),
-                        ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(8),
+                    itemCount: visibleGuards.length,
+                    separatorBuilder: (context, index) =>
                         const SizedBox(height: 6),
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
-                          children: [
-                            _tinyPill(
-                              'Check-Ins ${guard.checkIns}',
-                              const Color(0xFF4CB6FF),
-                            ),
-                            _tinyPill(
-                              'Compliance ${guard.complianceScore.toStringAsFixed(0)}%',
-                              complianceColor,
-                            ),
-                          ],
+                    itemBuilder: (context, index) {
+                      final guard = visibleGuards[index];
+                      final isSelected = guard.guardId == selected.guardId;
+                      final complianceColor = guard.complianceScore >= 75
+                          ? const Color(0xFF4CD88E)
+                          : guard.complianceScore >= 50
+                          ? const Color(0xFFF6B24A)
+                          : const Color(0xFFFF6A78);
+
+                      return InkWell(
+                        onTap: () => setState(() => _selectedIndex = index),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.all(9),
+                          decoration: _rowSurfaceDecoration(
+                            isSelected: isSelected,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                guard.guardId,
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFFE7F0FF),
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                guard.primaryAssignment,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF93AACE),
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: [
+                                  _tinyPill(
+                                    'Check-Ins ${guard.checkIns}',
+                                    const Color(0xFF4CB6FF),
+                                  ),
+                                  _tinyPill(
+                                    'Compliance ${guard.complianceScore.toStringAsFixed(0)}%',
+                                    complianceColor,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
-                      ],
+                      );
+                    },
+                  ),
+                ),
+                if (hiddenGuards > 0)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                    child: Text(
+                      'Showing ${visibleGuards.length} of ${guards.length} guards. $hiddenGuards additional guards hidden.',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF86A2C8),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                );
-              },
+              ],
             ),
           ),
         ],
