@@ -1077,7 +1077,7 @@ class _DispatchPageState extends State<DispatchPage> {
           ),
         ),
         child: ListView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(14),
           children: [
             _dispatchHeroCard(
               decisions: decisions,
@@ -1085,12 +1085,12 @@ class _DispatchPageState extends State<DispatchPage> {
               denied: denied,
               compact: compactDensity,
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
             LayoutBuilder(
               builder: (context, constraints) {
                 final useTwoColumn = constraints.maxWidth >= 1240;
                 final compactDensity = constraints.maxWidth < 1460;
-                final sectionGap = compactDensity ? 10.0 : 12.0;
+                final sectionGap = compactDensity ? 8.0 : 10.0;
                 final systemStatusCard = _dispatchShellCard(
                   title: 'System Status',
                   subtitle:
@@ -2818,8 +2818,8 @@ class _DispatchPageState extends State<DispatchPage> {
 
   Widget _toolCluster({required String title, required List<Widget> children}) {
     return Container(
-      width: 290,
-      padding: const EdgeInsets.all(12),
+      width: 276,
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF0C1A2E), Color(0xFF091628)],
@@ -2841,8 +2841,8 @@ class _DispatchPageState extends State<DispatchPage> {
               letterSpacing: 0.5,
             ),
           ),
-          const SizedBox(height: 10),
-          Wrap(spacing: 8, runSpacing: 8, children: children),
+          const SizedBox(height: 8),
+          Wrap(spacing: 6, runSpacing: 6, children: children),
         ],
       ),
     );
@@ -3698,7 +3698,9 @@ class _DispatchPageState extends State<DispatchPage> {
                                       ),
                                       decoration: BoxDecoration(
                                         color: const Color(0xFF10213A),
-                                        borderRadius: BorderRadius.circular(999),
+                                        borderRadius: BorderRadius.circular(
+                                          999,
+                                        ),
                                         border: Border.all(
                                           color: const Color(0xFF36567E),
                                         ),
@@ -3720,9 +3722,12 @@ class _DispatchPageState extends State<DispatchPage> {
                                       ),
                                       decoration: BoxDecoration(
                                         color: const Color(0xFF10213A),
-                                        borderRadius: BorderRadius.circular(999),
+                                        borderRadius: BorderRadius.circular(
+                                          999,
+                                        ),
                                         border: Border.all(
-                                          color: assessment.predictiveScore >= 80
+                                          color:
+                                              assessment.predictiveScore >= 80
                                               ? const Color(0xFFFFA3AF)
                                               : assessment.predictiveScore >= 60
                                               ? const Color(0xFFFFD6A5)

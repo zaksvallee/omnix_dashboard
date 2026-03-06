@@ -125,7 +125,7 @@ class _LedgerPageState extends State<LedgerPage> {
 
     return OnyxPageScaffold(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: ListView(
           children: [
             OnyxPageHeader(
@@ -154,7 +154,7 @@ class _LedgerPageState extends State<LedgerPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             LayoutBuilder(
               builder: (context, constraints) {
                 final columns = constraints.maxWidth >= 1280
@@ -162,7 +162,7 @@ class _LedgerPageState extends State<LedgerPage> {
                     : constraints.maxWidth >= 860
                     ? 2
                     : 1;
-                const spacing = 12.0;
+                const spacing = 10.0;
                 final cardWidth =
                     (constraints.maxWidth - ((columns - 1) * spacing)) /
                     columns;
@@ -207,7 +207,7 @@ class _LedgerPageState extends State<LedgerPage> {
               },
             ),
             if (_runtimeConfigHint != null) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(
@@ -236,7 +236,7 @@ class _LedgerPageState extends State<LedgerPage> {
               ),
             ],
             if (_verificationResult != null) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
@@ -272,7 +272,7 @@ class _LedgerPageState extends State<LedgerPage> {
                 ),
               ),
             ],
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             OnyxSectionCard(
               title: 'Ledger Timeline',
               subtitle:

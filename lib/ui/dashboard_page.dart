@@ -212,10 +212,13 @@ class _DashboardTriageSummary {
   });
 }
 
-_DashboardTriageSummary _buildDashboardTriageSummary(List<DispatchEvent> events) {
+_DashboardTriageSummary _buildDashboardTriageSummary(
+  List<DispatchEvent> events,
+) {
   const triagePolicy = IntelligenceTriagePolicy();
-  final allIntel = events.whereType<IntelligenceReceived>().toList(growable: false)
-    ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+  final allIntel = events.whereType<IntelligenceReceived>().toList(
+    growable: false,
+  )..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
   final decisions = events.whereType<DecisionCreated>().toList(growable: false);
   if (allIntel.isEmpty) {
     return const _DashboardTriageSummary(
@@ -392,7 +395,11 @@ class _DesktopDashboard extends StatelessWidget {
 
           return Column(
             children: [
-              _ExecutiveSummary(snapshot: snapshot, threat: threat, triage: triage),
+              _ExecutiveSummary(
+                snapshot: snapshot,
+                threat: threat,
+                triage: triage,
+              ),
               const SizedBox(height: 10),
               if (stackRightRailBelow) ...[
                 _SignalAndFeedGrid(snapshot: snapshot),
@@ -1236,160 +1243,180 @@ class _RightRail extends StatelessWidget {
                     ),
                   ),
                   children: [
-                    _RailMetricRow(
-                      label: 'Policy denied',
-                      value: guardOutcomePolicyDeniedCount.toString(),
-                    ),
-                    _RailMetricRow(
-                      label: 'Denied (24h)',
-                      value: guardOutcomePolicyDenied24h.toString(),
-                    ),
-                    _RailMetricRow(
-                      label: 'Denied (7d)',
-                      value: guardOutcomePolicyDenied7d.toString(),
-                    ),
-                    _RailMetricRow(
-                      label: 'Coaching Ack',
-                      value: guardCoachingAckCount.toString(),
-                    ),
-                    _RailMetricRow(
-                      label: 'Coaching Snooze',
-                      value: guardCoachingSnoozeCount.toString(),
-                    ),
-                    _RailMetricRow(
-                      label: 'Snooze Expiry',
-                      value: guardCoachingSnoozeExpiryCount.toString(),
-                    ),
-                    if (guardOutcomePolicyDeniedLastReason != null &&
-                        guardOutcomePolicyDeniedLastReason!.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Text(
-                          'Policy denied (latest): $guardOutcomePolicyDeniedLastReason',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFF5C27A),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    if (guardCoachingRecentHistory.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        'Recent Coaching Telemetry',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF8FD1FF),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      ...guardCoachingRecentHistory
-                          .take(3)
-                          .map(
-                            (entry) => Padding(
-                              padding: const EdgeInsets.only(bottom: 3),
-                              child: Text(
-                                entry,
+                    SizedBox(
+                      height: 210,
+                      child: Scrollbar(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _RailMetricRow(
+                                label: 'Policy denied',
+                                value: guardOutcomePolicyDeniedCount.toString(),
+                              ),
+                              _RailMetricRow(
+                                label: 'Denied (24h)',
+                                value: guardOutcomePolicyDenied24h.toString(),
+                              ),
+                              _RailMetricRow(
+                                label: 'Denied (7d)',
+                                value: guardOutcomePolicyDenied7d.toString(),
+                              ),
+                              _RailMetricRow(
+                                label: 'Coaching Ack',
+                                value: guardCoachingAckCount.toString(),
+                              ),
+                              _RailMetricRow(
+                                label: 'Coaching Snooze',
+                                value: guardCoachingSnoozeCount.toString(),
+                              ),
+                              _RailMetricRow(
+                                label: 'Snooze Expiry',
+                                value: guardCoachingSnoozeExpiryCount
+                                    .toString(),
+                              ),
+                              if (guardOutcomePolicyDeniedLastReason != null &&
+                                  guardOutcomePolicyDeniedLastReason!
+                                      .isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 6),
+                                  child: Text(
+                                    'Policy denied (latest): $guardOutcomePolicyDeniedLastReason',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFFF5C27A),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              if (guardCoachingRecentHistory.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Recent Coaching Telemetry',
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFF8FD1FF),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                ...guardCoachingRecentHistory
+                                    .take(3)
+                                    .map(
+                                      (entry) => Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 3,
+                                        ),
+                                        child: Text(
+                                          entry,
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFB8CBE7),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                              ],
+                              const SizedBox(height: 8),
+                              Text(
+                                'Recent Failure Trace',
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFFB8CBE7),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF8FD1FF),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
-                            ),
+                              const SizedBox(height: 4),
+                              if (recentFailureTraces.isEmpty)
+                                Text(
+                                  'No recent failure trace.',
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFF95A9C6),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                )
+                              else
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Events',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF9FB6D5),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    if (recentEventFailureTraces.isEmpty)
+                                      Text(
+                                        'No event failures.',
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFF95A9C6),
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      )
+                                    else
+                                      ...recentEventFailureTraces.map(
+                                        (trace) => Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 3,
+                                          ),
+                                          child: Text(
+                                            trace,
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFFFFC7CC),
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Media',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF9FB6D5),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    if (recentMediaFailureTraces.isEmpty)
+                                      Text(
+                                        'No media failures.',
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFF95A9C6),
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      )
+                                    else
+                                      ...recentMediaFailureTraces.map(
+                                        (trace) => Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 3,
+                                          ),
+                                          child: Text(
+                                            trace,
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFFFFC7CC),
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                            ],
                           ),
-                    ],
-                    const SizedBox(height: 8),
-                    Text(
-                      'Recent Failure Trace',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF8FD1FF),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    if (recentFailureTraces.isEmpty)
-                      Text(
-                        'No recent failure trace.',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF95A9C6),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      )
-                    else
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Events',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFF9FB6D5),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          if (recentEventFailureTraces.isEmpty)
-                            Text(
-                              'No event failures.',
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFF95A9C6),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            )
-                          else
-                            ...recentEventFailureTraces.map(
-                              (trace) => Padding(
-                                padding: const EdgeInsets.only(bottom: 3),
-                                child: Text(
-                                  trace,
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFFFFC7CC),
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Media',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFF9FB6D5),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          if (recentMediaFailureTraces.isEmpty)
-                            Text(
-                              'No media failures.',
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFF95A9C6),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            )
-                          else
-                            ...recentMediaFailureTraces.map(
-                              (trace) => Padding(
-                                padding: const EdgeInsets.only(bottom: 3),
-                                child: Text(
-                                  trace,
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFFFFC7CC),
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
                   ],
                 ),
               ),
@@ -1455,628 +1482,721 @@ class _RightRail extends StatelessWidget {
                     ),
                   ),
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: TextButton(
-                        onPressed: () async {
-                          await Clipboard.setData(
-                            ClipboardData(
-                              text: _guardFailureTraceClipboard(
-                                recentFailureTraces,
-                                guardLastFailureReason,
-                              ),
-                            ),
-                          );
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Guard failure trace copied',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFE7F0FF),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              backgroundColor: const Color(0xFF0E203A),
-                            ),
-                          );
-                        },
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: const Size(0, 0),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          'Copy Failure Trace',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF8FD1FF),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: TextButton(
-                        onPressed: () async {
-                          if (!_emailBridge.supported) {
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Email bridge is only available on web',
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFFE7F0FF),
-                                    fontWeight: FontWeight.w700,
+                    SizedBox(
+                      height: 500,
+                      child: Scrollbar(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: TextButton(
+                                  onPressed: () async {
+                                    await Clipboard.setData(
+                                      ClipboardData(
+                                        text: _guardFailureTraceClipboard(
+                                          recentFailureTraces,
+                                          guardLastFailureReason,
+                                        ),
+                                      ),
+                                    );
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Guard failure trace copied',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFE7F0FF),
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        backgroundColor: const Color(
+                                          0xFF0E203A,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: const Size(0, 0),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: Text(
+                                    'Copy Failure Trace',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFF8FD1FF),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ),
-                                backgroundColor: const Color(0xFF0E203A),
                               ),
-                            );
-                            return;
-                          }
-                          final opened = await _emailBridge.openMailDraft(
-                            subject: 'ONYX Guard Sync Failure Trace',
-                            body: _guardFailureTraceText(
-                              recentFailureTraces,
-                              guardLastFailureReason,
-                            ),
-                          );
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                opened
-                                    ? 'Email draft opened for failure trace'
-                                    : 'Email bridge unavailable',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFE7F0FF),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              backgroundColor: const Color(0xFF0E203A),
-                            ),
-                          );
-                        },
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: const Size(0, 0),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          'Email Failure Trace',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF8FD1FF),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: TextButton(
-                        onPressed: () async {
-                          if (!_snapshotFiles.supported) {
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'File export is only available on web',
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFFE7F0FF),
-                                    fontWeight: FontWeight.w700,
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: TextButton(
+                                  onPressed: () async {
+                                    if (!_emailBridge.supported) {
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Email bridge is only available on web',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFFE7F0FF),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          backgroundColor: const Color(
+                                            0xFF0E203A,
+                                          ),
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                    final opened = await _emailBridge
+                                        .openMailDraft(
+                                          subject:
+                                              'ONYX Guard Sync Failure Trace',
+                                          body: _guardFailureTraceText(
+                                            recentFailureTraces,
+                                            guardLastFailureReason,
+                                          ),
+                                        );
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          opened
+                                              ? 'Email draft opened for failure trace'
+                                              : 'Email bridge unavailable',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFE7F0FF),
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        backgroundColor: const Color(
+                                          0xFF0E203A,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: const Size(0, 0),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: Text(
+                                    'Email Failure Trace',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFF8FD1FF),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ),
-                                backgroundColor: const Color(0xFF0E203A),
                               ),
-                            );
-                            return;
-                          }
-                          await _snapshotFiles.downloadTextFile(
-                            filename: 'guard-sync-failure-trace.txt',
-                            contents: _guardFailureTraceText(
-                              recentFailureTraces,
-                              guardLastFailureReason,
-                            ),
-                          );
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Failure trace download started',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFE7F0FF),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              backgroundColor: const Color(0xFF0E203A),
-                            ),
-                          );
-                        },
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: const Size(0, 0),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          'Download Failure Trace',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF8FD1FF),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: TextButton(
-                        onPressed: () async {
-                          if (!_textShare.supported) {
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Share is not available in this environment',
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFFE7F0FF),
-                                    fontWeight: FontWeight.w700,
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: TextButton(
+                                  onPressed: () async {
+                                    if (!_snapshotFiles.supported) {
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'File export is only available on web',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFFE7F0FF),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          backgroundColor: const Color(
+                                            0xFF0E203A,
+                                          ),
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                    await _snapshotFiles.downloadTextFile(
+                                      filename: 'guard-sync-failure-trace.txt',
+                                      contents: _guardFailureTraceText(
+                                        recentFailureTraces,
+                                        guardLastFailureReason,
+                                      ),
+                                    );
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Failure trace download started',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFE7F0FF),
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        backgroundColor: const Color(
+                                          0xFF0E203A,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: const Size(0, 0),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: Text(
+                                    'Download Failure Trace',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFF8FD1FF),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ),
-                                backgroundColor: const Color(0xFF0E203A),
                               ),
-                            );
-                            return;
-                          }
-                          final shared = await _textShare.shareText(
-                            title: 'ONYX Guard Sync Failure Trace',
-                            text: _guardFailureTraceText(
-                              recentFailureTraces,
-                              guardLastFailureReason,
-                            ),
-                          );
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                shared
-                                    ? 'Failure trace share started'
-                                    : 'Failure trace share unavailable',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFE7F0FF),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              backgroundColor: const Color(0xFF0E203A),
-                            ),
-                          );
-                        },
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: const Size(0, 0),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          'Share Failure Trace',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF8FD1FF),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: TextButton(
-                        onPressed: () async {
-                          await Clipboard.setData(
-                            ClipboardData(text: _guardPolicyTelemetryJson()),
-                          );
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Policy telemetry JSON copied',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFE7F0FF),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              backgroundColor: const Color(0xFF0E203A),
-                            ),
-                          );
-                        },
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: const Size(0, 0),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          'Copy Policy Telemetry JSON',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFF5C27A),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: TextButton(
-                        onPressed: () async {
-                          await Clipboard.setData(
-                            ClipboardData(text: _guardPolicyTelemetryCsv()),
-                          );
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Policy telemetry CSV copied',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFE7F0FF),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              backgroundColor: const Color(0xFF0E203A),
-                            ),
-                          );
-                        },
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: const Size(0, 0),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          'Copy Policy Telemetry CSV',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFF5C27A),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: TextButton(
-                        onPressed: () async {
-                          if (!_snapshotFiles.supported) {
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'File export is only available on web',
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFFE7F0FF),
-                                    fontWeight: FontWeight.w700,
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: TextButton(
+                                  onPressed: () async {
+                                    if (!_textShare.supported) {
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Share is not available in this environment',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFFE7F0FF),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          backgroundColor: const Color(
+                                            0xFF0E203A,
+                                          ),
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                    final shared = await _textShare.shareText(
+                                      title: 'ONYX Guard Sync Failure Trace',
+                                      text: _guardFailureTraceText(
+                                        recentFailureTraces,
+                                        guardLastFailureReason,
+                                      ),
+                                    );
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          shared
+                                              ? 'Failure trace share started'
+                                              : 'Failure trace share unavailable',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFE7F0FF),
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        backgroundColor: const Color(
+                                          0xFF0E203A,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: const Size(0, 0),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: Text(
+                                    'Share Failure Trace',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFF8FD1FF),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ),
-                                backgroundColor: const Color(0xFF0E203A),
                               ),
-                            );
-                            return;
-                          }
-                          await _snapshotFiles.downloadJsonFile(
-                            filename: 'guard-policy-telemetry.json',
-                            contents: _guardPolicyTelemetryJson(),
-                          );
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Policy telemetry JSON download started',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFE7F0FF),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              backgroundColor: const Color(0xFF0E203A),
-                            ),
-                          );
-                        },
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: const Size(0, 0),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          'Download Policy JSON',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFF5C27A),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: TextButton(
-                        onPressed: () async {
-                          if (!_snapshotFiles.supported) {
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'File export is only available on web',
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFFE7F0FF),
-                                    fontWeight: FontWeight.w700,
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: TextButton(
+                                  onPressed: () async {
+                                    await Clipboard.setData(
+                                      ClipboardData(
+                                        text: _guardPolicyTelemetryJson(),
+                                      ),
+                                    );
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Policy telemetry JSON copied',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFE7F0FF),
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        backgroundColor: const Color(
+                                          0xFF0E203A,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: const Size(0, 0),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: Text(
+                                    'Copy Policy Telemetry JSON',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFFF5C27A),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ),
-                                backgroundColor: const Color(0xFF0E203A),
                               ),
-                            );
-                            return;
-                          }
-                          await _snapshotFiles.downloadTextFile(
-                            filename: 'guard-policy-telemetry.csv',
-                            contents: _guardPolicyTelemetryCsv(),
-                          );
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Policy telemetry CSV download started',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFE7F0FF),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              backgroundColor: const Color(0xFF0E203A),
-                            ),
-                          );
-                        },
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: const Size(0, 0),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          'Download Policy CSV',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFF5C27A),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: TextButton(
-                        onPressed: () async {
-                          if (!_textShare.supported) {
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Share is not available in this environment',
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFFE7F0FF),
-                                    fontWeight: FontWeight.w700,
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: TextButton(
+                                  onPressed: () async {
+                                    await Clipboard.setData(
+                                      ClipboardData(
+                                        text: _guardPolicyTelemetryCsv(),
+                                      ),
+                                    );
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Policy telemetry CSV copied',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFE7F0FF),
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        backgroundColor: const Color(
+                                          0xFF0E203A,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: const Size(0, 0),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: Text(
+                                    'Copy Policy Telemetry CSV',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFFF5C27A),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ),
-                                backgroundColor: const Color(0xFF0E203A),
                               ),
-                            );
-                            return;
-                          }
-                          final shared = await _textShare.shareText(
-                            title: 'ONYX Guard Policy Telemetry',
-                            text: _guardPolicyTelemetryJson(),
-                          );
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                shared
-                                    ? 'Policy telemetry share started'
-                                    : 'Policy telemetry share unavailable',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFE7F0FF),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              backgroundColor: const Color(0xFF0E203A),
-                            ),
-                          );
-                        },
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: const Size(0, 0),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          'Share Policy Pack',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFF5C27A),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: TextButton(
-                        onPressed: () async {
-                          await Clipboard.setData(
-                            ClipboardData(text: _guardCoachingTelemetryJson()),
-                          );
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Coaching telemetry JSON copied',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFE7F0FF),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              backgroundColor: const Color(0xFF0E203A),
-                            ),
-                          );
-                        },
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: const Size(0, 0),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          'Copy Coaching Telemetry JSON',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF8FD1FF),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: TextButton(
-                        onPressed: () async {
-                          await Clipboard.setData(
-                            ClipboardData(text: _guardCoachingTelemetryCsv()),
-                          );
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Coaching telemetry CSV copied',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFE7F0FF),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              backgroundColor: const Color(0xFF0E203A),
-                            ),
-                          );
-                        },
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: const Size(0, 0),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          'Copy Coaching Telemetry CSV',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF8FD1FF),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: TextButton(
-                        onPressed: () async {
-                          if (!_snapshotFiles.supported) {
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'File export is only available on web',
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFFE7F0FF),
-                                    fontWeight: FontWeight.w700,
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: TextButton(
+                                  onPressed: () async {
+                                    if (!_snapshotFiles.supported) {
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'File export is only available on web',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFFE7F0FF),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          backgroundColor: const Color(
+                                            0xFF0E203A,
+                                          ),
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                    await _snapshotFiles.downloadJsonFile(
+                                      filename: 'guard-policy-telemetry.json',
+                                      contents: _guardPolicyTelemetryJson(),
+                                    );
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Policy telemetry JSON download started',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFE7F0FF),
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        backgroundColor: const Color(
+                                          0xFF0E203A,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: const Size(0, 0),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: Text(
+                                    'Download Policy JSON',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFFF5C27A),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ),
-                                backgroundColor: const Color(0xFF0E203A),
                               ),
-                            );
-                            return;
-                          }
-                          await _snapshotFiles.downloadJsonFile(
-                            filename: 'guard-coaching-telemetry.json',
-                            contents: _guardCoachingTelemetryJson(),
-                          );
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Coaching telemetry JSON download started',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFE7F0FF),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              backgroundColor: const Color(0xFF0E203A),
-                            ),
-                          );
-                        },
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: const Size(0, 0),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          'Download Coaching JSON',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF8FD1FF),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: TextButton(
-                        onPressed: () async {
-                          if (!_textShare.supported) {
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Share is not available in this environment',
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFFE7F0FF),
-                                    fontWeight: FontWeight.w700,
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: TextButton(
+                                  onPressed: () async {
+                                    if (!_snapshotFiles.supported) {
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'File export is only available on web',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFFE7F0FF),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          backgroundColor: const Color(
+                                            0xFF0E203A,
+                                          ),
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                    await _snapshotFiles.downloadTextFile(
+                                      filename: 'guard-policy-telemetry.csv',
+                                      contents: _guardPolicyTelemetryCsv(),
+                                    );
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Policy telemetry CSV download started',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFE7F0FF),
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        backgroundColor: const Color(
+                                          0xFF0E203A,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: const Size(0, 0),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: Text(
+                                    'Download Policy CSV',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFFF5C27A),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ),
-                                backgroundColor: const Color(0xFF0E203A),
                               ),
-                            );
-                            return;
-                          }
-                          final shared = await _textShare.shareText(
-                            title: 'ONYX Guard Coaching Telemetry',
-                            text: _guardCoachingTelemetryJson(),
-                          );
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                shared
-                                    ? 'Coaching telemetry share started'
-                                    : 'Coaching telemetry share unavailable',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFE7F0FF),
-                                  fontWeight: FontWeight.w700,
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: TextButton(
+                                  onPressed: () async {
+                                    if (!_textShare.supported) {
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Share is not available in this environment',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFFE7F0FF),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          backgroundColor: const Color(
+                                            0xFF0E203A,
+                                          ),
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                    final shared = await _textShare.shareText(
+                                      title: 'ONYX Guard Policy Telemetry',
+                                      text: _guardPolicyTelemetryJson(),
+                                    );
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          shared
+                                              ? 'Policy telemetry share started'
+                                              : 'Policy telemetry share unavailable',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFE7F0FF),
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        backgroundColor: const Color(
+                                          0xFF0E203A,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: const Size(0, 0),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: Text(
+                                    'Share Policy Pack',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFFF5C27A),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
                                 ),
                               ),
-                              backgroundColor: const Color(0xFF0E203A),
-                            ),
-                          );
-                        },
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: const Size(0, 0),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          'Share Coaching Pack',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF8FD1FF),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: TextButton(
+                                  onPressed: () async {
+                                    await Clipboard.setData(
+                                      ClipboardData(
+                                        text: _guardCoachingTelemetryJson(),
+                                      ),
+                                    );
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Coaching telemetry JSON copied',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFE7F0FF),
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        backgroundColor: const Color(
+                                          0xFF0E203A,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: const Size(0, 0),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: Text(
+                                    'Copy Coaching Telemetry JSON',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFF8FD1FF),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: TextButton(
+                                  onPressed: () async {
+                                    await Clipboard.setData(
+                                      ClipboardData(
+                                        text: _guardCoachingTelemetryCsv(),
+                                      ),
+                                    );
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Coaching telemetry CSV copied',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFE7F0FF),
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        backgroundColor: const Color(
+                                          0xFF0E203A,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: const Size(0, 0),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: Text(
+                                    'Copy Coaching Telemetry CSV',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFF8FD1FF),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: TextButton(
+                                  onPressed: () async {
+                                    if (!_snapshotFiles.supported) {
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'File export is only available on web',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFFE7F0FF),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          backgroundColor: const Color(
+                                            0xFF0E203A,
+                                          ),
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                    await _snapshotFiles.downloadJsonFile(
+                                      filename: 'guard-coaching-telemetry.json',
+                                      contents: _guardCoachingTelemetryJson(),
+                                    );
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Coaching telemetry JSON download started',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFE7F0FF),
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        backgroundColor: const Color(
+                                          0xFF0E203A,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: const Size(0, 0),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: Text(
+                                    'Download Coaching JSON',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFF8FD1FF),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: TextButton(
+                                  onPressed: () async {
+                                    if (!_textShare.supported) {
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Share is not available in this environment',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFFE7F0FF),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          backgroundColor: const Color(
+                                            0xFF0E203A,
+                                          ),
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                    final shared = await _textShare.shareText(
+                                      title: 'ONYX Guard Coaching Telemetry',
+                                      text: _guardCoachingTelemetryJson(),
+                                    );
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          shared
+                                              ? 'Coaching telemetry share started'
+                                              : 'Coaching telemetry share unavailable',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFE7F0FF),
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        backgroundColor: const Color(
+                                          0xFF0E203A,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: const Size(0, 0),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: Text(
+                                    'Share Coaching Pack',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFF8FD1FF),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),

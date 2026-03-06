@@ -65,11 +65,11 @@ class _EventsPageState extends State<EventsPage> {
             return const SizedBox.shrink();
           }
           return Drawer(
-            width: 360,
+            width: 340,
             backgroundColor: const Color(0xFF081426),
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(12),
                 child: _selectedDetailPane(selected),
               ),
             ),
@@ -78,7 +78,7 @@ class _EventsPageState extends State<EventsPage> {
       ),
       body: OnyxPageScaffold(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           child: LayoutBuilder(
             builder: (context, viewport) {
               final useScrollFallback = viewport.maxHeight < 720;
@@ -102,7 +102,8 @@ class _EventsPageState extends State<EventsPage> {
                           final row = filtered[index];
                           final event = row.event;
                           final info = row.info;
-                          final isSelected = _selected?.eventId == event.eventId;
+                          final isSelected =
+                              _selected?.eventId == event.eventId;
 
                           return InkWell(
                             onTap: () {
@@ -113,7 +114,7 @@ class _EventsPageState extends State<EventsPage> {
                             },
                             borderRadius: BorderRadius.circular(16),
                             child: Container(
-                              padding: const EdgeInsets.all(14),
+                              padding: const EdgeInsets.all(12),
                               decoration: _timelineRowDecoration(
                                 isSelected: isSelected,
                               ),
@@ -132,7 +133,8 @@ class _EventsPageState extends State<EventsPage> {
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Row(
                                           crossAxisAlignment:
@@ -206,7 +208,7 @@ class _EventsPageState extends State<EventsPage> {
                       );
 
                 return Container(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(12),
                   decoration: _surfaceCardDecoration(),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -238,7 +240,10 @@ class _EventsPageState extends State<EventsPage> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      if (useExpandedList) Expanded(child: timelineList) else timelineList,
+                      if (useExpandedList)
+                        Expanded(child: timelineList)
+                      else
+                        timelineList,
                     ],
                   ),
                 );
@@ -249,8 +254,8 @@ class _EventsPageState extends State<EventsPage> {
                   builder: (context, constraints) {
                     final showSideDrawer = constraints.maxWidth >= 1120;
                     final sidePaneWidth = constraints.maxWidth >= 1480
-                        ? 380.0
-                        : 340.0;
+                        ? 360.0
+                        : 320.0;
                     return Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -283,7 +288,7 @@ class _EventsPageState extends State<EventsPage> {
                       subtitle:
                           'Readable forensic timeline with a calmer detail surface and faster filter triage.',
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     _summaryStrip(
                       totalCount: forensicRows.length,
                       filteredCount: filtered.length,
@@ -291,14 +296,14 @@ class _EventsPageState extends State<EventsPage> {
                           ? null
                           : timeline.first.sequence,
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     _filterBar(
                       allTypes: allTypes,
                       allSites: allSites,
                       allGuards: allGuards,
                       filteredCount: filtered.length,
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     mainLayout(),
                   ],
                 );
@@ -312,7 +317,7 @@ class _EventsPageState extends State<EventsPage> {
                     subtitle:
                         'Readable forensic timeline with a calmer detail surface and faster filter triage.',
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   _summaryStrip(
                     totalCount: forensicRows.length,
                     filteredCount: filtered.length,
@@ -320,14 +325,14 @@ class _EventsPageState extends State<EventsPage> {
                         ? null
                         : timeline.first.sequence,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   _filterBar(
                     allTypes: allTypes,
                     allSites: allSites,
                     allGuards: allGuards,
                     filteredCount: filtered.length,
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 10),
                   Expanded(child: mainLayout()),
                 ],
               );

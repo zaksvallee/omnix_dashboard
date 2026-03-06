@@ -30,8 +30,8 @@ class AppShell extends StatelessWidget {
       backgroundColor: const Color(0xFF020611),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final compactSidebar = constraints.maxWidth < 1480;
-          final sidebarWidth = compactSidebar ? 226.0 : 252.0;
+          final compactSidebar = constraints.maxWidth < 1600;
+          final sidebarWidth = compactSidebar ? 216.0 : 246.0;
           return Row(
             children: [
               _Sidebar(

@@ -53,7 +53,7 @@ class _SitesPageState extends State<SitesPage> {
 
     return OnyxPageScaffold(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -62,26 +62,29 @@ class _SitesPageState extends State<SitesPage> {
               subtitle:
                   'Estate-wide posture, dispatch exposure, and site-level operational pressure.',
             ),
-            const SizedBox(height: 16),
-            Row(
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
               children: [
-                Expanded(
+                SizedBox(
+                  width: 260,
                   child: OnyxSummaryStat(
                     label: 'Visible Sites',
                     value: sites.length.toString(),
                     accent: const Color(0xFF63BDFF),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
+                SizedBox(
+                  width: 260,
                   child: OnyxSummaryStat(
                     label: 'Active Dispatches',
                     value: activeDispatches.toString(),
                     accent: const Color(0xFF59D79B),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
+                SizedBox(
+                  width: 260,
                   child: OnyxSummaryStat(
                     label: 'Average Health',
                     value: averageHealth.toStringAsFixed(1),
@@ -90,7 +93,7 @@ class _SitesPageState extends State<SitesPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Expanded(
               child: OnyxSectionCard(
                 title: 'Site Operations Workspace',
@@ -103,12 +106,12 @@ class _SitesPageState extends State<SitesPage> {
 
                     if (stackVertically) {
                       return SizedBox(
-                        height: 720,
+                        height: 680,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             SizedBox(
-                              height: 250,
+                              height: 232,
                               child: _siteRoster(sites, selected),
                             ),
                             const SizedBox(height: 10),
@@ -119,12 +122,12 @@ class _SitesPageState extends State<SitesPage> {
                     }
 
                     return SizedBox(
-                      height: 560,
+                      height: 540,
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           SizedBox(
-                            width: 320,
+                            width: 300,
                             child: _siteRoster(sites, selected),
                           ),
                           const SizedBox(width: 10),
@@ -154,29 +157,33 @@ class _SitesPageState extends State<SitesPage> {
             padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
             child: Row(
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 28,
-                      height: 3,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF3C79BB),
-                        borderRadius: BorderRadius.circular(999),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 28,
+                        height: 3,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF3C79BB),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Site Roster',
-                      style: GoogleFonts.rajdhani(
-                        color: const Color(0xFFDCEAFF),
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
+                      const SizedBox(height: 8),
+                      Text(
+                        'Site Roster',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.rajdhani(
+                          color: const Color(0xFFDCEAFF),
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 Text(
                   '${sites.length} total',
                   style: GoogleFonts.inter(
@@ -219,6 +226,8 @@ class _SitesPageState extends State<SitesPage> {
                         const SizedBox(height: 2),
                         Text(
                           '${site.clientId} / ${site.regionId}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.inter(
                             color: const Color(0xFF93AACE),
                             fontSize: 12,
@@ -226,13 +235,14 @@ class _SitesPageState extends State<SitesPage> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Row(
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
                           children: [
                             _tinyPill(
                               'Health ${site.healthScore.toStringAsFixed(1)}',
                               statusColor,
                             ),
-                            const SizedBox(width: 6),
                             _tinyPill(
                               'Active ${site.activeDispatches}',
                               const Color(0xFF4EB8FF),

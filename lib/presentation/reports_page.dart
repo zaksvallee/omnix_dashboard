@@ -10,7 +10,7 @@ class ReportsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return OnyxPageScaffold(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -19,7 +19,7 @@ class ReportsPage extends StatelessWidget {
               subtitle:
                   'Deterministic reporting, replay verification, and export readiness for client-facing intelligence packs.',
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             LayoutBuilder(
               builder: (context, constraints) {
                 final columns = constraints.maxWidth >= 1260
@@ -27,7 +27,7 @@ class ReportsPage extends StatelessWidget {
                     : constraints.maxWidth >= 860
                     ? 2
                     : 1;
-                const spacing = 12.0;
+                const spacing = 10.0;
                 final itemWidth =
                     (constraints.maxWidth - ((columns - 1) * spacing)) /
                     columns;
@@ -63,11 +63,11 @@ class ReportsPage extends StatelessWidget {
                 );
               },
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Expanded(
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final stackVertically = constraints.maxWidth < 1320;
+                  final stackVertically = constraints.maxWidth < 1360;
 
                   final generationFlowCard = OnyxSectionCard(
                     title: 'Report Generation Flow',
@@ -235,9 +235,9 @@ class ReportsPage extends StatelessWidget {
                     return ListView(
                       children: [
                         generationFlowCard,
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 8),
                         outputModulesCard,
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 8),
                         readinessBoardCard,
                       ],
                     );
@@ -251,12 +251,12 @@ class ReportsPage extends StatelessWidget {
                         child: Column(
                           children: [
                             Expanded(child: generationFlowCard),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 8),
                             Expanded(child: outputModulesCard),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
                       Expanded(flex: 4, child: readinessBoardCard),
                     ],
                   );

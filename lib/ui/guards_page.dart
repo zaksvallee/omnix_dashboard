@@ -54,7 +54,7 @@ class _GuardsPageState extends State<GuardsPage> {
 
     return OnyxPageScaffold(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -63,26 +63,29 @@ class _GuardsPageState extends State<GuardsPage> {
               subtitle:
                   'Guard readiness, patrol discipline, and response exposure in one operational view.',
             ),
-            const SizedBox(height: 16),
-            Row(
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
               children: [
-                Expanded(
+                SizedBox(
+                  width: 260,
                   child: OnyxSummaryStat(
                     label: 'Active Guards',
                     value: guards.length.toString(),
                     accent: const Color(0xFF63BDFF),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
+                SizedBox(
+                  width: 260,
                   child: OnyxSummaryStat(
                     label: 'Total Check-Ins',
                     value: totalCheckIns.toString(),
                     accent: const Color(0xFF59D79B),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
+                SizedBox(
+                  width: 260,
                   child: OnyxSummaryStat(
                     label: 'Avg Compliance',
                     value: '${averageCompliance.toStringAsFixed(0)}%',
@@ -91,7 +94,7 @@ class _GuardsPageState extends State<GuardsPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Expanded(
               child: OnyxSectionCard(
                 title: 'Guard Operations Workspace',
@@ -104,12 +107,12 @@ class _GuardsPageState extends State<GuardsPage> {
 
                     if (stackVertically) {
                       return SizedBox(
-                        height: 720,
+                        height: 680,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             SizedBox(
-                              height: 250,
+                              height: 232,
                               child: _guardRoster(guards, selected),
                             ),
                             const SizedBox(height: 10),
@@ -120,12 +123,12 @@ class _GuardsPageState extends State<GuardsPage> {
                     }
 
                     return SizedBox(
-                      height: 560,
+                      height: 540,
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           SizedBox(
-                            width: 310,
+                            width: 300,
                             child: _guardRoster(guards, selected),
                           ),
                           const SizedBox(width: 10),
