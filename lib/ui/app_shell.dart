@@ -30,8 +30,8 @@ class AppShell extends StatelessWidget {
       backgroundColor: const Color(0xFF020611),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final compactSidebar = constraints.maxWidth < 1600;
-          final sidebarWidth = compactSidebar ? 216.0 : 246.0;
+          final compactSidebar = constraints.maxWidth < 1720;
+          final sidebarWidth = compactSidebar ? 208.0 : 232.0;
           return Row(
             children: [
               _Sidebar(
@@ -122,17 +122,17 @@ class _Sidebar extends StatelessWidget {
         border: Border(right: BorderSide(color: Color(0xFF122B4C))),
       ),
       child: ListView(
-        padding: const EdgeInsets.only(top: 12, bottom: 12),
+        padding: const EdgeInsets.only(top: 8, bottom: 10),
         children: [
           Padding(
             padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 14),
             child: Container(
               padding: EdgeInsets.symmetric(
-                horizontal: compact ? 10 : 12,
-                vertical: compact ? 10 : 12,
+                horizontal: compact ? 9 : 11,
+                vertical: compact ? 9 : 11,
               ),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(16),
                 gradient: const LinearGradient(
                   colors: [Color(0xFF0D1A2E), Color(0xFF0A1425)],
                   begin: Alignment.topLeft,
@@ -150,10 +150,10 @@ class _Sidebar extends StatelessWidget {
               child: Row(
                 children: [
                   Container(
-                    width: 40,
-                    height: 40,
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(12),
                       gradient: const LinearGradient(
                         colors: [Color(0xFF35D4FF), Color(0xFF2363FF)],
                         begin: Alignment.topLeft,
@@ -174,7 +174,7 @@ class _Sidebar extends StatelessWidget {
                           "ONYX",
                           style: GoogleFonts.rajdhani(
                             color: const Color(0xFFE3EEFF),
-                            fontSize: compact ? 20 : 23,
+                            fontSize: compact ? 18 : 21,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 1.2,
                           ),
@@ -196,7 +196,7 @@ class _Sidebar extends StatelessWidget {
               ),
             ),
           ),
-          SizedBox(height: compact ? 10 : 14),
+          SizedBox(height: compact ? 8 : 10),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 14),
             child: Container(
@@ -208,7 +208,7 @@ class _Sidebar extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: const Color(0xFF18375A)),
               ),
               child: Column(
@@ -238,7 +238,7 @@ class _Sidebar extends StatelessWidget {
               ),
             ),
           ),
-          SizedBox(height: compact ? 10 : 12),
+          SizedBox(height: compact ? 8 : 10),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 16),
             child: Text(
@@ -251,11 +251,11 @@ class _Sidebar extends StatelessWidget {
               ),
             ),
           ),
-          SizedBox(height: compact ? 6 : 8),
+          SizedBox(height: compact ? 5 : 7),
           ...navItems.map((item) {
             return _navItem(context, item.label, item.icon, item.route);
           }),
-          SizedBox(height: compact ? 10 : 12),
+          SizedBox(height: compact ? 8 : 10),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 14),
             child: Container(
@@ -267,7 +267,7 @@ class _Sidebar extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: const Color(0xFF18385A)),
               ),
               child: Column(
@@ -314,13 +314,13 @@ class _Sidebar extends StatelessWidget {
     return GestureDetector(
       onTap: () => onRouteChanged(route),
       child: Container(
-        margin: EdgeInsets.symmetric(horizontal: compact ? 8 : 10, vertical: 3),
+        margin: EdgeInsets.symmetric(horizontal: compact ? 8 : 10, vertical: 2),
         padding: EdgeInsets.symmetric(
           horizontal: compact ? 8 : 10,
-          vertical: compact ? 10 : 11,
+          vertical: compact ? 9 : 10,
         ),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           gradient: isActive
               ? const LinearGradient(
                   colors: [Color(0xFF123050), Color(0xFF0D223B)],
@@ -349,7 +349,7 @@ class _Sidebar extends StatelessWidget {
               const SizedBox(width: 13),
             Icon(
               icon,
-              size: 17,
+              size: 16,
               color: isActive
                   ? const Color(0xFF49D0FF)
                   : const Color(0xFF7B8DAD),
@@ -362,7 +362,7 @@ class _Sidebar extends StatelessWidget {
                   color: isActive
                       ? const Color(0xFFE6F2FF)
                       : const Color(0xFFA2B2CF),
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
                 ),
               ),
