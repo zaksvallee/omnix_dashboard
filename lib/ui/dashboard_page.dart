@@ -1514,7 +1514,7 @@ class _RightRail extends StatelessWidget {
                       ),
                       children: [
                         SizedBox(
-                          height: 500,
+                          height: 260,
                           child: Scrollbar(
                             child: SingleChildScrollView(
                               child: Column(
