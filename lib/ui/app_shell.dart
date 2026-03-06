@@ -30,8 +30,8 @@ class AppShell extends StatelessWidget {
       backgroundColor: const Color(0xFF020611),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final compactSidebar = constraints.maxWidth < 1720;
-          final sidebarWidth = compactSidebar ? 208.0 : 232.0;
+          final compactSidebar = constraints.maxWidth < 1360;
+          final sidebarWidth = compactSidebar ? 228.0 : 252.0;
           return Row(
             children: [
               _Sidebar(
@@ -44,7 +44,7 @@ class AppShell extends StatelessWidget {
                 child: Container(
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF091427), Color(0xFF040A16)],
+                      colors: [Color(0xFF091427), Color(0xFF030913)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -113,189 +113,137 @@ class _Sidebar extends StatelessWidget {
 
     return Container(
       width: width,
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF0B1222), Color(0xFF08101D), Color(0xFF050A14)],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-        border: Border(right: BorderSide(color: Color(0xFF122B4C))),
+        color: Color(0xFF0A1224),
+        border: Border(right: BorderSide(color: Color(0xFF153258))),
       ),
       child: ListView(
-        padding: const EdgeInsets.only(top: 8, bottom: 10),
+        padding: EdgeInsets.zero,
         children: [
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 14),
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: compact ? 9 : 11,
-                vertical: compact ? 9 : 11,
-              ),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF0D1A2E), Color(0xFF0A1425)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+          _SidebarInfoCard(
+            padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+            child: Row(
+              children: [
+                Container(
+                  width: compact ? 34 : 38,
+                  height: compact ? 34 : 38,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF39D5FF), Color(0xFF2D71FF)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.bolt_rounded,
+                    color: Color(0xFF04142B),
+                  ),
                 ),
-                border: Border.all(color: const Color(0xFF1D3A61)),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x18000000),
-                    blurRadius: 14,
-                    offset: Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF35D4FF), Color(0xFF2363FF)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.bolt_rounded,
-                      color: Color(0xFF021229),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "ONYX",
-                          style: GoogleFonts.rajdhani(
-                            color: const Color(0xFFE3EEFF),
-                            fontSize: compact ? 18 : 21,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.2,
-                          ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "ONYX",
+                        style: GoogleFonts.rajdhani(
+                          color: const Color(0xFFEAF4FF),
+                          fontSize: compact ? 30 : 32,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.8,
+                          height: 0.92,
                         ),
-                        if (!compact)
-                          Text(
-                            "Command Platform",
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFF7E95B4),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.4,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          SizedBox(height: compact ? 8 : 10),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 14),
-            child: Container(
-              width: double.infinity,
-              padding: EdgeInsets.all(compact ? 7 : 9),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF0D182B), Color(0xFF0A1324)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFF18375A)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Operational Fabric",
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFFE4EEFF),
-                      fontSize: compact ? 10 : 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  if (!compact) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      "Unified command, intelligence, and client surfaces.",
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF7F97B8),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        height: 1.35,
                       ),
-                    ),
-                  ],
-                ],
-              ),
+                      Text(
+                        "Command Platform",
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF8CA6CC),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-          SizedBox(height: compact ? 8 : 10),
+          const SizedBox(height: 12),
+          _SidebarInfoCard(
+            padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Operational Fabric",
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFE7F0FF),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (!compact) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    "Unified command, intelligence, and client surfaces.",
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF84A0C5),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 16),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Text(
               "Operations",
               style: GoogleFonts.inter(
-                color: const Color(0xFF6E84A6),
+                color: const Color(0xFF6B87AE),
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1.2,
               ),
             ),
           ),
-          SizedBox(height: compact ? 5 : 7),
+          const SizedBox(height: 6),
           ...navItems.map((item) {
             return _navItem(context, item.label, item.icon, item.route);
           }),
-          SizedBox(height: compact ? 8 : 10),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 14),
-            child: Container(
-              width: double.infinity,
-              padding: EdgeInsets.all(compact ? 7 : 9),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF0C172A), Color(0xFF091222)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+          const SizedBox(height: 14),
+          _SidebarInfoCard(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "SOVEREIGN OPERATIONAL CORE",
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF97B1D7),
+                    fontSize: compact ? 8 : 9,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.1,
+                  ),
                 ),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFF18385A)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                if (!compact) ...[
+                  const SizedBox(height: 6),
                   Text(
-                    "SOVEREIGN OPERATIONAL CORE",
+                    "Command visibility, field control, and forensic trace.",
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF9AB2D6),
-                      fontSize: compact ? 8 : 9,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.1,
+                      color: const Color(0xFF6D86A8),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
                     ),
                   ),
-                  if (!compact) ...[
-                    const SizedBox(height: 5),
-                    Text(
-                      "Command visibility, field control, and forensic trace.",
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF6F85A6),
-                        fontSize: 9,
-                        fontWeight: FontWeight.w600,
-                        height: 1.3,
-                      ),
-                    ),
-                  ],
                 ],
-              ),
+              ],
             ),
           ),
         ],
@@ -314,23 +262,13 @@ class _Sidebar extends StatelessWidget {
     return GestureDetector(
       onTap: () => onRouteChanged(route),
       child: Container(
-        margin: EdgeInsets.symmetric(horizontal: compact ? 8 : 10, vertical: 2),
-        padding: EdgeInsets.symmetric(
-          horizontal: compact ? 8 : 10,
-          vertical: compact ? 9 : 10,
-        ),
+        margin: const EdgeInsets.symmetric(vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          gradient: isActive
-              ? const LinearGradient(
-                  colors: [Color(0xFF123050), Color(0xFF0D223B)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : null,
-          color: isActive ? null : const Color(0x00000000),
+          borderRadius: BorderRadius.circular(13),
+          color: isActive ? const Color(0xFF122A4A) : const Color(0x080C1728),
           border: Border.all(
-            color: isActive ? const Color(0xFF2C619F) : const Color(0x10234667),
+            color: isActive ? const Color(0xFF2A609F) : const Color(0x163A5D85),
           ),
         ),
         child: Row(
@@ -349,7 +287,7 @@ class _Sidebar extends StatelessWidget {
               const SizedBox(width: 13),
             Icon(
               icon,
-              size: 16,
+              size: 18,
               color: isActive
                   ? const Color(0xFF49D0FF)
                   : const Color(0xFF7B8DAD),
@@ -362,7 +300,7 @@ class _Sidebar extends StatelessWidget {
                   color: isActive
                       ? const Color(0xFFE6F2FF)
                       : const Color(0xFFA2B2CF),
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
                 ),
               ),
@@ -379,6 +317,38 @@ class _Sidebar extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _SidebarInfoCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  const _SidebarInfoCard({required this.child, required this.padding});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: padding,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0E1B32), Color(0xFF0A1426)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF1B3A61)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: child,
     );
   }
 }
