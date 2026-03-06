@@ -25,6 +25,12 @@ Runs analyze + tests + guard gate in one command.
 ./scripts/onyx_ops_preflight.sh
 ```
 
+Or:
+
+```bash
+make preflight
+```
+
 ## Guard Validation Gates
 
 ### Auto gate (recommended)
@@ -33,6 +39,12 @@ Uses on-device gate if Android is connected, otherwise pre-device mock gate.
 
 ```bash
 ./scripts/guard_gate_auto.sh
+```
+
+Or:
+
+```bash
+make guard-auto
 ```
 
 ### Pre-device gate only
