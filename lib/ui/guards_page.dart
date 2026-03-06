@@ -237,7 +237,7 @@ class _GuardsPageState extends State<GuardsPage> {
                                 guard.guardId,
                                 style: GoogleFonts.inter(
                                   color: const Color(0xFFE7F0FF),
-                                  fontSize: 15,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -345,7 +345,7 @@ class _GuardsPageState extends State<GuardsPage> {
                     style: GoogleFonts.rajdhani(
                       color: complianceColor,
                       fontWeight: FontWeight.w800,
-                      fontSize: 16,
+                      fontSize: 15,
                     ),
                   ),
                 ),
@@ -356,7 +356,7 @@ class _GuardsPageState extends State<GuardsPage> {
               'Primary Assignment: ${guard.primaryAssignment}',
               style: GoogleFonts.inter(
                 color: const Color(0xFF97AECF),
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: FontWeight.w500,
               ),
             ),

@@ -1543,7 +1543,7 @@ class _DispatchPageState extends State<DispatchPage> {
             title,
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFE6F1FF),
-              fontSize: compact ? 22 : 24,
+              fontSize: compact ? 21 : 22,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1552,7 +1552,7 @@ class _DispatchPageState extends State<DispatchPage> {
             subtitle,
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA4C2),
-              fontSize: compact ? 11 : 12,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
               height: 1.35,
             ),

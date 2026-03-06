@@ -235,7 +235,7 @@ class _SitesPageState extends State<SitesPage> {
                                 site.siteId,
                                 style: GoogleFonts.inter(
                                   color: const Color(0xFFE7F0FF),
-                                  fontSize: 15,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -338,7 +338,7 @@ class _SitesPageState extends State<SitesPage> {
                     style: GoogleFonts.rajdhani(
                       color: statusColor,
                       fontWeight: FontWeight.w800,
-                      fontSize: 16,
+                      fontSize: 15,
                     ),
                   ),
                 ),

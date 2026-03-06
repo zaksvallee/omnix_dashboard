@@ -249,7 +249,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                   '${_localizedSurfaceTitle(_viewerRole)} — ${widget.clientId} / ${widget.siteId}',
                   style: GoogleFonts.rajdhani(
                     color: const Color(0xFFE5F1FF),
-                    fontSize: 30,
+                    fontSize: 28,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -258,7 +258,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                   _localizedSurfaceSubtitle(_viewerRole),
                   style: GoogleFonts.inter(
                     color: const Color(0xFF93A8C9),
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -634,7 +634,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             value,
             style: GoogleFonts.rajdhani(
               color: accent,
-              fontSize: 30,
+              fontSize: 28,
               fontWeight: FontWeight.w700,
             ),
           ),

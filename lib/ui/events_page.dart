@@ -153,7 +153,7 @@ class _EventsPageState extends State<EventsPage> {
                                                     info.label,
                                                     style: GoogleFonts.rajdhani(
                                                       color: info.color,
-                                                      fontSize: 17,
+                                                      fontSize: 16,
                                                       fontWeight:
                                                           FontWeight.w700,
                                                     ),
@@ -196,7 +196,7 @@ class _EventsPageState extends State<EventsPage> {
                                               info.summary,
                                               style: GoogleFonts.inter(
                                                 color: const Color(0xFFE4EEFF),
-                                                fontSize: 13,
+                                                fontSize: 12,
                                                 fontWeight: FontWeight.w600,
                                                 height: 1.35,
                                               ),
