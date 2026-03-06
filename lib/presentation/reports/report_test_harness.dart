@@ -137,17 +137,7 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage> {
                   actions: [
                     ElevatedButton.icon(
                       onPressed: _isGenerating ? null : _generatePreview,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1B5DA1),
-                        foregroundColor: const Color(0xFFE6F1FF),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
+                      style: _headerPrimaryButtonStyle(),
                       icon: const Icon(Icons.picture_as_pdf_rounded),
                       label: Text(
                         _isGenerating ? 'Generating...' : 'Preview Report',
@@ -156,14 +146,7 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage> {
                     ),
                     OutlinedButton.icon(
                       onPressed: _verifyingHistory ? null : _refreshHistory,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF8FD1FF),
-                        side: const BorderSide(color: Color(0xFF2A5E97)),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
-                        ),
-                      ),
+                      style: _headerSecondaryButtonStyle(),
                       icon: _verifyingHistory
                           ? const SizedBox(
                               width: 14,
@@ -653,6 +636,29 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage> {
   String _shortUtc(DateTime dt) {
     final z = dt.toUtc().toIso8601String();
     return z.length > 19 ? '${z.substring(0, 19)}Z' : z;
+  }
+
+  ButtonStyle _headerPrimaryButtonStyle() {
+    return ElevatedButton.styleFrom(
+      backgroundColor: const Color(0xFF1B5DA1),
+      foregroundColor: const Color(0xFFE6F1FF),
+      minimumSize: const Size(0, 38),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    );
+  }
+
+  ButtonStyle _headerSecondaryButtonStyle() {
+    return OutlinedButton.styleFrom(
+      foregroundColor: const Color(0xFF8FD1FF),
+      side: const BorderSide(color: Color(0xFF2A5E97)),
+      minimumSize: const Size(0, 38),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
+    );
   }
 }
 

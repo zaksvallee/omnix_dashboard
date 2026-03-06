@@ -657,7 +657,10 @@ class _ClientAppPageState extends State<ClientAppPage> {
         side: BorderSide(
           color: selected ? const Color(0xFF8FD1FF) : const Color(0xFF21456E),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        minimumSize: const Size(0, 36),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         elevation: selected ? 2 : 0,
         shadowColor: const Color(0x14000000),
@@ -1775,19 +1778,10 @@ class _ClientAppPageState extends State<ClientAppPage> {
               .map(
                 (template) => OutlinedButton(
                   onPressed: () => _applyQuickAction(template),
-                  style: OutlinedButton.styleFrom(
+                  style: _compactOutlinedActionStyle(
                     foregroundColor: const Color(0xFFB9D9FF),
-                    side: const BorderSide(color: Color(0xFF274E7E)),
+                    sideColor: const Color(0xFF274E7E),
                     backgroundColor: const Color(0xFF0B182C),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                    shadowColor: const Color(0x10000000),
                   ),
                   child: Text(
                     template,
@@ -1850,14 +1844,17 @@ class _ClientAppPageState extends State<ClientAppPage> {
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFF1F66FF),
                     foregroundColor: const Color(0xFFEAF3FF),
+                    minimumSize: const Size(0, 38),
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
-                      vertical: 16,
+                      horizontal: 16,
+                      vertical: 10,
                     ),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
                     elevation: 0,
                     shadowColor: const Color(0x14000000),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   child: Text(
@@ -1902,27 +1899,16 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     final selected = selectedType == type;
                     return OutlinedButton(
                       onPressed: () => _setComposedSystemType(type),
-                      style: OutlinedButton.styleFrom(
+                      style: _compactOutlinedActionStyle(
                         foregroundColor: selected
                             ? type.textColor
                             : const Color(0xFFB9D9FF),
-                        side: BorderSide(
-                          color: selected
-                              ? type.borderColor
-                              : const Color(0xFF274E7E),
-                        ),
+                        sideColor: selected
+                            ? type.borderColor
+                            : const Color(0xFF274E7E),
                         backgroundColor: selected
                             ? type.cardFillColor
                             : const Color(0xFF0D1B33),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                        shadowColor: const Color(0x10000000),
                       ),
                       child: Text(
                         type.label,
@@ -2456,6 +2442,25 @@ class _ClientAppPageState extends State<ClientAppPage> {
           side: const BorderSide(color: Color(0x33274E7E)),
         ),
       ),
+    );
+  }
+
+  ButtonStyle _compactOutlinedActionStyle({
+    required Color foregroundColor,
+    required Color sideColor,
+    required Color backgroundColor,
+  }) {
+    return OutlinedButton.styleFrom(
+      foregroundColor: foregroundColor,
+      side: BorderSide(color: sideColor),
+      backgroundColor: backgroundColor,
+      minimumSize: const Size(0, 36),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 0,
+      shadowColor: const Color(0x10000000),
     );
   }
 

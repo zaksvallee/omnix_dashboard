@@ -1365,17 +1365,7 @@ class _DispatchPageState extends State<DispatchPage> {
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: widget.onGenerate,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1A4F89),
-                          foregroundColor: const Color(0xFFE5F2FF),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
+                        style: _heroPrimaryButtonStyle(),
                         icon: const Icon(Icons.auto_awesome_rounded),
                         label: Text(
                           'Generate Dispatch',
@@ -1402,13 +1392,9 @@ class _DispatchPageState extends State<DispatchPage> {
                   children: [
                     OutlinedButton.icon(
                       onPressed: widget.onIngestFeeds,
-                      style: OutlinedButton.styleFrom(
+                      style: _heroOutlinedButtonStyle(
                         foregroundColor: const Color(0xFF8FD1FF),
-                        side: const BorderSide(color: Color(0xFF2A5E97)),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
+                        sideColor: const Color(0xFF2A5E97),
                       ),
                       icon: const Icon(Icons.stream_rounded),
                       label: Text(
@@ -1419,13 +1405,9 @@ class _DispatchPageState extends State<DispatchPage> {
                     if (widget.onIngestNews != null)
                       OutlinedButton.icon(
                         onPressed: widget.onIngestNews,
-                        style: OutlinedButton.styleFrom(
+                        style: _heroOutlinedButtonStyle(
                           foregroundColor: const Color(0xFFFFE7B5),
-                          side: const BorderSide(color: Color(0xFF8A6B2D)),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
+                          sideColor: const Color(0xFF8A6B2D),
                         ),
                         icon: const Icon(Icons.newspaper_rounded),
                         label: Text(
@@ -1436,13 +1418,9 @@ class _DispatchPageState extends State<DispatchPage> {
                     if (widget.onLoadFeedFile != null)
                       OutlinedButton.icon(
                         onPressed: widget.onLoadFeedFile,
-                        style: OutlinedButton.styleFrom(
+                        style: _heroOutlinedButtonStyle(
                           foregroundColor: const Color(0xFF8FD1FF),
-                          side: const BorderSide(color: Color(0xFF2A5E97)),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
+                          sideColor: const Color(0xFF2A5E97),
                         ),
                         icon: const Icon(Icons.upload_file_rounded),
                         label: Text(
@@ -1457,19 +1435,13 @@ class _DispatchPageState extends State<DispatchPage> {
                         onPressed: widget.livePolling
                             ? widget.onStopLivePolling
                             : widget.onStartLivePolling,
-                        style: OutlinedButton.styleFrom(
+                        style: _heroOutlinedButtonStyle(
                           foregroundColor: widget.livePolling
                               ? const Color(0xFFFFD3D8)
                               : const Color(0xFFCFF1DB),
-                          side: BorderSide(
-                            color: widget.livePolling
-                                ? const Color(0xFF8A3D4A)
-                                : const Color(0xFF3E7B58),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
+                          sideColor: widget.livePolling
+                              ? const Color(0xFF8A3D4A)
+                              : const Color(0xFF3E7B58),
                         ),
                         icon: Icon(
                           widget.livePolling
@@ -1510,6 +1482,32 @@ class _DispatchPageState extends State<DispatchPage> {
           );
         },
       ),
+    );
+  }
+
+  ButtonStyle _heroPrimaryButtonStyle() {
+    return ElevatedButton.styleFrom(
+      backgroundColor: const Color(0xFF1A4F89),
+      foregroundColor: const Color(0xFFE5F2FF),
+      minimumSize: const Size(0, 38),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    );
+  }
+
+  ButtonStyle _heroOutlinedButtonStyle({
+    required Color foregroundColor,
+    required Color sideColor,
+  }) {
+    return OutlinedButton.styleFrom(
+      foregroundColor: foregroundColor,
+      side: BorderSide(color: sideColor),
+      minimumSize: const Size(0, 38),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
     );
   }
 
