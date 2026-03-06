@@ -161,7 +161,7 @@ class _SitesPageState extends State<SitesPage> {
     final visibleSites = sites.take(_maxRosterRows).toList(growable: false);
     final hiddenSites = sites.length - visibleSites.length;
     return Container(
-      decoration: _workspaceSurfaceDecoration(),
+      decoration: onyxWorkspaceSurfaceDecoration(),
       child: Column(
         children: [
           Padding(
@@ -227,7 +227,7 @@ class _SitesPageState extends State<SitesPage> {
                         borderRadius: BorderRadius.circular(12),
                         child: Container(
                           padding: const EdgeInsets.all(9),
-                          decoration: _rowSurfaceDecoration(
+                          decoration: onyxSelectableRowSurfaceDecoration(
                             isSelected: isSelected,
                           ),
                           child: Column(
@@ -296,7 +296,7 @@ class _SitesPageState extends State<SitesPage> {
   Widget _siteDetail(_SiteDrillSnapshot site) {
     final statusColor = _statusColor(site.healthStatus);
     return Container(
-      decoration: _workspaceSurfaceDecoration(),
+      decoration: onyxWorkspaceSurfaceDecoration(),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(10),
         child: Column(
@@ -605,7 +605,7 @@ class _SitesPageState extends State<SitesPage> {
   Widget _panel(String title, Widget child, {bool expandChild = false}) {
     return Container(
       padding: const EdgeInsets.all(10),
-      decoration: _panelSurfaceDecoration(),
+      decoration: onyxPanelSurfaceDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -637,7 +637,7 @@ class _SitesPageState extends State<SitesPage> {
     return Container(
       width: 164,
       padding: const EdgeInsets.all(9),
-      decoration: _panelSurfaceDecoration(radius: 11),
+      decoration: onyxPanelSurfaceDecoration(radius: 11),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -688,69 +688,6 @@ class _SitesPageState extends State<SitesPage> {
           fontWeight: FontWeight.w700,
         ),
       ),
-    );
-  }
-
-  BoxDecoration _workspaceSurfaceDecoration() {
-    return BoxDecoration(
-      gradient: const LinearGradient(
-        colors: [Color(0xFF0C1A2D), Color(0xFF0B1C33)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: const Color(0xFF1A3A60)),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x14000000),
-          blurRadius: 10,
-          offset: Offset(0, 5),
-        ),
-      ],
-    );
-  }
-
-  BoxDecoration _rowSurfaceDecoration({required bool isSelected}) {
-    return BoxDecoration(
-      gradient: LinearGradient(
-        colors: isSelected
-            ? const [Color(0xFF10284B), Color(0xFF0E2341)]
-            : const [Color(0xFF0C1C31), Color(0xFF0A172B)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(
-        color: isSelected ? const Color(0xFF4E95FF) : const Color(0xFF24466F),
-      ),
-      boxShadow: isSelected
-          ? const [
-              BoxShadow(
-                color: Color(0x16000000),
-                blurRadius: 10,
-                offset: Offset(0, 5),
-              ),
-            ]
-          : null,
-    );
-  }
-
-  BoxDecoration _panelSurfaceDecoration({double radius = 12}) {
-    return BoxDecoration(
-      gradient: const LinearGradient(
-        colors: [Color(0xFF0D1B31), Color(0xFF0B182C)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
-      borderRadius: BorderRadius.circular(radius),
-      border: Border.all(color: const Color(0xFF203F66)),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x12000000),
-          blurRadius: 8,
-          offset: Offset(0, 4),
-        ),
-      ],
     );
   }
 

@@ -125,7 +125,7 @@ class _EventsPageState extends State<EventsPage> {
                                 borderRadius: BorderRadius.circular(14),
                                 child: Container(
                                   padding: const EdgeInsets.all(9),
-                                  decoration: _timelineRowDecoration(
+                                  decoration: onyxForensicRowDecoration(
                                     isSelected: isSelected,
                                   ),
                                   child: Row(
@@ -225,7 +225,7 @@ class _EventsPageState extends State<EventsPage> {
 
                     return Container(
                       padding: const EdgeInsets.all(10),
-                      decoration: _surfaceCardDecoration(),
+                      decoration: onyxForensicSurfaceCardDecoration(),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -1110,7 +1110,7 @@ class _EventsPageState extends State<EventsPage> {
   Widget _emptyDetailPane() {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: _surfaceCardDecoration(),
+      decoration: onyxForensicSurfaceCardDecoration(),
       child: Center(
         child: Text(
           "Select an event to inspect detailed metadata.",
@@ -1205,50 +1205,6 @@ class _EventsPageState extends State<EventsPage> {
           ),
         ],
       ),
-    );
-  }
-
-  BoxDecoration _surfaceCardDecoration() {
-    return BoxDecoration(
-      gradient: const LinearGradient(
-        colors: [Color(0xFF0C182B), Color(0xFF091528)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: const Color(0xFF1B395E)),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x18000000),
-          blurRadius: 14,
-          offset: Offset(0, 6),
-        ),
-      ],
-    );
-  }
-
-  BoxDecoration _timelineRowDecoration({required bool isSelected}) {
-    return BoxDecoration(
-      gradient: LinearGradient(
-        colors: isSelected
-            ? const [Color(0xFF11284A), Color(0xFF0E2140)]
-            : const [Color(0xFF0E1C31), Color(0xFF0B172A)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(
-        color: isSelected ? const Color(0xFF4C7ABA) : const Color(0xFF224267),
-      ),
-      boxShadow: isSelected
-          ? const [
-              BoxShadow(
-                color: Color(0x14000000),
-                blurRadius: 10,
-                offset: Offset(0, 4),
-              ),
-            ]
-          : null,
     );
   }
 }
