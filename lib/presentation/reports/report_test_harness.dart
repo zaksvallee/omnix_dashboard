@@ -122,108 +122,119 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage> {
   @override
   Widget build(BuildContext context) {
     return OnyxPageScaffold(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            OnyxPageHeader(
-              title: 'Client Intelligence Reports',
-              subtitle:
-                  'Client ${widget.selectedClient} • Site ${widget.selectedSite}',
-              actions: [
-                ElevatedButton.icon(
-                  onPressed: _isGenerating ? null : _generatePreview,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1B5DA1),
-                    foregroundColor: const Color(0xFFE6F1FF),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 14,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  icon: const Icon(Icons.picture_as_pdf_rounded),
-                  label: Text(
-                    _isGenerating ? 'Generating...' : 'Preview Report',
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w700),
-                  ),
-                ),
-                OutlinedButton.icon(
-                  onPressed: _verifyingHistory ? null : _refreshHistory,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF8FD1FF),
-                    side: const BorderSide(color: Color(0xFF2A5E97)),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 14,
-                    ),
-                  ),
-                  icon: _verifyingHistory
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.verified_rounded),
-                  label: Text(
-                    _verifyingHistory
-                        ? 'Verifying...'
-                        : 'Refresh Replay Verification',
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1540),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: OnyxSummaryStat(
-                    label: 'Receipts',
-                    value: _historyRows.length.toString(),
-                    accent: const Color(0xFF63BDFF),
-                  ),
+                OnyxPageHeader(
+                  title: 'Client Intelligence Reports',
+                  subtitle:
+                      'Client ${widget.selectedClient} • Site ${widget.selectedSite}',
+                  actions: [
+                    ElevatedButton.icon(
+                      onPressed: _isGenerating ? null : _generatePreview,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1B5DA1),
+                        foregroundColor: const Color(0xFFE6F1FF),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: const Icon(Icons.picture_as_pdf_rounded),
+                      label: Text(
+                        _isGenerating ? 'Generating...' : 'Preview Report',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _verifyingHistory ? null : _refreshHistory,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF8FD1FF),
+                        side: const BorderSide(color: Color(0xFF2A5E97)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                      ),
+                      icon: _verifyingHistory
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.verified_rounded),
+                      label: Text(
+                        _verifyingHistory
+                            ? 'Verifying...'
+                            : 'Refresh Replay Verification',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OnyxSummaryStat(
-                    label: 'Replay State',
-                    value: _historyRows.isEmpty
-                        ? 'Pending'
-                        : _historyRows.every((row) => row.replayMatched)
-                        ? 'Matched'
-                        : 'Review',
-                    accent: _historyRows.isEmpty
-                        ? const Color(0xFF8CA5C8)
-                        : _historyRows.every((row) => row.replayMatched)
-                        ? const Color(0xFF59D79B)
-                        : const Color(0xFFF6C067),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OnyxSummaryStat(
-                    label: 'Output Mode',
-                    value: 'PDF',
-                    accent: const Color(0xFFF6C067),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: 560,
-                    child: Column(
+                const SizedBox(height: 12),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 1120;
+                    final cardWidth = compact
+                        ? constraints.maxWidth
+                        : (constraints.maxWidth - 24) / 3;
+                    return Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
                       children: [
-                        Expanded(
-                          child: OnyxSectionCard(
+                        SizedBox(
+                          width: cardWidth,
+                          child: OnyxSummaryStat(
+                            label: 'Receipts',
+                            value: _historyRows.length.toString(),
+                            accent: const Color(0xFF63BDFF),
+                          ),
+                        ),
+                        SizedBox(
+                          width: cardWidth,
+                          child: OnyxSummaryStat(
+                            label: 'Replay State',
+                            value: _historyRows.isEmpty
+                                ? 'Pending'
+                                : _historyRows.every((row) => row.replayMatched)
+                                ? 'Matched'
+                                : 'Review',
+                            accent: _historyRows.isEmpty
+                                ? const Color(0xFF8CA5C8)
+                                : _historyRows.every((row) => row.replayMatched)
+                                ? const Color(0xFF59D79B)
+                                : const Color(0xFFF6C067),
+                          ),
+                        ),
+                        SizedBox(
+                          width: cardWidth,
+                          child: OnyxSummaryStat(
+                            label: 'Output Mode',
+                            value: 'PDF',
+                            accent: const Color(0xFFF6C067),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final stack = constraints.maxWidth < 1280;
+                      final leftPane = Column(
+                        children: [
+                          OnyxSectionCard(
                             title: 'Deterministic Report Generation',
                             subtitle:
                                 'Generate PDF from projection snapshots, append a receipt, and verify replay-safe integrity before delivery.',
@@ -262,265 +273,294 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage> {
                               ],
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        OnyxSectionCard(
-                          title: 'Generation Lanes',
-                          subtitle:
-                              'Keep generation, replay, and operator review distinct during report handling.',
-                          child: Row(
-                            children: const [
-                              Expanded(
-                                child: _MiniLaneCard(
-                                  title: 'Generate',
-                                  detail: 'Create PDF and receipt pair.',
-                                  accent: Color(0xFF63BDFF),
+                          const SizedBox(height: 10),
+                          OnyxSectionCard(
+                            title: 'Generation Lanes',
+                            subtitle:
+                                'Keep generation, replay, and operator review distinct during report handling.',
+                            child: Row(
+                              children: const [
+                                Expanded(
+                                  child: _MiniLaneCard(
+                                    title: 'Generate',
+                                    detail: 'Create PDF and receipt pair.',
+                                    accent: Color(0xFF63BDFF),
+                                  ),
                                 ),
-                              ),
-                              SizedBox(width: 10),
-                              Expanded(
-                                child: _MiniLaneCard(
-                                  title: 'Verify',
-                                  detail:
-                                      'Re-open receipts and confirm hashes.',
-                                  accent: Color(0xFF59D79B),
+                                SizedBox(width: 10),
+                                Expanded(
+                                  child: _MiniLaneCard(
+                                    title: 'Verify',
+                                    detail:
+                                        'Re-open receipts and confirm hashes.',
+                                    accent: Color(0xFF59D79B),
+                                  ),
                                 ),
-                              ),
-                              SizedBox(width: 10),
-                              Expanded(
-                                child: _MiniLaneCard(
-                                  title: 'Review',
-                                  detail:
-                                      'Open regenerated preview before release.',
-                                  accent: Color(0xFFF6C067),
+                                SizedBox(width: 10),
+                                Expanded(
+                                  child: _MiniLaneCard(
+                                    title: 'Review',
+                                    detail:
+                                        'Open regenerated preview before release.',
+                                    accent: Color(0xFFF6C067),
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: OnyxSectionCard(
-                      title: 'Receipt History',
-                      subtitle:
-                          'Open any generated receipt to regenerate the report and confirm replay integrity.',
-                      flexibleChild: true,
-                      child: _historyRows.isEmpty
-                          ? const OnyxEmptyState(
-                              label: 'No ReportGenerated receipts yet.',
-                            )
-                          : Builder(
-                              builder: (context) {
-                                final visibleRows = _historyRows
-                                    .take(_maxHistoryRows)
-                                    .toList(growable: false);
-                                final hiddenRows =
-                                    _historyRows.length - visibleRows.length;
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      child: ListView.separated(
-                                        itemCount: visibleRows.length,
-                                        separatorBuilder: (context, index) =>
-                                            const SizedBox(height: 10),
-                                        itemBuilder: (context, index) {
-                                          final row = visibleRows[index];
-                                          final r = row.event;
-                                          final ok = row.replayMatched;
-                                          final isOpening =
-                                              _openingReceiptId == r.eventId;
+                        ],
+                      );
+                      final historyPane = OnyxSectionCard(
+                        title: 'Receipt History',
+                        subtitle:
+                            'Open any generated receipt to regenerate the report and confirm replay integrity.',
+                        flexibleChild: true,
+                        child: _historyRows.isEmpty
+                            ? const OnyxEmptyState(
+                                label: 'No ReportGenerated receipts yet.',
+                              )
+                            : Builder(
+                                builder: (context) {
+                                  final visibleRows = _historyRows
+                                      .take(_maxHistoryRows)
+                                      .toList(growable: false);
+                                  final hiddenRows =
+                                      _historyRows.length - visibleRows.length;
+                                  return Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: ListView.separated(
+                                          itemCount: visibleRows.length,
+                                          separatorBuilder: (context, index) =>
+                                              const SizedBox(height: 10),
+                                          itemBuilder: (context, index) {
+                                            final row = visibleRows[index];
+                                            final r = row.event;
+                                            final ok = row.replayMatched;
+                                            final isOpening =
+                                                _openingReceiptId == r.eventId;
 
-                                          return InkWell(
-                                            onTap: isOpening
-                                                ? null
-                                                : () =>
-                                                      _openHistoryReceipt(row),
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                            child: Container(
-                                              padding: const EdgeInsets.all(12),
-                                              decoration: BoxDecoration(
-                                                gradient: const LinearGradient(
-                                                  colors: [
-                                                    Color(0xFF0B1A30),
-                                                    Color(0xFF091424),
-                                                  ],
+                                            return InkWell(
+                                              onTap: isOpening
+                                                  ? null
+                                                  : () => _openHistoryReceipt(
+                                                      row,
+                                                    ),
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              child: Container(
+                                                padding: const EdgeInsets.all(
+                                                  12,
                                                 ),
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                                border: Border.all(
-                                                  color: const Color(
-                                                    0xFF1C385C,
+                                                decoration: BoxDecoration(
+                                                  gradient:
+                                                      const LinearGradient(
+                                                        colors: [
+                                                          Color(0xFF0B1A30),
+                                                          Color(0xFF091424),
+                                                        ],
+                                                      ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                  border: Border.all(
+                                                    color: const Color(
+                                                      0xFF1C385C,
+                                                    ),
                                                   ),
                                                 ),
-                                              ),
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Row(
-                                                    children: [
-                                                      Text(
-                                                        r.eventId,
-                                                        style:
-                                                            GoogleFonts.inter(
-                                                              color:
-                                                                  const Color(
-                                                                    0xFFE5EFFF,
-                                                                  ),
-                                                              fontSize: 13,
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Row(
+                                                      children: [
+                                                        Text(
+                                                          r.eventId,
+                                                          style:
+                                                              GoogleFonts.inter(
+                                                                color:
+                                                                    const Color(
+                                                                      0xFFE5EFFF,
+                                                                    ),
+                                                                fontSize: 13,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w700,
+                                                              ),
+                                                        ),
+                                                        const Spacer(),
+                                                        if (isOpening)
+                                                          const SizedBox(
+                                                            width: 14,
+                                                            height: 14,
+                                                            child:
+                                                                CircularProgressIndicator(
+                                                                  strokeWidth:
+                                                                      2,
+                                                                ),
+                                                          ),
+                                                        if (isOpening)
+                                                          const SizedBox(
+                                                            width: 8,
+                                                          ),
+                                                        Container(
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                horizontal: 10,
+                                                                vertical: 4,
+                                                              ),
+                                                          decoration: BoxDecoration(
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  999,
+                                                                ),
+                                                            color:
+                                                                (ok
+                                                                        ? const Color(
+                                                                            0xFF2AAC7D,
+                                                                          )
+                                                                        : const Color(
+                                                                            0xFFD05667,
+                                                                          ))
+                                                                    .withValues(
+                                                                      alpha:
+                                                                          0.16,
+                                                                    ),
+                                                            border: Border.all(
+                                                              color: ok
+                                                                  ? const Color(
+                                                                      0xFF46DBA2,
+                                                                    )
+                                                                  : const Color(
+                                                                      0xFFFF7686,
+                                                                    ),
+                                                            ),
+                                                          ),
+                                                          child: Text(
+                                                            ok
+                                                                ? 'REPLAY MATCHED'
+                                                                : 'REPLAY FAILED',
+                                                            style: GoogleFonts.inter(
+                                                              color: ok
+                                                                  ? const Color(
+                                                                      0xFF8FF3C9,
+                                                                    )
+                                                                  : const Color(
+                                                                      0xFFFF9AA7,
+                                                                    ),
                                                               fontWeight:
                                                                   FontWeight
                                                                       .w700,
+                                                              fontSize: 11,
                                                             ),
-                                                      ),
-                                                      const Spacer(),
-                                                      if (isOpening)
-                                                        const SizedBox(
-                                                          width: 14,
-                                                          height: 14,
-                                                          child:
-                                                              CircularProgressIndicator(
-                                                                strokeWidth: 2,
-                                                              ),
-                                                        ),
-                                                      if (isOpening)
-                                                        const SizedBox(
-                                                          width: 8,
-                                                        ),
-                                                      Container(
-                                                        padding:
-                                                            const EdgeInsets.symmetric(
-                                                              horizontal: 10,
-                                                              vertical: 4,
-                                                            ),
-                                                        decoration: BoxDecoration(
-                                                          borderRadius:
-                                                              BorderRadius.circular(
-                                                                999,
-                                                              ),
-                                                          color:
-                                                              (ok
-                                                                      ? const Color(
-                                                                          0xFF2AAC7D,
-                                                                        )
-                                                                      : const Color(
-                                                                          0xFFD05667,
-                                                                        ))
-                                                                  .withValues(
-                                                                    alpha: 0.16,
-                                                                  ),
-                                                          border: Border.all(
-                                                            color: ok
-                                                                ? const Color(
-                                                                    0xFF46DBA2,
-                                                                  )
-                                                                : const Color(
-                                                                    0xFFFF7686,
-                                                                  ),
                                                           ),
                                                         ),
-                                                        child: Text(
-                                                          ok
-                                                              ? 'REPLAY MATCHED'
-                                                              : 'REPLAY FAILED',
-                                                          style: GoogleFonts.inter(
-                                                            color: ok
-                                                                ? const Color(
-                                                                    0xFF8FF3C9,
-                                                                  )
-                                                                : const Color(
-                                                                    0xFFFF9AA7,
-                                                                  ),
-                                                            fontWeight:
-                                                                FontWeight.w700,
-                                                            fontSize: 11,
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    Wrap(
+                                                      spacing: 8,
+                                                      runSpacing: 8,
+                                                      children: [
+                                                        _historyMetaPill(
+                                                          'Month ${r.month}',
+                                                          const Color(
+                                                            0xFF7FC7FF,
                                                           ),
                                                         ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  const SizedBox(height: 8),
-                                                  Wrap(
-                                                    spacing: 8,
-                                                    runSpacing: 8,
-                                                    children: [
-                                                      _historyMetaPill(
-                                                        'Month ${r.month}',
-                                                        const Color(0xFF7FC7FF),
-                                                      ),
-                                                      _historyMetaPill(
-                                                        'Seq ${r.eventRangeStart}-${r.eventRangeEnd}',
-                                                        const Color(0xFF8FA6C8),
-                                                      ),
-                                                      _historyMetaPill(
-                                                        'Count ${r.eventCount}',
-                                                        const Color(0xFF8FA6C8),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  const SizedBox(height: 8),
-                                                  Text(
-                                                    'Hash ${_short(r.contentHash)} • PDF ${_short(r.pdfHash)}',
-                                                    style: GoogleFonts.inter(
-                                                      color: const Color(
-                                                        0xFF89A8CF,
-                                                      ),
-                                                      fontSize: 12,
+                                                        _historyMetaPill(
+                                                          'Seq ${r.eventRangeStart}-${r.eventRangeEnd}',
+                                                          const Color(
+                                                            0xFF8FA6C8,
+                                                          ),
+                                                        ),
+                                                        _historyMetaPill(
+                                                          'Count ${r.eventCount}',
+                                                          const Color(
+                                                            0xFF8FA6C8,
+                                                          ),
+                                                        ),
+                                                      ],
                                                     ),
-                                                  ),
-                                                  const SizedBox(height: 4),
-                                                  Text(
-                                                    'Generated UTC ${_shortUtc(r.occurredAt)}',
-                                                    style: GoogleFonts.inter(
-                                                      color: const Color(
-                                                        0xFF89A8CF,
+                                                    const SizedBox(height: 8),
+                                                    Text(
+                                                      'Hash ${_short(r.contentHash)} • PDF ${_short(r.pdfHash)}',
+                                                      style: GoogleFonts.inter(
+                                                        color: const Color(
+                                                          0xFF89A8CF,
+                                                        ),
+                                                        fontSize: 12,
                                                       ),
-                                                      fontSize: 12,
                                                     ),
-                                                  ),
-                                                  const SizedBox(height: 6),
-                                                  Text(
-                                                    'Tap to open regenerated preview',
-                                                    style: GoogleFonts.inter(
-                                                      color: const Color(
-                                                        0xFF7FB0DE,
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                      'Generated UTC ${_shortUtc(r.occurredAt)}',
+                                                      style: GoogleFonts.inter(
+                                                        color: const Color(
+                                                          0xFF89A8CF,
+                                                        ),
+                                                        fontSize: 12,
                                                       ),
-                                                      fontSize: 11,
-                                                      fontWeight:
-                                                          FontWeight.w700,
                                                     ),
-                                                  ),
-                                                ],
+                                                    const SizedBox(height: 6),
+                                                    Text(
+                                                      'Tap to open regenerated preview',
+                                                      style: GoogleFonts.inter(
+                                                        color: const Color(
+                                                          0xFF7FB0DE,
+                                                        ),
+                                                        fontSize: 11,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
-                                            ),
-                                          );
-                                        },
+                                            );
+                                          },
+                                        ),
                                       ),
-                                    ),
-                                    if (hiddenRows > 0) ...[
-                                      const SizedBox(height: 8),
-                                      OnyxTruncationHint(
-                                        visibleCount: visibleRows.length,
-                                        totalCount: _historyRows.length,
-                                        subject: 'receipts',
-                                      ),
+                                      if (hiddenRows > 0) ...[
+                                        const SizedBox(height: 8),
+                                        OnyxTruncationHint(
+                                          visibleCount: visibleRows.length,
+                                          totalCount: _historyRows.length,
+                                          subject: 'receipts',
+                                        ),
+                                      ],
                                     ],
-                                  ],
-                                );
-                              },
-                            ),
-                    ),
+                                  );
+                                },
+                              ),
+                      );
+
+                      if (stack) {
+                        return Column(
+                          children: [
+                            leftPane,
+                            const SizedBox(height: 10),
+                            Expanded(child: historyPane),
+                          ],
+                        );
+                      }
+
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(width: 520, child: leftPane),
+                          const SizedBox(width: 10),
+                          Expanded(child: historyPane),
+                        ],
+                      );
+                    },
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

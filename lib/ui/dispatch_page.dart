@@ -1341,7 +1341,7 @@ class _DispatchPageState extends State<DispatchPage> {
             ),
           );
           final actionsPanel = Container(
-            padding: const EdgeInsets.all(14),
+            padding: EdgeInsets.all(compact ? 12 : 14),
             decoration: BoxDecoration(
               color: const Color(0xFF09172B),
               borderRadius: BorderRadius.circular(16),
@@ -1359,7 +1359,7 @@ class _DispatchPageState extends State<DispatchPage> {
                     letterSpacing: 0.5,
                   ),
                 ),
-                const SizedBox(height: 10),
+                SizedBox(height: compact ? 8 : 10),
                 Row(
                   children: [
                     Expanded(
@@ -1370,7 +1370,7 @@ class _DispatchPageState extends State<DispatchPage> {
                           foregroundColor: const Color(0xFFE5F2FF),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
-                            vertical: 14,
+                            vertical: 12,
                           ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -1385,7 +1385,7 @@ class _DispatchPageState extends State<DispatchPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: compact ? 10 : 12),
                 Text(
                   'Transport & Intake',
                   style: GoogleFonts.inter(
@@ -1395,7 +1395,7 @@ class _DispatchPageState extends State<DispatchPage> {
                     letterSpacing: 0.6,
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: compact ? 6 : 8),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,

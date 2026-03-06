@@ -341,7 +341,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                       .map((role) => _viewerRoleChip(role))
                       .toList(growable: false),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 LayoutBuilder(
                   builder: (context, constraints) {
                     final columns = constraints.maxWidth >= 1500
@@ -415,7 +415,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     );
                   },
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 _panel(
                   title: _localizedPushDeliveryQueueTitle,
                   subtitle: _localizedPushDeliveryQueueSubtitle,
@@ -432,7 +432,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 _panel(
                   title: _viewerRole.incidentFeedPanelTitleForLocale(
                     widget.locale,
@@ -486,7 +486,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                       : null,
                   child: _incidentFeedList(incidentFeed),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
@@ -592,14 +592,14 @@ class _ClientAppPageState extends State<ClientAppPage> {
 
   Widget _metricCard(String label, String value, Color accent) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF0D1A2D), Color(0xFF0A1628)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFF183657)),
         boxShadow: const [
           BoxShadow(
@@ -677,14 +677,14 @@ class _ClientAppPageState extends State<ClientAppPage> {
     required Widget child,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF081326), Color(0xFF0A172C)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFF193758)),
         boxShadow: const [
           BoxShadow(
@@ -734,7 +734,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             const SizedBox(height: 4),
             subtitleAction,
           ],
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           child,
         ],
       ),
@@ -750,7 +750,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
       return _emptyBox(_viewerRole.notificationsEmptyLabel);
     }
     return SizedBox(
-      height: 360,
+      height: 340,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
