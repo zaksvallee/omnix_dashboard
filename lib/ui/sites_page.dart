@@ -65,13 +65,13 @@ class _SitesPageState extends State<SitesPage> {
                   subtitle:
                       'Estate-wide posture, dispatch exposure, and site-level operational pressure.',
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     SizedBox(
-                      width: 260,
+                      width: 236,
                       child: OnyxSummaryStat(
                         label: 'Visible Sites',
                         value: sites.length.toString(),
@@ -79,7 +79,7 @@ class _SitesPageState extends State<SitesPage> {
                       ),
                     ),
                     SizedBox(
-                      width: 260,
+                      width: 236,
                       child: OnyxSummaryStat(
                         label: 'Active Dispatches',
                         value: activeDispatches.toString(),
@@ -87,7 +87,7 @@ class _SitesPageState extends State<SitesPage> {
                       ),
                     ),
                     SizedBox(
-                      width: 260,
+                      width: 236,
                       child: OnyxSummaryStat(
                         label: 'Average Health',
                         value: averageHealth.toStringAsFixed(1),
@@ -96,13 +96,13 @@ class _SitesPageState extends State<SitesPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Expanded(
                   child: OnyxSectionCard(
                     title: 'Site Operations Workspace',
                     subtitle:
                         'Review site posture on the left, then inspect operational detail for the selected site.',
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.all(12),
                     child: LayoutBuilder(
                       builder: (context, constraints) {
                         final stackVertically = constraints.maxWidth < 1320;
@@ -117,7 +117,7 @@ class _SitesPageState extends State<SitesPage> {
                                   height: 232,
                                   child: _siteRoster(sites, selected),
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 6),
                                 Expanded(child: _siteDetail(selected)),
                               ],
                             ),
@@ -133,7 +133,7 @@ class _SitesPageState extends State<SitesPage> {
                                 width: 280,
                                 child: _siteRoster(sites, selected),
                               ),
-                              const SizedBox(width: 10),
+                              const SizedBox(width: 8),
                               Expanded(child: _siteDetail(selected)),
                             ],
                           ),
@@ -174,14 +174,14 @@ class _SitesPageState extends State<SitesPage> {
                           borderRadius: BorderRadius.circular(999),
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Text(
                         'Site Roster',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.rajdhani(
                           color: const Color(0xFFDCEAFF),
-                          fontSize: 20,
+                          fontSize: 18,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -205,7 +205,7 @@ class _SitesPageState extends State<SitesPage> {
             child: ListView.separated(
               padding: const EdgeInsets.all(8),
               itemCount: sites.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 8),
+              separatorBuilder: (context, index) => const SizedBox(height: 6),
               itemBuilder: (context, index) {
                 final site = sites[index];
                 final isSelected = site.siteKey == selected.siteKey;
@@ -215,7 +215,7 @@ class _SitesPageState extends State<SitesPage> {
                   onTap: () => setState(() => _selectedIndex = index),
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(9),
                     decoration: _rowSurfaceDecoration(isSelected: isSelected),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -224,7 +224,7 @@ class _SitesPageState extends State<SitesPage> {
                           site.siteId,
                           style: GoogleFonts.inter(
                             color: const Color(0xFFE7F0FF),
-                            fontSize: 16,
+                            fontSize: 15,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -239,7 +239,7 @@ class _SitesPageState extends State<SitesPage> {
                             fontWeight: FontWeight.w500,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         Wrap(
                           spacing: 6,
                           runSpacing: 6,
@@ -271,7 +271,7 @@ class _SitesPageState extends State<SitesPage> {
     return Container(
       decoration: _workspaceSurfaceDecoration(),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -319,10 +319,10 @@ class _SitesPageState extends State<SitesPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             Wrap(
-              spacing: 10,
-              runSpacing: 8,
+              spacing: 8,
+              runSpacing: 6,
               children: [
                 _metricCard(
                   'Decisions',
@@ -366,7 +366,7 @@ class _SitesPageState extends State<SitesPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -404,7 +404,7 @@ class _SitesPageState extends State<SitesPage> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
                   child: _panel(
                     'Operational Pulse',
@@ -439,7 +439,7 @@ class _SitesPageState extends State<SitesPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             _panel(
               'Recent Site Event Trace',
               site.recentEvents.isEmpty
@@ -456,7 +456,7 @@ class _SitesPageState extends State<SitesPage> {
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: site.recentEvents.length,
                       separatorBuilder: (context, index) =>
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 6),
                       itemBuilder: (context, index) {
                         final row = site.recentEvents[index];
                         return Row(
@@ -471,12 +471,13 @@ class _SitesPageState extends State<SitesPage> {
                               ),
                             ),
                             const SizedBox(width: 10),
+                            const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 row,
                                 style: GoogleFonts.inter(
                                   color: const Color(0xFFD2E2FA),
-                                  fontSize: 13,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.w500,
                                   height: 1.35,
                                 ),
@@ -566,7 +567,7 @@ class _SitesPageState extends State<SitesPage> {
 
   Widget _panel(String title, Widget child, {bool expandChild = false}) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: _panelSurfaceDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -579,16 +580,16 @@ class _SitesPageState extends State<SitesPage> {
               borderRadius: BorderRadius.circular(999),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             title,
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFE4EEFF),
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           if (expandChild) Expanded(child: child) else child,
         ],
       ),
@@ -597,8 +598,8 @@ class _SitesPageState extends State<SitesPage> {
 
   Widget _metricCard(String label, String value, Color accent) {
     return Container(
-      width: 175,
-      padding: const EdgeInsets.all(10),
+      width: 164,
+      padding: const EdgeInsets.all(9),
       decoration: _panelSurfaceDecoration(radius: 11),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -611,12 +612,12 @@ class _SitesPageState extends State<SitesPage> {
               borderRadius: BorderRadius.circular(999),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
           Text(
             label,
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA4C2),
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -625,7 +626,7 @@ class _SitesPageState extends State<SitesPage> {
             value,
             style: GoogleFonts.rajdhani(
               color: accent,
-              fontSize: 24,
+              fontSize: 22,
               fontWeight: FontWeight.w700,
             ),
           ),

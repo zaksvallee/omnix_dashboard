@@ -100,7 +100,7 @@ class _EventsPageState extends State<EventsPage> {
                                 : const NeverScrollableScrollPhysics(),
                             itemCount: filtered.length,
                             separatorBuilder: (context, index) =>
-                                const SizedBox(height: 10),
+                                const SizedBox(height: 8),
                             itemBuilder: (context, index) {
                               final row = filtered[index];
                               final event = row.event;
@@ -115,9 +115,9 @@ class _EventsPageState extends State<EventsPage> {
                                     Scaffold.of(context).openEndDrawer();
                                   }
                                 },
-                                borderRadius: BorderRadius.circular(16),
+                                borderRadius: BorderRadius.circular(14),
                                 child: Container(
-                                  padding: const EdgeInsets.all(12),
+                                  padding: const EdgeInsets.all(10),
                                   decoration: _timelineRowDecoration(
                                     isSelected: isSelected,
                                   ),
@@ -134,7 +134,7 @@ class _EventsPageState extends State<EventsPage> {
                                           color: info.color,
                                         ),
                                       ),
-                                      const SizedBox(width: 12),
+                                      const SizedBox(width: 10),
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment:
@@ -149,7 +149,7 @@ class _EventsPageState extends State<EventsPage> {
                                                     info.label,
                                                     style: GoogleFonts.rajdhani(
                                                       color: info.color,
-                                                      fontSize: 18,
+                                                      fontSize: 17,
                                                       fontWeight:
                                                           FontWeight.w700,
                                                     ),
@@ -168,10 +168,10 @@ class _EventsPageState extends State<EventsPage> {
                                                 ),
                                               ],
                                             ),
-                                            const SizedBox(height: 6),
+                                            const SizedBox(height: 4),
                                             Wrap(
-                                              spacing: 8,
-                                              runSpacing: 8,
+                                              spacing: 6,
+                                              runSpacing: 6,
                                               children: [
                                                 _pill("SEQ ${event.sequence}"),
                                                 if (row.siteId != null)
@@ -187,22 +187,22 @@ class _EventsPageState extends State<EventsPage> {
                                                   ),
                                               ],
                                             ),
-                                            const SizedBox(height: 8),
+                                            const SizedBox(height: 6),
                                             Text(
                                               info.summary,
                                               style: GoogleFonts.inter(
                                                 color: const Color(0xFFE4EEFF),
-                                                fontSize: 14,
+                                                fontSize: 13,
                                                 fontWeight: FontWeight.w600,
                                                 height: 1.35,
                                               ),
                                             ),
-                                            const SizedBox(height: 6),
+                                            const SizedBox(height: 4),
                                             Text(
                                               "Event ID ${event.eventId}",
                                               style: GoogleFonts.inter(
                                                 color: const Color(0xFF7289AA),
-                                                fontSize: 12,
+                                                fontSize: 11,
                                                 fontWeight: FontWeight.w600,
                                               ),
                                             ),
@@ -217,7 +217,7 @@ class _EventsPageState extends State<EventsPage> {
                           );
 
                     return Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(10),
                       decoration: _surfaceCardDecoration(),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -230,12 +230,12 @@ class _EventsPageState extends State<EventsPage> {
                               borderRadius: BorderRadius.circular(999),
                             ),
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 8),
                           Text(
                             "Timeline Feed",
                             style: GoogleFonts.rajdhani(
                               color: const Color(0xFFE6F0FF),
-                              fontSize: 21,
+                              fontSize: 20,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -248,7 +248,7 @@ class _EventsPageState extends State<EventsPage> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 10),
                           if (useExpandedList)
                             Expanded(child: timelineList)
                           else
@@ -326,7 +326,7 @@ class _EventsPageState extends State<EventsPage> {
                         subtitle:
                             'Readable forensic timeline with a calmer detail surface and faster filter triage.',
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
                       _summaryStrip(
                         totalCount: forensicRows.length,
                         filteredCount: filtered.length,
@@ -334,14 +334,14 @@ class _EventsPageState extends State<EventsPage> {
                             ? null
                             : timeline.first.sequence,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       _filterBar(
                         allTypes: allTypes,
                         allSites: allSites,
                         allGuards: allGuards,
                         filteredCount: filtered.length,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Expanded(child: mainLayout()),
                     ],
                   );
@@ -362,14 +362,14 @@ class _EventsPageState extends State<EventsPage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(9),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF081326), Color(0xFF0A172C)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFF193758)),
         boxShadow: const [
           BoxShadow(
@@ -398,7 +398,7 @@ class _EventsPageState extends State<EventsPage> {
                   "Forensic Filters",
                   style: GoogleFonts.rajdhani(
                     color: const Color(0xFFE6F0FF),
-                    fontSize: 22,
+                    fontSize: 20,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -426,7 +426,7 @@ class _EventsPageState extends State<EventsPage> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Theme(
             data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
             child: ExpansionTile(
@@ -449,8 +449,8 @@ class _EventsPageState extends State<EventsPage> {
               children: [
                 const SizedBox(height: 6),
                 Wrap(
-                  spacing: 10,
-                  runSpacing: 8,
+                  spacing: 8,
+                  runSpacing: 6,
                   children: [
                     _dropdown(
                       label: "Type",
@@ -511,7 +511,7 @@ class _EventsPageState extends State<EventsPage> {
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
@@ -526,7 +526,7 @@ class _EventsPageState extends State<EventsPage> {
                 dropdownColor: const Color(0xFF081326),
                 style: GoogleFonts.inter(
                   color: const Color(0xFFE5EFFF),
-                  fontSize: 13,
+                  fontSize: 12,
                 ),
                 items: options
                     .map(
