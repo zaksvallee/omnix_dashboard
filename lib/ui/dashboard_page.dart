@@ -806,21 +806,36 @@ class _SignalAndFeedGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final visibleSignals = snapshot.liveSignals.take(8).toList(growable: false);
+    final visibleDispatchFeed = snapshot.dispatchFeed
+        .take(8)
+        .toList(growable: false);
+    final hiddenSignals = snapshot.liveSignals.length - visibleSignals.length;
+    final hiddenDispatches =
+        snapshot.dispatchFeed.length - visibleDispatchFeed.length;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
           child: _DashboardCard(
             title: 'Live Signals',
-            subtitle: 'Recent intelligence, patrol, and field confirmations.',
+            subtitle:
+                'Recent intelligence, patrol, and field confirmations • ${snapshot.liveSignals.length} total',
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (final row in snapshot.liveSignals.take(8)) ...[
+                for (final row in visibleSignals) ...[
                   _TimelineRow(accent: const Color(0xFF57C8FF), label: row),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                 ],
                 if (snapshot.liveSignals.isEmpty)
-                  _MutedLabel(label: 'No live signals yet.'),
+                  const _MutedLabel(label: 'No live signals yet.')
+                else if (hiddenSignals > 0)
+                  _MutedLabel(
+                    label:
+                        'Showing ${visibleSignals.length} of ${snapshot.liveSignals.length}. $hiddenSignals older signals hidden.',
+                  ),
               ],
             ),
           ),
@@ -829,15 +844,22 @@ class _SignalAndFeedGrid extends StatelessWidget {
         Expanded(
           child: _DashboardCard(
             title: 'Dispatch Feed',
-            subtitle: 'Readable dispatch outcomes with quick priority color.',
+            subtitle:
+                'Readable dispatch outcomes with quick priority color • ${snapshot.dispatchFeed.length} total',
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (final row in snapshot.dispatchFeed.take(8)) ...[
+                for (final row in visibleDispatchFeed) ...[
                   _DispatchFeedRow(label: row),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                 ],
                 if (snapshot.dispatchFeed.isEmpty)
-                  _MutedLabel(label: 'No dispatch events yet.'),
+                  const _MutedLabel(label: 'No dispatch events yet.')
+                else if (hiddenDispatches > 0)
+                  _MutedLabel(
+                    label:
+                        'Showing ${visibleDispatchFeed.length} of ${snapshot.dispatchFeed.length}. $hiddenDispatches older dispatch rows hidden.',
+                  ),
               ],
             ),
           ),
@@ -864,15 +886,21 @@ class _SitePosturePanel extends StatelessWidget {
     return _DashboardCard(
       title: 'Site Posture',
       subtitle:
-          'A ranked site list is easier to scan than the previous decorative globe. Highest operational load is shown first.',
+          'Security status by operational site • ${rankedSites.length} total sites',
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           for (final site in rankedSites.take(6)) ...[
             _SiteRow(site: site, threat: threat),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
           ],
           if (rankedSites.isEmpty)
             const _MutedLabel(label: 'No site posture data available.'),
+          if (rankedSites.length > 6)
+            _MutedLabel(
+              label:
+                  'Showing top 6 by operational load. ${rankedSites.length - 6} additional sites available.',
+            ),
         ],
       ),
     );
