@@ -1275,6 +1275,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
       );
     }
     final rows = history.take(5).toList(growable: false);
+    final hiddenRows = history.length - rows.length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1300,6 +1301,15 @@ class _ClientAppPageState extends State<ClientAppPage> {
             ),
           ),
         ),
+        if (hiddenRows > 0)
+          Text(
+            'Showing ${rows.length} of ${history.length} sync attempts. $hiddenRows older rows hidden.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF7FA2C9),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
       ],
     );
   }
@@ -1316,6 +1326,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
       );
     }
     final rows = history.take(5).toList(growable: false);
+    final hiddenRows = history.length - rows.length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1341,6 +1352,15 @@ class _ClientAppPageState extends State<ClientAppPage> {
             ),
           ),
         ),
+        if (hiddenRows > 0)
+          Text(
+            'Showing ${rows.length} of ${history.length} backend probes. $hiddenRows older rows hidden.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF7FA2C9),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
       ],
     );
   }

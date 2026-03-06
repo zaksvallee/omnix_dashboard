@@ -3474,6 +3474,7 @@ class _DispatchPageState extends State<DispatchPage> {
         })
         .toList(growable: false);
     final visibleItems = filteredItems.take(8).toList(growable: false);
+    final hiddenItems = filteredItems.length - visibleItems.length;
     final highRiskCount = filteredItems
         .where((item) => item.riskScore >= 70)
         .length;
@@ -3917,6 +3918,17 @@ class _DispatchPageState extends State<DispatchPage> {
                         const SizedBox(height: 8),
                   ),
           ),
+          if (hiddenItems > 0) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Showing ${visibleItems.length} of ${filteredItems.length} intelligence rows. $hiddenItems older rows hidden.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ],
       ),
     );
