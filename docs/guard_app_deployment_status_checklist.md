@@ -23,6 +23,9 @@ Last updated: 2026-03-06 (Africa/Johannesburg)
   `public.guard_rls_readiness_checks`.
 - [x] Guard readiness SQL smoke-check script added:
   [guard_readiness_smoke_checks.sql](/Users/zaks/omnix_dashboard/supabase/sql/guard_readiness_smoke_checks.sql).
+- [x] Guard actor-contract SQL compatibility script added:
+  [guard_actor_contract_checks.sql](/Users/zaks/omnix_dashboard/supabase/sql/guard_actor_contract_checks.sql)
+  validates actor-context payload keys in recent `guard_ops_events`.
 - [x] Pilot readiness command now supports strict live telemetry gating:
   `./scripts/guard_pilot_readiness_check.sh --enforce-live-telemetry`
   validates native SDK enabled + stub disabled + non-stub provider ID.
