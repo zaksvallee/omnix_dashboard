@@ -22,7 +22,7 @@ class ReportsPage extends StatelessWidget {
                   subtitle:
                       'Deterministic reporting, replay verification, and export readiness for client-facing intelligence packs.',
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 LayoutBuilder(
                   builder: (context, constraints) {
                     final columns = constraints.maxWidth >= 1260
@@ -66,7 +66,7 @@ class ReportsPage extends StatelessWidget {
                     );
                   },
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 Expanded(
                   child: LayoutBuilder(
                     builder: (context, constraints) {
@@ -80,8 +80,8 @@ class ReportsPage extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Wrap(
-                              spacing: 10,
-                              runSpacing: 10,
+                              spacing: 8,
+                              runSpacing: 8,
                               children: const [
                                 _LaneBadge(
                                   label: 'Build',
@@ -100,7 +100,7 @@ class ReportsPage extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 10),
                             _flowRow(
                               icon: Icons.picture_as_pdf_rounded,
                               title: 'Generate Deterministic PDF',
@@ -108,7 +108,7 @@ class ReportsPage extends StatelessWidget {
                                   'Build client intelligence reports from the current projection snapshot and preserve the exact content hash.',
                               accent: const Color(0xFF63BDFF),
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 10),
                             _flowRow(
                               icon: Icons.verified_rounded,
                               title: 'Replay Verification',
@@ -116,7 +116,7 @@ class ReportsPage extends StatelessWidget {
                                   'Rebuild the same report from its receipt and confirm byte-level content integrity before delivery.',
                               accent: const Color(0xFF59D79B),
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 10),
                             _flowRow(
                               icon: Icons.outbox_rounded,
                               title: 'Client Distribution',
@@ -211,7 +211,7 @@ class ReportsPage extends StatelessWidget {
                             const SizedBox(height: 14),
                             Container(
                               width: double.infinity,
-                              padding: const EdgeInsets.all(14),
+                              padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
                                   colors: [
@@ -286,7 +286,7 @@ class ReportsPage extends StatelessWidget {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFF0A1830),
         borderRadius: BorderRadius.circular(14),
@@ -461,7 +461,7 @@ class _ReportModeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFF0A1830),
         borderRadius: BorderRadius.circular(14),
@@ -471,7 +471,7 @@ class _ReportModeCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, color: accent),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
             title,
             style: GoogleFonts.inter(

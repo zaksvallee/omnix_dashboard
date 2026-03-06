@@ -201,7 +201,7 @@ class _Sidebar extends StatelessWidget {
             padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 14),
             child: Container(
               width: double.infinity,
-              padding: EdgeInsets.all(compact ? 8 : 10),
+              padding: EdgeInsets.all(compact ? 7 : 9),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   colors: [Color(0xFF0D182B), Color(0xFF0A1324)],
@@ -260,7 +260,7 @@ class _Sidebar extends StatelessWidget {
             padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 14),
             child: Container(
               width: double.infinity,
-              padding: EdgeInsets.all(compact ? 8 : 10),
+              padding: EdgeInsets.all(compact ? 7 : 9),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   colors: [Color(0xFF0C172A), Color(0xFF091222)],
