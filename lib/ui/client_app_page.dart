@@ -227,333 +227,349 @@ class _ClientAppPageState extends State<ClientAppPage> {
 
     return OnyxPageScaffold(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${_localizedSurfaceTitle(_viewerRole)} — ${widget.clientId} / ${widget.siteId}',
-              style: GoogleFonts.rajdhani(
-                color: const Color(0xFFE5F1FF),
-                fontSize: 34,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _localizedSurfaceSubtitle(_viewerRole),
-              style: GoogleFonts.inter(
-                color: const Color(0xFF93A8C9),
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFF0C2342).withValues(alpha: 0.9),
-                    const Color(0xFF09172E).withValues(alpha: 0.94),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: widget.backendSyncEnabled
-                      ? const Color(0xFF3D8BFF).withValues(alpha: 0.45)
-                      : const Color(0xFF35506F).withValues(alpha: 0.38),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        widget.backendSyncEnabled
-                            ? Icons.cloud_done_rounded
-                            : Icons.storage_rounded,
-                        size: 16,
-                        color: widget.backendSyncEnabled
-                            ? const Color(0xFF8FD1FF)
-                            : const Color(0xFF93A8C9),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        widget.backendSyncEnabled
-                            ? _localizedConversationSyncLive
-                            : _localizedConversationSyncLocal,
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFFD6E8FF),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1540),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${_localizedSurfaceTitle(_viewerRole)} — ${widget.clientId} / ${widget.siteId}',
+                  style: GoogleFonts.rajdhani(
+                    color: const Color(0xFFE5F1FF),
+                    fontSize: 30,
+                    fontWeight: FontWeight.w700,
                   ),
-                  if (!widget.backendSyncEnabled) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      _localizedRunWithLocalDefines,
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF93A8C9),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _localizedSurfaceSubtitle(_viewerRole),
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF93A8C9),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        const Color(0xFF0C2342).withValues(alpha: 0.9),
+                        const Color(0xFF09172E).withValues(alpha: 0.94),
+                      ],
                     ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              _localizedLanguageLabel,
-              style: GoogleFonts.inter(
-                color: const Color(0xFF7FA2CF),
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: ClientAppViewerRole.values
-                  .map((role) => _viewerRoleChip(role))
-                  .toList(growable: false),
-            ),
-            const SizedBox(height: 14),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final columns = constraints.maxWidth >= 1500
-                    ? 6
-                    : constraints.maxWidth >= 1200
-                    ? 3
-                    : constraints.maxWidth >= 760
-                    ? 2
-                    : 1;
-                const spacing = 12.0;
-                final cardWidth =
-                    (constraints.maxWidth - ((columns - 1) * spacing)) /
-                    columns;
-                return Wrap(
-                  spacing: spacing,
-                  runSpacing: spacing,
-                  children: [
-                    SizedBox(
-                      width: cardWidth,
-                      child: _metricCard(
-                        _viewerRole.alertsMetricLabelForLocale(widget.locale),
-                        unreadNotifications.toString(),
-                        const Color(0xFFFFD6A5),
-                      ),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: widget.backendSyncEnabled
+                          ? const Color(0xFF3D8BFF).withValues(alpha: 0.45)
+                          : const Color(0xFF35506F).withValues(alpha: 0.38),
                     ),
-                    SizedBox(
-                      width: cardWidth,
-                      child: _metricCard(
-                        _localizedActiveIncidentsLabel,
-                        activeDispatches.toString(),
-                        const Color(0xFFFFA7B8),
-                      ),
-                    ),
-                    SizedBox(
-                      width: cardWidth,
-                      child: _metricCard(
-                        _localizedEstateRoomsLabel,
-                        rooms.length.toString(),
-                        const Color(0xFF9FD8AC),
-                      ),
-                    ),
-                    SizedBox(
-                      width: cardWidth,
-                      child: _metricCard(
-                        _viewerRole.chatMetricLabelForLocale(widget.locale),
-                        '${chatMessages.length} updates',
-                        const Color(0xFF8FD1FF),
-                      ),
-                    ),
-                    SizedBox(
-                      width: cardWidth,
-                      child: _metricCard(
-                        _viewerRole.pendingMetricLabelForLocale(widget.locale),
-                        pendingAcknowledgements.toString(),
-                        const Color(0xFFC9B8FF),
-                      ),
-                    ),
-                    SizedBox(
-                      width: cardWidth,
-                      child: _metricCard(
-                        _localizedPushQueueReadyLabel,
-                        pushReadyCount.toString(),
-                        const Color(0xFFFFB5C6),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 20),
-            _panel(
-              title: _localizedPushDeliveryQueueTitle,
-              subtitle: _localizedPushDeliveryQueueSubtitle,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _pushSyncStatusStrip(),
-                  const SizedBox(height: 10),
-                  _backendProbeHistoryList(widget.backendProbeHistory),
-                  const SizedBox(height: 10),
-                  _pushSyncHistoryList(widget.pushSyncHistory),
-                  const SizedBox(height: 10),
-                  _pushQueueList(pushQueue),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            _panel(
-              title: _viewerRole.incidentFeedPanelTitleForLocale(widget.locale),
-              subtitle: _viewerRole.incidentFeedPanelSubtitleForLocale(
-                widget.locale,
-              ),
-              subtitleAction: selectedIncidentGroup == null
-                  ? null
-                  : TextButton(
-                      onPressed: () =>
-                          _reopenSelectedIncidentThread(incidentFeed),
-                      style: _inlineHandoffButtonStyle(const Color(0xFF8FD1FF)),
-                      child: Row(
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            _viewerRole.selectedIncidentHeaderIcon,
-                            size: 14,
+                            widget.backendSyncEnabled
+                                ? Icons.cloud_done_rounded
+                                : Icons.storage_rounded,
+                            size: 16,
+                            color: widget.backendSyncEnabled
+                                ? const Color(0xFF8FD1FF)
+                                : const Color(0xFF93A8C9),
                           ),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 8),
                           Text(
-                            _viewerRole.selectedIncidentHeaderLabel(
-                              selectedIncidentGroup.referenceLabel,
-                            ),
+                            widget.backendSyncEnabled
+                                ? _localizedConversationSyncLive
+                                : _localizedConversationSyncLocal,
                             style: GoogleFonts.inter(
+                              color: const Color(0xFFD6E8FF),
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
                         ],
                       ),
+                      if (!widget.backendSyncEnabled) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          _localizedRunWithLocalDefines,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF93A8C9),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _localizedLanguageLabel,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF7FA2CF),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: ClientAppViewerRole.values
+                      .map((role) => _viewerRoleChip(role))
+                      .toList(growable: false),
+                ),
+                const SizedBox(height: 14),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final columns = constraints.maxWidth >= 1500
+                        ? 6
+                        : constraints.maxWidth >= 1200
+                        ? 3
+                        : constraints.maxWidth >= 760
+                        ? 2
+                        : 1;
+                    const spacing = 12.0;
+                    final cardWidth =
+                        (constraints.maxWidth - ((columns - 1) * spacing)) /
+                        columns;
+                    return Wrap(
+                      spacing: spacing,
+                      runSpacing: spacing,
+                      children: [
+                        SizedBox(
+                          width: cardWidth,
+                          child: _metricCard(
+                            _viewerRole.alertsMetricLabelForLocale(
+                              widget.locale,
+                            ),
+                            unreadNotifications.toString(),
+                            const Color(0xFFFFD6A5),
+                          ),
+                        ),
+                        SizedBox(
+                          width: cardWidth,
+                          child: _metricCard(
+                            _localizedActiveIncidentsLabel,
+                            activeDispatches.toString(),
+                            const Color(0xFFFFA7B8),
+                          ),
+                        ),
+                        SizedBox(
+                          width: cardWidth,
+                          child: _metricCard(
+                            _localizedEstateRoomsLabel,
+                            rooms.length.toString(),
+                            const Color(0xFF9FD8AC),
+                          ),
+                        ),
+                        SizedBox(
+                          width: cardWidth,
+                          child: _metricCard(
+                            _viewerRole.chatMetricLabelForLocale(widget.locale),
+                            '${chatMessages.length} updates',
+                            const Color(0xFF8FD1FF),
+                          ),
+                        ),
+                        SizedBox(
+                          width: cardWidth,
+                          child: _metricCard(
+                            _viewerRole.pendingMetricLabelForLocale(
+                              widget.locale,
+                            ),
+                            pendingAcknowledgements.toString(),
+                            const Color(0xFFC9B8FF),
+                          ),
+                        ),
+                        SizedBox(
+                          width: cardWidth,
+                          child: _metricCard(
+                            _localizedPushQueueReadyLabel,
+                            pushReadyCount.toString(),
+                            const Color(0xFFFFB5C6),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 14),
+                _panel(
+                  title: _localizedPushDeliveryQueueTitle,
+                  subtitle: _localizedPushDeliveryQueueSubtitle,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _pushSyncStatusStrip(),
+                      const SizedBox(height: 10),
+                      _backendProbeHistoryList(widget.backendProbeHistory),
+                      const SizedBox(height: 10),
+                      _pushSyncHistoryList(widget.pushSyncHistory),
+                      const SizedBox(height: 10),
+                      _pushQueueList(pushQueue),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _panel(
+                  title: _viewerRole.incidentFeedPanelTitleForLocale(
+                    widget.locale,
+                  ),
+                  subtitle: _viewerRole.incidentFeedPanelSubtitleForLocale(
+                    widget.locale,
+                  ),
+                  subtitleAction: selectedIncidentGroup == null
+                      ? null
+                      : TextButton(
+                          onPressed: () =>
+                              _reopenSelectedIncidentThread(incidentFeed),
+                          style: _inlineHandoffButtonStyle(
+                            const Color(0xFF8FD1FF),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _viewerRole.selectedIncidentHeaderIcon,
+                                size: 14,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                _viewerRole.selectedIncidentHeaderLabel(
+                                  selectedIncidentGroup.referenceLabel,
+                                ),
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                  headerAction: selectedIncidentGroup == null
+                      ? TextButton(
+                          onPressed: null,
+                          style: _inlineHandoffButtonStyle(
+                            const Color(0xFF8FD1FF),
+                            disabledForegroundColor: const Color(0xFF5B7294),
+                          ),
+                          child: Text(
+                            _viewerRole.noSelectedIncidentLabel,
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        )
+                      : null,
+                  child: _incidentFeedList(incidentFeed),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        filterScopeLabel,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF8FD1FF),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
-              headerAction: selectedIncidentGroup == null
-                  ? TextButton(
-                      onPressed: null,
-                      style: _inlineHandoffButtonStyle(
-                        const Color(0xFF8FD1FF),
-                        disabledForegroundColor: const Color(0xFF5B7294),
+                    TextButton(
+                      onPressed: _toggleShowAllRoomItems,
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(0, 0),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        foregroundColor: const Color(0xFF8FD1FF),
                       ),
                       child: Text(
-                        _viewerRole.noSelectedIncidentLabel,
+                        showAllRoomItems
+                            ? _localizedShowPendingLabel
+                            : _localizedShowAllLabel,
                         style: GoogleFonts.inter(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                    )
-                  : null,
-              child: _incidentFeedList(incidentFeed),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    filterScopeLabel,
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF8FD1FF),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
                     ),
-                  ),
+                  ],
                 ),
-                TextButton(
-                  onPressed: _toggleShowAllRoomItems,
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    minimumSize: const Size(0, 0),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    foregroundColor: const Color(0xFF8FD1FF),
-                  ),
-                  child: Text(
-                    showAllRoomItems
-                        ? _localizedShowPendingLabel
-                        : _localizedShowAllLabel,
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                const SizedBox(height: 12),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final columns = constraints.maxWidth >= 1400
+                        ? 3
+                        : constraints.maxWidth >= 980
+                        ? 2
+                        : 1;
+                    const spacing = 12.0;
+                    final cardWidth =
+                        (constraints.maxWidth - ((columns - 1) * spacing)) /
+                        columns;
+                    return Wrap(
+                      spacing: spacing,
+                      runSpacing: spacing,
+                      children: [
+                        SizedBox(
+                          width: cardWidth,
+                          child: _panel(
+                            title: _viewerRole.notificationsPanelTitleForLocale(
+                              widget.locale,
+                            ),
+                            subtitle: _notificationsPanelSubtitle(
+                              showAllRoomItems: showAllRoomItems,
+                              roomDisplayName: activeRoom.displayName,
+                            ),
+                            child: _notificationsList(visibleNotifications),
+                          ),
+                        ),
+                        SizedBox(
+                          width: cardWidth,
+                          child: _panel(
+                            title: _viewerRole.roomsPanelTitleForLocale(
+                              widget.locale,
+                            ),
+                            subtitle: _roomsPanelSubtitle(
+                              showAllRoomItems: showAllRoomItems,
+                              roomDisplayName: activeRoom.displayName,
+                            ),
+                            child: _roomsList(rooms),
+                          ),
+                        ),
+                        SizedBox(
+                          width: cardWidth,
+                          child: _panel(
+                            title: _viewerRole.chatPanelTitleForLocale(
+                              widget.locale,
+                            ),
+                            subtitle: _chatPanelSubtitle(
+                              showAllRoomItems: showAllRoomItems,
+                              roomDisplayName: activeRoom.displayName,
+                            ),
+                            child: _chatPanel(chatMessages),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final columns = constraints.maxWidth >= 1400
-                    ? 3
-                    : constraints.maxWidth >= 980
-                    ? 2
-                    : 1;
-                const spacing = 12.0;
-                final cardWidth =
-                    (constraints.maxWidth - ((columns - 1) * spacing)) /
-                    columns;
-                return Wrap(
-                  spacing: spacing,
-                  runSpacing: spacing,
-                  children: [
-                    SizedBox(
-                      width: cardWidth,
-                      child: _panel(
-                        title: _viewerRole.notificationsPanelTitleForLocale(
-                          widget.locale,
-                        ),
-                        subtitle: _notificationsPanelSubtitle(
-                          showAllRoomItems: showAllRoomItems,
-                          roomDisplayName: activeRoom.displayName,
-                        ),
-                        child: _notificationsList(visibleNotifications),
-                      ),
-                    ),
-                    SizedBox(
-                      width: cardWidth,
-                      child: _panel(
-                        title: _viewerRole.roomsPanelTitleForLocale(
-                          widget.locale,
-                        ),
-                        subtitle: _roomsPanelSubtitle(
-                          showAllRoomItems: showAllRoomItems,
-                          roomDisplayName: activeRoom.displayName,
-                        ),
-                        child: _roomsList(rooms),
-                      ),
-                    ),
-                    SizedBox(
-                      width: cardWidth,
-                      child: _panel(
-                        title: _viewerRole.chatPanelTitleForLocale(
-                          widget.locale,
-                        ),
-                        subtitle: _chatPanelSubtitle(
-                          showAllRoomItems: showAllRoomItems,
-                          roomDisplayName: activeRoom.displayName,
-                        ),
-                        child: _chatPanel(chatMessages),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ],
+          ),
         ),
       ),
     );
