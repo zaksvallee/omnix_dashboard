@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ACTION="${ONYX_FSK_SDK_HEARTBEAT_ACTION:-}"
+ACTION="${ONYX_FSK_SDK_HEARTBEAT_ACTION:-com.onyx.fsk.SDK_HEARTBEAT}"
 SERIAL=""
 SAMPLES=3
 INTERVAL_SECONDS=1
@@ -22,6 +22,9 @@ Purpose:
   One command for both modes:
   - If an Android device is connected: runs guard_android_pilot_gate.sh
   - If no Android device is connected: runs guard_predevice_gate.sh
+
+Defaults:
+  --action defaults to ONYX_FSK_SDK_HEARTBEAT_ACTION or com.onyx.fsk.SDK_HEARTBEAT
 USAGE
 }
 
@@ -97,14 +100,10 @@ if command -v adb >/dev/null 2>&1; then
 fi
 
 if [[ "$DEVICE_COUNT" -gt 0 ]]; then
-  if [[ -z "$ACTION" ]]; then
-    echo "FAIL: Android device detected but --action (or ONYX_FSK_SDK_HEARTBEAT_ACTION) is not set." >&2
-    exit 1
-  fi
-
   echo "== ONYX Guard Auto Gate =="
   echo "Mode: on-device pilot gate"
   echo "Connected devices: $DEVICE_COUNT"
+  echo "Action: $ACTION"
 
   pilot_cmd=(
     ./scripts/guard_android_pilot_gate.sh
