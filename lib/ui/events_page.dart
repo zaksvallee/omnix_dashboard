@@ -23,6 +23,7 @@ class EventsPage extends StatefulWidget {
 }
 
 class _EventsPageState extends State<EventsPage> {
+  static const int _maxTimelineRows = 50;
   String _typeFilter = _allValue;
   String _siteFilter = _allValue;
   String _guardFilter = _allValue;
@@ -43,14 +44,16 @@ class _EventsPageState extends State<EventsPage> {
     final allGuards = _distinctValues(forensicRows.map((r) => r.guardId));
 
     final filtered = forensicRows.where(_matchesFilters).toList();
-    final selected = filtered.isEmpty
+    final visibleRows = filtered.take(_maxTimelineRows).toList(growable: false);
+    final hiddenRows = filtered.length - visibleRows.length;
+    final selected = visibleRows.isEmpty
         ? null
         : _selected != null
-        ? filtered.firstWhere(
+        ? visibleRows.firstWhere(
             (r) => r.event.eventId == _selected!.eventId,
-            orElse: () => filtered.first,
+            orElse: () => visibleRows.first,
           )
-        : filtered.first;
+        : visibleRows.first;
 
     if (selected != null && _selected?.eventId != selected.event.eventId) {
       _selected = selected.event;
@@ -90,7 +93,7 @@ class _EventsPageState extends State<EventsPage> {
                     required bool showSideDrawer,
                     required bool useExpandedList,
                   }) {
-                    final timelineList = filtered.isEmpty
+                    final timelineList = visibleRows.isEmpty
                         ? _emptyState()
                         : ListView.separated(
                             shrinkWrap: !useExpandedList,
@@ -98,11 +101,11 @@ class _EventsPageState extends State<EventsPage> {
                             physics: useExpandedList
                                 ? null
                                 : const NeverScrollableScrollPhysics(),
-                            itemCount: filtered.length,
+                            itemCount: visibleRows.length,
                             separatorBuilder: (context, index) =>
                                 const SizedBox(height: 8),
                             itemBuilder: (context, index) {
-                              final row = filtered[index];
+                              final row = visibleRows[index];
                               final event = row.event;
                               final info = row.info;
                               final isSelected =
@@ -241,7 +244,7 @@ class _EventsPageState extends State<EventsPage> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            "Newest first, with summary-first cards instead of raw dense rows.",
+                            "Newest first, with summary-first cards instead of raw dense rows • ${filtered.length} filtered.",
                             style: GoogleFonts.inter(
                               color: const Color(0xFF7E95B4),
                               fontSize: 12,
@@ -250,9 +253,35 @@ class _EventsPageState extends State<EventsPage> {
                           ),
                           const SizedBox(height: 10),
                           if (useExpandedList)
-                            Expanded(child: timelineList)
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(child: timelineList),
+                                  if (hiddenRows > 0) ...[
+                                    const SizedBox(height: 8),
+                                    _pill(
+                                      '$hiddenRows additional rows hidden (showing first ${visibleRows.length})',
+                                      color: const Color(0xFF8FA8CA),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            )
                           else
-                            timelineList,
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                timelineList,
+                                if (hiddenRows > 0) ...[
+                                  const SizedBox(height: 8),
+                                  _pill(
+                                    '$hiddenRows additional rows hidden (showing first ${visibleRows.length})',
+                                    color: const Color(0xFF8FA8CA),
+                                  ),
+                                ],
+                              ],
+                            ),
                         ],
                       ),
                     );
