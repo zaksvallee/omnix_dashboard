@@ -89,6 +89,12 @@ Optional auditable wrapper report:
   --max-live-validation-report-age-hours 12
 ```
 
+Pre-device one-command gate (no phone connected):
+
+```bash
+./scripts/guard_predevice_gate.sh --samples 3 --max-report-age-hours 24
+```
+
 No-device simulation (for CI/local pipeline checks):
 
 ```bash
