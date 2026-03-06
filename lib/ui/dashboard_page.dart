@@ -1096,6 +1096,11 @@ class _RightRail extends StatelessWidget {
       ...recentEventFailureTraces,
       ...recentMediaFailureTraces,
     ].toList(growable: false);
+    final visibleCoachingHistory = guardCoachingRecentHistory
+        .take(3)
+        .toList(growable: false);
+    final hiddenCoachingHistory =
+        guardCoachingRecentHistory.length - visibleCoachingHistory.length;
 
     return Scrollbar(
       child: SingleChildScrollView(
@@ -1356,23 +1361,30 @@ class _RightRail extends StatelessWidget {
                                       ),
                                     ),
                                     const SizedBox(height: 4),
-                                    ...guardCoachingRecentHistory
-                                        .take(3)
-                                        .map(
-                                          (entry) => Padding(
-                                            padding: const EdgeInsets.only(
-                                              bottom: 3,
-                                            ),
-                                            child: Text(
-                                              entry,
-                                              style: GoogleFonts.inter(
-                                                color: const Color(0xFFB8CBE7),
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
+                                    ...visibleCoachingHistory.map(
+                                      (entry) => Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 3,
+                                        ),
+                                        child: Text(
+                                          entry,
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFB8CBE7),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
                                           ),
                                         ),
+                                      ),
+                                    ),
+                                    if (hiddenCoachingHistory > 0)
+                                      Text(
+                                        'Showing ${visibleCoachingHistory.length} of ${guardCoachingRecentHistory.length} coaching rows.',
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFF8EA5C6),
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
                                   ],
                                   const SizedBox(height: 8),
                                   Text(
