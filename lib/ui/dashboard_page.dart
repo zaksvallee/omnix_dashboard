@@ -389,51 +389,59 @@ class _DesktopDashboard extends StatelessWidget {
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          // Keep the primary operational read path full-width on typical
-          // desktop/laptop windows; only pin the right rail on very wide layouts.
-          final stackRightRailBelow = constraints.maxWidth < 1560;
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1540),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // Keep the primary operational read path full-width on typical
+              // desktop/laptop windows; only pin the right rail on very wide layouts.
+              final stackRightRailBelow = constraints.maxWidth < 1420;
 
-          return Column(
-            children: [
-              _ExecutiveSummary(
-                snapshot: snapshot,
-                threat: threat,
-                triage: triage,
-              ),
-              const SizedBox(height: 10),
-              if (stackRightRailBelow) ...[
-                _SignalAndFeedGrid(snapshot: snapshot),
-                const SizedBox(height: 10),
-                _SitePosturePanel(snapshot: snapshot, threat: threat),
-                const SizedBox(height: 10),
-                rightRail,
-              ] else
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      flex: 7,
-                      child: Column(
-                        children: [
-                          _SignalAndFeedGrid(snapshot: snapshot),
-                          const SizedBox(height: 10),
-                          _SitePosturePanel(snapshot: snapshot, threat: threat),
-                        ],
-                      ),
+              return Column(
+                children: [
+                  _ExecutiveSummary(
+                    snapshot: snapshot,
+                    threat: threat,
+                    triage: triage,
+                  ),
+                  const SizedBox(height: 10),
+                  if (stackRightRailBelow) ...[
+                    _SignalAndFeedGrid(snapshot: snapshot),
+                    const SizedBox(height: 10),
+                    _SitePosturePanel(snapshot: snapshot, threat: threat),
+                    const SizedBox(height: 10),
+                    rightRail,
+                  ] else
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 7,
+                          child: Column(
+                            children: [
+                              _SignalAndFeedGrid(snapshot: snapshot),
+                              const SizedBox(height: 10),
+                              _SitePosturePanel(
+                                snapshot: snapshot,
+                                threat: threat,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        SizedBox(
+                          width: 308,
+                          height: railHeight,
+                          child: rightRail,
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 10),
-                    SizedBox(
-                      width: 308,
-                      height: railHeight,
-                      child: rightRail,
-                    ),
-                  ],
-                ),
-            ],
-          );
-        },
+                ],
+              );
+            },
+          ),
+        ),
       ),
     );
   }
