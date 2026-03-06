@@ -1847,405 +1847,419 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
     }
     return OnyxPageScaffold(
       child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            OnyxPageHeader(
-              title: 'Android Guard App Shell',
-              subtitle: _headerSubtitleForRole(widget.operatorRole),
-              actions: [
-                _chip(
-                  'Role',
-                  _operatorRoleLabel(widget.operatorRole),
-                  const Color(0xFFB2A5FF),
-                ),
-                _chip('Guard', widget.guardId, const Color(0xFF69C3FF)),
-                _chip('Site', widget.siteId, const Color(0xFF63D79C)),
-                _chip(
-                  'Sync',
-                  widget.syncBackendEnabled
-                      ? 'Supabase + fallback'
-                      : 'Local only',
-                  widget.syncBackendEnabled
-                      ? const Color(0xFF67D39A)
-                      : const Color(0xFFF5C26E),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
+        padding: const EdgeInsets.all(12),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1540),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: OnyxSummaryStat(
-                    label: 'Pending Events',
-                    value: widget.pendingEventCount.toString(),
-                    accent: const Color(0xFF6BC6FF),
-                  ),
+                OnyxPageHeader(
+                  title: 'Android Guard App Shell',
+                  subtitle: _headerSubtitleForRole(widget.operatorRole),
+                  actions: [
+                    _chip(
+                      'Role',
+                      _operatorRoleLabel(widget.operatorRole),
+                      const Color(0xFFB2A5FF),
+                    ),
+                    _chip('Guard', widget.guardId, const Color(0xFF69C3FF)),
+                    _chip('Site', widget.siteId, const Color(0xFF63D79C)),
+                    _chip(
+                      'Sync',
+                      widget.syncBackendEnabled
+                          ? 'Supabase + fallback'
+                          : 'Local only',
+                      widget.syncBackendEnabled
+                          ? const Color(0xFF67D39A)
+                          : const Color(0xFFF5C26E),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OnyxSummaryStat(
-                    label: 'Pending Media',
-                    value: widget.pendingMediaCount.toString(),
-                    accent: const Color(0xFF7FB1FF),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OnyxSummaryStat(
-                    label: 'Sync Queue',
-                    value: widget.queueDepth.toString(),
-                    accent: const Color(0xFF73D8A0),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _chip(
-                  'Reaction Ops',
-                  'A:${_reactionAcceptedCount(shiftId: activeShiftId)} Ar:${_reactionArrivedCount(shiftId: activeShiftId)} C:${_reactionClearedCount(shiftId: activeShiftId)}',
-                  const Color(0xFF90D2FF),
-                ),
-                _chip(
-                  'Supervisor Ops',
-                  'O:${_supervisorOverrideCount(shiftId: activeShiftId)} Ack:${_supervisorCoachingAckCount(shiftId: activeShiftId)}',
-                  const Color(0xFFC2B2FF),
-                ),
-              ],
-            ),
-            if (widget.syncStatusLabel != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                widget.syncStatusLabel!,
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF9AB3D4),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-            if (_lastActionStatus != null) ...[
-              const SizedBox(height: 10),
-              Text(
-                _lastActionStatus!,
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF9AB3D4),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-            const SizedBox(height: 16),
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: 7,
-                    child: OnyxSectionCard(
-                      title: 'Guard Screen Flow',
-                      subtitle:
-                          'This shell maps Android screens to actual queued sync operations.',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: _screensForRole(widget.operatorRole)
-                                .map(
-                                  (screen) => switch (screen) {
-                                    _GuardMobileScreen.shiftStart =>
-                                      _screenChip(
-                                        'Shift Start',
-                                        _GuardMobileScreen.shiftStart,
-                                      ),
-                                    _GuardMobileScreen.dispatch => _screenChip(
-                                      'Dispatch',
-                                      _GuardMobileScreen.dispatch,
-                                    ),
-                                    _GuardMobileScreen.status => _screenChip(
-                                      'Status',
-                                      _GuardMobileScreen.status,
-                                    ),
-                                    _GuardMobileScreen.checkpoint =>
-                                      _screenChip(
-                                        'Checkpoint',
-                                        _GuardMobileScreen.checkpoint,
-                                      ),
-                                    _GuardMobileScreen.panic => _screenChip(
-                                      'Panic',
-                                      _GuardMobileScreen.panic,
-                                    ),
-                                    _GuardMobileScreen.sync => _screenChip(
-                                      'Sync',
-                                      _GuardMobileScreen.sync,
-                                    ),
-                                  },
-                                )
-                                .toList(growable: false),
-                          ),
-                          const SizedBox(height: 14),
-                          _buildScreenPanel(),
-                        ],
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OnyxSummaryStat(
+                        label: 'Pending Events',
+                        value: widget.pendingEventCount.toString(),
+                        accent: const Color(0xFF6BC6FF),
                       ),
                     ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OnyxSummaryStat(
+                        label: 'Pending Media',
+                        value: widget.pendingMediaCount.toString(),
+                        accent: const Color(0xFF7FB1FF),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OnyxSummaryStat(
+                        label: 'Sync Queue',
+                        value: widget.queueDepth.toString(),
+                        accent: const Color(0xFF73D8A0),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _chip(
+                      'Reaction Ops',
+                      'A:${_reactionAcceptedCount(shiftId: activeShiftId)} Ar:${_reactionArrivedCount(shiftId: activeShiftId)} C:${_reactionClearedCount(shiftId: activeShiftId)}',
+                      const Color(0xFF90D2FF),
+                    ),
+                    _chip(
+                      'Supervisor Ops',
+                      'O:${_supervisorOverrideCount(shiftId: activeShiftId)} Ack:${_supervisorCoachingAckCount(shiftId: activeShiftId)}',
+                      const Color(0xFFC2B2FF),
+                    ),
+                  ],
+                ),
+                if (widget.syncStatusLabel != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    widget.syncStatusLabel!,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF9AB3D4),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 5,
-                    child: OnyxSectionCard(
-                      title:
-                          'Sync History (${widget.historyFilter.name.toUpperCase()})',
-                      subtitle:
-                          'Recent operations from repository-backed sync history.',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
+                ],
+                if (_lastActionStatus != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _lastActionStatus!,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF9AB3D4),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                Expanded(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 7,
+                        child: OnyxSectionCard(
+                          title: 'Guard Screen Flow',
+                          subtitle:
+                              'This shell maps Android screens to actual queued sync operations.',
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _historyChip(
-                                label: 'Queued',
-                                filter: GuardSyncHistoryFilter.queued,
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: _screensForRole(widget.operatorRole)
+                                    .map(
+                                      (screen) => switch (screen) {
+                                        _GuardMobileScreen.shiftStart =>
+                                          _screenChip(
+                                            'Shift Start',
+                                            _GuardMobileScreen.shiftStart,
+                                          ),
+                                        _GuardMobileScreen.dispatch =>
+                                          _screenChip(
+                                            'Dispatch',
+                                            _GuardMobileScreen.dispatch,
+                                          ),
+                                        _GuardMobileScreen.status =>
+                                          _screenChip(
+                                            'Status',
+                                            _GuardMobileScreen.status,
+                                          ),
+                                        _GuardMobileScreen.checkpoint =>
+                                          _screenChip(
+                                            'Checkpoint',
+                                            _GuardMobileScreen.checkpoint,
+                                          ),
+                                        _GuardMobileScreen.panic => _screenChip(
+                                          'Panic',
+                                          _GuardMobileScreen.panic,
+                                        ),
+                                        _GuardMobileScreen.sync => _screenChip(
+                                          'Sync',
+                                          _GuardMobileScreen.sync,
+                                        ),
+                                      },
+                                    )
+                                    .toList(growable: false),
                               ),
-                              _historyChip(
-                                label: 'Synced',
-                                filter: GuardSyncHistoryFilter.synced,
-                              ),
-                              _historyChip(
-                                label: 'Failed',
-                                filter: GuardSyncHistoryFilter.failed,
-                              ),
-                              _historyChip(
-                                label: 'All',
-                                filter: GuardSyncHistoryFilter.all,
-                              ),
+                              const SizedBox(height: 14),
+                              _buildScreenPanel(),
                             ],
                           ),
-                          const SizedBox(height: 6),
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
-                            children: GuardSyncOperationModeFilter.values
-                                .map((mode) {
-                                  final count =
-                                      mode == GuardSyncOperationModeFilter.all
-                                      ? widget.queuedOperations.length
-                                      : widget.queuedOperations
-                                            .where(
-                                              (operation) =>
-                                                  _operationModeFor(
-                                                    operation,
-                                                  ) ==
-                                                  mode,
-                                            )
-                                            .length;
-                                  return _syncFilterChip(
-                                    label:
-                                        '${_operationModeLabel(mode)}: $count',
-                                    selected:
-                                        widget.operationModeFilter == mode,
-                                    onTap: () {
-                                      unawaited(
-                                        widget.onOperationModeFilterChanged(
-                                          mode,
-                                        ),
-                                      );
-                                    },
-                                  );
-                                })
-                                .toList(growable: false),
-                          ),
-                          const SizedBox(height: 6),
-                          Row(
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        flex: 5,
+                        child: OnyxSectionCard(
+                          title:
+                              'Sync History (${widget.historyFilter.name.toUpperCase()})',
+                          subtitle:
+                              'Recent operations from repository-backed sync history.',
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'Facade Filter:',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF8EA4C2),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<String>(
-                                    value:
-                                        widget.selectedFacadeId == null ||
-                                            widget.selectedFacadeId!.isEmpty
-                                        ? _allFacadeFilterValue
-                                        : widget.selectedFacadeId!,
-                                    dropdownColor: const Color(0xFF0A1529),
-                                    style: GoogleFonts.inter(
-                                      color: const Color(0xFFDCE9FF),
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                    items: [
-                                      const DropdownMenuItem<String>(
-                                        value: _allFacadeFilterValue,
-                                        child: Text('All Facades'),
-                                      ),
-                                      ...facadeIdOptions.map(
-                                        (facadeId) => DropdownMenuItem<String>(
-                                          value: facadeId,
-                                          child: Text(facadeId),
-                                        ),
-                                      ),
-                                    ],
-                                    onChanged: (value) {
-                                      final next =
-                                          value == null ||
-                                              value == _allFacadeFilterValue
-                                          ? null
-                                          : value;
-                                      unawaited(
-                                        widget.onFacadeIdFilterChanged(next),
-                                      );
-                                    },
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: [
+                                  _historyChip(
+                                    label: 'Queued',
+                                    filter: GuardSyncHistoryFilter.queued,
                                   ),
-                                ),
+                                  _historyChip(
+                                    label: 'Synced',
+                                    filter: GuardSyncHistoryFilter.synced,
+                                  ),
+                                  _historyChip(
+                                    label: 'Failed',
+                                    filter: GuardSyncHistoryFilter.failed,
+                                  ),
+                                  _historyChip(
+                                    label: 'All',
+                                    filter: GuardSyncHistoryFilter.all,
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
-                            children: [
-                              _chip(
-                                'Scoped Selections',
-                                widget.scopedSelectionCount.toString(),
-                                const Color(0xFF8FD1FF),
-                              ),
-                              _chip(
-                                'Active Scope',
-                                widget.activeScopeKey.trim().isEmpty
-                                    ? 'unknown'
-                                    : widget.activeScopeKey.trim(),
-                                const Color(0xFFB6C6DD),
-                              ),
-                              _chip(
-                                'Scope Selection',
-                                widget.activeScopeHasSelection
-                                    ? 'selected'
-                                    : 'none',
-                                widget.activeScopeHasSelection
-                                    ? const Color(0xFF7FD8A5)
-                                    : const Color(0xFFF1B872),
-                              ),
-                            ],
-                          ),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: _submitting
-                                  ? null
-                                  : () async {
-                                      await _withSubmit(
-                                        'Scoped selection keys copied.',
-                                        _copyScopedSelectionKeys,
-                                      );
-                                    },
-                              child: Text(
-                                'Copy Scoped Keys',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF89D7FF),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          _failedOpsMetricsStrip(visibleHistoryOperations),
-                          const SizedBox(height: 4),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: _submitting
-                                  ? null
-                                  : () async {
-                                      await _withSubmit('Queue cleared.', () {
-                                        return widget.onClearQueue();
-                                      });
-                                      if (!mounted) return;
-                                      setState(() {
-                                        _selectedOperationId = null;
-                                      });
-                                      await widget.onSelectedOperationChanged(
-                                        null,
-                                      );
-                                    },
-                              child: Text(
-                                'Clear Queue',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF89D7FF),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                          SizedBox(
-                            height: 380,
-                            child: visibleHistoryOperations.isEmpty
-                                ? Center(
-                                    child: Text(
-                                      'No operations in this history filter.',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFF8EA4C2),
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  )
-                                : ListView.separated(
-                                    itemCount:
-                                        visibleHistoryOperations.length > 12
-                                        ? 12
-                                        : visibleHistoryOperations.length,
-                                    separatorBuilder: (_, _) =>
-                                        const SizedBox(height: 8),
-                                    itemBuilder: (context, index) {
-                                      final operation =
-                                          visibleHistoryOperations[index];
-                                      return _operationRow(
-                                        operation,
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: GuardSyncOperationModeFilter.values
+                                    .map((mode) {
+                                      final count =
+                                          mode ==
+                                              GuardSyncOperationModeFilter.all
+                                          ? widget.queuedOperations.length
+                                          : widget.queuedOperations
+                                                .where(
+                                                  (operation) =>
+                                                      _operationModeFor(
+                                                        operation,
+                                                      ) ==
+                                                      mode,
+                                                )
+                                                .length;
+                                      return _syncFilterChip(
+                                        label:
+                                            '${_operationModeLabel(mode)}: $count',
                                         selected:
-                                            _selectedOperationId ==
-                                            operation.operationId,
+                                            widget.operationModeFilter == mode,
                                         onTap: () {
-                                          setState(() {
-                                            _selectedOperationId =
-                                                operation.operationId;
-                                          });
                                           unawaited(
-                                            widget.onSelectedOperationChanged(
-                                              operation.operationId,
+                                            widget.onOperationModeFilterChanged(
+                                              mode,
                                             ),
                                           );
                                         },
                                       );
-                                    },
+                                    })
+                                    .toList(growable: false),
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  Text(
+                                    'Facade Filter:',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFF8EA4C2),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: DropdownButtonHideUnderline(
+                                      child: DropdownButton<String>(
+                                        value:
+                                            widget.selectedFacadeId == null ||
+                                                widget.selectedFacadeId!.isEmpty
+                                            ? _allFacadeFilterValue
+                                            : widget.selectedFacadeId!,
+                                        dropdownColor: const Color(0xFF0A1529),
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFFDCE9FF),
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                        items: [
+                                          const DropdownMenuItem<String>(
+                                            value: _allFacadeFilterValue,
+                                            child: Text('All Facades'),
+                                          ),
+                                          ...facadeIdOptions.map(
+                                            (facadeId) =>
+                                                DropdownMenuItem<String>(
+                                                  value: facadeId,
+                                                  child: Text(facadeId),
+                                                ),
+                                          ),
+                                        ],
+                                        onChanged: (value) {
+                                          final next =
+                                              value == null ||
+                                                  value == _allFacadeFilterValue
+                                              ? null
+                                              : value;
+                                          unawaited(
+                                            widget.onFacadeIdFilterChanged(
+                                              next,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: [
+                                  _chip(
+                                    'Scoped Selections',
+                                    widget.scopedSelectionCount.toString(),
+                                    const Color(0xFF8FD1FF),
+                                  ),
+                                  _chip(
+                                    'Active Scope',
+                                    widget.activeScopeKey.trim().isEmpty
+                                        ? 'unknown'
+                                        : widget.activeScopeKey.trim(),
+                                    const Color(0xFFB6C6DD),
+                                  ),
+                                  _chip(
+                                    'Scope Selection',
+                                    widget.activeScopeHasSelection
+                                        ? 'selected'
+                                        : 'none',
+                                    widget.activeScopeHasSelection
+                                        ? const Color(0xFF7FD8A5)
+                                        : const Color(0xFFF1B872),
+                                  ),
+                                ],
+                              ),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
+                                  onPressed: _submitting
+                                      ? null
+                                      : () async {
+                                          await _withSubmit(
+                                            'Scoped selection keys copied.',
+                                            _copyScopedSelectionKeys,
+                                          );
+                                        },
+                                  child: Text(
+                                    'Copy Scoped Keys',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFF89D7FF),
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              _failedOpsMetricsStrip(visibleHistoryOperations),
+                              const SizedBox(height: 4),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
+                                  onPressed: _submitting
+                                      ? null
+                                      : () async {
+                                          await _withSubmit(
+                                            'Queue cleared.',
+                                            () {
+                                              return widget.onClearQueue();
+                                            },
+                                          );
+                                          if (!mounted) return;
+                                          setState(() {
+                                            _selectedOperationId = null;
+                                          });
+                                          await widget
+                                              .onSelectedOperationChanged(null);
+                                        },
+                                  child: Text(
+                                    'Clear Queue',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFF89D7FF),
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(
+                                height: 380,
+                                child: visibleHistoryOperations.isEmpty
+                                    ? Center(
+                                        child: Text(
+                                          'No operations in this history filter.',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFF8EA4C2),
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      )
+                                    : ListView.separated(
+                                        itemCount:
+                                            visibleHistoryOperations.length > 12
+                                            ? 12
+                                            : visibleHistoryOperations.length,
+                                        separatorBuilder: (_, _) =>
+                                            const SizedBox(height: 8),
+                                        itemBuilder: (context, index) {
+                                          final operation =
+                                              visibleHistoryOperations[index];
+                                          return _operationRow(
+                                            operation,
+                                            selected:
+                                                _selectedOperationId ==
+                                                operation.operationId,
+                                            onTap: () {
+                                              setState(() {
+                                                _selectedOperationId =
+                                                    operation.operationId;
+                                              });
+                                              unawaited(
+                                                widget
+                                                    .onSelectedOperationChanged(
+                                                      operation.operationId,
+                                                    ),
+                                              );
+                                            },
+                                          );
+                                        },
+                                      ),
+                              ),
+                              const SizedBox(height: 8),
+                              _operationDetailPanel(visibleHistoryOperations),
+                            ],
                           ),
-                          const SizedBox(height: 8),
-                          _operationDetailPanel(visibleHistoryOperations),
-                        ],
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
