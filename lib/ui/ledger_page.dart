@@ -288,8 +288,8 @@ class _LedgerPageState extends State<LedgerPage> {
                       child: LayoutBuilder(
                         builder: (context, constraints) {
                           final timelineHeight = constraints.maxWidth >= 1280
-                              ? 500.0
-                              : 420.0;
+                              ? 460.0
+                              : 390.0;
                           return SizedBox(
                             height: timelineHeight,
                             child: showSupabaseRows
@@ -312,13 +312,13 @@ class _LedgerPageState extends State<LedgerPage> {
   Widget _buildSupabaseLedger() {
     return ListView.separated(
       itemCount: _rows.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 10),
+      separatorBuilder: (context, index) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final row = _rows[index];
         final hash = (row['hash'] ?? '').toString();
         final prev = (row['previous_hash'] ?? '').toString();
         return Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(12),
           decoration: _timelineRowDecoration(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -331,7 +331,7 @@ class _LedgerPageState extends State<LedgerPage> {
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Text(
                 'Dispatch ${row['dispatch_id']}',
                 style: GoogleFonts.inter(
@@ -376,11 +376,11 @@ class _LedgerPageState extends State<LedgerPage> {
 
     return ListView.separated(
       itemCount: _fallbackRows.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 10),
+      separatorBuilder: (context, index) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final row = _fallbackRows[index];
         return Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(12),
           decoration: _timelineRowDecoration(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -393,14 +393,14 @@ class _LedgerPageState extends State<LedgerPage> {
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   Text(
                     row.type,
                     style: GoogleFonts.rajdhani(
                       color: row.color,
-                      fontSize: 22,
+                      fontSize: 20,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -431,7 +431,7 @@ class _LedgerPageState extends State<LedgerPage> {
                 row.title,
                 style: GoogleFonts.inter(
                   color: const Color(0xFFE5EFFF),
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: FontWeight.w700,
                 ),
               ),

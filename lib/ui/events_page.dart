@@ -263,8 +263,8 @@ class _EventsPageState extends State<EventsPage> {
                       builder: (context, constraints) {
                         final showSideDrawer = constraints.maxWidth >= 1120;
                         final sidePaneWidth = constraints.maxWidth >= 1480
-                            ? 360.0
-                            : 320.0;
+                            ? 340.0
+                            : 300.0;
                         return Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -326,7 +326,7 @@ class _EventsPageState extends State<EventsPage> {
                         subtitle:
                             'Readable forensic timeline with a calmer detail surface and faster filter triage.',
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       _summaryStrip(
                         totalCount: forensicRows.length,
                         filteredCount: filtered.length,
@@ -334,14 +334,14 @@ class _EventsPageState extends State<EventsPage> {
                             ? null
                             : timeline.first.sequence,
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
                       _filterBar(
                         allTypes: allTypes,
                         allSites: allSites,
                         allGuards: allGuards,
                         filteredCount: filtered.length,
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
                       Expanded(child: mainLayout()),
                     ],
                   );
@@ -362,14 +362,14 @@ class _EventsPageState extends State<EventsPage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF081326), Color(0xFF0A172C)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFF193758)),
         boxShadow: const [
           BoxShadow(
@@ -398,7 +398,7 @@ class _EventsPageState extends State<EventsPage> {
                   "Forensic Filters",
                   style: GoogleFonts.rajdhani(
                     color: const Color(0xFFE6F0FF),
-                    fontSize: 24,
+                    fontSize: 22,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -449,8 +449,8 @@ class _EventsPageState extends State<EventsPage> {
               children: [
                 const SizedBox(height: 6),
                 Wrap(
-                  spacing: 12,
-                  runSpacing: 10,
+                  spacing: 10,
+                  runSpacing: 8,
                   children: [
                     _dropdown(
                       label: "Type",
@@ -551,7 +551,7 @@ class _EventsPageState extends State<EventsPage> {
     final details = _detailsFor(row.event);
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: const Color(0xFF081426),
         borderRadius: BorderRadius.circular(18),
@@ -564,7 +564,7 @@ class _EventsPageState extends State<EventsPage> {
             "Selected Event",
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFE8F1FF),
-              fontSize: 30,
+              fontSize: 26,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -577,13 +577,13 @@ class _EventsPageState extends State<EventsPage> {
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           _detailHero(row),
           const SizedBox(height: 8),
           Expanded(
             child: ListView.separated(
               itemCount: details.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 10),
+              separatorBuilder: (context, index) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final item = details[index];
                 return _kv(item.$1, item.$2);
@@ -598,7 +598,7 @@ class _EventsPageState extends State<EventsPage> {
   Widget _kv(String key, String value) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(9),
       decoration: BoxDecoration(
         color: const Color(0xFF0B1930),
         borderRadius: BorderRadius.circular(12),
