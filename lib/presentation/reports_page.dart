@@ -22,7 +22,7 @@ class ReportsPage extends StatelessWidget {
                   subtitle:
                       'Deterministic reporting, replay verification, and export readiness for client-facing intelligence packs.',
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 LayoutBuilder(
                   builder: (context, constraints) {
                     final columns = constraints.maxWidth >= 1260
@@ -30,7 +30,7 @@ class ReportsPage extends StatelessWidget {
                         : constraints.maxWidth >= 860
                         ? 2
                         : 1;
-                    const spacing = 10.0;
+                    const spacing = 8.0;
                     final itemWidth =
                         (constraints.maxWidth - ((columns - 1) * spacing)) /
                         columns;
@@ -66,7 +66,7 @@ class ReportsPage extends StatelessWidget {
                     );
                   },
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Expanded(
                   child: LayoutBuilder(
                     builder: (context, constraints) {
@@ -100,7 +100,7 @@ class ReportsPage extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 8),
                             _flowRow(
                               icon: Icons.picture_as_pdf_rounded,
                               title: 'Generate Deterministic PDF',
@@ -108,7 +108,7 @@ class ReportsPage extends StatelessWidget {
                                   'Build client intelligence reports from the current projection snapshot and preserve the exact content hash.',
                               accent: const Color(0xFF63BDFF),
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 8),
                             _flowRow(
                               icon: Icons.verified_rounded,
                               title: 'Replay Verification',
@@ -136,7 +136,7 @@ class ReportsPage extends StatelessWidget {
                           builder: (context, moduleConstraints) {
                             final moduleColumns =
                                 moduleConstraints.maxWidth >= 900 ? 3 : 1;
-                            const spacing = 10.0;
+                            const spacing = 8.0;
                             final cardWidth =
                                 (moduleConstraints.maxWidth -
                                     ((moduleColumns - 1) * spacing)) /
@@ -208,10 +208,10 @@ class ReportsPage extends StatelessWidget {
                                   'Distribution workflow is staged and ready for client-surface handoff.',
                               color: const Color(0xFFF6C067),
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 12),
                             Container(
                               width: double.infinity,
-                              padding: const EdgeInsets.all(12),
+                              padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
                                   colors: [
@@ -242,9 +242,9 @@ class ReportsPage extends StatelessWidget {
                         return ListView(
                           children: [
                             generationFlowCard,
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
                             outputModulesCard,
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
                             readinessBoardCard,
                           ],
                         );
@@ -258,12 +258,12 @@ class ReportsPage extends StatelessWidget {
                             child: Column(
                               children: [
                                 Expanded(child: generationFlowCard),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 6),
                                 Expanded(child: outputModulesCard),
                               ],
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6),
                           Expanded(flex: 4, child: readinessBoardCard),
                         ],
                       );
@@ -286,18 +286,18 @@ class ReportsPage extends StatelessWidget {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: const Color(0xFF0A1830),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF193554)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               color: accent.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
@@ -305,7 +305,7 @@ class ReportsPage extends StatelessWidget {
             ),
             child: Icon(icon, color: accent),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -314,7 +314,7 @@ class ReportsPage extends StatelessWidget {
                   title,
                   style: GoogleFonts.inter(
                     color: const Color(0xFFE6F1FF),
-                    fontSize: 15,
+                    fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -323,7 +323,7 @@ class ReportsPage extends StatelessWidget {
                   detail,
                   style: GoogleFonts.inter(
                     color: const Color(0xFF93A9C8),
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                     height: 1.4,
                   ),
@@ -343,12 +343,12 @@ class ReportsPage extends StatelessWidget {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF0B182C), Color(0xFF091424)],
         ),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withValues(alpha: 0.42)),
       ),
       child: Row(
@@ -362,7 +362,7 @@ class ReportsPage extends StatelessWidget {
               borderRadius: BorderRadius.circular(999),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -371,7 +371,7 @@ class ReportsPage extends StatelessWidget {
                   title,
                   style: GoogleFonts.inter(
                     color: color,
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -408,13 +408,13 @@ class _LaneBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 170,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      width: 160,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF0B182B), Color(0xFF091423)],
         ),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: accent.withValues(alpha: 0.34)),
       ),
       child: Column(
@@ -461,22 +461,22 @@ class _ReportModeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: const Color(0xFF0A1830),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF193554)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, color: accent),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             title,
             style: GoogleFonts.inter(
               color: const Color(0xFFE6F1FF),
-              fontSize: 15,
+              fontSize: 14,
               fontWeight: FontWeight.w700,
             ),
           ),

@@ -66,13 +66,13 @@ class _GuardsPageState extends State<GuardsPage> {
                   subtitle:
                       'Guard readiness, patrol discipline, and response exposure in one operational view.',
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     SizedBox(
-                      width: 260,
+                      width: 236,
                       child: OnyxSummaryStat(
                         label: 'Active Guards',
                         value: guards.length.toString(),
@@ -80,7 +80,7 @@ class _GuardsPageState extends State<GuardsPage> {
                       ),
                     ),
                     SizedBox(
-                      width: 260,
+                      width: 236,
                       child: OnyxSummaryStat(
                         label: 'Total Check-Ins',
                         value: totalCheckIns.toString(),
@@ -88,7 +88,7 @@ class _GuardsPageState extends State<GuardsPage> {
                       ),
                     ),
                     SizedBox(
-                      width: 260,
+                      width: 236,
                       child: OnyxSummaryStat(
                         label: 'Avg Compliance',
                         value: '${averageCompliance.toStringAsFixed(0)}%',
@@ -97,13 +97,13 @@ class _GuardsPageState extends State<GuardsPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Expanded(
                   child: OnyxSectionCard(
                     title: 'Guard Operations Workspace',
                     subtitle:
                         'Track personnel on the left and inspect the selected guard profile on the right.',
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.all(12),
                     child: LayoutBuilder(
                       builder: (context, constraints) {
                         final stackVertically = constraints.maxWidth < 1320;
@@ -118,7 +118,7 @@ class _GuardsPageState extends State<GuardsPage> {
                                   height: 232,
                                   child: _guardRoster(guards, selected),
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 6),
                                 Expanded(child: _guardDetail(selected)),
                               ],
                             ),
@@ -134,7 +134,7 @@ class _GuardsPageState extends State<GuardsPage> {
                                 width: 280,
                                 child: _guardRoster(guards, selected),
                               ),
-                              const SizedBox(width: 10),
+                              const SizedBox(width: 8),
                               Expanded(child: _guardDetail(selected)),
                             ],
                           ),
@@ -172,14 +172,14 @@ class _GuardsPageState extends State<GuardsPage> {
                           borderRadius: BorderRadius.circular(999),
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Text(
                         'Guard Roster',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.rajdhani(
                           color: const Color(0xFFDCEAFF),
-                          fontSize: 20,
+                          fontSize: 18,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -203,7 +203,7 @@ class _GuardsPageState extends State<GuardsPage> {
             child: ListView.separated(
               padding: const EdgeInsets.all(8),
               itemCount: guards.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 8),
+              separatorBuilder: (context, index) => const SizedBox(height: 6),
               itemBuilder: (context, index) {
                 final guard = guards[index];
                 final isSelected = guard.guardId == selected.guardId;
@@ -217,7 +217,7 @@ class _GuardsPageState extends State<GuardsPage> {
                   onTap: () => setState(() => _selectedIndex = index),
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(9),
                     decoration: _rowSurfaceDecoration(isSelected: isSelected),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,7 +226,7 @@ class _GuardsPageState extends State<GuardsPage> {
                           guard.guardId,
                           style: GoogleFonts.inter(
                             color: const Color(0xFFE7F0FF),
-                            fontSize: 16,
+                            fontSize: 15,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -240,7 +240,7 @@ class _GuardsPageState extends State<GuardsPage> {
                             fontSize: 12,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         Wrap(
                           spacing: 6,
                           runSpacing: 6,
@@ -277,7 +277,7 @@ class _GuardsPageState extends State<GuardsPage> {
     return Container(
       decoration: _workspaceSurfaceDecoration(),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -299,7 +299,7 @@ class _GuardsPageState extends State<GuardsPage> {
                   'Guard ${guard.guardId}',
                   style: GoogleFonts.inter(
                     color: const Color(0xFFE7F0FF),
-                    fontSize: 24,
+                    fontSize: 22,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -335,10 +335,10 @@ class _GuardsPageState extends State<GuardsPage> {
                 fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             Wrap(
-              spacing: 10,
-              runSpacing: 8,
+              spacing: 8,
+              runSpacing: 6,
               children: [
                 _metricCard(
                   'Check-Ins',
@@ -372,7 +372,7 @@ class _GuardsPageState extends State<GuardsPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -404,7 +404,7 @@ class _GuardsPageState extends State<GuardsPage> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
                   child: _panel(
                     'Assignment Footprint',
@@ -447,7 +447,7 @@ class _GuardsPageState extends State<GuardsPage> {
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: guard.recentTrace.length,
                       separatorBuilder: (context, index) =>
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 6),
                       itemBuilder: (context, index) {
                         final row = guard.recentTrace[index];
                         return Row(
@@ -461,13 +461,13 @@ class _GuardsPageState extends State<GuardsPage> {
                                 color: Color(0xFF4AAAFF),
                               ),
                             ),
-                            const SizedBox(width: 10),
+                            const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 row,
                                 style: GoogleFonts.inter(
                                   color: const Color(0xFFD2E2FA),
-                                  fontSize: 13,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.w500,
                                   height: 1.35,
                                 ),
@@ -558,7 +558,7 @@ class _GuardsPageState extends State<GuardsPage> {
 
   Widget _panel(String title, Widget child, {bool expandChild = false}) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: _panelSurfaceDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -571,16 +571,16 @@ class _GuardsPageState extends State<GuardsPage> {
               borderRadius: BorderRadius.circular(999),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             title,
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFE4EEFF),
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           if (expandChild) Expanded(child: child) else child,
         ],
       ),
@@ -589,8 +589,8 @@ class _GuardsPageState extends State<GuardsPage> {
 
   Widget _metricCard(String label, String value, Color accent) {
     return Container(
-      width: 175,
-      padding: const EdgeInsets.all(10),
+      width: 164,
+      padding: const EdgeInsets.all(9),
       decoration: _panelSurfaceDecoration(radius: 11),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -603,12 +603,12 @@ class _GuardsPageState extends State<GuardsPage> {
               borderRadius: BorderRadius.circular(999),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
           Text(
             label,
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA4C2),
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
           ),

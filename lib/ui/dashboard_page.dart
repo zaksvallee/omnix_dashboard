@@ -396,7 +396,7 @@ class _DesktopDashboard extends StatelessWidget {
             builder: (context, constraints) {
               // Keep the primary operational read path full-width on typical
               // desktop/laptop windows; only pin the right rail on very wide layouts.
-              final stackRightRailBelow = constraints.maxWidth < 1420;
+              final stackRightRailBelow = constraints.maxWidth < 1240;
 
               return Column(
                 children: [
@@ -431,7 +431,7 @@ class _DesktopDashboard extends StatelessWidget {
                         ),
                         const SizedBox(width: 10),
                         SizedBox(
-                          width: 292,
+                          width: 336,
                           height: railHeight,
                           child: rightRail,
                         ),
@@ -652,109 +652,57 @@ class _ExecutiveSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     return _DashboardCard(
       title: 'Operational Summary',
-      subtitle:
-          'A cleaner executive read of command volume, response timing, and current threat posture.',
+      subtitle: 'Executive operational visibility and command posture',
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 3,
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(18),
-                    gradient: LinearGradient(
-                      colors: [
-                        const Color(0xFF102340),
-                        threat.accent.withValues(alpha: 0.08),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    border: Border.all(color: const Color(0xFF1C3A63)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Controller Outlook',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF8EA4C2),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        threat.label,
-                        style: GoogleFonts.rajdhani(
-                          color: threat.accent,
-                          fontSize: 32,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        snapshot.controllerPressureIndex >= 70
-                            ? 'Controller load is elevated. Prioritise failed or denied dispatch review and allocate response support to stressed sites first.'
-                            : 'Command load is stable. Maintain dispatch discipline, keep monitoring active, and continue regular patrol response cadence.',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFFD1DEEF),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          height: 1.4,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF1A365A)),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF0E1B31), Color(0xFF0C182C)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                flex: 4,
-                child: Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    _MetricTile(
-                      label: 'Sites',
-                      value: snapshot.totalSites.toString(),
-                      accent: const Color(0xFF74C7FF),
-                    ),
-                    _MetricTile(
-                      label: 'Decisions',
-                      value: snapshot.totalDecisions.toString(),
-                      accent: const Color(0xFF94B8FF),
-                    ),
-                    _MetricTile(
-                      label: 'Executed',
-                      value: snapshot.totalExecuted.toString(),
-                      accent: const Color(0xFF7AF2B5),
-                    ),
-                    _MetricTile(
-                      label: 'Denied',
-                      value: snapshot.totalDenied.toString(),
-                      accent: const Color(0xFFFFC27A),
-                    ),
-                    _MetricTile(
-                      label: 'Failed',
-                      value: snapshot.totalFailed.toString(),
-                      accent: const Color(0xFFFF8D95),
-                    ),
-                    _MetricTile(
-                      label: 'Intelligence',
-                      value: snapshot.totalIntelligenceReceived.toString(),
-                      accent: const Color(0xFFC0A7FF),
-                    ),
-                  ],
+            ),
+            child: Wrap(
+              spacing: 18,
+              runSpacing: 8,
+              children: [
+                _SummaryStripItem(
+                  label: 'Active Sites',
+                  value: snapshot.totalSites.toString(),
+                  helper: '${snapshot.totalSites} visible',
                 ),
-              ),
-            ],
+                _SummaryStripItem(
+                  label: 'On-Duty Guards',
+                  value: snapshot.totalCheckIns.toString(),
+                  helper: '${snapshot.totalPatrols} patrols',
+                ),
+                _SummaryStripItem(
+                  label: 'Open Dispatches',
+                  value: snapshot.totalDecisions.toString(),
+                  helper: threat.label,
+                  helperColor: threat.accent,
+                ),
+                _SummaryStripItem(
+                  label: 'Avg Response',
+                  value:
+                      '${snapshot.averageResponseMinutes.toStringAsFixed(1)} min',
+                  helper: snapshot.controllerPressureIndex >= 70
+                      ? 'Elevated'
+                      : 'Normal',
+                  helperColor: snapshot.controllerPressureIndex >= 70
+                      ? const Color(0xFFF6C067)
+                      : const Color(0xFF67D79C),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
@@ -784,12 +732,66 @@ class _ExecutiveSummary extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           _KpiBandTile(
             label: 'Triage Posture',
             value:
                 'A ${triage.advisoryCount} • W ${triage.watchCount} • DC ${triage.dispatchCandidateCount} • Esc ${triage.escalateCount}',
             helper: 'Top triage signals: ${triage.topSignalsSummary}',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryStripItem extends StatelessWidget {
+  final String label;
+  final String value;
+  final String helper;
+  final Color helperColor;
+
+  const _SummaryStripItem({
+    required this.label,
+    required this.value,
+    required this.helper,
+    this.helperColor = const Color(0xFF90A7C5),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 206,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8FA6C5),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.7,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFE8F2FF),
+              fontSize: 38,
+              height: 0.88,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            helper,
+            style: GoogleFonts.inter(
+              color: helperColor,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -2453,75 +2455,6 @@ class _DashboardCard extends StatelessWidget {
           const SizedBox(height: 12),
           child,
         ],
-      ),
-    );
-  }
-}
-
-class _MetricTile extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color accent;
-
-  const _MetricTile({
-    required this.label,
-    required this.value,
-    required this.accent,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 138,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: const LinearGradient(
-            colors: [Color(0xFF0E1C31), Color(0xFF0B172A)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          border: Border.all(color: const Color(0xFF224267)),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x10000000),
-              blurRadius: 10,
-              offset: Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 24,
-              height: 3,
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.82),
-                borderRadius: BorderRadius.circular(999),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                color: const Color(0xFF86A0C2),
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              style: GoogleFonts.rajdhani(
-                color: accent,
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
