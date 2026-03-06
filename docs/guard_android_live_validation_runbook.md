@@ -95,6 +95,18 @@ Pre-device one-command gate (no phone connected):
 ./scripts/guard_predevice_gate.sh --samples 3 --max-report-age-hours 24
 ```
 
+Unified auto-gate (uses on-device gate when phone is connected, otherwise pre-device gate):
+
+```bash
+./scripts/guard_gate_auto.sh \
+  --action com.onyx.fsk.SDK_HEARTBEAT \
+  --samples 5 \
+  --interval 1 \
+  --adapter standard \
+  --expected-provider fsk_sdk \
+  --max-report-age-hours 24
+```
+
 No-device simulation (for CI/local pipeline checks):
 
 ```bash
