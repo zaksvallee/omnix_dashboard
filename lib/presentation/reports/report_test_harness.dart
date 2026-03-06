@@ -505,13 +505,10 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage> {
                                     ),
                                     if (hiddenRows > 0) ...[
                                       const SizedBox(height: 8),
-                                      Text(
-                                        'Showing ${visibleRows.length} of ${_historyRows.length} receipts. $hiddenRows older receipts hidden.',
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFF8EA4C2),
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                      OnyxTruncationHint(
+                                        visibleCount: visibleRows.length,
+                                        totalCount: _historyRows.length,
+                                        subject: 'receipts',
                                       ),
                                     ],
                                   ],

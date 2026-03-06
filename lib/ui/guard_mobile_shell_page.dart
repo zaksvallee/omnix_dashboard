@@ -2256,13 +2256,11 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
                                 const SizedBox(height: 8),
                                 Align(
                                   alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    'Showing ${visibleHistoryOperationRows.length} of ${visibleHistoryOperations.length} operations. $hiddenHistoryOperationRows older operations hidden.',
-                                    style: GoogleFonts.inter(
-                                      color: const Color(0xFF8EA4C2),
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                  child: OnyxTruncationHint(
+                                    visibleCount:
+                                        visibleHistoryOperationRows.length,
+                                    totalCount: visibleHistoryOperations.length,
+                                    subject: 'operations',
                                   ),
                                 ),
                               ],

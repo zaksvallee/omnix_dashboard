@@ -19,6 +19,7 @@ import '../domain/events/incident_closed.dart';
 import '../domain/events/response_arrived.dart';
 import '../domain/intelligence/triage_policy.dart';
 import 'dispatch_models.dart';
+import 'onyx_surface.dart';
 
 part 'dispatch_page_snapshot_inspector.dart';
 part 'dispatch_page_preset_import.dart';
@@ -2052,13 +2053,10 @@ class _DispatchPageState extends State<DispatchPage> {
                 ),
                 if (hiddenDecisions > 0) ...[
                   const SizedBox(height: 8),
-                  Text(
-                    'Showing ${visibleDecisions.length} of ${decisions.length} dispatch decisions. $hiddenDecisions older decisions hidden.',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF8EA4C2),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  OnyxTruncationHint(
+                    visibleCount: visibleDecisions.length,
+                    totalCount: decisions.length,
+                    subject: 'dispatch decisions',
                   ),
                 ],
               ],
@@ -3920,13 +3918,10 @@ class _DispatchPageState extends State<DispatchPage> {
           ),
           if (hiddenItems > 0) ...[
             const SizedBox(height: 8),
-            Text(
-              'Showing ${visibleItems.length} of ${filteredItems.length} intelligence rows. $hiddenItems older rows hidden.',
-              style: GoogleFonts.inter(
-                color: const Color(0xFF8EA4C2),
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
+            OnyxTruncationHint(
+              visibleCount: visibleItems.length,
+              totalCount: filteredItems.length,
+              subject: 'intelligence rows',
             ),
           ],
         ],

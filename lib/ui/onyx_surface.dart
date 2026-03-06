@@ -299,6 +299,44 @@ class OnyxSectionCard extends StatelessWidget {
   }
 }
 
+class OnyxTruncationHint extends StatelessWidget {
+  final int visibleCount;
+  final int totalCount;
+  final String subject;
+  final String hiddenDescriptor;
+  final Color color;
+  final double fontSize;
+  final FontWeight fontWeight;
+
+  const OnyxTruncationHint({
+    super.key,
+    required this.visibleCount,
+    required this.totalCount,
+    required this.subject,
+    this.hiddenDescriptor = 'older rows',
+    this.color = const Color(0xFF8EA4C2),
+    this.fontSize = 11,
+    this.fontWeight = FontWeight.w600,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hiddenCount = totalCount - visibleCount;
+    if (hiddenCount <= 0) {
+      return const SizedBox.shrink();
+    }
+    return Text(
+      'Showing $visibleCount of $totalCount $subject. '
+      '$hiddenCount $hiddenDescriptor hidden.',
+      style: GoogleFonts.inter(
+        color: color,
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+      ),
+    );
+  }
+}
+
 class OnyxSummaryStat extends StatelessWidget {
   final String label;
   final String value;

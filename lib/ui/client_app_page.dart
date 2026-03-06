@@ -951,13 +951,11 @@ class _ClientAppPageState extends State<ClientAppPage> {
           ),
           if (hiddenCount > 0) ...[
             const SizedBox(height: 8),
-            Text(
-              'Showing ${items.length} of $totalCount notifications. $hiddenCount older rows hidden.',
-              style: GoogleFonts.inter(
-                color: const Color(0xFF87A5C8),
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
+            OnyxTruncationHint(
+              visibleCount: items.length,
+              totalCount: totalCount,
+              subject: 'notifications',
+              color: const Color(0xFF87A5C8),
             ),
           ],
         ],
@@ -1058,13 +1056,11 @@ class _ClientAppPageState extends State<ClientAppPage> {
           ),
         ),
         if (hiddenItems > 0)
-          Text(
-            'Showing ${visibleItems.length} of ${items.length} queue rows. $hiddenItems older rows hidden.',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF87A5C8),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
+          OnyxTruncationHint(
+            visibleCount: visibleItems.length,
+            totalCount: items.length,
+            subject: 'queue rows',
+            color: const Color(0xFF87A5C8),
           ),
       ],
     );
@@ -1302,13 +1298,11 @@ class _ClientAppPageState extends State<ClientAppPage> {
           ),
         ),
         if (hiddenRows > 0)
-          Text(
-            'Showing ${rows.length} of ${history.length} sync attempts. $hiddenRows older rows hidden.',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF7FA2C9),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
+          OnyxTruncationHint(
+            visibleCount: rows.length,
+            totalCount: history.length,
+            subject: 'sync attempts',
+            color: const Color(0xFF7FA2C9),
           ),
       ],
     );
@@ -1353,13 +1347,11 @@ class _ClientAppPageState extends State<ClientAppPage> {
           ),
         ),
         if (hiddenRows > 0)
-          Text(
-            'Showing ${rows.length} of ${history.length} backend probes. $hiddenRows older rows hidden.',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF7FA2C9),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
+          OnyxTruncationHint(
+            visibleCount: rows.length,
+            totalCount: history.length,
+            subject: 'backend probes',
+            color: const Color(0xFF7FA2C9),
           ),
       ],
     );
@@ -1447,13 +1439,12 @@ class _ClientAppPageState extends State<ClientAppPage> {
           ),
           if (hiddenRooms > 0) ...[
             const SizedBox(height: 8),
-            Text(
-              'Showing ${visibleRooms.length} of ${rooms.length} rooms. $hiddenRooms additional rooms hidden.',
-              style: GoogleFonts.inter(
-                color: const Color(0xFF87A5C8),
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
+            OnyxTruncationHint(
+              visibleCount: visibleRooms.length,
+              totalCount: rooms.length,
+              subject: 'rooms',
+              hiddenDescriptor: 'additional rooms',
+              color: const Color(0xFF87A5C8),
             ),
           ],
         ],

@@ -1377,13 +1377,15 @@ class _RightRail extends StatelessWidget {
                                       ),
                                     ),
                                     if (hiddenCoachingHistory > 0)
-                                      Text(
-                                        'Showing ${visibleCoachingHistory.length} of ${guardCoachingRecentHistory.length} coaching rows.',
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFF8EA5C6),
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                      OnyxTruncationHint(
+                                        visibleCount:
+                                            visibleCoachingHistory.length,
+                                        totalCount:
+                                            guardCoachingRecentHistory.length,
+                                        subject: 'coaching rows',
+                                        hiddenDescriptor: 'additional rows',
+                                        fontSize: 10,
+                                        color: const Color(0xFF8EA5C6),
                                       ),
                                   ],
                                   const SizedBox(height: 8),

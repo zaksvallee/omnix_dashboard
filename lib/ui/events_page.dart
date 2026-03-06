@@ -629,13 +629,11 @@ class _EventsPageState extends State<EventsPage> {
                 ),
                 if (hiddenDetails > 0) ...[
                   const SizedBox(height: 8),
-                  Text(
-                    'Showing ${visibleDetails.length} of ${details.length} detail rows. $hiddenDetails rows hidden.',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF8EA5C6),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  OnyxTruncationHint(
+                    visibleCount: visibleDetails.length,
+                    totalCount: details.length,
+                    subject: 'detail rows',
+                    color: const Color(0xFF8EA5C6),
                   ),
                 ],
               ],
