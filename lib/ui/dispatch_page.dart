@@ -1077,7 +1077,7 @@ class _DispatchPageState extends State<DispatchPage> {
           ),
         ),
         child: ListView(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(12),
           children: [
             Center(
               child: ConstrainedBox(

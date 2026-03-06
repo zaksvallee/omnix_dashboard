@@ -299,7 +299,7 @@ class _GuardsPageState extends State<GuardsPage> {
                   'Guard ${guard.guardId}',
                   style: GoogleFonts.inter(
                     color: const Color(0xFFE7F0FF),
-                    fontSize: 30,
+                    fontSize: 26,
                     fontWeight: FontWeight.w800,
                   ),
                 ),

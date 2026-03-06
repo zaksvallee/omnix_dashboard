@@ -235,7 +235,7 @@ class _EventsPageState extends State<EventsPage> {
                             "Timeline Feed",
                             style: GoogleFonts.rajdhani(
                               color: const Color(0xFFE6F0FF),
-                              fontSize: 24,
+                              fontSize: 21,
                               fontWeight: FontWeight.w700,
                             ),
                           ),

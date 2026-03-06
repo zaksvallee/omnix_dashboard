@@ -291,7 +291,7 @@ class _SitesPageState extends State<SitesPage> {
                     '${site.clientId} / ${site.regionId} / ${site.siteId}',
                     style: GoogleFonts.inter(
                       color: const Color(0xFFE7F0FF),
-                      fontSize: 24,
+                      fontSize: 22,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
