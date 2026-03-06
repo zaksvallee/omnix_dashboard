@@ -2079,13 +2079,13 @@ class _DispatchPageState extends State<DispatchPage> {
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         Wrap(
-          spacing: 12,
-          runSpacing: 12,
+          spacing: 10,
+          runSpacing: 10,
           children: [
             SizedBox(
-              width: 420,
+              width: 390,
               child: _workspaceGroupCard(
                 title: 'Load Profile',
                 subtitle:
@@ -2190,7 +2190,7 @@ class _DispatchPageState extends State<DispatchPage> {
               ),
             ),
             SizedBox(
-              width: 360,
+              width: 340,
               child: _workspaceGroupCard(
                 title: 'Guardrails',
                 subtitle:
@@ -2277,13 +2277,13 @@ class _DispatchPageState extends State<DispatchPage> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         Wrap(
-          spacing: 12,
-          runSpacing: 12,
+          spacing: 10,
+          runSpacing: 10,
           children: [
             SizedBox(
-              width: 420,
+              width: 390,
               child: _workspaceGroupCard(
                 title: 'Scenario Metadata',
                 subtitle:
@@ -2314,7 +2314,7 @@ class _DispatchPageState extends State<DispatchPage> {
               ),
             ),
             SizedBox(
-              width: 420,
+              width: 390,
               child: _workspaceGroupCard(
                 title: 'Run Actions',
                 subtitle:
@@ -2441,7 +2441,7 @@ class _DispatchPageState extends State<DispatchPage> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         _workspaceGroupCard(
           title: 'Persistence, Import & Snapshot Tools',
           subtitle:
