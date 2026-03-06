@@ -30,8 +30,8 @@ class AppShell extends StatelessWidget {
       backgroundColor: const Color(0xFF020611),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final compactSidebar = constraints.maxWidth < 1360;
-          final sidebarWidth = compactSidebar ? 228.0 : 252.0;
+          final compactSidebar = constraints.maxWidth < 1440;
+          final sidebarWidth = compactSidebar ? 220.0 : 238.0;
           return Row(
             children: [
               _Sidebar(
@@ -113,7 +113,7 @@ class _Sidebar extends StatelessWidget {
 
     return Container(
       width: width,
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
       decoration: const BoxDecoration(
         color: Color(0xFF0A1224),
         border: Border(right: BorderSide(color: Color(0xFF153258))),
@@ -122,12 +122,12 @@ class _Sidebar extends StatelessWidget {
         padding: EdgeInsets.zero,
         children: [
           _SidebarInfoCard(
-            padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+            padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
             child: Row(
               children: [
                 Container(
-                  width: compact ? 34 : 38,
-                  height: compact ? 34 : 38,
+                  width: compact ? 32 : 36,
+                  height: compact ? 32 : 36,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
                     gradient: const LinearGradient(
@@ -150,7 +150,7 @@ class _Sidebar extends StatelessWidget {
                         "ONYX",
                         style: GoogleFonts.rajdhani(
                           color: const Color(0xFFEAF4FF),
-                          fontSize: compact ? 30 : 32,
+                          fontSize: compact ? 28 : 30,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.8,
                           height: 0.92,
@@ -172,7 +172,7 @@ class _Sidebar extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _SidebarInfoCard(
-            padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+            padding: const EdgeInsets.fromLTRB(11, 10, 11, 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -201,14 +201,14 @@ class _Sidebar extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 3),
             child: Text(
               "Operations",
               style: GoogleFonts.inter(
                 color: const Color(0xFF6B87AE),
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
-                letterSpacing: 1.2,
+                letterSpacing: 1.0,
               ),
             ),
           ),
@@ -218,7 +218,7 @@ class _Sidebar extends StatelessWidget {
           }),
           const SizedBox(height: 14),
           _SidebarInfoCard(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            padding: const EdgeInsets.fromLTRB(11, 9, 11, 9),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -263,7 +263,7 @@ class _Sidebar extends StatelessWidget {
       onTap: () => onRouteChanged(route),
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 2),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 9),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(13),
           color: isActive ? const Color(0xFF122A4A) : const Color(0x080C1728),
@@ -276,8 +276,8 @@ class _Sidebar extends StatelessWidget {
             if (isActive)
               Container(
                 width: 3,
-                height: 18,
-                margin: const EdgeInsets.only(right: 8),
+                height: 16,
+                margin: const EdgeInsets.only(right: 7),
                 decoration: BoxDecoration(
                   color: const Color(0xFF49D0FF),
                   borderRadius: BorderRadius.circular(999),
@@ -287,12 +287,12 @@ class _Sidebar extends StatelessWidget {
               const SizedBox(width: 13),
             Icon(
               icon,
-              size: 18,
+              size: 17,
               color: isActive
                   ? const Color(0xFF49D0FF)
                   : const Color(0xFF7B8DAD),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 7),
             Expanded(
               child: Text(
                 label,
@@ -300,7 +300,7 @@ class _Sidebar extends StatelessWidget {
                   color: isActive
                       ? const Color(0xFFE6F2FF)
                       : const Color(0xFFA2B2CF),
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
                 ),
               ),
@@ -338,7 +338,7 @@ class _SidebarInfoCard extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFF1B3A61)),
         boxShadow: const [
           BoxShadow(

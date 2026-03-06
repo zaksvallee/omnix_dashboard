@@ -79,7 +79,7 @@ class OnyxPageHeader extends StatelessWidget {
       children: [
         Expanded(
           child: Container(
-            padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+            padding: const EdgeInsets.fromLTRB(7, 5, 7, 5),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0x180D1F39), Color(0x000D1F39)],
@@ -107,7 +107,7 @@ class OnyxPageHeader extends StatelessWidget {
                   title,
                   style: GoogleFonts.rajdhani(
                     color: const Color(0xFFE8F1FF),
-                    fontSize: 22,
+                    fontSize: 21,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -125,21 +125,21 @@ class OnyxPageHeader extends StatelessWidget {
           ),
         ),
         if (actions.isNotEmpty) ...[
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Container(
-            padding: const EdgeInsets.all(3),
+            padding: const EdgeInsets.all(2),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xFF0C182B), Color(0xFF091528)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFF1B395E)),
             ),
             child: Wrap(
-              spacing: 6,
-              runSpacing: 6,
+              spacing: 5,
+              runSpacing: 5,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: actions,
             ),
