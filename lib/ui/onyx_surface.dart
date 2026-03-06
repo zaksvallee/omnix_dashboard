@@ -13,9 +13,9 @@ class OnyxPageScaffold extends StatelessWidget {
       body: DecoratedBox(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF071223), Color(0xFF040A16)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+            colors: [Color(0xFF081427), Color(0xFF040A16), Color(0xFF030813)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
         ),
         child: Stack(
@@ -79,7 +79,7 @@ class OnyxPageHeader extends StatelessWidget {
       children: [
         Expanded(
           child: Container(
-            padding: const EdgeInsets.fromLTRB(8, 7, 8, 7),
+            padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0x180D1F39), Color(0x000D1F39)],
@@ -107,7 +107,7 @@ class OnyxPageHeader extends StatelessWidget {
                   title,
                   style: GoogleFonts.rajdhani(
                     color: const Color(0xFFE8F1FF),
-                    fontSize: 24,
+                    fontSize: 22,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -134,7 +134,7 @@ class OnyxPageHeader extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(color: const Color(0xFF1B395E)),
             ),
             child: Wrap(
@@ -176,14 +176,14 @@ class OnyxSectionCard extends StatelessWidget {
         if (compactBoundedLayout) {
           return Container(
             width: double.infinity,
-            padding: padding ?? const EdgeInsets.all(8),
+            padding: padding ?? const EdgeInsets.all(7),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xFF081326), Color(0xFF0A172C)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFF193758)),
               boxShadow: const [
                 BoxShadow(
@@ -240,14 +240,14 @@ class OnyxSectionCard extends StatelessWidget {
             : child;
         return Container(
           width: double.infinity,
-          padding: padding ?? const EdgeInsets.all(8),
+          padding: padding ?? const EdgeInsets.all(7),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [Color(0xFF081326), Color(0xFF0A172C)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(color: const Color(0xFF193758)),
             boxShadow: const [
               BoxShadow(

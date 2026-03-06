@@ -355,7 +355,7 @@ class _DesktopDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final viewportHeight = MediaQuery.sizeOf(context).height;
-    final railHeight = (viewportHeight - 190).clamp(520.0, 920.0);
+    final railHeight = (viewportHeight - 182).clamp(480.0, 820.0);
     final rightRail = _RightRail(
       snapshot: snapshot,
       threat: threat,
@@ -431,7 +431,7 @@ class _DesktopDashboard extends StatelessWidget {
                         ),
                         const SizedBox(width: 10),
                         SizedBox(
-                          width: 308,
+                          width: 292,
                           height: railHeight,
                           child: rightRail,
                         ),
