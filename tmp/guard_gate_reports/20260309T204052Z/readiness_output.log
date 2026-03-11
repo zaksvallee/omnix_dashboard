@@ -1,0 +1,28 @@
+== ONYX Guard Pilot Readiness Check ==
+PASS: Found supabase/migrations/202603050001_create_guard_sync_tables.sql
+PASS: Found supabase/migrations/202603050002_create_guard_ops_event_log.sql
+PASS: Found supabase/migrations/202603050003_apply_guard_rls_storage_policies.sql
+PASS: Found supabase/migrations/202603050008_add_guard_projection_retention.sql
+PASS: Found supabase/migrations/202603050009_add_guard_ops_replay_safety_retention.sql
+PASS: Found supabase/migrations/202603050010_add_guard_rls_storage_readiness_checks.sql
+PASS: Found docs/guard_app_android_deployment_blueprint_v2.md
+PASS: Found docs/guard_native_telemetry_sdk_contract.md
+PASS: Found docs/guard_app_deployment_status_checklist.md
+PASS: Found docs/guard_pilot_config_matrix.md
+PASS: Found docs/guard_android_live_validation_runbook.md
+PASS: Found supabase/sql/guard_readiness_smoke_checks.sql
+PASS: Found supabase/sql/guard_actor_contract_checks.sql
+PASS: Found config/onyx.local.json
+PASS: Supabase config gate passed.
+PASS: Live telemetry gate passed (native: fsk_sdk, required: fsk_sdk)
+jq: parse error: Unmatched '}' at line 43, column 3
+Traceback (most recent call last):
+  File "<stdin>", line 8, in <module>
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/json/__init__.py", line 293, in load
+    return loads(fp.read(),
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/json/decoder.py", line 340, in decode
+    raise JSONDecodeError("Extra data", s, end)
+json.decoder.JSONDecodeError: Extra data: line 43 column 3 (char 1846)
+FAIL: Live validation artifact gate failed: JSON checksum verification failed (tmp/guard_field_validation/mock-20260309T204052Z/validation_report.json)

@@ -56,12 +56,13 @@ runtime_profile_text="$OUT_DIR/runtime_profile.txt"
 runtime_profile_json="$OUT_DIR/runtime_profile.json"
 
 command_str="./scripts/guard_pilot_readiness_check.sh"
+command_str+=" --config $CONFIG_FILE"
 for arg in "${readiness_args[@]}"; do
   command_str+=" $arg"
 done
 
 set +e
-./scripts/guard_pilot_readiness_check.sh "${readiness_args[@]}" \
+./scripts/guard_pilot_readiness_check.sh --config "$CONFIG_FILE" "${readiness_args[@]}" \
   >"$output_log" 2>&1
 exit_code=$?
 set -e

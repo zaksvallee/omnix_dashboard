@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:omnix_dashboard/application/morning_sovereign_report_service.dart';
 import 'package:omnix_dashboard/domain/events/decision_created.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/domain/guard/guard_ops_event.dart';
@@ -8,6 +9,36 @@ import 'package:omnix_dashboard/domain/store/in_memory_event_store.dart';
 import 'package:omnix_dashboard/ui/dashboard_page.dart';
 
 void main() {
+  testWidgets('dashboard stays stable on phone viewport', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(home: DashboardPage(eventStore: InMemoryEventStore())),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Command Dashboard'), findsOneWidget);
+    expect(find.text('KPI Band'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('dashboard stays stable on landscape phone viewport', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(844, 390));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(home: DashboardPage(eventStore: InMemoryEventStore())),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Command Dashboard'), findsOneWidget);
+    expect(find.text('KPI Band'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('dashboard guard sync card shows alert badges and opens guard sync', (
     tester,
   ) async {
@@ -78,6 +109,35 @@ void main() {
               failureReason: 'upload timeout',
             ),
           ],
+          morningSovereignReport: SovereignReport(
+            date: '2026-03-09',
+            generatedAtUtc: DateTime.utc(2026, 3, 9, 6, 0),
+            shiftWindowStartUtc: DateTime.utc(2026, 3, 8, 22, 0),
+            shiftWindowEndUtc: DateTime.utc(2026, 3, 9, 6, 0),
+            ledgerIntegrity: const SovereignReportLedgerIntegrity(
+              totalEvents: 42,
+              hashVerified: true,
+              integrityScore: 100,
+            ),
+            aiHumanDelta: const SovereignReportAiHumanDelta(
+              aiDecisions: 12,
+              humanOverrides: 3,
+              overrideReasons: {'HARDWARE_FAULT': 2, 'FALSE_ALARM': 1},
+            ),
+            normDrift: const SovereignReportNormDrift(
+              sitesMonitored: 4,
+              driftDetected: 1,
+              avgMatchScore: 87.5,
+            ),
+            complianceBlockage: const SovereignReportComplianceBlockage(
+              psiraExpired: 0,
+              pdpExpired: 1,
+              totalBlocked: 2,
+            ),
+          ),
+          morningSovereignReportAutoStatusLabel:
+              'Auto generated for shift ending 2026-03-09. Next generation runs at 06:00 local.',
+          onGenerateMorningSovereignReport: () async {},
           onOpenGuardSync: () {
             openCount += 1;
           },
@@ -117,6 +177,7 @@ void main() {
     expect(find.textContaining('acknowledged @ sync by guard'), findsOneWidget);
     expect(find.textContaining('Policy denied (latest):'), findsOneWidget);
     expect(find.text('Advanced export and share'), findsOneWidget);
+    expect(find.text('Morning Sovereign Report'), findsOneWidget);
     await tester.ensureVisible(find.text('Advanced export and share'));
     await tester.tap(find.text('Advanced export and share'));
     await tester.pumpAndSettle();
@@ -129,6 +190,17 @@ void main() {
     expect(find.text('Copy Coaching Telemetry CSV'), findsOneWidget);
     expect(find.text('Download Coaching JSON'), findsOneWidget);
     expect(find.text('Share Coaching Pack'), findsOneWidget);
+    expect(
+      find.text('Generation and delivery controls moved to Governance screen.'),
+      findsOneWidget,
+    );
+    expect(find.text('Generate Now'), findsNothing);
+    expect(find.text('Copy Morning JSON'), findsNothing);
+    expect(find.text('Copy Morning CSV'), findsNothing);
+    expect(find.text('Download Morning JSON'), findsNothing);
+    expect(find.text('Download Morning CSV'), findsNothing);
+    expect(find.text('Share Morning Pack'), findsNothing);
+    expect(find.text('Email Morning Report'), findsNothing);
     expect(find.text('Recent Failure Trace'), findsOneWidget);
     expect(find.text('Events'), findsOneWidget);
     expect(find.text('Media'), findsOneWidget);
@@ -149,30 +221,7 @@ void main() {
     await tester.tap(find.text('Open Guard Sync'));
     await tester.pumpAndSettle();
     expect(openCount, 1);
-    await tester.tap(find.text('Copy Policy Telemetry JSON'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Copy Policy Telemetry CSV'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Download Policy JSON'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Download Policy CSV'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Share Policy Pack'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Copy Coaching Telemetry JSON'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Copy Coaching Telemetry CSV'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Download Coaching JSON'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Share Coaching Pack'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Download Failure Trace'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Share Failure Trace'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Email Failure Trace'));
-    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Clear Policy Telemetry'));
     await tester.tap(find.text('Clear Policy Telemetry'));
     await tester.pumpAndSettle();
     expect(clearPolicyCount, 1);
@@ -269,17 +318,10 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: DashboardPage(
-          eventStore: store,
-        ),
-      ),
+      MaterialApp(home: DashboardPage(eventStore: store)),
     );
 
-    expect(
-      find.text('A 0 • W 1 • DC 1 • Esc 1'),
-      findsOneWidget,
-    );
+    expect(find.text('A 0 • W 1 • DC 1 • Esc 1'), findsOneWidget);
     expect(find.textContaining('Top triage signals:'), findsOneWidget);
   });
 }

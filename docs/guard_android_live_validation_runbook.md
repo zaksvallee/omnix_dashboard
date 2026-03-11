@@ -1,6 +1,6 @@
 # ONYX Android Live Telemetry Validation Runbook
 
-Last updated: 2026-03-05 (Africa/Johannesburg)
+Last updated: 2026-03-09 (Africa/Johannesburg)
 
 ## Objective
 
@@ -12,8 +12,8 @@ Prove end-to-end live callback ingestion on Android guard devices with evidence 
 - ONYX app installed/running with live native telemetry config.
 - `ONYX_GUARD_TELEMETRY_NATIVE_SDK=true`
 - `ONYX_GUARD_TELEMETRY_NATIVE_STUB=false`
-- `ONYX_GUARD_TELEMETRY_NATIVE_PROVIDER=fsk_sdk`
-- Live heartbeat action configured (`ONYX_FSK_SDK_HEARTBEAT_ACTION` or explicit `--action`).
+- `ONYX_GUARD_TELEMETRY_NATIVE_PROVIDER=fsk_sdk` (or `hikvision_sdk`)
+- Live heartbeat action configured (`ONYX_FSK_SDK_HEARTBEAT_ACTION`, `ONYX_HIKVISION_SDK_HEARTBEAT_ACTION`, or explicit `--action`).
 
 ## Step 0: Connection doctor (required before on-device run)
 
@@ -66,6 +66,7 @@ Alternative single-command gate:
 
 ```bash
 ./scripts/guard_android_pilot_gate.sh \
+  --provider fsk_sdk \
   --action com.onyx.fsk.SDK_HEARTBEAT \
   --samples 5 \
   --interval 1 \
@@ -99,6 +100,7 @@ Unified auto-gate (uses on-device gate when phone is connected, otherwise pre-de
 
 ```bash
 ./scripts/guard_gate_auto.sh \
+  --provider fsk_sdk \
   --action com.onyx.fsk.SDK_HEARTBEAT \
   --samples 5 \
   --interval 1 \
@@ -127,6 +129,7 @@ No-device simulation (for CI/local pipeline checks):
 
 ```bash
 ./scripts/guard_android_live_validation.sh \
+  --provider fsk_sdk \
   --action com.onyx.fsk.SDK_HEARTBEAT \
   --samples 5 \
   --interval 1 \
@@ -134,10 +137,16 @@ No-device simulation (for CI/local pipeline checks):
   --expected-provider fsk_sdk
 ```
 
+Notes:
+- By default, the script force-stops and relaunches `com.example.omnix_dashboard/.MainActivity` and waits for a live-facade startup marker before sending samples.
+- Use `--skip-start-app` only if you intentionally want to keep the current app process/session.
+- On Android 13+ (`TIRAMISU` and above), adb broadcast injection is enabled for debug builds during validation.
+
 Optional for legacy payload format:
 
 ```bash
 ./scripts/guard_android_live_validation.sh \
+  --provider fsk_sdk \
   --action com.onyx.fsk.SDK_HEARTBEAT \
   --samples 5 \
   --interval 1 \
@@ -145,12 +154,24 @@ Optional for legacy payload format:
   --expected-provider fsk_sdk
 ```
 
+Optional for Hikvision GuardLink payload format:
+
+```bash
+./scripts/guard_android_live_validation.sh \
+  --provider hikvision_sdk \
+  --action com.onyx.hikvision.SDK_HEARTBEAT \
+  --samples 5 \
+  --interval 1 \
+  --adapter hikvision_guardlink \
+  --expected-provider hikvision_sdk
+```
+
 ## Step 3: Verify Guard Sync UI during run
 
 In ONYX Guard Sync screen, confirm:
 
 - Provider readiness is `ready`.
-- Telemetry adapter is `native_sdk:fsk_sdk` and mode is `live`.
+- Telemetry adapter matches the configured provider (`native_sdk:fsk_sdk` or `native_sdk:hikvision_sdk`) and mode is `live`.
 - Facade callback count increases after emitted samples.
 - Last callback timestamp/message updates.
 - No critical payload-health alerts are triggered for valid samples.
@@ -180,6 +201,8 @@ Output:
 - `validation_report.json` inside the artifact directory.
 - `validation_report.json` includes SHA-256 checksums for evidence files.
 - Script exits non-zero if required gates fail.
+- Provider consistency is enforced: `required_provider` in report artifacts must
+  match the configured telemetry gate provider.
 
 ## Pass Criteria
 

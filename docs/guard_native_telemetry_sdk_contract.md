@@ -56,7 +56,7 @@ Expected response payload:
   "message": "Payload mapped successfully.",
   "adapter_requested": "legacy_ptt",
   "adapter_resolved": "legacy_ptt",
-  "available_fsk_payload_adapters": ["standard", "legacy_ptt"],
+  "available_fsk_payload_adapters": ["standard", "legacy_ptt", "hikvision_guardlink"],
   "normalized_payload": {
     "heart_rate": 81,
     "movement_level": 0.57,
@@ -74,6 +74,8 @@ Expected response payload:
   "default_provider_id": "android_native_sdk_stub",
   "available_provider_ids": [
     "android_native_sdk_stub",
+    "hikvision_sdk",
+    "hikvision_sdk_stub",
     "fsk_sdk",
     "fsk_sdk_stub"
   ],
@@ -85,7 +87,11 @@ Expected response payload:
   "fsk_heartbeat_action_source": "build_config",
   "fsk_payload_adapter": "standard",
   "fsk_payload_adapter_source": "build_config",
-  "available_fsk_payload_adapters": ["standard", "legacy_ptt"],
+  "available_fsk_payload_adapters": ["standard", "legacy_ptt", "hikvision_guardlink"],
+  "fsk_vendor_connector": "broadcast_intent_connector",
+  "fsk_vendor_connector_source": "platform_default",
+  "fsk_vendor_connector_fallback_active": false,
+  "fsk_vendor_connector_error": null,
   "facade_callback_error_count": 0,
   "facade_last_callback_error_at_utc": null,
   "facade_last_callback_error_message": null
@@ -256,6 +262,37 @@ Expected response payload:
 }
 ```
 
+### `ingestHikvisionSdkHeartbeat` (SDK callback receiver)
+
+Purpose:
+- canonical Android receiver path for Hikvision SDK callbacks
+- normalizes and persists heartbeat payloads into the same bridge-store contract used by `hikvision_sdk`
+
+Input args:
+
+```json
+{
+  "provider_id": "hikvision_sdk",
+  "vitals_hr": 82,
+  "motion_index": 0.62,
+  "duty_state": "patrolling",
+  "watch_battery_percent": 86,
+  "event_utc": "2026-03-05T10:05:00Z",
+  "gps_hdop_m": 4.0
+}
+```
+
+Expected response payload:
+
+```json
+{
+  "provider_id": "hikvision_sdk",
+  "accepted": true,
+  "captured_at_utc": "2026-03-05T10:05:00Z",
+  "message": "Wearable heartbeat bridge payload ingested."
+}
+```
+
 ### `emitDebugFskSdkHeartbeatBroadcast` (debug helper)
 
 Purpose:
@@ -288,6 +325,38 @@ Expected response payload:
 }
 ```
 
+### `emitDebugHikvisionSdkHeartbeatBroadcast` (debug helper)
+
+Purpose:
+- emits an Android broadcast on the configured Hikvision heartbeat action to validate callback wiring end-to-end without vendor SDK hardware.
+- available only in debug builds.
+
+Input args:
+
+```json
+{
+  "provider_id": "hikvision_sdk",
+  "vitals_hr": 80,
+  "motion_index": 0.66,
+  "duty_state": "patrolling",
+  "watch_battery_percent": 83,
+  "event_utc": "2026-03-05T10:10:00Z",
+  "gps_hdop_m": 3.9
+}
+```
+
+Expected response payload:
+
+```json
+{
+  "provider_id": "hikvision_sdk",
+  "accepted": true,
+  "captured_at_utc": "2026-03-05T10:10:00Z",
+  "action": "com.onyx.hikvision.SDK_HEARTBEAT",
+  "message": "Debug SDK heartbeat broadcast emitted."
+}
+```
+
 Alias support (Android live facade, applies to broadcast callbacks and direct `ingestFskSdkHeartbeat` payloads):
 - `heart_rate`: `heart_rate`, `heartRate`, `hr`, `heartrate`, `heart_rate_bpm`
 - `movement_level`: `movement_level`, `movementLevel`, `motion_level`, `movement`, `activity_level`
@@ -295,6 +364,14 @@ Alias support (Android live facade, applies to broadcast callbacks and direct `i
 - `battery_percent`: `battery_percent`, `batteryPercent`, `battery`, `battery_level`
 - `captured_at_utc`: `captured_at_utc`, `capturedAtUtc`, `captured_at`, `timestamp`, `time_utc`
 - `gps_accuracy_meters`: `gps_accuracy_meters`, `gpsAccuracyMeters`, `gps_accuracy`, `accuracy`, `location_accuracy`
+
+`hikvision_guardlink` adapter alias support:
+- `heart_rate`: `vitals_hr`, `heartbeat_bpm`, `watch_hr`, `heart_rate`, `heartRate`, `hr`
+- `movement_level`: `motion_index`, `movement_score`, `imu_motion_level`, `movement_level`, `movementLevel`, `motion_level`
+- `activity_state`: `duty_state`, `guard_state`, `activity_label`, `activity_state`, `activityState`, `state`
+- `battery_percent`: `watch_battery_percent`, `wearable_battery`, `watch_battery`, `battery_percent`, `batteryPercent`, `battery_level`
+- `captured_at_utc`: `event_utc`, `event_time_utc`, `captured_time_utc`, `captured_at_utc`, `capturedAtUtc`, `timestamp`
+- `gps_accuracy_meters`: `gps_hdop_m`, `location_accuracy_meters`, `fix_accuracy_m`, `gps_accuracy_meters`, `gpsAccuracyMeters`, `location_accuracy`
 
 Per-heartbeat adapter override keys (optional):
 - `payload_adapter`
@@ -307,11 +384,16 @@ Live-facade callback error telemetry keys (provider status):
 - `facade_last_callback_error_at_utc`
 - `facade_last_callback_error_message`
 
+Vendor connector fallback telemetry keys (provider status):
+- `fsk_vendor_connector_fallback_active`
+- `fsk_vendor_connector_error`
+
 When provided, ONYX resolves the adapter per heartbeat and falls back to the configured adapter if the override is unknown.
 
 Replay fixtures:
-- [standard_sample.json](/Users/zaks/omnix_dashboard/docs/fixtures/fsk_payload_profiles/standard_sample.json)
-- [legacy_ptt_sample.json](/Users/zaks/omnix_dashboard/docs/fixtures/fsk_payload_profiles/legacy_ptt_sample.json)
+- [fsk_standard_sample.json](/Users/zaks/omnix_dashboard/assets/telemetry_payload_fixtures/fsk_standard_sample.json)
+- [fsk_legacy_ptt_sample.json](/Users/zaks/omnix_dashboard/assets/telemetry_payload_fixtures/fsk_legacy_ptt_sample.json)
+- [fsk_hikvision_guardlink_sample.json](/Users/zaks/omnix_dashboard/assets/telemetry_payload_fixtures/fsk_hikvision_guardlink_sample.json)
 
 ## SDK Status Values
 
@@ -327,9 +409,11 @@ Current Android implementation routes by `provider_id` through a provider regist
 Registered stubs:
 - `android_native_sdk_stub`
 - `fsk_sdk_stub`
+- `hikvision_sdk_stub`
 
 Registered bridge/live path:
 - `fsk_sdk` (native bridge provider)
+- `hikvision_sdk` (native bridge provider)
 
 When wiring real SDKs, replace/extend registry entries with vendor-backed providers that implement:
 - `captureWearableHeartbeat`
@@ -361,16 +445,33 @@ SDK integration note:
 - runtime toggle is wired:
   - Gradle property: `-PONYX_USE_LIVE_FSK_SDK=true` (sets `BuildConfig.USE_LIVE_FSK_SDK`)
   - Manifest override: `<meta-data android:name="onyx.use_live_fsk_sdk" android:value="true" />`
+  - Gradle property: `-PONYX_USE_LIVE_HIKVISION_SDK=true` (sets `BuildConfig.USE_LIVE_HIKVISION_SDK`)
+  - Manifest override: `<meta-data android:name="onyx.use_live_hikvision_sdk" android:value="true" />`
 - payload adapter selection is wired:
-  - Gradle property: `-PONYX_FSK_SDK_PAYLOAD_ADAPTER=standard|legacy_ptt`
+  - Gradle property: `-PONYX_FSK_SDK_PAYLOAD_ADAPTER=standard|legacy_ptt|hikvision_guardlink`
   - Manifest override: `<meta-data android:name="onyx.fsk_sdk_payload_adapter" android:value="standard" />`
+  - Gradle property: `-PONYX_HIKVISION_SDK_PAYLOAD_ADAPTER=standard|legacy_ptt|hikvision_guardlink`
+  - Manifest override: `<meta-data android:name="onyx.hikvision_sdk_payload_adapter" android:value="hikvision_guardlink" />`
+- optional vendor connector class override is wired:
+  - Gradle property: `-PONYX_FSK_SDK_CONNECTOR_CLASS=com.onyx.vendor.fsk.LiveSdkConnector`
+  - Manifest override: `<meta-data android:name="onyx.fsk_sdk_connector_class" android:value="com.onyx.vendor.fsk.LiveSdkConnector" />`
+  - Gradle property: `-PONYX_HIKVISION_SDK_CONNECTOR_CLASS=com.onyx.vendor.hikvision.LiveSdkConnector`
+  - Manifest override: `<meta-data android:name="onyx.hikvision_sdk_connector_class" android:value="com.onyx.vendor.hikvision.LiveSdkConnector" />`
+  - built-in reflective connector classes are available:
+    - `com.example.omnix_dashboard.telemetry.FskReflectiveVendorSdkConnector`
+    - `com.example.omnix_dashboard.telemetry.HikvisionReflectiveVendorSdkConnector`
+  - class must implement `FskVendorSdkConnector`; fallback is broadcast connector when unavailable.
+  - loader supports connector instantiation via one of:
+    - constructor `(Context)`
+    - no-arg constructor `()`
+    - static factory `create(Context)`
 
 ## Dart Define Flags
 
 Use these flags when running the app:
 
 - `ONYX_GUARD_TELEMETRY_NATIVE_SDK=true`
-- `ONYX_GUARD_TELEMETRY_NATIVE_PROVIDER=fsk_sdk`
+- `ONYX_GUARD_TELEMETRY_NATIVE_PROVIDER=fsk_sdk` (or `hikvision_sdk`)
 - `ONYX_GUARD_TELEMETRY_NATIVE_STUB=false`
 
 ## Event Payload Mapping

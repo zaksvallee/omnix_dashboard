@@ -1,0 +1,22 @@
+{
+  "generated_at_utc": "2026-03-09T20:42:32Z",
+  "status": "PASS",
+  "exit_code": 0,
+  "command": "./scripts/guard_pilot_readiness_check.sh --config config/onyx.local.json --enforce-live-telemetry --require-live-validation-artifacts --max-live-validation-report-age-hours 24 --require-supabase-config",
+  "output_log": "tmp/guard_gate_reports/20260309T204224Z/readiness_output.log",
+  "artifact_report_path": "tmp/guard_field_validation/mock-20260309T204224Z/validation_report.json",
+  "runtime_profile_file": "tmp/guard_gate_reports/20260309T204224Z/runtime_profile.txt",
+  "runtime_profile": {
+  "config_file": "config/onyx.local.json",
+  "config_exists": true,
+  "supabase_mode": "LIVE",
+  "supabase_url_set": true,
+  "supabase_anon_key_set": true,
+  "live_feed_mode": "DISABLED",
+  "live_feed_url_set": false,
+  "telemetry_mode": "LIVE",
+  "telemetry_native_sdk_enabled": true,
+  "telemetry_provider": "fsk_sdk",
+  "telemetry_required_provider": "fsk_sdk"
+}
+}

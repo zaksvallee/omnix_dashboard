@@ -65,6 +65,10 @@ class GuardTelemetryAdapterStatus {
   final String? facadeRuntimeMode;
   final String? facadeHeartbeatSource;
   final String? facadeHeartbeatAction;
+  final String? vendorConnectorId;
+  final String? vendorConnectorSource;
+  final String? vendorConnectorErrorMessage;
+  final bool? vendorConnectorFallbackActive;
   final bool? facadeSourceActive;
   final int? facadeCallbackCount;
   final DateTime? facadeLastCallbackAtUtc;
@@ -85,6 +89,10 @@ class GuardTelemetryAdapterStatus {
     this.facadeRuntimeMode,
     this.facadeHeartbeatSource,
     this.facadeHeartbeatAction,
+    this.vendorConnectorId,
+    this.vendorConnectorSource,
+    this.vendorConnectorErrorMessage,
+    this.vendorConnectorFallbackActive,
     this.facadeSourceActive,
     this.facadeCallbackCount,
     this.facadeLastCallbackAtUtc,
@@ -449,6 +457,23 @@ class NativeGuardTelemetryIngestionAdapter
   @override
   bool get isStub => config.stubMode;
 
+  bool get _isHikvisionProvider {
+    final provider = config.providerId.trim().toLowerCase();
+    return provider.contains('hikvision');
+  }
+
+  String get _debugHeartbeatMethodName {
+    return _isHikvisionProvider
+        ? 'emitDebugHikvisionSdkHeartbeatBroadcast'
+        : 'emitDebugFskSdkHeartbeatBroadcast';
+  }
+
+  String get _payloadValidationMethodName {
+    return _isHikvisionProvider
+        ? 'validateHikvisionPayloadMapping'
+        : 'validateFskPayloadMapping';
+  }
+
   @override
   Future<GuardTelemetryAdapterStatus> getStatus() async {
     try {
@@ -475,12 +500,12 @@ class NativeGuardTelemetryIngestionAdapter
       );
       final payloadAdapter = _stringValue(
         payload ?? const <String, Object?>{},
-        const ['fsk_payload_adapter'],
+        const ['fsk_payload_adapter', 'hikvision_payload_adapter'],
         '',
       );
       final payloadAdapterSource = _stringValue(
         payload ?? const <String, Object?>{},
-        const ['fsk_payload_adapter_source'],
+        const ['fsk_payload_adapter_source', 'hikvision_payload_adapter_source'],
         '',
       );
       final catalogHint = await _providerCatalogHint();
@@ -518,6 +543,48 @@ class NativeGuardTelemetryIngestionAdapter
         const ['facade_heartbeat_action', 'heartbeat_action'],
         '',
       );
+      final vendorConnectorId = _stringValue(
+        payload ?? const <String, Object?>{},
+        const [
+          'fsk_vendor_connector',
+          'hikvision_vendor_connector',
+          'vendor_connector',
+        ],
+        '',
+      );
+      final vendorConnectorSource = _stringValue(
+        payload ?? const <String, Object?>{},
+        const [
+          'fsk_vendor_connector_source',
+          'hikvision_vendor_connector_source',
+          'vendor_connector_source',
+        ],
+        '',
+      );
+      final vendorConnectorErrorMessage = _stringValue(
+        payload ?? const <String, Object?>{},
+        const [
+          'fsk_vendor_connector_error',
+          'hikvision_vendor_connector_error',
+          'vendor_connector_error',
+        ],
+        '',
+      );
+      final vendorConnectorFallbackActiveRaw = _rawValue(
+        payload ?? const <String, Object?>{},
+        const [
+          'fsk_vendor_connector_fallback_active',
+          'hikvision_vendor_connector_fallback_active',
+          'vendor_connector_fallback_active',
+        ],
+      );
+      final vendorConnectorFallbackActive = switch (
+        vendorConnectorFallbackActiveRaw
+      ) {
+        bool value => value,
+        String value => value.trim().toLowerCase() == 'true',
+        _ => null,
+      };
       final facadeSourceActiveRaw = _rawValue(
         payload ?? const <String, Object?>{},
         const ['facade_source_active', 'source_active'],
@@ -563,10 +630,13 @@ class NativeGuardTelemetryIngestionAdapter
         readiness: readiness,
         message: readiness == GuardTelemetryAdapterReadiness.error
             ? _appendCatalogHint(message, catalogHint)
-            : _appendPayloadAdapterHint(
-                message,
-                payloadAdapter,
-                payloadAdapterSource,
+            : _appendVendorConnectorHint(
+                _appendPayloadAdapterHint(
+                  message,
+                  payloadAdapter,
+                  payloadAdapterSource,
+                ),
+                vendorConnectorErrorMessage,
               ),
         adapterLabel: adapterLabel,
         isStub: isStub,
@@ -587,6 +657,14 @@ class NativeGuardTelemetryIngestionAdapter
         facadeHeartbeatAction: facadeHeartbeatAction.isEmpty
             ? null
             : facadeHeartbeatAction,
+        vendorConnectorId: vendorConnectorId.isEmpty ? null : vendorConnectorId,
+        vendorConnectorSource: vendorConnectorSource.isEmpty
+            ? null
+            : vendorConnectorSource,
+        vendorConnectorErrorMessage: vendorConnectorErrorMessage.isEmpty
+            ? null
+            : vendorConnectorErrorMessage,
+        vendorConnectorFallbackActive: vendorConnectorFallbackActive,
         facadeSourceActive: facadeSourceActive,
         facadeCallbackCount: facadeCallbackCount,
         facadeLastCallbackAtUtc: facadeLastCallbackAtUtc,
@@ -695,7 +773,7 @@ class NativeGuardTelemetryIngestionAdapter
     );
   }
 
-  Future<void> emitDebugFskSdkHeartbeatBroadcast({
+  Future<void> emitDebugSdkHeartbeatBroadcast({
     WearableTelemetrySample? sample,
     double? gpsAccuracyMeters,
   }) async {
@@ -713,7 +791,7 @@ class NativeGuardTelemetryIngestionAdapter
           sdkStatus: config.stubMode ? 'stub' : 'live',
         );
     final payload = await config.channel.invokeMapMethod<String, Object?>(
-      'emitDebugFskSdkHeartbeatBroadcast',
+      _debugHeartbeatMethodName,
       <String, Object?>{
         'provider_id': config.providerId,
         'heart_rate': debugSample.heartRate,
@@ -742,12 +820,12 @@ class NativeGuardTelemetryIngestionAdapter
     }
   }
 
-  Future<Map<String, Object?>> validateFskPayloadMapping({
+  Future<Map<String, Object?>> validatePayloadMapping({
     required Map<String, Object?> payload,
     String? payloadAdapter,
   }) async {
     final response = await config.channel.invokeMapMethod<String, Object?>(
-      'validateFskPayloadMapping',
+      _payloadValidationMethodName,
       <String, Object?>{
         'provider_id': config.providerId,
         'payload': payload,
@@ -755,6 +833,23 @@ class NativeGuardTelemetryIngestionAdapter
       },
     );
     return response ?? const <String, Object?>{};
+  }
+
+  Future<void> emitDebugFskSdkHeartbeatBroadcast({
+    WearableTelemetrySample? sample,
+    double? gpsAccuracyMeters,
+  }) {
+    return emitDebugSdkHeartbeatBroadcast(
+      sample: sample,
+      gpsAccuracyMeters: gpsAccuracyMeters,
+    );
+  }
+
+  Future<Map<String, Object?>> validateFskPayloadMapping({
+    required Map<String, Object?> payload,
+    String? payloadAdapter,
+  }) {
+    return validatePayloadMapping(payload: payload, payloadAdapter: payloadAdapter);
   }
 
   @override
@@ -912,6 +1007,13 @@ class NativeGuardTelemetryIngestionAdapter
     final hint = normalizedSource.isEmpty
         ? 'Payload adapter: $normalizedAdapter.'
         : 'Payload adapter: $normalizedAdapter ($normalizedSource).';
+    return _appendCatalogHint(message, hint);
+  }
+
+  String _appendVendorConnectorHint(String message, String connectorError) {
+    final normalizedError = connectorError.trim();
+    if (normalizedError.isEmpty) return message.trim();
+    final hint = 'Vendor connector warning: $normalizedError';
     return _appendCatalogHint(message, hint);
   }
 }

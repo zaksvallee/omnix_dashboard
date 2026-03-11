@@ -1,0 +1,42 @@
+{
+  "generated_at_utc": "2026-03-09T21:04:23Z",
+  "artifact_dir": "tmp/guard_field_validation/manual-fix2-20260309T210407Z",
+  "required_provider": "fsk_sdk",
+  "overall_status": "PASS",
+  "metrics": {
+    "broadcast_count": 5,
+    "telemetry_line_count": 11,
+    "ingest_line_count": 20,
+    "accepted_count": 5,
+    "rejected_count": 0,
+    "provider_match_count": 1,
+    "live_facade_trace_count": 10
+  },
+  "gates": {
+    "broadcasts_present": true,
+    "telemetry_logs_present": true,
+    "ingest_logs_present": true,
+    "accepted_present": true,
+    "provider_match_present": true,
+    "live_facade_trace_present": true
+  },
+  "files": {
+    "summary": "tmp/guard_field_validation/manual-fix2-20260309T210407Z/summary.txt",
+    "broadcasts": "tmp/guard_field_validation/manual-fix2-20260309T210407Z/broadcasts.txt",
+    "logcat_onyx_telemetry": "tmp/guard_field_validation/manual-fix2-20260309T210407Z/logcat_onyx_telemetry.txt",
+    "logcat_ingest_trace": "tmp/guard_field_validation/manual-fix2-20260309T210407Z/logcat_ingest_trace.txt",
+    "logcat_full": "tmp/guard_field_validation/manual-fix2-20260309T210407Z/logcat_full.txt",
+    "runtime_profile_text": "",
+    "runtime_profile_json": "",
+    "markdown_report": "tmp/guard_field_validation/manual-fix2-20260309T210407Z/validation_report.md"
+  },
+  "checksums": {
+    "summary_sha256": "9425451ce2f9756fc0fd19f55e2b2ea8606984ca4d2b685d46e5568120f88024",
+    "broadcasts_sha256": "e262cfff359bc4932adf5c125f90deb9aa4187f138b476e80e0b5c77e3144462",
+    "logcat_onyx_telemetry_sha256": "0bb8e06aa339cffff09fe0a714a29d20bab142ef54bc7f662aab3c8714331086",
+    "logcat_ingest_trace_sha256": "bc097543f2819fa9c0fa02f20b928f138f94bac9b60a7890d49114639e18a46f",
+    "logcat_full_sha256": "b5c94ec511fb5f46670bc30bcaf1c9d1864f16dbe022694d8cddccd6376b5354",
+    "runtime_profile_text_sha256": "",
+    "runtime_profile_json_sha256": ""
+  }
+}

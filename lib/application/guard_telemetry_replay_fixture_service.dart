@@ -11,6 +11,8 @@ class GuardTelemetryReplayFixtureService {
           'assets/telemetry_payload_fixtures/fsk_standard_sample.json',
       'legacy_ptt_sample':
           'assets/telemetry_payload_fixtures/fsk_legacy_ptt_sample.json',
+      'hikvision_guardlink_sample':
+          'assets/telemetry_payload_fixtures/fsk_hikvision_guardlink_sample.json',
     },
   }) : _fixtureAssetPaths = fixtureAssetPaths;
 

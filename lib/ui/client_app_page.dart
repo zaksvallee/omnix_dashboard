@@ -6,6 +6,7 @@ import '../domain/events/dispatch_event.dart';
 import '../domain/events/incident_closed.dart';
 import '../domain/events/intelligence_received.dart';
 import '../domain/events/response_arrived.dart';
+import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 
 enum ClientAppLocale { en, zu, af }
@@ -140,6 +141,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
   late Map<String, String> _expandedIncidentReferenceByRole;
   late Map<String, bool> _hasTouchedIncidentExpansionByRole;
   late Map<String, String> _focusedIncidentReferenceByRole;
+  bool get _phoneLayout => isHandsetLayout(context);
+  bool get _desktopEmbeddedScroll => allowEmbeddedPanelScroll(context);
 
   @override
   void initState() {
@@ -253,7 +256,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                   '${_localizedSurfaceTitle(_viewerRole)} — ${widget.clientId} / ${widget.siteId}',
                   style: GoogleFonts.rajdhani(
                     color: const Color(0xFFE5F1FF),
-                    fontSize: 28,
+                    fontSize: _phoneLayout ? 23 : 28,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -262,7 +265,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                   _localizedSurfaceSubtitle(_viewerRole),
                   style: GoogleFonts.inter(
                     color: const Color(0xFF93A8C9),
-                    fontSize: 13,
+                    fontSize: _phoneLayout ? 12 : 13,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -273,12 +276,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     vertical: 10,
                   ),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        const Color(0xFF0C2342).withValues(alpha: 0.9),
-                        const Color(0xFF09172E).withValues(alpha: 0.94),
-                      ],
-                    ),
+                    color: const Color(0xFF0E1A2B),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
                       color: widget.backendSyncEnabled
@@ -290,7 +288,6 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
-                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
                             widget.backendSyncEnabled
@@ -302,14 +299,17 @@ class _ClientAppPageState extends State<ClientAppPage> {
                                 : const Color(0xFF93A8C9),
                           ),
                           const SizedBox(width: _spaceSm),
-                          Text(
-                            widget.backendSyncEnabled
-                                ? _localizedConversationSyncLive
-                                : _localizedConversationSyncLocal,
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFD6E8FF),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
+                          Expanded(
+                            child: Text(
+                              widget.backendSyncEnabled
+                                  ? _localizedConversationSyncLive
+                                  : _localizedConversationSyncLocal,
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFFD6E8FF),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              softWrap: true,
                             ),
                           ),
                         ],
@@ -452,14 +452,15 @@ class _ClientAppPageState extends State<ClientAppPage> {
                           style: _inlineHandoffButtonStyle(
                             const Color(0xFF8FD1FF),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
+                          child: Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               Icon(
                                 _viewerRole.selectedIncidentHeaderIcon,
                                 size: 14,
                               ),
-                              const SizedBox(width: 6),
                               Text(
                                 _viewerRole.selectedIncidentHeaderLabel(
                                   selectedIncidentGroup.referenceLabel,
@@ -491,24 +492,30 @@ class _ClientAppPageState extends State<ClientAppPage> {
                   child: _incidentFeedList(incidentFeed),
                 ),
                 const SizedBox(height: _spaceLg),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        filterScopeLabel,
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF8FD1FF),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final stacked = constraints.maxWidth < 680;
+                    final scopeText = Text(
+                      filterScopeLabel,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF8FD1FF),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
                       ),
-                    ),
-                    TextButton(
+                    );
+                    final toggleButton = TextButton(
                       onPressed: _toggleShowAllRoomItems,
                       style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        minimumSize: const Size(0, 0),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        padding: _phoneLayout
+                            ? const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              )
+                            : EdgeInsets.zero,
+                        minimumSize: Size(0, _phoneLayout ? 40 : 0),
+                        tapTargetSize: _phoneLayout
+                            ? MaterialTapTargetSize.padded
+                            : MaterialTapTargetSize.shrinkWrap,
                         foregroundColor: const Color(0xFF8FD1FF),
                       ),
                       child: Text(
@@ -520,8 +527,24 @@ class _ClientAppPageState extends State<ClientAppPage> {
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                    ),
-                  ],
+                    );
+                    if (stacked) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          scopeText,
+                          const SizedBox(height: 6),
+                          toggleButton,
+                        ],
+                      );
+                    }
+                    return Row(
+                      children: [
+                        Expanded(child: scopeText),
+                        toggleButton,
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: _spaceLg),
                 LayoutBuilder(
@@ -598,18 +621,14 @@ class _ClientAppPageState extends State<ClientAppPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0D1A2D), Color(0xFF0A1628)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: const Color(0xFF0E1A2B),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF183657)),
+        border: Border.all(color: const Color(0xFF223244)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x14000000),
-            blurRadius: 14,
-            offset: Offset(0, 8),
+            color: Color(0x10000000),
+            blurRadius: 8,
+            offset: Offset(0, 3),
           ),
         ],
       ),
@@ -657,14 +676,20 @@ class _ClientAppPageState extends State<ClientAppPage> {
             : const Color(0xFFAFC8EB),
         backgroundColor: selected
             ? const Color(0xFF8FD1FF)
-            : const Color(0xFF09172D),
+            : const Color(0xFF0E1A2B),
         side: BorderSide(
-          color: selected ? const Color(0xFF8FD1FF) : const Color(0xFF21456E),
+          color: selected ? const Color(0xFF8FD1FF) : const Color(0xFF223244),
         ),
-        minimumSize: const Size(0, 36),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        visualDensity: VisualDensity.compact,
+        minimumSize: Size(0, _phoneLayout ? 44 : 36),
+        padding: _phoneLayout
+            ? const EdgeInsets.symmetric(horizontal: 14, vertical: 11)
+            : const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        tapTargetSize: _phoneLayout
+            ? MaterialTapTargetSize.padded
+            : MaterialTapTargetSize.shrinkWrap,
+        visualDensity: _phoneLayout
+            ? VisualDensity.standard
+            : VisualDensity.compact,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         elevation: selected ? 2 : 0,
         shadowColor: const Color(0x14000000),
@@ -686,18 +711,14 @@ class _ClientAppPageState extends State<ClientAppPage> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF081326), Color(0xFF0A172C)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: const Color(0xFF0E1A2B),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF193758)),
+        border: Border.all(color: const Color(0xFF223244)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x15000000),
-            blurRadius: 18,
-            offset: Offset(0, 10),
+            color: Color(0x12000000),
+            blurRadius: 10,
+            offset: Offset(0, 3),
           ),
         ],
       ),
@@ -713,20 +734,43 @@ class _ClientAppPageState extends State<ClientAppPage> {
             ),
           ),
           const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFFE5F1FF),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final action = headerAction;
+              final stacked = action != null && constraints.maxWidth < 760;
+              if (stacked) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFE5F1FF),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    action,
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFE5F1FF),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              headerAction ?? const SizedBox.shrink(),
-            ],
+                  headerAction ?? const SizedBox.shrink(),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 4),
           Text(
@@ -756,215 +800,221 @@ class _ClientAppPageState extends State<ClientAppPage> {
     if (items.isEmpty) {
       return _emptyBox(_viewerRole.notificationsEmptyLabel);
     }
-    return SizedBox(
-      height: 340,
+    final embeddedScroll = _desktopEmbeddedScroll;
+    final list = ListView.separated(
+      itemCount: items.length,
+      shrinkWrap: !embeddedScroll,
+      primary: embeddedScroll,
+      physics: embeddedScroll ? null : const NeverScrollableScrollPhysics(),
+      itemBuilder: (context, index) => _notificationRowCard(items[index]),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
+    );
+    if (embeddedScroll) {
+      return SizedBox(
+        height: 340,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: list),
+            if (hiddenCount > 0) ...[
+              const SizedBox(height: 8),
+              OnyxTruncationHint(
+                visibleCount: items.length,
+                totalCount: totalCount,
+                subject: 'notifications',
+                color: const Color(0xFF87A5C8),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        list,
+        if (hiddenCount > 0) ...[
+          const SizedBox(height: 8),
+          OnyxTruncationHint(
+            visibleCount: items.length,
+            totalCount: totalCount,
+            subject: 'notifications',
+            color: const Color(0xFF87A5C8),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _notificationRowCard(_ClientNotification item) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1A2B),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: item.priority
+              ? item.systemType.priorityBorderColor
+              : item.systemType.cardBorderColor,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12000000),
+            blurRadius: 10,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: ListView.separated(
-              itemCount: items.length,
-              itemBuilder: (context, index) {
-                final item = items[index];
-                return Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        item.systemType.cardFillColor,
-                        item.systemType.cardFillColor.withValues(alpha: 0.82),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: item.priority
-                          ? item.systemType.priorityBorderColor
-                          : item.systemType.cardBorderColor,
-                    ),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x12000000),
-                        blurRadius: 10,
-                        offset: Offset(0, 6),
-                      ),
-                    ],
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _pill(
+                item.systemType.label,
+                item.systemType.textColor,
+                item.systemType.borderColor,
+              ),
+              _pill(
+                item.priority ? 'Priority' : 'Info',
+                item.priority
+                    ? const Color(0xFFFFD3D8)
+                    : const Color(0xFFB9D9FF),
+                item.priority
+                    ? const Color(0xFF8A3D4A)
+                    : const Color(0xFF223244),
+              ),
+              _pill(
+                _notificationTargetBadgeLabel(),
+                const Color(0xFFCBE6FF),
+                const Color(0xFF35679B),
+              ),
+              Text(
+                item.timeLabel,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF7FA8D5),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(
+                item.systemType.icon,
+                size: 14,
+                color: item.systemType.textColor,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  item.title,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFE5F1FF),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 4,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          _pill(
-                            item.systemType.label,
-                            item.systemType.textColor,
-                            item.systemType.borderColor,
-                          ),
-                          _pill(
-                            item.priority ? 'Priority' : 'Info',
-                            item.priority
-                                ? const Color(0xFFFFD3D8)
-                                : const Color(0xFFB9D9FF),
-                            item.priority
-                                ? const Color(0xFF8A3D4A)
-                                : const Color(0xFF274E7E),
-                          ),
-                          _pill(
-                            _notificationTargetBadgeLabel(),
-                            const Color(0xFFCBE6FF),
-                            const Color(0xFF35679B),
-                          ),
-                          Text(
-                            item.timeLabel,
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFF7FA8D5),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Icon(
-                            item.systemType.icon,
-                            size: 14,
-                            color: item.systemType.textColor,
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              item.title,
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFFE5F1FF),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        item.body,
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF9AB4D8),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 4,
-                        children: [
-                          _notificationPrimaryAction(
-                            item,
-                            label: _notificationActionLabelFor(item.systemType),
-                          ),
-                          if (_canSendNotificationActionNow(item.systemType))
-                            _notificationSendNowAction(item),
-                        ],
-                      ),
-                      if (_sentNotificationMessageKey == item.messageKey) ...[
-                        const SizedBox(height: 4),
-                        TextButton(
-                          onPressed: _showSentMessageInThread,
-                          style: _inlineHandoffButtonStyle(
-                            item.systemType.textColor,
-                          ),
-                          child: Wrap(
-                            spacing: 8,
-                            runSpacing: 4,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              Text(
-                                _notificationSentLabelFor(item.systemType),
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFB9E2FF),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              Text(
-                                _viewSentMessageLabel(),
-                                style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                      if (!_canSendNotificationActionNow(item.systemType)) ...[
-                        const SizedBox(height: 4),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 4,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            Text(
-                              _draftRequiredHintFor(item.systemType),
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFF9AB4D8),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: () =>
-                                  _focusDraftNotificationAction(item),
-                              style: _inlineHandoffButtonStyle(
-                                item.systemType.textColor,
-                              ),
-                              child: Text(
-                                _draftReadyLabelFor(item.systemType),
-                                style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                            if (_draftOpenedMessageKey == item.messageKey)
-                              Text(
-                                _draftOpenedLabelFor(item.systemType),
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFB9E2FF),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ],
-                      const SizedBox(height: 8),
-                      _acknowledgementControls(
-                        item.messageKey,
-                        item.acknowledgements,
-                      ),
-                    ],
-                  ),
-                );
-              },
-              separatorBuilder: (_, _) => const SizedBox(height: 10),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            item.body,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB4D8),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          if (hiddenCount > 0) ...[
-            const SizedBox(height: 8),
-            OnyxTruncationHint(
-              visibleCount: items.length,
-              totalCount: totalCount,
-              subject: 'notifications',
-              color: const Color(0xFF87A5C8),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 10,
+            runSpacing: 4,
+            children: [
+              _notificationPrimaryAction(
+                item,
+                label: _notificationActionLabelFor(item.systemType),
+              ),
+              if (_canSendNotificationActionNow(item.systemType))
+                _notificationSendNowAction(item),
+            ],
+          ),
+          if (_sentNotificationMessageKey == item.messageKey) ...[
+            const SizedBox(height: 4),
+            TextButton(
+              onPressed: _showSentMessageInThread,
+              style: _inlineHandoffButtonStyle(item.systemType.textColor),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    _notificationSentLabelFor(item.systemType),
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFB9E2FF),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    _viewSentMessageLabel(),
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
+          if (!_canSendNotificationActionNow(item.systemType)) ...[
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  _draftRequiredHintFor(item.systemType),
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF9AB4D8),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => _focusDraftNotificationAction(item),
+                  style: _inlineHandoffButtonStyle(item.systemType.textColor),
+                  child: Text(
+                    _draftReadyLabelFor(item.systemType),
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                if (_draftOpenedMessageKey == item.messageKey)
+                  Text(
+                    _draftOpenedLabelFor(item.systemType),
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFB9E2FF),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 8),
+          _acknowledgementControls(item.messageKey, item.acknowledgements),
         ],
       ),
     );
@@ -984,7 +1034,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFF0B182C),
+              color: const Color(0xFF0E1A2B),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: item.status == ClientPushDeliveryStatus.queued
@@ -992,44 +1042,10 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     : const Color(0xFF2D6A46),
               ),
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.title,
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFFE5F1FF),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        item.body,
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF9DB3CF),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '$_localizedTargetPrefix: ${item.targetChannel.displayLabel} • ${item.timeLabel}',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF7FA2C9),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Container(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final stacked = constraints.maxWidth < 700;
+                final statusBadge = Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
                     vertical: 6,
@@ -1057,8 +1073,53 @@ class _ClientAppPageState extends State<ClientAppPage> {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                ),
-              ],
+                );
+                final details = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.title,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFE5F1FF),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      item.body,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF9DB3CF),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '$_localizedTargetPrefix: ${item.targetChannel.displayLabel} • ${item.timeLabel}',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF7FA2C9),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                );
+                if (stacked) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [details, const SizedBox(height: 8), statusBadge],
+                  );
+                }
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: details),
+                    const SizedBox(width: 10),
+                    statusBadge,
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -1086,9 +1147,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF0A1423),
+        color: const Color(0xFF0E1A2B),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF1D3551)),
+        border: Border.all(color: const Color(0xFF223244)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1197,7 +1258,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                   context: context,
                   builder: (dialogContext) {
                     return AlertDialog(
-                      backgroundColor: const Color(0xFF0A1423),
+                      backgroundColor: const Color(0xFF0E1A2B),
                       title: Text(
                         _localizedClearProbeHistoryTitle,
                         style: GoogleFonts.rajdhani(
@@ -1367,95 +1428,112 @@ class _ClientAppPageState extends State<ClientAppPage> {
   Widget _roomsList(List<_ClientRoom> rooms) {
     final visibleRooms = rooms.take(_maxRoomRows).toList(growable: false);
     final hiddenRooms = rooms.length - visibleRooms.length;
-    return SizedBox(
-      height: 360,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: ListView.separated(
-              itemCount: visibleRooms.length,
-              itemBuilder: (context, index) {
-                final room = visibleRooms[index];
-                final selected = room.key == _selectedRoomFor(_viewerRole);
-                return InkWell(
-                  onTap: () => _setSelectedRoom(room.key),
-                  borderRadius: BorderRadius.circular(14),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: selected
-                            ? const [Color(0xFF14345A), Color(0xFF102947)]
-                            : const [Color(0xFF0E1C34), Color(0xFF0A1628)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+    final embeddedScroll = _desktopEmbeddedScroll;
+    final list = ListView.separated(
+      itemCount: visibleRooms.length,
+      shrinkWrap: !embeddedScroll,
+      primary: embeddedScroll,
+      physics: embeddedScroll ? null : const NeverScrollableScrollPhysics(),
+      itemBuilder: (context, index) {
+        final room = visibleRooms[index];
+        final selected = room.key == _selectedRoomFor(_viewerRole);
+        return InkWell(
+          onTap: () => _setSelectedRoom(room.key),
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: selected
+                  ? const Color(0xFF11243A)
+                  : const Color(0xFF0E1A2B),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: selected
+                    ? const Color(0xFF5D91C6)
+                    : const Color(0xFF223244),
+              ),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x10000000),
+                  blurRadius: 10,
+                  offset: Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        room.displayName,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFE5F1FF),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: selected
-                            ? const Color(0xFF3E7BFF)
-                            : const Color(0xFF1F416A),
-                      ),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x10000000),
-                          blurRadius: 10,
-                          offset: Offset(0, 6),
-                        ),
-                      ],
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                room.displayName,
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFE5F1FF),
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                            _pill(
-                              '${room.unread} unread',
-                              const Color(0xFFB9D9FF),
-                              const Color(0xFF274E7E),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          room.summary,
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF9AB4D8),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+                    _pill(
+                      '${room.unread} unread',
+                      const Color(0xFFB9D9FF),
+                      const Color(0xFF223244),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  room.summary,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF9AB4D8),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
                   ),
-                );
-              },
-              separatorBuilder: (_, _) => const SizedBox(height: 10),
+                ),
+              ],
             ),
           ),
-          if (hiddenRooms > 0) ...[
-            const SizedBox(height: 8),
-            OnyxTruncationHint(
-              visibleCount: visibleRooms.length,
-              totalCount: rooms.length,
-              subject: 'rooms',
-              hiddenDescriptor: 'additional rooms',
-              color: const Color(0xFF87A5C8),
-            ),
+        );
+      },
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
+    );
+    if (embeddedScroll) {
+      return SizedBox(
+        height: 360,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: list),
+            if (hiddenRooms > 0) ...[
+              const SizedBox(height: 8),
+              OnyxTruncationHint(
+                visibleCount: visibleRooms.length,
+                totalCount: rooms.length,
+                subject: 'rooms',
+                hiddenDescriptor: 'additional rooms',
+                color: const Color(0xFF87A5C8),
+              ),
+            ],
           ],
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        list,
+        if (hiddenRooms > 0) ...[
+          const SizedBox(height: 8),
+          OnyxTruncationHint(
+            visibleCount: visibleRooms.length,
+            totalCount: rooms.length,
+            subject: 'rooms',
+            hiddenDescriptor: 'additional rooms',
+            color: const Color(0xFF87A5C8),
+          ),
         ],
-      ),
+      ],
     );
   }
 
@@ -1474,190 +1552,281 @@ class _ClientAppPageState extends State<ClientAppPage> {
     final selectedReference =
         _selectedIncidentReference ??
         (_viewerRole == ClientAppViewerRole.client ? null : expandedReference);
-    return SizedBox(
-      height: 220,
-      child: ListView.separated(
-        itemCount: visibleItems.length,
-        itemBuilder: (context, index) {
-          final group = visibleItems[index];
-          final item = group.latestEntry;
-          final expanded = expandedReference == group.referenceLabel;
-          final selected = selectedReference == group.referenceLabel;
-          final focused = _focusedIncidentReference == group.referenceLabel;
-          return FocusableActionDetector(
-            onShowFocusHighlight: (hasFocus) {
-              setState(() {
-                if (hasFocus) {
-                  _focusedIncidentReference = group.referenceLabel;
-                  _focusedIncidentReferenceByRole[_viewerRole.name] =
-                      group.referenceLabel;
-                } else if (_focusedIncidentReference == group.referenceLabel) {
-                  _focusedIncidentReference = null;
-                  _focusedIncidentReferenceByRole.remove(_viewerRole.name);
-                }
-              });
-              _emitClientStateChanged();
-            },
-            child: InkWell(
-              onTap: () => _toggleIncidentFeedExpansion(group.referenceLabel),
-              borderRadius: BorderRadius.circular(14),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0D1B33),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: _incidentRowBorderColor(
-                      expanded: expanded,
-                      selected: selected,
-                      focused: focused,
-                    ),
+    final embeddedScroll = _desktopEmbeddedScroll;
+    final list = ListView.separated(
+      itemCount: visibleItems.length,
+      shrinkWrap: !embeddedScroll,
+      primary: embeddedScroll,
+      physics: embeddedScroll ? null : const NeverScrollableScrollPhysics(),
+      itemBuilder: (context, index) {
+        final group = visibleItems[index];
+        final item = group.latestEntry;
+        final expanded = expandedReference == group.referenceLabel;
+        final selected = selectedReference == group.referenceLabel;
+        final focused = _focusedIncidentReference == group.referenceLabel;
+        return FocusableActionDetector(
+          onShowFocusHighlight: (hasFocus) {
+            setState(() {
+              if (hasFocus) {
+                _focusedIncidentReference = group.referenceLabel;
+                _focusedIncidentReferenceByRole[_viewerRole.name] =
+                    group.referenceLabel;
+              } else if (_focusedIncidentReference == group.referenceLabel) {
+                _focusedIncidentReference = null;
+                _focusedIncidentReferenceByRole.remove(_viewerRole.name);
+              }
+            });
+            _emitClientStateChanged();
+          },
+          child: InkWell(
+            onTap: () => _toggleIncidentFeedExpansion(group.referenceLabel),
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0E1A2B),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: _incidentRowBorderColor(
+                    expanded: expanded,
+                    selected: selected,
+                    focused: focused,
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        _pill(
-                          _viewerRole.incidentStatusDisplayLabel(
-                            item.statusLabel,
-                          ),
-                          item.accent,
-                          item.borderColor,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      _pill(
+                        _viewerRole.incidentStatusDisplayLabel(
+                          item.statusLabel,
                         ),
-                        if (_viewerRole == ClientAppViewerRole.client) ...[
-                          Text(
-                            _viewerRole.incidentReferenceDisplayLabel(
-                              group.referenceLabel,
-                            ),
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFB9D9FF),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          _pill(
-                            _viewerRole.incidentCountLabel(
-                              group.entries.length,
-                            ),
-                            const Color(0xFFC9B8FF),
-                            const Color(0xFF6950A8),
-                          ),
-                        ] else
-                          _pill(
-                            _viewerRole.incidentReferenceCountDisplayLabel(
-                              group.referenceLabel,
-                              group.entries.length,
-                            ),
-                            const Color(0xFFC9B8FF),
-                            const Color(0xFF6950A8),
-                          ),
-                        if (selected)
-                          _pill(
-                            _viewerRole.selectedIncidentLabel,
-                            const Color(0xFFAEDBFF),
-                            const Color(0xFF4A86C7),
-                          ),
-                        if (expanded)
-                          _pill(
-                            _viewerRole.expandedIncidentLabel,
-                            const Color(0xFFD7CCFF),
-                            const Color(0xFF5F4AA8),
-                          ),
-                        if (focused)
-                          _pill(
-                            _viewerRole.focusedIncidentLabel,
-                            const Color(0xFFD7F0FF),
-                            const Color(0xFF5EA8FF),
-                          ),
+                        item.accent,
+                        item.borderColor,
+                      ),
+                      if (_viewerRole == ClientAppViewerRole.client) ...[
                         Text(
-                          _viewerRole.incidentTimeDisplayLabel(item.timeLabel),
+                          _viewerRole.incidentReferenceDisplayLabel(
+                            group.referenceLabel,
+                          ),
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF7FA8D5),
+                            color: const Color(0xFFB9D9FF),
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _viewerRole.incidentHeadlineDisplay(
-                        statusLabel: item.statusLabel,
-                        referenceLabel: item.referenceLabel,
-                        headline: item.headline,
-                        detail: item.detail,
-                      ),
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFFE5F1FF),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _viewerRole.incidentDetailDisplay(
-                        statusLabel: item.statusLabel,
-                        referenceLabel: item.referenceLabel,
-                        headline: item.headline,
-                        detail: item.detail,
-                      ),
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF9AB4D8),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildIncidentActionStrip(group, expanded),
-                    if (expanded) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF0B182B), Color(0xFF091423)],
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFF17324F)),
+                        _pill(
+                          _viewerRole.incidentCountLabel(group.entries.length),
+                          const Color(0xFFC9B8FF),
+                          const Color(0xFF6950A8),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: group.entries
-                              .map(_incidentMilestoneLine)
-                              .toList(growable: false),
+                      ] else
+                        _pill(
+                          _viewerRole.incidentReferenceCountDisplayLabel(
+                            group.referenceLabel,
+                            group.entries.length,
+                          ),
+                          const Color(0xFFC9B8FF),
+                          const Color(0xFF6950A8),
+                        ),
+                      if (selected)
+                        _pill(
+                          _viewerRole.selectedIncidentLabel,
+                          const Color(0xFFAEDBFF),
+                          const Color(0xFF4A86C7),
+                        ),
+                      if (expanded)
+                        _pill(
+                          _viewerRole.expandedIncidentLabel,
+                          const Color(0xFFD7CCFF),
+                          const Color(0xFF5F4AA8),
+                        ),
+                      if (focused)
+                        _pill(
+                          _viewerRole.focusedIncidentLabel,
+                          const Color(0xFFD7F0FF),
+                          const Color(0xFF5EA8FF),
+                        ),
+                      Text(
+                        _viewerRole.incidentTimeDisplayLabel(item.timeLabel),
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF7FA8D5),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _viewerRole.incidentHeadlineDisplay(
+                      statusLabel: item.statusLabel,
+                      referenceLabel: item.referenceLabel,
+                      headline: item.headline,
+                      detail: item.detail,
+                    ),
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFE5F1FF),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _viewerRole.incidentDetailDisplay(
+                      statusLabel: item.statusLabel,
+                      referenceLabel: item.referenceLabel,
+                      headline: item.headline,
+                      detail: item.detail,
+                    ),
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF9AB4D8),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildIncidentActionStrip(group, expanded),
+                  if (expanded) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0E1A2B),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF223244)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: group.entries
+                            .map(_incidentMilestoneLine)
+                            .toList(growable: false),
+                      ),
+                    ),
                   ],
-                ),
+                ],
               ),
             ),
-          );
-        },
-        separatorBuilder: (_, _) => const SizedBox(height: 10),
-      ),
+          ),
+        );
+      },
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
     );
+    if (embeddedScroll) {
+      return SizedBox(height: 220, child: list);
+    }
+    return list;
   }
 
   Widget _chatPanel(List<_ClientChatMessage> messages) {
     final visibleMessages = messages.take(_maxChatRows).toList(growable: false);
+    final embeddedThreadScroll = _desktopEmbeddedScroll;
+    final threadList = visibleMessages.isEmpty
+        ? _emptyBox(_viewerRole.chatEmptyLabel)
+        : ListView.separated(
+            itemCount: visibleMessages.length,
+            shrinkWrap: !embeddedThreadScroll,
+            primary: embeddedThreadScroll,
+            physics: embeddedThreadScroll
+                ? null
+                : const NeverScrollableScrollPhysics(),
+            itemBuilder: (context, index) {
+              final message = visibleMessages[index];
+              final highlightedThreadMessage =
+                  message.messageKey == _threadLandingMessageKey;
+              final incomingSystemType = message.outgoing
+                  ? null
+                  : message.systemType;
+              final incomingBubbleFillColor = const Color(0xFF0E1A2B);
+              final incomingBubbleBorderColor =
+                  incomingSystemType?.cardBorderColor ??
+                  const Color(0xFF223244);
+              final incomingBubbleMetaColor =
+                  incomingSystemType?.textColor ?? const Color(0xFF7FA8D5);
+              return Align(
+                alignment: message.outgoing
+                    ? Alignment.centerRight
+                    : Alignment.centerLeft,
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 320),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: message.outgoing
+                        ? (highlightedThreadMessage
+                              ? _threadLandingBubbleFillColor()
+                              : _viewerRole.outgoingBubbleFillColor)
+                        : incomingBubbleFillColor,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: message.outgoing
+                          ? (highlightedThreadMessage
+                                ? _threadLandingBubbleBorderColor()
+                                : _viewerRole.outgoingBubbleBorderColor)
+                          : incomingBubbleBorderColor,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (incomingSystemType != null) ...[
+                        _pill(
+                          incomingSystemType.label,
+                          incomingSystemType.textColor,
+                          incomingSystemType.borderColor,
+                          icon: incomingSystemType.icon,
+                        ),
+                        const SizedBox(height: 6),
+                      ],
+                      Text(
+                        _chatMessageMetaLabel(message),
+                        style: GoogleFonts.inter(
+                          color: message.outgoing
+                              ? (highlightedThreadMessage
+                                    ? _threadLandingBubbleMetaColor()
+                                    : _viewerRole.outgoingBubbleMetaColor)
+                              : incomingBubbleMetaColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        message.body,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFE5F1FF),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (!message.outgoing) ...[
+                        const SizedBox(height: 8),
+                        _acknowledgementControls(
+                          message.messageKey,
+                          message.acknowledgements,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            },
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
+          );
     return Column(
       children: [
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF0D1A2E), Color(0xFF0A1425)],
-            ),
+            color: const Color(0xFF0E1A2B),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFF1D3A61)),
+            border: Border.all(color: const Color(0xFF223244)),
           ),
           child: Text(
             'Room Focus: ${_activeRoomLabel()}',
@@ -1680,99 +1849,14 @@ class _ClientAppPageState extends State<ClientAppPage> {
           ),
         ],
         const SizedBox(height: 12),
-        SizedBox(
-          key: _chatThreadKey,
-          height: 276,
-          child: visibleMessages.isEmpty
-              ? _emptyBox(_viewerRole.chatEmptyLabel)
-              : ListView.separated(
-                  itemCount: visibleMessages.length,
-                  itemBuilder: (context, index) {
-                    final message = visibleMessages[index];
-                    final highlightedThreadMessage =
-                        message.messageKey == _threadLandingMessageKey;
-                    final incomingSystemType = message.outgoing
-                        ? null
-                        : message.systemType;
-                    final incomingBubbleFillColor =
-                        incomingSystemType?.cardFillColor ??
-                        const Color(0xFF0D1B33);
-                    final incomingBubbleBorderColor =
-                        incomingSystemType?.cardBorderColor ??
-                        const Color(0xFF1F416A);
-                    final incomingBubbleMetaColor =
-                        incomingSystemType?.textColor ??
-                        const Color(0xFF7FA8D5);
-                    return Align(
-                      alignment: message.outgoing
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
-                      child: Container(
-                        constraints: const BoxConstraints(maxWidth: 320),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: message.outgoing
-                              ? (highlightedThreadMessage
-                                    ? _threadLandingBubbleFillColor()
-                                    : _viewerRole.outgoingBubbleFillColor)
-                              : incomingBubbleFillColor,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: message.outgoing
-                                ? (highlightedThreadMessage
-                                      ? _threadLandingBubbleBorderColor()
-                                      : _viewerRole.outgoingBubbleBorderColor)
-                                : incomingBubbleBorderColor,
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (incomingSystemType != null) ...[
-                              _pill(
-                                incomingSystemType.label,
-                                incomingSystemType.textColor,
-                                incomingSystemType.borderColor,
-                                icon: incomingSystemType.icon,
-                              ),
-                              const SizedBox(height: 6),
-                            ],
-                            Text(
-                              _chatMessageMetaLabel(message),
-                              style: GoogleFonts.inter(
-                                color: message.outgoing
-                                    ? (highlightedThreadMessage
-                                          ? _threadLandingBubbleMetaColor()
-                                          : _viewerRole.outgoingBubbleMetaColor)
-                                    : incomingBubbleMetaColor,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              message.body,
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFFE5F1FF),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            if (!message.outgoing) ...[
-                              const SizedBox(height: 8),
-                              _acknowledgementControls(
-                                message.messageKey,
-                                message.acknowledgements,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                  separatorBuilder: (_, _) => const SizedBox(height: 10),
-                ),
-        ),
+        if (embeddedThreadScroll)
+          SizedBox(key: _chatThreadKey, height: 276, child: threadList)
+        else
+          SizedBox(
+            key: _chatThreadKey,
+            width: double.infinity,
+            child: threadList,
+          ),
         const SizedBox(height: 12),
         Wrap(
           spacing: 8,
@@ -1784,8 +1868,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
                   onPressed: () => _applyQuickAction(template),
                   style: _compactOutlinedActionStyle(
                     foregroundColor: const Color(0xFFB9D9FF),
-                    sideColor: const Color(0xFF274E7E),
-                    backgroundColor: const Color(0xFF0B182C),
+                    sideColor: const Color(0xFF223244),
+                    backgroundColor: const Color(0xFF0E1A2B),
                   ),
                   child: Text(
                     template,
@@ -1801,45 +1885,47 @@ class _ClientAppPageState extends State<ClientAppPage> {
         const SizedBox(height: 12),
         _manualIncidentTypeSelector(),
         const SizedBox(height: 12),
-        Row(
-          key: _chatComposerKey,
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _chatController,
-                focusNode: _chatFocusNode,
-                style: GoogleFonts.inter(color: const Color(0xFFE5F1FF)),
-                decoration: InputDecoration(
-                  hintText: _viewerRole.chatComposerHintFor(
-                    _selectedRoomFor(_viewerRole),
-                  ),
-                  hintStyle: GoogleFonts.inter(
-                    color: const Color(0xFF6D86AA),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  filled: true,
-                  fillColor: _chatComposerFillColor(),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: _chatComposerBorderColor()),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: _chatComposerBorderColor()),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(
-                      color: _chatComposerFocusedBorderColor(),
-                    ),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final stacked = constraints.maxWidth < 820;
+            final composerField = TextField(
+              controller: _chatController,
+              focusNode: _chatFocusNode,
+              style: GoogleFonts.inter(color: const Color(0xFFE5F1FF)),
+              decoration: InputDecoration(
+                hintText: _viewerRole.chatComposerHintFor(
+                  _selectedRoomFor(_viewerRole),
+                ),
+                hintStyle: GoogleFonts.inter(
+                  color: const Color(0xFF6D86AA),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+                contentPadding: _phoneLayout
+                    ? const EdgeInsets.symmetric(horizontal: 12, vertical: 12)
+                    : const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                filled: true,
+                fillColor: _chatComposerFillColor(),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(color: _chatComposerBorderColor()),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(color: _chatComposerBorderColor()),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(
+                    color: _chatComposerFocusedBorderColor(),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            );
+            final composerActions = Column(
+              crossAxisAlignment: stacked
+                  ? CrossAxisAlignment.start
+                  : CrossAxisAlignment.end,
               children: [
                 _composerStatusBadge(),
                 const SizedBox(height: 8),
@@ -1848,13 +1934,22 @@ class _ClientAppPageState extends State<ClientAppPage> {
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFF1F66FF),
                     foregroundColor: const Color(0xFFEAF3FF),
-                    minimumSize: const Size(0, 38),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: VisualDensity.compact,
+                    minimumSize: Size(0, _phoneLayout ? 44 : 38),
+                    padding: _phoneLayout
+                        ? const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          )
+                        : const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
+                    tapTargetSize: _phoneLayout
+                        ? MaterialTapTargetSize.padded
+                        : MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: _phoneLayout
+                        ? VisualDensity.standard
+                        : VisualDensity.compact,
                     elevation: 0,
                     shadowColor: const Color(0x14000000),
                     shape: RoundedRectangleBorder(
@@ -1867,8 +1962,27 @@ class _ClientAppPageState extends State<ClientAppPage> {
                   ),
                 ),
               ],
-            ),
-          ],
+            );
+            if (stacked) {
+              return Column(
+                key: _chatComposerKey,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  composerField,
+                  const SizedBox(height: 10),
+                  composerActions,
+                ],
+              );
+            }
+            return Row(
+              key: _chatComposerKey,
+              children: [
+                Expanded(child: composerField),
+                const SizedBox(width: 10),
+                composerActions,
+              ],
+            );
+          },
         ),
       ],
     );
@@ -1909,10 +2023,10 @@ class _ClientAppPageState extends State<ClientAppPage> {
                             : const Color(0xFFB9D9FF),
                         sideColor: selected
                             ? type.borderColor
-                            : const Color(0xFF274E7E),
+                            : const Color(0xFF223244),
                         backgroundColor: selected
-                            ? type.cardFillColor
-                            : const Color(0xFF0D1B33),
+                            ? const Color(0xFF11243A)
+                            : const Color(0xFF0E1A2B),
                       ),
                       child: Text(
                         type.label,
@@ -1952,14 +2066,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            type.cardFillColor,
-            type.cardFillColor.withValues(alpha: 0.82),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: const Color(0xFF0E1A2B),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: type.cardBorderColor),
       ),
@@ -2052,13 +2159,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0D1A2E), Color(0xFF0A1425)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: const Color(0xFF0E1A2B),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF1D3A61)),
+        border: Border.all(color: const Color(0xFF223244)),
       ),
       child: Text(
         label,
@@ -2192,9 +2295,13 @@ class _ClientAppPageState extends State<ClientAppPage> {
     return TextButton(
       onPressed: onTap,
       style: TextButton.styleFrom(
-        padding: EdgeInsets.zero,
-        minimumSize: const Size(0, 0),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        padding: _phoneLayout
+            ? const EdgeInsets.symmetric(horizontal: 10, vertical: 8)
+            : EdgeInsets.zero,
+        minimumSize: Size(0, _phoneLayout ? 40 : 0),
+        tapTargetSize: _phoneLayout
+            ? MaterialTapTargetSize.padded
+            : MaterialTapTargetSize.shrinkWrap,
         foregroundColor: const Color(0xFF8FD1FF),
       ),
       child: Text(
@@ -2214,8 +2321,16 @@ class _ClientAppPageState extends State<ClientAppPage> {
         foregroundColor: item.systemType.textColor,
         side: BorderSide(color: item.systemType.borderColor),
         backgroundColor: const Color(0x0AFFFFFF),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        visualDensity: VisualDensity.compact,
+        minimumSize: Size(0, _phoneLayout ? 42 : 36),
+        padding: _phoneLayout
+            ? const EdgeInsets.symmetric(horizontal: 12, vertical: 10)
+            : const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        tapTargetSize: _phoneLayout
+            ? MaterialTapTargetSize.padded
+            : MaterialTapTargetSize.shrinkWrap,
+        visualDensity: _phoneLayout
+            ? VisualDensity.standard
+            : VisualDensity.compact,
       ),
       child: Text(
         label,
@@ -2228,9 +2343,13 @@ class _ClientAppPageState extends State<ClientAppPage> {
     return TextButton(
       onPressed: () => _sendNotificationAction(item),
       style: TextButton.styleFrom(
-        padding: EdgeInsets.zero,
-        minimumSize: const Size(0, 0),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        padding: _phoneLayout
+            ? const EdgeInsets.symmetric(horizontal: 10, vertical: 8)
+            : EdgeInsets.zero,
+        minimumSize: Size(0, _phoneLayout ? 40 : 0),
+        tapTargetSize: _phoneLayout
+            ? MaterialTapTargetSize.padded
+            : MaterialTapTargetSize.shrinkWrap,
         foregroundColor: item.systemType.textColor,
       ),
       child: Text(
@@ -2369,14 +2488,14 @@ class _ClientAppPageState extends State<ClientAppPage> {
 
   Color _chatComposerFillColor() {
     return _showComposerLandingHighlight
-        ? const Color(0xFF13284A)
-        : const Color(0xFF0D1B33);
+        ? const Color(0xFF11243A)
+        : const Color(0xFF0E1A2B);
   }
 
   Color _chatComposerBorderColor() {
     return _showComposerLandingHighlight
         ? const Color(0xFF8FD1FF)
-        : const Color(0xFF1F416A);
+        : const Color(0xFF223244);
   }
 
   Color _chatComposerFocusedBorderColor() {
@@ -2386,7 +2505,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
   }
 
   Color _threadLandingBubbleFillColor() {
-    return const Color(0xFF13284A);
+    return const Color(0xFF11243A);
   }
 
   Color _threadLandingBubbleBorderColor() {
@@ -2403,10 +2522,14 @@ class _ClientAppPageState extends State<ClientAppPage> {
   }) {
     return ButtonStyle(
       padding: WidgetStateProperty.all(
-        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        _phoneLayout
+            ? const EdgeInsets.symmetric(horizontal: 10, vertical: 8)
+            : const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       ),
-      minimumSize: WidgetStateProperty.all(const Size(0, 0)),
-      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      minimumSize: WidgetStateProperty.all(Size(0, _phoneLayout ? 40 : 0)),
+      tapTargetSize: _phoneLayout
+          ? MaterialTapTargetSize.padded
+          : MaterialTapTargetSize.shrinkWrap,
       alignment: Alignment.centerLeft,
       foregroundColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.disabled)) {
@@ -2416,16 +2539,16 @@ class _ClientAppPageState extends State<ClientAppPage> {
       }),
       backgroundColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.disabled)) {
-          return const Color(0x081A3658);
+          return const Color(0x08223244);
         }
         if (states.contains(WidgetState.pressed)) {
           return const Color(0x1A8FD1FF);
         }
         if (states.contains(WidgetState.hovered) ||
             states.contains(WidgetState.focused)) {
-          return const Color(0x142C5078);
+          return const Color(0x14223244);
         }
-        return const Color(0x0F1A3658);
+        return const Color(0x0F223244);
       }),
       overlayColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.disabled)) {
@@ -2433,7 +2556,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
         }
         if (states.contains(WidgetState.hovered) ||
             states.contains(WidgetState.focused)) {
-          return const Color(0x142C5078);
+          return const Color(0x14223244);
         }
         if (states.contains(WidgetState.pressed)) {
           return const Color(0x1A8FD1FF);
@@ -2443,7 +2566,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
       shape: WidgetStateProperty.all(
         RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
-          side: const BorderSide(color: Color(0x33274E7E)),
+          side: const BorderSide(color: Color(0x33223244)),
         ),
       ),
     );
@@ -2458,10 +2581,16 @@ class _ClientAppPageState extends State<ClientAppPage> {
       foregroundColor: foregroundColor,
       side: BorderSide(color: sideColor),
       backgroundColor: backgroundColor,
-      minimumSize: const Size(0, 36),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      visualDensity: VisualDensity.compact,
+      minimumSize: Size(0, _phoneLayout ? 44 : 36),
+      padding: _phoneLayout
+          ? const EdgeInsets.symmetric(horizontal: 14, vertical: 11)
+          : const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      tapTargetSize: _phoneLayout
+          ? MaterialTapTargetSize.padded
+          : MaterialTapTargetSize.shrinkWrap,
+      visualDensity: _phoneLayout
+          ? VisualDensity.standard
+          : VisualDensity.compact,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       elevation: 0,
       shadowColor: const Color(0x10000000),
@@ -2474,7 +2603,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
       builder: (context) {
         final latest = group.latestEntry;
         return AlertDialog(
-          backgroundColor: const Color(0xFF081325),
+          backgroundColor: const Color(0xFF0E1A2B),
           title: Text(
             _viewerRole.incidentDetailTitle,
             style: GoogleFonts.inter(
@@ -2582,9 +2711,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF0D1B33),
+        color: const Color(0xFF0E1A2B),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF1F416A)),
+        border: Border.all(color: const Color(0xFF223244)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2661,9 +2790,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFF0A1630),
+        color: const Color(0xFF0E1A2B),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFF1F416A)),
+        border: Border.all(color: const Color(0xFF223244)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -2688,7 +2817,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             width: 1,
             height: 14,
             margin: const EdgeInsets.symmetric(horizontal: 2),
-            color: const Color(0xFF1F416A),
+            color: const Color(0xFF223244),
           ),
           TextButton(
             onPressed: () => _showIncidentFeedDetail(group),
@@ -2717,7 +2846,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
     required bool focused,
   }) {
     if (_viewerRole == ClientAppViewerRole.client) {
-      return const Color(0xFF1F416A);
+      return const Color(0xFF223244);
     }
     if (focused) {
       return const Color(0xFF5EA8FF);
@@ -2728,7 +2857,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
     if (expanded) {
       return const Color(0xFF35679B);
     }
-    return const Color(0xFF1F416A);
+    return const Color(0xFF223244);
   }
 
   String _threadJumpedLabel() {
@@ -4570,7 +4699,7 @@ enum _ClientSystemMessageType {
     Icons.flash_on_rounded,
     Color(0xFFB9D9FF),
     Color(0xFF2A5D91),
-    Color(0xFF10233D),
+    Color(0xFF0E1A2B),
     Color(0xFF2F5F94),
     Color(0xFF8A3D4A),
   ),
@@ -4579,7 +4708,7 @@ enum _ClientSystemMessageType {
     Icons.campaign_rounded,
     Color(0xFFFFD9A8),
     Color(0xFF8A5A1C),
-    Color(0xFF241A0D),
+    Color(0xFF0E1A2B),
     Color(0xFF8A5A1C),
     Color(0xFFA85A1F),
   ),
@@ -4588,7 +4717,7 @@ enum _ClientSystemMessageType {
     Icons.check_circle_rounded,
     Color(0xFFBFF0C8),
     Color(0xFF2E7D4E),
-    Color(0xFF102017),
+    Color(0xFF0E1A2B),
     Color(0xFF2E7D4E),
     Color(0xFF2E7D4E),
   ),
@@ -4597,7 +4726,7 @@ enum _ClientSystemMessageType {
     Icons.sync_rounded,
     Color(0xFFD6CBFF),
     Color(0xFF6352A3),
-    Color(0xFF171325),
+    Color(0xFF0E1A2B),
     Color(0xFF6352A3),
     Color(0xFF7D57C5),
   );
@@ -5350,11 +5479,7 @@ enum ClientAppViewerRole {
   }
 
   Color get outgoingBubbleFillColor {
-    return switch (this) {
-      ClientAppViewerRole.client => const Color(0xFF123156),
-      ClientAppViewerRole.control => const Color(0xFF173021),
-      ClientAppViewerRole.resident => const Color(0xFF3B2416),
-    };
+    return const Color(0xFF0E1A2B);
   }
 
   Color get outgoingBubbleBorderColor {

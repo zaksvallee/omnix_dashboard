@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/domain/events/decision_created.dart';
+import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/domain/events/response_arrived.dart';
 import 'package:omnix_dashboard/ui/client_app_page.dart';
@@ -35,10 +36,11 @@ void main() {
 
     for (final locale in [ClientAppLocale.zu, ClientAppLocale.af]) {
       final configuredKeys = ClientAppLocaleText.generalKeysForLocale(locale);
-      final missing = usedGeneralKeys
-          .where((key) => !configuredKeys.contains(key))
-          .toList(growable: false)
-        ..sort();
+      final missing =
+          usedGeneralKeys
+              .where((key) => !configuredKeys.contains(key))
+              .toList(growable: false)
+            ..sort();
       expect(
         missing,
         isEmpty,
@@ -61,10 +63,11 @@ void main() {
     final expectedRoles = ClientAppViewerRole.values.toSet();
     for (final locale in [ClientAppLocale.zu, ClientAppLocale.af]) {
       final configuredRoleKeys = ClientAppLocaleText.roleKeysForLocale(locale);
-      final missingKeys = usedRoleKeys
-          .where((key) => !configuredRoleKeys.contains(key))
-          .toList(growable: false)
-        ..sort();
+      final missingKeys =
+          usedRoleKeys
+              .where((key) => !configuredRoleKeys.contains(key))
+              .toList(growable: false)
+            ..sort();
       expect(
         missingKeys,
         isEmpty,
@@ -77,11 +80,12 @@ void main() {
           locale,
           key,
         );
-        final missingRoles = expectedRoles
-            .where((role) => !configuredRoles.contains(role))
-            .map((role) => role.name)
-            .toList(growable: false)
-          ..sort();
+        final missingRoles =
+            expectedRoles
+                .where((role) => !configuredRoles.contains(role))
+                .map((role) => role.name)
+                .toList(growable: false)
+              ..sort();
         expect(
           missingRoles,
           isEmpty,
@@ -90,6 +94,48 @@ void main() {
         );
       }
     }
+  });
+
+  testWidgets('client app page stays stable on phone viewport', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: ClientAppPage(
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          events: <DispatchEvent>[],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Client Ops App —'), findsOneWidget);
+    expect(find.text('Push Notifications'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('client app page stays stable on landscape phone viewport', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(844, 390));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: ClientAppPage(
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          events: <DispatchEvent>[],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Client Ops App —'), findsOneWidget);
+    expect(find.text('Push Notifications'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('client app page shows client comms surfaces', (tester) async {
@@ -203,7 +249,7 @@ void main() {
     expect(find.text('Dispatch'), findsWidgets);
     expect(find.text('Tap to collapse'), findsOneWidget);
     expect(find.text('Opened • 10:20 UTC'), findsOneWidget);
-    await tester.tap(find.widgetWithText(TextButton, 'Open Incident'));
+    await tester.tap(find.widgetWithText(TextButton, 'Open Incident').first);
     await tester.pumpAndSettle();
     expect(find.text('Incident Detail'), findsOneWidget);
     expect(richDetailLine('Reference: DISP-001'), findsOneWidget);
@@ -287,7 +333,7 @@ void main() {
       clientComposer.controller?.text,
       'Please share the latest ETA for dispatch created in Residents.',
     );
-    expect(clientComposer.decoration?.fillColor, const Color(0xFF13284A));
+    expect(clientComposer.decoration?.fillColor, const Color(0xFF11243A));
     expect(
       (clientComposer.decoration?.enabledBorder as OutlineInputBorder)
           .borderSide
@@ -762,7 +808,7 @@ void main() {
       controlComposer.controller?.text,
       'Control reviewing dispatch response for Resident Feed.',
     );
-    expect(controlComposer.decoration?.fillColor, const Color(0xFF13284A));
+    expect(controlComposer.decoration?.fillColor, const Color(0xFF11243A));
     await tester.pump(const Duration(milliseconds: 950));
     final deskOpsRoomTile = find.ancestor(
       of: find.text('Desk Ops').first,
@@ -1231,7 +1277,7 @@ void main() {
         .map((container) => container.decoration)
         .whereType<BoxDecoration>();
     final controlIncidentDecoration = controlIncidentDecorations.firstWhere(
-      (decoration) => decoration.color == const Color(0xFF0D1B33),
+      (decoration) => decoration.color == const Color(0xFF0E1A2B),
     );
     expect(
       (controlIncidentDecoration.border! as Border).top.color,

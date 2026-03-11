@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../infrastructure/intelligence/news_intelligence_service.dart';
 import '../domain/guard/guard_mobile_ops.dart';
+import 'radio_bridge_service.dart';
 import '../ui/client_app_page.dart';
 import '../ui/dispatch_models.dart';
 
@@ -14,6 +15,21 @@ class DispatchPersistenceService {
   static const livePollSummaryKey = 'onyx_dispatch_live_poll_summary_v1';
   static const newsSourceDiagnosticsKey =
       'onyx_dispatch_news_source_diagnostics_v1';
+  static const radioIntentPhrasesJsonKey = 'onyx_radio_intent_phrases_json_v1';
+  static const pendingRadioAutomatedResponsesKey =
+      'onyx_pending_radio_automated_responses_v1';
+  static const pendingRadioAutomatedResponsesRetryStateKey =
+      'onyx_pending_radio_automated_responses_retry_state_v1';
+  static const pendingRadioQueueManualActionDetailKey =
+      'onyx_pending_radio_queue_manual_action_detail_v1';
+  static const pendingRadioQueueFailureSnapshotKey =
+      'onyx_pending_radio_queue_failure_snapshot_v1';
+  static const pendingRadioQueueFailureAuditDetailKey =
+      'onyx_pending_radio_queue_failure_audit_detail_v1';
+  static const pendingRadioQueueStateChangeDetailKey =
+      'onyx_pending_radio_queue_state_change_detail_v1';
+  static const opsIntegrationHealthSnapshotKey =
+      'onyx_ops_integration_health_snapshot_v1';
   static const clientAppDraftKey = 'onyx_client_app_draft_v1';
   static const clientAppMessagesKey = 'onyx_client_app_messages_v1';
   static const clientAppAcknowledgementsKey = 'onyx_client_app_acks_v1';
@@ -39,6 +55,9 @@ class DispatchPersistenceService {
   static const guardSyncReportAuditKey = 'onyx_guard_sync_report_audit_v1';
   static const guardExportAuditClearMetaKey =
       'onyx_guard_export_audit_clear_meta_v1';
+  static const morningSovereignReportKey = 'onyx_morning_sovereign_report_v1';
+  static const morningSovereignReportAutoRunKey =
+      'onyx_morning_sovereign_report_auto_run_key_v1';
 
   final SharedPreferences prefs;
 
@@ -153,6 +172,200 @@ class DispatchPersistenceService {
 
   Future<void> clearNewsSourceDiagnostics() async {
     await prefs.remove(newsSourceDiagnosticsKey);
+  }
+
+  Future<String?> readRadioIntentPhrasesJson() async {
+    final raw = prefs.getString(radioIntentPhrasesJsonKey);
+    if (raw == null || raw.trim().isEmpty) return null;
+    return raw.trim();
+  }
+
+  Future<void> saveRadioIntentPhrasesJson(String rawJson) async {
+    await prefs.setString(radioIntentPhrasesJsonKey, rawJson.trim());
+  }
+
+  Future<void> clearRadioIntentPhrasesJson() async {
+    await prefs.remove(radioIntentPhrasesJsonKey);
+  }
+
+  Future<List<RadioAutomatedResponse>>
+  readPendingRadioAutomatedResponses() async {
+    final raw = prefs.getString(pendingRadioAutomatedResponsesKey);
+    if (raw == null || raw.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return const [];
+      return decoded
+          .whereType<Map>()
+          .map(
+            (entry) => RadioAutomatedResponse.fromJson(
+              entry.map(
+                (key, value) => MapEntry(key.toString(), value as Object?),
+              ),
+            ),
+          )
+          .where(
+            (entry) =>
+                entry.transmissionId.trim().isNotEmpty &&
+                entry.message.trim().isNotEmpty,
+          )
+          .toList(growable: false);
+    } catch (_) {
+      await clearPendingRadioAutomatedResponses();
+      return const [];
+    }
+  }
+
+  Future<void> savePendingRadioAutomatedResponses(
+    List<RadioAutomatedResponse> responses,
+  ) async {
+    await prefs.setString(
+      pendingRadioAutomatedResponsesKey,
+      jsonEncode(responses.map((entry) => entry.toJson()).toList()),
+    );
+  }
+
+  Future<void> clearPendingRadioAutomatedResponses() async {
+    await prefs.remove(pendingRadioAutomatedResponsesKey);
+  }
+
+  Future<Map<String, Map<String, Object?>>>
+  readPendingRadioAutomatedResponsesRetryState() async {
+    final raw = prefs.getString(pendingRadioAutomatedResponsesRetryStateKey);
+    if (raw == null || raw.isEmpty) return const {};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return const {};
+      final parsed = <String, Map<String, Object?>>{};
+      decoded.forEach((key, value) {
+        if (value is! Map) return;
+        parsed[key.toString()] = value.map(
+          (entryKey, entryValue) =>
+              MapEntry(entryKey.toString(), entryValue as Object?),
+        );
+      });
+      return parsed;
+    } catch (_) {
+      await clearPendingRadioAutomatedResponsesRetryState();
+      return const {};
+    }
+  }
+
+  Future<void> savePendingRadioAutomatedResponsesRetryState(
+    Map<String, Map<String, Object?>> retryStateByResponseKey,
+  ) async {
+    await prefs.setString(
+      pendingRadioAutomatedResponsesRetryStateKey,
+      jsonEncode(retryStateByResponseKey),
+    );
+  }
+
+  Future<void> clearPendingRadioAutomatedResponsesRetryState() async {
+    await prefs.remove(pendingRadioAutomatedResponsesRetryStateKey);
+  }
+
+  Future<String?> readPendingRadioQueueManualActionDetail() async {
+    final raw = prefs.getString(pendingRadioQueueManualActionDetailKey);
+    if (raw == null || raw.trim().isEmpty) return null;
+    return raw.trim();
+  }
+
+  Future<void> savePendingRadioQueueManualActionDetail(String detail) async {
+    final normalized = detail.trim();
+    if (normalized.isEmpty) {
+      await clearPendingRadioQueueManualActionDetail();
+      return;
+    }
+    await prefs.setString(pendingRadioQueueManualActionDetailKey, normalized);
+  }
+
+  Future<void> clearPendingRadioQueueManualActionDetail() async {
+    await prefs.remove(pendingRadioQueueManualActionDetailKey);
+  }
+
+  Future<String?> readPendingRadioQueueFailureSnapshot() async {
+    final raw = prefs.getString(pendingRadioQueueFailureSnapshotKey);
+    if (raw == null || raw.trim().isEmpty) return null;
+    return raw.trim();
+  }
+
+  Future<void> savePendingRadioQueueFailureSnapshot(String detail) async {
+    final normalized = detail.trim();
+    if (normalized.isEmpty) {
+      await clearPendingRadioQueueFailureSnapshot();
+      return;
+    }
+    await prefs.setString(pendingRadioQueueFailureSnapshotKey, normalized);
+  }
+
+  Future<void> clearPendingRadioQueueFailureSnapshot() async {
+    await prefs.remove(pendingRadioQueueFailureSnapshotKey);
+  }
+
+  Future<String?> readPendingRadioQueueFailureAuditDetail() async {
+    final raw = prefs.getString(pendingRadioQueueFailureAuditDetailKey);
+    if (raw == null || raw.trim().isEmpty) return null;
+    return raw.trim();
+  }
+
+  Future<void> savePendingRadioQueueFailureAuditDetail(String detail) async {
+    final normalized = detail.trim();
+    if (normalized.isEmpty) {
+      await clearPendingRadioQueueFailureAuditDetail();
+      return;
+    }
+    await prefs.setString(pendingRadioQueueFailureAuditDetailKey, normalized);
+  }
+
+  Future<void> clearPendingRadioQueueFailureAuditDetail() async {
+    await prefs.remove(pendingRadioQueueFailureAuditDetailKey);
+  }
+
+  Future<String?> readPendingRadioQueueStateChangeDetail() async {
+    final raw = prefs.getString(pendingRadioQueueStateChangeDetailKey);
+    if (raw == null || raw.trim().isEmpty) return null;
+    return raw.trim();
+  }
+
+  Future<void> savePendingRadioQueueStateChangeDetail(String detail) async {
+    final normalized = detail.trim();
+    if (normalized.isEmpty) {
+      await clearPendingRadioQueueStateChangeDetail();
+      return;
+    }
+    await prefs.setString(pendingRadioQueueStateChangeDetailKey, normalized);
+  }
+
+  Future<void> clearPendingRadioQueueStateChangeDetail() async {
+    await prefs.remove(pendingRadioQueueStateChangeDetailKey);
+  }
+
+  Future<Map<String, Object?>> readOpsIntegrationHealthSnapshot() async {
+    final raw = prefs.getString(opsIntegrationHealthSnapshotKey);
+    if (raw == null || raw.isEmpty) return const {};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return const {};
+      return decoded.map(
+        (key, value) => MapEntry(key.toString(), value as Object?),
+      );
+    } catch (_) {
+      await clearOpsIntegrationHealthSnapshot();
+      return const {};
+    }
+  }
+
+  Future<void> saveOpsIntegrationHealthSnapshot(
+    Map<String, Object?> snapshot,
+  ) async {
+    await prefs.setString(
+      opsIntegrationHealthSnapshotKey,
+      jsonEncode(snapshot),
+    );
+  }
+
+  Future<void> clearOpsIntegrationHealthSnapshot() async {
+    await prefs.remove(opsIntegrationHealthSnapshotKey);
   }
 
   Future<ClientAppDraft?> readClientAppDraft() async {
@@ -639,6 +852,43 @@ class DispatchPersistenceService {
 
   Future<void> clearGuardExportAuditClearMeta() async {
     await prefs.remove(guardExportAuditClearMetaKey);
+  }
+
+  Future<Map<String, Object?>> readMorningSovereignReport() async {
+    final raw = prefs.getString(morningSovereignReportKey);
+    if (raw == null || raw.isEmpty) return const {};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return const {};
+      return decoded.map(
+        (key, value) => MapEntry(key.toString(), value as Object?),
+      );
+    } catch (_) {
+      await clearMorningSovereignReport();
+      return const {};
+    }
+  }
+
+  Future<void> saveMorningSovereignReport(Map<String, Object?> report) async {
+    await prefs.setString(morningSovereignReportKey, jsonEncode(report));
+  }
+
+  Future<void> clearMorningSovereignReport() async {
+    await prefs.remove(morningSovereignReportKey);
+  }
+
+  Future<String?> readMorningSovereignReportAutoRunKey() async {
+    final raw = prefs.getString(morningSovereignReportAutoRunKey);
+    if (raw == null || raw.trim().isEmpty) return null;
+    return raw.trim();
+  }
+
+  Future<void> saveMorningSovereignReportAutoRunKey(String key) async {
+    await prefs.setString(morningSovereignReportAutoRunKey, key.trim());
+  }
+
+  Future<void> clearMorningSovereignReportAutoRunKey() async {
+    await prefs.remove(morningSovereignReportAutoRunKey);
   }
 
   Future<DispatchProfileDraft?> readStressProfile() async {

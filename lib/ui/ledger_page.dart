@@ -15,6 +15,7 @@ import '../domain/events/incident_closed.dart';
 import '../domain/events/patrol_completed.dart';
 import '../domain/events/report_generated.dart';
 import '../domain/events/response_arrived.dart';
+import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 
 class LedgerPage extends StatefulWidget {
@@ -230,14 +231,7 @@ class _LedgerPageState extends State<LedgerPage> {
                         ),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(14),
-                          gradient: LinearGradient(
-                            colors: [
-                              const Color(0xFFB18A2A).withValues(alpha: 0.16),
-                              const Color(0xFF0B182B),
-                            ],
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                          ),
+                          color: const Color(0xFF0E1A2B),
                           border: Border.all(color: const Color(0xFFF0C36C)),
                         ),
                         child: Text(
@@ -258,17 +252,7 @@ class _LedgerPageState extends State<LedgerPage> {
                         ),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(14),
-                          gradient: LinearGradient(
-                            colors: [
-                              (_verificationResult!.contains('VERIFIED')
-                                      ? const Color(0xFF2AAC7D)
-                                      : const Color(0xFFD05667))
-                                  .withValues(alpha: 0.16),
-                              const Color(0xFF0B182B),
-                            ],
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                          ),
+                          color: const Color(0xFF0E1A2B),
                           border: Border.all(
                             color: _verificationResult!.contains('VERIFIED')
                                 ? const Color(0xFF46DBA2)
@@ -293,22 +277,31 @@ class _LedgerPageState extends State<LedgerPage> {
                           'Review evidence continuity, hashes, and fallback trace rows in one audit surface.',
                       child: LayoutBuilder(
                         builder: (context, constraints) {
+                          final embeddedTimelineScroll =
+                              constraints.maxWidth >= 1280 &&
+                              allowEmbeddedPanelScroll(context);
                           final timelineHeight = constraints.maxWidth >= 1280
                               ? 460.0
                               : 390.0;
+                          final timeline = showSupabaseRows
+                              ? _buildSupabaseLedger(
+                                  visibleRows: rowCount,
+                                  hiddenRows: hiddenRows,
+                                  totalRows: totalRows,
+                                  embeddedScroll: embeddedTimelineScroll,
+                                )
+                              : _buildFallbackTimeline(
+                                  visibleRows: rowCount,
+                                  hiddenRows: hiddenRows,
+                                  totalRows: totalRows,
+                                  embeddedScroll: embeddedTimelineScroll,
+                                );
+                          if (!embeddedTimelineScroll) {
+                            return timeline;
+                          }
                           return SizedBox(
                             height: timelineHeight,
-                            child: showSupabaseRows
-                                ? _buildSupabaseLedger(
-                                    visibleRows: rowCount,
-                                    hiddenRows: hiddenRows,
-                                    totalRows: totalRows,
-                                  )
-                                : _buildFallbackTimeline(
-                                    visibleRows: rowCount,
-                                    hiddenRows: hiddenRows,
-                                    totalRows: totalRows,
-                                  ),
+                            child: timeline,
                           );
                         },
                       ),
@@ -327,10 +320,14 @@ class _LedgerPageState extends State<LedgerPage> {
     required int visibleRows,
     required int hiddenRows,
     required int totalRows,
+    required bool embeddedScroll,
   }) {
     final visible = _rows.take(visibleRows).toList(growable: false);
     return ListView.separated(
       itemCount: visible.length + (hiddenRows > 0 ? 1 : 0),
+      shrinkWrap: !embeddedScroll,
+      primary: embeddedScroll,
+      physics: embeddedScroll ? null : const NeverScrollableScrollPhysics(),
       separatorBuilder: (context, index) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         if (hiddenRows > 0 && index == visible.length) {
@@ -393,6 +390,7 @@ class _LedgerPageState extends State<LedgerPage> {
     required int visibleRows,
     required int hiddenRows,
     required int totalRows,
+    required bool embeddedScroll,
   }) {
     if (_fallbackRows.isEmpty) {
       return Center(
@@ -406,6 +404,9 @@ class _LedgerPageState extends State<LedgerPage> {
     final visible = _fallbackRows.take(visibleRows).toList(growable: false);
     return ListView.separated(
       itemCount: visible.length + (hiddenRows > 0 ? 1 : 0),
+      shrinkWrap: !embeddedScroll,
+      primary: embeddedScroll,
+      physics: embeddedScroll ? null : const NeverScrollableScrollPhysics(),
       separatorBuilder: (context, index) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         if (hiddenRows > 0 && index == visible.length) {
@@ -533,18 +534,14 @@ class _LedgerPageState extends State<LedgerPage> {
 
   BoxDecoration _timelineRowDecoration() {
     return BoxDecoration(
-      gradient: const LinearGradient(
-        colors: [Color(0xFF0C1A2D), Color(0xFF0B1C33)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
+      color: const Color(0xFF0E1A2B),
       borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: const Color(0xFF1A3A60)),
+      border: Border.all(color: const Color(0xFF223244)),
       boxShadow: const [
         BoxShadow(
-          color: Color(0x12000000),
+          color: Color(0x10000000),
           blurRadius: 8,
-          offset: Offset(0, 4),
+          offset: Offset(0, 3),
         ),
       ],
     );

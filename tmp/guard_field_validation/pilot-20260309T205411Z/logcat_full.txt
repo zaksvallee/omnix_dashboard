@@ -1,0 +1,154 @@
+--------- beginning of main
+03-09 22:54:14.181  1380  9072 I ActivityManager: Broadcasting: Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }
+--------- beginning of system
+03-09 22:54:14.182  1380  9072 I ActivityManager: Enqueued broadcast Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }: 0
+03-09 22:54:14.182  1380  1404 I ActivityManager: Broadcast completed: result=0
+03-09 22:54:14.526  1380  9072 I ActivityManager: Killing 24755:com.android.traceur/u0a107 (adj 975): empty #17
+03-09 22:54:14.527  1380  9072 W ProcessStats: Tracking association SourceState{1aec1d1 com.google.android.gms/10146 BTop #33243} whose proc state 2 is better than process ProcessState{eb1ecae com.google.android.gms.persistent/10146 pkg=com.google.android.gms (sub)} proc state 4 (156 skipped)
+03-09 22:54:14.528  1380  1418 I libprocessgroup: Successfully killed process cgroup uid 10107 pid 24755 in 0ms
+03-09 22:54:14.547   720   720 I Zygote  : Process 24755 exited due to signal 9 (Killed)
+03-09 22:54:14.548   718   724 W statsd  : StateTracker not found for state atom 29
+03-09 22:54:14.549  1380  5971 I mtkpower_client: [Legacy][PowerHal_Wrap_notifyAppState] com.android.traceur/com.android.traceur pid=24755 state:3
+03-09 22:54:14.550   746   850 I libPowerHal: [perfNotifyAppState] pack:com.android.traceur, act:com.android.traceur, state:3, pid:24755, uid:10107, fps:60
+03-09 22:54:14.550   746   850 I libPowerHal: [perfNotifyAppState] pack:com.android.traceur, pid:24755, STATE_DEAD
+03-09 22:54:14.551  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:14.553  1380  1405 E MBrainLocalService: MBrainJava launch failed: SecurityException
+03-09 22:54:14.553  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:14.553  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:14.553  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:14.553  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:14.553  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:14.553  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:14.553  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:14.553  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:14.553  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:14.553  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:14.553  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:14.553  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:14.553  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:14.553  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:14.553  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:14.621  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:15.283  1380  5971 I ActivityManager: Broadcasting: Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }
+03-09 22:54:15.285  1380  1404 I ActivityManager: Broadcast completed: result=0
+03-09 22:54:15.285  1380  5971 I ActivityManager: Enqueued broadcast Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }: 0
+03-09 22:54:16.388  1380  5971 I ActivityManager: Broadcasting: Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }
+03-09 22:54:16.389  1380  1404 I ActivityManager: Broadcast completed: result=0
+03-09 22:54:16.389  1380  5971 I ActivityManager: Enqueued broadcast Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }: 0
+03-09 22:54:16.520 25187 25187 I Choreographer: Skipped 540 frames!  The application may be doing too much work on its main thread.
+03-09 22:54:16.641  1576  1576 I WifiHAL : Get link layer stats
+03-09 22:54:16.641  1576  1576 I WifiHAL : GetLinkStatsCommand::create
+03-09 22:54:16.641  1576  1576 I android.hardware.wifi@1.0-service-lazy: WifiCommand::requestResponse err=-14
+03-09 22:54:16.641  1576  1576 I WifiHAL : wifi_get_link_stats: result=-1
+03-09 22:54:16.642  1380  1510 E WifiStaIfaceHidlImpl: getLinkLayerStatsV1_5 failed with status: {.code = ERROR_UNKNOWN, .description = unknown}
+03-09 22:54:16.711   755   878 E BufferQueueDebug: [com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity#1965](this:0xb40000757681cf28,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity#1965'
+03-09 22:54:16.711   755   878 I BufferQueueDebug: [com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity#1965](this:0xb40000757681cf28,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 22:54:16.714  1380  5971 W WindowManager: Changing focus from null to Window{920caf4 u0 com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity} displayId=0 Callers=com.android.server.wm.RootWindowContainer.updateFocusedWindowLocked:455 com.android.server.wm.WindowManagerService.updateFocusedWindowLocked:6224 com.android.server.wm.WindowManagerService.relayoutWindow:2525 com.android.server.wm.Session.relayout:259 
+03-09 22:54:16.715   755   878 E BufferQueueDebug: [Surface(name=644a4 NavigationBar0)/@0x28bd233 - animation-leash of insets_animation#1966](this:0xb400007576809038,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'Surface(name=644a4 NavigationBar0)/@0x28bd233 - animation-leash of insets_animation#1966'
+03-09 22:54:16.715   755   878 I BufferQueueDebug: [Surface(name=644a4 NavigationBar0)/@0x28bd233 - animation-leash of insets_animation#1966](this:0xb400007576809038,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 22:54:16.716   755   878 E BufferQueueDebug: [Surface(name=cf97a2a StatusBar)/@0x60639f0 - animation-leash of insets_animation#1967](this:0xb400007576830e18,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'Surface(name=cf97a2a StatusBar)/@0x60639f0 - animation-leash of insets_animation#1967'
+03-09 22:54:16.717   755   878 I BufferQueueDebug: [Surface(name=cf97a2a StatusBar)/@0x60639f0 - animation-leash of insets_animation#1967](this:0xb400007576830e18,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 22:54:16.718  1380  5971 I WindowManager: Relayout Window{920caf4 u0 com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity}: oldVis=4 newVis=0 focusMayChange = true requestedWidth = 720 requestedHeight = 1560 outFrames = ClientWindowFrames{frame=[0,0][720,1560] display=[0,0][720,1560] parentFrame=[0,0][0,0]} outSurfaceControl = Surface(name=com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity)/@0xb6a6390
+03-09 22:54:16.726   733  1085 I hwcomposer: [HWCDisplay] [Display_0 (type:1)] fps:0.354174,dur:5646.94,max:5629.63,min:17.31  
+03-09 22:54:16.727   755   878 W ServiceManagerCppClient: Permission failure: android.permission.ROTATE_SURFACE_FLINGER from uid=10212 pid=0
+03-09 22:54:16.728   755   878 W ServiceManagerCppClient: Permission failure: android.permission.INTERNAL_SYSTEM_WINDOW from uid=10212 pid=0
+03-09 22:54:16.729   755   878 W ServiceManagerCppClient: Permission failure: android.permission.ACCESS_SURFACE_FLINGER from uid=10212 pid=0
+03-09 22:54:16.729 25187 25187 E FBI     : Can't load library: dlopen failed: library "libmagtsync.so" not found
+03-09 22:54:16.747   755   878 E HWComposer: getSupportedContentTypes: getSupportedContentTypes failed for display 0: Unsupported (8)
+03-09 22:54:16.748 25187 25214 E OpenGLRenderer: Unable to match the desired swap behavior.
+03-09 22:54:16.750   755   878 E BufferQueueDebug: [Bounds for - com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity#1968](this:0xb40000757687aeb8,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'Bounds for - com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity#1968'
+03-09 22:54:16.751   755   878 I BufferQueueDebug: [Bounds for - com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity#1968](this:0xb40000757687aeb8,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 22:54:16.752   755   878 E BufferQueueDebug: [SurfaceView[com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity]#1969](this:0xb400007576814678,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'SurfaceView[com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity]#1969'
+03-09 22:54:16.753   755   878 I BufferQueueDebug: [SurfaceView[com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity]#1969](this:0xb400007576814678,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 22:54:16.753   755   878 E BufferQueueDebug: [SurfaceView[com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity](BLAST)#1970](this:0xb400007576803518,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'SurfaceView[com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity](BLAST)#1970'
+03-09 22:54:16.754   755   878 I BufferQueueDebug: [SurfaceView[com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity](BLAST)#1970](this:0xb400007576803518,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 22:54:16.754   755   878 E BufferQueueDebug: [Background for SurfaceView[com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity]#1971](this:0xb4000075767bc208,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'Background for SurfaceView[com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity]#1971'
+03-09 22:54:16.754   755   878 I BufferQueueDebug: [Background for SurfaceView[com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity]#1971](this:0xb4000075767bc208,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 22:54:16.756   755   755 I BufferQueueDebug: [Surface(name=644a4 NavigationBar0)/@0x28bd233 - animation-leash of insets_animation#1960](this:0xb4000075768257d8,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 22:54:16.756   755   755 I BufferQueueDebug: [Surface(name=cf97a2a StatusBar)/@0x60639f0 - animation-leash of insets_animation#1961](this:0xb40000757682b2f8,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 22:54:16.765 25187 25220 E ion     : ioctl c0044901 failed with code -1: Invalid argument
+03-09 22:54:16.766 25187 25220 W libc    : Access denied finding property "ro.vendor.mbrain.mode"
+03-09 22:54:16.852  1380  1407 W ActivityTaskManager: Launch timeout has expired, giving up wake lock!
+03-09 22:54:16.864   746   850 I mtkpower@impl: [powerd_req] TIMER_MSG_PERF_LOCK_TIMEOUT hdl:1501
+03-09 22:54:16.864   746   850 I libPowerHal: [perfLockRel] hdl:1501, idx:1
+03-09 22:54:16.877   746   850 I mtkpower@impl: [powerd_req] TIMER_MSG_PERF_LOCK_TIMEOUT hdl:1502
+03-09 22:54:16.878   746   850 I libPowerHal: [perfLockRel] hdl:1502, idx:2
+03-09 22:54:16.878   746   850 I libPowerHal: [PD] MTKPOWER_HINT_PROCESS_CREATE update cmd:2020000 param:1
+03-09 22:54:17.033   746   792 I mtkpower@impl: [setMode] type:5, enabled:0
+03-09 22:54:17.033  1380  1407 W ActivityTaskManager: Request to remove task ignored for non-existent task 32
+03-09 22:54:17.033   746   850 I libPowerHal: [perfLockRel] hdl:1500, idx:0
+03-09 22:54:17.033  1380  1407 I PowerHalWrapper: amsBoostNotify pid:2002,activity:com.android.searchlauncher.SearchLauncher, package:com.blackview.launcher, mProcessCreatePackcom.example.omnix_dashboard 
+03-09 22:54:17.033  1380  1407 I PowerHalWrapper: state: 0 
+03-09 22:54:17.034   746   850 I libPowerHal: LAUNCH: cpu_ctrl set cpu freq: -1 -1 -1 -1
+03-09 22:54:17.034   746   850 I libPowerHal: [PD] LAUNCH update cmd:1000000, param:-1
+03-09 22:54:17.034   746   850 I libPowerHal: [PD] LAUNCH update cmd:1408300 param:0
+03-09 22:54:17.034  1380  1407 I mtkpower_client: [Legacy][PowerHal_Wrap_notifyAppState] com.blackview.launcher/com.android.searchlauncher.SearchLauncher pid=2002 state:0
+03-09 22:54:17.035  1380  1407 I PowerHalWrapper: amsBoostNotify AMS_BOOST_PROCESS_CREATE_BOOST:true 
+03-09 22:54:17.035   746   850 I libPowerHal: [PD] LAUNCH update cmd:1000000 param:-1
+03-09 22:54:17.035   746   850 I libPowerHal: [perfNotifyAppState] pack:com.blackview.launcher, act:com.android.searchlauncher.SearchLauncher, state:0, pid:2002, uid:10172, fps:60
+03-09 22:54:17.037  2002  2989 I GED     : ged_boost_gpu_freq, level 100, eOrigin 2, final_idx 2, oppidx_max 2, oppidx_min 0
+03-09 22:54:17.038   718   724 W statsd  : StateTracker not found for state atom 29
+03-09 22:54:17.039   718   724 W statsd  : StateTracker not found for state atom 29
+03-09 22:54:17.039   718   724 W statsd  : StateTracker not found for state atom 29
+03-09 22:54:17.040  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:17.041  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:17.041  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:17.041  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:17.041  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:17.045  1380  4998 I ActivityManager: Killing 20427:com.google.android.apps.messaging/u0a134 (adj 915): empty #17
+03-09 22:54:17.050  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:17.050  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:17.052 22840 22840 I A       : onStop
+03-09 22:54:17.058  2002  2042 I ImeTracker: com.blackview.launcher:811ffba7: onRequestHide at ORIGIN_CLIENT_HIDE_SOFT_INPUT reason HIDE_SOFT_INPUT
+03-09 22:54:17.059  1380  5975 I ImeTracker: com.blackview.launcher:811ffba7: onCancelled at PHASE_SERVER_SHOULD_HIDE
+03-09 22:54:17.061  1380  1418 I libprocessgroup: Successfully killed process cgroup uid 10134 pid 20427 in 13ms
+03-09 22:54:17.072  1380  1405 W System.err: android.content.pm.PackageManager$NameNotFoundException: ru.vk.store
+03-09 22:54:17.072  1380  1405 W System.err: 	at android.app.ApplicationPackageManager.getPackageInfoAsUser(ApplicationPackageManager.java:256)
+03-09 22:54:17.072  1380  1405 W System.err: 	at android.app.ApplicationPackageManager.getPackageInfo(ApplicationPackageManager.java:216)
+03-09 22:54:17.072  1380  1405 W System.err: 	at android.app.ApplicationPackageManager.getPackageInfo(ApplicationPackageManager.java:210)
+03-09 22:54:17.072  1380  1405 W System.err: 	at com.android.server.am.ActivityManagerService.hasRuApp(ActivityManagerService.java:1865)
+03-09 22:54:17.072  1380  1405 W System.err: 	at com.android.server.am.ActivityManagerService.checkRuState(ActivityManagerService.java:1836)
+03-09 22:54:17.072  1380  1405 W System.err: 	at com.android.server.am.ActivityManagerService.-$$Nest$mcheckRuState(ActivityManagerService.java:0)
+03-09 22:54:17.072  1380  1405 W System.err: 	at com.android.server.am.ActivityManagerService$UiHandler.handleMessage(ActivityManagerService.java:1805)
+03-09 22:54:17.072  1380  1405 W System.err: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+03-09 22:54:17.072  1380  1405 W System.err: 	at android.os.Looper.loopOnce(Looper.java:205)
+03-09 22:54:17.072  1380  1405 W System.err: 	at android.os.Looper.loop(Looper.java:294)
+03-09 22:54:17.073  1380  1405 W System.err: 	at android.os.HandlerThread.run(HandlerThread.java:67)
+03-09 22:54:17.073  1380  1405 W System.err: 	at com.android.server.ServiceThread.run(ServiceThread.java:46)
+03-09 22:54:17.073  1380  1405 W System.err: 	at com.android.server.UiThread.run(UiThread.java:45)
+03-09 22:54:17.073  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:17.073  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:17.073  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:17.073  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:17.073  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:17.073  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:17.073  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:54:17.101   755   755 I BufferQueueDebug: [com.blackview.launcher/com.android.searchlauncher.SearchLauncher#1943](this:0xb4000075766b34b8,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 22:54:17.103   755   755 I BufferQueueDebug: [com.blackview.launcher/com.android.searchlauncher.SearchLauncher#1942](this:0xb40000757681a198,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 22:54:17.115   720   720 I Zygote  : Process 20427 exited due to signal 9 (Killed)
+03-09 22:54:17.119   746   850 I libPowerHal: [perfNotifyAppState] pack:com.google.android.apps.messaging, act:com.google.android.apps.messaging, state:3, pid:20427, uid:10134, fps:60
+03-09 22:54:17.119   746   850 I libPowerHal: [perfNotifyAppState] pack:com.google.android.apps.messaging, pid:20427, STATE_DEAD
+03-09 22:54:17.119  1380  1402 I mtkpower_client: [Legacy][PowerHal_Wrap_notifyAppState] com.google.android.apps.messaging/com.google.android.apps.messaging pid=20427 state:3
+03-09 22:54:17.140  1380  1397 I system_server: Background young concurrent copying GC freed 107625(5711KB) AllocSpace objects, 10(200KB) LOS objects, 14% free, 32MB/38MB, paused 411us,230us total 101.467ms
+03-09 22:54:17.142  1380  1399 W System  : A resource failed to call HardwareBuffer.close. 
+03-09 22:54:17.143  1380  1399 W System  : A resource failed to call release. 
+03-09 22:54:17.143  1380  1399 W System  : A resource failed to call HardwareBuffer.close. 
+03-09 22:54:17.310 22192 22203 W gle.android.gms: ApkAssets: Deleting an ApkAssets object '<empty> and /data/app/~~LEIrKBkDPfDp7ANS7aBt0Q==/com.example.omnix_dashboard-8udlu9Ugm_Z343kKKzxg9Q==/base.apk' with 1 weak references
+03-09 22:54:17.401   982   982 I thermal_repeater: [recvMdThermalInfo] ret=32, strLen=127,  0, 32767, -127, 0, 32767, 25447
+03-09 22:54:17.500  1380  1770 I ActivityManager: Broadcasting: Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }
+03-09 22:54:17.501  1380  1770 I ActivityManager: Enqueued broadcast Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }: 0
+03-09 22:54:17.501  1380  1404 I ActivityManager: Broadcast completed: result=0
+03-09 22:54:17.810 25175 25175 I AidlLazyServiceRegistrar: Process has 0 (of 1 available) client(s) in use after notification artd has clients: 0
+03-09 22:54:17.810 25175 25175 I AidlLazyServiceRegistrar: Trying to shut down the service. No clients in use for any service in process.
+03-09 22:54:17.811 25175 25175 I AidlLazyServiceRegistrar: Unregistered all clients and exiting
+03-09 22:54:18.606  1380  1770 I ActivityManager: Broadcasting: Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }
+03-09 22:54:18.607  1380  1404 I ActivityManager: Broadcast completed: result=0
+03-09 22:54:18.607  1380  1770 I ActivityManager: Enqueued broadcast Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }: 0
+03-09 22:54:19.658  1576  1576 I WifiHAL : Get link layer stats
+03-09 22:54:19.658  1576  1576 I WifiHAL : GetLinkStatsCommand::create
+03-09 22:54:19.658  1576  1576 I android.hardware.wifi@1.0-service-lazy: WifiCommand::requestResponse err=-14
+03-09 22:54:19.658  1576  1576 I WifiHAL : wifi_get_link_stats: result=-1
+03-09 22:54:19.658  1380  1510 E WifiStaIfaceHidlImpl: getLinkLayerStatsV1_5 failed with status: {.code = ERROR_UNKNOWN, .description = unknown}
+03-09 22:54:19.704   755   755 I BufferQueueProducer: [StatusBar#1497](this:0xb400007576866fc8,id:-1,api:0,p:-1,c:755) queueBuffer: fps=0.71 dur=12737.58 max=12603.25 min=10.04
+03-09 22:54:19.706   733  1085 I hwcomposer: [HWCDisplay] [Display_0 (type:1)] fps:1.677536,dur:2980.56,max:2600.89,min:16.21  
+03-09 22:54:20.462 25187 25220 W libc    : Access denied finding property "ro.vendor.mbrain.mode"

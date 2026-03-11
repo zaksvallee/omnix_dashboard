@@ -1,0 +1,6 @@
+Device serial: MOCK-DEVICE
+Broadcast action: com.onyx.hikvision.SDK_HEARTBEAT
+Adapter mode: hikvision_guardlink
+Expected provider: hikvision_sdk
+SampRun started (UTC): 2026Run started (UTC): 2026-03-09T20:40:52Z
+ORun completed (UTC): 20Run completed (UTC): 2026-03-09T20:40:52Z

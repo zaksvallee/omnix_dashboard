@@ -1,0 +1,35 @@
+{
+  "messages": [
+    {
+      "id": "zel-msg-1001",
+      "channel": {
+        "name": "ops-primary"
+      },
+      "from": {
+        "name": "Resident-42",
+        "role": "client"
+      },
+      "text": "Control, all clear at north gate. Client safe.",
+      "timestamp": 1773224040,
+      "client_id": "CLIENT-001",
+      "region_id": "REGION-GAUTENG",
+      "site_id": "SITE-SANDTON",
+      "dispatch_id": "DSP-ZELLO-1"
+    },
+    {
+      "id": "zel-msg-1002",
+      "channel": {
+        "name": "ops-primary"
+      },
+      "from": {
+        "name": "Echo-3",
+        "role": "guard"
+      },
+      "text": "Perimeter sweep complete. Stand by.",
+      "timestamp": 1773224100,
+      "client_id": "CLIENT-001",
+      "region_id": "REGION-GAUTENG",
+      "site_id": "SITE-SANDTON"
+    }
+  ]
+}

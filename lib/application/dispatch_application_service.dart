@@ -1,8 +1,13 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
+
 import '../domain/intelligence/news_item.dart';
 import '../domain/intelligence/decision_service.dart';
 import '../domain/intelligence/intel_ingestion.dart';
 import '../domain/authority/authority_token.dart';
 import '../domain/authority/operator_context.dart';
+import '../domain/events/incident_closed.dart';
 import '../engine/execution/execution_engine.dart';
 import '../domain/store/event_store.dart';
 import '../domain/intelligence/risk_policy.dart';
@@ -14,6 +19,8 @@ import '../domain/projection/dispatch_projection.dart';
 import '../domain/testing/replay_consistency_verifier.dart';
 import '../domain/evidence/client_ledger_service.dart';
 import '../domain/intelligence/triage_policy.dart';
+import 'ops_integration_profile.dart';
+import 'radio_bridge_service.dart';
 
 class IntelligenceIngestionOutcome {
   final int attemptedIntelligence;
@@ -32,6 +39,30 @@ class IntelligenceIngestionOutcome {
     required this.advisoryCount,
     required this.watchCount,
     required this.dispatchCandidateCount,
+  });
+}
+
+class RadioTransmissionIngestionOutcome {
+  final int attempted;
+  final int appended;
+  final int skipped;
+  final int allClearDetected;
+  final int panicDetected;
+  final int duressDetected;
+  final int incidentsClosed;
+  final int escalationDispatchesCreated;
+  final List<RadioAutomatedResponse> automatedResponses;
+
+  const RadioTransmissionIngestionOutcome({
+    required this.attempted,
+    required this.appended,
+    required this.skipped,
+    required this.allClearDetected,
+    required this.panicDetected,
+    required this.duressDetected,
+    required this.incidentsClosed,
+    required this.escalationDispatchesCreated,
+    this.automatedResponses = const [],
   });
 }
 
@@ -153,6 +184,398 @@ class DispatchApplicationService {
       _verifyReplay();
     }
     return true;
+  }
+
+  RadioTransmissionIngestionOutcome ingestRadioTransmissions({
+    required List<RadioTransmissionRecord> transmissions,
+    bool autoCloseOnAllClear = true,
+    bool verifyReplay = true,
+  }) {
+    final existingIntelIds = store
+        .allEvents()
+        .whereType<IntelligenceReceived>()
+        .map((event) => event.intelligenceId)
+        .toSet();
+    final knownDispatchIds = store
+        .allEvents()
+        .whereType<DecisionCreated>()
+        .map((event) => event.dispatchId)
+        .toSet();
+    final closedDispatchIds = store
+        .allEvents()
+        .whereType<IncidentClosed>()
+        .map((event) => event.dispatchId)
+        .toSet();
+    final appendable = <IntelligenceReceived>[];
+    final escalationDecisions = <DecisionCreated>[];
+    final closeable = <IncidentClosed>[];
+    final automatedResponses = <RadioAutomatedResponse>[];
+    var allClearDetected = 0;
+    var panicDetected = 0;
+    var duressDetected = 0;
+    var incidentsClosed = 0;
+    var escalationDispatchesCreated = 0;
+
+    for (final record in transmissions) {
+      final intelligenceId = _radioIntelligenceIdFor(record);
+      if (existingIntelIds.contains(intelligenceId)) {
+        continue;
+      }
+      final intent = OnyxRadioIntentClassifier.detect(record.transcript);
+      final canonicalHash = _canonicalHashForRadio(record);
+      appendable.add(
+        IntelligenceReceived(
+          eventId: 'INTEL-RAD-$intelligenceId',
+          sequence: 0,
+          version: 1,
+          occurredAt: record.occurredAtUtc,
+          intelligenceId: intelligenceId,
+          provider: record.provider,
+          sourceType: 'radio',
+          externalId: record.transmissionId,
+          clientId: record.clientId,
+          regionId: record.regionId,
+          siteId: record.siteId,
+          headline:
+              'Radio ${record.channel.isEmpty ? 'ops' : record.channel} • ${_radioIntentLabel(intent)}',
+          summary:
+              '${record.transcript}${record.transcript.trim().isEmpty ? '' : ' • '}intent:${_radioIntentLabel(intent)}',
+          riskScore: _radioRiskScore(intent),
+          canonicalHash: canonicalHash,
+        ),
+      );
+      existingIntelIds.add(intelligenceId);
+
+      if (intent == OnyxRadioIntent.panic) {
+        panicDetected += 1;
+      } else if (intent == OnyxRadioIntent.duress) {
+        duressDetected += 1;
+      }
+      String? panicOrDuressDispatchId;
+      if (intent == OnyxRadioIntent.panic || intent == OnyxRadioIntent.duress) {
+        final dispatchId =
+            record.dispatchId ??
+            _dispatchIdForExternal(record.provider, record.transmissionId);
+        panicOrDuressDispatchId = dispatchId;
+        if (!knownDispatchIds.contains(dispatchId)) {
+          escalationDecisions.add(
+            DecisionCreated(
+              eventId: 'DEC-RAD-$dispatchId',
+              sequence: 0,
+              version: 1,
+              occurredAt: record.occurredAtUtc,
+              clientId: record.clientId,
+              regionId: record.regionId,
+              siteId: record.siteId,
+              dispatchId: dispatchId,
+            ),
+          );
+          knownDispatchIds.add(dispatchId);
+          escalationDispatchesCreated += 1;
+        }
+        final escalationResponse = _radioAutomatedResponseFor(
+          intent: intent,
+          record: record,
+          dispatchId: dispatchId,
+        );
+        if (escalationResponse != null) {
+          automatedResponses.add(escalationResponse);
+        }
+      }
+
+      final allClear = intent == OnyxRadioIntent.allClear;
+      final allClearDispatchId = allClear
+          ? (record.dispatchId ??
+                _latestOpenDispatchId(
+                  clientId: record.clientId,
+                  regionId: record.regionId,
+                  siteId: record.siteId,
+                ))
+          : panicOrDuressDispatchId;
+      final nonEscalationResponse =
+          intent == OnyxRadioIntent.panic || intent == OnyxRadioIntent.duress
+          ? null
+          : _radioAutomatedResponseFor(
+              intent: allClear ? OnyxRadioIntent.allClear : intent,
+              record: record,
+              dispatchId: allClearDispatchId,
+            );
+      if (nonEscalationResponse != null) {
+        automatedResponses.add(nonEscalationResponse);
+      }
+
+      if (!allClear) continue;
+      allClearDetected += 1;
+      if (!autoCloseOnAllClear) {
+        continue;
+      }
+      final dispatchId = allClearDispatchId;
+      if (dispatchId == null || closedDispatchIds.contains(dispatchId)) {
+        continue;
+      }
+      closeable.add(
+        IncidentClosed(
+          eventId:
+              'CLOSE-RAD-${dispatchId.replaceAll(RegExp(r'[^A-Z0-9-]'), '')}-${record.transmissionId}',
+          sequence: 0,
+          version: 1,
+          occurredAt: record.occurredAtUtc,
+          dispatchId: dispatchId,
+          resolutionType: 'RADIO_ALL_CLEAR',
+          clientId: record.clientId,
+          regionId: record.regionId,
+          siteId: record.siteId,
+        ),
+      );
+      closedDispatchIds.add(dispatchId);
+      incidentsClosed += 1;
+    }
+
+    for (final event in appendable) {
+      store.append(event);
+    }
+    for (final event in escalationDecisions) {
+      store.append(event);
+    }
+    for (final event in closeable) {
+      store.append(event);
+    }
+
+    if (verifyReplay &&
+        (appendable.isNotEmpty ||
+            incidentsClosed > 0 ||
+            escalationDispatchesCreated > 0)) {
+      _verifyReplay();
+    }
+
+    return RadioTransmissionIngestionOutcome(
+      attempted: transmissions.length,
+      appended: appendable.length,
+      skipped: transmissions.length - appendable.length,
+      allClearDetected: allClearDetected,
+      panicDetected: panicDetected,
+      duressDetected: duressDetected,
+      incidentsClosed: incidentsClosed,
+      escalationDispatchesCreated: escalationDispatchesCreated,
+      automatedResponses: automatedResponses,
+    );
+  }
+
+  int _radioRiskScore(OnyxRadioIntent intent) {
+    return switch (intent) {
+      OnyxRadioIntent.allClear => 12,
+      OnyxRadioIntent.panic => 98,
+      OnyxRadioIntent.duress => 96,
+      OnyxRadioIntent.status => 42,
+      OnyxRadioIntent.unknown => 55,
+    };
+  }
+
+  String _radioIntentLabel(OnyxRadioIntent intent) {
+    return switch (intent) {
+      OnyxRadioIntent.allClear => 'ALL_CLEAR',
+      OnyxRadioIntent.panic => 'PANIC',
+      OnyxRadioIntent.duress => 'DURESS',
+      OnyxRadioIntent.status => 'STATUS',
+      OnyxRadioIntent.unknown => 'UNKNOWN',
+    };
+  }
+
+  RadioAutomatedResponse? _radioAutomatedResponseFor({
+    required OnyxRadioIntent intent,
+    required RadioTransmissionRecord record,
+    required String? dispatchId,
+  }) {
+    final channel = record.channel.trim().isEmpty ? 'ops' : record.channel;
+    switch (intent) {
+      case OnyxRadioIntent.allClear:
+        final message = dispatchId == null
+            ? 'ONYX AI acknowledged all-clear. Controller review remains active.'
+            : 'ONYX AI marked dispatch $dispatchId all clear.';
+        return RadioAutomatedResponse(
+          transmissionId: record.transmissionId,
+          provider: record.provider,
+          channel: channel,
+          clientId: record.clientId,
+          regionId: record.regionId,
+          siteId: record.siteId,
+          dispatchId: dispatchId,
+          message: message,
+          responseType: 'AI_ALL_CLEAR_ACK',
+          intent: 'all_clear',
+        );
+      case OnyxRadioIntent.panic:
+        final message = dispatchId == null
+            ? 'ONYX AI acknowledged PANIC. Escalation dispatched for controller review.'
+            : 'ONYX AI acknowledged PANIC. Escalation dispatch $dispatchId created.';
+        return RadioAutomatedResponse(
+          transmissionId: record.transmissionId,
+          provider: record.provider,
+          channel: channel,
+          clientId: record.clientId,
+          regionId: record.regionId,
+          siteId: record.siteId,
+          dispatchId: dispatchId,
+          message: message,
+          responseType: 'AI_PANIC_ACK',
+          intent: 'panic',
+        );
+      case OnyxRadioIntent.duress:
+        final message = dispatchId == null
+            ? 'ONYX AI acknowledged DURESS. Silent escalation dispatched.'
+            : 'ONYX AI acknowledged DURESS. Silent escalation dispatch $dispatchId created.';
+        return RadioAutomatedResponse(
+          transmissionId: record.transmissionId,
+          provider: record.provider,
+          channel: channel,
+          clientId: record.clientId,
+          regionId: record.regionId,
+          siteId: record.siteId,
+          dispatchId: dispatchId,
+          message: message,
+          responseType: 'AI_DURESS_ACK',
+          intent: 'duress',
+        );
+      case OnyxRadioIntent.status:
+        return RadioAutomatedResponse(
+          transmissionId: record.transmissionId,
+          provider: record.provider,
+          channel: channel,
+          clientId: record.clientId,
+          regionId: record.regionId,
+          siteId: record.siteId,
+          dispatchId: dispatchId,
+          message:
+              'ONYX AI acknowledged status update. Controller review remains active.',
+          responseType: 'AI_STATUS_ACK',
+          intent: 'status',
+        );
+      case OnyxRadioIntent.unknown:
+        return null;
+    }
+  }
+
+  int recordRadioAutomatedResponses({
+    required List<RadioAutomatedResponse> responses,
+    bool verifyReplay = true,
+  }) {
+    if (responses.isEmpty) {
+      return 0;
+    }
+    final existingIntelIds = store
+        .allEvents()
+        .whereType<IntelligenceReceived>()
+        .map((event) => event.intelligenceId)
+        .toSet();
+    final appendable = <IntelligenceReceived>[];
+    final nowUtc = DateTime.now().toUtc();
+
+    for (final response in responses) {
+      final intelligenceId = _radioResponseIntelligenceIdFor(response);
+      if (existingIntelIds.contains(intelligenceId)) {
+        continue;
+      }
+      final canonical = jsonEncode({
+        'provider': response.provider,
+        'transmission_id': response.transmissionId,
+        'channel': response.channel,
+        'client_id': response.clientId,
+        'region_id': response.regionId,
+        'site_id': response.siteId,
+        'dispatch_id': response.dispatchId,
+        'message': response.message,
+        'response_type': response.responseType,
+        'intent': response.intent,
+      });
+      appendable.add(
+        IntelligenceReceived(
+          eventId: 'INTEL-RAD-RESP-$intelligenceId',
+          sequence: 0,
+          version: 1,
+          occurredAt: nowUtc,
+          intelligenceId: intelligenceId,
+          provider: 'onyx-radio',
+          sourceType: 'system',
+          externalId:
+              'ACK-${_sanitize(response.provider)}-${_sanitize(response.transmissionId)}',
+          clientId: response.clientId,
+          regionId: response.regionId,
+          siteId: response.siteId,
+          headline: 'ONYX RADIO ${response.responseType}',
+          summary:
+              '${response.message} • intent:${response.intent.toUpperCase()} • channel:${response.channel.isEmpty ? 'ops' : response.channel}',
+          riskScore: response.intent.toLowerCase() == 'all_clear' ? 8 : 18,
+          canonicalHash: sha256.convert(utf8.encode(canonical)).toString(),
+        ),
+      );
+      existingIntelIds.add(intelligenceId);
+    }
+
+    for (final event in appendable) {
+      store.append(event);
+    }
+    if (verifyReplay && appendable.isNotEmpty) {
+      _verifyReplay();
+    }
+    return appendable.length;
+  }
+
+  String _radioIntelligenceIdFor(RadioTransmissionRecord record) {
+    final provider = _sanitize(record.provider);
+    final external = _sanitize(record.transmissionId);
+    return 'RAD-$provider-$external';
+  }
+
+  String _radioResponseIntelligenceIdFor(RadioAutomatedResponse response) {
+    final provider = _sanitize(response.provider);
+    final external = _sanitize(response.transmissionId);
+    return 'RADRESP-$provider-$external';
+  }
+
+  String _canonicalHashForRadio(RadioTransmissionRecord record) {
+    final canonical = jsonEncode({
+      'provider': record.provider,
+      'transmission_id': record.transmissionId,
+      'channel': record.channel,
+      'speaker_role': record.speakerRole,
+      'speaker_id': record.speakerId,
+      'transcript': record.transcript,
+      'occurred_at_utc': record.occurredAtUtc.toIso8601String(),
+      'client_id': record.clientId,
+      'region_id': record.regionId,
+      'site_id': record.siteId,
+      'dispatch_id': record.dispatchId,
+    });
+    return sha256.convert(utf8.encode(canonical)).toString();
+  }
+
+  String? _latestOpenDispatchId({
+    required String clientId,
+    required String regionId,
+    required String siteId,
+  }) {
+    final decisions = store.allEvents().whereType<DecisionCreated>().where(
+      (event) =>
+          event.clientId == clientId &&
+          event.regionId == regionId &&
+          event.siteId == siteId,
+    );
+    final closed = store.allEvents().whereType<IncidentClosed>().where(
+      (event) =>
+          event.clientId == clientId &&
+          event.regionId == regionId &&
+          event.siteId == siteId,
+    );
+    final closedDispatchIds = closed.map((event) => event.dispatchId).toSet();
+    final openDecisions =
+        decisions
+            .where((event) => !closedDispatchIds.contains(event.dispatchId))
+            .toList(growable: false)
+          ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    if (openDecisions.isEmpty) {
+      return null;
+    }
+    return openDecisions.first.dispatchId;
   }
 
   _DecisionCreationResult _createDecisionsFromIntel(

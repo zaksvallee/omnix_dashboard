@@ -1,0 +1,42 @@
+{
+  "generated_at_utc": "2026-03-09T20:52:16Z",
+  "artifact_dir": "tmp/guard_field_validation/mock-20260309T204236Z",
+  "required_provider": "fsk_sdk",
+  "overall_status": "FAIL",
+  "metrics": {
+    "broadcast_count": 1,
+    "telemetry_line_count": 3,
+    "ingest_line_count": 1,
+    "accepted_count": 1,
+    "rejected_count": 0,
+    "provider_match_count": 0,
+    "live_facade_trace_count": 2
+  },
+  "gates": {
+    "broadcasts_present": true,
+    "telemetry_logs_present": true,
+    "ingest_logs_present": true,
+    "accepted_present": true,
+    "provider_match_present": false,
+    "live_facade_trace_present": true
+  },
+  "files": {
+    "summary": "tmp/guard_field_validation/mock-20260309T204236Z/summary.txt",
+    "broadcasts": "tmp/guard_field_validation/mock-20260309T204236Z/broadcasts.txt",
+    "logcat_onyx_telemetry": "tmp/guard_field_validation/mock-20260309T204236Z/logcat_onyx_telemetry.txt",
+    "logcat_ingest_trace": "tmp/guard_field_validation/mock-20260309T204236Z/logcat_ingest_trace.txt",
+    "logcat_full": "tmp/guard_field_validation/mock-20260309T204236Z/logcat_full.txt",
+    "runtime_profile_text": "tmp/guard_field_validation/mock-20260309T204236Z/runtime_profile.txt",
+    "runtime_profile_json": "tmp/guard_field_validation/mock-20260309T204236Z/runtime_profile.json",
+    "markdown_report": "tmp/guard_field_validation/mock-20260309T204236Z/validation_report.md"
+  },
+  "checksums": {
+    "summary_sha256": "1c749ebf8239c6b9a9824edb20efc2fb7b92a1f739423006f4b4c0c02bbf9098",
+    "broadcasts_sha256": "dfea02e36ecaa41f6db32bcb5630d8f8d8bc046a120179b6cc6f357f89698e80",
+    "logcat_onyx_telemetry_sha256": "4630cdf0c822587fc01c08722ec13ec804080ac09234dd16c56d655bed36139c",
+    "logcat_ingest_trace_sha256": "33730bcd31877538358e558b4c63aa559a3085578685cda1813f22e21457547a",
+    "logcat_full_sha256": "272457cc6f96a02fcdebef3a9546b14043d0f1efa1a005e68b8766ef2efc0940",
+    "runtime_profile_text_sha256": "1ceea86291d1d02956acf6d6ae83743ca7218532ae3dc45256249c44bd644dcb",
+    "runtime_profile_json_sha256": "84619d0eb1579d08b099ca87a7e363a801b745823c1d50ef7efd1b31e280c17c"
+  }
+}

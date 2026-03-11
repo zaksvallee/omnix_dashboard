@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ACTION="${ONYX_FSK_SDK_HEARTBEAT_ACTION:-com.onyx.fsk.SDK_HEARTBEAT}"
+ACTION=""
+PROVIDER_ID="${ONYX_GUARD_TELEMETRY_NATIVE_PROVIDER:-fsk_sdk}"
 SERIAL=""
 SAMPLES=3
 INTERVAL_SECONDS=1
-ADAPTER_MODE="${ONYX_FSK_SDK_PAYLOAD_ADAPTER:-standard}"
-EXPECTED_PROVIDER="${ONYX_GUARD_TELEMETRY_REQUIRED_PROVIDER:-${ONYX_GUARD_TELEMETRY_NATIVE_PROVIDER:-fsk_sdk}}"
+ADAPTER_MODE=""
+EXPECTED_PROVIDER="${ONYX_GUARD_TELEMETRY_REQUIRED_PROVIDER:-}"
 MAX_REPORT_AGE_HOURS=24
 RUN_FULL_TESTS=0
 CONFIG_FILE="${ONYX_DART_DEFINE_FILE:-config/onyx.local.json}"
@@ -16,7 +17,7 @@ SKIP_CONNECTION_DOCTOR=0
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/guard_gate_auto.sh [--action <broadcast-action>] [--serial <device-serial>] [--samples 3] [--interval 1] [--adapter standard|legacy_ptt] [--expected-provider fsk_sdk] [--max-report-age-hours 24] [--config <path>] [--full-tests] [--require-real-device-artifacts] [--skip-connection-doctor]
+  ./scripts/guard_gate_auto.sh [--provider fsk_sdk|hikvision_sdk] [--action <broadcast-action>] [--serial <device-serial>] [--samples 3] [--interval 1] [--adapter standard|legacy_ptt|hikvision_guardlink] [--expected-provider <provider-id>] [--max-report-age-hours 24] [--config <path>] [--full-tests] [--require-real-device-artifacts] [--skip-connection-doctor]
 
 Purpose:
   One command for both modes:
@@ -24,12 +25,28 @@ Purpose:
   - If no Android device is connected: runs guard_predevice_gate.sh
 
 Defaults:
-  --action defaults to ONYX_FSK_SDK_HEARTBEAT_ACTION or com.onyx.fsk.SDK_HEARTBEAT
+  --action defaults to provider-specific env:
+    FSK: ONYX_FSK_SDK_HEARTBEAT_ACTION
+    Hikvision: ONYX_HIKVISION_SDK_HEARTBEAT_ACTION
 USAGE
+}
+
+provider_family() {
+  local provider
+  provider="$(echo "${1:-}" | tr '[:upper:]' '[:lower:]')"
+  if [[ "$provider" == *"hikvision"* ]]; then
+    echo "hikvision"
+  else
+    echo "fsk"
+  fi
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --provider)
+      PROVIDER_ID="${2:-}"
+      shift 2
+      ;;
     --action)
       ACTION="${2:-}"
       shift 2
@@ -51,7 +68,7 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --expected-provider)
-      EXPECTED_PROVIDER="${2:-fsk_sdk}"
+      EXPECTED_PROVIDER="${2:-}"
       shift 2
       ;;
     --max-report-age-hours)
@@ -85,6 +102,37 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+PROVIDER_FAMILY="$(provider_family "$PROVIDER_ID")"
+
+if [[ -z "$ADAPTER_MODE" ]]; then
+  if [[ "$PROVIDER_FAMILY" == "hikvision" ]]; then
+    ADAPTER_MODE="${ONYX_HIKVISION_SDK_PAYLOAD_ADAPTER:-hikvision_guardlink}"
+  else
+    ADAPTER_MODE="${ONYX_FSK_SDK_PAYLOAD_ADAPTER:-standard}"
+  fi
+fi
+
+if [[ -z "$ACTION" ]]; then
+  if [[ "$PROVIDER_FAMILY" == "hikvision" ]]; then
+    ACTION="${ONYX_HIKVISION_SDK_HEARTBEAT_ACTION:-}"
+  else
+    ACTION="${ONYX_FSK_SDK_HEARTBEAT_ACTION:-com.onyx.fsk.SDK_HEARTBEAT}"
+  fi
+fi
+
+if [[ -z "$EXPECTED_PROVIDER" ]]; then
+  EXPECTED_PROVIDER="$PROVIDER_ID"
+fi
+
+if [[ -z "$ACTION" ]]; then
+  if [[ "$PROVIDER_FAMILY" == "hikvision" ]]; then
+    echo "FAIL: --action is required for Hikvision (or set ONYX_HIKVISION_SDK_HEARTBEAT_ACTION)." >&2
+  else
+    echo "FAIL: --action is required for FSK (or set ONYX_FSK_SDK_HEARTBEAT_ACTION)." >&2
+  fi
+  exit 1
+fi
+
 if ! [[ "$SAMPLES" =~ ^[0-9]+$ ]] || [[ "$SAMPLES" -lt 1 ]]; then
   echo "FAIL: --samples must be a positive integer." >&2
   exit 1
@@ -103,10 +151,12 @@ if [[ "$DEVICE_COUNT" -gt 0 ]]; then
   echo "== ONYX Guard Auto Gate =="
   echo "Mode: on-device pilot gate"
   echo "Connected devices: $DEVICE_COUNT"
+  echo "Provider: $PROVIDER_ID"
   echo "Action: $ACTION"
 
   pilot_cmd=(
     ./scripts/guard_android_pilot_gate.sh
+    --provider "$PROVIDER_ID"
     --action "$ACTION"
     --samples "$SAMPLES"
     --interval "$INTERVAL_SECONDS"
@@ -137,6 +187,7 @@ else
 
   pre_cmd=(
     ./scripts/guard_predevice_gate.sh
+    --provider "$PROVIDER_ID"
     --samples "$SAMPLES"
     --max-report-age-hours "$MAX_REPORT_AGE_HOURS"
     --config "$CONFIG_FILE"

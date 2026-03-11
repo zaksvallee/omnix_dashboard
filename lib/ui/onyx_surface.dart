@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'layout_breakpoints.dart';
+
 class OnyxPageScaffold extends StatelessWidget {
   final Widget child;
 
@@ -8,55 +10,50 @@ class OnyxPageScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF040A16),
-      body: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF081427), Color(0xFF040A16), Color(0xFF030813)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+    final surface = DecoratedBox(
+      decoration: const BoxDecoration(color: Color(0xFF0C1220)),
+      child: Stack(
+        children: [
+          Positioned(
+            top: -140,
+            right: -80,
+            child: IgnorePointer(
+              child: Container(
+                width: 360,
+                height: 360,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [Color(0x180F5EA8), Color(0x00040A16)],
+                  ),
+                ),
+              ),
+            ),
           ),
-        ),
-        child: Stack(
-          children: [
-            Positioned(
-              top: -140,
-              right: -80,
-              child: IgnorePointer(
-                child: Container(
-                  width: 360,
-                  height: 360,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [Color(0x180F5EA8), Color(0x00040A16)],
-                    ),
+          Positioned(
+            top: 80,
+            left: -120,
+            child: IgnorePointer(
+              child: Container(
+                width: 280,
+                height: 280,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [Color(0x100F4A87), Color(0x00040A16)],
                   ),
                 ),
               ),
             ),
-            Positioned(
-              top: 80,
-              left: -120,
-              child: IgnorePointer(
-                child: Container(
-                  width: 280,
-                  height: 280,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [Color(0x100F4A87), Color(0x00040A16)],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            SafeArea(child: child),
-          ],
-        ),
+          ),
+          SafeArea(child: child),
+        ],
       ),
     );
+    if (Scaffold.maybeOf(context) != null) {
+      return surface;
+    }
+    return Scaffold(backgroundColor: const Color(0xFF040A16), body: surface);
   }
 }
 
@@ -74,78 +71,84 @@ class OnyxPageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(7, 5, 7, 5),
+    final titleCard = Container(
+      padding: const EdgeInsets.fromLTRB(7, 5, 7, 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1A2B),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFF17324F).withValues(alpha: 0.55),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 42,
+            height: 3,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0x180D1F39), Color(0x000D1F39)],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: const Color(0xFF17324F).withValues(alpha: 0.55),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 42,
-                  height: 3,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF3C79BB),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  title,
-                  style: GoogleFonts.rajdhani(
-                    color: const Color(0xFFE8F1FF),
-                    fontSize: 21,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF8EA4C2),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+              color: const Color(0xFF3C79BB),
+              borderRadius: BorderRadius.circular(999),
             ),
           ),
-        ),
-        if (actions.isNotEmpty) ...[
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF0C182B), Color(0xFF091528)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF1B395E)),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFE8F1FF),
+              fontSize: 21,
+              fontWeight: FontWeight.w700,
             ),
-            child: Wrap(
-              spacing: 5,
-              runSpacing: 5,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: actions,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
-      ],
+      ),
+    );
+
+    final actionCard = Container(
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1A2B),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF223244)),
+      ),
+      child: Wrap(
+        spacing: 5,
+        runSpacing: 5,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: actions,
+      ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 900;
+        if (actions.isEmpty) {
+          return titleCard;
+        }
+        if (compact) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [titleCard, const SizedBox(height: 8), actionCard],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: titleCard),
+            const SizedBox(width: 8),
+            actionCard,
+          ],
+        );
+      },
     );
   }
 }
@@ -171,89 +174,83 @@ class OnyxSectionCard extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final canConstrainBody = constraints.hasBoundedHeight;
+        final phoneLayout = isHandsetLayout(context);
         final compactBoundedLayout =
             canConstrainBody && constraints.maxHeight < 140;
         if (compactBoundedLayout) {
+          final content = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 38,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3B76B6),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                style: GoogleFonts.rajdhani(
+                  color: const Color(0xFFE6F1FF),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (subtitle != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  subtitle!,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF8EA4C2),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 8),
+              child,
+            ],
+          );
           return Container(
             width: double.infinity,
             padding: padding ?? const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF081326), Color(0xFF0A172C)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: const Color(0xFF0E1A2B),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF193758)),
+              border: Border.all(color: const Color(0xFF223244)),
               boxShadow: const [
                 BoxShadow(
-                  color: Color(0x18000000),
-                  blurRadius: 14,
-                  offset: Offset(0, 5),
+                  color: Color(0x12000000),
+                  blurRadius: 10,
+                  offset: Offset(0, 3),
                 ),
               ],
             ),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 38,
-                    height: 3,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF3B76B6),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    title,
-                    style: GoogleFonts.rajdhani(
-                      color: const Color(0xFFE6F1FF),
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle!,
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF8EA4C2),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 8),
-                  child,
-                ],
-              ),
-            ),
+            child: phoneLayout
+                ? content
+                : SingleChildScrollView(child: content),
           );
         }
         final body = flexibleChild
             ? Expanded(child: child)
-            : canConstrainBody
+            : canConstrainBody && !phoneLayout
             ? Expanded(child: SingleChildScrollView(child: child))
             : child;
         return Container(
           width: double.infinity,
           padding: padding ?? const EdgeInsets.all(7),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF081326), Color(0xFF0A172C)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: const Color(0xFF0E1A2B),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF193758)),
+            border: Border.all(color: const Color(0xFF223244)),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x18000000),
-                blurRadius: 14,
-                offset: Offset(0, 5),
+                color: Color(0x12000000),
+                blurRadius: 10,
+                offset: Offset(0, 3),
               ),
             ],
           ),
@@ -354,18 +351,14 @@ class OnyxSummaryStat extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0D1A2D), Color(0xFF0A1628)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: const Color(0xFF0E1A2B),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF183657)),
+        border: Border.all(color: const Color(0xFF223244)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x12000000),
-            blurRadius: 10,
-            offset: Offset(0, 4),
+            color: Color(0x10000000),
+            blurRadius: 8,
+            offset: Offset(0, 3),
           ),
         ],
       ),
@@ -406,38 +399,28 @@ class OnyxSummaryStat extends StatelessWidget {
 
 BoxDecoration onyxWorkspaceSurfaceDecoration() {
   return BoxDecoration(
-    gradient: const LinearGradient(
-      colors: [Color(0xFF0C1A2D), Color(0xFF0B1C33)],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    ),
+    color: const Color(0xFF0E1A2B),
     borderRadius: BorderRadius.circular(14),
-    border: Border.all(color: const Color(0xFF1A3A60)),
+    border: Border.all(color: const Color(0xFF223244)),
     boxShadow: const [
-      BoxShadow(color: Color(0x14000000), blurRadius: 10, offset: Offset(0, 5)),
+      BoxShadow(color: Color(0x10000000), blurRadius: 8, offset: Offset(0, 3)),
     ],
   );
 }
 
 BoxDecoration onyxSelectableRowSurfaceDecoration({required bool isSelected}) {
   return BoxDecoration(
-    gradient: LinearGradient(
-      colors: isSelected
-          ? const [Color(0xFF10284B), Color(0xFF0E2341)]
-          : const [Color(0xFF0C1C31), Color(0xFF0A172B)],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    ),
+    color: isSelected ? const Color(0xFF11243A) : const Color(0xFF0E1A2B),
     borderRadius: BorderRadius.circular(12),
     border: Border.all(
-      color: isSelected ? const Color(0xFF4E95FF) : const Color(0xFF24466F),
+      color: isSelected ? const Color(0xFF5D91C6) : const Color(0xFF223244),
     ),
     boxShadow: isSelected
         ? const [
             BoxShadow(
-              color: Color(0x16000000),
-              blurRadius: 10,
-              offset: Offset(0, 5),
+              color: Color(0x12000000),
+              blurRadius: 8,
+              offset: Offset(0, 3),
             ),
           ]
         : null,
@@ -446,53 +429,39 @@ BoxDecoration onyxSelectableRowSurfaceDecoration({required bool isSelected}) {
 
 BoxDecoration onyxPanelSurfaceDecoration({double radius = 12}) {
   return BoxDecoration(
-    gradient: const LinearGradient(
-      colors: [Color(0xFF0D1B31), Color(0xFF0B182C)],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    ),
+    color: const Color(0xFF0E1A2B),
     borderRadius: BorderRadius.circular(radius),
-    border: Border.all(color: const Color(0xFF203F66)),
+    border: Border.all(color: const Color(0xFF223244)),
     boxShadow: const [
-      BoxShadow(color: Color(0x12000000), blurRadius: 8, offset: Offset(0, 4)),
+      BoxShadow(color: Color(0x10000000), blurRadius: 8, offset: Offset(0, 3)),
     ],
   );
 }
 
 BoxDecoration onyxForensicSurfaceCardDecoration() {
   return BoxDecoration(
-    gradient: const LinearGradient(
-      colors: [Color(0xFF0C182B), Color(0xFF091528)],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    ),
+    color: const Color(0xFF0E1A2B),
     borderRadius: BorderRadius.circular(18),
-    border: Border.all(color: const Color(0xFF1B395E)),
+    border: Border.all(color: const Color(0xFF223244)),
     boxShadow: const [
-      BoxShadow(color: Color(0x18000000), blurRadius: 14, offset: Offset(0, 6)),
+      BoxShadow(color: Color(0x12000000), blurRadius: 10, offset: Offset(0, 3)),
     ],
   );
 }
 
 BoxDecoration onyxForensicRowDecoration({required bool isSelected}) {
   return BoxDecoration(
-    gradient: LinearGradient(
-      colors: isSelected
-          ? const [Color(0xFF11284A), Color(0xFF0E2140)]
-          : const [Color(0xFF0E1C31), Color(0xFF0B172A)],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    ),
+    color: isSelected ? const Color(0xFF11243A) : const Color(0xFF0E1A2B),
     borderRadius: BorderRadius.circular(16),
     border: Border.all(
-      color: isSelected ? const Color(0xFF4C7ABA) : const Color(0xFF224267),
+      color: isSelected ? const Color(0xFF5D91C6) : const Color(0xFF223244),
     ),
     boxShadow: isSelected
         ? const [
             BoxShadow(
-              color: Color(0x14000000),
-              blurRadius: 10,
-              offset: Offset(0, 4),
+              color: Color(0x10000000),
+              blurRadius: 8,
+              offset: Offset(0, 3),
             ),
           ]
         : null,
@@ -511,13 +480,9 @@ class OnyxEmptyState extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 420),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF0C182B), Color(0xFF091528)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          color: const Color(0xFF0E1A2B),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF1B395E)),
+          border: Border.all(color: const Color(0xFF223244)),
         ),
         child: Text(
           label,

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:omnix_dashboard/application/dispatch_persistence_service.dart';
 import 'package:omnix_dashboard/domain/guard/guard_mobile_ops.dart';
 import 'package:omnix_dashboard/infrastructure/intelligence/news_intelligence_service.dart';
+import 'package:omnix_dashboard/application/radio_bridge_service.dart';
 import 'package:omnix_dashboard/ui/client_app_page.dart';
 import 'package:omnix_dashboard/ui/dispatch_page.dart';
 
@@ -97,6 +98,172 @@ void main() {
 
       expect(restored, history);
     });
+
+    test('saves, restores, and clears radio intent phrase json', () async {
+      final service = await DispatchPersistenceService.create();
+      const rawJson =
+          '{"all_clear":["all clear"],"panic":["panic"],"duress":["duress"],"status":["status"]}';
+
+      await service.saveRadioIntentPhrasesJson(rawJson);
+      final restored = await service.readRadioIntentPhrasesJson();
+
+      expect(restored, rawJson);
+
+      await service.clearRadioIntentPhrasesJson();
+      final cleared = await service.readRadioIntentPhrasesJson();
+      expect(cleared, isNull);
+    });
+
+    test(
+      'saves, restores, and clears pending radio automated responses',
+      () async {
+        final service = await DispatchPersistenceService.create();
+        final responses = const [
+          RadioAutomatedResponse(
+            transmissionId: 'ZEL-9001',
+            provider: 'zello',
+            channel: 'ops-primary',
+            clientId: 'CLIENT-001',
+            regionId: 'REGION-GAUTENG',
+            siteId: 'SITE-SANDTON',
+            dispatchId: 'DSP-9',
+            message: 'ONYX AI marked dispatch DSP-9 all clear.',
+          ),
+        ];
+
+        await service.savePendingRadioAutomatedResponses(responses);
+        final restored = await service.readPendingRadioAutomatedResponses();
+
+        expect(restored, hasLength(1));
+        expect(restored.single.toJson(), responses.single.toJson());
+
+        await service.clearPendingRadioAutomatedResponses();
+        final cleared = await service.readPendingRadioAutomatedResponses();
+        expect(cleared, isEmpty);
+      },
+    );
+
+    test('saves, restores, and clears pending radio retry state', () async {
+      final service = await DispatchPersistenceService.create();
+      final retryState = <String, Map<String, Object?>>{
+        'ZEL-9001||ops-primary|ack': {
+          'attempts': 3,
+          'next_attempt_at_utc': '2026-03-11T12:15:00.000Z',
+          'last_error': 'send_failed',
+        },
+      };
+
+      await service.savePendingRadioAutomatedResponsesRetryState(retryState);
+      final restored = await service
+          .readPendingRadioAutomatedResponsesRetryState();
+
+      expect(restored, retryState);
+
+      await service.clearPendingRadioAutomatedResponsesRetryState();
+      final cleared = await service
+          .readPendingRadioAutomatedResponsesRetryState();
+      expect(cleared, isEmpty);
+    });
+
+    test(
+      'saves, restores, and clears radio queue manual action detail',
+      () async {
+        final service = await DispatchPersistenceService.create();
+        const detail = 'Retry requested for 3 queued • 10:05:30 UTC';
+
+        await service.savePendingRadioQueueManualActionDetail(detail);
+        final restored = await service
+            .readPendingRadioQueueManualActionDetail();
+
+        expect(restored, detail);
+
+        await service.clearPendingRadioQueueManualActionDetail();
+        final cleared = await service.readPendingRadioQueueManualActionDetail();
+        expect(cleared, isNull);
+      },
+    );
+
+    test('saves, restores, and clears radio queue failure snapshot', () async {
+      final service = await DispatchPersistenceService.create();
+      const detail =
+          'ZEL-9001 • reason send_failed • count 2 • at 10:05:30 UTC';
+
+      await service.savePendingRadioQueueFailureSnapshot(detail);
+      final restored = await service.readPendingRadioQueueFailureSnapshot();
+
+      expect(restored, detail);
+
+      await service.clearPendingRadioQueueFailureSnapshot();
+      final cleared = await service.readPendingRadioQueueFailureSnapshot();
+      expect(cleared, isNull);
+    });
+
+    test(
+      'saves, restores, and clears radio queue failure audit detail',
+      () async {
+        final service = await DispatchPersistenceService.create();
+        const detail = 'Failure snapshot cleared • 10:06:00 UTC';
+
+        await service.savePendingRadioQueueFailureAuditDetail(detail);
+        final restored = await service
+            .readPendingRadioQueueFailureAuditDetail();
+
+        expect(restored, detail);
+
+        await service.clearPendingRadioQueueFailureAuditDetail();
+        final cleared = await service.readPendingRadioQueueFailureAuditDetail();
+        expect(cleared, isNull);
+      },
+    );
+
+    test(
+      'saves, restores, and clears radio queue state change detail',
+      () async {
+        final service = await DispatchPersistenceService.create();
+        const detail = 'Queue updated via ingest • 10:06:20 UTC';
+
+        await service.savePendingRadioQueueStateChangeDetail(detail);
+        final restored = await service.readPendingRadioQueueStateChangeDetail();
+
+        expect(restored, detail);
+
+        await service.clearPendingRadioQueueStateChangeDetail();
+        final cleared = await service.readPendingRadioQueueStateChangeDetail();
+        expect(cleared, isNull);
+      },
+    );
+
+    test(
+      'saves, restores, and clears ops integration health snapshot',
+      () async {
+        final service = await DispatchPersistenceService.create();
+        final snapshot = <String, Object?>{
+          'radio': {
+            'ok_count': 4,
+            'fail_count': 1,
+            'skip_count': 0,
+            'last_run_at_utc': '2026-03-11T10:06:20.000Z',
+            'last_detail': '4/4 appended',
+          },
+          'cctv': {
+            'ok_count': 2,
+            'fail_count': 0,
+            'skip_count': 1,
+            'last_run_at_utc': '2026-03-11T10:06:20.000Z',
+            'last_detail': '2/2 appended',
+          },
+        };
+
+        await service.saveOpsIntegrationHealthSnapshot(snapshot);
+        final restored = await service.readOpsIntegrationHealthSnapshot();
+
+        expect(restored, snapshot);
+
+        await service.clearOpsIntegrationHealthSnapshot();
+        final cleared = await service.readOpsIntegrationHealthSnapshot();
+        expect(cleared, isEmpty);
+      },
+    );
 
     test('saves and restores live poll summary', () async {
       final service = await DispatchPersistenceService.create();

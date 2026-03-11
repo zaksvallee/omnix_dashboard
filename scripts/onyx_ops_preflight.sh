@@ -7,11 +7,12 @@ FLUTTER_MODE="full"
 SAMPLES=3
 MAX_REPORT_AGE_HOURS=24
 CONFIG_FILE="${ONYX_DART_DEFINE_FILE:-config/onyx.local.json}"
+PROVIDER_ID="${ONYX_GUARD_TELEMETRY_REQUIRED_PROVIDER:-${ONYX_GUARD_TELEMETRY_NATIVE_PROVIDER:-fsk_sdk}}"
 
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/onyx_ops_preflight.sh [--skip-flutter] [--smoke-ui] [--full-tests] [--samples 3] [--max-report-age-hours 24] [--config <path>]
+  ./scripts/onyx_ops_preflight.sh [--skip-flutter] [--smoke-ui] [--full-tests] [--provider <provider-id>] [--samples 3] [--max-report-age-hours 24] [--config <path>]
 
 Purpose:
   One-command ONYX operator preflight:
@@ -36,6 +37,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --samples)
       SAMPLES="${2:-3}"
+      shift 2
+      ;;
+    --provider)
+      PROVIDER_ID="${2:-}"
       shift 2
       ;;
     --max-report-age-hours)
@@ -71,6 +76,7 @@ echo "Config: $CONFIG_FILE"
 echo "Flutter checks: $([[ "$RUN_FLUTTER" -eq 1 ]] && echo enabled || echo skipped)"
 echo "Flutter mode: $FLUTTER_MODE"
 echo "Guard samples: $SAMPLES"
+echo "Telemetry provider: $PROVIDER_ID"
 echo "Max report age: ${MAX_REPORT_AGE_HOURS}h"
 echo ""
 
@@ -85,6 +91,7 @@ fi
 
 guard_cmd=(
   ./scripts/guard_gate_auto.sh
+  --provider "$PROVIDER_ID"
   --samples "$SAMPLES"
   --max-report-age-hours "$MAX_REPORT_AGE_HOURS"
   --config "$CONFIG_FILE"

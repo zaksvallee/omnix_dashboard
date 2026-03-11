@@ -1,0 +1,42 @@
+{
+  "generated_at_utc": "2026-03-09T21:04:49Z",
+  "artifact_dir": "tmp/guard_field_validation/pilot-20260309T210430Z",
+  "required_provider": "fsk_sdk",
+  "overall_status": "PASS",
+  "metrics": {
+    "broadcast_count": 5,
+    "telemetry_line_count": 11,
+    "ingest_line_count": 20,
+    "accepted_count": 5,
+    "rejected_count": 0,
+    "provider_match_count": 1,
+    "live_facade_trace_count": 10
+  },
+  "gates": {
+    "broadcasts_present": true,
+    "telemetry_logs_present": true,
+    "ingest_logs_present": true,
+    "accepted_present": true,
+    "provider_match_present": true,
+    "live_facade_trace_present": true
+  },
+  "files": {
+    "summary": "tmp/guard_field_validation/pilot-20260309T210430Z/summary.txt",
+    "broadcasts": "tmp/guard_field_validation/pilot-20260309T210430Z/broadcasts.txt",
+    "logcat_onyx_telemetry": "tmp/guard_field_validation/pilot-20260309T210430Z/logcat_onyx_telemetry.txt",
+    "logcat_ingest_trace": "tmp/guard_field_validation/pilot-20260309T210430Z/logcat_ingest_trace.txt",
+    "logcat_full": "tmp/guard_field_validation/pilot-20260309T210430Z/logcat_full.txt",
+    "runtime_profile_text": "tmp/guard_field_validation/pilot-20260309T210430Z/runtime_profile.txt",
+    "runtime_profile_json": "tmp/guard_field_validation/pilot-20260309T210430Z/runtime_profile.json",
+    "markdown_report": "tmp/guard_field_validation/pilot-20260309T210430Z/validation_report.md"
+  },
+  "checksums": {
+    "summary_sha256": "19c730ffc5b95a51a8514a3a891b511fa62c3c4cf223ebbeee2cd0b4e52c7b6c",
+    "broadcasts_sha256": "77a6c5691e07e4f853f3677e745af33bdecad2acd835f56a8c2c37e633928164",
+    "logcat_onyx_telemetry_sha256": "0556ef3e7685bf0bde1cf00aee1ba091de519c14972d8e3bab4a2f95ad0bf1aa",
+    "logcat_ingest_trace_sha256": "a888c4f9d5876edc739a281b5b7e3e82fa0cabaf7b333900e46d728463f1e3a2",
+    "logcat_full_sha256": "1f0653cb2680854292d7c0bb75338e4b96ef0f720bb15a41ef6acf739afbf7c8",
+    "runtime_profile_text_sha256": "1ceea86291d1d02956acf6d6ae83743ca7218532ae3dc45256249c44bd644dcb",
+    "runtime_profile_json_sha256": "84619d0eb1579d08b099ca87a7e363a801b745823c1d50ef7efd1b31e280c17c"
+  }
+}

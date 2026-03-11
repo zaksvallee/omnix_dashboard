@@ -1,0 +1,42 @@
+{
+  "generated_at_utc": "2026-03-09T20:42:24Z",
+  "artifact_dir": "tmp/guard_field_validation/mock-20260309T204224Z",
+  "required_provider": "fsk_sdk",
+  "overall_status": "PASS",
+  "metrics": {
+    "broadcast_count": 1,
+    "telemetry_line_count": 3,
+    "ingest_line_count": 1,
+    "accepted_count": 1,
+    "rejected_count": 0,
+    "provider_match_count": 1,
+    "live_facade_trace_count": 2
+  },
+  "gates": {
+    "broadcasts_present": true,
+    "telemetry_logs_present": true,
+    "ingest_logs_present": true,
+    "accepted_present": true,
+    "provider_match_present": true,
+    "live_facade_trace_present": true
+  },
+  "files": {
+    "summary": "tmp/guard_field_validation/mock-20260309T204224Z/summary.txt",
+    "broadcasts": "tmp/guard_field_validation/mock-20260309T204224Z/broadcasts.txt",
+    "logcat_onyx_telemetry": "tmp/guard_field_validation/mock-20260309T204224Z/logcat_onyx_telemetry.txt",
+    "logcat_ingest_trace": "tmp/guard_field_validation/mock-20260309T204224Z/logcat_ingest_trace.txt",
+    "logcat_full": "tmp/guard_field_validation/mock-20260309T204224Z/logcat_full.txt",
+    "runtime_profile_text": "",
+    "runtime_profile_json": "",
+    "markdown_report": "tmp/guard_field_validation/mock-20260309T204224Z/validation_report.md"
+  },
+  "checksums": {
+    "summary_sha256": "bb381dc3acfa7aba0cfbbdeb08a133ffe1cfd632510e865d4214716ee56430d6",
+    "broadcasts_sha256": "47fdf2acce149cae0ef857000fc82d809c200f3bc980b5bc956e7516296954c5",
+    "logcat_onyx_telemetry_sha256": "2872dadf959530bf3080d8b4f8a5d36856f71adb088e4387a050acffa99ecf02",
+    "logcat_ingest_trace_sha256": "8864057a737802a95fa7841442d34c08a7dd8eb180b498a2c029b7fd22e820de",
+    "logcat_full_sha256": "68c13d56d7f078d8ee81ec275f3afdf6e1b0c1c4819c71791ee9892a236c7f21",
+    "runtime_profile_text_sha256": "",
+    "runtime_profile_json_sha256": ""
+  }
+}

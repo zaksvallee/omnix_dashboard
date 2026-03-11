@@ -1,0 +1,7 @@
+ONYX runtime profile:
+  config file: tmp/onyx.hikvision.local.json (found)
+  supabase: LIVE
+  telemetry: LIVE (hikvision_sdk)
+  telemetry native sdk: enabled
+  telemetry required provider: hikvision_sdk
+  live feed: DISABLED

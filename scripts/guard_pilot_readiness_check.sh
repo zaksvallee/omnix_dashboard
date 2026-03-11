@@ -171,6 +171,25 @@ PY
   echo ""
 }
 
+json_report_required_provider() {
+  local report_file="$1"
+  if command -v jq >/dev/null 2>&1; then
+    jq -r '.required_provider // ""' "$report_file"
+    return 0
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "$report_file" <<'PY'
+import json
+import sys
+with open(sys.argv[1], 'r', encoding='utf-8') as f:
+    data = json.load(f)
+print(data.get("required_provider", ""))
+PY
+    return 0
+  fi
+  echo ""
+}
+
 verify_json_report_checksums() {
   local report_file="$1"
   if ! command -v python3 >/dev/null 2>&1; then
@@ -362,6 +381,12 @@ PY
   if [[ -n "$latest_report_json" ]]; then
     overall_status="$(json_report_overall_status "$latest_report_json" | tr '[:lower:]' '[:upper:]')"
     verify_json_report_checksums "$latest_report_json"
+    report_required_provider="$(json_report_required_provider "$latest_report_json")"
+    if [[ "$ENFORCE_LIVE_TELEMETRY" -eq 1 && -n "${required_provider:-}" && -n "$report_required_provider" ]]; then
+      if [[ "$report_required_provider" != "$required_provider" ]]; then
+        fail "Live validation artifact gate failed: report required_provider ($report_required_provider) does not match telemetry gate required provider ($required_provider)."
+      fi
+    fi
   fi
   if [[ -z "$overall_status" && -n "$latest_report_md" ]]; then
     if grep -q "Overall status: \*\*PASS\*\*" "$latest_report_md"; then

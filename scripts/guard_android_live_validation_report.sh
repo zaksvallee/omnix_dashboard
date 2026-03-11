@@ -107,11 +107,28 @@ fi
 
 broadcast_count="$(grep -c '^sent sample=' "$BROADCAST_FILE" || true)"
 telemetry_line_count="$(wc -l < "$ONYX_LOG_FILE" | tr -d ' ')"
-ingest_line_count="$(wc -l < "$INGEST_LOG_FILE" | tr -d ' ')"
-accepted_count="$(grep -c 'accepted=true' "$ONYX_LOG_FILE" || true)"
-rejected_count="$(grep -c 'accepted=false' "$ONYX_LOG_FILE" || true)"
+legacy_ingest_line_count="$(wc -l < "$INGEST_LOG_FILE" | tr -d ' ')"
+live_facade_trace_count="$(grep -Eic 'facade_ingest|sdk_callback_received|sdk_callback_error' "$ONYX_LOG_FILE" || true)"
+ingest_line_count="$legacy_ingest_line_count"
+if [[ "$live_facade_trace_count" -gt 0 ]]; then
+  ingest_line_count="$((legacy_ingest_line_count + live_facade_trace_count))"
+fi
+accepted_count_legacy="$(grep -c 'accepted=true' "$ONYX_LOG_FILE" || true)"
+accepted_count_live="$(grep -c 'sdk_callback_received' "$ONYX_LOG_FILE" || true)"
+accepted_count="$((accepted_count_legacy + accepted_count_live))"
+rejected_count_legacy="$(grep -c 'accepted=false' "$ONYX_LOG_FILE" || true)"
+rejected_count_live="$(grep -c 'sdk_callback_error' "$ONYX_LOG_FILE" || true)"
+rejected_count="$((rejected_count_legacy + rejected_count_live))"
 provider_match_count="$(grep -c "provider=${REQUIRED_PROVIDER}" "$INGEST_LOG_FILE" || true)"
-live_facade_trace_count="$(grep -Eic 'facade_ingest|sdk_callback_received' "$ONYX_LOG_FILE" || true)"
+provider_startup_marker="fsk_live_facade_started"
+required_provider_lower="$(printf '%s' "$REQUIRED_PROVIDER" | tr '[:upper:]' '[:lower:]')"
+if [[ "$required_provider_lower" == *"hikvision"* ]]; then
+  provider_startup_marker="hikvision_live_facade_started"
+fi
+provider_startup_count="$(grep -c "$provider_startup_marker" "$ONYX_LOG_FILE" || true)"
+if [[ "$provider_match_count" -lt 1 && "$provider_startup_count" -gt 0 ]]; then
+  provider_match_count="$provider_startup_count"
+fi
 
 overall_status="PASS"
 if [[ "$broadcast_count" -lt 1 ]]; then

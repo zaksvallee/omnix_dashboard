@@ -5,11 +5,12 @@ SAMPLES=3
 MAX_REPORT_AGE_HOURS=24
 RUN_FULL_TESTS=0
 CONFIG_FILE="${ONYX_DART_DEFINE_FILE:-config/onyx.local.json}"
+PROVIDER_ID="${ONYX_GUARD_TELEMETRY_REQUIRED_PROVIDER:-${ONYX_GUARD_TELEMETRY_NATIVE_PROVIDER:-fsk_sdk}}"
 
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/guard_predevice_gate.sh [--samples 3] [--max-report-age-hours 24] [--full-tests] [--config <path>]
+  ./scripts/guard_predevice_gate.sh [--provider <provider-id>] [--samples 3] [--max-report-age-hours 24] [--full-tests] [--config <path>]
 
 Purpose:
   Run a strict, no-device guard readiness gate while hardware is pending:
@@ -23,6 +24,10 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --samples)
       SAMPLES="${2:-3}"
+      shift 2
+      ;;
+    --provider)
+      PROVIDER_ID="${2:-}"
       shift 2
       ;;
     --max-report-age-hours)
@@ -59,11 +64,14 @@ fi
 
 echo "== ONYX Guard Pre-Device Gate =="
 echo "Samples: $SAMPLES"
+echo "Provider: $PROVIDER_ID"
 echo "Max report age: ${MAX_REPORT_AGE_HOURS}h"
 echo "Config: $CONFIG_FILE"
 echo ""
 
-./scripts/guard_android_mock_validation_artifacts.sh --samples "$SAMPLES"
+./scripts/guard_android_mock_validation_artifacts.sh \
+  --provider "$PROVIDER_ID" \
+  --samples "$SAMPLES"
 
 report_cmd=(
   ./scripts/guard_pilot_gate_report.sh

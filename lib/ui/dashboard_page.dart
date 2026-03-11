@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../application/dispatch_snapshot_file_service.dart';
 import '../application/email_bridge_service.dart';
+import '../application/morning_sovereign_report_service.dart';
 import '../application/text_share_service.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/decision_created.dart';
@@ -44,6 +45,9 @@ class DashboardPage extends StatelessWidget {
   final int guardStaleSyncAlertMinutes;
   final List<GuardOpsEvent> guardRecentEvents;
   final List<GuardOpsMediaUpload> guardRecentMedia;
+  final SovereignReport? morningSovereignReport;
+  final String? morningSovereignReportAutoStatusLabel;
+  final Future<void> Function()? onGenerateMorningSovereignReport;
 
   const DashboardPage({
     super.key,
@@ -74,6 +78,9 @@ class DashboardPage extends StatelessWidget {
     this.guardStaleSyncAlertMinutes = 10,
     this.guardRecentEvents = const [],
     this.guardRecentMedia = const [],
+    this.morningSovereignReport,
+    this.morningSovereignReportAutoStatusLabel,
+    this.onGenerateMorningSovereignReport,
   });
 
   @override
@@ -127,6 +134,11 @@ class DashboardPage extends StatelessWidget {
                     guardStaleSyncAlertMinutes: guardStaleSyncAlertMinutes,
                     guardRecentEvents: guardRecentEvents,
                     guardRecentMedia: guardRecentMedia,
+                    morningSovereignReport: morningSovereignReport,
+                    morningSovereignReportAutoStatusLabel:
+                        morningSovereignReportAutoStatusLabel,
+                    onGenerateMorningSovereignReport:
+                        onGenerateMorningSovereignReport,
                   );
                 }
                 return _DesktopDashboard(
@@ -164,6 +176,11 @@ class DashboardPage extends StatelessWidget {
                   guardStaleSyncAlertMinutes: guardStaleSyncAlertMinutes,
                   guardRecentEvents: guardRecentEvents,
                   guardRecentMedia: guardRecentMedia,
+                  morningSovereignReport: morningSovereignReport,
+                  morningSovereignReportAutoStatusLabel:
+                      morningSovereignReportAutoStatusLabel,
+                  onGenerateMorningSovereignReport:
+                      onGenerateMorningSovereignReport,
                 );
               },
             ),
@@ -319,6 +336,9 @@ class _DesktopDashboard extends StatelessWidget {
   final int guardStaleSyncAlertMinutes;
   final List<GuardOpsEvent> guardRecentEvents;
   final List<GuardOpsMediaUpload> guardRecentMedia;
+  final SovereignReport? morningSovereignReport;
+  final String? morningSovereignReportAutoStatusLabel;
+  final Future<void> Function()? onGenerateMorningSovereignReport;
 
   const _DesktopDashboard({
     required this.snapshot,
@@ -350,12 +370,13 @@ class _DesktopDashboard extends StatelessWidget {
     required this.guardStaleSyncAlertMinutes,
     required this.guardRecentEvents,
     required this.guardRecentMedia,
+    required this.morningSovereignReport,
+    required this.morningSovereignReportAutoStatusLabel,
+    required this.onGenerateMorningSovereignReport,
   });
 
   @override
   Widget build(BuildContext context) {
-    final viewportHeight = MediaQuery.sizeOf(context).height;
-    final railHeight = (viewportHeight - 182).clamp(480.0, 820.0);
     final rightRail = _RightRail(
       snapshot: snapshot,
       threat: threat,
@@ -385,6 +406,10 @@ class _DesktopDashboard extends StatelessWidget {
       guardStaleSyncAlertMinutes: guardStaleSyncAlertMinutes,
       guardRecentEvents: guardRecentEvents,
       guardRecentMedia: guardRecentMedia,
+      morningSovereignReport: morningSovereignReport,
+      morningSovereignReportAutoStatusLabel:
+          morningSovereignReportAutoStatusLabel,
+      onGenerateMorningSovereignReport: onGenerateMorningSovereignReport,
     );
 
     return SingleChildScrollView(
@@ -396,7 +421,7 @@ class _DesktopDashboard extends StatelessWidget {
             builder: (context, constraints) {
               // Keep the primary operational read path full-width on typical
               // desktop/laptop windows; only pin the right rail on very wide layouts.
-              final stackRightRailBelow = constraints.maxWidth < 1240;
+              final stackRightRailBelow = constraints.maxWidth < 1320;
 
               return Column(
                 children: [
@@ -430,11 +455,7 @@ class _DesktopDashboard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 10),
-                        SizedBox(
-                          width: 336,
-                          height: railHeight,
-                          child: rightRail,
-                        ),
+                        SizedBox(width: 336, child: rightRail),
                       ],
                     ),
                 ],
@@ -477,6 +498,9 @@ class _CompactDashboard extends StatelessWidget {
   final int guardStaleSyncAlertMinutes;
   final List<GuardOpsEvent> guardRecentEvents;
   final List<GuardOpsMediaUpload> guardRecentMedia;
+  final SovereignReport? morningSovereignReport;
+  final String? morningSovereignReportAutoStatusLabel;
+  final Future<void> Function()? onGenerateMorningSovereignReport;
 
   const _CompactDashboard({
     required this.snapshot,
@@ -508,6 +532,9 @@ class _CompactDashboard extends StatelessWidget {
     required this.guardStaleSyncAlertMinutes,
     required this.guardRecentEvents,
     required this.guardRecentMedia,
+    required this.morningSovereignReport,
+    required this.morningSovereignReportAutoStatusLabel,
+    required this.onGenerateMorningSovereignReport,
   });
 
   @override
@@ -517,6 +544,10 @@ class _CompactDashboard extends StatelessWidget {
       children: [
         _ExecutiveSummary(snapshot: snapshot, threat: threat, triage: triage),
         const SizedBox(height: 10),
+        _SignalAndFeedGrid(snapshot: snapshot),
+        const SizedBox(height: 12),
+        _SitePosturePanel(snapshot: snapshot, threat: threat),
+        const SizedBox(height: 12),
         _RightRail(
           snapshot: snapshot,
           threat: threat,
@@ -549,11 +580,11 @@ class _CompactDashboard extends StatelessWidget {
           guardStaleSyncAlertMinutes: guardStaleSyncAlertMinutes,
           guardRecentEvents: guardRecentEvents,
           guardRecentMedia: guardRecentMedia,
+          morningSovereignReport: morningSovereignReport,
+          morningSovereignReportAutoStatusLabel:
+              morningSovereignReportAutoStatusLabel,
+          onGenerateMorningSovereignReport: onGenerateMorningSovereignReport,
         ),
-        const SizedBox(height: 12),
-        _SignalAndFeedGrid(snapshot: snapshot),
-        const SizedBox(height: 12),
-        _SitePosturePanel(snapshot: snapshot, threat: threat),
       ],
     );
   }
@@ -570,51 +601,29 @@ class _TopBar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0x220D1F39), Color(0x000D1F39)],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-        border: Border(bottom: BorderSide(color: Color(0xFF183354))),
+        color: Color(0xFF0A0D14),
+        border: Border(bottom: BorderSide(color: Color(0xFF24354A))),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'ONYX Command Dashboard',
-                  style: GoogleFonts.rajdhani(
-                    color: const Color(0xFFE8F1FF),
-                    fontSize: 26,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Operational health, dispatch cadence, and site posture in one readable surface.',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF8EA4C2),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 1200;
+          final headerTitle = Text(
+            'Command Dashboard',
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFE8F1FF),
+              fontSize: compact ? 22 : 26,
+              fontWeight: FontWeight.w700,
             ),
-          ),
-          const SizedBox(width: 12),
-          _HeaderStat(
-            label: 'Last Event',
-            value: _formatTimestamp(snapshot.lastEventAtUtc),
-          ),
-          const SizedBox(width: 8),
-          _HeaderStat(
-            label: 'Pressure',
-            value: snapshot.controllerPressureIndex.toStringAsFixed(1),
-          ),
-          const SizedBox(width: 8),
-          Container(
+          );
+          final headerSubtitle = Text(
+            'Real-time operational control • AI-powered human-parallel execution.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          );
+          final statusChip = Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(999),
@@ -630,8 +639,64 @@ class _TopBar extends StatelessWidget {
                 fontSize: 16,
               ),
             ),
-          ),
-        ],
+          );
+
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                headerTitle,
+                const SizedBox(height: 2),
+                headerSubtitle,
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _HeaderStat(
+                      label: 'Last Event',
+                      value: _formatTimestamp(snapshot.lastEventAtUtc),
+                    ),
+                    _HeaderStat(
+                      label: 'Pressure',
+                      value: snapshot.controllerPressureIndex.toStringAsFixed(
+                        1,
+                      ),
+                    ),
+                    statusChip,
+                  ],
+                ),
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    headerTitle,
+                    const SizedBox(height: 2),
+                    headerSubtitle,
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              _HeaderStat(
+                label: 'Last Event',
+                value: _formatTimestamp(snapshot.lastEventAtUtc),
+              ),
+              const SizedBox(width: 8),
+              _HeaderStat(
+                label: 'Pressure',
+                value: snapshot.controllerPressureIndex.toStringAsFixed(1),
+              ),
+              const SizedBox(width: 8),
+              statusChip,
+            ],
+          );
+        },
       ),
     );
   }
@@ -650,97 +715,115 @@ class _ExecutiveSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _DashboardCard(
-      title: 'Operational Summary',
-      subtitle: 'Executive operational visibility and command posture',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF1A365A)),
-              gradient: const LinearGradient(
-                colors: [Color(0xFF0E1B31), Color(0xFF0C182C)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            child: Wrap(
-              spacing: 18,
-              runSpacing: 8,
-              children: [
-                _SummaryStripItem(
-                  label: 'Active Sites',
-                  value: snapshot.totalSites.toString(),
-                  helper: '${snapshot.totalSites} visible',
-                ),
-                _SummaryStripItem(
-                  label: 'On-Duty Guards',
-                  value: snapshot.totalCheckIns.toString(),
-                  helper: '${snapshot.totalPatrols} patrols',
-                ),
-                _SummaryStripItem(
-                  label: 'Open Dispatches',
-                  value: snapshot.totalDecisions.toString(),
-                  helper: threat.label,
-                  helperColor: threat.accent,
-                ),
-                _SummaryStripItem(
-                  label: 'Avg Response',
-                  value:
-                      '${snapshot.averageResponseMinutes.toStringAsFixed(1)} min',
-                  helper: snapshot.controllerPressureIndex >= 70
-                      ? 'Elevated'
-                      : 'Normal',
-                  helperColor: snapshot.controllerPressureIndex >= 70
-                      ? const Color(0xFFF6C067)
-                      : const Color(0xFF67D79C),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 1200;
+        return _DashboardCard(
+          title: 'KPI Band',
+          subtitle: 'Live operational indicators for command decisions',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: _KpiBandTile(
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF223244)),
+                  color: const Color(0xFF0E1A2B),
+                ),
+                child: Wrap(
+                  spacing: 18,
+                  runSpacing: 8,
+                  children: [
+                    _SummaryStripItem(
+                      label: 'Active Incidents',
+                      value: snapshot.totalDecisions.toString(),
+                      helper: '${snapshot.totalFailed} failed',
+                    ),
+                    _SummaryStripItem(
+                      label: 'Guards On-Duty',
+                      value: snapshot.totalCheckIns.toString(),
+                      helper: '${snapshot.totalPatrols} patrols',
+                    ),
+                    _SummaryStripItem(
+                      label: 'Response Time',
+                      value:
+                          '${snapshot.averageResponseMinutes.toStringAsFixed(1)}m',
+                      helper: 'Average',
+                    ),
+                    _SummaryStripItem(
+                      label: 'Triage Posture',
+                      value: threat.label,
+                      helper:
+                          'Pressure ${snapshot.controllerPressureIndex.toStringAsFixed(1)}',
+                      helperColor: threat.accent,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (compact) ...[
+                _KpiBandTile(
                   label: 'Average Response',
                   value:
                       '${snapshot.averageResponseMinutes.toStringAsFixed(1)} min',
                   helper: 'Across all arrived dispatches',
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _KpiBandTile(
+                const SizedBox(height: 8),
+                _KpiBandTile(
                   label: 'High-Risk Intel',
                   value: snapshot.highRiskIntelligence.toString(),
                   helper: 'Signals above 70 risk',
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _KpiBandTile(
+                const SizedBox(height: 8),
+                _KpiBandTile(
                   label: 'Field Activity',
                   value:
                       '${snapshot.totalCheckIns} check-ins • ${snapshot.totalPatrols} patrols',
                   helper: 'Current field movement',
                 ),
+              ] else
+                Row(
+                  children: [
+                    Expanded(
+                      child: _KpiBandTile(
+                        label: 'Average Response',
+                        value:
+                            '${snapshot.averageResponseMinutes.toStringAsFixed(1)} min',
+                        helper: 'Across all arrived dispatches',
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _KpiBandTile(
+                        label: 'High-Risk Intel',
+                        value: snapshot.highRiskIntelligence.toString(),
+                        helper: 'Signals above 70 risk',
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _KpiBandTile(
+                        label: 'Field Activity',
+                        value:
+                            '${snapshot.totalCheckIns} check-ins • ${snapshot.totalPatrols} patrols',
+                        helper: 'Current field movement',
+                      ),
+                    ),
+                  ],
+                ),
+              const SizedBox(height: 8),
+              _KpiBandTile(
+                label: 'Triage Posture',
+                value:
+                    'A ${triage.advisoryCount} • W ${triage.watchCount} • DC ${triage.dispatchCandidateCount} • Esc ${triage.escalateCount}',
+                helper: 'Top triage signals: ${triage.topSignalsSummary}',
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          _KpiBandTile(
-            label: 'Triage Posture',
-            value:
-                'A ${triage.advisoryCount} • W ${triage.watchCount} • DC ${triage.dispatchCandidateCount} • Esc ${triage.escalateCount}',
-            helper: 'Top triage signals: ${triage.topSignalsSummary}',
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -814,61 +897,72 @@ class _SignalAndFeedGrid extends StatelessWidget {
     final hiddenDispatches =
         snapshot.dispatchFeed.length - visibleDispatchFeed.length;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: _DashboardCard(
-            title: 'Live Signals',
-            subtitle:
-                'Recent intelligence, patrol, and field confirmations • ${snapshot.liveSignals.length} total',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (final row in visibleSignals) ...[
-                  _TimelineRow(accent: const Color(0xFF57C8FF), label: row),
-                  const SizedBox(height: 8),
-                ],
-                if (snapshot.liveSignals.isEmpty)
-                  const _MutedLabel(label: 'No live signals yet.')
-                else if (hiddenSignals > 0)
-                  OnyxTruncationHint(
-                    visibleCount: visibleSignals.length,
-                    totalCount: snapshot.liveSignals.length,
-                    subject: 'signals',
-                    hiddenDescriptor: 'older signals',
-                  ),
-              ],
+    final liveSignalsCard = _DashboardCard(
+      title: 'Live Signals',
+      subtitle:
+          'Recent intelligence, patrol, and field confirmations • ${snapshot.liveSignals.length} total',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final row in visibleSignals) ...[
+            _TimelineRow(accent: const Color(0xFF57C8FF), label: row),
+            const SizedBox(height: 8),
+          ],
+          if (snapshot.liveSignals.isEmpty)
+            const _MutedLabel(label: 'No live signals yet.')
+          else if (hiddenSignals > 0)
+            OnyxTruncationHint(
+              visibleCount: visibleSignals.length,
+              totalCount: snapshot.liveSignals.length,
+              subject: 'signals',
+              hiddenDescriptor: 'older signals',
             ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _DashboardCard(
-            title: 'Dispatch Feed',
-            subtitle:
-                'Readable dispatch outcomes with quick priority color • ${snapshot.dispatchFeed.length} total',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (final row in visibleDispatchFeed) ...[
-                  _DispatchFeedRow(label: row),
-                  const SizedBox(height: 6),
-                ],
-                if (snapshot.dispatchFeed.isEmpty)
-                  const _MutedLabel(label: 'No dispatch events yet.')
-                else if (hiddenDispatches > 0)
-                  OnyxTruncationHint(
-                    visibleCount: visibleDispatchFeed.length,
-                    totalCount: snapshot.dispatchFeed.length,
-                    subject: 'dispatch rows',
-                    hiddenDescriptor: 'older rows',
-                  ),
-              ],
+        ],
+      ),
+    );
+    final dispatchFeedCard = _DashboardCard(
+      title: 'Dispatch Feed',
+      subtitle:
+          'Readable dispatch outcomes with quick priority color • ${snapshot.dispatchFeed.length} total',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final row in visibleDispatchFeed) ...[
+            _DispatchFeedRow(label: row),
+            const SizedBox(height: 6),
+          ],
+          if (snapshot.dispatchFeed.isEmpty)
+            const _MutedLabel(label: 'No dispatch events yet.')
+          else if (hiddenDispatches > 0)
+            OnyxTruncationHint(
+              visibleCount: visibleDispatchFeed.length,
+              totalCount: snapshot.dispatchFeed.length,
+              subject: 'dispatch rows',
+              hiddenDescriptor: 'older rows',
             ),
-          ),
-        ),
-      ],
+        ],
+      ),
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 1200) {
+          return Column(
+            children: [
+              liveSignalsCard,
+              const SizedBox(height: 10),
+              dispatchFeedCard,
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: liveSignalsCard),
+            const SizedBox(width: 10),
+            Expanded(child: dispatchFeedCard),
+          ],
+        );
+      },
     );
   }
 }
@@ -946,6 +1040,9 @@ class _RightRail extends StatelessWidget {
   final int guardStaleSyncAlertMinutes;
   final List<GuardOpsEvent> guardRecentEvents;
   final List<GuardOpsMediaUpload> guardRecentMedia;
+  final SovereignReport? morningSovereignReport;
+  final String? morningSovereignReportAutoStatusLabel;
+  final Future<void> Function()? onGenerateMorningSovereignReport;
 
   const _RightRail({
     required this.snapshot,
@@ -976,6 +1073,9 @@ class _RightRail extends StatelessWidget {
     required this.guardStaleSyncAlertMinutes,
     required this.guardRecentEvents,
     required this.guardRecentMedia,
+    required this.morningSovereignReport,
+    required this.morningSovereignReportAutoStatusLabel,
+    required this.onGenerateMorningSovereignReport,
   });
 
   String _guardFailureTraceClipboard(
@@ -1107,1272 +1207,1202 @@ class _RightRail extends StatelessWidget {
         .toList(growable: false);
     final hiddenCoachingHistory =
         guardCoachingRecentHistory.length - visibleCoachingHistory.length;
+    final sovereignReport = morningSovereignReport;
+    final governanceGenerationEnabled =
+        onGenerateMorningSovereignReport != null;
+    final overrideReasonSummary = sovereignReport == null
+        ? 'none'
+        : (sovereignReport.aiHumanDelta.overrideReasons.entries.toList()
+                ..sort((a, b) => b.value.compareTo(a.value)))
+              .take(3)
+              .map((entry) => '${entry.key} ${entry.value}')
+              .join(', ');
 
-    return Scrollbar(
-      child: SingleChildScrollView(
-        child: Column(
-          children: [
-            _DashboardCard(
-              title: 'Threat Readout',
-              subtitle: 'Condensed command view with readable actions.',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${threat.label} posture',
-                    style: GoogleFonts.rajdhani(
-                      color: threat.accent,
-                      fontSize: 25,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    snapshot.totalFailed > 0
-                        ? '${snapshot.totalFailed} failed executions need operator review before workload normalises.'
-                        : 'No failed executions currently expanding operational risk.',
+    return Column(
+      children: [
+        _DashboardCard(
+          title: 'Threat Readout',
+          subtitle: 'Condensed command view with readable actions.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${threat.label} posture',
+                style: GoogleFonts.rajdhani(
+                  color: threat.accent,
+                  fontSize: 25,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                snapshot.totalFailed > 0
+                    ? '${snapshot.totalFailed} failed executions need operator review before workload normalises.'
+                    : 'No failed executions currently expanding operational risk.',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFD2DEEE),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 10),
+              _RailMetricRow(
+                label: 'Active sites',
+                value: activeCount.toString(),
+              ),
+              _RailMetricRow(
+                label: 'Pressure index',
+                value: snapshot.controllerPressureIndex.toStringAsFixed(1),
+              ),
+              _RailMetricRow(
+                label: 'Avg response',
+                value:
+                    '${snapshot.averageResponseMinutes.toStringAsFixed(1)} min',
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        _DashboardCard(
+          title: 'Operational Mix',
+          subtitle: 'Core signal buckets without visual clutter.',
+          child: Column(
+            children: [
+              _MixBar(
+                label: 'Executed',
+                value: snapshot.totalExecuted,
+                total: snapshot.totalDecisions,
+                accent: const Color(0xFF7AF2B5),
+              ),
+              const SizedBox(height: 8),
+              _MixBar(
+                label: 'Denied',
+                value: snapshot.totalDenied,
+                total: snapshot.totalDecisions,
+                accent: const Color(0xFFFFC27A),
+              ),
+              const SizedBox(height: 8),
+              _MixBar(
+                label: 'Failed',
+                value: snapshot.totalFailed,
+                total: snapshot.totalDecisions,
+                accent: const Color(0xFFFF8D95),
+              ),
+              const SizedBox(height: 8),
+              _MixBar(
+                label: 'High-risk intel',
+                value: snapshot.highRiskIntelligence,
+                total: snapshot.totalIntelligenceReceived,
+                accent: const Color(0xFFC0A7FF),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        _DashboardCard(
+          title: 'Guard Sync Health',
+          subtitle: 'Queue pressure and failure trace from Android guard sync.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (guardAlerts.isNotEmpty) ...[
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: guardAlerts
+                      .map(
+                        (alert) => Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(999),
+                            color: alert.color.withValues(alpha: 0.12),
+                            border: Border.all(
+                              color: alert.color.withValues(alpha: 0.65),
+                            ),
+                          ),
+                          child: Text(
+                            alert.label,
+                            style: GoogleFonts.inter(
+                              color: alert.color,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(growable: false),
+                ),
+                const SizedBox(height: 10),
+              ],
+              _RailMetricRow(
+                label: 'Backend mode',
+                value: guardSyncBackendEnabled ? 'Supabase+fallback' : 'local',
+              ),
+              _RailMetricRow(
+                label: 'Sync state',
+                value: guardSyncInFlight ? 'in-flight' : 'idle',
+              ),
+              _RailMetricRow(
+                label: 'Queue depth',
+                value: guardSyncQueueDepth.toString(),
+              ),
+              _RailMetricRow(
+                label: 'Pending',
+                value: 'events $guardPendingEvents • media $guardPendingMedia',
+              ),
+              _RailMetricRow(
+                label: 'Failed',
+                value: 'events $guardFailedEvents • media $guardFailedMedia',
+              ),
+              if (guardLastSuccessfulSyncAtUtc != null)
+                _RailMetricRow(
+                  label: 'Last success',
+                  value: _formatTimestamp(guardLastSuccessfulSyncAtUtc!),
+                ),
+              if (guardSyncStatusLabel != null &&
+                  guardSyncStatusLabel!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Text(
+                    guardSyncStatusLabel!,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFD2DEEE),
-                      fontSize: 13,
+                      color: const Color(0xFF8FD1FF),
+                      fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      height: 1.4,
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  _RailMetricRow(
-                    label: 'Active sites',
-                    value: activeCount.toString(),
+                ),
+              if (guardLastFailureReason != null &&
+                  guardLastFailureReason!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    'Last failure: $guardLastFailureReason',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFFFB2B8),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  _RailMetricRow(
-                    label: 'Pressure index',
-                    value: snapshot.controllerPressureIndex.toStringAsFixed(1),
+                ),
+              const SizedBox(height: 4),
+              Theme(
+                data: Theme.of(
+                  context,
+                ).copyWith(dividerColor: Colors.transparent),
+                child: ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  childrenPadding: EdgeInsets.zero,
+                  iconColor: const Color(0xFF8FD1FF),
+                  collapsedIconColor: const Color(0xFF7EA5CB),
+                  title: Text(
+                    'Diagnostics and coaching telemetry',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF8FD1FF),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                  _RailMetricRow(
-                    label: 'Avg response',
-                    value:
-                        '${snapshot.averageResponseMinutes.toStringAsFixed(1)} min',
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-            _DashboardCard(
-              title: 'Operational Mix',
-              subtitle: 'Core signal buckets without visual clutter.',
-              child: Column(
-                children: [
-                  _MixBar(
-                    label: 'Executed',
-                    value: snapshot.totalExecuted,
-                    total: snapshot.totalDecisions,
-                    accent: const Color(0xFF7AF2B5),
-                  ),
-                  const SizedBox(height: 8),
-                  _MixBar(
-                    label: 'Denied',
-                    value: snapshot.totalDenied,
-                    total: snapshot.totalDecisions,
-                    accent: const Color(0xFFFFC27A),
-                  ),
-                  const SizedBox(height: 8),
-                  _MixBar(
-                    label: 'Failed',
-                    value: snapshot.totalFailed,
-                    total: snapshot.totalDecisions,
-                    accent: const Color(0xFFFF8D95),
-                  ),
-                  const SizedBox(height: 8),
-                  _MixBar(
-                    label: 'High-risk intel',
-                    value: snapshot.highRiskIntelligence,
-                    total: snapshot.totalIntelligenceReceived,
-                    accent: const Color(0xFFC0A7FF),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-            _DashboardCard(
-              title: 'Guard Sync Health',
-              subtitle:
-                  'Queue pressure and failure trace from Android guard sync.',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (guardAlerts.isNotEmpty) ...[
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: guardAlerts
-                          .map(
-                            (alert) => Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(999),
-                                color: alert.color.withValues(alpha: 0.12),
-                                border: Border.all(
-                                  color: alert.color.withValues(alpha: 0.65),
-                                ),
-                              ),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _RailMetricRow(
+                            label: 'Policy denied',
+                            value: guardOutcomePolicyDeniedCount.toString(),
+                          ),
+                          _RailMetricRow(
+                            label: 'Denied (24h)',
+                            value: guardOutcomePolicyDenied24h.toString(),
+                          ),
+                          _RailMetricRow(
+                            label: 'Denied (7d)',
+                            value: guardOutcomePolicyDenied7d.toString(),
+                          ),
+                          _RailMetricRow(
+                            label: 'Coaching Ack',
+                            value: guardCoachingAckCount.toString(),
+                          ),
+                          _RailMetricRow(
+                            label: 'Coaching Snooze',
+                            value: guardCoachingSnoozeCount.toString(),
+                          ),
+                          _RailMetricRow(
+                            label: 'Snooze Expiry',
+                            value: guardCoachingSnoozeExpiryCount.toString(),
+                          ),
+                          if (guardOutcomePolicyDeniedLastReason != null &&
+                              guardOutcomePolicyDeniedLastReason!.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
                               child: Text(
-                                alert.label,
+                                'Policy denied (latest): $guardOutcomePolicyDeniedLastReason',
                                 style: GoogleFonts.inter(
-                                  color: alert.color,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFFF5C27A),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
-                          )
-                          .toList(growable: false),
-                    ),
-                    const SizedBox(height: 10),
-                  ],
-                  _RailMetricRow(
-                    label: 'Backend mode',
-                    value: guardSyncBackendEnabled
-                        ? 'Supabase+fallback'
-                        : 'local',
-                  ),
-                  _RailMetricRow(
-                    label: 'Sync state',
-                    value: guardSyncInFlight ? 'in-flight' : 'idle',
-                  ),
-                  _RailMetricRow(
-                    label: 'Queue depth',
-                    value: guardSyncQueueDepth.toString(),
-                  ),
-                  _RailMetricRow(
-                    label: 'Pending',
-                    value:
-                        'events $guardPendingEvents • media $guardPendingMedia',
-                  ),
-                  _RailMetricRow(
-                    label: 'Failed',
-                    value:
-                        'events $guardFailedEvents • media $guardFailedMedia',
-                  ),
-                  if (guardLastSuccessfulSyncAtUtc != null)
-                    _RailMetricRow(
-                      label: 'Last success',
-                      value: _formatTimestamp(guardLastSuccessfulSyncAtUtc!),
-                    ),
-                  if (guardSyncStatusLabel != null &&
-                      guardSyncStatusLabel!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 10),
-                      child: Text(
-                        guardSyncStatusLabel!,
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF8FD1FF),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  if (guardLastFailureReason != null &&
-                      guardLastFailureReason!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Text(
-                        'Last failure: $guardLastFailureReason',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFFFFB2B8),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 4),
-                  Theme(
-                    data: Theme.of(
-                      context,
-                    ).copyWith(dividerColor: Colors.transparent),
-                    child: ExpansionTile(
-                      tilePadding: EdgeInsets.zero,
-                      childrenPadding: EdgeInsets.zero,
-                      iconColor: const Color(0xFF8FD1FF),
-                      collapsedIconColor: const Color(0xFF7EA5CB),
-                      title: Text(
-                        'Diagnostics and coaching telemetry',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF8FD1FF),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      children: [
-                        SizedBox(
-                          height: 210,
-                          child: Scrollbar(
-                            child: SingleChildScrollView(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _RailMetricRow(
-                                    label: 'Policy denied',
-                                    value: guardOutcomePolicyDeniedCount
-                                        .toString(),
+                          if (guardCoachingRecentHistory.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'Recent Coaching Telemetry',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF8FD1FF),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            ...visibleCoachingHistory.map(
+                              (entry) => Padding(
+                                padding: const EdgeInsets.only(bottom: 3),
+                                child: Text(
+                                  entry,
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFFB8CBE7),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
                                   ),
-                                  _RailMetricRow(
-                                    label: 'Denied (24h)',
-                                    value: guardOutcomePolicyDenied24h
-                                        .toString(),
+                                ),
+                              ),
+                            ),
+                            if (hiddenCoachingHistory > 0)
+                              OnyxTruncationHint(
+                                visibleCount: visibleCoachingHistory.length,
+                                totalCount: guardCoachingRecentHistory.length,
+                                subject: 'coaching rows',
+                                hiddenDescriptor: 'additional rows',
+                                fontSize: 10,
+                                color: const Color(0xFF8EA5C6),
+                              ),
+                          ],
+                          const SizedBox(height: 8),
+                          Text(
+                            'Recent Failure Trace',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF8FD1FF),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          if (recentFailureTraces.isEmpty)
+                            Text(
+                              'No recent failure trace.',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF95A9C6),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            )
+                          else
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Events',
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFF9FB6D5),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
                                   ),
-                                  _RailMetricRow(
-                                    label: 'Denied (7d)',
-                                    value: guardOutcomePolicyDenied7d
-                                        .toString(),
-                                  ),
-                                  _RailMetricRow(
-                                    label: 'Coaching Ack',
-                                    value: guardCoachingAckCount.toString(),
-                                  ),
-                                  _RailMetricRow(
-                                    label: 'Coaching Snooze',
-                                    value: guardCoachingSnoozeCount.toString(),
-                                  ),
-                                  _RailMetricRow(
-                                    label: 'Snooze Expiry',
-                                    value: guardCoachingSnoozeExpiryCount
-                                        .toString(),
-                                  ),
-                                  if (guardOutcomePolicyDeniedLastReason !=
-                                          null &&
-                                      guardOutcomePolicyDeniedLastReason!
-                                          .isNotEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 6),
+                                ),
+                                const SizedBox(height: 2),
+                                if (recentEventFailureTraces.isEmpty)
+                                  Text(
+                                    'No event failures.',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFF95A9C6),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  )
+                                else
+                                  ...recentEventFailureTraces.map(
+                                    (trace) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 3),
                                       child: Text(
-                                        'Policy denied (latest): $guardOutcomePolicyDeniedLastReason',
+                                        trace,
                                         style: GoogleFonts.inter(
-                                          color: const Color(0xFFF5C27A),
-                                          fontSize: 11,
+                                          color: const Color(0xFFFFC7CC),
+                                          fontSize: 10,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                     ),
-                                  if (guardCoachingRecentHistory
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'Recent Coaching Telemetry',
+                                  ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Media',
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFF9FB6D5),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                if (recentMediaFailureTraces.isEmpty)
+                                  Text(
+                                    'No media failures.',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFF95A9C6),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  )
+                                else
+                                  ...recentMediaFailureTraces.map(
+                                    (trace) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 3),
+                                      child: Text(
+                                        trace,
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFFFFC7CC),
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (onOpenGuardSync != null ||
+                  onClearGuardOutcomePolicyTelemetry != null)
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    if (onOpenGuardSync != null)
+                      OutlinedButton(
+                        onPressed: onOpenGuardSync,
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFF23547C)),
+                          foregroundColor: const Color(0xFF8FD1FF),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                          textStyle: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        child: const Text('Open Guard Sync'),
+                      ),
+                    if (onClearGuardOutcomePolicyTelemetry != null)
+                      OutlinedButton(
+                        onPressed: onClearGuardOutcomePolicyTelemetry,
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFF6D4B25)),
+                          foregroundColor: const Color(0xFFF5C27A),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                          textStyle: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        child: const Text('Clear Policy Telemetry'),
+                      ),
+                  ],
+                ),
+              const SizedBox(height: 4),
+              Theme(
+                data: Theme.of(
+                  context,
+                ).copyWith(dividerColor: Colors.transparent),
+                child: ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  childrenPadding: EdgeInsets.zero,
+                  iconColor: const Color(0xFF8FD1FF),
+                  collapsedIconColor: const Color(0xFF7EA5CB),
+                  title: Text(
+                    'Advanced export and share',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF8FD1FF),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: TextButton(
+                              onPressed: () async {
+                                await Clipboard.setData(
+                                  ClipboardData(
+                                    text: _guardFailureTraceClipboard(
+                                      recentFailureTraces,
+                                      guardLastFailureReason,
+                                    ),
+                                  ),
+                                );
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Guard failure trace copied',
                                       style: GoogleFonts.inter(
-                                        color: const Color(0xFF8FD1FF),
-                                        fontSize: 11,
+                                        color: const Color(0xFFE7F0FF),
                                         fontWeight: FontWeight.w700,
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
-                                    ...visibleCoachingHistory.map(
-                                      (entry) => Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 3,
-                                        ),
-                                        child: Text(
-                                          entry,
-                                          style: GoogleFonts.inter(
-                                            color: const Color(0xFFB8CBE7),
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    if (hiddenCoachingHistory > 0)
-                                      OnyxTruncationHint(
-                                        visibleCount:
-                                            visibleCoachingHistory.length,
-                                        totalCount:
-                                            guardCoachingRecentHistory.length,
-                                        subject: 'coaching rows',
-                                        hiddenDescriptor: 'additional rows',
-                                        fontSize: 10,
-                                        color: const Color(0xFF8EA5C6),
-                                      ),
-                                  ],
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Recent Failure Trace',
-                                    style: GoogleFonts.inter(
-                                      color: const Color(0xFF8FD1FF),
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                                    backgroundColor: const Color(0xFF0E203A),
                                   ),
-                                  const SizedBox(height: 4),
-                                  if (recentFailureTraces.isEmpty)
-                                    Text(
-                                      'No recent failure trace.',
+                                );
+                              },
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(0, 0),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                'Copy Failure Trace',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF8FD1FF),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: TextButton(
+                              onPressed: () async {
+                                if (!_emailBridge.supported) {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Email bridge is only available on web',
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFFE7F0FF),
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      backgroundColor: const Color(0xFF0E203A),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                final opened = await _emailBridge.openMailDraft(
+                                  subject: 'ONYX Guard Sync Failure Trace',
+                                  body: _guardFailureTraceText(
+                                    recentFailureTraces,
+                                    guardLastFailureReason,
+                                  ),
+                                );
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      opened
+                                          ? 'Email draft opened for failure trace'
+                                          : 'Email bridge unavailable',
                                       style: GoogleFonts.inter(
-                                        color: const Color(0xFF95A9C6),
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
+                                        color: const Color(0xFFE7F0FF),
+                                        fontWeight: FontWeight.w700,
                                       ),
-                                    )
-                                  else
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Events',
-                                          style: GoogleFonts.inter(
-                                            color: const Color(0xFF9FB6D5),
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        if (recentEventFailureTraces.isEmpty)
-                                          Text(
-                                            'No event failures.',
-                                            style: GoogleFonts.inter(
-                                              color: const Color(0xFF95A9C6),
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          )
-                                        else
-                                          ...recentEventFailureTraces.map(
-                                            (trace) => Padding(
-                                              padding: const EdgeInsets.only(
-                                                bottom: 3,
-                                              ),
-                                              child: Text(
-                                                trace,
-                                                style: GoogleFonts.inter(
-                                                  color: const Color(
-                                                    0xFFFFC7CC,
-                                                  ),
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'Media',
-                                          style: GoogleFonts.inter(
-                                            color: const Color(0xFF9FB6D5),
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        if (recentMediaFailureTraces.isEmpty)
-                                          Text(
-                                            'No media failures.',
-                                            style: GoogleFonts.inter(
-                                              color: const Color(0xFF95A9C6),
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          )
-                                        else
-                                          ...recentMediaFailureTraces.map(
-                                            (trace) => Padding(
-                                              padding: const EdgeInsets.only(
-                                                bottom: 3,
-                                              ),
-                                              child: Text(
-                                                trace,
-                                                style: GoogleFonts.inter(
-                                                  color: const Color(
-                                                    0xFFFFC7CC,
-                                                  ),
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                      ],
                                     ),
-                                ],
+                                    backgroundColor: const Color(0xFF0E203A),
+                                  ),
+                                );
+                              },
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(0, 0),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                'Email Failure Trace',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF8FD1FF),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  if (onOpenGuardSync != null ||
-                      onClearGuardOutcomePolicyTelemetry != null)
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        if (onOpenGuardSync != null)
-                          OutlinedButton(
-                            onPressed: onOpenGuardSync,
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Color(0xFF23547C)),
-                              foregroundColor: const Color(0xFF8FD1FF),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 8,
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: TextButton(
+                              onPressed: () async {
+                                if (!_snapshotFiles.supported) {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'File export is only available on web',
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFFE7F0FF),
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      backgroundColor: const Color(0xFF0E203A),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                await _snapshotFiles.downloadTextFile(
+                                  filename: 'guard-sync-failure-trace.txt',
+                                  contents: _guardFailureTraceText(
+                                    recentFailureTraces,
+                                    guardLastFailureReason,
+                                  ),
+                                );
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Failure trace download started',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFE7F0FF),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    backgroundColor: const Color(0xFF0E203A),
+                                  ),
+                                );
+                              },
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(0, 0),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
-                              textStyle: GoogleFonts.inter(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
+                              child: Text(
+                                'Download Failure Trace',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF8FD1FF),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
-                            child: const Text('Open Guard Sync'),
                           ),
-                        if (onClearGuardOutcomePolicyTelemetry != null)
-                          OutlinedButton(
-                            onPressed: onClearGuardOutcomePolicyTelemetry,
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Color(0xFF6D4B25)),
-                              foregroundColor: const Color(0xFFF5C27A),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 8,
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: TextButton(
+                              onPressed: () async {
+                                if (!_textShare.supported) {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Share is not available in this environment',
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFFE7F0FF),
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      backgroundColor: const Color(0xFF0E203A),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                final shared = await _textShare.shareText(
+                                  title: 'ONYX Guard Sync Failure Trace',
+                                  text: _guardFailureTraceText(
+                                    recentFailureTraces,
+                                    guardLastFailureReason,
+                                  ),
+                                );
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      shared
+                                          ? 'Failure trace share started'
+                                          : 'Failure trace share unavailable',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFE7F0FF),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    backgroundColor: const Color(0xFF0E203A),
+                                  ),
+                                );
+                              },
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(0, 0),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
-                              textStyle: GoogleFonts.inter(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
+                              child: Text(
+                                'Share Failure Trace',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF8FD1FF),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
-                            child: const Text('Clear Policy Telemetry'),
                           ),
-                      ],
-                    ),
-                  const SizedBox(height: 4),
-                  Theme(
-                    data: Theme.of(
-                      context,
-                    ).copyWith(dividerColor: Colors.transparent),
-                    child: ExpansionTile(
-                      tilePadding: EdgeInsets.zero,
-                      childrenPadding: EdgeInsets.zero,
-                      iconColor: const Color(0xFF8FD1FF),
-                      collapsedIconColor: const Color(0xFF7EA5CB),
-                      title: Text(
-                        'Advanced export and share',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF8FD1FF),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: TextButton(
+                              onPressed: () async {
+                                await Clipboard.setData(
+                                  ClipboardData(
+                                    text: _guardPolicyTelemetryJson(),
+                                  ),
+                                );
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Policy telemetry JSON copied',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFE7F0FF),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    backgroundColor: const Color(0xFF0E203A),
+                                  ),
+                                );
+                              },
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(0, 0),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                'Copy Policy Telemetry JSON',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFFF5C27A),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: TextButton(
+                              onPressed: () async {
+                                await Clipboard.setData(
+                                  ClipboardData(
+                                    text: _guardPolicyTelemetryCsv(),
+                                  ),
+                                );
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Policy telemetry CSV copied',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFE7F0FF),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    backgroundColor: const Color(0xFF0E203A),
+                                  ),
+                                );
+                              },
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(0, 0),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                'Copy Policy Telemetry CSV',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFFF5C27A),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: TextButton(
+                              onPressed: () async {
+                                if (!_snapshotFiles.supported) {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'File export is only available on web',
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFFE7F0FF),
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      backgroundColor: const Color(0xFF0E203A),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                await _snapshotFiles.downloadJsonFile(
+                                  filename: 'guard-policy-telemetry.json',
+                                  contents: _guardPolicyTelemetryJson(),
+                                );
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Policy telemetry JSON download started',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFE7F0FF),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    backgroundColor: const Color(0xFF0E203A),
+                                  ),
+                                );
+                              },
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(0, 0),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                'Download Policy JSON',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFFF5C27A),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: TextButton(
+                              onPressed: () async {
+                                if (!_snapshotFiles.supported) {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'File export is only available on web',
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFFE7F0FF),
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      backgroundColor: const Color(0xFF0E203A),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                await _snapshotFiles.downloadTextFile(
+                                  filename: 'guard-policy-telemetry.csv',
+                                  contents: _guardPolicyTelemetryCsv(),
+                                );
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Policy telemetry CSV download started',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFE7F0FF),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    backgroundColor: const Color(0xFF0E203A),
+                                  ),
+                                );
+                              },
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(0, 0),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                'Download Policy CSV',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFFF5C27A),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: TextButton(
+                              onPressed: () async {
+                                if (!_textShare.supported) {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Share is not available in this environment',
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFFE7F0FF),
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      backgroundColor: const Color(0xFF0E203A),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                final shared = await _textShare.shareText(
+                                  title: 'ONYX Guard Policy Telemetry',
+                                  text: _guardPolicyTelemetryJson(),
+                                );
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      shared
+                                          ? 'Policy telemetry share started'
+                                          : 'Policy telemetry share unavailable',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFE7F0FF),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    backgroundColor: const Color(0xFF0E203A),
+                                  ),
+                                );
+                              },
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(0, 0),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                'Share Policy Pack',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFFF5C27A),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: TextButton(
+                              onPressed: () async {
+                                await Clipboard.setData(
+                                  ClipboardData(
+                                    text: _guardCoachingTelemetryJson(),
+                                  ),
+                                );
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Coaching telemetry JSON copied',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFE7F0FF),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    backgroundColor: const Color(0xFF0E203A),
+                                  ),
+                                );
+                              },
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(0, 0),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                'Copy Coaching Telemetry JSON',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF8FD1FF),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: TextButton(
+                              onPressed: () async {
+                                await Clipboard.setData(
+                                  ClipboardData(
+                                    text: _guardCoachingTelemetryCsv(),
+                                  ),
+                                );
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Coaching telemetry CSV copied',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFE7F0FF),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    backgroundColor: const Color(0xFF0E203A),
+                                  ),
+                                );
+                              },
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(0, 0),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                'Copy Coaching Telemetry CSV',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF8FD1FF),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: TextButton(
+                              onPressed: () async {
+                                if (!_snapshotFiles.supported) {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'File export is only available on web',
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFFE7F0FF),
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      backgroundColor: const Color(0xFF0E203A),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                await _snapshotFiles.downloadJsonFile(
+                                  filename: 'guard-coaching-telemetry.json',
+                                  contents: _guardCoachingTelemetryJson(),
+                                );
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Coaching telemetry JSON download started',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFE7F0FF),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    backgroundColor: const Color(0xFF0E203A),
+                                  ),
+                                );
+                              },
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(0, 0),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                'Download Coaching JSON',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF8FD1FF),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: TextButton(
+                              onPressed: () async {
+                                if (!_textShare.supported) {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Share is not available in this environment',
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFFE7F0FF),
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      backgroundColor: const Color(0xFF0E203A),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                final shared = await _textShare.shareText(
+                                  title: 'ONYX Guard Coaching Telemetry',
+                                  text: _guardCoachingTelemetryJson(),
+                                );
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      shared
+                                          ? 'Coaching telemetry share started'
+                                          : 'Coaching telemetry share unavailable',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFE7F0FF),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    backgroundColor: const Color(0xFF0E203A),
+                                  ),
+                                );
+                              },
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(0, 0),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                'Share Coaching Pack',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF8FD1FF),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      children: [
-                        SizedBox(
-                          height: 260,
-                          child: Scrollbar(
-                            child: SingleChildScrollView(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: TextButton(
-                                      onPressed: () async {
-                                        await Clipboard.setData(
-                                          ClipboardData(
-                                            text: _guardFailureTraceClipboard(
-                                              recentFailureTraces,
-                                              guardLastFailureReason,
-                                            ),
-                                          ),
-                                        );
-                                        if (!context.mounted) return;
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'Guard failure trace copied',
-                                              style: GoogleFonts.inter(
-                                                color: const Color(0xFFE7F0FF),
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            backgroundColor: const Color(
-                                              0xFF0E203A,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      style: TextButton.styleFrom(
-                                        padding: EdgeInsets.zero,
-                                        minimumSize: const Size(0, 0),
-                                        tapTargetSize:
-                                            MaterialTapTargetSize.shrinkWrap,
-                                      ),
-                                      child: Text(
-                                        'Copy Failure Trace',
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFF8FD1FF),
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: TextButton(
-                                      onPressed: () async {
-                                        if (!_emailBridge.supported) {
-                                          if (!context.mounted) return;
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                'Email bridge is only available on web',
-                                                style: GoogleFonts.inter(
-                                                  color: const Color(
-                                                    0xFFE7F0FF,
-                                                  ),
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                              backgroundColor: const Color(
-                                                0xFF0E203A,
-                                              ),
-                                            ),
-                                          );
-                                          return;
-                                        }
-                                        final opened = await _emailBridge
-                                            .openMailDraft(
-                                              subject:
-                                                  'ONYX Guard Sync Failure Trace',
-                                              body: _guardFailureTraceText(
-                                                recentFailureTraces,
-                                                guardLastFailureReason,
-                                              ),
-                                            );
-                                        if (!context.mounted) return;
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              opened
-                                                  ? 'Email draft opened for failure trace'
-                                                  : 'Email bridge unavailable',
-                                              style: GoogleFonts.inter(
-                                                color: const Color(0xFFE7F0FF),
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            backgroundColor: const Color(
-                                              0xFF0E203A,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      style: TextButton.styleFrom(
-                                        padding: EdgeInsets.zero,
-                                        minimumSize: const Size(0, 0),
-                                        tapTargetSize:
-                                            MaterialTapTargetSize.shrinkWrap,
-                                      ),
-                                      child: Text(
-                                        'Email Failure Trace',
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFF8FD1FF),
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: TextButton(
-                                      onPressed: () async {
-                                        if (!_snapshotFiles.supported) {
-                                          if (!context.mounted) return;
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                'File export is only available on web',
-                                                style: GoogleFonts.inter(
-                                                  color: const Color(
-                                                    0xFFE7F0FF,
-                                                  ),
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                              backgroundColor: const Color(
-                                                0xFF0E203A,
-                                              ),
-                                            ),
-                                          );
-                                          return;
-                                        }
-                                        await _snapshotFiles.downloadTextFile(
-                                          filename:
-                                              'guard-sync-failure-trace.txt',
-                                          contents: _guardFailureTraceText(
-                                            recentFailureTraces,
-                                            guardLastFailureReason,
-                                          ),
-                                        );
-                                        if (!context.mounted) return;
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'Failure trace download started',
-                                              style: GoogleFonts.inter(
-                                                color: const Color(0xFFE7F0FF),
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            backgroundColor: const Color(
-                                              0xFF0E203A,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      style: TextButton.styleFrom(
-                                        padding: EdgeInsets.zero,
-                                        minimumSize: const Size(0, 0),
-                                        tapTargetSize:
-                                            MaterialTapTargetSize.shrinkWrap,
-                                      ),
-                                      child: Text(
-                                        'Download Failure Trace',
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFF8FD1FF),
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: TextButton(
-                                      onPressed: () async {
-                                        if (!_textShare.supported) {
-                                          if (!context.mounted) return;
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                'Share is not available in this environment',
-                                                style: GoogleFonts.inter(
-                                                  color: const Color(
-                                                    0xFFE7F0FF,
-                                                  ),
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                              backgroundColor: const Color(
-                                                0xFF0E203A,
-                                              ),
-                                            ),
-                                          );
-                                          return;
-                                        }
-                                        final shared = await _textShare.shareText(
-                                          title:
-                                              'ONYX Guard Sync Failure Trace',
-                                          text: _guardFailureTraceText(
-                                            recentFailureTraces,
-                                            guardLastFailureReason,
-                                          ),
-                                        );
-                                        if (!context.mounted) return;
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              shared
-                                                  ? 'Failure trace share started'
-                                                  : 'Failure trace share unavailable',
-                                              style: GoogleFonts.inter(
-                                                color: const Color(0xFFE7F0FF),
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            backgroundColor: const Color(
-                                              0xFF0E203A,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      style: TextButton.styleFrom(
-                                        padding: EdgeInsets.zero,
-                                        minimumSize: const Size(0, 0),
-                                        tapTargetSize:
-                                            MaterialTapTargetSize.shrinkWrap,
-                                      ),
-                                      child: Text(
-                                        'Share Failure Trace',
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFF8FD1FF),
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: TextButton(
-                                      onPressed: () async {
-                                        await Clipboard.setData(
-                                          ClipboardData(
-                                            text: _guardPolicyTelemetryJson(),
-                                          ),
-                                        );
-                                        if (!context.mounted) return;
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'Policy telemetry JSON copied',
-                                              style: GoogleFonts.inter(
-                                                color: const Color(0xFFE7F0FF),
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            backgroundColor: const Color(
-                                              0xFF0E203A,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      style: TextButton.styleFrom(
-                                        padding: EdgeInsets.zero,
-                                        minimumSize: const Size(0, 0),
-                                        tapTargetSize:
-                                            MaterialTapTargetSize.shrinkWrap,
-                                      ),
-                                      child: Text(
-                                        'Copy Policy Telemetry JSON',
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFFF5C27A),
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: TextButton(
-                                      onPressed: () async {
-                                        await Clipboard.setData(
-                                          ClipboardData(
-                                            text: _guardPolicyTelemetryCsv(),
-                                          ),
-                                        );
-                                        if (!context.mounted) return;
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'Policy telemetry CSV copied',
-                                              style: GoogleFonts.inter(
-                                                color: const Color(0xFFE7F0FF),
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            backgroundColor: const Color(
-                                              0xFF0E203A,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      style: TextButton.styleFrom(
-                                        padding: EdgeInsets.zero,
-                                        minimumSize: const Size(0, 0),
-                                        tapTargetSize:
-                                            MaterialTapTargetSize.shrinkWrap,
-                                      ),
-                                      child: Text(
-                                        'Copy Policy Telemetry CSV',
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFFF5C27A),
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: TextButton(
-                                      onPressed: () async {
-                                        if (!_snapshotFiles.supported) {
-                                          if (!context.mounted) return;
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                'File export is only available on web',
-                                                style: GoogleFonts.inter(
-                                                  color: const Color(
-                                                    0xFFE7F0FF,
-                                                  ),
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                              backgroundColor: const Color(
-                                                0xFF0E203A,
-                                              ),
-                                            ),
-                                          );
-                                          return;
-                                        }
-                                        await _snapshotFiles.downloadJsonFile(
-                                          filename:
-                                              'guard-policy-telemetry.json',
-                                          contents: _guardPolicyTelemetryJson(),
-                                        );
-                                        if (!context.mounted) return;
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'Policy telemetry JSON download started',
-                                              style: GoogleFonts.inter(
-                                                color: const Color(0xFFE7F0FF),
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            backgroundColor: const Color(
-                                              0xFF0E203A,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      style: TextButton.styleFrom(
-                                        padding: EdgeInsets.zero,
-                                        minimumSize: const Size(0, 0),
-                                        tapTargetSize:
-                                            MaterialTapTargetSize.shrinkWrap,
-                                      ),
-                                      child: Text(
-                                        'Download Policy JSON',
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFFF5C27A),
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: TextButton(
-                                      onPressed: () async {
-                                        if (!_snapshotFiles.supported) {
-                                          if (!context.mounted) return;
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                'File export is only available on web',
-                                                style: GoogleFonts.inter(
-                                                  color: const Color(
-                                                    0xFFE7F0FF,
-                                                  ),
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                              backgroundColor: const Color(
-                                                0xFF0E203A,
-                                              ),
-                                            ),
-                                          );
-                                          return;
-                                        }
-                                        await _snapshotFiles.downloadTextFile(
-                                          filename:
-                                              'guard-policy-telemetry.csv',
-                                          contents: _guardPolicyTelemetryCsv(),
-                                        );
-                                        if (!context.mounted) return;
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'Policy telemetry CSV download started',
-                                              style: GoogleFonts.inter(
-                                                color: const Color(0xFFE7F0FF),
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            backgroundColor: const Color(
-                                              0xFF0E203A,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      style: TextButton.styleFrom(
-                                        padding: EdgeInsets.zero,
-                                        minimumSize: const Size(0, 0),
-                                        tapTargetSize:
-                                            MaterialTapTargetSize.shrinkWrap,
-                                      ),
-                                      child: Text(
-                                        'Download Policy CSV',
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFFF5C27A),
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: TextButton(
-                                      onPressed: () async {
-                                        if (!_textShare.supported) {
-                                          if (!context.mounted) return;
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                'Share is not available in this environment',
-                                                style: GoogleFonts.inter(
-                                                  color: const Color(
-                                                    0xFFE7F0FF,
-                                                  ),
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                              backgroundColor: const Color(
-                                                0xFF0E203A,
-                                              ),
-                                            ),
-                                          );
-                                          return;
-                                        }
-                                        final shared = await _textShare
-                                            .shareText(
-                                              title:
-                                                  'ONYX Guard Policy Telemetry',
-                                              text: _guardPolicyTelemetryJson(),
-                                            );
-                                        if (!context.mounted) return;
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              shared
-                                                  ? 'Policy telemetry share started'
-                                                  : 'Policy telemetry share unavailable',
-                                              style: GoogleFonts.inter(
-                                                color: const Color(0xFFE7F0FF),
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            backgroundColor: const Color(
-                                              0xFF0E203A,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      style: TextButton.styleFrom(
-                                        padding: EdgeInsets.zero,
-                                        minimumSize: const Size(0, 0),
-                                        tapTargetSize:
-                                            MaterialTapTargetSize.shrinkWrap,
-                                      ),
-                                      child: Text(
-                                        'Share Policy Pack',
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFFF5C27A),
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: TextButton(
-                                      onPressed: () async {
-                                        await Clipboard.setData(
-                                          ClipboardData(
-                                            text: _guardCoachingTelemetryJson(),
-                                          ),
-                                        );
-                                        if (!context.mounted) return;
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'Coaching telemetry JSON copied',
-                                              style: GoogleFonts.inter(
-                                                color: const Color(0xFFE7F0FF),
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            backgroundColor: const Color(
-                                              0xFF0E203A,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      style: TextButton.styleFrom(
-                                        padding: EdgeInsets.zero,
-                                        minimumSize: const Size(0, 0),
-                                        tapTargetSize:
-                                            MaterialTapTargetSize.shrinkWrap,
-                                      ),
-                                      child: Text(
-                                        'Copy Coaching Telemetry JSON',
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFF8FD1FF),
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: TextButton(
-                                      onPressed: () async {
-                                        await Clipboard.setData(
-                                          ClipboardData(
-                                            text: _guardCoachingTelemetryCsv(),
-                                          ),
-                                        );
-                                        if (!context.mounted) return;
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'Coaching telemetry CSV copied',
-                                              style: GoogleFonts.inter(
-                                                color: const Color(0xFFE7F0FF),
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            backgroundColor: const Color(
-                                              0xFF0E203A,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      style: TextButton.styleFrom(
-                                        padding: EdgeInsets.zero,
-                                        minimumSize: const Size(0, 0),
-                                        tapTargetSize:
-                                            MaterialTapTargetSize.shrinkWrap,
-                                      ),
-                                      child: Text(
-                                        'Copy Coaching Telemetry CSV',
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFF8FD1FF),
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: TextButton(
-                                      onPressed: () async {
-                                        if (!_snapshotFiles.supported) {
-                                          if (!context.mounted) return;
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                'File export is only available on web',
-                                                style: GoogleFonts.inter(
-                                                  color: const Color(
-                                                    0xFFE7F0FF,
-                                                  ),
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                              backgroundColor: const Color(
-                                                0xFF0E203A,
-                                              ),
-                                            ),
-                                          );
-                                          return;
-                                        }
-                                        await _snapshotFiles.downloadJsonFile(
-                                          filename:
-                                              'guard-coaching-telemetry.json',
-                                          contents:
-                                              _guardCoachingTelemetryJson(),
-                                        );
-                                        if (!context.mounted) return;
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'Coaching telemetry JSON download started',
-                                              style: GoogleFonts.inter(
-                                                color: const Color(0xFFE7F0FF),
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            backgroundColor: const Color(
-                                              0xFF0E203A,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      style: TextButton.styleFrom(
-                                        padding: EdgeInsets.zero,
-                                        minimumSize: const Size(0, 0),
-                                        tapTargetSize:
-                                            MaterialTapTargetSize.shrinkWrap,
-                                      ),
-                                      child: Text(
-                                        'Download Coaching JSON',
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFF8FD1FF),
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: TextButton(
-                                      onPressed: () async {
-                                        if (!_textShare.supported) {
-                                          if (!context.mounted) return;
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                'Share is not available in this environment',
-                                                style: GoogleFonts.inter(
-                                                  color: const Color(
-                                                    0xFFE7F0FF,
-                                                  ),
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                              backgroundColor: const Color(
-                                                0xFF0E203A,
-                                              ),
-                                            ),
-                                          );
-                                          return;
-                                        }
-                                        final shared = await _textShare.shareText(
-                                          title:
-                                              'ONYX Guard Coaching Telemetry',
-                                          text: _guardCoachingTelemetryJson(),
-                                        );
-                                        if (!context.mounted) return;
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              shared
-                                                  ? 'Coaching telemetry share started'
-                                                  : 'Coaching telemetry share unavailable',
-                                              style: GoogleFonts.inter(
-                                                color: const Color(0xFFE7F0FF),
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            backgroundColor: const Color(
-                                              0xFF0E203A,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      style: TextButton.styleFrom(
-                                        padding: EdgeInsets.zero,
-                                        minimumSize: const Size(0, 0),
-                                        tapTargetSize:
-                                            MaterialTapTargetSize.shrinkWrap,
-                                      ),
-                                      child: Text(
-                                        'Share Coaching Pack',
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFF8FD1FF),
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        _DashboardCard(
+          title: 'Morning Sovereign Report',
+          subtitle:
+              'Automated 06:00 generation with forensic replay of the 22:00-06:00 command window.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (sovereignReport == null)
+                Text(
+                  'No morning report generated yet.',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF95A9C6),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                )
+              else ...[
+                _RailMetricRow(
+                  label: 'Report date',
+                  value: sovereignReport.date,
+                ),
+                _RailMetricRow(
+                  label: 'Window (UTC)',
+                  value:
+                      '${_formatTimestamp(sovereignReport.shiftWindowStartUtc)} → ${_formatTimestamp(sovereignReport.shiftWindowEndUtc)}',
+                ),
+                _RailMetricRow(
+                  label: 'Ledger integrity',
+                  value:
+                      '${sovereignReport.ledgerIntegrity.hashVerified ? 'VERIFIED' : 'COMPROMISED'} • ${sovereignReport.ledgerIntegrity.totalEvents} events',
+                ),
+                _RailMetricRow(
+                  label: 'AI/Human delta',
+                  value:
+                      '${sovereignReport.aiHumanDelta.aiDecisions} decisions • ${sovereignReport.aiHumanDelta.humanOverrides} overrides',
+                ),
+                _RailMetricRow(
+                  label: 'Override reasons',
+                  value: overrideReasonSummary.isEmpty
+                      ? 'none'
+                      : overrideReasonSummary,
+                ),
+                _RailMetricRow(
+                  label: 'Norm drift',
+                  value:
+                      '${sovereignReport.normDrift.driftDetected} sites • avg ${sovereignReport.normDrift.avgMatchScore.toStringAsFixed(1)}%',
+                ),
+                _RailMetricRow(
+                  label: 'Compliance blockage',
+                  value:
+                      '${sovereignReport.complianceBlockage.totalBlocked} blocked',
+                ),
+              ],
+              if ((morningSovereignReportAutoStatusLabel ?? '')
+                  .trim()
+                  .isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    morningSovereignReportAutoStatusLabel!.trim(),
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF9FB6D5),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ],
+                ),
+              const SizedBox(height: 10),
+              Text(
+                governanceGenerationEnabled
+                    ? 'Generation and delivery controls moved to Governance screen.'
+                    : 'Governance screen is the control point for morning report generation and delivery.',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF9FB6D5),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            _DashboardCard(
-              title: 'Command Notes',
-              subtitle: 'Readable guidance instead of dense stacked labels.',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _NoteRow(
-                    label: 'Dispatch cadence',
-                    detail: snapshot.totalDenied > 0
-                        ? 'Review denial causes and tighten authority routing.'
-                        : 'Dispatch authority flow is clean.',
-                  ),
-                  const SizedBox(height: 10),
-                  _NoteRow(
-                    label: 'Field readiness',
-                    detail:
-                        snapshot.totalCheckIns > 0 || snapshot.totalPatrols > 0
-                        ? 'Field teams are active and reporting.'
-                        : 'No field check-ins or patrol completions yet.',
-                  ),
-                  const SizedBox(height: 10),
-                  _NoteRow(
-                    label: 'Intel posture',
-                    detail: snapshot.totalIntelligenceReceived > 0
-                        ? '${snapshot.totalIntelligenceReceived} signals received, ${snapshot.highRiskIntelligence} high-risk.'
-                        : 'No intelligence signals received yet.',
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
+        const SizedBox(height: 10),
+        _DashboardCard(
+          title: 'Command Notes',
+          subtitle: 'Readable guidance instead of dense stacked labels.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _NoteRow(
+                label: 'Dispatch cadence',
+                detail: snapshot.totalDenied > 0
+                    ? 'Review denial causes and tighten authority routing.'
+                    : 'Dispatch authority flow is clean.',
+              ),
+              const SizedBox(height: 10),
+              _NoteRow(
+                label: 'Field readiness',
+                detail: snapshot.totalCheckIns > 0 || snapshot.totalPatrols > 0
+                    ? 'Field teams are active and reporting.'
+                    : 'No field check-ins or patrol completions yet.',
+              ),
+              const SizedBox(height: 10),
+              _NoteRow(
+                label: 'Intel posture',
+                detail: snapshot.totalIntelligenceReceived > 0
+                    ? '${snapshot.totalIntelligenceReceived} signals received, ${snapshot.highRiskIntelligence} high-risk.'
+                    : 'No intelligence signals received yet.',
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -2389,17 +2419,13 @@ class _HeaderStat extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0D1A2D), Color(0xFF0B182B)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        border: Border.all(color: const Color(0xFF1E3D66)),
+        color: const Color(0xFF0E1A2B),
+        border: Border.all(color: const Color(0xFF223244)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x12000000),
-            blurRadius: 10,
-            offset: Offset(0, 5),
+            color: Color(0x10000000),
+            blurRadius: 8,
+            offset: Offset(0, 3),
           ),
         ],
       ),
@@ -2455,18 +2481,14 @@ class _DashboardCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0C182B), Color(0xFF091528)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: const Color(0xFF0E1A2B),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF1B395E)),
+        border: Border.all(color: const Color(0xFF243549)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x18000000),
-            blurRadius: 16,
-            offset: Offset(0, 6),
+            color: Color(0x12000000),
+            blurRadius: 10,
+            offset: Offset(0, 3),
           ),
         ],
       ),
@@ -2525,17 +2547,13 @@ class _KpiBandTile extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0E1C31), Color(0xFF0B172A)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        border: Border.all(color: const Color(0xFF224267)),
+        color: const Color(0xFF0E1A2B),
+        border: Border.all(color: const Color(0xFF223244)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x10000000),
-            blurRadius: 10,
-            offset: Offset(0, 6),
+            blurRadius: 8,
+            offset: Offset(0, 3),
           ),
         ],
       ),
@@ -2645,7 +2663,7 @@ class _DispatchFeedRow extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: border),
-        color: const Color(0xFF0A1930),
+        color: const Color(0xFF0E1A2B),
       ),
       child: Text(
         label,
@@ -2679,8 +2697,8 @@ class _SiteRow extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        color: const Color(0xFF0A1830),
-        border: Border.all(color: const Color(0xFF1A355A)),
+        color: const Color(0xFF0E1A2B),
+        border: Border.all(color: const Color(0xFF223244)),
       ),
       child: Column(
         children: [

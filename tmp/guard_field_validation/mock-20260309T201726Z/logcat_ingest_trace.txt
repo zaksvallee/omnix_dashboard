@@ -1,0 +1,2 @@
+I/ONYX_TELEMETRY: ingestFskSdkHeartbeat requested provider=fsk_sdk payloadKeys=[activity_state,battery_percent,captured_at_utc,gps_accuracy_meters,heart_rate,movement_level]
+I/ONYX_TELEMETRY: ingestFskSdkHeartbeat requested provider=fsk_sdk payloadKeys=[activity_state,battery_percent,captured_at_utc,gps_accuracy_meters,heart_rate,movement_level]

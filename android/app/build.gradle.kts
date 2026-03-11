@@ -5,6 +5,42 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+fun String.escapeForBuildConfig(): String = replace("\\", "\\\\").replace("\"", "\\\"")
+
+val useLiveFskSdk = (project.findProperty("ONYX_USE_LIVE_FSK_SDK") as String?)
+    ?.trim()
+    ?.lowercase() == "true"
+val fskSdkHeartbeatAction = (project.findProperty("ONYX_FSK_SDK_HEARTBEAT_ACTION") as String?)
+    ?.trim()
+    ?.takeIf { it.isNotEmpty() }
+    ?: "com.onyx.fsk.SDK_HEARTBEAT"
+val fskSdkPayloadAdapter = (project.findProperty("ONYX_FSK_SDK_PAYLOAD_ADAPTER") as String?)
+    ?.trim()
+    ?.lowercase()
+    ?.takeIf { it == "standard" || it == "legacy_ptt" || it == "hikvision_guardlink" }
+    ?: "standard"
+val fskSdkConnectorClass = (project.findProperty("ONYX_FSK_SDK_CONNECTOR_CLASS") as String?)
+    ?.trim()
+    ?: ""
+val useLiveHikvisionSdk = (project.findProperty("ONYX_USE_LIVE_HIKVISION_SDK") as String?)
+    ?.trim()
+    ?.lowercase() == "true"
+val hikvisionSdkHeartbeatAction =
+    (project.findProperty("ONYX_HIKVISION_SDK_HEARTBEAT_ACTION") as String?)
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+        ?: "com.onyx.hikvision.SDK_HEARTBEAT"
+val hikvisionSdkPayloadAdapter =
+    (project.findProperty("ONYX_HIKVISION_SDK_PAYLOAD_ADAPTER") as String?)
+        ?.trim()
+        ?.lowercase()
+        ?.takeIf { it == "standard" || it == "legacy_ptt" || it == "hikvision_guardlink" }
+        ?: "hikvision_guardlink"
+val hikvisionSdkConnectorClass =
+    (project.findProperty("ONYX_HIKVISION_SDK_CONNECTOR_CLASS") as String?)
+        ?.trim()
+        ?: ""
+
 android {
     namespace = "com.example.omnix_dashboard"
     compileSdk = flutter.compileSdkVersion
@@ -19,6 +55,10 @@ android {
         jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.omnix_dashboard"
@@ -28,6 +68,42 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        buildConfigField("boolean", "USE_LIVE_FSK_SDK", useLiveFskSdk.toString())
+        buildConfigField(
+            "String",
+            "FSK_SDK_HEARTBEAT_ACTION",
+            "\"${fskSdkHeartbeatAction.escapeForBuildConfig()}\"",
+        )
+        buildConfigField(
+            "String",
+            "FSK_SDK_PAYLOAD_ADAPTER",
+            "\"${fskSdkPayloadAdapter.escapeForBuildConfig()}\"",
+        )
+        buildConfigField(
+            "String",
+            "FSK_SDK_CONNECTOR_CLASS",
+            "\"${fskSdkConnectorClass.escapeForBuildConfig()}\"",
+        )
+        buildConfigField(
+            "boolean",
+            "USE_LIVE_HIKVISION_SDK",
+            useLiveHikvisionSdk.toString(),
+        )
+        buildConfigField(
+            "String",
+            "HIKVISION_SDK_HEARTBEAT_ACTION",
+            "\"${hikvisionSdkHeartbeatAction.escapeForBuildConfig()}\"",
+        )
+        buildConfigField(
+            "String",
+            "HIKVISION_SDK_PAYLOAD_ADAPTER",
+            "\"${hikvisionSdkPayloadAdapter.escapeForBuildConfig()}\"",
+        )
+        buildConfigField(
+            "String",
+            "HIKVISION_SDK_CONNECTOR_CLASS",
+            "\"${hikvisionSdkConnectorClass.escapeForBuildConfig()}\"",
+        )
     }
 
     buildTypes {

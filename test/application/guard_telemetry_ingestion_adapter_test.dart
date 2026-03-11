@@ -265,6 +265,8 @@ void main() {
         return <String, Object?>{
           'available_provider_ids': <String>[
             'android_native_sdk_stub',
+            'hikvision_sdk',
+            'hikvision_sdk_stub',
             'fsk_sdk',
             'fsk_sdk_stub',
           ],
@@ -284,7 +286,7 @@ void main() {
     expect(status.readiness, GuardTelemetryAdapterReadiness.error);
     expect(
       status.message,
-      'No telemetry provider registered for unknown_provider. Available providers: android_native_sdk_stub, fsk_sdk, fsk_sdk_stub.',
+      'No telemetry provider registered for unknown_provider. Available providers: android_native_sdk_stub, hikvision_sdk, hikvision_sdk_stub, fsk_sdk, fsk_sdk_stub.',
     );
     expect(status.adapterLabel, 'native_sdk:unknown_provider');
     expect(status.isStub, isFalse);
@@ -313,6 +315,8 @@ void main() {
           return <String, Object?>{
             'available_provider_ids': <String>[
               'android_native_sdk_stub',
+              'hikvision_sdk',
+              'hikvision_sdk_stub',
               'fsk_sdk',
               'fsk_sdk_stub',
             ],
@@ -335,7 +339,7 @@ void main() {
       expect(
         status.message,
         contains(
-          'Available providers: android_native_sdk_stub, fsk_sdk, fsk_sdk_stub.',
+          'Available providers: android_native_sdk_stub, hikvision_sdk, hikvision_sdk_stub, fsk_sdk, fsk_sdk_stub.',
         ),
       );
       expect(status.adapterLabel, 'native_sdk:fsk_typo');
@@ -360,6 +364,11 @@ void main() {
           'facade_id': 'fsk_sdk_facade_live',
           'facade_live_mode': true,
           'facade_toggle_source': 'build_config',
+          'fsk_vendor_connector': 'broadcast_intent_connector',
+          'fsk_vendor_connector_source': 'platform_default',
+          'fsk_vendor_connector_error':
+              'Failed to initialize vendor connector com.onyx.vendor.MissingConnector.',
+          'fsk_vendor_connector_fallback_active': true,
           'facade_callback_error_count': 2,
           'facade_last_callback_error_at_utc': '2026-03-05T10:12:00Z',
           'facade_last_callback_error_message':
@@ -378,10 +387,23 @@ void main() {
     );
     final status = await adapter.getStatus();
     expect(status.readiness, GuardTelemetryAdapterReadiness.ready);
-    expect(status.message, 'Native provider connected.');
+    expect(status.message, contains('Native provider connected.'));
+    expect(
+      status.message,
+      contains(
+        'Vendor connector warning: Failed to initialize vendor connector com.onyx.vendor.MissingConnector.',
+      ),
+    );
     expect(status.facadeId, 'fsk_sdk_facade_live');
     expect(status.facadeLiveMode, isTrue);
     expect(status.facadeToggleSource, 'build_config');
+    expect(status.vendorConnectorId, 'broadcast_intent_connector');
+    expect(status.vendorConnectorSource, 'platform_default');
+    expect(status.vendorConnectorFallbackActive, isTrue);
+    expect(
+      status.vendorConnectorErrorMessage,
+      'Failed to initialize vendor connector com.onyx.vendor.MissingConnector.',
+    );
     expect(status.facadeCallbackErrorCount, 2);
     expect(
       status.facadeLastCallbackErrorAtUtc,
@@ -520,7 +542,7 @@ void main() {
       ),
     );
 
-    final response = await adapter.validateFskPayloadMapping(
+    final response = await adapter.validatePayloadMapping(
       payload: const <String, Object?>{
         'pulse': 81,
         'motion_score': 0.57,
@@ -539,4 +561,106 @@ void main() {
 
     messenger.setMockMethodCallHandler(channel, null);
   });
+
+  test(
+    'native adapter validates Hikvision payload mapping with provider-specific method',
+    () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      const channel = MethodChannel(
+        'onyx/guard_telemetry_test_native_validate_hikvision',
+      );
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'validateHikvisionPayloadMapping') {
+          final args = call.arguments! as Map;
+          expect(args['provider_id'], 'hikvision_sdk');
+          expect(args['payload_adapter'], 'hikvision_guardlink');
+          final payload = args['payload'] as Map;
+          expect(payload['vitals_hr'], 83);
+          expect(payload['motion_index'], 0.63);
+          return <String, Object?>{
+            'accepted': true,
+            'adapter_requested': 'hikvision_guardlink',
+            'adapter_resolved': 'hikvision_guardlink',
+            'normalized_payload': <String, Object?>{
+              'heart_rate': 83,
+              'movement_level': 0.63,
+              'activity_state': 'patrolling',
+              'captured_at_utc': '2026-03-05T14:06:00Z',
+            },
+          };
+        }
+        throw MissingPluginException('Unsupported method ${call.method}');
+      });
+
+      final adapter = NativeGuardTelemetryIngestionAdapter(
+        config: const GuardTelemetryNativeSdkConfig(
+          channel: channel,
+          providerId: 'hikvision_sdk',
+          stubMode: false,
+        ),
+      );
+
+      final response = await adapter.validatePayloadMapping(
+        payload: const <String, Object?>{
+          'vitals_hr': 83,
+          'motion_index': 0.63,
+          'duty_state': 'patrolling',
+          'event_utc': '2026-03-05T14:06:00Z',
+        },
+        payloadAdapter: 'hikvision_guardlink',
+      );
+
+      expect(response['accepted'], true);
+      expect(response['adapter_requested'], 'hikvision_guardlink');
+      expect(response['adapter_resolved'], 'hikvision_guardlink');
+
+      messenger.setMockMethodCallHandler(channel, null);
+    },
+  );
+
+  test(
+    'native adapter emits debug heartbeat using provider-specific method for Hikvision',
+    () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      const channel = MethodChannel(
+        'onyx/guard_telemetry_test_native_debug_hikvision',
+      );
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'emitDebugHikvisionSdkHeartbeatBroadcast') {
+          final args = call.arguments! as Map;
+          expect(args['provider_id'], 'hikvision_sdk');
+          expect(args['heart_rate'], 84);
+          expect(args['movement_level'], 0.52);
+          return <String, Object?>{'accepted': true};
+        }
+        throw MissingPluginException('Unsupported method ${call.method}');
+      });
+
+      final adapter = NativeGuardTelemetryIngestionAdapter(
+        config: const GuardTelemetryNativeSdkConfig(
+          channel: channel,
+          providerId: 'hikvision_sdk',
+          stubMode: false,
+        ),
+      );
+      await adapter.emitDebugSdkHeartbeatBroadcast(
+        sample: WearableTelemetrySample(
+          heartRate: 84,
+          movementLevel: 0.52,
+          activityState: 'patrolling',
+          batteryPercent: 87,
+          capturedAtUtc: DateTime.utc(2026, 3, 5, 14, 7),
+          source: 'test_debug',
+          providerId: 'hikvision_sdk',
+          sdkStatus: 'live',
+        ),
+      );
+
+      messenger.setMockMethodCallHandler(channel, null);
+    },
+  );
 }

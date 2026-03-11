@@ -1,0 +1,4 @@
+03-09 23:02:14.164 26326 26326 I ONYX_TELEMETRY: MainActivity onCreate
+03-09 23:02:15.565 26326 26326 I ONYX_TELEMETRY: configureFlutterEngine initializing guard telemetry channel
+03-09 23:02:15.620 26326 26326 I ONYX_TELEMETRY: fsk_live_facade_started action=com.onyx.fsk.SDK_HEARTBEAT connector=broadcast_intent_connector
+03-09 23:02:15.620 26326 26326 I ONYX_TELEMETRY: configureFlutterEngine guard telemetry channel ready

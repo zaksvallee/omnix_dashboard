@@ -1,105 +1,82 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:omnix_dashboard/domain/events/decision_created.dart';
 import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
-import 'package:omnix_dashboard/domain/events/guard_checked_in.dart';
-import 'package:omnix_dashboard/domain/events/patrol_completed.dart';
-import 'package:omnix_dashboard/domain/events/response_arrived.dart';
 import 'package:omnix_dashboard/ui/guards_page.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('guards page shows empty state when no guard events exist', (
+  testWidgets('guards page stays stable on phone viewport', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      const MaterialApp(home: GuardsPage(events: <DispatchEvent>[])),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Active Guards'), findsOneWidget);
+    expect(find.text('Guard Profile'), findsOneWidget);
+    expect(find.text('Recent Activity'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('guards page stays stable on landscape phone viewport', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(844, 390));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      const MaterialApp(home: GuardsPage(events: <DispatchEvent>[])),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Active Guards'), findsOneWidget);
+    expect(find.text('System Alerts'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('guards page renders figma-aligned command surfaces', (
     tester,
   ) async {
     await tester.pumpWidget(
-      const MaterialApp(
-        home: GuardsPage(events: <DispatchEvent>[]),
-      ),
+      const MaterialApp(home: GuardsPage(events: <DispatchEvent>[])),
     );
+    await tester.pumpAndSettle();
 
     expect(
-      find.text('No guard events available in current projection.'),
+      find.text(
+        'Real-time guard monitoring, shift verification, and performance tracking.',
+      ),
       findsOneWidget,
     );
+    expect(find.text('Manage Schedule'), findsOneWidget);
+    expect(find.text('Offline Alert'), findsOneWidget);
+    expect(find.text('Thabo Mokoena'), findsWidgets);
+    expect(find.text('Recent Activity'), findsOneWidget);
+    expect(find.text('System Alerts'), findsOneWidget);
   });
 
-  testWidgets('guards page renders roster and selected guard details', (
-    tester,
-  ) async {
-    final events = <DispatchEvent>[
-      GuardCheckedIn(
-        eventId: 'CHK-1',
-        sequence: 1,
-        version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 9, 55),
-        guardId: 'GUARD-001',
-        clientId: 'CLIENT-001',
-        regionId: 'REGION-GAUTENG',
-        siteId: 'SITE-SANDTON',
-      ),
-      PatrolCompleted(
-        eventId: 'PAT-1',
-        sequence: 2,
-        version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 10, 15),
-        guardId: 'GUARD-001',
-        routeId: 'R1',
-        clientId: 'CLIENT-001',
-        regionId: 'REGION-GAUTENG',
-        siteId: 'SITE-SANDTON',
-        durationSeconds: 840,
-      ),
-      ResponseArrived(
-        eventId: 'ARR-1',
-        sequence: 3,
-        version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 10, 20),
-        dispatchId: 'DSP-1',
-        guardId: 'GUARD-001',
-        clientId: 'CLIENT-001',
-        regionId: 'REGION-GAUTENG',
-        siteId: 'SITE-SANDTON',
-      ),
-      DecisionCreated(
-        eventId: 'DEC-1',
-        sequence: 4,
-        version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 10, 0),
-        dispatchId: 'DSP-1',
-        clientId: 'CLIENT-001',
-        regionId: 'REGION-GAUTENG',
-        siteId: 'SITE-SANDTON',
-      ),
-      GuardCheckedIn(
-        eventId: 'CHK-2',
-        sequence: 5,
-        version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 10, 30),
-        guardId: 'GUARD-002',
-        clientId: 'CLIENT-001',
-        regionId: 'REGION-GAUTENG',
-        siteId: 'SITE-BRYANSTON',
-      ),
-    ];
-
+  testWidgets('guards page filters by search query', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1440, 980));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: GuardsPage(events: events),
-      ),
+      const MaterialApp(home: GuardsPage(events: <DispatchEvent>[])),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Field Team Console'), findsOneWidget);
-    expect(find.text('Guard Operations Workspace'), findsOneWidget);
-    expect(find.text('GUARD-001'), findsWidgets);
-    expect(find.text('GUARD-002'), findsWidgets);
-    expect(find.text('Operational Ratios'), findsOneWidget);
-    expect(find.text('Recent Guard Event Trace'), findsOneWidget);
+    expect(find.text('Sipho Ndlovu'), findsWidgets);
+    expect(find.text('Nomsa Khumalo'), findsWidgets);
+
+    await tester.enterText(find.byType(TextField), 'Nomsa');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Nomsa Khumalo'), findsWidgets);
+    expect(find.text('EMP-443'), findsWidgets);
+    expect(find.text('EMP-442'), findsNothing);
+    expect(find.text('No guards match current filters.'), findsNothing);
   });
 }

@@ -1,0 +1,97 @@
+--------- beginning of main
+03-09 23:01:21.204  1380  5971 I PackageManager: pkgName null , isCallerSameApp : false
+--------- beginning of system
+03-09 23:01:21.206  1380  5971 W ActivityTaskManager: callingPackage for (uid=2000, pid=26202) has no WPC
+03-09 23:01:21.222  1380  5971 I ActivityTaskManager: START u0 {flg=0x10000000 cmp=com.example.omnix_dashboard/.MainActivity} with LAUNCH_SINGLE_TOP from uid 2000 (BAL_ALLOW_PERMISSION) result code=3
+03-09 23:01:21.272  1380  1812 I PowerHalWrapper: amsBoostStop AMS_BOOST_PACK_SWITCH:false, AMS_BOOST_ACT_SWITCH:false, AMS_BOOST_PROCESS_CREATE:false 
+03-09 23:01:21.275  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:01:21.275   755   755 I BufferQueueProducer: [com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity#2157](this:0xb400007576889288,id:-1,api:0,p:-1,c:755) queueBuffer: fps=0.01 dur=82348.99 max=82348.99 min=82348.99
+03-09 23:01:21.275  1380  1407 W ProcessStats: Tracking association SourceState{1d12f2 system/1000 Persist #33913} whose proc state 0 is better than process ProcessState{9e0b38a com.android.bluetooth/1002 pkg=com.android.bluetooth} proc state 1 (0 skipped)
+03-09 23:01:21.275  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:01:21.275  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:01:21.275  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:01:21.275  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:01:21.277   733  1085 I hwcomposer: [HWCDisplay] [Display_0 (type:1)] fps:0.652391,dur:1532.82,max:1532.82,min:1532.82  
+03-09 23:01:21.291   755   755 I BufferQueueProducer: [SurfaceView[com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity](BLAST)#2162](this:0xb400007576800788,id:-1,api:0,p:-1,c:755) queueBuffer: fps=0.04 dur=82465.61 max=82268.55 min=63.77
+03-09 23:01:22.695  1576  1576 I WifiHAL : Get link layer stats
+03-09 23:01:22.695  1576  1576 I WifiHAL : GetLinkStatsCommand::create
+03-09 23:01:22.695  1576  1576 I android.hardware.wifi@1.0-service-lazy: WifiCommand::requestResponse err=-14
+03-09 23:01:22.695  1576  1576 I WifiHAL : wifi_get_link_stats: result=-1
+03-09 23:01:22.696  1380  1510 E WifiStaIfaceHidlImpl: getLinkLayerStatsV1_5 failed with status: {.code = ERROR_UNKNOWN, .description = unknown}
+03-09 23:01:22.757   755   755 I BufferQueueProducer: [StatusBar#1497](this:0xb400007576866fc8,id:-1,api:0,p:-1,c:755) queueBuffer: fps=0.33 dur=3016.29 max=3016.29 min=3016.29
+03-09 23:01:22.762   733  1085 I hwcomposer: [HWCDisplay] [Display_0 (type:1)] fps:1.347363,dur:1484.38,max:1467.89,min:16.49  
+03-09 23:01:25.722  1576  1576 I WifiHAL : Get link layer stats
+03-09 23:01:25.722  1576  1576 I WifiHAL : GetLinkStatsCommand::create
+03-09 23:01:25.723  1576  1576 I android.hardware.wifi@1.0-service-lazy: WifiCommand::requestResponse err=-14
+03-09 23:01:25.723  1576  1576 I WifiHAL : wifi_get_link_stats: result=-1
+03-09 23:01:25.724  1380  1510 E WifiStaIfaceHidlImpl: getLinkLayerStatsV1_5 failed with status: {.code = ERROR_UNKNOWN, .description = unknown}
+03-09 23:01:28.168   982   982 I thermal_repeater: [recvMdThermalInfo] ret=33, strLen=127,  0, 32767, -127, 0, 32767, -28543
+03-09 23:01:28.749  1576  1576 I WifiHAL : Get link layer stats
+03-09 23:01:28.749  1576  1576 I WifiHAL : GetLinkStatsCommand::create
+03-09 23:01:28.750  1576  1576 I android.hardware.wifi@1.0-service-lazy: WifiCommand::requestResponse err=-14
+03-09 23:01:28.750  1576  1576 I WifiHAL : wifi_get_link_stats: result=-1
+03-09 23:01:28.751  1380  1510 E WifiStaIfaceHidlImpl: getLinkLayerStatsV1_5 failed with status: {.code = ERROR_UNKNOWN, .description = unknown}
+03-09 23:01:29.451  2658  3176 I BistoHotwordHelper: (REDACTED) getHotwordActive::active query: %s, watch: %s, devices connected: %s
+03-09 23:01:31.773  1576  1576 I WifiHAL : Get link layer stats
+03-09 23:01:31.773  1576  1576 I WifiHAL : GetLinkStatsCommand::create
+03-09 23:01:31.774  1576  1576 I android.hardware.wifi@1.0-service-lazy: WifiCommand::requestResponse err=-14
+03-09 23:01:31.774  1576  1576 I WifiHAL : wifi_get_link_stats: result=-1
+03-09 23:01:31.775  1380  1510 E WifiStaIfaceHidlImpl: getLinkLayerStatsV1_5 failed with status: {.code = ERROR_UNKNOWN, .description = unknown}
+03-09 23:01:34.792  1576  1576 I WifiHAL : Get link layer stats
+03-09 23:01:34.792  1576  1576 I WifiHAL : GetLinkStatsCommand::create
+03-09 23:01:34.792  1576  1576 I android.hardware.wifi@1.0-service-lazy: WifiCommand::requestResponse err=-14
+03-09 23:01:34.792  1576  1576 I WifiHAL : wifi_get_link_stats: result=-1
+03-09 23:01:34.793  1380  1510 E WifiStaIfaceHidlImpl: getLinkLayerStatsV1_5 failed with status: {.code = ERROR_UNKNOWN, .description = unknown}
+03-09 23:01:37.818  1576  1576 I WifiHAL : Get link layer stats
+03-09 23:01:37.818  1576  1576 I WifiHAL : GetLinkStatsCommand::create
+03-09 23:01:37.819  1576  1576 I android.hardware.wifi@1.0-service-lazy: WifiCommand::requestResponse err=-14
+03-09 23:01:37.819  1576  1576 I WifiHAL : wifi_get_link_stats: result=-1
+03-09 23:01:37.820  1380  1510 E WifiStaIfaceHidlImpl: getLinkLayerStatsV1_5 failed with status: {.code = ERROR_UNKNOWN, .description = unknown}
+03-09 23:01:38.182   982   982 I thermal_repeater: [recvMdThermalInfo] ret=33, strLen=127,  0, 32767, -127, 0, 32767, -28543
+03-09 23:01:40.842  1576  1576 I WifiHAL : Get link layer stats
+03-09 23:01:40.842  1576  1576 I WifiHAL : GetLinkStatsCommand::create
+03-09 23:01:40.842  1576  1576 I android.hardware.wifi@1.0-service-lazy: WifiCommand::requestResponse err=-14
+03-09 23:01:40.842  1576  1576 I WifiHAL : wifi_get_link_stats: result=-1
+03-09 23:01:40.843  1380  1510 E WifiStaIfaceHidlImpl: getLinkLayerStatsV1_5 failed with status: {.code = ERROR_UNKNOWN, .description = unknown}
+03-09 23:01:40.897   755   755 I BufferQueueProducer: [StatusBar#1497](this:0xb400007576866fc8,id:-1,api:0,p:-1,c:755) queueBuffer: fps=0.06 dur=18139.70 max=18139.70 min=18139.70
+03-09 23:01:40.901   733  1085 I hwcomposer: [HWCDisplay] [Display_0 (type:1)] fps:0.055128,dur:18139.56,max:18139.56,min:18139.56  
+03-09 23:01:42.957  1380  1812 I ActivityManager: Broadcasting: Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }
+03-09 23:01:42.959  1380  1404 I ActivityManager: Broadcast completed: result=0
+03-09 23:01:42.959  1380  1812 I ActivityManager: Enqueued broadcast Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }: 0
+03-09 23:01:43.869  1576  1576 I WifiHAL : Get link layer stats
+03-09 23:01:43.870  1576  1576 I WifiHAL : GetLinkStatsCommand::create
+03-09 23:01:43.870  1576  1576 I android.hardware.wifi@1.0-service-lazy: WifiCommand::requestResponse err=-14
+03-09 23:01:43.870  1576  1576 I WifiHAL : wifi_get_link_stats: result=-1
+03-09 23:01:43.871  1380  1510 E WifiStaIfaceHidlImpl: getLinkLayerStatsV1_5 failed with status: {.code = ERROR_UNKNOWN, .description = unknown}
+03-09 23:01:43.937   755   755 I BufferQueueProducer: [StatusBar#1497](this:0xb400007576866fc8,id:-1,api:0,p:-1,c:755) queueBuffer: fps=0.33 dur=3040.05 max=3040.05 min=3040.05
+03-09 23:01:43.940   733  1085 I hwcomposer: [HWCDisplay] [Display_0 (type:1)] fps:0.329039,dur:3039.15,max:3039.15,min:3039.15  
+03-09 23:01:44.069  1380  1812 I ActivityManager: Broadcasting: Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }
+03-09 23:01:44.071  1380  1404 I ActivityManager: Broadcast completed: result=0
+03-09 23:01:44.071  1380  1812 I ActivityManager: Enqueued broadcast Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }: 0
+03-09 23:01:45.184  1380  1812 I ActivityManager: Broadcasting: Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }
+03-09 23:01:45.185  1380  1812 I ActivityManager: Enqueued broadcast Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }: 0
+03-09 23:01:45.186  1380  1404 I ActivityManager: Broadcast completed: result=0
+03-09 23:01:45.825  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:01:46.299  1380  1812 I ActivityManager: Broadcasting: Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }
+03-09 23:01:46.301  1380  1404 I ActivityManager: Broadcast completed: result=0
+03-09 23:01:46.301  1380  1812 I ActivityManager: Enqueued broadcast Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }: 0
+03-09 23:01:46.441  1161 24615 I VoLTE IMCB-CM: COMM_TimerExpiry data: 0xe8dc0220 #222
+03-09 23:01:46.442  1161  1161 I VoLTE IMCB-1: {{{{uatimer expiry acct_id: 2, uatimer_id: 1, uatimeout: 600, user_data: 0x10009908, timer_id: 165 imcb_uatimer_tmo_hdlr()@1#231
+03-09 23:01:46.442  1161  1161 I VoLTE IMCB-1: fake imsa_imcb_cnf_timer_expiry for timer_id: 0xA5 @1#240
+03-09 23:01:46.442  1161  1161 I VoLTE IMCB-1: Pure Mesage Send dest=UA[3], msg_id=10061(0x0000274D), len=16, IMCB_IMC_HEADER_FILE_VERNO=81, MSG_ID_IMC_IN_BEGIN=100000, IMC_FEATURE_BITMAP=0x3 imcb_send_to_COMM()@1#248}}}}
+03-09 23:01:46.444  1159  1187 I VoLTE REG: SA lifetime timeout (module/volte//volte_stack/src/reg/reg.c:14015)
+03-09 23:01:46.444  1159  1187 I VoLTE REG: Reg[2] clear_index = 0 (module/volte//volte_stack/src/reg/reg.c:1509)
+03-09 23:01:46.445  1159  1184 I VoLTE DISP: Delete the siptx ipsec connection, request_id = 11260002, conn_id = 70004/80005, req_clear_index: 0 (module/volte//volte_stack/src/dispatcher/dispatcher.c:1629)
+03-09 23:01:46.447  1161  1161 I VoLTE IMCB: {{{{[process_msg] msg_id=20006(0x00004E26), dst=UA[3], IMCB_IMC_HEADER_FILE_VERNO=81, MSG_ID_IMC_IN_BEGIN=100000, IMC_FEATURE_BITMAP=0x3 process_msg()@0#190
+03-09 23:01:46.447  1161  1161 I VoLTE IMCB: ENTER ua_imcb_ind_timer_cancel_handler()@0#4208
+03-09 23:01:46.447  1161  1161 I VoLTE IMCB: uatimer fail cancel acct_id: 0, uatimer_id: 1, uatimeout: 0, user_data: 0x10009908 imcb_uatimer_cancel()@0#310
+03-09 23:01:46.447  1161  1161 I VoLTE IMCB: EndofMessage process_msg()@0#242}}}}
+03-09 23:01:46.891  1576  1576 I WifiHAL : Get link layer stats
+03-09 23:01:46.891  1576  1576 I WifiHAL : GetLinkStatsCommand::create
+03-09 23:01:46.891  1576  1576 I android.hardware.wifi@1.0-service-lazy: WifiCommand::requestResponse err=-14
+03-09 23:01:46.891  1576  1576 I WifiHAL : wifi_get_link_stats: result=-1
+03-09 23:01:46.892  1380  1510 E WifiStaIfaceHidlImpl: getLinkLayerStatsV1_5 failed with status: {.code = ERROR_UNKNOWN, .description = unknown}
+03-09 23:01:47.415  1380  1812 I ActivityManager: Broadcasting: Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }
+03-09 23:01:47.417  1380  1404 I ActivityManager: Broadcast completed: result=0
+03-09 23:01:47.417  1380  1812 I ActivityManager: Enqueued broadcast Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }: 0
+03-09 23:01:48.202   982   982 I thermal_repeater: [recvMdThermalInfo] ret=33, strLen=127,  0, 32767, -127, 0, 32767, -28543

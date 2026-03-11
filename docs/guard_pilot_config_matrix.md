@@ -121,7 +121,12 @@ Optional governance key:
 Gradle properties used by Android facade:
 - `ONYX_USE_LIVE_FSK_SDK` (`true` enables live facade)
 - `ONYX_FSK_SDK_HEARTBEAT_ACTION` (broadcast action for SDK callback)
-- `ONYX_FSK_SDK_PAYLOAD_ADAPTER` (`standard` or `legacy_ptt`)
+- `ONYX_FSK_SDK_PAYLOAD_ADAPTER` (`standard`, `legacy_ptt`, or `hikvision_guardlink`)
+- `ONYX_FSK_SDK_CONNECTOR_CLASS` (optional fully-qualified Kotlin class implementing `FskVendorSdkConnector`)
+- `ONYX_USE_LIVE_HIKVISION_SDK` (`true` enables live Hikvision facade)
+- `ONYX_HIKVISION_SDK_HEARTBEAT_ACTION` (broadcast action for Hikvision SDK callback)
+- `ONYX_HIKVISION_SDK_PAYLOAD_ADAPTER` (`standard`, `legacy_ptt`, or `hikvision_guardlink`)
+- `ONYX_HIKVISION_SDK_CONNECTOR_CLASS` (optional fully-qualified Kotlin class implementing `FskVendorSdkConnector`)
 
 Build example:
 
@@ -129,13 +134,19 @@ Build example:
 ./gradlew :app:assembleDebug \
   -PONYX_USE_LIVE_FSK_SDK=true \
   -PONYX_FSK_SDK_HEARTBEAT_ACTION=com.onyx.fsk.SDK_HEARTBEAT \
-  -PONYX_FSK_SDK_PAYLOAD_ADAPTER=standard
+  -PONYX_FSK_SDK_PAYLOAD_ADAPTER=standard \
+  -PONYX_FSK_SDK_CONNECTOR_CLASS=com.example.omnix_dashboard.telemetry.FskReflectiveVendorSdkConnector \
+  -PONYX_USE_LIVE_HIKVISION_SDK=true \
+  -PONYX_HIKVISION_SDK_HEARTBEAT_ACTION=com.onyx.hikvision.SDK_HEARTBEAT \
+  -PONYX_HIKVISION_SDK_PAYLOAD_ADAPTER=hikvision_guardlink \
+  -PONYX_HIKVISION_SDK_CONNECTOR_CLASS=com.example.omnix_dashboard.telemetry.HikvisionReflectiveVendorSdkConnector
 ```
 
 On-device callback validation helper:
 
 ```bash
 ./scripts/guard_android_field_validation.sh \
+  --provider fsk_sdk \
   --action com.onyx.fsk.SDK_HEARTBEAT \
   --samples 5 \
   --interval 1 \
@@ -146,11 +157,24 @@ End-to-end artifact capture helper:
 
 ```bash
 ./scripts/guard_android_live_validation.sh \
+  --provider fsk_sdk \
   --action com.onyx.fsk.SDK_HEARTBEAT \
   --samples 5 \
   --interval 1 \
   --adapter standard \
   --expected-provider fsk_sdk
+```
+
+Hikvision artifact capture helper:
+
+```bash
+./scripts/guard_android_live_validation.sh \
+  --provider hikvision_sdk \
+  --action com.onyx.hikvision.SDK_HEARTBEAT \
+  --samples 5 \
+  --interval 1 \
+  --adapter hikvision_guardlink \
+  --expected-provider hikvision_sdk
 ```
 
 Artifact report command:
@@ -164,16 +188,34 @@ Artifact report command:
 Note:
 - Readiness artifact gate prefers `validation_report.json` and falls back to markdown report if JSON is unavailable.
 - When JSON is available, readiness verifies embedded SHA-256 checksums against evidence files.
+- In pre-device mode, the selected `--provider` must match the runtime config provider
+  in `config/onyx.local.json` (`ONYX_GUARD_TELEMETRY_NATIVE_PROVIDER` /
+  `ONYX_GUARD_TELEMETRY_REQUIRED_PROVIDER`) or the gate fails by design.
 
 One-command Android pilot gate:
 
 ```bash
 ./scripts/guard_android_pilot_gate.sh \
+  --provider fsk_sdk \
   --action com.onyx.fsk.SDK_HEARTBEAT \
   --samples 5 \
   --interval 1 \
   --adapter standard \
   --expected-provider fsk_sdk \
+  --require-real-device-artifacts \
+  --max-report-age-hours 12
+```
+
+Hikvision one-command Android pilot gate:
+
+```bash
+./scripts/guard_android_pilot_gate.sh \
+  --provider hikvision_sdk \
+  --action com.onyx.hikvision.SDK_HEARTBEAT \
+  --samples 5 \
+  --interval 1 \
+  --adapter hikvision_guardlink \
+  --expected-provider hikvision_sdk \
   --require-real-device-artifacts \
   --max-report-age-hours 12
 ```

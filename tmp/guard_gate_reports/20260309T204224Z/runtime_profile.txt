@@ -1,0 +1,7 @@
+ONYX runtime profile:
+  config file: config/onyx.local.json (found)
+  supabase: LIVE
+  telemetry: LIVE (fsk_sdk)
+  telemetry native sdk: enabled
+  telemetry required provider: fsk_sdk
+  live feed: DISABLED

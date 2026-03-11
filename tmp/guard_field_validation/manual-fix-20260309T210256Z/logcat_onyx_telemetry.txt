@@ -1,0 +1,11 @@
+03-09 23:03:00.750 26497 26497 I ONYX_TELEMETRY: fsk_live_facade_started action=com.onyx.fsk.SDK_HEARTBEAT connector=broadcast_intent_connector
+03-09 23:03:06.900 26497 26497 I ONYX_TELEMETRY: facade_ingest adapter=standard payloadKeys=[activity_state,battery_percent,captured_at_utc,gps_accuracy_meters,heart_rate,movement_level]
+03-09 23:03:06.912 26497 26497 I ONYX_TELEMETRY: sdk_callback_received adapter=standard callback_count=1 captured_at_utc=2026-03-09T21:03:01Z
+03-09 23:03:08.099 26497 26497 I ONYX_TELEMETRY: facade_ingest adapter=standard payloadKeys=[activity_state,battery_percent,captured_at_utc,gps_accuracy_meters,heart_rate,movement_level]
+03-09 23:03:08.107 26497 26497 I ONYX_TELEMETRY: sdk_callback_received adapter=standard callback_count=2 captured_at_utc=2026-03-09T21:03:08Z
+03-09 23:03:09.231 26497 26497 I ONYX_TELEMETRY: facade_ingest adapter=standard payloadKeys=[activity_state,battery_percent,captured_at_utc,gps_accuracy_meters,heart_rate,movement_level]
+03-09 23:03:09.237 26497 26497 I ONYX_TELEMETRY: sdk_callback_received adapter=standard callback_count=3 captured_at_utc=2026-03-09T21:03:09Z
+03-09 23:03:10.352 26497 26497 I ONYX_TELEMETRY: facade_ingest adapter=standard payloadKeys=[activity_state,battery_percent,captured_at_utc,gps_accuracy_meters,heart_rate,movement_level]
+03-09 23:03:10.359 26497 26497 I ONYX_TELEMETRY: sdk_callback_received adapter=standard callback_count=4 captured_at_utc=2026-03-09T21:03:10Z
+03-09 23:03:11.475 26497 26497 I ONYX_TELEMETRY: facade_ingest adapter=standard payloadKeys=[activity_state,battery_percent,captured_at_utc,gps_accuracy_meters,heart_rate,movement_level]
+03-09 23:03:11.483 26497 26497 I ONYX_TELEMETRY: sdk_callback_received adapter=standard callback_count=5 captured_at_utc=2026-03-09T21:03:11Z

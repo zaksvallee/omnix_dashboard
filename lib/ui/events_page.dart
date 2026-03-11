@@ -11,6 +11,7 @@ import '../domain/events/intelligence_received.dart';
 import '../domain/events/patrol_completed.dart';
 import '../domain/events/report_generated.dart';
 import '../domain/events/response_arrived.dart';
+import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 
 class EventsPage extends StatefulWidget {
@@ -34,11 +35,13 @@ class _EventsPageState extends State<EventsPage> {
   _TimeWindow _timeWindow = _TimeWindow.last24h;
   bool _showAdvancedFilters = false;
   DispatchEvent? _selected;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   static const _allValue = 'ALL';
 
   @override
   Widget build(BuildContext context) {
+    final handsetLayout = isHandsetLayout(context);
     final timeline = [...widget.events]
       ..sort((a, b) => b.sequence.compareTo(a.sequence));
     final forensicRows = timeline.map(_toForensicRow).toList();
@@ -66,6 +69,7 @@ class _EventsPageState extends State<EventsPage> {
     }
 
     return Scaffold(
+      key: _scaffoldKey,
       endDrawer: LayoutBuilder(
         builder: (context, constraints) {
           if (constraints.maxWidth >= 1120 || selected == null) {
@@ -73,9 +77,9 @@ class _EventsPageState extends State<EventsPage> {
           }
           return Drawer(
             width: 320,
-            backgroundColor: const Color(0xFF081426),
+            backgroundColor: const Color(0xFF0E1A2B),
             child: SafeArea(
-              child: Padding(
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.all(10),
                 child: _selectedDetailPane(selected),
               ),
@@ -91,7 +95,10 @@ class _EventsPageState extends State<EventsPage> {
               constraints: const BoxConstraints(maxWidth: 1540),
               child: LayoutBuilder(
                 builder: (context, viewport) {
-                  final useScrollFallback = viewport.maxHeight < 720;
+                  final useScrollFallback =
+                      handsetLayout ||
+                      viewport.maxHeight < 720 ||
+                      viewport.maxWidth < 1120;
 
                   Widget timelinePane({
                     required bool showSideDrawer,
@@ -119,7 +126,7 @@ class _EventsPageState extends State<EventsPage> {
                                 onTap: () {
                                   setState(() => _selected = event);
                                   if (!showSideDrawer) {
-                                    Scaffold.of(context).openEndDrawer();
+                                    _scaffoldKey.currentState?.openEndDrawer();
                                   }
                                 },
                                 borderRadius: BorderRadius.circular(14),
@@ -147,33 +154,83 @@ class _EventsPageState extends State<EventsPage> {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            Row(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Expanded(
-                                                  child: Text(
-                                                    info.label,
-                                                    style: GoogleFonts.rajdhani(
-                                                      color: info.color,
-                                                      fontSize: 16,
-                                                      fontWeight:
-                                                          FontWeight.w700,
+                                            LayoutBuilder(
+                                              builder: (context, rowConstraints) {
+                                                final compactHeader =
+                                                    rowConstraints.maxWidth <
+                                                    340;
+                                                final timestampText =
+                                                    "UTC ${event.occurredAt.toIso8601String()}";
+                                                if (compactHeader) {
+                                                  return Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        info.label,
+                                                        style:
+                                                            GoogleFonts.rajdhani(
+                                                              color: info.color,
+                                                              fontSize: 16,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w700,
+                                                            ),
+                                                      ),
+                                                      const SizedBox(height: 2),
+                                                      Text(
+                                                        timestampText,
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        style:
+                                                            GoogleFonts.inter(
+                                                              color:
+                                                                  const Color(
+                                                                    0xFF89A0BE,
+                                                                  ),
+                                                              fontSize: 11,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                            ),
+                                                      ),
+                                                    ],
+                                                  );
+                                                }
+                                                return Row(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Expanded(
+                                                      child: Text(
+                                                        info.label,
+                                                        style:
+                                                            GoogleFonts.rajdhani(
+                                                              color: info.color,
+                                                              fontSize: 16,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w700,
+                                                            ),
+                                                      ),
                                                     ),
-                                                  ),
-                                                ),
-                                                Text(
-                                                  "UTC ${event.occurredAt.toIso8601String()}",
-                                                  style: GoogleFonts.inter(
-                                                    color: const Color(
-                                                      0xFF89A0BE,
+                                                    Text(
+                                                      timestampText,
+                                                      style: GoogleFonts.inter(
+                                                        color: const Color(
+                                                          0xFF89A0BE,
+                                                        ),
+                                                        fontSize: 11,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                      textAlign: TextAlign.end,
                                                     ),
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                  textAlign: TextAlign.end,
-                                                ),
-                                              ],
+                                                  ],
+                                                );
+                                              },
                                             ),
                                             const SizedBox(height: 4),
                                             Wrap(
@@ -300,7 +357,8 @@ class _EventsPageState extends State<EventsPage> {
                   Widget mainLayout() {
                     return LayoutBuilder(
                       builder: (context, constraints) {
-                        final showSideDrawer = constraints.maxWidth >= 1120;
+                        final showSideDrawer =
+                            constraints.maxWidth >= 1120 && !handsetLayout;
                         final sidePaneWidth = constraints.maxWidth >= 1480
                             ? 340.0
                             : 300.0;
@@ -403,18 +461,14 @@ class _EventsPageState extends State<EventsPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(9),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF081326), Color(0xFF0A172C)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: const Color(0xFF0E1A2B),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF193758)),
+        border: Border.all(color: const Color(0xFF223244)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x14000000),
-            blurRadius: 14,
-            offset: Offset(0, 8),
+            color: Color(0x10000000),
+            blurRadius: 8,
+            offset: Offset(0, 3),
           ),
         ],
       ),
@@ -430,40 +484,86 @@ class _EventsPageState extends State<EventsPage> {
             ),
           ),
           const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  "Forensic Filters",
-                  style: GoogleFonts.rajdhani(
-                    color: const Color(0xFFE6F0FF),
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compactHeader = constraints.maxWidth < 720;
+              if (!compactHeader) {
+                return Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        "Forensic Filters",
+                        style: GoogleFonts.rajdhani(
+                          color: const Color(0xFFE6F0FF),
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    _pill("$filteredCount visible"),
+                    const SizedBox(width: 8),
+                    _pill("${_activeFilterCount()} active"),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _typeFilter = _allValue;
+                          _siteFilter = _allValue;
+                          _guardFilter = _allValue;
+                          _timeWindow = _TimeWindow.last24h;
+                        });
+                      },
+                      child: Text(
+                        "Reset Filters",
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF9FD9FF),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Forensic Filters",
+                    style: GoogleFonts.rajdhani(
+                      color: const Color(0xFFE6F0FF),
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-              ),
-              _pill("$filteredCount visible"),
-              const SizedBox(width: 8),
-              _pill("${_activeFilterCount()} active"),
-              const SizedBox(width: 8),
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    _typeFilter = _allValue;
-                    _siteFilter = _allValue;
-                    _guardFilter = _allValue;
-                    _timeWindow = _TimeWindow.last24h;
-                  });
-                },
-                child: Text(
-                  "Reset Filters",
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF9FD9FF),
-                    fontWeight: FontWeight.w700,
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      _pill("$filteredCount visible"),
+                      _pill("${_activeFilterCount()} active"),
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _typeFilter = _allValue;
+                            _siteFilter = _allValue;
+                            _guardFilter = _allValue;
+                            _timeWindow = _TimeWindow.last24h;
+                          });
+                        },
+                        child: Text(
+                          "Reset Filters",
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF9FD9FF),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ),
-            ],
+                ],
+              );
+            },
           ),
           const SizedBox(height: 6),
           Theme(
@@ -554,15 +654,15 @@ class _EventsPageState extends State<EventsPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFF0E1A33),
+              color: const Color(0xFF0E1A2B),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF263B64)),
+              border: Border.all(color: const Color(0xFF223244)),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: value,
                 isExpanded: true,
-                dropdownColor: const Color(0xFF081326),
+                dropdownColor: const Color(0xFF0E1A2B),
                 style: GoogleFonts.inter(
                   color: const Color(0xFFE5EFFF),
                   fontSize: 12,
@@ -590,13 +690,14 @@ class _EventsPageState extends State<EventsPage> {
     final details = _detailsFor(row.event);
     final visibleDetails = details.take(_maxDetailRows).toList(growable: false);
     final hiddenDetails = details.length - visibleDetails.length;
+    final embeddedDetailScroll = allowEmbeddedPanelScroll(context);
 
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF081426),
+        color: const Color(0xFF0E1A2B),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF18345F)),
+        border: Border.all(color: const Color(0xFF243549)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -621,20 +722,49 @@ class _EventsPageState extends State<EventsPage> {
           const SizedBox(height: 10),
           _detailHero(row),
           const SizedBox(height: 8),
-          Expanded(
-            child: Column(
+          if (embeddedDetailScroll)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: visibleDetails.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final item = visibleDetails[index];
+                        return _kv(item.$1, item.$2);
+                      },
+                    ),
+                  ),
+                  if (hiddenDetails > 0) ...[
+                    const SizedBox(height: 8),
+                    OnyxTruncationHint(
+                      visibleCount: visibleDetails.length,
+                      totalCount: details.length,
+                      subject: 'detail rows',
+                      color: const Color(0xFF8EA5C6),
+                    ),
+                  ],
+                ],
+              ),
+            )
+          else
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: ListView.separated(
-                    itemCount: visibleDetails.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final item = visibleDetails[index];
-                      return _kv(item.$1, item.$2);
-                    },
-                  ),
+                ListView.separated(
+                  itemCount: visibleDetails.length,
+                  shrinkWrap: true,
+                  primary: false,
+                  physics: const NeverScrollableScrollPhysics(),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final item = visibleDetails[index];
+                    return _kv(item.$1, item.$2);
+                  },
                 ),
                 if (hiddenDetails > 0) ...[
                   const SizedBox(height: 8),
@@ -647,7 +777,6 @@ class _EventsPageState extends State<EventsPage> {
                 ],
               ],
             ),
-          ),
         ],
       ),
     );
@@ -977,9 +1106,9 @@ class _EventsPageState extends State<EventsPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A33),
+        color: const Color(0xFF0E1A2B),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFF263B64)),
+        border: Border.all(color: const Color(0xFF223244)),
       ),
       child: Text(
         text,
@@ -1045,18 +1174,14 @@ class _EventsPageState extends State<EventsPage> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0C182B), Color(0xFF091528)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: const Color(0xFF0E1A2B),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF1B395E)),
+        border: Border.all(color: const Color(0xFF243549)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x10000000),
-            blurRadius: 10,
-            offset: Offset(0, 6),
+            blurRadius: 8,
+            offset: Offset(0, 3),
           ),
         ],
       ),
@@ -1130,18 +1255,14 @@ class _EventsPageState extends State<EventsPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0E1C31), Color(0xFF0B172A)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: const Color(0xFF0E1A2B),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF224267)),
+        border: Border.all(color: const Color(0xFF223244)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x10000000),
-            blurRadius: 10,
-            offset: Offset(0, 6),
+            blurRadius: 8,
+            offset: Offset(0, 3),
           ),
         ],
       ),

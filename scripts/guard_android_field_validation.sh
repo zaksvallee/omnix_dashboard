@@ -2,9 +2,10 @@
 set -euo pipefail
 
 ACTION="${ONYX_FSK_SDK_HEARTBEAT_ACTION:-}"
+PROVIDER_ID="${ONYX_GUARD_TELEMETRY_NATIVE_PROVIDER:-fsk_sdk}"
 SAMPLES=3
 INTERVAL_SECONDS=2
-ADAPTER_MODE="${ONYX_FSK_SDK_PAYLOAD_ADAPTER:-standard}"
+ADAPTER_MODE=""
 
 pass() { printf "PASS: %s\n" "$1"; }
 warn() { printf "WARN: %s\n" "$1"; }
@@ -13,21 +14,36 @@ fail() { printf "FAIL: %s\n" "$1"; exit 1; }
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/guard_android_field_validation.sh --action <broadcast-action> [--samples 3] [--interval 2] [--adapter standard|legacy_ptt]
+  ./scripts/guard_android_field_validation.sh [--provider fsk_sdk|hikvision_sdk] --action <broadcast-action> [--samples 3] [--interval 2] [--adapter standard|legacy_ptt|hikvision_guardlink]
 
 Purpose:
-  Emit debug heartbeat broadcasts from adb to validate live FSK callback ingestion on Android devices.
+  Emit debug heartbeat broadcasts from adb to validate live native callback ingestion on Android devices.
 
 Example:
   ./scripts/guard_android_field_validation.sh \
+    --provider fsk_sdk \
     --action com.onyx.fsk.SDK_HEARTBEAT \
     --samples 5 \
     --interval 1
 USAGE
 }
 
+provider_family() {
+  local provider
+  provider="$(echo "${1:-}" | tr '[:upper:]' '[:lower:]')"
+  if [[ "$provider" == *"hikvision"* ]]; then
+    echo "hikvision"
+  else
+    echo "fsk"
+  fi
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --provider)
+      PROVIDER_ID="${2:-}"
+      shift 2
+      ;;
     --action)
       ACTION="${2:-}"
       shift 2
@@ -54,8 +70,28 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+PROVIDER_FAMILY="$(provider_family "$PROVIDER_ID")"
+if [[ -z "$ADAPTER_MODE" ]]; then
+  if [[ "$PROVIDER_FAMILY" == "hikvision" ]]; then
+    ADAPTER_MODE="${ONYX_HIKVISION_SDK_PAYLOAD_ADAPTER:-hikvision_guardlink}"
+  else
+    ADAPTER_MODE="${ONYX_FSK_SDK_PAYLOAD_ADAPTER:-standard}"
+  fi
+fi
+
 if [[ -z "$ACTION" ]]; then
-  fail "--action is required (or set ONYX_FSK_SDK_HEARTBEAT_ACTION)."
+  if [[ "$PROVIDER_FAMILY" == "hikvision" ]]; then
+    ACTION="${ONYX_HIKVISION_SDK_HEARTBEAT_ACTION:-}"
+  else
+    ACTION="${ONYX_FSK_SDK_HEARTBEAT_ACTION:-}"
+  fi
+fi
+
+if [[ -z "$ACTION" ]]; then
+  if [[ "$PROVIDER_FAMILY" == "hikvision" ]]; then
+    fail "--action is required for Hikvision (or set ONYX_HIKVISION_SDK_HEARTBEAT_ACTION)."
+  fi
+  fail "--action is required for FSK (or set ONYX_FSK_SDK_HEARTBEAT_ACTION)."
 fi
 
 if ! command -v adb >/dev/null 2>&1; then
@@ -70,8 +106,8 @@ if ! [[ "$INTERVAL_SECONDS" =~ ^[0-9]+$ ]] || [[ "$INTERVAL_SECONDS" -lt 0 ]]; t
   fail "--interval must be a non-negative integer."
 fi
 
-if [[ "$ADAPTER_MODE" != "standard" && "$ADAPTER_MODE" != "legacy_ptt" ]]; then
-  fail "--adapter must be standard or legacy_ptt."
+if [[ "$ADAPTER_MODE" != "standard" && "$ADAPTER_MODE" != "legacy_ptt" && "$ADAPTER_MODE" != "hikvision_guardlink" ]]; then
+  fail "--adapter must be standard, legacy_ptt, or hikvision_guardlink."
 fi
 
 DEVICES=()
@@ -84,7 +120,7 @@ if [[ "${#DEVICES[@]}" -eq 0 ]]; then
 fi
 
 pass "Connected devices: ${DEVICES[*]}"
-echo "Sending $SAMPLES test heartbeat broadcast(s) on action: $ACTION (adapter: $ADAPTER_MODE)"
+echo "Sending $SAMPLES test heartbeat broadcast(s) on action: $ACTION (provider: $PROVIDER_ID, adapter: $ADAPTER_MODE)"
 
 for ((i = 1; i <= SAMPLES; i++)); do
   CAPTURED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -98,6 +134,15 @@ for ((i = 1; i <= SAMPLES; i++)); do
       --es battery "$((80 - i))" \
       --es time_utc "$CAPTURED_AT" \
       --es location_accuracy "4.$i" >/dev/null
+  elif [[ "$ADAPTER_MODE" == "hikvision_guardlink" ]]; then
+    adb shell am broadcast \
+      -a "$ACTION" \
+      --es vitals_hr "$((70 + i))" \
+      --es motion_index "0.$((i + 2))" \
+      --es duty_state "patrolling" \
+      --es watch_battery_percent "$((80 - i))" \
+      --es event_utc "$CAPTURED_AT" \
+      --es gps_hdop_m "4.$i" >/dev/null
   else
     adb shell am broadcast \
       -a "$ACTION" \

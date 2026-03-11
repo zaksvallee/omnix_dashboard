@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'application/client_conversation_repository.dart';
+import 'application/cctv_bridge_service.dart';
 import 'application/dispatch_persistence_service.dart';
 import 'application/dispatch_snapshot_file_service.dart';
 import 'application/dispatch_application_service.dart';
@@ -18,9 +19,16 @@ import 'application/guard_telemetry_bridge_writer.dart';
 import 'application/guard_telemetry_ingestion_adapter.dart';
 import 'application/guard_telemetry_replay_fixture_service.dart';
 import 'application/intake_stress_service.dart';
+import 'application/morning_sovereign_report_service.dart';
+import 'application/ops_integration_profile.dart';
+import 'application/radio_bridge_service.dart';
 import 'application/runtime_config.dart';
+import 'application/wearable_bridge_service.dart';
 import 'domain/authority/operator_context.dart';
 import 'domain/events/decision_created.dart';
+import 'domain/events/dispatch_event.dart';
+import 'domain/events/execution_completed.dart';
+import 'domain/events/execution_denied.dart';
 import 'domain/events/guard_checked_in.dart';
 import 'domain/events/incident_closed.dart';
 import 'domain/events/intelligence_received.dart';
@@ -43,15 +51,151 @@ import 'infrastructure/events/supabase_client_ledger_repository.dart';
 import 'infrastructure/intelligence/configured_live_feed_service.dart';
 import 'infrastructure/intelligence/generic_feed_adapter.dart';
 import 'infrastructure/intelligence/news_intelligence_service.dart';
-import 'presentation/reports/report_test_harness.dart';
 import 'ui/app_shell.dart';
+import 'ui/ai_queue_page.dart';
+import 'ui/admin_page.dart';
+import 'ui/client_intelligence_reports_page.dart';
 import 'ui/client_app_page.dart';
-import 'ui/dashboard_page.dart';
+import 'ui/clients_page.dart';
 import 'ui/dispatch_page.dart';
-import 'ui/events_page.dart';
+import 'ui/events_review_page.dart';
+import 'ui/governance_page.dart';
+import 'ui/guards_page.dart';
 import 'ui/guard_mobile_shell_page.dart';
-import 'ui/ledger_page.dart';
-import 'ui/sites_page.dart';
+import 'ui/live_operations_page.dart';
+import 'ui/sites_command_page.dart';
+import 'ui/sovereign_ledger_page.dart';
+import 'ui/tactical_page.dart';
+
+enum OnyxAppMode { controller, guard, client }
+
+class _OpsIntegrationIngestResult {
+  final String source;
+  final bool success;
+  final bool skipped;
+  final String detail;
+
+  const _OpsIntegrationIngestResult({
+    required this.source,
+    required this.success,
+    required this.detail,
+    this.skipped = false,
+  });
+
+  String get summaryLabel {
+    if (skipped) return '$source:skip';
+    return '$source:${success ? 'ok' : 'fail'}';
+  }
+}
+
+class _OpsIntegrationHealth {
+  final int okCount;
+  final int failCount;
+  final int skipCount;
+  final DateTime? lastRunAtUtc;
+  final String lastDetail;
+
+  const _OpsIntegrationHealth({
+    this.okCount = 0,
+    this.failCount = 0,
+    this.skipCount = 0,
+    this.lastRunAtUtc,
+    this.lastDetail = '',
+  });
+
+  factory _OpsIntegrationHealth.fromJson(Map<String, Object?> json) {
+    final ok = _readInt(json['ok_count']) ?? 0;
+    final fail = _readInt(json['fail_count']) ?? 0;
+    final skip = _readInt(json['skip_count']) ?? 0;
+    final detail = _readString(json['last_detail']) ?? '';
+    final runRaw = _readString(json['last_run_at_utc']);
+    return _OpsIntegrationHealth(
+      okCount: ok < 0 ? 0 : ok,
+      failCount: fail < 0 ? 0 : fail,
+      skipCount: skip < 0 ? 0 : skip,
+      lastRunAtUtc: runRaw == null ? null : DateTime.tryParse(runRaw)?.toUtc(),
+      lastDetail: detail,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'ok_count': okCount,
+      'fail_count': failCount,
+      'skip_count': skipCount,
+      'last_run_at_utc': lastRunAtUtc?.toIso8601String(),
+      'last_detail': lastDetail,
+    };
+  }
+
+  _OpsIntegrationHealth record(
+    _OpsIntegrationIngestResult result,
+    DateTime runAtUtc,
+  ) {
+    return _OpsIntegrationHealth(
+      okCount: okCount + (result.success ? 1 : 0),
+      failCount: failCount + (!result.success && !result.skipped ? 1 : 0),
+      skipCount: skipCount + (result.skipped ? 1 : 0),
+      lastRunAtUtc: runAtUtc,
+      lastDetail: result.detail.trim(),
+    );
+  }
+
+  static int? _readInt(Object? value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value.trim());
+    return null;
+  }
+
+  static String? _readString(Object? value) {
+    if (value is! String) return null;
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+}
+
+class _RadioPendingRetryState {
+  final int attempts;
+  final DateTime? nextAttemptAtUtc;
+  final String? lastError;
+
+  const _RadioPendingRetryState({
+    this.attempts = 0,
+    this.nextAttemptAtUtc,
+    this.lastError,
+  });
+
+  factory _RadioPendingRetryState.fromJson(Map<String, Object?> json) {
+    final attemptsRaw = json['attempts'];
+    final attempts = switch (attemptsRaw) {
+      int value => value,
+      num value => value.round(),
+      String value => int.tryParse(value.trim()) ?? 0,
+      _ => 0,
+    };
+    final nextRaw = (json['next_attempt_at_utc'] ?? '').toString().trim();
+    final nextAttemptAtUtc = nextRaw.isEmpty
+        ? null
+        : DateTime.tryParse(nextRaw)?.toUtc();
+    final lastError = (json['last_error'] ?? '').toString().trim().isEmpty
+        ? null
+        : (json['last_error'] ?? '').toString().trim();
+    return _RadioPendingRetryState(
+      attempts: attempts < 0 ? 0 : attempts,
+      nextAttemptAtUtc: nextAttemptAtUtc,
+      lastError: lastError,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'attempts': attempts,
+      'next_attempt_at_utc': nextAttemptAtUtc?.toIso8601String(),
+      'last_error': lastError,
+    };
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -104,6 +248,54 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   static const _guardTelemetryAdapterBearerToken = String.fromEnvironment(
     'ONYX_GUARD_TELEMETRY_BEARER_TOKEN',
   );
+  static const _radioBearerTokenEnv = String.fromEnvironment(
+    'ONYX_RADIO_BEARER_TOKEN',
+  );
+  static const _cctvBearerTokenEnv = String.fromEnvironment(
+    'ONYX_CCTV_BEARER_TOKEN',
+  );
+  static const _wearableProviderEnv = String.fromEnvironment(
+    'ONYX_WEARABLE_PROVIDER',
+  );
+  static const _wearableEventsUrlEnv = String.fromEnvironment(
+    'ONYX_WEARABLE_EVENTS_URL',
+  );
+  static const _wearableBearerTokenEnv = String.fromEnvironment(
+    'ONYX_WEARABLE_BEARER_TOKEN',
+  );
+  static const _radioProviderEnv = String.fromEnvironment(
+    'ONYX_RADIO_PROVIDER',
+  );
+  static const _radioListenUrlEnv = String.fromEnvironment(
+    'ONYX_RADIO_LISTEN_URL',
+  );
+  static const _radioRespondUrlEnv = String.fromEnvironment(
+    'ONYX_RADIO_RESPOND_URL',
+  );
+  static const _radioChannelEnv = String.fromEnvironment(
+    'ONYX_RADIO_CHANNEL',
+    defaultValue: 'ops-primary',
+  );
+  static const _radioAiAutoAllClearEnv = bool.fromEnvironment(
+    'ONYX_RADIO_AI_AUTO_ALL_CLEAR',
+    defaultValue: false,
+  );
+  static const _cctvProviderEnv = String.fromEnvironment('ONYX_CCTV_PROVIDER');
+  static const _cctvEventsUrlEnv = String.fromEnvironment(
+    'ONYX_CCTV_EVENTS_URL',
+  );
+  static const _cctvLiveMonitoringEnv = bool.fromEnvironment(
+    'ONYX_CCTV_LIVE_MONITORING',
+    defaultValue: false,
+  );
+  static const _cctvFacialRecognitionEnv = bool.fromEnvironment(
+    'ONYX_CCTV_FR',
+    defaultValue: false,
+  );
+  static const _cctvLicensePlateRecognitionEnv = bool.fromEnvironment(
+    'ONYX_CCTV_LPR',
+    defaultValue: false,
+  );
   static const _guardTelemetryPreferNativeSdk = bool.fromEnvironment(
     'ONYX_GUARD_TELEMETRY_NATIVE_SDK',
     defaultValue: false,
@@ -128,10 +320,15 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     'ONYX_GUARD_APP_ROLE',
     defaultValue: 'guard',
   );
+  static const _appModeEnv = String.fromEnvironment(
+    'ONYX_APP_MODE',
+    defaultValue: 'controller',
+  );
   static const _clientAppLocaleEnv = String.fromEnvironment(
     'ONYX_CLIENT_APP_LOCALE',
     defaultValue: 'en',
   );
+  late final OnyxAppMode _appMode = _resolveAppMode();
   final GuardTelemetryIngestionAdapter _guardTelemetryAdapter =
       createGuardTelemetryIngestionAdapter(
         wearableHeartbeatUrl: _wearableTelemetryAdapterUrl,
@@ -147,6 +344,50 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       createGuardTelemetryBridgeWriter(
         providerId: _guardTelemetryNativeProviderId,
         enabled: true,
+      );
+  final http.Client _radioBridgeHttpClient = http.Client();
+  final http.Client _cctvBridgeHttpClient = http.Client();
+  final http.Client _wearableBridgeHttpClient = http.Client();
+  late final OnyxOpsIntegrationProfile _opsIntegrationProfile =
+      OnyxOpsIntegrationProfile.fromEnvironment(
+        radioProvider: _radioProviderEnv,
+        radioListenUrl: _radioListenUrlEnv,
+        radioRespondUrl: _radioRespondUrlEnv,
+        radioChannel: _radioChannelEnv,
+        radioAiAutoAllClearEnabled: _radioAiAutoAllClearEnv,
+        cctvProvider: _cctvProviderEnv,
+        cctvEventsUrl: _cctvEventsUrlEnv,
+        cctvLiveMonitoringEnabled: _cctvLiveMonitoringEnv,
+        cctvFacialRecognitionEnabled: _cctvFacialRecognitionEnv,
+        cctvLicensePlateRecognitionEnabled: _cctvLicensePlateRecognitionEnv,
+      );
+  late final RadioBridgeService _radioBridgeService = createRadioBridgeService(
+    provider: _opsIntegrationProfile.radio.provider,
+    listenUri: _opsIntegrationProfile.radio.listenUrl,
+    respondUri: _opsIntegrationProfile.radio.respondUrl,
+    bearerToken: _radioBearerTokenEnv,
+    client: _radioBridgeHttpClient,
+  );
+  late final CctvBridgeService _cctvBridgeService = createCctvBridgeService(
+    provider: _opsIntegrationProfile.cctv.provider,
+    eventsUri: _opsIntegrationProfile.cctv.eventsUrl,
+    bearerToken: _cctvBearerTokenEnv,
+    liveMonitoringEnabled: _opsIntegrationProfile.cctv.liveMonitoringEnabled,
+    facialRecognitionEnabled:
+        _opsIntegrationProfile.cctv.facialRecognitionEnabled,
+    licensePlateRecognitionEnabled:
+        _opsIntegrationProfile.cctv.licensePlateRecognitionEnabled,
+    client: _cctvBridgeHttpClient,
+  );
+  late final Uri? _wearableBridgeUri = Uri.tryParse(
+    _wearableEventsUrlEnv.trim(),
+  );
+  late final WearableBridgeService _wearableBridgeService =
+      createWearableBridgeService(
+        provider: _wearableProviderEnv,
+        eventsUri: _wearableBridgeUri,
+        bearerToken: _wearableBearerTokenEnv,
+        client: _wearableBridgeHttpClient,
       );
   static const _liveFeedPollUrl = String.fromEnvironment('ONYX_LIVE_FEED_URL');
   static const _liveFeedPollBearerToken = String.fromEnvironment(
@@ -207,6 +448,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     'ONYX_LIVE_FEED_POLL_INTERVAL_SECONDS',
     defaultValue: 30,
   );
+  static const _opsIntegrationPollIntervalSeconds = int.fromEnvironment(
+    'ONYX_OPS_INTEGRATION_POLL_INTERVAL_SECONDS',
+    defaultValue: 45,
+  );
   late final ClientAppLocale _clientAppLocale = ClientAppLocaleParser.fromCode(
     _clientAppLocaleEnv,
   );
@@ -221,6 +466,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   late final Future<GuardMobileOpsService> _guardMobileOpsServiceFuture;
 
   OnyxRoute _route = OnyxRoute.dashboard;
+  String _eventsSourceFilter = '';
+  String _eventsProviderFilter = '';
+  String _eventsSelectedEventId = '';
 
   final String _selectedClient = 'CLIENT-001';
   final String _selectedRegion = 'REGION-GAUTENG';
@@ -280,6 +528,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   String? _clientAppBackendProbeFailureReason;
   List<ClientBackendProbeAttempt> _clientAppBackendProbeHistory = const [];
   List<NewsSourceDiagnostic> _newsSourceDiagnostics = const [];
+  String _radioIntentPhrasesJsonOverride = '';
   List<String> _livePollingHistory = const [];
   List<GuardSyncOperation> _guardQueuedOperations = const [];
   GuardSyncHistoryFilter _guardSyncHistoryFilter =
@@ -308,6 +557,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   Map<String, Object?> _guardLastShiftReplayAudit = const {};
   Map<String, Object?> _guardLastSyncReportAudit = const {};
   Map<String, Object?> _guardExportAuditClearMeta = const {};
+  SovereignReport? _morningSovereignReport;
+  String? _morningSovereignReportAutoRunKey;
   Map<String, DateTime> _guardCoachingPromptSnoozedUntilByRule = const {};
   final Set<String> _guardCoachingSnoozeExpiryEventInFlightRules = {};
   int _guardCoachingAckCount = 0;
@@ -333,6 +584,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   String? _guardTelemetryFacadeRuntimeMode;
   String? _guardTelemetryFacadeHeartbeatSource;
   String? _guardTelemetryFacadeHeartbeatAction;
+  String? _guardTelemetryVendorConnectorId;
+  String? _guardTelemetryVendorConnectorSource;
+  String? _guardTelemetryVendorConnectorErrorMessage;
+  bool? _guardTelemetryVendorConnectorFallbackActive;
   bool? _guardTelemetryFacadeSourceActive;
   int? _guardTelemetryFacadeCallbackCount;
   DateTime? _guardTelemetryFacadeLastCallbackAtUtc;
@@ -345,7 +600,22 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   DateTime? _guardTelemetryPayloadHealthLastAlertAtUtc;
   IntakeTelemetry _intakeTelemetry = IntakeTelemetry.zero;
   Timer? _livePollTimer;
+  Timer? _opsIntegrationPollTimer;
   Timer? _guardOpsSyncTimer;
+  List<RadioAutomatedResponse> _pendingRadioAutomatedResponses = const [];
+  Map<String, _RadioPendingRetryState> _pendingRadioRetryByKey = const {};
+  String _radioQueueLastManualActionDetail =
+      'No manual radio queue action in current session.';
+  String _radioQueueLastFailureSnapshot = '';
+  String _radioQueueFailureAuditDetail =
+      'No failure snapshot clear recorded in current session.';
+  String _radioQueueLastStateChangeDetail =
+      'No radio queue state change recorded in current session.';
+  _OpsIntegrationHealth _radioOpsHealth = const _OpsIntegrationHealth();
+  _OpsIntegrationHealth _cctvOpsHealth = const _OpsIntegrationHealth();
+  _OpsIntegrationHealth _wearableOpsHealth = const _OpsIntegrationHealth();
+  _OpsIntegrationHealth _newsOpsHealth = const _OpsIntegrationHealth();
+  bool _opsIntegrationPollInFlight = false;
   DateTime? _lastGuardResumeSyncEventQueuedAtUtc;
   late final OutcomeLabelGovernancePolicy _outcomeGovernancePolicy;
 
@@ -444,6 +714,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _hydrateLivePollHistory();
     _hydrateLivePollSummary();
     _hydrateNewsSourceDiagnostics();
+    _hydrateRadioIntentPhraseConfig();
+    _hydratePendingRadioAutomatedResponses();
+    _hydrateOpsIntegrationHealthSnapshot();
     _hydrateStressProfile();
     _hydrateClientAppDraft();
     _hydrateGuardSyncState();
@@ -455,10 +728,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _hydrateGuardShiftReplayAudit();
     _hydrateGuardSyncReportAudit();
     _hydrateGuardExportAuditClearMeta();
+    _hydrateMorningSovereignReport();
     _refreshGuardTelemetryAdapterStatus();
     _startGuardOpsSyncLoop();
+    _startOpsIntegrationPollingLoop();
   }
 
+  // ignore: unused_element
   void _openGuardSyncFromDashboard() {
     setState(() {
       _route = OnyxRoute.guards;
@@ -478,13 +754,27 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _livePollTimer?.cancel();
+    _opsIntegrationPollTimer?.cancel();
     _guardOpsSyncTimer?.cancel();
+    _radioBridgeHttpClient.close();
+    _cctvBridgeHttpClient.close();
+    _wearableBridgeHttpClient.close();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed) return;
+    if (state != AppLifecycleState.resumed) {
+      if (state == AppLifecycleState.inactive ||
+          state == AppLifecycleState.paused ||
+          state == AppLifecycleState.detached) {
+        _opsIntegrationPollTimer?.cancel();
+        _opsIntegrationPollTimer = null;
+      }
+      return;
+    }
+    _startOpsIntegrationPollingLoop();
+    unawaited(_maybeAutoGenerateMorningSovereignReport());
     if (!widget.supabaseReady || _guardOpsSyncInFlight) return;
     if (mounted) {
       setState(() {
@@ -605,6 +895,243 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   Future<void> _persistNewsSourceDiagnostics() async {
     final persistence = await _persistenceServiceFuture;
     await persistence.saveNewsSourceDiagnostics(_newsSourceDiagnostics);
+  }
+
+  Future<void> _hydrateRadioIntentPhraseConfig() async {
+    final persistence = await _persistenceServiceFuture;
+    final raw = await persistence.readRadioIntentPhrasesJson();
+    if (raw == null) return;
+    final catalog = OnyxRadioIntentPhraseCatalog.tryParseJsonString(raw);
+    if (catalog == null) {
+      await persistence.clearRadioIntentPhrasesJson();
+      return;
+    }
+    OnyxRadioIntentClassifier.setRuntimePhraseCatalog(catalog);
+    if (!mounted) return;
+    setState(() {
+      _radioIntentPhrasesJsonOverride = raw;
+    });
+  }
+
+  Future<void> _saveRadioIntentPhraseConfig(String rawJson) async {
+    final trimmed = rawJson.trim();
+    if (trimmed.isEmpty) {
+      await _clearRadioIntentPhraseConfig();
+      return;
+    }
+    final catalog = OnyxRadioIntentPhraseCatalog.tryParseJsonString(trimmed);
+    if (catalog == null) {
+      throw const FormatException(
+        'Invalid radio intent JSON. Include at least one array for all_clear, panic, duress, or status.',
+      );
+    }
+    final persistence = await _persistenceServiceFuture;
+    await persistence.saveRadioIntentPhrasesJson(trimmed);
+    OnyxRadioIntentClassifier.setRuntimePhraseCatalog(catalog);
+    if (!mounted) return;
+    setState(() {
+      _radioIntentPhrasesJsonOverride = trimmed;
+      _lastIntakeStatus = 'Radio intent phrase dictionary updated.';
+    });
+  }
+
+  Future<void> _clearRadioIntentPhraseConfig() async {
+    final persistence = await _persistenceServiceFuture;
+    await persistence.clearRadioIntentPhrasesJson();
+    OnyxRadioIntentClassifier.setRuntimePhraseCatalog(null);
+    if (!mounted) return;
+    setState(() {
+      _radioIntentPhrasesJsonOverride = '';
+      _lastIntakeStatus = 'Radio intent phrase dictionary reset to defaults.';
+    });
+  }
+
+  Future<void> _hydratePendingRadioAutomatedResponses() async {
+    final persistence = await _persistenceServiceFuture;
+    final restored = await persistence.readPendingRadioAutomatedResponses();
+    final restoredRetryRaw = await persistence
+        .readPendingRadioAutomatedResponsesRetryState();
+    final restoredManualActionDetail = await persistence
+        .readPendingRadioQueueManualActionDetail();
+    final restoredFailureSnapshot = await persistence
+        .readPendingRadioQueueFailureSnapshot();
+    final restoredFailureAuditDetail = await persistence
+        .readPendingRadioQueueFailureAuditDetail();
+    final restoredStateChangeDetail = await persistence
+        .readPendingRadioQueueStateChangeDetail();
+    final trimmed = _trimPendingRadioAutomatedResponses(restored);
+    final validKeys = trimmed.map(_radioAutomatedResponseKey).toSet();
+    final retryByKey = <String, _RadioPendingRetryState>{};
+    restoredRetryRaw.forEach((key, value) {
+      if (!validKeys.contains(key)) return;
+      retryByKey[key] = _RadioPendingRetryState.fromJson(value);
+    });
+    if (trimmed.length != restored.length) {
+      if (trimmed.isEmpty) {
+        await persistence.clearPendingRadioAutomatedResponses();
+      } else {
+        await persistence.savePendingRadioAutomatedResponses(trimmed);
+      }
+    }
+    if (retryByKey.length != restoredRetryRaw.length) {
+      if (retryByKey.isEmpty) {
+        await persistence.clearPendingRadioAutomatedResponsesRetryState();
+      } else {
+        await persistence.savePendingRadioAutomatedResponsesRetryState(
+          retryByKey.map((key, value) => MapEntry(key, value.toJson())),
+        );
+      }
+    }
+    if (!mounted) {
+      _pendingRadioAutomatedResponses = trimmed;
+      _pendingRadioRetryByKey = retryByKey;
+      if (restoredManualActionDetail != null &&
+          restoredManualActionDetail.trim().isNotEmpty) {
+        _radioQueueLastManualActionDetail = restoredManualActionDetail.trim();
+      }
+      if (restoredFailureSnapshot != null &&
+          restoredFailureSnapshot.trim().isNotEmpty) {
+        _radioQueueLastFailureSnapshot = restoredFailureSnapshot.trim();
+      }
+      if (restoredFailureAuditDetail != null &&
+          restoredFailureAuditDetail.trim().isNotEmpty) {
+        _radioQueueFailureAuditDetail = restoredFailureAuditDetail.trim();
+      }
+      if (restoredStateChangeDetail != null &&
+          restoredStateChangeDetail.trim().isNotEmpty) {
+        _radioQueueLastStateChangeDetail = restoredStateChangeDetail.trim();
+      }
+      return;
+    }
+    setState(() {
+      _pendingRadioAutomatedResponses = trimmed;
+      _pendingRadioRetryByKey = retryByKey;
+      if (restoredManualActionDetail != null &&
+          restoredManualActionDetail.trim().isNotEmpty) {
+        _radioQueueLastManualActionDetail = restoredManualActionDetail.trim();
+      }
+      if (restoredFailureSnapshot != null &&
+          restoredFailureSnapshot.trim().isNotEmpty) {
+        _radioQueueLastFailureSnapshot = restoredFailureSnapshot.trim();
+      }
+      if (restoredFailureAuditDetail != null &&
+          restoredFailureAuditDetail.trim().isNotEmpty) {
+        _radioQueueFailureAuditDetail = restoredFailureAuditDetail.trim();
+      }
+      if (restoredStateChangeDetail != null &&
+          restoredStateChangeDetail.trim().isNotEmpty) {
+        _radioQueueLastStateChangeDetail = restoredStateChangeDetail.trim();
+      }
+    });
+  }
+
+  Future<void> _persistPendingRadioAutomatedResponses() async {
+    final persistence = await _persistenceServiceFuture;
+    if (_pendingRadioAutomatedResponses.isEmpty) {
+      await persistence.clearPendingRadioAutomatedResponses();
+      await persistence.clearPendingRadioAutomatedResponsesRetryState();
+    } else {
+      final validKeys = _pendingRadioAutomatedResponses
+          .map(_radioAutomatedResponseKey)
+          .toSet();
+      final retryPruned = <String, _RadioPendingRetryState>{};
+      _pendingRadioRetryByKey.forEach((key, value) {
+        if (validKeys.contains(key)) {
+          retryPruned[key] = value;
+        }
+      });
+      _pendingRadioRetryByKey = retryPruned;
+      await persistence.savePendingRadioAutomatedResponses(
+        _pendingRadioAutomatedResponses,
+      );
+      if (retryPruned.isEmpty) {
+        await persistence.clearPendingRadioAutomatedResponsesRetryState();
+      } else {
+        await persistence.savePendingRadioAutomatedResponsesRetryState(
+          retryPruned.map((key, value) => MapEntry(key, value.toJson())),
+        );
+      }
+    }
+
+    final manualActionDetail = _radioQueueLastManualActionDetail.trim();
+    if (manualActionDetail.isEmpty) {
+      await persistence.clearPendingRadioQueueManualActionDetail();
+    } else {
+      await persistence.savePendingRadioQueueManualActionDetail(
+        manualActionDetail,
+      );
+    }
+    final failureSnapshot = _radioQueueLastFailureSnapshot.trim();
+    if (failureSnapshot.isEmpty) {
+      await persistence.clearPendingRadioQueueFailureSnapshot();
+    } else {
+      await persistence.savePendingRadioQueueFailureSnapshot(failureSnapshot);
+    }
+    final failureAuditDetail = _radioQueueFailureAuditDetail.trim();
+    if (failureAuditDetail.isEmpty) {
+      await persistence.clearPendingRadioQueueFailureAuditDetail();
+    } else {
+      await persistence.savePendingRadioQueueFailureAuditDetail(
+        failureAuditDetail,
+      );
+    }
+    final stateChangeDetail = _radioQueueLastStateChangeDetail.trim();
+    if (stateChangeDetail.isEmpty) {
+      await persistence.clearPendingRadioQueueStateChangeDetail();
+    } else {
+      await persistence.savePendingRadioQueueStateChangeDetail(
+        stateChangeDetail,
+      );
+    }
+  }
+
+  Future<void> _hydrateOpsIntegrationHealthSnapshot() async {
+    final persistence = await _persistenceServiceFuture;
+    final snapshot = await persistence.readOpsIntegrationHealthSnapshot();
+    if (snapshot.isEmpty) return;
+    final radioRaw = _asObjectMap(snapshot['radio']);
+    final cctvRaw = _asObjectMap(snapshot['cctv']);
+    final wearableRaw = _asObjectMap(snapshot['wearable']);
+    final newsRaw = _asObjectMap(snapshot['news']);
+    if (!mounted) {
+      if (radioRaw != null) {
+        _radioOpsHealth = _OpsIntegrationHealth.fromJson(radioRaw);
+      }
+      if (cctvRaw != null) {
+        _cctvOpsHealth = _OpsIntegrationHealth.fromJson(cctvRaw);
+      }
+      if (wearableRaw != null) {
+        _wearableOpsHealth = _OpsIntegrationHealth.fromJson(wearableRaw);
+      }
+      if (newsRaw != null) {
+        _newsOpsHealth = _OpsIntegrationHealth.fromJson(newsRaw);
+      }
+      return;
+    }
+    setState(() {
+      if (radioRaw != null) {
+        _radioOpsHealth = _OpsIntegrationHealth.fromJson(radioRaw);
+      }
+      if (cctvRaw != null) {
+        _cctvOpsHealth = _OpsIntegrationHealth.fromJson(cctvRaw);
+      }
+      if (wearableRaw != null) {
+        _wearableOpsHealth = _OpsIntegrationHealth.fromJson(wearableRaw);
+      }
+      if (newsRaw != null) {
+        _newsOpsHealth = _OpsIntegrationHealth.fromJson(newsRaw);
+      }
+    });
+  }
+
+  Future<void> _persistOpsIntegrationHealthSnapshot() async {
+    final persistence = await _persistenceServiceFuture;
+    await persistence.saveOpsIntegrationHealthSnapshot({
+      'radio': _radioOpsHealth.toJson(),
+      'cctv': _cctvOpsHealth.toJson(),
+      'wearable': _wearableOpsHealth.toJson(),
+      'news': _newsOpsHealth.toJson(),
+    });
   }
 
   Future<void> _hydrateStressProfile() async {
@@ -1025,6 +1552,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _guardOpsActiveShiftId = activeShiftId;
       _guardOpsActiveShiftSequenceWatermark = shiftSequenceWatermark;
     });
+    await _maybeAutoGenerateMorningSovereignReport();
   }
 
   void _startGuardOpsSyncLoop() {
@@ -1114,6 +1642,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     );
     final repository = await _guardOpsRepositoryFuture;
     final now = DateTime.now().toUtc();
+    final visualNorm = _buildVisualNormMetadata(
+      capture: capture,
+      purpose: 'shift_verification',
+      capturedAtUtc: now,
+      baselineId: 'NORM-SHIFT-SELF-V1',
+    );
     final verificationEvent = await repository.enqueueEvent(
       guardId: 'GUARD-001',
       siteId: _selectedSite,
@@ -1130,6 +1664,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           'issues': quality.issues.map((issue) => issue.name).toList(),
           'method': quality.method,
         },
+        'visual_norm': visualNorm.toJson(),
       }),
       occurredAt: now,
     );
@@ -1145,6 +1680,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             'guards/GUARD-001/shift/${now.millisecondsSinceEpoch}-${capture.fileName}',
         localPath: capture.localPath,
         capturedAt: now,
+        visualNorm: visualNorm,
       ),
     );
     await repository.enqueueEvent(
@@ -1194,6 +1730,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     );
     final repository = await _guardOpsRepositoryFuture;
     final now = DateTime.now().toUtc();
+    final visualNorm = _buildVisualNormMetadata(
+      capture: capture,
+      purpose: 'patrol_verification',
+      capturedAtUtc: now,
+      baselineId: 'NORM-PATROL-${checkpointId.toUpperCase()}-V1',
+    );
     final patrolEvent = await repository.enqueueEvent(
       guardId: 'GUARD-001',
       siteId: _selectedSite,
@@ -1209,6 +1751,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           'issues': quality.issues.map((issue) => issue.name).toList(),
           'method': quality.method,
         },
+        'visual_norm': visualNorm.toJson(),
       }),
       occurredAt: now,
     );
@@ -1224,6 +1767,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             'guards/GUARD-001/patrol/${checkpointId.toLowerCase()}-${now.millisecondsSinceEpoch}-${capture.fileName}',
         localPath: capture.localPath,
         capturedAt: now,
+        visualNorm: visualNorm,
       ),
     );
     await _hydrateGuardOpsState();
@@ -1242,6 +1786,56 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     throw StateError(
       'Image quality check failed for $scope: $issueNames. Retake with clear focus, better lighting, and reduced glare.',
     );
+  }
+
+  GuardVisualNormMetadata _buildVisualNormMetadata({
+    required GuardMediaCaptureResult capture,
+    required String purpose,
+    required DateTime capturedAtUtc,
+    required String baselineId,
+  }) {
+    final mode = _resolveVisualNormMode(
+      capture: capture,
+      capturedAtUtc: capturedAtUtc,
+    );
+    final combatWindow = _isCombatWindow(capturedAtUtc);
+    final minMatchScore = switch (mode) {
+      GuardVisualNormMode.day => purpose == 'shift_verification' ? 94 : 92,
+      GuardVisualNormMode.night => purpose == 'shift_verification' ? 88 : 86,
+      GuardVisualNormMode.ir => purpose == 'shift_verification' ? 84 : 82,
+    };
+    return GuardVisualNormMetadata(
+      mode: mode,
+      baselineId: baselineId,
+      captureProfile: purpose,
+      minMatchScore: minMatchScore,
+      irRequired: mode == GuardVisualNormMode.ir,
+      combatWindow: combatWindow,
+    );
+  }
+
+  GuardVisualNormMode _resolveVisualNormMode({
+    required GuardMediaCaptureResult capture,
+    required DateTime capturedAtUtc,
+  }) {
+    final fingerprint = '${capture.fileName} ${capture.localPath}'
+        .toLowerCase()
+        .trim();
+    final irTagged = RegExp(
+      r'(^|[^a-z])(ir|infrared|thermal)([^a-z]|$)',
+    ).hasMatch(fingerprint);
+    if (irTagged) {
+      return GuardVisualNormMode.ir;
+    }
+    if (_isCombatWindow(capturedAtUtc)) {
+      return GuardVisualNormMode.night;
+    }
+    return GuardVisualNormMode.day;
+  }
+
+  bool _isCombatWindow(DateTime timestampUtc) {
+    final hour = timestampUtc.toLocal().hour;
+    return hour >= 22 || hour < 6;
   }
 
   Future<void> _syncGuardOpsNow({bool background = false}) async {
@@ -1553,7 +2147,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     await _refreshGuardTelemetryAdapterStatus();
   }
 
-  Future<void> _emitDebugFskSdkHeartbeatBroadcast() async {
+  Future<void> _emitDebugTelemetrySdkHeartbeatBroadcast() async {
     final adapter = _guardTelemetryAdapter;
     if (!kDebugMode ||
         kIsWeb ||
@@ -1562,7 +2156,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'Debug SDK heartbeat broadcast is only available for native adapter debug builds.',
       );
     }
-    await adapter.emitDebugFskSdkHeartbeatBroadcast();
+    await adapter.emitDebugSdkHeartbeatBroadcast();
     await _refreshGuardTelemetryAdapterStatus();
   }
 
@@ -1579,7 +2173,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'Telemetry payload replay validation requires native adapter runtime.',
       );
     }
-    final response = await adapter.validateFskPayloadMapping(
+    final response = await adapter.validatePayloadMapping(
       payload: fixture,
       payloadAdapter: payloadAdapter,
     );
@@ -1640,6 +2234,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _guardTelemetryFacadeRuntimeMode = status.facadeRuntimeMode;
       _guardTelemetryFacadeHeartbeatSource = status.facadeHeartbeatSource;
       _guardTelemetryFacadeHeartbeatAction = status.facadeHeartbeatAction;
+      _guardTelemetryVendorConnectorId = status.vendorConnectorId;
+      _guardTelemetryVendorConnectorSource = status.vendorConnectorSource;
+      _guardTelemetryVendorConnectorErrorMessage =
+          status.vendorConnectorErrorMessage;
+      _guardTelemetryVendorConnectorFallbackActive =
+          status.vendorConnectorFallbackActive;
       _guardTelemetryFacadeSourceActive = status.facadeSourceActive;
       _guardTelemetryFacadeCallbackCount = status.facadeCallbackCount;
       _guardTelemetryFacadeLastCallbackAtUtc = status.facadeLastCallbackAtUtc;
@@ -1678,6 +2278,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             'telemetry_facade_id': status.facadeId,
             'telemetry_facade_runtime_mode': status.facadeRuntimeMode,
             'telemetry_facade_heartbeat_source': status.facadeHeartbeatSource,
+            'telemetry_vendor_connector': status.vendorConnectorId,
+            'telemetry_vendor_connector_source': status.vendorConnectorSource,
+            'telemetry_vendor_connector_error':
+                status.vendorConnectorErrorMessage,
+            'telemetry_vendor_connector_fallback_active':
+                status.vendorConnectorFallbackActive,
             'telemetry_facade_last_callback_at_utc': callbackAtUtc
                 ?.toIso8601String(),
             'telemetry_facade_last_callback_error_at_utc': status
@@ -1716,6 +2322,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             'telemetry_facade_id': status.facadeId,
             'telemetry_facade_runtime_mode': status.facadeRuntimeMode,
             'telemetry_facade_heartbeat_source': status.facadeHeartbeatSource,
+            'telemetry_vendor_connector': status.vendorConnectorId,
+            'telemetry_vendor_connector_source': status.vendorConnectorSource,
+            'telemetry_vendor_connector_error':
+                status.vendorConnectorErrorMessage,
+            'telemetry_vendor_connector_fallback_active':
+                status.vendorConnectorFallbackActive,
             'telemetry_facade_last_callback_at_utc': callbackAtUtc
                 ?.toIso8601String(),
           },
@@ -1854,6 +2466,20 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
   }
 
+  OnyxAppMode _resolveAppMode() {
+    final mode = _appModeEnv.trim().toLowerCase();
+    switch (mode) {
+      case 'guard':
+      case 'guard_mobile':
+        return OnyxAppMode.guard;
+      case 'client':
+      case 'client_app':
+        return OnyxAppMode.client;
+      default:
+        return OnyxAppMode.controller;
+    }
+  }
+
   bool _shouldEmitTelemetryPayloadAlert({
     required String currentVerdict,
     required String previousVerdict,
@@ -1929,6 +2555,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'telemetry_facade_runtime_mode': _guardTelemetryFacadeRuntimeMode,
       'telemetry_facade_heartbeat_source': _guardTelemetryFacadeHeartbeatSource,
       'telemetry_facade_heartbeat_action': _guardTelemetryFacadeHeartbeatAction,
+      'telemetry_vendor_connector': _guardTelemetryVendorConnectorId,
+      'telemetry_vendor_connector_source': _guardTelemetryVendorConnectorSource,
+      'telemetry_vendor_connector_error':
+          _guardTelemetryVendorConnectorErrorMessage,
+      'telemetry_vendor_connector_fallback_active':
+          _guardTelemetryVendorConnectorFallbackActive,
       'telemetry_facade_source_active': _guardTelemetryFacadeSourceActive,
       'telemetry_facade_callback_count': _guardTelemetryFacadeCallbackCount,
       'telemetry_facade_callback_error_count':
@@ -2409,6 +3041,118 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     });
   }
 
+  Future<void> _hydrateMorningSovereignReport() async {
+    final persistence = await _persistenceServiceFuture;
+    final rawReport = await persistence.readMorningSovereignReport();
+    final autoRunKey = await persistence.readMorningSovereignReportAutoRunKey();
+    SovereignReport? report;
+    if (rawReport.isNotEmpty) {
+      try {
+        report = SovereignReport.fromJson(rawReport);
+      } catch (_) {
+        await persistence.clearMorningSovereignReport();
+      }
+    }
+    if (mounted) {
+      setState(() {
+        _morningSovereignReport = report;
+        _morningSovereignReportAutoRunKey = autoRunKey;
+      });
+    } else {
+      _morningSovereignReport = report;
+      _morningSovereignReportAutoRunKey = autoRunKey;
+    }
+    await _maybeAutoGenerateMorningSovereignReport();
+  }
+
+  Future<void> _persistMorningSovereignReport() async {
+    final persistence = await _persistenceServiceFuture;
+    final report = _morningSovereignReport;
+    if (report == null) {
+      await persistence.clearMorningSovereignReport();
+    } else {
+      await persistence.saveMorningSovereignReport(report.toJson());
+    }
+  }
+
+  Future<void> _persistMorningSovereignReportAutoRunKey() async {
+    final persistence = await _persistenceServiceFuture;
+    final key = (_morningSovereignReportAutoRunKey ?? '').trim();
+    if (key.isEmpty) {
+      await persistence.clearMorningSovereignReportAutoRunKey();
+    } else {
+      await persistence.saveMorningSovereignReportAutoRunKey(key);
+    }
+  }
+
+  Future<void> _maybeAutoGenerateMorningSovereignReport() async {
+    final nowLocal = DateTime.now();
+    if (nowLocal.hour < 6) return;
+    final autoRunKey = MorningSovereignReportService.autoRunKeyFor(nowLocal);
+    if ((_morningSovereignReportAutoRunKey ?? '').trim() == autoRunKey) {
+      return;
+    }
+    await _generateMorningSovereignReport(
+      automated: true,
+      autoRunKey: autoRunKey,
+    );
+  }
+
+  Future<void> _generateMorningSovereignReport({
+    bool automated = false,
+    String? autoRunKey,
+  }) async {
+    final nowUtc = DateTime.now().toUtc();
+    final service = const MorningSovereignReportService();
+    final report = service.generate(
+      nowUtc: nowUtc,
+      events: store.allEvents(),
+      recentMedia: _guardOpsRecentMedia,
+      guardOutcomePolicyDenied24h: _guardOutcomeDeniedInWindow(
+        const Duration(hours: 24),
+      ),
+    );
+    final nextAutoRunKey = (autoRunKey ?? '').trim().isNotEmpty
+        ? autoRunKey!.trim()
+        : (DateTime.now().hour >= 6
+              ? MorningSovereignReportService.autoRunKeyFor(DateTime.now())
+              : (_morningSovereignReportAutoRunKey ?? '').trim());
+    if (mounted) {
+      setState(() {
+        _morningSovereignReport = report;
+        _morningSovereignReportAutoRunKey = nextAutoRunKey.isEmpty
+            ? null
+            : nextAutoRunKey;
+      });
+    } else {
+      _morningSovereignReport = report;
+      _morningSovereignReportAutoRunKey = nextAutoRunKey.isEmpty
+          ? null
+          : nextAutoRunKey;
+    }
+    await _persistMorningSovereignReport();
+    await _persistMorningSovereignReportAutoRunKey();
+    await _recordGuardExportAuditEvent(
+      exportType: 'morning_sovereign_report',
+      payload: {
+        'generated_at_utc': report.generatedAtUtc.toIso8601String(),
+        'report_date': report.date,
+        'window_start_utc': report.shiftWindowStartUtc.toIso8601String(),
+        'window_end_utc': report.shiftWindowEndUtc.toIso8601String(),
+        'auto_generated': automated,
+      },
+    );
+  }
+
+  // ignore: unused_element
+  String _morningSovereignReportAutoStatusLabel() {
+    final key = (_morningSovereignReportAutoRunKey ?? '').trim();
+    if (key.isEmpty) {
+      return 'Auto generation pending at 06:00 local.';
+    }
+    return 'Auto generated for shift ending $key. Next generation runs at 06:00 local.';
+  }
+
   String? _guardSyncReportAuditLabel() {
     final generatedAtRaw = (_guardLastSyncReportAudit['generated_at_utc'] ?? '')
         .toString()
@@ -2646,6 +3390,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         .length;
   }
 
+  // ignore: unused_element
   void _clearGuardOutcomePolicyTelemetry() {
     if (mounted) {
       setState(() {
@@ -3035,10 +3780,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _ingestNewsSignals() async {
-    setState(() {
-      _lastIntakeStatus = 'Fetching news intelligence...';
-    });
+  Future<_OpsIntegrationIngestResult> _ingestNewsSignals({
+    bool updateStatus = true,
+  }) async {
+    if (updateStatus && mounted) {
+      setState(() {
+        _lastIntakeStatus = 'Fetching news intelligence...';
+      });
+    }
     try {
       final batch = await _newsIntel.fetchLatest(
         clientId: _selectedClient,
@@ -3046,7 +3795,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         siteId: _selectedSite,
       );
       final runId = _nextRunId('NEWS');
-      _recordLiveIngest(
+      final outcome = _recordLiveIngest(
         runId: runId,
         batch: LiveFeedBatch(
           records: batch.records,
@@ -3054,18 +3803,979 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           isConfigured: true,
           sourceLabel: batch.sourceLabel,
         ),
+        updateStatus: updateStatus,
+      );
+      return _recordOpsIntegrationHealth(
+        _OpsIntegrationIngestResult(
+          source: 'news',
+          success: true,
+          detail:
+              '${outcome.appendedIntelligence}/${outcome.attemptedIntelligence} appended',
+        ),
       );
     } on FormatException catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _lastIntakeStatus = 'News intelligence ingest failed: ${error.message}';
-      });
+      if (updateStatus && mounted) {
+        setState(() {
+          _lastIntakeStatus =
+              'News intelligence ingest failed: ${error.message}';
+        });
+      }
+      return _recordOpsIntegrationHealth(
+        _OpsIntegrationIngestResult(
+          source: 'news',
+          success: false,
+          detail: error.message,
+        ),
+      );
     } catch (error) {
-      if (!mounted) return;
+      if (updateStatus && mounted) {
+        setState(() {
+          _lastIntakeStatus = 'News intelligence ingest failed: $error';
+        });
+      }
+      return _recordOpsIntegrationHealth(
+        _OpsIntegrationIngestResult(
+          source: 'news',
+          success: false,
+          detail: error.toString(),
+        ),
+      );
+    }
+  }
+
+  Future<_OpsIntegrationIngestResult> _ingestRadioOpsSignals({
+    bool updateStatus = true,
+  }) async {
+    if (!_opsIntegrationProfile.radio.configured) {
+      if (updateStatus && mounted) {
+        setState(() {
+          _lastIntakeStatus =
+              'Radio ingest unavailable: configure ONYX_RADIO_PROVIDER and ONYX_RADIO_LISTEN_URL.';
+        });
+      }
+      return _recordOpsIntegrationHealth(
+        const _OpsIntegrationIngestResult(
+          source: 'radio',
+          success: false,
+          skipped: true,
+          detail: 'unconfigured',
+        ),
+      );
+    }
+    if (updateStatus && mounted) {
       setState(() {
-        _lastIntakeStatus = 'News intelligence ingest failed: $error';
+        _lastIntakeStatus = 'Fetching radio ops transmissions...';
       });
     }
+    try {
+      final queueFingerprintBefore = _radioQueueStateFingerprint();
+      final transmissions = await _radioBridgeService.fetchLatest(
+        clientId: _selectedClient,
+        regionId: _selectedRegion,
+        siteId: _selectedSite,
+      );
+      final outcome = service.ingestRadioTransmissions(
+        transmissions: transmissions,
+        autoCloseOnAllClear: _opsIntegrationProfile.radio.aiAutoAllClearEnabled,
+      );
+      var radioResponsesSent = 0;
+      var radioResponseAudited = 0;
+      var radioResponsesDeferred = 0;
+      var radioResponsesAttempted = 0;
+      final queuedResponses = _mergePendingRadioAutomatedResponses(
+        _pendingRadioAutomatedResponses,
+        outcome.automatedResponses,
+      );
+      _pendingRadioAutomatedResponses = queuedResponses;
+      if (_opsIntegrationProfile.radio.duplexEnabled &&
+          queuedResponses.isNotEmpty) {
+        final nowUtc = DateTime.now().toUtc();
+        final eligibleResponses = <RadioAutomatedResponse>[];
+        final deferredResponses = <RadioAutomatedResponse>[];
+        for (final response in queuedResponses) {
+          final key = _radioAutomatedResponseKey(response);
+          final retryState = _pendingRadioRetryByKey[key];
+          final nextAttemptAtUtc = retryState?.nextAttemptAtUtc;
+          if (nextAttemptAtUtc != null && nextAttemptAtUtc.isAfter(nowUtc)) {
+            deferredResponses.add(response);
+          } else {
+            eligibleResponses.add(response);
+          }
+        }
+        radioResponsesDeferred = deferredResponses.length;
+        radioResponsesAttempted = eligibleResponses.length;
+        if (eligibleResponses.isEmpty) {
+          _pendingRadioAutomatedResponses = _trimPendingRadioAutomatedResponses(
+            deferredResponses,
+          );
+          _pendingRadioRetryByKey = _pruneRadioRetryStateForResponses(
+            _pendingRadioAutomatedResponses,
+          );
+        } else {
+          final sendResult = await _radioBridgeService.sendAutomatedResponses(
+            responses: eligibleResponses,
+          );
+          final failedByKey = <String, RadioAutomatedResponse>{};
+          for (final failed in sendResult.failed) {
+            failedByKey[_radioAutomatedResponseKey(failed)] = failed;
+          }
+          final nextRetryByKey = Map<String, _RadioPendingRetryState>.from(
+            _pendingRadioRetryByKey,
+          );
+          for (final sent in sendResult.sent) {
+            nextRetryByKey.remove(_radioAutomatedResponseKey(sent));
+          }
+          for (final failed in sendResult.failed) {
+            final key = _radioAutomatedResponseKey(failed);
+            nextRetryByKey[key] = _nextRadioRetryState(
+              previous: nextRetryByKey[key],
+              nowUtc: nowUtc,
+              error: 'send_failed',
+            );
+          }
+          if (sendResult.failed.isNotEmpty) {
+            final firstFailed = sendResult.failed.first;
+            final atLabel =
+                '${nowUtc.hour.toString().padLeft(2, '0')}:${nowUtc.minute.toString().padLeft(2, '0')}:${nowUtc.second.toString().padLeft(2, '0')} UTC';
+            _radioQueueLastFailureSnapshot =
+                '${firstFailed.transmissionId} • reason send_failed • count ${sendResult.failed.length} • at $atLabel';
+          }
+          _pendingRadioRetryByKey = nextRetryByKey;
+          final nextPending = <RadioAutomatedResponse>[
+            ...deferredResponses,
+            ...failedByKey.values,
+          ];
+          _pendingRadioAutomatedResponses = _trimPendingRadioAutomatedResponses(
+            nextPending,
+          );
+          _pendingRadioRetryByKey = _pruneRadioRetryStateForResponses(
+            _pendingRadioAutomatedResponses,
+          );
+          radioResponsesSent = sendResult.sentCount;
+          if (sendResult.sent.isNotEmpty) {
+            radioResponseAudited = service.recordRadioAutomatedResponses(
+              responses: sendResult.sent,
+            );
+          }
+        }
+      }
+      if (_radioQueueStateFingerprint() != queueFingerprintBefore) {
+        _markRadioQueueStateChanged('Queue updated via ingest');
+      }
+      unawaited(_persistPendingRadioAutomatedResponses());
+      final detail =
+          '${outcome.appended}/${outcome.attempted} appended • '
+          'all-clear ${outcome.allClearDetected} • '
+          'panic ${outcome.panicDetected} • '
+          'duress ${outcome.duressDetected} • '
+          'esc ${outcome.escalationDispatchesCreated} • '
+          'closed ${outcome.incidentsClosed} • '
+          'attempted $radioResponsesAttempted • '
+          'deferred $radioResponsesDeferred • '
+          'responses $radioResponsesSent • '
+          'audit $radioResponseAudited'
+          '${_pendingRadioAutomatedResponses.isEmpty ? '' : ' • pending ${_pendingRadioAutomatedResponses.length}'}';
+      if (updateStatus && mounted) {
+        setState(() {
+          _lastIntakeStatus = 'Radio ops $detail.';
+        });
+      }
+      return _recordOpsIntegrationHealth(
+        _OpsIntegrationIngestResult(
+          source: 'radio',
+          success: true,
+          detail: detail,
+        ),
+      );
+    } on FormatException catch (error) {
+      if (updateStatus && mounted) {
+        setState(() {
+          _lastIntakeStatus = 'Radio ingest failed: ${error.message}';
+        });
+      }
+      return _recordOpsIntegrationHealth(
+        _OpsIntegrationIngestResult(
+          source: 'radio',
+          success: false,
+          detail: error.message,
+        ),
+      );
+    } catch (error) {
+      if (updateStatus && mounted) {
+        setState(() {
+          _lastIntakeStatus = 'Radio ingest failed: $error';
+        });
+      }
+      return _recordOpsIntegrationHealth(
+        _OpsIntegrationIngestResult(
+          source: 'radio',
+          success: false,
+          detail: error.toString(),
+        ),
+      );
+    }
+  }
+
+  Future<_OpsIntegrationIngestResult> _ingestCctvSignals({
+    bool updateStatus = true,
+  }) async {
+    if (!_opsIntegrationProfile.cctv.configured) {
+      if (updateStatus && mounted) {
+        setState(() {
+          _lastIntakeStatus =
+              'CCTV ingest unavailable: configure ONYX_CCTV_PROVIDER and ONYX_CCTV_EVENTS_URL.';
+        });
+      }
+      return _recordOpsIntegrationHealth(
+        const _OpsIntegrationIngestResult(
+          source: 'cctv',
+          success: false,
+          skipped: true,
+          detail: 'unconfigured',
+        ),
+      );
+    }
+    if (updateStatus && mounted) {
+      setState(() {
+        _lastIntakeStatus = 'Fetching CCTV AI events...';
+      });
+    }
+    try {
+      final records = await _cctvBridgeService.fetchLatest(
+        clientId: _selectedClient,
+        regionId: _selectedRegion,
+        siteId: _selectedSite,
+      );
+      final provider = _opsIntegrationProfile.cctv.provider;
+      final runId = _nextRunId('CCTV');
+      final outcome = _recordLiveIngest(
+        runId: runId,
+        batch: LiveFeedBatch(
+          records: records,
+          feedDistribution: {
+            (provider.trim().isEmpty ? 'cctv' : provider): records.length,
+          },
+          isConfigured: true,
+          sourceLabel: 'cctv-${provider.trim().isEmpty ? 'events' : provider}',
+        ),
+        updateStatus: updateStatus,
+      );
+      return _recordOpsIntegrationHealth(
+        _OpsIntegrationIngestResult(
+          source: 'cctv',
+          success: true,
+          detail:
+              '${outcome.appendedIntelligence}/${outcome.attemptedIntelligence} appended',
+        ),
+      );
+    } on FormatException catch (error) {
+      if (updateStatus && mounted) {
+        setState(() {
+          _lastIntakeStatus = 'CCTV ingest failed: ${error.message}';
+        });
+      }
+      return _recordOpsIntegrationHealth(
+        _OpsIntegrationIngestResult(
+          source: 'cctv',
+          success: false,
+          detail: error.message,
+        ),
+      );
+    } catch (error) {
+      if (updateStatus && mounted) {
+        setState(() {
+          _lastIntakeStatus = 'CCTV ingest failed: $error';
+        });
+      }
+      return _recordOpsIntegrationHealth(
+        _OpsIntegrationIngestResult(
+          source: 'cctv',
+          success: false,
+          detail: error.toString(),
+        ),
+      );
+    }
+  }
+
+  Future<_OpsIntegrationIngestResult> _ingestWearableSignals({
+    bool updateStatus = true,
+  }) async {
+    final provider = _wearableProviderEnv.trim();
+    if (provider.isEmpty || _wearableBridgeUri == null) {
+      if (updateStatus && mounted) {
+        setState(() {
+          _lastIntakeStatus =
+              'Wearable ingest unavailable: configure ONYX_WEARABLE_PROVIDER and ONYX_WEARABLE_EVENTS_URL.';
+        });
+      }
+      return _recordOpsIntegrationHealth(
+        const _OpsIntegrationIngestResult(
+          source: 'wearable',
+          success: false,
+          skipped: true,
+          detail: 'unconfigured',
+        ),
+      );
+    }
+    if (updateStatus && mounted) {
+      setState(() {
+        _lastIntakeStatus = 'Fetching wearable ops signals...';
+      });
+    }
+    try {
+      final records = await _wearableBridgeService.fetchLatest(
+        clientId: _selectedClient,
+        regionId: _selectedRegion,
+        siteId: _selectedSite,
+      );
+      final runId = _nextRunId('WEAR');
+      final outcome = _recordLiveIngest(
+        runId: runId,
+        batch: LiveFeedBatch(
+          records: records,
+          feedDistribution: {
+            (provider.isEmpty ? 'wearable' : provider): records.length,
+          },
+          isConfigured: true,
+          sourceLabel: 'wearable-${provider.isEmpty ? 'events' : provider}',
+        ),
+        updateStatus: updateStatus,
+      );
+      return _recordOpsIntegrationHealth(
+        _OpsIntegrationIngestResult(
+          source: 'wearable',
+          success: true,
+          detail:
+              '${outcome.appendedIntelligence}/${outcome.attemptedIntelligence} appended',
+        ),
+      );
+    } on FormatException catch (error) {
+      if (updateStatus && mounted) {
+        setState(() {
+          _lastIntakeStatus = 'Wearable ingest failed: ${error.message}';
+        });
+      }
+      return _recordOpsIntegrationHealth(
+        _OpsIntegrationIngestResult(
+          source: 'wearable',
+          success: false,
+          detail: error.message,
+        ),
+      );
+    } catch (error) {
+      if (updateStatus && mounted) {
+        setState(() {
+          _lastIntakeStatus = 'Wearable ingest failed: $error';
+        });
+      }
+      return _recordOpsIntegrationHealth(
+        _OpsIntegrationIngestResult(
+          source: 'wearable',
+          success: false,
+          detail: error.toString(),
+        ),
+      );
+    }
+  }
+
+  List<RadioAutomatedResponse> _mergePendingRadioAutomatedResponses(
+    List<RadioAutomatedResponse> pending,
+    List<RadioAutomatedResponse> latest,
+  ) {
+    final byId = <String, RadioAutomatedResponse>{};
+    for (final response in [...pending, ...latest]) {
+      byId[_radioAutomatedResponseKey(response)] = response;
+    }
+    return _trimPendingRadioAutomatedResponses(byId.values.toList());
+  }
+
+  List<RadioAutomatedResponse> _trimPendingRadioAutomatedResponses(
+    List<RadioAutomatedResponse> responses,
+  ) {
+    const maxPendingResponses = 200;
+    if (responses.length <= maxPendingResponses) {
+      return responses;
+    }
+    return responses.sublist(responses.length - maxPendingResponses);
+  }
+
+  Map<String, _RadioPendingRetryState> _pruneRadioRetryStateForResponses(
+    List<RadioAutomatedResponse> responses,
+  ) {
+    final keys = responses.map(_radioAutomatedResponseKey).toSet();
+    final next = <String, _RadioPendingRetryState>{};
+    _pendingRadioRetryByKey.forEach((key, value) {
+      if (keys.contains(key)) {
+        next[key] = value;
+      }
+    });
+    return next;
+  }
+
+  _RadioPendingRetryState _nextRadioRetryState({
+    required _RadioPendingRetryState? previous,
+    required DateTime nowUtc,
+    required String error,
+  }) {
+    final attempts = (previous?.attempts ?? 0) + 1;
+    final waitSeconds = _radioRetryBackoffSeconds(attempts);
+    return _RadioPendingRetryState(
+      attempts: attempts,
+      nextAttemptAtUtc: nowUtc.add(Duration(seconds: waitSeconds)),
+      lastError: error.trim(),
+    );
+  }
+
+  int _radioRetryBackoffSeconds(int attempts) {
+    const baseSeconds = 15;
+    const capSeconds = 600;
+    final normalizedAttempts = attempts < 1 ? 1 : attempts;
+    final exponent = normalizedAttempts - 1;
+    final shifted = exponent >= 20 ? (1 << 20) : (1 << exponent);
+    final computed = baseSeconds * shifted;
+    if (computed > capSeconds) {
+      return capSeconds;
+    }
+    return computed;
+  }
+
+  String _radioAutomatedResponseKey(RadioAutomatedResponse response) {
+    return [
+      response.transmissionId.trim(),
+      response.dispatchId?.trim() ?? '',
+      response.channel.trim(),
+      response.message.trim(),
+    ].join('|');
+  }
+
+  _OpsIntegrationIngestResult _recordOpsIntegrationHealth(
+    _OpsIntegrationIngestResult result,
+  ) {
+    final nowUtc = DateTime.now().toUtc();
+    switch (result.source) {
+      case 'radio':
+        _radioOpsHealth = _radioOpsHealth.record(result, nowUtc);
+        break;
+      case 'cctv':
+        _cctvOpsHealth = _cctvOpsHealth.record(result, nowUtc);
+        break;
+      case 'wearable':
+        _wearableOpsHealth = _wearableOpsHealth.record(result, nowUtc);
+        break;
+      case 'news':
+        _newsOpsHealth = _newsOpsHealth.record(result, nowUtc);
+        break;
+      default:
+        break;
+    }
+    unawaited(_persistOpsIntegrationHealthSnapshot());
+    return result;
+  }
+
+  String _opsHealthSummary(_OpsIntegrationHealth health) {
+    final lastRun = health.lastRunAtUtc;
+    final lastLabel = lastRun == null
+        ? 'never'
+        : '${lastRun.hour.toString().padLeft(2, '0')}:${lastRun.minute.toString().padLeft(2, '0')}:${lastRun.second.toString().padLeft(2, '0')} UTC';
+    final detail = health.lastDetail.trim();
+    final compactDetail = detail.length <= 56
+        ? detail
+        : '${detail.substring(0, 56).trimRight()}...';
+    return 'ok ${health.okCount} • fail ${health.failCount} • skip ${health.skipCount} • last $lastLabel${compactDetail.isEmpty ? '' : ' • $compactDetail'}';
+  }
+
+  String _radioQueueHealthSummary() {
+    final pending = _pendingRadioAutomatedResponses;
+    if (pending.isEmpty) {
+      return 'pending 0 • due 0 • deferred 0 • max-attempt 0';
+    }
+    final nowUtc = DateTime.now().toUtc();
+    var dueCount = 0;
+    var deferredCount = 0;
+    var maxAttempts = 0;
+    DateTime? nextRetryAtUtc;
+    for (final response in pending) {
+      final key = _radioAutomatedResponseKey(response);
+      final retry = _pendingRadioRetryByKey[key];
+      final attempts = retry?.attempts ?? 0;
+      if (attempts > maxAttempts) {
+        maxAttempts = attempts;
+      }
+      final nextAttemptAtUtc = retry?.nextAttemptAtUtc;
+      if (nextAttemptAtUtc != null && nextAttemptAtUtc.isAfter(nowUtc)) {
+        deferredCount += 1;
+        if (nextRetryAtUtc == null ||
+            nextAttemptAtUtc.isBefore(nextRetryAtUtc)) {
+          nextRetryAtUtc = nextAttemptAtUtc;
+        }
+      } else {
+        dueCount += 1;
+      }
+    }
+    final nextRetryLabel = nextRetryAtUtc == null
+        ? ''
+        : ' • next ${nextRetryAtUtc.hour.toString().padLeft(2, '0')}:${nextRetryAtUtc.minute.toString().padLeft(2, '0')}:${nextRetryAtUtc.second.toString().padLeft(2, '0')} UTC';
+    return 'pending ${pending.length} • due $dueCount • deferred $deferredCount • max-attempt $maxAttempts$nextRetryLabel';
+  }
+
+  String _radioQueueIntentMixSummary() {
+    const tracked = ['all_clear', 'panic', 'duress', 'status'];
+    final counts = <String, int>{
+      for (final key in tracked) key: 0,
+      'unknown': 0,
+    };
+    for (final response in _pendingRadioAutomatedResponses) {
+      final normalized = response.intent.trim().toLowerCase();
+      if (counts.containsKey(normalized)) {
+        counts[normalized] = (counts[normalized] ?? 0) + 1;
+      } else {
+        counts['unknown'] = (counts['unknown'] ?? 0) + 1;
+      }
+    }
+    return 'pending intent mix • '
+        'all_clear ${counts['all_clear']} • '
+        'panic ${counts['panic']} • '
+        'duress ${counts['duress']} • '
+        'status ${counts['status']} • '
+        'unknown ${counts['unknown']}';
+  }
+
+  String _radioAckRecentSummary(List<DispatchEvent> events) {
+    final nowUtc = DateTime.now().toUtc();
+    final windowStartUtc = nowUtc.subtract(const Duration(hours: 6));
+    final counts = <String, int>{
+      'all_clear': 0,
+      'panic': 0,
+      'duress': 0,
+      'status': 0,
+    };
+    var total = 0;
+    for (final event in events.whereType<IntelligenceReceived>()) {
+      if (event.provider != 'onyx-radio' || event.sourceType != 'system') {
+        continue;
+      }
+      if (event.occurredAt.toUtc().isBefore(windowStartUtc)) {
+        continue;
+      }
+      final summary = event.summary.toLowerCase();
+      String key = 'all_clear';
+      if (summary.contains('intent:PANIC'.toLowerCase())) {
+        key = 'panic';
+      } else if (summary.contains('intent:DURESS'.toLowerCase())) {
+        key = 'duress';
+      } else if (summary.contains('intent:STATUS'.toLowerCase())) {
+        key = 'status';
+      } else if (summary.contains('intent:ALL_CLEAR'.toLowerCase())) {
+        key = 'all_clear';
+      } else if (event.headline.toUpperCase().contains('AI_PANIC_ACK')) {
+        key = 'panic';
+      } else if (event.headline.toUpperCase().contains('AI_DURESS_ACK')) {
+        key = 'duress';
+      } else if (event.headline.toUpperCase().contains('AI_STATUS_ACK')) {
+        key = 'status';
+      } else if (event.headline.toUpperCase().contains('AI_ALL_CLEAR_ACK')) {
+        key = 'all_clear';
+      }
+      counts[key] = (counts[key] ?? 0) + 1;
+      total += 1;
+    }
+    return 'recent ack $total (6h) • '
+        'all_clear ${counts['all_clear']} • '
+        'panic ${counts['panic']} • '
+        'duress ${counts['duress']} • '
+        'status ${counts['status']}';
+  }
+
+  String _cctvCapabilitySummary() {
+    if (!_opsIntegrationProfile.cctv.configured) {
+      return 'caps none';
+    }
+    final caps = _opsIntegrationProfile.cctv.capabilityLabels;
+    if (caps.isEmpty) {
+      return 'caps none';
+    }
+    return 'caps ${caps.join(' • ')}';
+  }
+
+  String _cctvRecentSignalSummary(List<DispatchEvent> events) {
+    final nowUtc = DateTime.now().toUtc();
+    final windowStartUtc = nowUtc.subtract(const Duration(hours: 6));
+    final configuredProvider = _opsIntegrationProfile.cctv.provider
+        .trim()
+        .toLowerCase();
+    var total = 0;
+    var intrusion = 0;
+    var lineCrossing = 0;
+    var motion = 0;
+    var fr = 0;
+    var lpr = 0;
+
+    for (final event in events.whereType<IntelligenceReceived>()) {
+      if (event.sourceType != 'hardware') {
+        continue;
+      }
+      if (event.occurredAt.toUtc().isBefore(windowStartUtc)) {
+        continue;
+      }
+      if (configuredProvider.isNotEmpty &&
+          event.provider.trim().toLowerCase() != configuredProvider) {
+        continue;
+      }
+      total += 1;
+      final headline = event.headline.toLowerCase();
+      final summary = event.summary.toLowerCase();
+      if (headline.contains('line_crossing') ||
+          summary.contains('line crossing')) {
+        lineCrossing += 1;
+      } else if (headline.contains('intrusion') ||
+          summary.contains('intrusion') ||
+          summary.contains('breach')) {
+        intrusion += 1;
+      } else if (headline.contains('motion') || summary.contains('motion')) {
+        motion += 1;
+      }
+      if (headline.contains('fr_match') || summary.contains('fr:')) {
+        fr += 1;
+      }
+      if (headline.contains('lpr_alert') || summary.contains('lpr:')) {
+        lpr += 1;
+      }
+    }
+
+    return 'recent hardware intel $total (6h) • '
+        'intrusion $intrusion • '
+        'line_crossing $lineCrossing • '
+        'motion $motion • '
+        'fr $fr • '
+        'lpr $lpr';
+  }
+
+  String _radioQueueFailureSummary() {
+    if (_pendingRadioAutomatedResponses.isEmpty) {
+      final snapshot = _radioQueueLastFailureSnapshot.trim();
+      if (snapshot.isNotEmpty) {
+        return 'Last failure • $snapshot';
+      }
+      return 'No failed radio responses pending retry.';
+    }
+    _RadioPendingRetryState? oldestRetry;
+    String? oldestKey;
+    for (final response in _pendingRadioAutomatedResponses) {
+      final key = _radioAutomatedResponseKey(response);
+      final retry = _pendingRadioRetryByKey[key];
+      if (retry == null || retry.attempts <= 0) {
+        continue;
+      }
+      if (oldestRetry == null) {
+        oldestRetry = retry;
+        oldestKey = key;
+        continue;
+      }
+      final currentNext =
+          retry.nextAttemptAtUtc ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+      final oldestNext =
+          oldestRetry.nextAttemptAtUtc ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+      if (currentNext.isBefore(oldestNext)) {
+        oldestRetry = retry;
+        oldestKey = key;
+      }
+    }
+    if (oldestRetry == null) {
+      final snapshot = _radioQueueLastFailureSnapshot.trim();
+      if (snapshot.isNotEmpty) {
+        return 'Last failure • $snapshot';
+      }
+      return 'No failed radio responses pending retry.';
+    }
+    final transmissionId = oldestKey!.split('|').first.trim();
+    final reason = (oldestRetry.lastError ?? 'send_failed').trim();
+    final nextRetryAtUtc = oldestRetry.nextAttemptAtUtc;
+    final nextLabel = nextRetryAtUtc == null
+        ? 'due now'
+        : '${nextRetryAtUtc.hour.toString().padLeft(2, '0')}:${nextRetryAtUtc.minute.toString().padLeft(2, '0')}:${nextRetryAtUtc.second.toString().padLeft(2, '0')} UTC';
+    final shortTransmission = transmissionId.isEmpty
+        ? 'unknown'
+        : transmissionId;
+    return '$shortTransmission • attempts ${oldestRetry.attempts} • reason $reason • next $nextLabel';
+  }
+
+  String _radioQueueManualActionSummary() {
+    final detail = _radioQueueLastManualActionDetail.trim();
+    if (detail.isEmpty) {
+      return 'No manual radio queue action in current session.';
+    }
+    return detail;
+  }
+
+  String _radioQueueFailureAuditSummary() {
+    final detail = _radioQueueFailureAuditDetail.trim();
+    if (detail.isEmpty) {
+      return 'No failure snapshot clear recorded in current session.';
+    }
+    return detail;
+  }
+
+  String _radioQueueStateChangeSummary() {
+    final detail = _radioQueueLastStateChangeDetail.trim();
+    if (detail.isEmpty) {
+      return 'No radio queue state change recorded in current session.';
+    }
+    return detail;
+  }
+
+  String _radioQueueStateFingerprint() {
+    final pending =
+        _pendingRadioAutomatedResponses
+            .map(_radioAutomatedResponseKey)
+            .toList(growable: false)
+          ..sort();
+    final retry =
+        _pendingRadioRetryByKey.entries
+            .map((entry) {
+              final next =
+                  entry.value.nextAttemptAtUtc?.toIso8601String() ?? '';
+              final error = entry.value.lastError?.trim() ?? '';
+              return '${entry.key}|${entry.value.attempts}|$next|$error';
+            })
+            .toList(growable: false)
+          ..sort();
+    return [
+      pending.join(','),
+      retry.join(','),
+      _radioQueueLastFailureSnapshot.trim(),
+    ].join('::');
+  }
+
+  void _markRadioQueueStateChanged(String reason, {DateTime? atUtc}) {
+    final whenUtc = atUtc ?? DateTime.now().toUtc();
+    final atLabel =
+        '${whenUtc.hour.toString().padLeft(2, '0')}:${whenUtc.minute.toString().padLeft(2, '0')}:${whenUtc.second.toString().padLeft(2, '0')} UTC';
+    final detail = '$reason • $atLabel';
+    if (!mounted) {
+      _radioQueueLastStateChangeDetail = detail;
+      return;
+    }
+    setState(() {
+      _radioQueueLastStateChangeDetail = detail;
+    });
+  }
+
+  Future<void> _retryPendingRadioQueueNow() async {
+    if (_pendingRadioAutomatedResponses.isEmpty) {
+      final nowUtc = DateTime.now().toUtc();
+      final atLabel =
+          '${nowUtc.hour.toString().padLeft(2, '0')}:${nowUtc.minute.toString().padLeft(2, '0')}:${nowUtc.second.toString().padLeft(2, '0')} UTC';
+      if (!mounted) return;
+      setState(() {
+        _lastIntakeStatus = 'Radio queue retry skipped: no pending responses.';
+        _radioQueueLastManualActionDetail =
+            'Retry requested on empty queue • $atLabel';
+      });
+      _markRadioQueueStateChanged(
+        'Retry requested on empty queue',
+        atUtc: nowUtc,
+      );
+      return;
+    }
+    final nowUtc = DateTime.now().toUtc();
+    final atLabel =
+        '${nowUtc.hour.toString().padLeft(2, '0')}:${nowUtc.minute.toString().padLeft(2, '0')}:${nowUtc.second.toString().padLeft(2, '0')} UTC';
+    final pendingKeys = _pendingRadioAutomatedResponses
+        .map(_radioAutomatedResponseKey)
+        .toSet();
+    if (mounted) {
+      setState(() {
+        final nextRetryByKey = Map<String, _RadioPendingRetryState>.from(
+          _pendingRadioRetryByKey,
+        );
+        for (final key in pendingKeys) {
+          final previous = nextRetryByKey[key];
+          if (previous == null) continue;
+          nextRetryByKey[key] = _RadioPendingRetryState(
+            attempts: previous.attempts,
+            nextAttemptAtUtc: null,
+            lastError: previous.lastError,
+          );
+        }
+        _pendingRadioRetryByKey = nextRetryByKey;
+        _lastIntakeStatus =
+            'Manual radio retry triggered (${pendingKeys.length} pending).';
+        _radioQueueLastManualActionDetail =
+            'Retry requested for ${pendingKeys.length} queued • $atLabel';
+      });
+    }
+    _markRadioQueueStateChanged(
+      'Retry requested for ${pendingKeys.length} queued',
+      atUtc: nowUtc,
+    );
+    await _persistPendingRadioAutomatedResponses();
+    await _ingestRadioOpsSignals();
+  }
+
+  Future<void> _clearPendingRadioQueue() async {
+    if (_pendingRadioAutomatedResponses.isEmpty) {
+      final nowUtc = DateTime.now().toUtc();
+      final atLabel =
+          '${nowUtc.hour.toString().padLeft(2, '0')}:${nowUtc.minute.toString().padLeft(2, '0')}:${nowUtc.second.toString().padLeft(2, '0')} UTC';
+      if (!mounted) return;
+      setState(() {
+        _lastIntakeStatus = 'Radio queue already clear.';
+        _radioQueueLastManualActionDetail =
+            'Clear requested on empty queue • $atLabel';
+        _radioQueueFailureAuditDetail =
+            'Queue clear requested on empty queue • $atLabel';
+      });
+      _markRadioQueueStateChanged(
+        'Clear requested on empty queue',
+        atUtc: nowUtc,
+      );
+      return;
+    }
+    final clearedCount = _pendingRadioAutomatedResponses.length;
+    final nowUtc = DateTime.now().toUtc();
+    final atLabel =
+        '${nowUtc.hour.toString().padLeft(2, '0')}:${nowUtc.minute.toString().padLeft(2, '0')}:${nowUtc.second.toString().padLeft(2, '0')} UTC';
+    if (mounted) {
+      setState(() {
+        _pendingRadioAutomatedResponses = const [];
+        _pendingRadioRetryByKey = const {};
+        _radioQueueLastFailureSnapshot = '';
+        _lastIntakeStatus = 'Pending radio queue cleared by controller.';
+        _radioQueueLastManualActionDetail =
+            'Queue cleared ($clearedCount removed) • $atLabel';
+        _radioQueueFailureAuditDetail =
+            'Failure snapshot cleared via queue clear • $atLabel';
+      });
+    }
+    _markRadioQueueStateChanged(
+      'Queue cleared ($clearedCount removed)',
+      atUtc: nowUtc,
+    );
+    await _persistPendingRadioAutomatedResponses();
+  }
+
+  Future<void> _clearRadioQueueFailureSnapshotOnly() async {
+    final current = _radioQueueLastFailureSnapshot.trim();
+    final nowUtc = DateTime.now().toUtc();
+    final atLabel =
+        '${nowUtc.hour.toString().padLeft(2, '0')}:${nowUtc.minute.toString().padLeft(2, '0')}:${nowUtc.second.toString().padLeft(2, '0')} UTC';
+    if (current.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _lastIntakeStatus = 'No persisted radio failure snapshot to clear.';
+        _radioQueueLastManualActionDetail =
+            'Failure snapshot clear requested on empty snapshot • $atLabel';
+        _radioQueueFailureAuditDetail =
+            'Failure snapshot clear requested on empty snapshot • $atLabel';
+      });
+      _markRadioQueueStateChanged(
+        'Failure snapshot clear requested on empty snapshot',
+        atUtc: nowUtc,
+      );
+      await _persistPendingRadioAutomatedResponses();
+      return;
+    }
+    if (mounted) {
+      setState(() {
+        _radioQueueLastFailureSnapshot = '';
+        _lastIntakeStatus = 'Persisted radio failure snapshot cleared.';
+        _radioQueueLastManualActionDetail =
+            'Failure snapshot cleared • $atLabel';
+        _radioQueueFailureAuditDetail = 'Failure snapshot cleared • $atLabel';
+      });
+    }
+    _markRadioQueueStateChanged('Failure snapshot cleared', atUtc: nowUtc);
+    await _persistPendingRadioAutomatedResponses();
+  }
+
+  void _startOpsIntegrationPollingLoop() {
+    if (!_opsIntegrationPollingEnabled || _opsIntegrationPollTimer != null) {
+      return;
+    }
+    _scheduleNextOpsIntegrationPoll(1);
+  }
+
+  bool get _opsIntegrationPollingEnabled {
+    if (_opsIntegrationPollIntervalSeconds <= 0) {
+      return false;
+    }
+    return _opsIntegrationPollingAvailable;
+  }
+
+  bool get _opsIntegrationPollingAvailable {
+    final wearableConfigured =
+        _wearableProviderEnv.trim().isNotEmpty && _wearableBridgeUri != null;
+    return _opsIntegrationProfile.radio.configured ||
+        _opsIntegrationProfile.cctv.configured ||
+        wearableConfigured ||
+        _newsIntel.configuredProviders.isNotEmpty;
+  }
+
+  int get _normalizedOpsIntegrationPollIntervalSeconds {
+    if (_opsIntegrationPollIntervalSeconds < 15) {
+      return 15;
+    }
+    return _opsIntegrationPollIntervalSeconds;
+  }
+
+  void _scheduleNextOpsIntegrationPoll(int delaySeconds) {
+    _opsIntegrationPollTimer?.cancel();
+    if (!_opsIntegrationPollingEnabled) {
+      _opsIntegrationPollTimer = null;
+      return;
+    }
+    _opsIntegrationPollTimer = Timer(Duration(seconds: delaySeconds), () {
+      unawaited(_pollOpsIntegrationOnce());
+    });
+  }
+
+  Future<void> _pollOpsIntegrationOnce() async {
+    if (!_opsIntegrationPollingEnabled || _opsIntegrationPollInFlight) {
+      return;
+    }
+    _opsIntegrationPollInFlight = true;
+    final results = <_OpsIntegrationIngestResult>[];
+    try {
+      if (_opsIntegrationProfile.radio.configured) {
+        results.add(await _ingestRadioOpsSignals(updateStatus: false));
+      }
+      if (_opsIntegrationProfile.cctv.configured) {
+        results.add(await _ingestCctvSignals(updateStatus: false));
+      }
+      if (_wearableProviderEnv.trim().isNotEmpty &&
+          _wearableBridgeUri != null) {
+        results.add(await _ingestWearableSignals(updateStatus: false));
+      }
+      if (_newsIntel.configuredProviders.isNotEmpty) {
+        results.add(await _ingestNewsSignals(updateStatus: false));
+      }
+      if (mounted && results.isNotEmpty) {
+        setState(() {
+          _lastIntakeStatus = _composeOpsIntegrationPollSummary(results);
+        });
+      }
+    } finally {
+      _opsIntegrationPollInFlight = false;
+      _scheduleNextOpsIntegrationPoll(
+        _normalizedOpsIntegrationPollIntervalSeconds,
+      );
+    }
+  }
+
+  String _composeOpsIntegrationPollSummary(
+    List<_OpsIntegrationIngestResult> results,
+  ) {
+    final ok = results.where((entry) => entry.success).length;
+    final failed = results.where((entry) => !entry.success && !entry.skipped);
+    final skipped = results.where((entry) => entry.skipped).length;
+    final labels = results
+        .map((entry) => '${entry.summaryLabel}(${entry.detail})')
+        .join(' • ');
+    final failedLabel = failed.isEmpty ? '' : ' • fail ${failed.length}';
+    final skippedLabel = skipped == 0 ? '' : ' • skip $skipped';
+    return 'Ops poll • ok $ok/${results.length}$failedLabel$skippedLabel • $labels';
   }
 
   void _escalateIntelligence(IntelligenceReceived intel) {
@@ -3256,9 +4966,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
   }
 
-  void _recordLiveIngest({
+  IntelligenceIngestionOutcome _recordLiveIngest({
     required String runId,
     required LiveFeedBatch batch,
+    bool updateStatus = true,
   }) {
     final outcome = service.ingestNormalizedIntelligence(
       records: batch.records,
@@ -3274,11 +4985,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
 
     setState(() {
-      _lastIntakeStatus =
-          'Ingested ${outcome.appendedIntelligence}/${outcome.attemptedIntelligence} intel from ${batch.feedCount} feeds (${batch.sourceLabel}) • '
-          'Skipped ${outcome.skippedIntelligence} • '
-          'Triage A/W/DC ${outcome.advisoryCount}/${outcome.watchCount}/${outcome.dispatchCandidateCount} • '
-          'Auto-created ${outcome.createdDecisions} dispatch decisions';
+      if (updateStatus) {
+        _lastIntakeStatus =
+            'Ingested ${outcome.appendedIntelligence}/${outcome.attemptedIntelligence} intel from ${batch.feedCount} feeds (${batch.sourceLabel}) • '
+            'Skipped ${outcome.skippedIntelligence} • '
+            'Triage A/W/DC ${outcome.advisoryCount}/${outcome.watchCount}/${outcome.dispatchCandidateCount} • '
+            'Auto-created ${outcome.createdDecisions} dispatch decisions';
+      }
       _intakeTelemetry = _intakeTelemetry.add(
         label: runId,
         cancelled: false,
@@ -3308,6 +5021,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
     });
     _persistTelemetry();
+    return outcome;
   }
 
   LiveFeedBatch _buildDemoLiveFeedBatch(DateTime now) {
@@ -3782,266 +5496,331 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: AppShell(
+    final events = store.allEvents();
+    final modeHome = switch (_appMode) {
+      OnyxAppMode.controller => AppShell(
         currentRoute: _route,
-        onRouteChanged: (r) => setState(() => _route = r),
-        child: _buildPage(),
+        onRouteChanged: (r) => setState(() {
+          _route = r;
+          _eventsSourceFilter = '';
+          _eventsProviderFilter = '';
+          _eventsSelectedEventId = '';
+        }),
+        onIntelTickerTap: _focusEventsFromTickerItem,
+        activeIncidentCount: _activeIncidentCount(events),
+        aiActionCount: _pendingAiActionCount(events),
+        guardsOnlineCount: _guardsOnlineCount(events),
+        complianceIssuesCount: _complianceIssuesCount(),
+        tacticalSosAlerts: _tacticalSosAlerts(),
+        intelTickerItems: _intelTickerItems(events),
+        child: _buildPage(events),
       ),
-    );
+      OnyxAppMode.guard => _buildGuardPage(),
+      OnyxAppMode.client => _buildClientPage(events),
+    };
+    return MaterialApp(debugShowCheckedModeBanner: false, home: modeHome);
   }
 
-  Widget _buildPage() {
+  int _activeIncidentCount(List<DispatchEvent> events) {
+    final decidedDispatchIds = events
+        .whereType<DecisionCreated>()
+        .map((event) => event.dispatchId.trim())
+        .where((dispatchId) => dispatchId.isNotEmpty)
+        .toSet();
+    final closedDispatchIds = events
+        .whereType<IncidentClosed>()
+        .map((event) => event.dispatchId.trim())
+        .where((dispatchId) => dispatchId.isNotEmpty)
+        .toSet();
+    return decidedDispatchIds.difference(closedDispatchIds).length;
+  }
+
+  List<OnyxIntelTickerItem> _intelTickerItems(List<DispatchEvent> events) {
+    final nowUtc = DateTime.now().toUtc();
+    const liveWindow = Duration(hours: 6);
+    final rows = events.whereType<IntelligenceReceived>().toList(
+      growable: false,
+    )..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    final liveRows = rows
+        .where(
+          (event) =>
+              nowUtc.difference(event.occurredAt.toUtc()) >= Duration.zero &&
+              nowUtc.difference(event.occurredAt.toUtc()) <= liveWindow,
+        )
+        .toList(growable: false);
+    final sourceAllowList = <String>{
+      'news',
+      'hardware',
+      'radio',
+      'wearable',
+      'community',
+      'system',
+    };
+    final baseRows = liveRows.isNotEmpty ? liveRows : rows;
+    final items = <OnyxIntelTickerItem>[
+      ...baseRows
+          .take(12)
+          .where((event) => event.headline.trim().isNotEmpty)
+          .map((event) {
+            final sourceType = event.sourceType.trim().toLowerCase();
+            return OnyxIntelTickerItem(
+              id: event.intelligenceId,
+              eventId: event.eventId,
+              sourceType: sourceAllowList.contains(sourceType)
+                  ? sourceType
+                  : 'system',
+              provider: event.provider,
+              headline: event.headline.trim(),
+              occurredAtUtc: event.occurredAt.toUtc(),
+            );
+          }),
+    ];
+    if (items.length < 8) {
+      final diagnostics = _newsTickerDiagnostics();
+      for (final item in diagnostics) {
+        if (items.length >= 8) break;
+        if (items.any((existing) => existing.id == item.id)) continue;
+        items.add(item);
+      }
+    }
+    if (items.isEmpty) {
+      final intakeStatus = (_lastIntakeStatus ?? '').trim();
+      final fallback = intakeStatus.isEmpty
+          ? 'No live intelligence yet. Run Poll News in Administration.'
+          : intakeStatus;
+      items.add(
+        OnyxIntelTickerItem(
+          id: 'INT-SYS-FALLBACK',
+          sourceType: 'system',
+          provider: 'onyx',
+          headline: fallback,
+          occurredAtUtc: DateTime.now().toUtc(),
+        ),
+      );
+    }
+    return items.take(16).toList(growable: false);
+  }
+
+  List<OnyxIntelTickerItem> _newsTickerDiagnostics() {
+    final configured = _newsIntel.configuredProviders.toSet();
+    final items = <OnyxIntelTickerItem>[];
+    for (final entry in _newsSourceDiagnostics) {
+      final provider = entry.provider.trim();
+      if (provider.isEmpty) continue;
+      final status = entry.status.trim();
+      if (configured.isNotEmpty &&
+          !configured.contains(provider) &&
+          status == 'missing') {
+        continue;
+      }
+      final checkedAtUtc = DateTime.tryParse(entry.checkedAtUtc)?.toUtc();
+      final headline = _newsDiagnosticTickerHeadline(entry);
+      if (headline.isEmpty) continue;
+      items.add(
+        OnyxIntelTickerItem(
+          id: 'INT-NEWS-DIAG-$provider',
+          sourceType: 'news',
+          provider: provider,
+          headline: headline,
+          occurredAtUtc: checkedAtUtc ?? DateTime.now().toUtc(),
+        ),
+      );
+    }
+    items.sort((a, b) => b.occurredAtUtc.compareTo(a.occurredAtUtc));
+    return items;
+  }
+
+  String _newsDiagnosticTickerHeadline(NewsSourceDiagnostic diagnostic) {
+    final status = diagnostic.status.trim();
+    final detail = diagnostic.detail.trim();
+    if (status.isEmpty && detail.isEmpty) {
+      return '';
+    }
+    if (status.isEmpty) {
+      return detail;
+    }
+    if (detail.isEmpty) {
+      return 'Status: ${status.toUpperCase()}';
+    }
+    return '${status.toUpperCase()} • $detail';
+  }
+
+  void _focusEventsFromTickerItem(OnyxIntelTickerItem item) {
+    final source = _normalizeIntelSourceFilter(item.sourceType);
+    final provider = _normalizeIntelProviderFilter(item.provider);
+    final selectedEventId = _resolveTickerEventId(item);
+    setState(() {
+      _route = OnyxRoute.events;
+      _eventsSourceFilter = source;
+      _eventsProviderFilter = provider;
+      _eventsSelectedEventId = selectedEventId ?? '';
+    });
+  }
+
+  String _normalizeIntelSourceFilter(String sourceType) {
+    var normalized = sourceType.trim().toUpperCase();
+    if (normalized.isEmpty || normalized == 'ALL') {
+      return '';
+    }
+    if (normalized == 'CCTV') {
+      normalized = 'HARDWARE';
+    }
+    const allowed = <String>{
+      'NEWS',
+      'HARDWARE',
+      'RADIO',
+      'WEARABLE',
+      'COMMUNITY',
+    };
+    if (!allowed.contains(normalized)) {
+      return '';
+    }
+    return normalized;
+  }
+
+  String _normalizeIntelProviderFilter(String provider) {
+    final normalized = provider.trim().toLowerCase();
+    if (normalized.isEmpty || normalized == 'all') {
+      return '';
+    }
+    return normalized;
+  }
+
+  String? _resolveTickerEventId(OnyxIntelTickerItem item) {
+    final direct = item.eventId?.trim() ?? '';
+    if (direct.isNotEmpty) {
+      return direct;
+    }
+    final tickerId = item.id.trim();
+    if (tickerId.isEmpty) {
+      return null;
+    }
+    for (final event in store.allEvents().whereType<IntelligenceReceived>()) {
+      if (event.intelligenceId.trim() == tickerId) {
+        return event.eventId;
+      }
+    }
+    return null;
+  }
+
+  int _pendingAiActionCount(List<DispatchEvent> events) {
+    final decidedDispatchIds = events
+        .whereType<DecisionCreated>()
+        .map((event) => event.dispatchId.trim())
+        .where((dispatchId) => dispatchId.isNotEmpty)
+        .toSet();
+    final handledDispatchIds = <String>{
+      ...events
+          .whereType<ExecutionCompleted>()
+          .map((event) => event.dispatchId.trim())
+          .where((dispatchId) => dispatchId.isNotEmpty),
+      ...events
+          .whereType<ExecutionDenied>()
+          .map((event) => event.dispatchId.trim())
+          .where((dispatchId) => dispatchId.isNotEmpty),
+    };
+    return decidedDispatchIds.difference(handledDispatchIds).length;
+  }
+
+  int _guardsOnlineCount(List<DispatchEvent> events) {
+    final windowStartUtc = DateTime.now().toUtc().subtract(
+      const Duration(hours: 12),
+    );
+    final guardIds = <String>{
+      ...events
+          .whereType<GuardCheckedIn>()
+          .where((event) => event.occurredAt.toUtc().isAfter(windowStartUtc))
+          .map((event) => event.guardId.trim())
+          .where((guardId) => guardId.isNotEmpty),
+      ...events
+          .whereType<ResponseArrived>()
+          .where((event) => event.occurredAt.toUtc().isAfter(windowStartUtc))
+          .map((event) => event.guardId.trim())
+          .where((guardId) => guardId.isNotEmpty),
+      ...events
+          .whereType<PatrolCompleted>()
+          .where((event) => event.occurredAt.toUtc().isAfter(windowStartUtc))
+          .map((event) => event.guardId.trim())
+          .where((guardId) => guardId.isNotEmpty),
+      ..._guardOpsRecentEvents
+          .where((event) => event.occurredAt.toUtc().isAfter(windowStartUtc))
+          .map((event) => event.guardId.trim())
+          .where((guardId) => guardId.isNotEmpty),
+    };
+    if (guardIds.isEmpty && _guardOpsActiveShiftId.trim().isNotEmpty) {
+      guardIds.add('GUARD-001');
+    }
+    return guardIds.length;
+  }
+
+  int _complianceIssuesCount() {
+    final report = _morningSovereignReport;
+    if (report != null) {
+      final blocked = report.complianceBlockage.totalBlocked;
+      final expiries =
+          report.complianceBlockage.psiraExpired +
+          report.complianceBlockage.pdpExpired;
+      return blocked > expiries ? blocked : expiries;
+    }
+    return _guardOutcomeDeniedInWindow(const Duration(hours: 24));
+  }
+
+  int _tacticalSosAlerts() {
+    final nowUtc = DateTime.now().toUtc();
+    return _guardOpsRecentEvents
+        .where(
+          (event) =>
+              event.eventType == GuardOpsEventType.panicTriggered &&
+              nowUtc.difference(event.occurredAt.toUtc()) <=
+                  const Duration(minutes: 30),
+        )
+        .length;
+  }
+
+  Widget _buildPage(List<DispatchEvent> events) {
     switch (_route) {
       case OnyxRoute.dashboard:
-        return DashboardPage(
-          eventStore: store,
-          guardSyncBackendEnabled: _guardSyncUsingBackend,
-          guardSyncInFlight: _guardOpsSyncInFlight,
-          guardSyncQueueDepth: _guardSyncQueueDepth,
-          guardPendingEvents: _guardOpsPendingEvents,
-          guardPendingMedia: _guardOpsPendingMedia,
-          guardFailedEvents: _guardOpsFailedEvents,
-          guardFailedMedia: _guardOpsFailedMedia,
-          guardOutcomePolicyDeniedCount: _guardOutcomePolicyDeniedCount,
-          guardOutcomePolicyDeniedLastReason:
-              _guardOutcomePolicyDeniedLastReason,
-          guardOutcomePolicyDenied24h: _guardOutcomeDeniedInWindow(
-            const Duration(hours: 24),
-          ),
-          guardOutcomePolicyDenied7d: _guardOutcomeDeniedInWindow(
-            const Duration(days: 7),
-          ),
-          guardOutcomePolicyDeniedHistoryUtc:
-              _guardOutcomePolicyDeniedHistoryUtc,
-          guardCoachingAckCount: _guardCoachingAckCount,
-          guardCoachingSnoozeCount: _guardCoachingSnoozeCount,
-          guardCoachingSnoozeExpiryCount: _guardCoachingSnoozeExpiryCount,
-          guardCoachingRecentHistory: _guardCoachingRecentHistory,
-          guardSyncStatusLabel: _guardOpsLastSyncLabel,
-          guardLastSuccessfulSyncAtUtc: _guardOpsLastSuccessfulSyncAtUtc,
-          guardLastFailureReason: _guardOpsLastFailureReason,
-          onOpenGuardSync: _openGuardSyncFromDashboard,
-          onClearGuardOutcomePolicyTelemetry: _clearGuardOutcomePolicyTelemetry,
-          guardFailureAlertThreshold: _positiveThreshold(
-            _guardFailureAlertThresholdEnv,
-            fallback: 1,
-          ),
-          guardQueuePressureAlertThreshold: _positiveThreshold(
-            _guardQueuePressureAlertThresholdEnv,
-            fallback: 25,
-          ),
-          guardStaleSyncAlertMinutes: _positiveThreshold(
-            _guardStaleSyncAlertMinutesEnv,
-            fallback: 10,
-          ),
-          guardRecentEvents: _guardOpsRecentEvents,
-          guardRecentMedia: _guardOpsRecentMedia,
+        return LiveOperationsPage(events: events);
+
+      case OnyxRoute.aiQueue:
+        return AIQueuePage(events: events);
+
+      case OnyxRoute.tactical:
+        return TacticalPage(
+          events: events,
+          cctvOpsReadiness: _opsIntegrationProfile.cctv.readinessLabel,
+          cctvOpsDetail: _opsIntegrationProfile.cctv.detailLabel,
+          cctvProvider: _opsIntegrationProfile.cctv.provider,
+          cctvCapabilitySummary: _cctvCapabilitySummary(),
+          cctvRecentSignalSummary: _cctvRecentSignalSummary(events),
+        );
+
+      case OnyxRoute.governance:
+        return GovernancePage(
+          events: events,
+          morningSovereignReport: _morningSovereignReport,
+          morningSovereignReportAutoRunKey: _morningSovereignReportAutoRunKey,
+          onGenerateMorningSovereignReport: () async {
+            await _generateMorningSovereignReport();
+          },
         );
 
       case OnyxRoute.clients:
-        return ClientAppPage(
-          clientId: _selectedClient,
-          siteId: _selectedSite,
-          locale: _clientAppLocale,
-          events: store.allEvents(),
-          backendSyncEnabled: widget.supabaseReady,
-          viewerRole: _clientAppViewerRole,
-          initialSelectedRoom: _clientAppSelectedRoom,
-          initialSelectedRoomByRole: _clientAppSelectedRoomByRole,
-          initialShowAllRoomItems: _clientAppShowAllRoomItems,
-          initialShowAllRoomItemsByRole: _clientAppShowAllRoomItemsByRole,
-          initialSelectedIncidentReferenceByRole:
-              _clientAppSelectedIncidentReferenceByRole,
-          initialExpandedIncidentReferenceByRole:
-              _clientAppExpandedIncidentReferenceByRole,
-          initialHasTouchedIncidentExpansionByRole:
-              _clientAppHasTouchedIncidentExpansionByRole,
-          initialFocusedIncidentReferenceByRole:
-              _clientAppFocusedIncidentReferenceByRole,
-          initialManualMessages: _clientAppMessages,
-          initialAcknowledgements: _clientAppAcknowledgements,
-          initialPushQueue: _clientAppPushQueue,
-          pushSyncStatusLabel: _clientAppPushSyncStatusLabel,
-          pushSyncLastSyncedAtUtc: _clientAppPushLastSyncedAtUtc,
-          pushSyncFailureReason: _clientAppPushSyncFailureReason,
-          pushSyncRetryCount: _clientAppPushSyncRetryCount,
-          pushSyncHistory: _clientAppPushSyncHistory,
-          backendProbeStatusLabel: _clientAppBackendProbeStatusLabel,
-          backendProbeLastRunAtUtc: _clientAppBackendProbeLastRunAtUtc,
-          backendProbeFailureReason: _clientAppBackendProbeFailureReason,
-          backendProbeHistory: _clientAppBackendProbeHistory,
-          onRunBackendProbe: _runClientAppBackendProbe,
-          onClearBackendProbeHistory: _clearClientAppBackendProbeHistory,
-          onRetryPushSync: _retryClientAppPushSync,
-          onClientStateChanged: _persistClientAppDraft,
-          onPushQueueChanged: _persistClientAppPushQueue,
-        );
+        return _appMode == OnyxAppMode.controller
+            ? ClientsPage(
+                clientId: _selectedClient,
+                siteId: _selectedSite,
+                events: events,
+              )
+            : _buildClientPage(events);
 
       case OnyxRoute.sites:
-        return SitesPage(events: store.allEvents());
+        return SitesCommandPage(events: events);
 
       case OnyxRoute.guards:
-        final initialGuardScreen = _consumeGuardInitialScreen();
-        final nowUtc = DateTime.now().toUtc();
-        final guardCoachingPrompt = _guardSyncCoachingPolicy.evaluate(
-          syncBackendEnabled: _guardSyncUsingBackend,
-          pendingEventCount: _guardOpsPendingEvents,
-          pendingMediaCount: _guardOpsPendingMedia,
-          failedEventCount: _guardOpsFailedEvents,
-          failedMediaCount: _guardOpsFailedMedia,
-          recentEvents: _guardOpsRecentEvents,
-          nowUtc: nowUtc,
-        );
-        final effectiveGuardCoachingPrompt = _effectiveGuardCoachingPrompt(
-          prompt: guardCoachingPrompt,
-          nowUtc: nowUtc,
-        );
-        final activeScopeKey = _guardSyncSelectionScopeKey();
-        return GuardMobileShellPage(
-          clientId: _selectedClient,
-          siteId: _selectedSite,
-          guardId: 'GUARD-001',
-          operatorRole: _guardOperatorRole,
-          syncBackendEnabled: _guardSyncUsingBackend,
-          queueDepth: _guardSyncQueueDepth,
-          pendingEventCount: _guardOpsPendingEvents,
-          pendingMediaCount: _guardOpsPendingMedia,
-          failedEventCount: _guardOpsFailedEvents,
-          failedMediaCount: _guardOpsFailedMedia,
-          recentEvents: _guardOpsRecentEvents,
-          recentMedia: _guardOpsRecentMedia,
-          syncInFlight: _guardOpsSyncInFlight,
-          syncStatusLabel: _guardOpsLastSyncLabel,
-          activeShiftId: _guardOpsActiveShiftId,
-          activeShiftSequenceWatermark: _guardOpsActiveShiftSequenceWatermark,
-          lastCloseoutPacketAuditLabel: _guardCloseoutPacketAuditLabel(),
-          lastShiftReplayAuditLabel: _guardShiftReplayAuditLabel(),
-          lastSyncReportAuditLabel: _guardSyncReportAuditLabel(),
-          lastExportAuditClearLabel: _guardExportAuditClearLabel(),
-          telemetryAdapterLabel: _guardTelemetryAdapter.adapterLabel,
-          telemetryAdapterStubMode: _guardTelemetryAdapter.isStub,
-          telemetryProviderId: _guardTelemetryActiveProviderId,
-          telemetryProviderStatusLabel: _guardTelemetryProviderStatusLabel,
-          telemetryProviderReadiness: _guardTelemetryReadiness.name,
-          telemetryLiveReadyGateEnabled: _guardTelemetryEnforceLiveReady,
-          telemetryLiveReadyGateViolation: _guardTelemetryLiveReadyGateViolated,
-          telemetryLiveReadyGateReason: _guardTelemetryLiveReadyGateReason,
-          telemetryFacadeId: _guardTelemetryFacadeId,
-          telemetryFacadeLiveMode: _guardTelemetryFacadeLiveMode,
-          telemetryFacadeToggleSource: _guardTelemetryFacadeToggleSource,
-          telemetryFacadeRuntimeMode: _guardTelemetryFacadeRuntimeMode,
-          telemetryFacadeHeartbeatSource: _guardTelemetryFacadeHeartbeatSource,
-          telemetryFacadeHeartbeatAction: _guardTelemetryFacadeHeartbeatAction,
-          telemetryFacadeSourceActive: _guardTelemetryFacadeSourceActive,
-          telemetryFacadeCallbackCount: _guardTelemetryFacadeCallbackCount,
-          telemetryFacadeLastCallbackAtUtc:
-              _guardTelemetryFacadeLastCallbackAtUtc,
-          telemetryFacadeLastCallbackMessage:
-              _guardTelemetryFacadeLastCallbackMessage,
-          telemetryFacadeCallbackErrorCount:
-              _guardTelemetryFacadeCallbackErrorCount,
-          telemetryFacadeLastCallbackErrorAtUtc:
-              _guardTelemetryFacadeLastCallbackErrorAtUtc,
-          telemetryFacadeLastCallbackErrorMessage:
-              _guardTelemetryFacadeLastCallbackErrorMessage,
-          resumeSyncEventThrottleSeconds: _guardResumeSyncEventThrottleSeconds,
-          lastSuccessfulSyncAtUtc: _guardOpsLastSuccessfulSyncAtUtc,
-          lastFailureReason: _guardOpsLastFailureReason,
-          coachingPrompt: effectiveGuardCoachingPrompt,
-          coachingPolicy: _guardSyncCoachingPolicy,
-          queuedOperations: _guardQueuedOperations,
-          historyFilter: _guardSyncHistoryFilter,
-          onHistoryFilterChanged: _setGuardHistoryFilter,
-          operationModeFilter: _guardSyncOperationModeFilter,
-          onOperationModeFilterChanged: _setGuardOperationModeFilter,
-          availableFacadeIds: _guardSyncAvailableFacadeIds,
-          selectedFacadeId: _guardSyncSelectedFacadeId,
-          onFacadeIdFilterChanged: _setGuardFacadeIdFilter,
-          scopedSelectionCount: _guardSyncSelectedOperationIdByFilter.length,
-          scopedSelectionKeys:
-              (_guardSyncSelectedOperationIdByFilter.keys.toList(
-                growable: false,
-              )..sort()),
-          scopedSelectionsByScope: _guardSyncSelectedOperationIdByFilter,
-          activeScopeKey: activeScopeKey,
-          activeScopeHasSelection:
-              (_guardSyncSelectedOperationIdByFilter[activeScopeKey] ?? '')
-                  .trim()
-                  .isNotEmpty,
-          initialSelectedOperationId:
-              _guardSyncSelectedOperationIdByFilter[activeScopeKey],
-          onSelectedOperationChanged: _setGuardSelectedOperation,
-          onShiftStartQueued: _queueShiftStartVerification,
-          onShiftEndQueued: _queueShiftEnd,
-          onStatusQueued: _queueGuardStatus,
-          onReactionIncidentAcceptedQueued: _queueReactionIncidentAccepted,
-          onReactionOfficerArrivedQueued: _queueReactionOfficerArrived,
-          onReactionIncidentClearedQueued: _queueReactionIncidentCleared,
-          onSupervisorStatusOverrideQueued: _queueSupervisorStatusOverride,
-          onSupervisorCoachingAcknowledgedQueued:
-              _queueSupervisorCoachingAcknowledgement,
-          onCheckpointQueued: _queueGuardCheckpoint,
-          onPatrolImageQueued: _queuePatrolVerificationImage,
-          onPanicQueued: _queueGuardPanicSignal,
-          onWearableHeartbeatQueued: _queueWearableHeartbeat,
-          onDeviceHealthQueued: _queueDeviceHealthTelemetry,
-          onSeedWearableBridge: _guardTelemetryBridgeWriter.isAvailable
-              ? _seedWearableBridgeSample
-              : null,
-          onEmitTelemetryDebugHeartbeat:
-              kDebugMode &&
-                  !kIsWeb &&
-                  _guardTelemetryAdapter is NativeGuardTelemetryIngestionAdapter
-              ? _emitDebugFskSdkHeartbeatBroadcast
-              : null,
-          onValidateTelemetryPayloadReplay:
-              !kIsWeb &&
-                  _guardTelemetryAdapter is NativeGuardTelemetryIngestionAdapter
-              ? _validateTelemetryPayloadReplay
-              : null,
-          onOutcomeLabeled: _queueIncidentOutcomeLabel,
-          outcomeGovernancePolicy: _outcomeGovernancePolicy,
-          onClearQueue: _clearGuardQueue,
-          onSyncNow: _syncGuardOpsNow,
-          onRetryFailedEvents: _retryFailedGuardEvents,
-          onRetryFailedMedia: _retryFailedGuardMedia,
-          onRetryFailedOperation: _retryFailedGuardSyncOperation,
-          onRetryFailedOperationsBulk: _retryFailedGuardSyncOperationsBulk,
-          onDispatchCloseoutPacketCopied: _recordGuardCloseoutPacketAudit,
-          onShiftReplaySummaryCopied: _recordGuardShiftReplayAudit,
-          onSyncReportCopied: _recordGuardSyncReportAudit,
-          onClearExportAudits: _clearGuardExportAudits,
-          onProbeTelemetryProvider: _refreshGuardTelemetryAdapterStatus,
-          failedOpsWarnThreshold: _positiveThreshold(
-            _guardFailedOpsWarnThresholdEnv,
-            fallback: 1,
-          ),
-          failedOpsCriticalThreshold: _positiveThreshold(
-            _guardFailedOpsCriticalThresholdEnv,
-            fallback: 5,
-          ),
-          oldestFailedWarnMinutes: _positiveThreshold(
-            _guardOldestFailedWarnMinutesEnv,
-            fallback: 10,
-          ),
-          oldestFailedCriticalMinutes: _positiveThreshold(
-            _guardOldestFailedCriticalMinutesEnv,
-            fallback: 30,
-          ),
-          failedRetryWarnThreshold: _positiveThreshold(
-            _guardFailedRetryWarnThresholdEnv,
-            fallback: 8,
-          ),
-          failedRetryCriticalThreshold: _positiveThreshold(
-            _guardFailedRetryCriticalThresholdEnv,
-            fallback: 20,
-          ),
-          onAcknowledgeCoachingPrompt: _acknowledgeGuardCoachingPrompt,
-          onSnoozeCoachingPrompt: _snoozeGuardCoachingPrompt,
-          initialScreen: initialGuardScreen,
-        );
+        return _appMode == OnyxAppMode.controller
+            ? GuardsPage(events: events)
+            : _buildGuardPage();
 
       case OnyxRoute.dispatches:
         return DispatchPage(
@@ -4058,11 +5837,30 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             });
           },
           onIngestFeeds: () {
-            _ingestLiveFeedBatch();
+            unawaited(_ingestLiveFeedBatch());
+          },
+          onIngestRadioOps: () {
+            unawaited(_ingestRadioOpsSignals());
+          },
+          onIngestCctvEvents: () {
+            unawaited(_ingestCctvSignals());
+          },
+          onIngestWearableOps: () {
+            unawaited(_ingestWearableSignals());
           },
           onIngestNews: () {
-            _ingestNewsSignals();
+            unawaited(_ingestNewsSignals());
           },
+          onRetryRadioQueue: _pendingRadioAutomatedResponses.isEmpty
+              ? null
+              : () {
+                  unawaited(_retryPendingRadioQueueNow());
+                },
+          onClearRadioQueue: _pendingRadioAutomatedResponses.isEmpty
+              ? null
+              : () {
+                  unawaited(_clearPendingRadioQueue());
+                },
           onLoadFeedFile: () {
             _loadLiveFeedFile();
           },
@@ -4091,6 +5889,30 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           telemetryLiveReadyGateEnabled: _guardTelemetryEnforceLiveReady,
           telemetryLiveReadyGateViolation: _guardTelemetryLiveReadyGateViolated,
           telemetryLiveReadyGateReason: _guardTelemetryLiveReadyGateReason,
+          radioOpsReadiness: _opsIntegrationProfile.radio.readinessLabel,
+          radioOpsDetail: _opsIntegrationProfile.radio.detailLabel,
+          radioOpsQueueHealth: _radioQueueHealthSummary(),
+          radioQueueIntentMix: _radioQueueIntentMixSummary(),
+          radioAckRecentSummary: _radioAckRecentSummary(events),
+          radioQueueHasPending: _pendingRadioAutomatedResponses.isNotEmpty,
+          radioQueueFailureDetail: _radioQueueFailureSummary(),
+          radioQueueManualActionDetail: _radioQueueManualActionSummary(),
+          radioAiAutoAllClearEnabled:
+              _opsIntegrationProfile.radio.aiAutoAllClearEnabled,
+          cctvOpsReadiness: _opsIntegrationProfile.cctv.readinessLabel,
+          cctvOpsDetail: _opsIntegrationProfile.cctv.detailLabel,
+          cctvCapabilitySummary: _cctvCapabilitySummary(),
+          cctvRecentSignalSummary: _cctvRecentSignalSummary(events),
+          wearableOpsReadiness:
+              _wearableProviderEnv.trim().isNotEmpty &&
+                  _wearableBridgeUri != null
+              ? 'ACTIVE'
+              : 'UNCONFIGURED',
+          wearableOpsDetail:
+              _wearableProviderEnv.trim().isNotEmpty &&
+                  _wearableBridgeUri != null
+              ? '${_wearableProviderEnv.trim()} • wearable telemetry events'
+              : 'Configure ONYX_WEARABLE_PROVIDER and ONYX_WEARABLE_EVENTS_URL.',
           livePollingHistory: _livePollingHistory,
           onRunStress: _runStressIntake,
           onRunSoak: _runSoakIntake,
@@ -4153,7 +5975,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           intakeStatus: _lastIntakeStatus,
           stressStatus: _lastStressStatus,
           intakeTelemetry: _intakeTelemetry,
-          events: store.allEvents(),
+          events: events,
           onExecute: (dispatchId) {
             setState(() {
               service.execute(
@@ -4167,22 +5989,295 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         );
 
       case OnyxRoute.events:
-        return EventsPage(events: store.allEvents());
-
-      case OnyxRoute.ledger:
-        return LedgerPage(
-          clientId: _selectedClient,
-          supabaseEnabled: widget.supabaseReady,
-          events: store.allEvents(),
+        return EventsReviewPage(
+          events: events,
+          initialSourceFilter: _eventsSourceFilter.trim().isEmpty
+              ? null
+              : _eventsSourceFilter,
+          initialProviderFilter: _eventsProviderFilter.trim().isEmpty
+              ? null
+              : _eventsProviderFilter,
+          initialSelectedEventId: _eventsSelectedEventId.trim().isEmpty
+              ? null
+              : _eventsSelectedEventId,
         );
 
+      case OnyxRoute.ledger:
+        return SovereignLedgerPage(clientId: _selectedClient, events: events);
+
       case OnyxRoute.reports:
-        return ReportTestHarnessPage(
+        return ClientIntelligenceReportsPage(
           store: store,
           selectedClient: _selectedClient,
           selectedSite: _selectedSite,
         );
+
+      case OnyxRoute.admin:
+        return AdministrationPage(
+          events: events,
+          initialRadioIntentPhrasesJson: _radioIntentPhrasesJsonOverride,
+          onSaveRadioIntentPhrasesJson: _saveRadioIntentPhraseConfig,
+          onResetRadioIntentPhrasesJson: _clearRadioIntentPhraseConfig,
+          onRunOpsIntegrationPoll: _opsIntegrationPollingAvailable
+              ? _pollOpsIntegrationOnce
+              : null,
+          onRunRadioPoll: _opsIntegrationProfile.radio.configured
+              ? () async {
+                  await _ingestRadioOpsSignals();
+                }
+              : null,
+          onRunCctvPoll: _opsIntegrationProfile.cctv.configured
+              ? () async {
+                  await _ingestCctvSignals();
+                }
+              : null,
+          onRunWearablePoll:
+              (_wearableProviderEnv.trim().isNotEmpty &&
+                  _wearableBridgeUri != null)
+              ? () async {
+                  await _ingestWearableSignals();
+                }
+              : null,
+          onRunNewsPoll: _newsIntel.configuredProviders.isNotEmpty
+              ? () async {
+                  await _ingestNewsSignals();
+                }
+              : null,
+          onRetryRadioQueue: _pendingRadioAutomatedResponses.isEmpty
+              ? null
+              : _retryPendingRadioQueueNow,
+          onClearRadioQueue: _pendingRadioAutomatedResponses.isEmpty
+              ? null
+              : _clearPendingRadioQueue,
+          onClearRadioQueueFailureSnapshot:
+              _radioQueueLastFailureSnapshot.trim().isEmpty
+              ? null
+              : _clearRadioQueueFailureSnapshotOnly,
+          radioQueueHasPending: _pendingRadioAutomatedResponses.isNotEmpty,
+          radioOpsPollHealth: _opsHealthSummary(_radioOpsHealth),
+          radioOpsQueueHealth: _radioQueueHealthSummary(),
+          radioOpsQueueIntentMix: _radioQueueIntentMixSummary(),
+          radioOpsAckRecentSummary: _radioAckRecentSummary(events),
+          radioOpsQueueStateDetail: _radioQueueStateChangeSummary(),
+          radioOpsFailureDetail: _radioQueueLastFailureSnapshot.trim().isEmpty
+              ? null
+              : 'Last failure • ${_radioQueueLastFailureSnapshot.trim()}',
+          radioOpsFailureAuditDetail: _radioQueueFailureAuditSummary(),
+          radioOpsManualActionDetail: _radioQueueManualActionSummary(),
+          cctvOpsPollHealth: _opsHealthSummary(_cctvOpsHealth),
+          cctvCapabilitySummary: _cctvCapabilitySummary(),
+          cctvRecentSignalSummary: _cctvRecentSignalSummary(events),
+          wearableOpsPollHealth: _opsHealthSummary(_wearableOpsHealth),
+          newsOpsPollHealth: _opsHealthSummary(_newsOpsHealth),
+        );
     }
+  }
+
+  Widget _buildClientPage(List<DispatchEvent> events) {
+    return ClientAppPage(
+      clientId: _selectedClient,
+      siteId: _selectedSite,
+      locale: _clientAppLocale,
+      events: events,
+      backendSyncEnabled: widget.supabaseReady,
+      viewerRole: _clientAppViewerRole,
+      initialSelectedRoom: _clientAppSelectedRoom,
+      initialSelectedRoomByRole: _clientAppSelectedRoomByRole,
+      initialShowAllRoomItems: _clientAppShowAllRoomItems,
+      initialShowAllRoomItemsByRole: _clientAppShowAllRoomItemsByRole,
+      initialSelectedIncidentReferenceByRole:
+          _clientAppSelectedIncidentReferenceByRole,
+      initialExpandedIncidentReferenceByRole:
+          _clientAppExpandedIncidentReferenceByRole,
+      initialHasTouchedIncidentExpansionByRole:
+          _clientAppHasTouchedIncidentExpansionByRole,
+      initialFocusedIncidentReferenceByRole:
+          _clientAppFocusedIncidentReferenceByRole,
+      initialManualMessages: _clientAppMessages,
+      initialAcknowledgements: _clientAppAcknowledgements,
+      initialPushQueue: _clientAppPushQueue,
+      pushSyncStatusLabel: _clientAppPushSyncStatusLabel,
+      pushSyncLastSyncedAtUtc: _clientAppPushLastSyncedAtUtc,
+      pushSyncFailureReason: _clientAppPushSyncFailureReason,
+      pushSyncRetryCount: _clientAppPushSyncRetryCount,
+      pushSyncHistory: _clientAppPushSyncHistory,
+      backendProbeStatusLabel: _clientAppBackendProbeStatusLabel,
+      backendProbeLastRunAtUtc: _clientAppBackendProbeLastRunAtUtc,
+      backendProbeFailureReason: _clientAppBackendProbeFailureReason,
+      backendProbeHistory: _clientAppBackendProbeHistory,
+      onRunBackendProbe: _runClientAppBackendProbe,
+      onClearBackendProbeHistory: _clearClientAppBackendProbeHistory,
+      onRetryPushSync: _retryClientAppPushSync,
+      onClientStateChanged: _persistClientAppDraft,
+      onPushQueueChanged: _persistClientAppPushQueue,
+    );
+  }
+
+  Widget _buildGuardPage() {
+    final initialGuardScreen = _consumeGuardInitialScreen();
+    final nowUtc = DateTime.now().toUtc();
+    final guardCoachingPrompt = _guardSyncCoachingPolicy.evaluate(
+      syncBackendEnabled: _guardSyncUsingBackend,
+      pendingEventCount: _guardOpsPendingEvents,
+      pendingMediaCount: _guardOpsPendingMedia,
+      failedEventCount: _guardOpsFailedEvents,
+      failedMediaCount: _guardOpsFailedMedia,
+      recentEvents: _guardOpsRecentEvents,
+      nowUtc: nowUtc,
+    );
+    final effectiveGuardCoachingPrompt = _effectiveGuardCoachingPrompt(
+      prompt: guardCoachingPrompt,
+      nowUtc: nowUtc,
+    );
+    final activeScopeKey = _guardSyncSelectionScopeKey();
+    return GuardMobileShellPage(
+      clientId: _selectedClient,
+      siteId: _selectedSite,
+      guardId: 'GUARD-001',
+      guardOnlyExperience: _appMode == OnyxAppMode.guard,
+      operatorRole: _guardOperatorRole,
+      syncBackendEnabled: _guardSyncUsingBackend,
+      queueDepth: _guardSyncQueueDepth,
+      pendingEventCount: _guardOpsPendingEvents,
+      pendingMediaCount: _guardOpsPendingMedia,
+      failedEventCount: _guardOpsFailedEvents,
+      failedMediaCount: _guardOpsFailedMedia,
+      recentEvents: _guardOpsRecentEvents,
+      recentMedia: _guardOpsRecentMedia,
+      syncInFlight: _guardOpsSyncInFlight,
+      syncStatusLabel: _guardOpsLastSyncLabel,
+      activeShiftId: _guardOpsActiveShiftId,
+      activeShiftSequenceWatermark: _guardOpsActiveShiftSequenceWatermark,
+      lastCloseoutPacketAuditLabel: _guardCloseoutPacketAuditLabel(),
+      lastShiftReplayAuditLabel: _guardShiftReplayAuditLabel(),
+      lastSyncReportAuditLabel: _guardSyncReportAuditLabel(),
+      lastExportAuditClearLabel: _guardExportAuditClearLabel(),
+      telemetryAdapterLabel: _guardTelemetryAdapter.adapterLabel,
+      telemetryAdapterStubMode: _guardTelemetryAdapter.isStub,
+      telemetryProviderId: _guardTelemetryActiveProviderId,
+      telemetryProviderStatusLabel: _guardTelemetryProviderStatusLabel,
+      telemetryProviderReadiness: _guardTelemetryReadiness.name,
+      telemetryLiveReadyGateEnabled: _guardTelemetryEnforceLiveReady,
+      telemetryLiveReadyGateViolation: _guardTelemetryLiveReadyGateViolated,
+      telemetryLiveReadyGateReason: _guardTelemetryLiveReadyGateReason,
+      telemetryFacadeId: _guardTelemetryFacadeId,
+      telemetryFacadeLiveMode: _guardTelemetryFacadeLiveMode,
+      telemetryFacadeToggleSource: _guardTelemetryFacadeToggleSource,
+      telemetryFacadeRuntimeMode: _guardTelemetryFacadeRuntimeMode,
+      telemetryFacadeHeartbeatSource: _guardTelemetryFacadeHeartbeatSource,
+      telemetryFacadeHeartbeatAction: _guardTelemetryFacadeHeartbeatAction,
+      telemetryVendorConnectorId: _guardTelemetryVendorConnectorId,
+      telemetryVendorConnectorSource: _guardTelemetryVendorConnectorSource,
+      telemetryVendorConnectorErrorMessage:
+          _guardTelemetryVendorConnectorErrorMessage,
+      telemetryVendorConnectorFallbackActive:
+          _guardTelemetryVendorConnectorFallbackActive,
+      telemetryFacadeSourceActive: _guardTelemetryFacadeSourceActive,
+      telemetryFacadeCallbackCount: _guardTelemetryFacadeCallbackCount,
+      telemetryFacadeLastCallbackAtUtc: _guardTelemetryFacadeLastCallbackAtUtc,
+      telemetryFacadeLastCallbackMessage:
+          _guardTelemetryFacadeLastCallbackMessage,
+      telemetryFacadeCallbackErrorCount:
+          _guardTelemetryFacadeCallbackErrorCount,
+      telemetryFacadeLastCallbackErrorAtUtc:
+          _guardTelemetryFacadeLastCallbackErrorAtUtc,
+      telemetryFacadeLastCallbackErrorMessage:
+          _guardTelemetryFacadeLastCallbackErrorMessage,
+      resumeSyncEventThrottleSeconds: _guardResumeSyncEventThrottleSeconds,
+      lastSuccessfulSyncAtUtc: _guardOpsLastSuccessfulSyncAtUtc,
+      lastFailureReason: _guardOpsLastFailureReason,
+      coachingPrompt: effectiveGuardCoachingPrompt,
+      coachingPolicy: _guardSyncCoachingPolicy,
+      queuedOperations: _guardQueuedOperations,
+      historyFilter: _guardSyncHistoryFilter,
+      onHistoryFilterChanged: _setGuardHistoryFilter,
+      operationModeFilter: _guardSyncOperationModeFilter,
+      onOperationModeFilterChanged: _setGuardOperationModeFilter,
+      availableFacadeIds: _guardSyncAvailableFacadeIds,
+      selectedFacadeId: _guardSyncSelectedFacadeId,
+      onFacadeIdFilterChanged: _setGuardFacadeIdFilter,
+      scopedSelectionCount: _guardSyncSelectedOperationIdByFilter.length,
+      scopedSelectionKeys: (_guardSyncSelectedOperationIdByFilter.keys.toList(
+        growable: false,
+      )..sort()),
+      scopedSelectionsByScope: _guardSyncSelectedOperationIdByFilter,
+      activeScopeKey: activeScopeKey,
+      activeScopeHasSelection:
+          (_guardSyncSelectedOperationIdByFilter[activeScopeKey] ?? '')
+              .trim()
+              .isNotEmpty,
+      initialSelectedOperationId:
+          _guardSyncSelectedOperationIdByFilter[activeScopeKey],
+      onSelectedOperationChanged: _setGuardSelectedOperation,
+      onShiftStartQueued: _queueShiftStartVerification,
+      onShiftEndQueued: _queueShiftEnd,
+      onStatusQueued: _queueGuardStatus,
+      onReactionIncidentAcceptedQueued: _queueReactionIncidentAccepted,
+      onReactionOfficerArrivedQueued: _queueReactionOfficerArrived,
+      onReactionIncidentClearedQueued: _queueReactionIncidentCleared,
+      onSupervisorStatusOverrideQueued: _queueSupervisorStatusOverride,
+      onSupervisorCoachingAcknowledgedQueued:
+          _queueSupervisorCoachingAcknowledgement,
+      onCheckpointQueued: _queueGuardCheckpoint,
+      onPatrolImageQueued: _queuePatrolVerificationImage,
+      onPanicQueued: _queueGuardPanicSignal,
+      onWearableHeartbeatQueued: _queueWearableHeartbeat,
+      onDeviceHealthQueued: _queueDeviceHealthTelemetry,
+      onSeedWearableBridge: _guardTelemetryBridgeWriter.isAvailable
+          ? _seedWearableBridgeSample
+          : null,
+      onEmitTelemetryDebugHeartbeat:
+          kDebugMode &&
+              !kIsWeb &&
+              _guardTelemetryAdapter is NativeGuardTelemetryIngestionAdapter
+          ? _emitDebugTelemetrySdkHeartbeatBroadcast
+          : null,
+      onValidateTelemetryPayloadReplay:
+          !kIsWeb &&
+              _guardTelemetryAdapter is NativeGuardTelemetryIngestionAdapter
+          ? _validateTelemetryPayloadReplay
+          : null,
+      onOutcomeLabeled: _queueIncidentOutcomeLabel,
+      outcomeGovernancePolicy: _outcomeGovernancePolicy,
+      onClearQueue: _clearGuardQueue,
+      onSyncNow: _syncGuardOpsNow,
+      onRetryFailedEvents: _retryFailedGuardEvents,
+      onRetryFailedMedia: _retryFailedGuardMedia,
+      onRetryFailedOperation: _retryFailedGuardSyncOperation,
+      onRetryFailedOperationsBulk: _retryFailedGuardSyncOperationsBulk,
+      onDispatchCloseoutPacketCopied: _recordGuardCloseoutPacketAudit,
+      onShiftReplaySummaryCopied: _recordGuardShiftReplayAudit,
+      onSyncReportCopied: _recordGuardSyncReportAudit,
+      onClearExportAudits: _clearGuardExportAudits,
+      onProbeTelemetryProvider: _refreshGuardTelemetryAdapterStatus,
+      failedOpsWarnThreshold: _positiveThreshold(
+        _guardFailedOpsWarnThresholdEnv,
+        fallback: 1,
+      ),
+      failedOpsCriticalThreshold: _positiveThreshold(
+        _guardFailedOpsCriticalThresholdEnv,
+        fallback: 5,
+      ),
+      oldestFailedWarnMinutes: _positiveThreshold(
+        _guardOldestFailedWarnMinutesEnv,
+        fallback: 10,
+      ),
+      oldestFailedCriticalMinutes: _positiveThreshold(
+        _guardOldestFailedCriticalMinutesEnv,
+        fallback: 30,
+      ),
+      failedRetryWarnThreshold: _positiveThreshold(
+        _guardFailedRetryWarnThresholdEnv,
+        fallback: 8,
+      ),
+      failedRetryCriticalThreshold: _positiveThreshold(
+        _guardFailedRetryCriticalThresholdEnv,
+        fallback: 20,
+      ),
+      onAcknowledgeCoachingPrompt: _acknowledgeGuardCoachingPrompt,
+      onSnoozeCoachingPrompt: _snoozeGuardCoachingPrompt,
+      initialScreen: initialGuardScreen,
+    );
   }
 
   String _nextRunId(String prefix) {
@@ -4380,6 +6475,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     if (value is num) return value.toInt();
     if (value is String) return int.tryParse(value);
     return null;
+  }
+
+  Map<String, Object?>? _asObjectMap(Object? value) {
+    if (value is! Map) return null;
+    return value.map((key, entryValue) {
+      return MapEntry(key.toString(), entryValue as Object?);
+    });
   }
 
   DateTime? _summaryDate(Object? value) {

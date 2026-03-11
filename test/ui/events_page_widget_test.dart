@@ -11,13 +11,39 @@ import 'package:omnix_dashboard/ui/events_page.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  testWidgets('events page stays stable on phone viewport', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      const MaterialApp(home: EventsPage(events: <DispatchEvent>[])),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Event Review'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('events page stays stable on landscape phone viewport', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(844, 390));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      const MaterialApp(home: EventsPage(events: <DispatchEvent>[])),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Event Review'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('events page shows empty timeline state when no events exist', (
     tester,
   ) async {
     await tester.pumpWidget(
-      const MaterialApp(
-        home: EventsPage(events: <DispatchEvent>[]),
-      ),
+      const MaterialApp(home: EventsPage(events: <DispatchEvent>[])),
     );
     await tester.pumpAndSettle();
 
@@ -82,20 +108,55 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1440, 980));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: EventsPage(events: events),
-      ),
-    );
+    await tester.pumpWidget(MaterialApp(home: EventsPage(events: events)));
     await tester.pumpAndSettle();
 
     expect(find.text('Timeline Feed'), findsOneWidget);
     expect(find.text('Advanced Filters'), findsOneWidget);
-    expect(find.text('Selected Event'), findsOneWidget);
-    expect(find.textContaining('Event ID'), findsWidgets);
+  });
 
-    await tester.tap(find.text('DECISION'));
+  testWidgets('events page opens mobile detail drawer without overflow', (
+    tester,
+  ) async {
+    final occurredAt = DateTime.now().toUtc().subtract(
+      const Duration(hours: 1),
+    );
+    final events = <DispatchEvent>[
+      IntelligenceReceived(
+        eventId: 'INT-1',
+        sequence: 1,
+        version: 1,
+        occurredAt: occurredAt,
+        intelligenceId: 'INTEL-001',
+        provider: 'newsapi.org',
+        sourceType: 'news',
+        externalId: 'news-1',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        headline: 'Armed robbery alert',
+        summary: 'Suspects reported near Sandton gate perimeter.',
+        riskScore: 81,
+        canonicalHash: 'hash-int-1',
+      ),
+    ];
+
+    await tester.binding.setSurfaceSize(const Size(390, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(MaterialApp(home: EventsPage(events: events)));
     await tester.pumpAndSettle();
+
+    final rowSummary = find.textContaining('newsapi.org/news-1').first;
+    await tester.ensureVisible(rowSummary);
+    final rowCard = find.ancestor(
+      of: rowSummary,
+      matching: find.byType(InkWell),
+    );
+    await tester.tap(rowCard.first);
+    await tester.pumpAndSettle();
+
     expect(find.text('Selected Event'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

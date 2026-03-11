@@ -249,6 +249,14 @@ void main() {
             path: 'guard/GUARD-001/media-1.jpg',
             localPath: '/tmp/media-1.jpg',
             capturedAt: DateTime.utc(2026, 3, 4, 11, 0),
+            visualNorm: const GuardVisualNormMetadata(
+              mode: GuardVisualNormMode.night,
+              baselineId: 'NORM-PATROL-GATE-A-V1',
+              captureProfile: 'patrol_verification',
+              minMatchScore: 86,
+              irRequired: false,
+              combatWindow: true,
+            ),
           ),
         );
 
@@ -258,6 +266,10 @@ void main() {
         expect(result.failedCount, 0);
         expect(result.pendingCount, 0);
         expect(gateway.uploadedMedia, hasLength(1));
+        expect(
+          gateway.uploadedMedia.single.visualNorm.mode,
+          GuardVisualNormMode.night,
+        );
         expect(await repository.pendingMedia(), isEmpty);
       },
     );

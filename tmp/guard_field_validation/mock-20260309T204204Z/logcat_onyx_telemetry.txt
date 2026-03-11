@@ -1,0 +1,3 @@
+I/ONYX_TELEMETRY: facade_ingest adapter=hikvision_guardlink payloadKeys=[activity_state,battery_percent,captured_at_utc,gps_accuracy_meters,heart_rate,movement_level]
+I/ONYX_TELEMETRY: sdk_callback_received adapter=hikvision_guardlink callback_count=1 captured_at_utc=2026-03-09T20:42:04Z
+I/ONYX_TELEMETRY: ingestHikvisionSdkHeartbeat result accepted=true captured_at_utc=2026-03-09T20:42:04Z message=Wearable heartbeat bridge payload ingested.

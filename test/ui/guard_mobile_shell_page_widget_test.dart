@@ -8,6 +8,270 @@ import 'package:omnix_dashboard/domain/guard/guard_sync_coaching_policy.dart';
 import 'package:omnix_dashboard/ui/guard_mobile_shell_page.dart';
 
 void main() {
+  testWidgets('guard mobile shell stays stable on phone viewport', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GuardMobileShellPage(
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          guardId: 'GUARD-001',
+          syncBackendEnabled: true,
+          queueDepth: 0,
+          pendingEventCount: 0,
+          pendingMediaCount: 0,
+          failedEventCount: 0,
+          failedMediaCount: 0,
+          recentEvents: const [],
+          recentMedia: const [],
+          syncInFlight: false,
+          syncStatusLabel: null,
+          lastSuccessfulSyncAtUtc: null,
+          lastFailureReason: null,
+          coachingPrompt: const GuardCoachingPrompt(
+            ruleId: 'phone_stability',
+            headline: 'Phone Stability',
+            message: 'Phone viewport render smoke test.',
+            priority: GuardCoachingPriority.low,
+          ),
+          coachingPolicy: const GuardSyncCoachingPolicy(),
+          queuedOperations: const [],
+          historyFilter: GuardSyncHistoryFilter.queued,
+          onHistoryFilterChanged: (_) async {},
+          operationModeFilter: GuardSyncOperationModeFilter.all,
+          onOperationModeFilterChanged: (_) async {},
+          onFacadeIdFilterChanged: (_) async {},
+          onSelectedOperationChanged: (_) async {},
+          onShiftStartQueued: () async {},
+          onShiftEndQueued: () async {},
+          onStatusQueued: (_) async {},
+          onCheckpointQueued:
+              ({required checkpointId, required nfcTagId}) async {},
+          onPatrolImageQueued: ({required checkpointId}) async {},
+          onPanicQueued: () async {},
+          onWearableHeartbeatQueued: () async {},
+          onDeviceHealthQueued: () async {},
+          onOutcomeLabeled:
+              ({
+                required outcomeLabel,
+                required confidence,
+                required confirmedBy,
+              }) async {},
+          outcomeGovernancePolicy: OutcomeLabelGovernancePolicy.defaultPolicy(),
+          onClearQueue: () async {},
+          onSyncNow: () async {},
+          onRetryFailedEvents: () async {},
+          onRetryFailedMedia: () async {},
+          onRetryFailedOperation: (_) async {},
+          onRetryFailedOperationsBulk: (_) async {},
+          onDispatchCloseoutPacketCopied:
+              ({
+                required generatedAtUtc,
+                required scopeKey,
+                required facadeMode,
+                required readinessState,
+              }) async {},
+          onProbeTelemetryProvider: () async {},
+          onAcknowledgeCoachingPrompt:
+              ({required ruleId, required context}) async {},
+          onSnoozeCoachingPrompt:
+              ({
+                required ruleId,
+                required context,
+                required minutes,
+                required actorRole,
+              }) async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Android Guard App Shell'), findsOneWidget);
+    expect(find.text('Guard Screen Flow'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('guard-only experience hides advanced sync workspace', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GuardMobileShellPage(
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          guardId: 'GUARD-001',
+          guardOnlyExperience: true,
+          syncBackendEnabled: true,
+          queueDepth: 0,
+          pendingEventCount: 0,
+          pendingMediaCount: 0,
+          failedEventCount: 0,
+          failedMediaCount: 0,
+          recentEvents: const [],
+          recentMedia: const [],
+          syncInFlight: false,
+          syncStatusLabel: 'Sync idle',
+          lastSuccessfulSyncAtUtc: null,
+          lastFailureReason: null,
+          coachingPrompt: const GuardCoachingPrompt(
+            ruleId: 'guard_only',
+            headline: 'Guard Only',
+            message: 'Render a streamlined field view.',
+            priority: GuardCoachingPriority.low,
+          ),
+          coachingPolicy: const GuardSyncCoachingPolicy(),
+          queuedOperations: const [],
+          historyFilter: GuardSyncHistoryFilter.queued,
+          onHistoryFilterChanged: (_) async {},
+          operationModeFilter: GuardSyncOperationModeFilter.all,
+          onOperationModeFilterChanged: (_) async {},
+          onFacadeIdFilterChanged: (_) async {},
+          onSelectedOperationChanged: (_) async {},
+          onShiftStartQueued: () async {},
+          onShiftEndQueued: () async {},
+          onStatusQueued: (_) async {},
+          onCheckpointQueued:
+              ({required checkpointId, required nfcTagId}) async {},
+          onPatrolImageQueued: ({required checkpointId}) async {},
+          onPanicQueued: () async {},
+          onWearableHeartbeatQueued: () async {},
+          onDeviceHealthQueued: () async {},
+          onOutcomeLabeled:
+              ({
+                required outcomeLabel,
+                required confidence,
+                required confirmedBy,
+              }) async {},
+          outcomeGovernancePolicy: OutcomeLabelGovernancePolicy.defaultPolicy(),
+          onClearQueue: () async {},
+          onSyncNow: () async {},
+          onRetryFailedEvents: () async {},
+          onRetryFailedMedia: () async {},
+          onRetryFailedOperation: (_) async {},
+          onRetryFailedOperationsBulk: (_) async {},
+          onDispatchCloseoutPacketCopied:
+              ({
+                required generatedAtUtc,
+                required scopeKey,
+                required facadeMode,
+                required readinessState,
+              }) async {},
+          onProbeTelemetryProvider: () async {},
+          onAcknowledgeCoachingPrompt:
+              ({required ruleId, required context}) async {},
+          onSnoozeCoachingPrompt:
+              ({
+                required ruleId,
+                required context,
+                required minutes,
+                required actorRole,
+              }) async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Guard Field App'), findsOneWidget);
+    expect(find.textContaining('Sync History ('), findsNothing);
+    expect(find.text('Reaction Ops'), findsNothing);
+    expect(find.text('Supervisor Ops'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('guard mobile shell stays stable on landscape phone viewport', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(844, 390));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GuardMobileShellPage(
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          guardId: 'GUARD-001',
+          syncBackendEnabled: true,
+          queueDepth: 0,
+          pendingEventCount: 0,
+          pendingMediaCount: 0,
+          failedEventCount: 0,
+          failedMediaCount: 0,
+          recentEvents: const [],
+          recentMedia: const [],
+          syncInFlight: false,
+          syncStatusLabel: null,
+          lastSuccessfulSyncAtUtc: null,
+          lastFailureReason: null,
+          coachingPrompt: const GuardCoachingPrompt(
+            ruleId: 'phone_stability_landscape',
+            headline: 'Phone Stability',
+            message: 'Landscape phone viewport render smoke test.',
+            priority: GuardCoachingPriority.low,
+          ),
+          coachingPolicy: const GuardSyncCoachingPolicy(),
+          queuedOperations: const [],
+          historyFilter: GuardSyncHistoryFilter.queued,
+          onHistoryFilterChanged: (_) async {},
+          operationModeFilter: GuardSyncOperationModeFilter.all,
+          onOperationModeFilterChanged: (_) async {},
+          onFacadeIdFilterChanged: (_) async {},
+          onSelectedOperationChanged: (_) async {},
+          onShiftStartQueued: () async {},
+          onShiftEndQueued: () async {},
+          onStatusQueued: (_) async {},
+          onCheckpointQueued:
+              ({required checkpointId, required nfcTagId}) async {},
+          onPatrolImageQueued: ({required checkpointId}) async {},
+          onPanicQueued: () async {},
+          onWearableHeartbeatQueued: () async {},
+          onDeviceHealthQueued: () async {},
+          onOutcomeLabeled:
+              ({
+                required outcomeLabel,
+                required confidence,
+                required confirmedBy,
+              }) async {},
+          outcomeGovernancePolicy: OutcomeLabelGovernancePolicy.defaultPolicy(),
+          onClearQueue: () async {},
+          onSyncNow: () async {},
+          onRetryFailedEvents: () async {},
+          onRetryFailedMedia: () async {},
+          onRetryFailedOperation: (_) async {},
+          onRetryFailedOperationsBulk: (_) async {},
+          onDispatchCloseoutPacketCopied:
+              ({
+                required generatedAtUtc,
+                required scopeKey,
+                required facadeMode,
+                required readinessState,
+              }) async {},
+          onProbeTelemetryProvider: () async {},
+          onAcknowledgeCoachingPrompt:
+              ({required ruleId, required context}) async {},
+          onSnoozeCoachingPrompt:
+              ({
+                required ruleId,
+                required context,
+                required minutes,
+                required actorRole,
+              }) async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Android Guard App Shell'), findsOneWidget);
+    expect(find.text('Guard Screen Flow'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('guard mobile shell routes actions into callbacks', (
     tester,
   ) async {
@@ -121,6 +385,11 @@ void main() {
           telemetryFacadeRuntimeMode: 'live',
           telemetryFacadeHeartbeatSource: 'android_broadcast',
           telemetryFacadeHeartbeatAction: 'com.onyx.fsk.SDK_HEARTBEAT',
+          telemetryVendorConnectorId: 'broadcast_intent_connector',
+          telemetryVendorConnectorSource: 'platform_default',
+          telemetryVendorConnectorFallbackActive: true,
+          telemetryVendorConnectorErrorMessage:
+              'Failed to initialize vendor connector com.onyx.vendor.MissingConnector.',
           telemetryFacadeSourceActive: true,
           telemetryFacadeCallbackCount: 4,
           telemetryFacadeLastCallbackAtUtc: DateTime.now().toUtc().subtract(
@@ -276,20 +545,26 @@ void main() {
     await tester.pumpAndSettle();
     expect(snoozedPromptCount, 1);
 
-    await tester.tap(find.text('Shift Start'));
+    final shiftStartChip = find.widgetWithText(ChoiceChip, 'Shift Start').first;
+    await tester.ensureVisible(shiftStartChip);
+    await tester.tap(shiftStartChip);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Capture + Start Shift'));
     await tester.pumpAndSettle();
     expect(shiftStartCount, 1);
 
-    await tester.tap(find.text('Status'));
+    final statusChip = find.widgetWithText(ChoiceChip, 'Status').first;
+    await tester.ensureVisible(statusChip);
+    await tester.tap(statusChip);
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('On Site'));
     await tester.tap(find.text('On Site'));
     await tester.pumpAndSettle();
     expect(lastStatus, GuardDutyStatus.onSite);
 
-    await tester.tap(find.text('Checkpoint'));
+    final checkpointChip = find.widgetWithText(ChoiceChip, 'Checkpoint').first;
+    await tester.ensureVisible(checkpointChip);
+    await tester.tap(checkpointChip, warnIfMissed: false);
     await tester.pumpAndSettle();
     expect(find.text('Coaching Prompt • CHECKPOINT'), findsOneWidget);
     await tester.ensureVisible(find.byType(TextFormField).first);
@@ -304,7 +579,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(lastPatrolImageCheckpointId, 'GATE-3');
 
-    await tester.tap(find.text('Panic'));
+    final panicChip = find.widgetWithText(ChoiceChip, 'Panic').first;
+    await tester.ensureVisible(panicChip);
+    await tester.tap(panicChip);
     await tester.pumpAndSettle();
     await tester.tap(find.text('High'));
     await tester.pumpAndSettle();
@@ -326,7 +603,8 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.text('Shift Start'));
+    await tester.ensureVisible(shiftStartChip);
+    await tester.tap(shiftStartChip);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Queue Shift End'));
     await tester.pumpAndSettle();
@@ -337,7 +615,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(clearCount, 1);
 
-    await tester.tap(find.text('Sync'));
+    final syncChip = find.widgetWithText(ChoiceChip, 'Sync').first;
+    await tester.ensureVisible(syncChip);
+    await tester.tap(syncChip);
     await tester.pumpAndSettle();
     expect(
       find.text('Telemetry adapter: native_sdk:fsk_sdk (live)'),
@@ -382,6 +662,9 @@ void main() {
     expect(find.text('Toggle: build_config'), findsOneWidget);
     expect(find.text('Runtime: live'), findsOneWidget);
     expect(find.text('Heartbeat Source: android_broadcast'), findsOneWidget);
+    expect(find.text('Connector: broadcast_intent_connector'), findsOneWidget);
+    expect(find.text('Connector Source: platform_default'), findsOneWidget);
+    expect(find.text('Connector Fallback: active'), findsOneWidget);
     expect(find.text('Source Active: yes'), findsOneWidget);
     expect(find.text('SDK Callbacks: 4'), findsOneWidget);
     expect(find.textContaining('Callback Age:'), findsOneWidget);
@@ -391,6 +674,12 @@ void main() {
     );
     expect(
       find.text('Facade message: Wearable heartbeat bridge payload ingested.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Vendor connector error: Failed to initialize vendor connector com.onyx.vendor.MissingConnector.',
+      ),
       findsOneWidget,
     );
     expect(find.textContaining('Last SDK callback:'), findsOneWidget);
@@ -491,12 +780,16 @@ void main() {
     );
 
     expect(find.text('All: 2'), findsNWidgets(2));
-    await tester.tap(find.text('Failed: 1').first);
+    final failedFilterFirst = find.text('Failed: 1').first;
+    await tester.ensureVisible(failedFilterFirst);
+    await tester.tap(failedFilterFirst, warnIfMissed: false);
     await tester.pumpAndSettle();
     expect(find.textContaining('panicTriggered • seq 2'), findsOneWidget);
     expect(find.textContaining('statusChanged • seq 1'), findsNothing);
 
-    await tester.tap(find.textContaining('panicTriggered • seq 2'));
+    final panicRow = find.textContaining('panicTriggered • seq 2');
+    await tester.ensureVisible(panicRow);
+    await tester.tap(panicRow, warnIfMissed: false);
     await tester.pumpAndSettle();
     expect(find.text('Event panicTriggered'), findsOneWidget);
     expect(
@@ -506,7 +799,9 @@ void main() {
     expect(find.textContaining('"source": "manual"'), findsOneWidget);
     expect(find.text('Copy Selected Detail'), findsOneWidget);
 
-    await tester.tap(find.text('Synced: 1').first);
+    final syncedFilterFirst = find.text('Synced: 1').first;
+    await tester.ensureVisible(syncedFilterFirst);
+    await tester.tap(syncedFilterFirst, warnIfMissed: false);
     await tester.pumpAndSettle();
     expect(find.text('Event panicTriggered'), findsNothing);
     expect(
@@ -516,7 +811,8 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.text('Failed: 1').first);
+    await tester.ensureVisible(failedFilterFirst);
+    await tester.tap(failedFilterFirst, warnIfMissed: false);
     await tester.pumpAndSettle();
 
     await tester.tap(find.textContaining('guard-incident-media • failed'));
@@ -529,7 +825,9 @@ void main() {
     expect(find.textContaining('Retry Count: 3'), findsOneWidget);
     expect(find.text('Copy Selected Detail'), findsOneWidget);
 
-    await tester.tap(find.text('Synced: 1').last);
+    final syncedFilterLast = find.text('Synced: 1').last;
+    await tester.ensureVisible(syncedFilterLast);
+    await tester.tap(syncedFilterLast, warnIfMissed: false);
     await tester.pumpAndSettle();
     expect(find.textContaining('guard-incident-media • failed'), findsNothing);
     expect(
@@ -1788,6 +2086,15 @@ void main() {
     expect(find.text('Telemetry Payload Replay Output'), findsOneWidget);
     expect(find.textContaining('"accepted": true'), findsOneWidget);
     expect(find.textContaining('"heart_rate": 81'), findsOneWidget);
+
+    final hikvisionReplayButton = find.text('Replay Payload (Hikvision)').first;
+    await tester.ensureVisible(hikvisionReplayButton);
+    await tester.tap(hikvisionReplayButton);
+    await tester.pumpAndSettle();
+
+    expect(replayCalls, 2);
+    expect(lastFixtureId, 'hikvision_guardlink_sample');
+    expect(lastAdapter, 'hikvision_guardlink');
   });
 
   testWidgets('sync screen shows role operation KPI counts for active shift', (

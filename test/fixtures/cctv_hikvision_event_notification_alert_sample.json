@@ -1,0 +1,24 @@
+{
+  "EventNotificationAlert": {
+    "ipAddress": "10.20.30.40",
+    "portNo": 80,
+    "protocol": "HTTP",
+    "channelID": 2,
+    "dateTime": "2026-03-11T10:18:23+02:00",
+    "activePostCount": "42",
+    "eventType": "linedetection",
+    "eventState": "active",
+    "eventDescription": "Line crossing alert",
+    "ANPR": {
+      "licensePlate": "CA123456",
+      "confidenceLevel": "91.7"
+    },
+    "FaceCapture": {
+      "face_id": "PERSON-77",
+      "face_score": "93.2"
+    }
+  },
+  "client_id": "CLIENT-001",
+  "region_id": "REGION-GAUTENG",
+  "site_id": "SITE-SANDTON"
+}

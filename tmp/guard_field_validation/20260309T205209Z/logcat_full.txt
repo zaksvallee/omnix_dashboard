@@ -1,0 +1,238 @@
+--------- beginning of main
+03-09 22:52:09.409  1380  1455 I ActivityManager: Broadcasting: Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }
+03-09 22:52:09.411  1380  1404 I ActivityManager: Broadcast completed: result=0
+--------- beginning of system
+03-09 22:52:09.411  1380  1455 I ActivityManager: Enqueued broadcast Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }: 0
+03-09 22:52:09.780  1576  1576 I WifiHAL : Get link layer stats
+03-09 22:52:09.780  1576  1576 I WifiHAL : GetLinkStatsCommand::create
+03-09 22:52:09.780  1576  1576 I android.hardware.wifi@1.0-service-lazy: WifiCommand::requestResponse err=-14
+03-09 22:52:09.781  1576  1576 I WifiHAL : wifi_get_link_stats: result=-1
+03-09 22:52:09.781  1380  1510 E WifiStaIfaceHidlImpl: getLinkLayerStatsV1_5 failed with status: {.code = ERROR_UNKNOWN, .description = unknown}
+03-09 22:52:10.512  1380  1455 I ActivityManager: Broadcasting: Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }
+03-09 22:52:10.513  1380  1404 I ActivityManager: Broadcast completed: result=0
+03-09 22:52:10.513  1380  1455 I ActivityManager: Enqueued broadcast Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }: 0
+03-09 22:52:11.495  1380  1455 I Telecom-Common: isInEmergencyCall: false: TSI.iIEC@A+s
+03-09 22:52:11.617  1380  1455 I ActivityManager: Broadcasting: Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }
+03-09 22:52:11.618  1380  1455 I ActivityManager: Enqueued broadcast Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }: 0
+03-09 22:52:11.618  1380  1404 I ActivityManager: Broadcast completed: result=0
+03-09 22:52:12.720  1380  1455 I ActivityManager: Broadcasting: Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }
+03-09 22:52:12.721  1380  1404 I ActivityManager: Broadcast completed: result=0
+03-09 22:52:12.721  1380  1455 I ActivityManager: Enqueued broadcast Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }: 0
+03-09 22:52:12.804  1576  1576 I WifiHAL : Get link layer stats
+03-09 22:52:12.804  1576  1576 I WifiHAL : GetLinkStatsCommand::create
+03-09 22:52:12.804  1576  1576 I android.hardware.wifi@1.0-service-lazy: WifiCommand::requestResponse err=-14
+03-09 22:52:12.804  1576  1576 I WifiHAL : wifi_get_link_stats: result=-1
+03-09 22:52:12.805  1380  1510 E WifiStaIfaceHidlImpl: getLinkLayerStatsV1_5 failed with status: {.code = ERROR_UNKNOWN, .description = unknown}
+03-09 22:52:13.014  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:52:13.015  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:52:13.015  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:52:13.827  1380  1455 I ActivityManager: Broadcasting: Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }
+03-09 22:52:13.827  1380  1455 I ActivityManager: Enqueued broadcast Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }: 0
+03-09 22:52:13.828  1380  1404 I ActivityManager: Broadcast completed: result=0
+03-09 22:52:14.523  1380  1455 I Telecom-Common: isInEmergencyCall: false: TSI.iIEC@A+w
+03-09 22:52:14.533   746   746 W mtkPowerMsgHdl: type=1400 audit(0.0:9888): avc:  denied  { write } for  name="gpufreq_opp_freq" dev="proc" ino=4026532213 scontext=u:r:mtk_hal_power:s0 tcontext=u:object_r:proc:s0 tclass=file permissive=0
+03-09 22:52:14.537   746   850 I libPowerHal: [perfLockAcq] idx:0 hdl:1458 hint:25 pid:746 duration:10000 lock_user:mtkpower@1.0-se => ret_hdl:1458
+03-09 22:52:14.538   746   850 E libPowerHal: Could not open '/proc/cpufreq/cpufreq_cci_mode'
+03-09 22:52:14.538   746   850 E libPowerHal: error : 2, No such file or directory
+03-09 22:52:14.539   746   850 E libPowerHal: Could not open '/proc/gpufreq/gpufreq_opp_freq'
+03-09 22:52:14.539   746   850 E libPowerHal: error : 13, Permission denied
+03-09 22:52:14.539   746   850 E libPowerHal: Could not open '/sys/devices/system/cpu/sched/sched_boost'
+03-09 22:52:14.539   746   850 E libPowerHal: error : 2, No such file or directory
+03-09 22:52:14.541   746   850 I libPowerHal: [PE] MTKPOWER_HINT_APP_TOUCH update cmd:3408600 param:1
+03-09 22:52:14.558   755  1438 E BufferQueueDebug: [EdgeBackGestureHandler0#1912](this:0xb4000075766bbd68,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'EdgeBackGestureHandler0#1912'
+03-09 22:52:14.558   755  1438 I BufferQueueDebug: [EdgeBackGestureHandler0#1912](this:0xb4000075766bbd68,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 22:52:14.562  1380  2677 I WindowManager: Relayout Window{8ee6d22 u0 EdgeBackGestureHandler0}: oldVis=8 newVis=0 focusMayChange = true requestedWidth = 90 requestedHeight = 400 outFrames = ClientWindowFrames{frame=[0,52][90,452] display=[0,52][720,1560] parentFrame=[0,0][0,0]} outSurfaceControl = Surface(name=EdgeBackGestureHandler0)/@0x6ded65c
+03-09 22:52:14.566 21016 21052 E OpenGLRenderer: Unable to match the desired swap behavior.
+03-09 22:52:14.574  1380  2677 W WindowManager: finishDrawingWindow: Window{8ee6d22 u0 EdgeBackGestureHandler0} mDrawState=DRAW_PENDING
+03-09 22:52:14.576  1380  1408 W WindowManager: real show surface:Surface(name=EdgeBackGestureHandler0)/@0x9597d65
+03-09 22:52:14.579   733  1085 I hwcomposer: [HWCDisplay] [Display_0 (type:1)] fps:0.092698,dur:10787.69,max:10787.69,min:10787.69  
+03-09 22:52:14.605   755   755 I BufferQueueDebug: [EdgeBackGestureHandler0#1815](this:0xb4000075768948c8,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 22:52:14.659   755   755 I BufferQueueProducer: [com.android.settings/com.android.settings.SubSettings#1838](this:0xb4000075768257d8,id:-1,api:0,p:-1,c:755) queueBuffer: fps=1.54 dur=36327.82 max=35428.03 min=15.47
+03-09 22:52:14.710   746   850 I libPowerHal: [perfLockRel] hdl:1458, idx:0
+03-09 22:52:14.713   746   850 I libPowerHal: [PD] MTKPOWER_HINT_APP_TOUCH update cmd:3408600 param:0
+03-09 22:52:14.714  1380  2677 I PowerHalWrapper: amsBoostNotify pid:19852,activity:com.android.settings.SubSettings, package:com.android.settings, mProcessCreatePackcom.android.intentresolver 
+03-09 22:52:14.714  1380  2677 I PowerHalWrapper: state: 0 
+03-09 22:52:14.714   752 18015 D APM_AudioPolicyManager: startOutput() output 13, stream 1, session 401
+03-09 22:52:14.715  1380  2677 I mtkpower_client: [Legacy][PowerHal_Wrap_notifyAppState] com.android.settings/com.android.settings.SubSettings pid=19852 state:0
+03-09 22:52:14.715   746   850 I libPowerHal: [perfNotifyAppState] pack:com.android.settings, act:com.android.settings.SubSettings, state:0, pid:19852, uid:1000, fps:60
+03-09 22:52:14.715  1380  2677 I PowerHalWrapper: amsBoostNotify AMS_BOOST_PROCESS_CREATE_BOOST:false 
+03-09 22:52:14.716  1380  1380 E MBrainLocalService: notifyAppSwitch failed
+03-09 22:52:14.720   718   724 W statsd  : StateTracker not found for state atom 27
+03-09 22:52:14.725   752 18015 I APM_AudioPolicyManager: [MTK_APM_Route]setOutputDevices mIoHandle 13 : changing device 0x2 to 0x2, delayMs = 0, force = 1
+03-09 22:52:14.728   726   882 W AudioALSAStreamManager: routingOutputDevice(), flag: 0x6, output_devices == current_output_devices(0x00000002), return
+03-09 22:52:14.729   726   882 I AudioALSAStreamOut: updateSourceMetadata(), do nothing source_metadata = 0xe7c11ab8
+03-09 22:52:14.731   718   724 W statsd  : StateTracker not found for state atom 27
+03-09 22:52:14.732  1380  2677 I PowerHalWrapper: <amsBoostResume> last:null, next:com.android.settings 
+03-09 22:52:14.735  1380  2677 W WindowManager: Changing focus from Window{986fc22 u0 com.android.settings/com.android.settings.SubSettings} to null displayId=0 Callers=com.android.server.wm.RootWindowContainer.updateFocusedWindowLocked:455 com.android.server.wm.WindowManagerService.updateFocusedWindowLocked:6224 com.android.server.wm.ActivityTaskManagerService.setLastResumedActivityUncheckLocked:4899 com.android.server.wm.ActivityTaskSupervisor.updateTopResumedActivityIfNeeded:2424 
+03-09 22:52:14.736   752 18015 W APM::AudioPolicyEngine/ProductStrategy: getVolumeGroupForStreamType: no volume group for AUDIO_STREAM_DEFAULT, using default
+03-09 22:52:14.736   752 18015 W APM::AudioPolicyEngine/ProductStrategy: getVolumeGroupForStreamType: no volume group for AUDIO_STREAM_DEFAULT, using default
+03-09 22:52:14.736  1380  2677 I BvATMServiceExt: startAppLockActivity packageName=com.android.settings isAppLockedPackage=false isAppLockedVerifying=false
+03-09 22:52:14.736   752 18015 W APM::AudioPolicyEngine/ProductStrategy: getVolumeGroupForStreamType: no volume group for AUDIO_STREAM_DEFAULT, using default
+03-09 22:52:14.737  1380  2677 I PowerHalWrapper: amsBoostNotify pid:19852,activity:com.android.settings.SubSettings, package:com.android.settings, mProcessCreatePackcom.android.intentresolver 
+03-09 22:52:14.737  1380  2677 I PowerHalWrapper: state: 1 
+03-09 22:52:14.737   746   850 I libPowerHal: [perfLockRel] hdl:1454, idx:-1
+03-09 22:52:14.737  1380  2677 I mtkpower_client: [Legacy][PowerHal_Wrap_notifyAppState] com.android.settings/com.android.settings.SubSettings pid=19852 state:1
+03-09 22:52:14.738  1380  2677 I PowerHalWrapper: amsBoostNotify AMS_BOOST_PROCESS_CREATE_BOOST:false 
+03-09 22:52:14.739   746   850 I libPowerHal: [perfNotifyAppState] pack:com.android.settings, act:com.android.settings.SubSettings, state:1, pid:19852, uid:1000, fps:60
+03-09 22:52:14.739   752 18015 W APM::AudioPolicyEngine/ProductStrategy: getVolumeGroupForStreamType: no volume group for AUDIO_STREAM_DEFAULT, using default
+03-09 22:52:14.739   752 18015 W APM::AudioPolicyEngine/ProductStrategy: getVolumeGroupForStreamType: no volume group for AUDIO_STREAM_DEFAULT, using default
+03-09 22:52:14.739   752 18015 W APM::AudioPolicyEngine/ProductStrategy: getVolumeGroupForStreamType: no volume group for AUDIO_STREAM_DEFAULT, using default
+03-09 22:52:14.740   746   850 I libPowerHal: [perfLockAcq] idx:0 hdl:1459 hint:22 pid:746 duration:10000 lock_user:mtkpower@1.0-se => ret_hdl:1459
+03-09 22:52:14.740   746   850 I libPowerHal: MTKPOWER_HINT_PACK_SWITCH: cpu_ctrl set cpu freq: 2200000 -1 1600000 -1
+03-09 22:52:14.740   755   755 I BpBinder: onLastStrongRef automatically unlinking death recipients: 
+03-09 22:52:14.742   726   882 W AudioALSAStreamOut: setParameters(), still have param.size() = 1, remain param = "MixerThreadSleep="
+03-09 22:52:14.742   752 18486 D APM_AudioPolicyManager: listAudioPorts mAvailableInputDevices 0x80000004, 0x80000040, 0x80000080, 0x80000100, 0x80002000, 0x90000000
+03-09 22:52:14.743   726   882 W AudioALSAStreamOut: setParameters(), still have param.size() = 1, remain param = "NoAudioTrack=0"
+03-09 22:52:14.743   746   850 E libPowerHal: Could not open '/proc/cpufreq/cpufreq_cci_mode'
+03-09 22:52:14.744   726   882 I AudioALSAStreamOut: updateSourceMetadata(), do nothing source_metadata = 0xe7c11ab8
+03-09 22:52:14.745   752 13099 D APM_AudioPolicyManager: listAudioPorts mAvailableInputDevices 0x80000004, 0x80000040, 0x80000080, 0x80000100, 0x80002000, 0x90000000
+03-09 22:52:14.745   726  3152 I [Awinic]: SKTune_v5.3.0
+03-09 22:52:14.745   726  3152 I [Awinic]: local_cfg->fade_out_deg_num = 10
+03-09 22:52:14.745   726  3152 I [Awinic]: local_cfg->mute_in_num = 2400
+03-09 22:52:14.745   726  3152 I [Awinic]: local_cfg->fade_in_deg_num = 20
+03-09 22:52:14.745   752  6047 D APM_AudioPolicyManager: listAudioPorts mAvailableInputDevices 0x80000004, 0x80000040, 0x80000080, 0x80000100, 0x80002000, 0x90000000
+03-09 22:52:14.746   746   850 E libPowerHal: error : 2, No such file or directory
+03-09 22:52:14.746   718   724 W statsd  : StateTracker not found for state atom 27
+03-09 22:52:14.746   746   850 E libPowerHal: Could not open '/proc/gpufreq/gpufreq_opp_freq'
+03-09 22:52:14.746   746   850 E libPowerHal: error : 13, Permission denied
+03-09 22:52:14.746   746   850 E libPowerHal: Could not open '/sys/devices/system/cpu/sched/sched_boost'
+03-09 22:52:14.741   746   746 W mtkPowerMsgHdl: type=1400 audit(0.0:9889): avc:  denied  { write } for  name="gpufreq_opp_freq" dev="proc" ino=4026532213 scontext=u:r:mtk_hal_power:s0 tcontext=u:object_r:proc:s0 tclass=file permissive=0
+03-09 22:52:14.746   746   850 E libPowerHal: error : 2, No such file or directory
+03-09 22:52:14.747   718   724 W statsd  : StateTracker not found for state atom 27
+03-09 22:52:14.747   746   850 I libPowerHal: [PE] MTKPOWER_HINT_PACK_SWITCH update cmd:1000000, param:0
+03-09 22:52:14.747   746   850 I libPowerHal: [PE] MTKPOWER_HINT_PACK_SWITCH update cmd:1408300, param:100
+03-09 22:52:14.747   746   850 I libPowerHal: [PE] MTKPOWER_HINT_PACK_SWITCH update cmd:1000000 param:0
+03-09 22:52:14.749   752 13099 D APM_AudioPolicyManager: listAudioPorts mAvailableInputDevices 0x80000004, 0x80000040, 0x80000080, 0x80000100, 0x80002000, 0x90000000
+03-09 22:52:14.750   752 18015 D APM_AudioPolicyManager: listAudioPorts mAvailableInputDevices 0x80000004, 0x80000040, 0x80000080, 0x80000100, 0x80002000, 0x90000000
+03-09 22:52:14.755 19852 19852 I Activity: performStart: getPackageName()=com.android.settings
+03-09 22:52:14.755   752 18486 D APM_AudioPolicyManager: listAudioPorts mAvailableInputDevices 0x80000004, 0x80000040, 0x80000080, 0x80000100, 0x80002000, 0x90000000
+03-09 22:52:14.763  1380  2677 I SystemUpdateManagerService: No existing info file /data/system/system-update-info.xml
+03-09 22:52:14.787   755  1438 E BufferQueueDebug: [com.android.settings/com.android.settings.SubSettings#1913](this:0xb4000075768062a8,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'com.android.settings/com.android.settings.SubSettings#1913'
+03-09 22:52:14.787   755  1438 I BufferQueueDebug: [com.android.settings/com.android.settings.SubSettings#1913](this:0xb4000075768062a8,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 22:52:14.790  1380  2006 W WindowManager: Changing focus from null to Window{70162ee u0 com.android.settings/com.android.settings.SubSettings} displayId=0 Callers=com.android.server.wm.RootWindowContainer.updateFocusedWindowLocked:455 com.android.server.wm.WindowManagerService.updateFocusedWindowLocked:6224 com.android.server.wm.WindowManagerService.relayoutWindow:2525 com.android.server.wm.Session.relayout:259 
+03-09 22:52:14.791   755   878 E BufferQueueDebug: [Surface(name=644a4 NavigationBar0)/@0x28bd233 - animation-leash of insets_animation#1914](this:0xb4000075766b34b8,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'Surface(name=644a4 NavigationBar0)/@0x28bd233 - animation-leash of insets_animation#1914'
+03-09 22:52:14.791   755   878 I BufferQueueDebug: [Surface(name=644a4 NavigationBar0)/@0x28bd233 - animation-leash of insets_animation#1914](this:0xb4000075766b34b8,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 22:52:14.793   755  2312 E BufferQueueDebug: [Surface(name=cf97a2a StatusBar)/@0x60639f0 - animation-leash of insets_animation#1915](this:0xb400007576889288,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'Surface(name=cf97a2a StatusBar)/@0x60639f0 - animation-leash of insets_animation#1915'
+03-09 22:52:14.793   755  2312 I BufferQueueDebug: [Surface(name=cf97a2a StatusBar)/@0x60639f0 - animation-leash of insets_animation#1915](this:0xb400007576889288,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 22:52:14.795  1380  2006 I WindowManager: Relayout Window{70162ee u0 com.android.settings/com.android.settings.SubSettings}: oldVis=8 newVis=0 focusMayChange = true requestedWidth = 720 requestedHeight = 1560 outFrames = ClientWindowFrames{frame=[0,0][720,1560] display=[0,0][720,1560] parentFrame=[0,0][0,0]} outSurfaceControl = Surface(name=com.android.settings/com.android.settings.SubSettings)/@0x80d56b6
+03-09 22:52:14.799 19852 24507 W TileUtils: Found com.google.android.gms.auth.proximity.multidevice.SettingsMaterialNextActivity for intent Intent { act=com.android.settings.action.IA_SETTINGS } missing metadata 
+03-09 22:52:14.801 19852 23849 E OpenGLRenderer: Unable to match the desired swap behavior.
+03-09 22:52:14.819 19852 24507 W System.err: android.content.pm.PackageManager$NameNotFoundException: com.google.android.gts.verifier
+03-09 22:52:14.819 19852 24507 W System.err: 	at android.app.ApplicationPackageManager.getPackageInfoAsUser(ApplicationPackageManager.java:256)
+03-09 22:52:14.819 19852 24507 W System.err: 	at android.app.ApplicationPackageManager.getPackageInfo(ApplicationPackageManager.java:216)
+03-09 22:52:14.819 19852 24507 W System.err: 	at android.app.ApplicationPackageManager.getPackageInfo(ApplicationPackageManager.java:210)
+03-09 22:52:14.819 19852 24507 W System.err: 	at com.blackview.settings.BVUtils.checkAppInstalled(BVUtils.java:122)
+03-09 22:52:14.819 19852 24507 W System.err: 	at com.android.settings.dashboard.CategoryManager.mergeSecurityPrivacyKeys(CategoryManager.java:293)
+03-09 22:52:14.819 19852 24507 W System.err: 	at com.android.settings.dashboard.CategoryManager.tryInitCategories(CategoryManager.java:173)
+03-09 22:52:14.819 19852 24507 W System.err: 	at com.android.settings.dashboard.CategoryManager.reloadAllCategories(CategoryManager.java:101)
+03-09 22:52:14.819 19852 24507 W System.err: 	at com.android.settings.core.CategoryMixin$CategoriesUpdateTask.doInBackground(CategoryMixin.java:172)
+03-09 22:52:14.819 19852 24507 W System.err: 	at com.android.settings.core.CategoryMixin$CategoriesUpdateTask.doInBackground(CategoryMixin.java:159)
+03-09 22:52:14.819 19852 24507 W System.err: 	at android.os.AsyncTask$3.call(AsyncTask.java:394)
+03-09 22:52:14.819 19852 24507 W System.err: 	at java.util.concurrent.FutureTask.run(FutureTask.java:264)
+03-09 22:52:14.819 19852 24507 W System.err: 	at android.os.AsyncTask$SerialExecutor$1.run(AsyncTask.java:305)
+03-09 22:52:14.819 19852 24507 W System.err: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)
+03-09 22:52:14.819 19852 24507 W System.err: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:644)
+03-09 22:52:14.819 19852 24507 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+03-09 22:52:14.820 19852 24507 W System.err: android.content.pm.PackageManager$NameNotFoundException: com.google.android.settings.gts
+03-09 22:52:14.820 19852 24507 W System.err: 	at android.app.ApplicationPackageManager.getPackageInfoAsUser(ApplicationPackageManager.java:256)
+03-09 22:52:14.820 19852 24507 W System.err: 	at android.app.ApplicationPackageManager.getPackageInfo(ApplicationPackageManager.java:216)
+03-09 22:52:14.820 19852 24507 W System.err: 	at android.app.ApplicationPackageManager.getPackageInfo(ApplicationPackageManager.java:210)
+03-09 22:52:14.820 19852 24507 W System.err: 	at com.blackview.settings.BVUtils.checkAppInstalled(BVUtils.java:122)
+03-09 22:52:14.820 19852 24507 W System.err: 	at com.android.settings.dashboard.CategoryManager.mergeSecurityPrivacyKeys(CategoryManager.java:294)
+03-09 22:52:14.820 19852 24507 W System.err: 	at com.android.settings.dashboard.CategoryManager.tryInitCategories(CategoryManager.java:173)
+03-09 22:52:14.820 19852 24507 W System.err: 	at com.android.settings.dashboard.CategoryManager.reloadAllCategories(CategoryManager.java:101)
+03-09 22:52:14.820 19852 24507 W System.err: 	at com.android.settings.core.CategoryMixin$CategoriesUpdateTask.doInBackground(CategoryMixin.java:172)
+03-09 22:52:14.820 19852 24507 W System.err: 	at com.android.settings.core.CategoryMixin$CategoriesUpdateTask.doInBackground(CategoryMixin.java:159)
+03-09 22:52:14.820 19852 24507 W System.err: 	at android.os.AsyncTask$3.call(AsyncTask.java:394)
+03-09 22:52:14.820 19852 24507 W System.err: 	at java.util.concurrent.FutureTask.run(FutureTask.java:264)
+03-09 22:52:14.820 19852 24507 W System.err: 	at android.os.AsyncTask$SerialExecutor$1.run(AsyncTask.java:305)
+03-09 22:52:14.820 19852 24507 W System.err: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)
+03-09 22:52:14.820 19852 24507 W System.err: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:644)
+03-09 22:52:14.820 19852 24507 W System.err: 	at java.lang.Thread.run(Thread.java:1012)
+03-09 22:52:14.831  1380  2677 W WindowManager: finishDrawingWindow: Window{70162ee u0 com.android.settings/com.android.settings.SubSettings} mDrawState=DRAW_PENDING
+03-09 22:52:14.834  1380  1408 W WindowManager: real show surface:Surface(name=com.android.settings/com.android.settings.SubSettings)/@0x4dd8fb7
+03-09 22:52:14.835   755   878 E BufferQueueDebug: [Transition Root: ActivityRecord{c94b338 u0 com.android.settings/.SubSettings t26 f}}#1916](this:0xb400007576830e18,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'Transition Root: ActivityRecord{c94b338 u0 com.android.settings/.SubSettings t26 f}}#1916'
+03-09 22:52:14.835   755   878 I BufferQueueDebug: [Transition Root: ActivityRecord{c94b338 u0 com.android.settings/.SubSettings t26 f}}#1916](this:0xb400007576830e18,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 22:52:14.841   755  2312 E BufferQueueDebug: [4f9454 ActivityRecordInputSink com.android.settings/.SubSettings#1917](this:0xb4000075768948c8,id:-1,api:0,p:-1,c:-1) id info cannot be read from '4f9454 ActivityRecordInputSink com.android.settings/.SubSettings#1917'
+03-09 22:52:14.841   755  2312 I BufferQueueDebug: [4f9454 ActivityRecordInputSink com.android.settings/.SubSettings#1917](this:0xb4000075768948c8,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 22:52:14.854  1380  2006 I PackageManager: pkgName null , isCallerSameApp : false
+03-09 22:52:14.858   755   755 I BufferQueueDebug: [Surface(name=644a4 NavigationBar0)/@0x28bd233 - animation-leash of insets_animation#1906](this:0xb4000075768118e8,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 22:52:14.858   755   755 I BufferQueueDebug: [Surface(name=cf97a2a StatusBar)/@0x60639f0 - animation-leash of insets_animation#1907](this:0xb4000075768a2c98,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 22:52:14.859  1380  2677 I PackageManager: pkgName null , isCallerSameApp : false
+03-09 22:52:14.863  1380  2677 I PackageManager: pkgName null , isCallerSameApp : false
+03-09 22:52:14.897  1380  2677 I ImeTracker: com.android.settings:4dcf3cfa: onRequestHide at ORIGIN_SERVER_HIDE_INPUT reason HIDE_UNSPECIFIED_WINDOW
+03-09 22:52:14.897  1380  2677 I ImeTracker: com.android.settings:4dcf3cfa: onCancelled at PHASE_SERVER_SHOULD_HIDE
+03-09 22:52:14.900 22409 22409 I GoogleInputMethodService: GoogleInputMethodService.onFinishInput():3096 
+03-09 22:52:14.901   755   878 E BufferQueueDebug: [Surface(name=ff30f74 InputMethod)/@0x5413512 - animation-leash of insets_animation#1918](this:0xb40000757681a198,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'Surface(name=ff30f74 InputMethod)/@0x5413512 - animation-leash of insets_animation#1918'
+03-09 22:52:14.901   755   878 I BufferQueueDebug: [Surface(name=ff30f74 InputMethod)/@0x5413512 - animation-leash of insets_animation#1918](this:0xb40000757681a198,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 22:52:14.902 22409 22409 I GoogleInputMethodService: GoogleInputMethodService.updateDeviceLockedStatus():2210 repeatCheckTimes = 0, locked = false
+03-09 22:52:14.903 22409 22409 I GoogleInputMethodService: GoogleInputMethodService.onStartInput():1950 onStartInput(EditorInfo{EditorInfo{packageName=com.android.settings, inputType=0, inputTypeString=NULL, enableLearning=false, autoCorrection=false, autoComplete=false, imeOptions=0, privateImeOptions=null, actionName=UNSPECIFIED, actionLabel=null, initialSelStart=-1, initialSelEnd=-1, initialCapsMode=0, label=null, fieldId=0, fieldName=null, extras=null, hintText=null, hintLocales=[]}}, false)
+03-09 22:52:14.904 22409 22409 I GoogleInputMethodService: GoogleInputMethodService.updateDeviceLockedStatus():2210 repeatCheckTimes = 1, locked = false
+03-09 22:52:14.906 22409 22409 I AndroidIME: InputBundleManager.loadActiveInputBundleId():450 loadActiveInputBundleId: und-Latn-x-password, password
+03-09 22:52:14.907  1380  2678 W PackageConfigPersister: App-specific configuration not found for packageName: com.android.settings and userId: 0
+03-09 22:52:14.929   718   724 W statsd  : StateTracker not found for state atom 27
+03-09 22:52:14.929  1380  2677 I PowerHalWrapper: amsBoostStop AMS_BOOST_PACK_SWITCH:true, AMS_BOOST_ACT_SWITCH:false, AMS_BOOST_PROCESS_CREATE:false 
+03-09 22:52:14.929   746   791 I mtkpower@impl: [mtkPowerHint] hint:22, hold:0, ext:30, ext_hold:2000
+03-09 22:52:14.930   746   850 I libPowerHal: [perfLockRel] hdl:1459, idx:0
+03-09 22:52:14.930   746   850 I libPowerHal: MTKPOWER_HINT_PACK_SWITCH: cpu_ctrl set cpu freq: -1 -1 -1 -1
+03-09 22:52:14.930   746   850 I libPowerHal: [PD] MTKPOWER_HINT_PACK_SWITCH update cmd:1000000, param:-1
+03-09 22:52:14.930   746   850 I libPowerHal: [PD] MTKPOWER_HINT_PACK_SWITCH update cmd:1408300 param:0
+03-09 22:52:14.931   746   850 I libPowerHal: [PD] MTKPOWER_HINT_PACK_SWITCH update cmd:1000000 param:-1
+03-09 22:52:14.931  1380  1407 I ActivityManager: Killing 23981:com.google.android.apps.safetyhub/u0a131 (adj 985): empty #17
+03-09 22:52:14.933  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:52:14.933  1380  1407 W ProcessStats: Tracking association SourceState{1d12f2 system/1000 Persist #32870} whose proc state 0 is better than process ProcessState{9e0b38a com.android.bluetooth/1002 pkg=com.android.bluetooth} proc state 1 (1 skipped)
+03-09 22:52:14.934  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:52:14.934  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:52:14.934  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:52:14.934  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:52:14.934  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:52:14.934  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:52:14.934  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:52:14.934  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:52:14.934  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:52:14.934  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:52:14.934  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:52:14.934  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 22:52:14.935   718   724 W statsd  : StateTracker not found for state atom 29
+03-09 22:52:14.935   746   850 I libPowerHal: [perfLockAcq] idx:1 hdl:1460 hint:30 pid:746 duration:2000 lock_user:mtkpower@1.0-se => ret_hdl:1460
+03-09 22:52:14.935   746   850 E libPowerHal: Could not open '/proc/cpufreq/cpufreq_cci_mode'
+03-09 22:52:14.935   718   724 W statsd  : StateTracker not found for state atom 29
+03-09 22:52:14.935   746   850 E libPowerHal: error : 2, No such file or directory
+03-09 22:52:14.935   746   850 E libPowerHal: Could not open '/proc/gpufreq/gpufreq_opp_freq'
+03-09 22:52:14.929   746   746 W mtkPowerMsgHdl: type=1400 audit(0.0:9890): avc:  denied  { write } for  name="gpufreq_opp_freq" dev="proc" ino=4026532213 scontext=u:r:mtk_hal_power:s0 tcontext=u:object_r:proc:s0 tclass=file permissive=0
+03-09 22:52:14.935   746   850 E libPowerHal: error : 13, Permission denied
+03-09 22:52:14.935   755   755 I BufferQueueDebug: [Surface(name=ff30f74 InputMethod)/@0x5413512 - animation-leash of insets_animation#1843](this:0xb40000757682b2f8,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 22:52:14.936   746   850 E libPowerHal: Could not open '/sys/devices/system/cpu/sched/sched_boost'
+03-09 22:52:14.936   746   850 E libPowerHal: error : 2, No such file or directory
+03-09 22:52:14.936   746   850 I libPowerHal: [PE] MTKPOWER_HINT_EXT_LAUNCH update cmd:1000000, param:1
+03-09 22:52:14.936   746   850 I libPowerHal: [PE] MTKPOWER_HINT_EXT_LAUNCH update cmd:2020000, param:15
+03-09 22:52:14.936   746   850 I libPowerHal: [PE] MTKPOWER_HINT_EXT_LAUNCH update cmd:1408300, param:40
+03-09 22:52:14.936   746   850 I libPowerHal: [PE] MTKPOWER_HINT_EXT_LAUNCH update cmd:1000000 param:1
+03-09 22:52:14.938  1380  1418 I libprocessgroup: Successfully killed process cgroup uid 10131 pid 23981 in 5ms
+03-09 22:52:14.947   726   882 I AudioALSAStreamOut: updateSourceMetadata(), do nothing source_metadata = 0xe7c11ab8
+03-09 22:52:14.947   752   988 W AudioPolicyManagerCustomImpl: [MTK_APM_Route]setOutputDevices() mIoHandle 13 mId 1 device (0x2)(0x1, 0x2, 0x4, 0x8, 0x10, 0x20, 0x40, 0x400, 0x800, 0x1000, 0x4000, 0x100000, 0x4000000) delayMs 104 force 0 size 3
+03-09 22:52:14.949   726   882 W AudioALSAStreamOut: setParameters(), still have param.size() = 1, remain param = "NoAudioTrack=1"
+03-09 22:52:14.950   718   724 W statsd  : StateTracker not found for state atom 27
+03-09 22:52:14.951   718   724 W statsd  : StateTracker not found for state atom 27
+03-09 22:52:14.976   720   720 I Zygote  : Process 23981 exited due to signal 9 (Killed)
+03-09 22:52:14.977  1380  2677 I mtkpower_client: [Legacy][PowerHal_Wrap_notifyAppState] com.google.android.apps.safetyhub/com.google.android.apps.safetyhub pid=23981 state:3
+03-09 22:52:14.977   746   850 I libPowerHal: [perfNotifyAppState] pack:com.google.android.apps.safetyhub, act:com.google.android.apps.safetyhub, state:3, pid:23981, uid:10131, fps:60
+03-09 22:52:14.977   746   850 I libPowerHal: [perfNotifyAppState] pack:com.google.android.apps.safetyhub, pid:23981, STATE_DEAD
+03-09 22:52:14.981   718   724 W statsd  : StateTracker not found for state atom 29
+03-09 22:52:15.175  1380  1407 I PowerHalWrapper: amsBoostNotify pid:19852,activity:com.android.settings.SubSettings, package:com.android.settings, mProcessCreatePackcom.android.intentresolver 
+03-09 22:52:15.175  1380  1407 I PowerHalWrapper: state: 0 
+03-09 22:52:15.176  1380  1407 I mtkpower_client: [Legacy][PowerHal_Wrap_notifyAppState] com.android.settings/com.android.settings.SubSettings pid=19852 state:0
+03-09 22:52:15.176   746   850 I libPowerHal: [perfNotifyAppState] pack:com.android.settings, act:com.android.settings.SubSettings, state:0, pid:19852, uid:1000, fps:60
+03-09 22:52:15.177  1380  1407 I PowerHalWrapper: amsBoostNotify AMS_BOOST_PROCESS_CREATE_BOOST:false 
+03-09 22:52:15.199   755   755 I BufferQueueDebug: [Transition Root: ActivityRecord{c94b338 u0 com.android.settings/.SubSettings t26 f}}#1916](this:0xb400007576830e18,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 22:52:15.206 19852 19852 W WindowOnBackDispatcher: sendCancelIfRunning: isInProgress=falsecallback=android.app.Activity$$ExternalSyntheticLambda0@34c2bb7
+03-09 22:52:15.214   755   755 I BufferQueueDebug: [71ec39b ActivityRecordInputSink com.android.settings/.SubSettings#1842](this:0xb400007576858bf8,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 22:52:15.235  1380  5975 W InputManager-JNI: Input channel object '986fc22 com.android.settings/com.android.settings.SubSettings (client)' was disposed without first being removed with the input manager!
+03-09 22:52:15.266   755   755 I BufferQueueDebug: [986fc22 com.android.settings/com.android.settings.SubSettings#1837](this:0xb400007576809038,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 22:52:15.266   755   755 I BufferQueueDebug: [com.android.settings/com.android.settings.SubSettings#1838](this:0xb4000075768257d8,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 22:52:15.574   746   835 I libPerfCtl: xgfGetFPS pid:19852 fps:59
+03-09 22:52:15.828  1576  1576 I WifiHAL : Get link layer stats
+03-09 22:52:15.828  1576  1576 I WifiHAL : GetLinkStatsCommand::create
+03-09 22:52:15.829  1576  1576 I android.hardware.wifi@1.0-service-lazy: WifiCommand::requestResponse err=-14
+03-09 22:52:15.829  1576  1576 I WifiHAL : wifi_get_link_stats: result=-1
+03-09 22:52:15.829  1380  1510 E WifiStaIfaceHidlImpl: getLinkLayerStatsV1_5 failed with status: {.code = ERROR_UNKNOWN, .description = unknown}

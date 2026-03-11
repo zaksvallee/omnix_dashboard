@@ -76,6 +76,19 @@ Last updated: 2026-03-06 (Africa/Johannesburg)
   idempotent remote upsert contract, retry handling, and media decoupling.
 - [x] Native telemetry diagnostics improved:
   provider registry introspection + alias-tolerant FSK heartbeat payload parsing.
+- [x] Provider-specific native payload adapter profile added:
+  `hikvision_guardlink` now supported in Android callback validation and replay fixtures.
+- [x] Native telemetry provider registry now includes a dedicated Hikvision path:
+  `hikvision_sdk` + `hikvision_sdk_stub` with live/stub runtime toggles and callback/debug endpoints.
+- [x] Built-in reflective vendor connectors are available for both native provider
+  families (`FskReflectiveVendorSdkConnector`, `HikvisionReflectiveVendorSdkConnector`)
+  with safe broadcast fallback when vendor SDK classes are absent.
+- [x] Flutter native telemetry adapter now routes replay/debug method calls by
+  provider family (`validateHikvisionPayloadMapping` / `emitDebugHikvisionSdkHeartbeatBroadcast`
+  for Hikvision, FSK variants for FSK), while preserving legacy FSK helper APIs.
+- [x] Android validation gate scripts now support provider-aware routing end-to-end
+  (`--provider fsk_sdk|hikvision_sdk`) with provider-specific action/adapter defaults:
+  `guard_android_live_validation.sh`, `guard_android_pilot_gate.sh`, `guard_gate_auto.sh`.
 - [x] Sync/export artifacts now include telemetry payload health summaries
   (verdict/reason + callback error counters/timestamps).
 - [x] Sync panel now includes telemetry payload health trend (`last 5` sync

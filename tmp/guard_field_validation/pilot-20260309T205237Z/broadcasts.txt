@@ -1,0 +1,5 @@
+sent sample=1 captured_at_utc=2026-03-09T20:52:40Z
+sent sample=2 captured_at_utc=2026-03-09T20:52:41Z
+sent sample=3 captured_at_utc=2026-03-09T20:52:43Z
+sent sample=4 captured_at_utc=2026-03-09T20:52:44Z
+sent sample=5 captured_at_utc=2026-03-09T20:52:45Z

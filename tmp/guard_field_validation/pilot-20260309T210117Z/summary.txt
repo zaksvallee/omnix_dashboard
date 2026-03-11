@@ -1,0 +1,15 @@
+Device serial: BV5300ProNEU032438
+Provider: fsk_sdk
+Broadcast action: com.onyx.fsk.SDK_HEARTBEAT
+Adapter mode: standard
+Expected provider: fsk_sdk
+Samples: 5
+Interval (s): 1
+App package/activity: com.example.omnix_dashboard/.MainActivity
+Auto-start app: 1
+Ready timeout (s): 20
+Run started (UTC): 2026-03-09T21:01:21Z
+WARN: Did not observe fsk_live_facade_started within 20s.
+WARN: If ONYX_TELEMETRY lines remain 0, rebuild/install with live provider flags for fsk_sdk.
+ONYX_TELEMETRY lines: 0
+Run completed (UTC): 2026-03-09T21:01:50Z

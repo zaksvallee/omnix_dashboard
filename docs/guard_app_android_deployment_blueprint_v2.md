@@ -108,6 +108,8 @@ Fields:
 - `upload_status` (`queued`, `uploaded`, `failed`)
 - `retry_count`
 - `failure_reason`
+- `visual_norm_mode` (`day`, `night`, `ir`)
+- `visual_norm_metadata` (baseline/profile/threshold contract)
 
 Storage buckets:
 - `guard-shift-verification`
@@ -138,6 +140,8 @@ Storage buckets:
 - [x] Canonical event/media migration files created.
 - [x] Operational Memory Engine architecture doc added.
 - [x] Media quality gate path added for shift/patrol captures (blur/low-light/glare checks).
+- [x] Day/night/IR visual norm metadata now persists with guard media records, including metadata constraints (`min_match_score` range + IR requirement contract).
+- [x] Morning Sovereign Report flow added with 06:00 auto-generation (22:00-06:00 replay window), plus JSON/CSV export and share/email delivery actions.
 - [x] Outcome labeling path added in guard flow (`true_threat`, `false_alarm`, `suspicious_activity`).
 - [x] Outcome labeling metadata now captured: confidence + confirmation source.
 - [x] Governance enforcement active: `true_threat` requires supervisor confirmation.
@@ -191,7 +195,17 @@ Storage buckets:
 - [x] Live FSK callback ingestion now accepts vendor alias payload keys (snake/camel/vendor variants) to reduce integration friction across SDK broadcast formats.
 - [x] Live FSK facade now supports pluggable payload adapters (`standard`, `legacy_ptt`) selected via Gradle/manifest, with active adapter surfaced in provider diagnostics.
 - [x] Live FSK ingest now supports per-heartbeat adapter override keys (`payload_adapter`/`adapter_id`) for mixed vendor callback formats.
+- [x] Provider-specific payload adapter profile added (`hikvision_guardlink`) with replay fixture + validation script support.
+- [x] Native telemetry provider registry now includes `hikvision_sdk`/`hikvision_sdk_stub` with dedicated runtime config keys and callback/debug method paths (`ingestHikvisionSdkHeartbeat`, `emitDebugHikvisionSdkHeartbeatBroadcast`).
+- [x] Built-in reflective connector adapters added for both provider families (`FskReflectiveVendorSdkConnector`, `HikvisionReflectiveVendorSdkConnector`) with runtime broadcast fallback.
 - [x] Native telemetry channel now exposes payload replay validation (`validateFskPayloadMapping`) with fixture-driven adapter checks before deployment.
+- [x] Flutter native telemetry adapter replay/debug flows now auto-select provider-family methods (`validateHikvisionPayloadMapping` / `emitDebugHikvisionSdkHeartbeatBroadcast` for Hikvision; FSK equivalents for FSK providers).
+- [x] Android validation/pilot scripts now support provider-aware execution (`--provider fsk_sdk|hikvision_sdk`) with provider-specific heartbeat action and adapter defaults.
+- [x] Android `onyx/guard_telemetry` MethodChannel handler is now wired in `MainActivity` with provider registry routing (`android_native_sdk_stub`, `fsk_sdk`, `fsk_sdk_stub`), bridge ingest methods, provider catalog introspection, and debug callback broadcast emission.
+- [x] Android native telemetry runtime config now reads Gradle/manifest overrides for live toggle, callback action, and payload adapter (`ONYX_USE_LIVE_FSK_SDK`, `ONYX_FSK_SDK_HEARTBEAT_ACTION`, `ONYX_FSK_SDK_PAYLOAD_ADAPTER`).
+- [x] Android live telemetry now supports vendor-specific connector injection (`ONYX_FSK_SDK_CONNECTOR_CLASS` / `onyx.fsk_sdk_connector_class`) via `FskVendorSdkConnector`, with broadcast fallback and connector diagnostics surfaced in provider status.
+- [x] Vendor connector loader now supports `(Context)` ctor, `()` ctor, or static `create(Context)` factory for SDK adapter bootstraps.
+- [x] Native provider status now reports connector fallback activation (`fsk_vendor_connector_fallback_active`) and downgrades readiness when fallback is active.
 
 ### In Progress (Now)
 - [x] Canonical event log migration (`guard_ops_events`, `guard_ops_media`) applied to linked Supabase project.

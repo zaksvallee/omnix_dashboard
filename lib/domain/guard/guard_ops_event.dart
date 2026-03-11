@@ -23,6 +23,76 @@ enum GuardOpsEventType {
 
 enum GuardMediaUploadStatus { queued, uploaded, failed }
 
+enum GuardVisualNormMode { day, night, ir }
+
+class GuardVisualNormMetadata {
+  final GuardVisualNormMode mode;
+  final String baselineId;
+  final String captureProfile;
+  final int minMatchScore;
+  final bool irRequired;
+  final bool combatWindow;
+
+  const GuardVisualNormMetadata({
+    required this.mode,
+    required this.baselineId,
+    required this.captureProfile,
+    required this.minMatchScore,
+    required this.irRequired,
+    required this.combatWindow,
+  }) : assert(baselineId != ''),
+       assert(captureProfile != ''),
+       assert(minMatchScore >= 0 && minMatchScore <= 100),
+       assert(mode != GuardVisualNormMode.ir || irRequired);
+
+  static const defaultDay = GuardVisualNormMetadata(
+    mode: GuardVisualNormMode.day,
+    baselineId: 'NORM-DAY-V1',
+    captureProfile: 'standard',
+    minMatchScore: 90,
+    irRequired: false,
+    combatWindow: false,
+  );
+
+  Map<String, Object?> toJson() {
+    return {
+      'mode': mode.name,
+      'baseline_id': baselineId,
+      'capture_profile': captureProfile,
+      'min_match_score': minMatchScore,
+      'ir_required': irRequired,
+      'combat_window': combatWindow,
+    };
+  }
+
+  factory GuardVisualNormMetadata.fromJson(Map<String, Object?> json) {
+    final modeName = (json['mode'] as String? ?? '').trim();
+    final mode = GuardVisualNormMode.values.firstWhere(
+      (value) => value.name == modeName,
+      orElse: () => GuardVisualNormMode.day,
+    );
+    final minMatchScore = (json['min_match_score'] as num?)?.toInt() ?? 90;
+    final irRequired = mode == GuardVisualNormMode.ir
+        ? true
+        : json['ir_required'] == true;
+    final combatWindow = json['combat_window'] == true;
+    final baselineId = (json['baseline_id'] as String? ?? 'NORM-DAY-V1').trim();
+    final captureProfile = (json['capture_profile'] as String? ?? 'standard')
+        .trim();
+    final normalizedMatchScore = minMatchScore < 0
+        ? 0
+        : (minMatchScore > 100 ? 100 : minMatchScore);
+    return GuardVisualNormMetadata(
+      mode: mode,
+      baselineId: baselineId.isEmpty ? 'NORM-DAY-V1' : baselineId,
+      captureProfile: captureProfile.isEmpty ? 'standard' : captureProfile,
+      minMatchScore: normalizedMatchScore,
+      irRequired: irRequired,
+      combatWindow: combatWindow,
+    );
+  }
+}
+
 class GuardOpsEvent {
   final String eventId;
   final String guardId;
@@ -142,6 +212,7 @@ class GuardOpsMediaUpload {
   final GuardMediaUploadStatus status;
   final int retryCount;
   final String? failureReason;
+  final GuardVisualNormMetadata visualNorm;
 
   const GuardOpsMediaUpload({
     required this.mediaId,
@@ -158,6 +229,7 @@ class GuardOpsMediaUpload {
     this.status = GuardMediaUploadStatus.queued,
     this.retryCount = 0,
     this.failureReason,
+    this.visualNorm = GuardVisualNormMetadata.defaultDay,
   });
 
   bool get isPending => status == GuardMediaUploadStatus.queued;
@@ -167,6 +239,7 @@ class GuardOpsMediaUpload {
     GuardMediaUploadStatus? status,
     int? retryCount,
     String? failureReason,
+    GuardVisualNormMetadata? visualNorm,
   }) {
     return GuardOpsMediaUpload(
       mediaId: mediaId,
@@ -183,6 +256,7 @@ class GuardOpsMediaUpload {
       status: status ?? this.status,
       retryCount: retryCount ?? this.retryCount,
       failureReason: failureReason,
+      visualNorm: visualNorm ?? this.visualNorm,
     );
   }
 
@@ -202,10 +276,17 @@ class GuardOpsMediaUpload {
       'status': status.name,
       'retryCount': retryCount,
       'failureReason': failureReason,
+      'visualNorm': visualNorm.toJson(),
     };
   }
 
   factory GuardOpsMediaUpload.fromJson(Map<String, Object?> json) {
+    final visualNormRaw = json['visualNorm'];
+    final visualNorm = visualNormRaw is Map
+        ? GuardVisualNormMetadata.fromJson(
+            visualNormRaw.map((key, value) => MapEntry(key.toString(), value)),
+          )
+        : GuardVisualNormMetadata.defaultDay;
     return GuardOpsMediaUpload(
       mediaId: (json['mediaId'] as String? ?? '').trim(),
       eventId: (json['eventId'] as String? ?? '').trim(),
@@ -230,6 +311,7 @@ class GuardOpsMediaUpload {
       ),
       retryCount: (json['retryCount'] as num?)?.toInt() ?? 0,
       failureReason: (json['failureReason'] as String?)?.trim(),
+      visualNorm: visualNorm,
     );
   }
 }

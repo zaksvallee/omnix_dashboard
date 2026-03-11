@@ -10,6 +10,7 @@ import '../domain/events/incident_closed.dart';
 import '../domain/events/patrol_completed.dart';
 import '../domain/events/response_arrived.dart';
 import '../domain/projection/operations_health_projection.dart';
+import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 
 class SitesPage extends StatefulWidget {
@@ -27,6 +28,7 @@ class _SitesPageState extends State<SitesPage> {
   static const double _spaceSm = 8;
 
   int _selectedIndex = 0;
+  bool get _desktopEmbeddedScroll => allowEmbeddedPanelScroll(context);
 
   @override
   Widget build(BuildContext context) {
@@ -61,8 +63,7 @@ class _SitesPageState extends State<SitesPage> {
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 1540),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: ListView(
               children: [
                 const OnyxPageHeader(
                   title: 'Site Command Grid',
@@ -70,80 +71,135 @@ class _SitesPageState extends State<SitesPage> {
                       'Estate-wide posture, dispatch exposure, and site-level operational pressure.',
                 ),
                 const SizedBox(height: _spaceSm),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    SizedBox(
-                      width: 236,
-                      child: OnyxSummaryStat(
-                        label: 'Visible Sites',
-                        value: sites.length.toString(),
-                        accent: const Color(0xFF63BDFF),
-                      ),
-                    ),
-                    SizedBox(
-                      width: 236,
-                      child: OnyxSummaryStat(
-                        label: 'Active Dispatches',
-                        value: activeDispatches.toString(),
-                        accent: const Color(0xFF59D79B),
-                      ),
-                    ),
-                    SizedBox(
-                      width: 236,
-                      child: OnyxSummaryStat(
-                        label: 'Average Health',
-                        value: averageHealth.toStringAsFixed(1),
-                        accent: const Color(0xFFF6C067),
-                      ),
-                    ),
-                  ],
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final maxWidth = constraints.maxWidth;
+                    final statWidth = maxWidth < 520
+                        ? maxWidth
+                        : maxWidth < 760
+                        ? (maxWidth - 8) / 2
+                        : 236.0;
+                    return Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        SizedBox(
+                          width: statWidth,
+                          child: OnyxSummaryStat(
+                            label: 'Visible Sites',
+                            value: sites.length.toString(),
+                            accent: const Color(0xFF63BDFF),
+                          ),
+                        ),
+                        SizedBox(
+                          width: statWidth,
+                          child: OnyxSummaryStat(
+                            label: 'Active Dispatches',
+                            value: activeDispatches.toString(),
+                            accent: const Color(0xFF59D79B),
+                          ),
+                        ),
+                        SizedBox(
+                          width: statWidth,
+                          child: OnyxSummaryStat(
+                            label: 'Average Health',
+                            value: averageHealth.toStringAsFixed(1),
+                            accent: const Color(0xFFF6C067),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: _spaceSm),
-                Expanded(
-                  child: OnyxSectionCard(
-                    title: 'Site Operations Workspace',
-                    subtitle:
-                        'Review site posture on the left, then inspect operational detail for the selected site.',
-                    padding: const EdgeInsets.all(10),
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final stackVertically = constraints.maxWidth < 1320;
+                OnyxSectionCard(
+                  title: 'Site Operations Workspace',
+                  subtitle:
+                      'Review site posture on the left, then inspect operational detail for the selected site.',
+                  padding: const EdgeInsets.all(10),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final stackVertically = constraints.maxWidth < 1320;
+                      final allowEmbeddedWorkspace = _desktopEmbeddedScroll;
 
-                        if (stackVertically) {
-                          return SizedBox(
-                            height: 640,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                SizedBox(
-                                  height: 216,
-                                  child: _siteRoster(sites, selected),
-                                ),
-                                const SizedBox(height: _spaceXs),
-                                Expanded(child: _siteDetail(selected)),
-                              ],
-                            ),
+                      if (stackVertically) {
+                        if (!allowEmbeddedWorkspace) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _siteRoster(
+                                sites,
+                                selected,
+                                embeddedScroll: false,
+                              ),
+                              const SizedBox(height: _spaceXs),
+                              _siteDetail(selected, embeddedScroll: false),
+                            ],
                           );
                         }
-
                         return SizedBox(
-                          height: 508,
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          height: 640,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               SizedBox(
-                                width: 268,
+                                height: 216,
                                 child: _siteRoster(sites, selected),
                               ),
-                              const SizedBox(width: _spaceSm),
+                              const SizedBox(height: _spaceXs),
                               Expanded(child: _siteDetail(selected)),
                             ],
                           ),
                         );
-                      },
-                    ),
+                      }
+
+                      if (!allowEmbeddedWorkspace) {
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(
+                              width: 268,
+                              child: _siteRoster(
+                                sites,
+                                selected,
+                                embeddedScroll: false,
+                              ),
+                            ),
+                            const SizedBox(width: _spaceSm),
+                            Expanded(
+                              child: _siteDetail(
+                                selected,
+                                embeddedScroll: false,
+                              ),
+                            ),
+                          ],
+                        );
+                      }
+
+                      return SizedBox(
+                        height: 508,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(
+                              width: 268,
+                              child: _siteRoster(
+                                sites,
+                                selected,
+                                embeddedScroll: true,
+                              ),
+                            ),
+                            const SizedBox(width: _spaceSm),
+                            Expanded(
+                              child: _siteDetail(
+                                selected,
+                                embeddedScroll: true,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],
@@ -156,10 +212,74 @@ class _SitesPageState extends State<SitesPage> {
 
   Widget _siteRoster(
     List<_SiteDrillSnapshot> sites,
-    _SiteDrillSnapshot selected,
-  ) {
+    _SiteDrillSnapshot selected, {
+    bool embeddedScroll = true,
+  }) {
     final visibleSites = sites.take(_maxRosterRows).toList(growable: false);
     final hiddenSites = sites.length - visibleSites.length;
+    final list = ListView.separated(
+      padding: const EdgeInsets.all(_spaceSm),
+      itemCount: visibleSites.length,
+      shrinkWrap: !embeddedScroll,
+      primary: embeddedScroll,
+      physics: embeddedScroll ? null : const NeverScrollableScrollPhysics(),
+      separatorBuilder: (context, index) => const SizedBox(height: _spaceXs),
+      itemBuilder: (context, index) {
+        final site = visibleSites[index];
+        final isSelected = site.siteKey == selected.siteKey;
+        final statusColor = _statusColor(site.healthStatus);
+
+        return InkWell(
+          onTap: () => setState(() => _selectedIndex = index),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.all(9),
+            decoration: onyxSelectableRowSurfaceDecoration(
+              isSelected: isSelected,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  site.siteId,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFE7F0FF),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${site.clientId} / ${site.regionId}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF93AACE),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    _tinyPill(
+                      'Health ${site.healthScore.toStringAsFixed(1)}',
+                      statusColor,
+                    ),
+                    _tinyPill(
+                      'Active ${site.activeDispatches}',
+                      const Color(0xFF4EB8FF),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
     return Container(
       decoration: onyxWorkspaceSurfaceDecoration(),
       child: Column(
@@ -206,328 +326,282 @@ class _SitesPageState extends State<SitesPage> {
               ],
             ),
           ),
-          const Divider(height: 1, color: Color(0xFF15305A)),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(_spaceSm),
-                    itemCount: visibleSites.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: _spaceXs),
-                    itemBuilder: (context, index) {
-                      final site = visibleSites[index];
-                      final isSelected = site.siteKey == selected.siteKey;
-                      final statusColor = _statusColor(site.healthStatus);
-
-                      return InkWell(
-                        onTap: () => setState(() => _selectedIndex = index),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          padding: const EdgeInsets.all(9),
-                          decoration: onyxSelectableRowSurfaceDecoration(
-                            isSelected: isSelected,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                site.siteId,
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFE7F0FF),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '${site.clientId} / ${site.regionId}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF93AACE),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Wrap(
-                                spacing: 6,
-                                runSpacing: 6,
-                                children: [
-                                  _tinyPill(
-                                    'Health ${site.healthScore.toStringAsFixed(1)}',
-                                    statusColor,
-                                  ),
-                                  _tinyPill(
-                                    'Active ${site.activeDispatches}',
-                                    const Color(0xFF4EB8FF),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                if (hiddenSites > 0)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-                    child: OnyxTruncationHint(
-                      visibleCount: visibleSites.length,
-                      totalCount: sites.length,
-                      subject: 'sites',
-                      hiddenDescriptor: 'additional sites',
-                      color: const Color(0xFF86A2C8),
+          const Divider(height: 1, color: Color(0xFF223244)),
+          if (embeddedScroll)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: list),
+                  if (hiddenSites > 0)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                      child: OnyxTruncationHint(
+                        visibleCount: visibleSites.length,
+                        totalCount: sites.length,
+                        subject: 'sites',
+                        hiddenDescriptor: 'additional sites',
+                        color: const Color(0xFF86A2C8),
+                      ),
                     ),
-                  ),
-              ],
-            ),
-          ),
+                ],
+              ),
+            )
+          else ...[
+            list,
+            if (hiddenSites > 0)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                child: OnyxTruncationHint(
+                  visibleCount: visibleSites.length,
+                  totalCount: sites.length,
+                  subject: 'sites',
+                  hiddenDescriptor: 'additional sites',
+                  color: const Color(0xFF86A2C8),
+                ),
+              ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _siteDetail(_SiteDrillSnapshot site) {
+  Widget _siteDetail(_SiteDrillSnapshot site, {bool embeddedScroll = true}) {
     final statusColor = _statusColor(site.healthStatus);
-    return Container(
-      decoration: onyxWorkspaceSurfaceDecoration(),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 32,
+          height: 3,
+          decoration: BoxDecoration(
+            color: const Color(0xFF3C79BB),
+            borderRadius: BorderRadius.circular(999),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
           children: [
+            Expanded(
+              child: Text(
+                '${site.clientId} / ${site.regionId} / ${site.siteId}',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFE7F0FF),
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
             Container(
-              width: 32,
-              height: 3,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFF3C79BB),
                 borderRadius: BorderRadius.circular(999),
+                color: statusColor.withValues(alpha: 0.15),
+                border: Border.all(color: statusColor.withValues(alpha: 0.8)),
+              ),
+              child: Text(
+                '${site.healthStatus} • ${site.healthScore.toStringAsFixed(1)}',
+                style: GoogleFonts.rajdhani(
+                  color: statusColor,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 15,
+                ),
               ),
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '${site.clientId} / ${site.regionId} / ${site.siteId}',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFFE7F0FF),
-                      fontSize: 19,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(999),
-                    color: statusColor.withValues(alpha: 0.15),
-                    border: Border.all(
-                      color: statusColor.withValues(alpha: 0.8),
-                    ),
-                  ),
-                  child: Text(
-                    '${site.healthStatus} • ${site.healthScore.toStringAsFixed(1)}',
-                    style: GoogleFonts.rajdhani(
-                      color: statusColor,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 15,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: [
-                _metricCard(
-                  'Decisions',
-                  site.decisions.toString(),
-                  const Color(0xFF58B7FF),
-                ),
-                _metricCard(
-                  'Executed',
-                  site.executedCount.toString(),
-                  const Color(0xFF4CDD8A),
-                ),
-                _metricCard(
-                  'Denied',
-                  site.deniedCount.toString(),
-                  const Color(0xFFF6B24A),
-                ),
-                _metricCard(
-                  'Failed',
-                  site.failedCount.toString(),
-                  const Color(0xFFFF6A78),
-                ),
-                _metricCard(
-                  'Active',
-                  site.activeDispatches.toString(),
-                  const Color(0xFF7CA2FF),
-                ),
-                _metricCard(
-                  'Check-Ins',
-                  site.guardCheckIns.toString(),
-                  const Color(0xFF68CBFF),
-                ),
-                _metricCard(
-                  'Patrols',
-                  site.patrolsCompleted.toString(),
-                  const Color(0xFF65D5A5),
-                ),
-                _metricCard(
-                  'Avg Response',
-                  '${site.averageResponseMinutes.toStringAsFixed(1)} min',
-                  const Color(0xFF8FD0FF),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: _panel(
-                    'Dispatch Outcome Mix',
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _ratioBar(
-                          'Executed',
-                          site.executedCount,
-                          site.decisions,
-                          const Color(0xFF45D58D),
-                        ),
-                        _ratioBar(
-                          'Denied',
-                          site.deniedCount,
-                          site.decisions,
-                          const Color(0xFFF0B24C),
-                        ),
-                        _ratioBar(
-                          'Failed',
-                          site.failedCount,
-                          site.decisions,
-                          const Color(0xFFFF6A78),
-                        ),
-                        _ratioBar(
-                          'Still Active',
-                          site.activeDispatches,
-                          site.decisions,
-                          const Color(0xFF6FB5FF),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _panel(
-                    'Operational Pulse',
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _textLine(
-                          'Guards Engaged',
-                          site.guardsEngaged.toString(),
-                        ),
-                        _textLine(
-                          'Avg Patrol Duration',
-                          '${site.averagePatrolMinutes.toStringAsFixed(1)} min',
-                        ),
-                        _textLine(
-                          'Last Event UTC',
-                          _formatUtc(site.lastEventAtUtc),
-                        ),
-                        _textLine(
-                          'Recent Event Count',
-                          site.recentEvents.length.toString(),
-                        ),
-                        _textLine(
-                          'Denied Reason Trend',
-                          site.deniedReasons.isEmpty
-                              ? 'No denials recorded'
-                              : site.deniedReasons.first,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            _panel(
-              'Recent Site Event Trace',
-              site.recentEvents.isEmpty
-                  ? Text(
-                      'No event trace available.',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF8EA4C2),
-                        fontSize: 13,
-                      ),
-                    )
-                  : ListView.separated(
-                      shrinkWrap: true,
-                      primary: false,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: site.recentEvents.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: 6),
-                      itemBuilder: (context, index) {
-                        final row = site.recentEvents[index];
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Padding(
-                              padding: EdgeInsets.only(top: 5),
-                              child: Icon(
-                                Icons.circle,
-                                size: 7,
-                                color: Color(0xFF4AAAFF),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                row,
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFD2E2FA),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  height: 1.35,
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-            ),
-            if (site.traceEventCount > site.recentEvents.length)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: OnyxTruncationHint(
-                  visibleCount: site.recentEvents.length,
-                  totalCount: site.traceEventCount,
-                  subject: 'site events',
-                  hiddenDescriptor: 'older events',
-                ),
-              ),
           ],
         ),
-      ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            _metricCard(
+              'Decisions',
+              site.decisions.toString(),
+              const Color(0xFF58B7FF),
+            ),
+            _metricCard(
+              'Executed',
+              site.executedCount.toString(),
+              const Color(0xFF4CDD8A),
+            ),
+            _metricCard(
+              'Denied',
+              site.deniedCount.toString(),
+              const Color(0xFFF6B24A),
+            ),
+            _metricCard(
+              'Failed',
+              site.failedCount.toString(),
+              const Color(0xFFFF6A78),
+            ),
+            _metricCard(
+              'Active',
+              site.activeDispatches.toString(),
+              const Color(0xFF7CA2FF),
+            ),
+            _metricCard(
+              'Check-Ins',
+              site.guardCheckIns.toString(),
+              const Color(0xFF68CBFF),
+            ),
+            _metricCard(
+              'Patrols',
+              site.patrolsCompleted.toString(),
+              const Color(0xFF65D5A5),
+            ),
+            _metricCard(
+              'Avg Response',
+              '${site.averageResponseMinutes.toStringAsFixed(1)} min',
+              const Color(0xFF8FD0FF),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final stacked = constraints.maxWidth < 860;
+            final outcomePanel = _panel(
+              'Dispatch Outcome Mix',
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _ratioBar(
+                    'Executed',
+                    site.executedCount,
+                    site.decisions,
+                    const Color(0xFF45D58D),
+                  ),
+                  _ratioBar(
+                    'Denied',
+                    site.deniedCount,
+                    site.decisions,
+                    const Color(0xFFF0B24C),
+                  ),
+                  _ratioBar(
+                    'Failed',
+                    site.failedCount,
+                    site.decisions,
+                    const Color(0xFFFF6A78),
+                  ),
+                  _ratioBar(
+                    'Still Active',
+                    site.activeDispatches,
+                    site.decisions,
+                    const Color(0xFF6FB5FF),
+                  ),
+                ],
+              ),
+            );
+            final pulsePanel = _panel(
+              'Operational Pulse',
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _textLine('Guards Engaged', site.guardsEngaged.toString()),
+                  _textLine(
+                    'Avg Patrol Duration',
+                    '${site.averagePatrolMinutes.toStringAsFixed(1)} min',
+                  ),
+                  _textLine('Last Event UTC', _formatUtc(site.lastEventAtUtc)),
+                  _textLine(
+                    'Recent Event Count',
+                    site.recentEvents.length.toString(),
+                  ),
+                  _textLine(
+                    'Denied Reason Trend',
+                    site.deniedReasons.isEmpty
+                        ? 'No denials recorded'
+                        : site.deniedReasons.first,
+                  ),
+                ],
+              ),
+            );
+            if (stacked) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [outcomePanel, const SizedBox(height: 8), pulsePanel],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: outcomePanel),
+                const SizedBox(width: 8),
+                Expanded(child: pulsePanel),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 8),
+        _panel(
+          'Recent Site Event Trace',
+          site.recentEvents.isEmpty
+              ? Text(
+                  'No event trace available.',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF8EA4C2),
+                    fontSize: 13,
+                  ),
+                )
+              : ListView.separated(
+                  shrinkWrap: true,
+                  primary: false,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: site.recentEvents.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 6),
+                  itemBuilder: (context, index) {
+                    final row = site.recentEvents[index];
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.only(top: 5),
+                          child: Icon(
+                            Icons.circle,
+                            size: 7,
+                            color: Color(0xFF4AAAFF),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            row,
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFD2E2FA),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+        ),
+        if (site.traceEventCount > site.recentEvents.length)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: OnyxTruncationHint(
+              visibleCount: site.recentEvents.length,
+              totalCount: site.traceEventCount,
+              subject: 'site events',
+              hiddenDescriptor: 'older events',
+            ),
+          ),
+      ],
+    );
+    return Container(
+      decoration: onyxWorkspaceSurfaceDecoration(),
+      child: embeddedScroll
+          ? SingleChildScrollView(
+              padding: const EdgeInsets.all(10),
+              child: content,
+            )
+          : Padding(padding: const EdgeInsets.all(10), child: content),
     );
   }
 
@@ -565,7 +639,7 @@ class _SitesPageState extends State<SitesPage> {
             child: LinearProgressIndicator(
               minHeight: 8,
               value: ratio,
-              backgroundColor: const Color(0xFF122441),
+              backgroundColor: const Color(0xFF1A283A),
               valueColor: AlwaysStoppedAnimation<Color>(color),
             ),
           ),

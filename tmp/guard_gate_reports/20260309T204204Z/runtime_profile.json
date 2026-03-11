@@ -1,0 +1,13 @@
+{
+  "config_file": "tmp/onyx.hikvision.local.json",
+  "config_exists": true,
+  "supabase_mode": "LIVE",
+  "supabase_url_set": true,
+  "supabase_anon_key_set": true,
+  "live_feed_mode": "DISABLED",
+  "live_feed_url_set": false,
+  "telemetry_mode": "LIVE",
+  "telemetry_native_sdk_enabled": true,
+  "telemetry_provider": "hikvision_sdk",
+  "telemetry_required_provider": "hikvision_sdk"
+}

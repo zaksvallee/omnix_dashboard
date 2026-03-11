@@ -70,7 +70,7 @@ class ReportsPage extends StatelessWidget {
                 Expanded(
                   child: LayoutBuilder(
                     builder: (context, constraints) {
-                      final stackVertically = constraints.maxWidth < 1360;
+                      final stackVertically = constraints.maxWidth < 1500;
 
                       final generationFlowCard = OnyxSectionCard(
                         title: 'Report Generation Flow',
@@ -213,12 +213,7 @@ class ReportsPage extends StatelessWidget {
                               width: double.infinity,
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFF0B182B),
-                                    Color(0xFF091423),
-                                  ],
-                                ),
+                                color: const Color(0xFF0E1A2B),
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
                                   color: const Color(0xFF17324F),
@@ -288,9 +283,9 @@ class ReportsPage extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF0A1830),
+        color: const Color(0xFF0E1A2B),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF193554)),
+        border: Border.all(color: const Color(0xFF1F3855)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -345,9 +340,7 @@ class ReportsPage extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0B182C), Color(0xFF091424)],
-        ),
+        color: const Color(0xFF0E1A2B),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withValues(alpha: 0.42)),
       ),
@@ -411,9 +404,7 @@ class _LaneBadge extends StatelessWidget {
       width: 160,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0B182B), Color(0xFF091423)],
-        ),
+        color: const Color(0xFF0E1A2B),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: accent.withValues(alpha: 0.34)),
       ),
@@ -463,9 +454,9 @@ class _ReportModeCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF0A1830),
+        color: const Color(0xFF0E1A2B),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF193554)),
+        border: Border.all(color: const Color(0xFF1F3855)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

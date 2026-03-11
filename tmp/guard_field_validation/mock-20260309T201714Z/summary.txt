@@ -1,0 +1,9 @@
+Device serial: MOCK-DEVICE
+Broadcast action: com.onyx.fsk.SDK_HEARTBEAT
+Adapter mode: standard
+Expected provider: fsk_sdk
+Samples: 2
+Interval (s): 1
+Run started (UTC): 2026-03-09T20:17:14Z
+ONYX_TELEMETRY lines: 6
+Run completed (UTC): 2026-03-09T20:17:14Z

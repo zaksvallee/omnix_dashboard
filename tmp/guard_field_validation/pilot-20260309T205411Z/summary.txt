@@ -1,0 +1,10 @@
+Device serial: BV5300ProNEU032438
+Provider: fsk_sdk
+Broadcast action: com.onyx.fsk.SDK_HEARTBEAT
+Adapter mode: standard
+Expected provider: fsk_sdk
+Samples: 5
+Interval (s): 1
+Run started (UTC): 2026-03-09T20:54:14Z
+ONYX_TELEMETRY lines: 0
+Run completed (UTC): 2026-03-09T20:54:21Z

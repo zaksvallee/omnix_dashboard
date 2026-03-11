@@ -1,0 +1,42 @@
+{
+  "generated_at_utc": "2026-03-09T20:41:34Z",
+  "artifact_dir": "tmp/guard_field_validation/mock-20260309T204134Z",
+  "required_provider": "hikvision_sdk",
+  "overall_status": "PASS",
+  "metrics": {
+    "broadcast_count": 1,
+    "telemetry_line_count": 3,
+    "ingest_line_count": 1,
+    "accepted_count": 1,
+    "rejected_count": 0,
+    "provider_match_count": 1,
+    "live_facade_trace_count": 2
+  },
+  "gates": {
+    "broadcasts_present": true,
+    "telemetry_logs_present": true,
+    "ingest_logs_present": true,
+    "accepted_present": true,
+    "provider_match_present": true,
+    "live_facade_trace_present": true
+  },
+  "files": {
+    "summary": "tmp/guard_field_validation/mock-20260309T204134Z/summary.txt",
+    "broadcasts": "tmp/guard_field_validation/mock-20260309T204134Z/broadcasts.txt",
+    "logcat_onyx_telemetry": "tmp/guard_field_validation/mock-20260309T204134Z/logcat_onyx_telemetry.txt",
+    "logcat_ingest_trace": "tmp/guard_field_validation/mock-20260309T204134Z/logcat_ingest_trace.txt",
+    "logcat_full": "tmp/guard_field_validation/mock-20260309T204134Z/logcat_full.txt",
+    "runtime_profile_text": "",
+    "runtime_profile_json": "",
+    "markdown_report": "tmp/guard_field_validation/mock-20260309T204134Z/validation_report.md"
+  },
+  "checksums": {
+    "summary_sha256": "d32e1e0f09a5dbc3cd76272831439d385e972be7a99a0862bc7d154412ead340",
+    "broadcasts_sha256": "0cb84d86eff6d2ae90701d9f5b9b4df6534a609e9b0fba10f3f93c116b430a93",
+    "logcat_onyx_telemetry_sha256": "3b210e8bf454ecf5959c8fcaadfc2802dda52116df740ab4dd7698b7eb605b76",
+    "logcat_ingest_trace_sha256": "33730bcd31877538358e558b4c63aa559a3085578685cda1813f22e21457547a",
+    "logcat_full_sha256": "3cbad382c32ee2bc024f53a192205b57750c47d4a7a07eec249094cb681b6456",
+    "runtime_profile_text_sha256": "",
+    "runtime_profile_json_sha256": ""
+  }
+}

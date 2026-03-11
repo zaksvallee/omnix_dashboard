@@ -1,0 +1,381 @@
+--------- beginning of system
+03-09 23:02:13.292  1380  5606 I ActivityManager: Force stopping com.example.omnix_dashboard appid=10212 user=0: from pid 26315
+03-09 23:02:13.293  1380  5606 E ActivityManager: Unable to freeze binder for 26070: java.lang.RuntimeException: Unable to freeze/unfreeze binder
+03-09 23:02:13.295  1380  5606 I ActivityManager: Killing 26070:com.example.omnix_dashboard/u0a212 (adj 0): stop com.example.omnix_dashboard due to from pid 26315
+--------- beginning of main
+03-09 23:02:13.295   718   724 W statsd  : StateTracker not found for state atom 29
+03-09 23:02:13.300  1380  5606 I mtkpower_client: [Legacy][PowerHal_Wrap_notifyAppState] com.example.omnix_dashboard/com.example.omnix_dashboard pid=26070 state:3
+03-09 23:02:13.302  1380  5606 W ActivityTaskManager: Force removing ActivityRecord{ab202dc u0 com.example.omnix_dashboard/.MainActivity t39 f}}: app died, no saved state
+03-09 23:02:13.304   746   850 I libPowerHal: [perfNotifyAppState] pack:com.example.omnix_dashboard, act:com.example.omnix_dashboard, state:3, pid:26070, uid:10212, fps:60
+03-09 23:02:13.304   746   850 I libPowerHal: [perfNotifyAppState] pack:com.example.omnix_dashboard, pid:26070, STATE_DEAD
+03-09 23:02:13.305  1380  5606 W WindowManager: Changing focus from Window{51f89ed u0 com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity} to null displayId=0 Callers=com.android.server.wm.RootWindowContainer.updateFocusedWindowLocked:455 com.android.server.wm.WindowManagerService.updateFocusedWindowLocked:6224 com.android.server.wm.ActivityRecord.onRemovedFromDisplay:4395 com.android.server.wm.DisplayContent.removeAppToken:1525 
+03-09 23:02:13.309  1380  5606 I PowerHalWrapper: <amsBoostResume> last:null, next:com.blackview.launcher 
+03-09 23:02:13.310   746   850 I libPowerHal: [perfLockRel] hdl:1597, idx:-1
+03-09 23:02:13.305   746   746 W mtkPowerMsgHdl: type=1400 audit(0.0:10040): avc:  denied  { write } for  name="gpufreq_opp_freq" dev="proc" ino=4026532213 scontext=u:r:mtk_hal_power:s0 tcontext=u:object_r:proc:s0 tclass=file permissive=0
+03-09 23:02:13.310   746   850 I libPowerHal: [perfLockAcq] idx:0 hdl:1599 hint:22 pid:746 duration:10000 lock_user:mtkpower@1.0-se => ret_hdl:1599
+03-09 23:02:13.311   746   850 I libPowerHal: MTKPOWER_HINT_PACK_SWITCH: cpu_ctrl set cpu freq: 2200000 -1 1600000 -1
+03-09 23:02:13.311   746   850 E libPowerHal: Could not open '/proc/cpufreq/cpufreq_cci_mode'
+03-09 23:02:13.311   746   850 E libPowerHal: error : 2, No such file or directory
+03-09 23:02:13.311   746   850 E libPowerHal: Could not open '/proc/gpufreq/gpufreq_opp_freq'
+03-09 23:02:13.311   746   850 E libPowerHal: error : 13, Permission denied
+03-09 23:02:13.311   746   850 E libPowerHal: Could not open '/sys/devices/system/cpu/sched/sched_boost'
+03-09 23:02:13.311   746   850 E libPowerHal: error : 2, No such file or directory
+03-09 23:02:13.311   746   850 I libPowerHal: [PE] MTKPOWER_HINT_PACK_SWITCH update cmd:1000000, param:0
+03-09 23:02:13.312   746   850 I libPowerHal: [PE] MTKPOWER_HINT_PACK_SWITCH update cmd:1408300, param:100
+03-09 23:02:13.312   746   850 I libPowerHal: [PE] MTKPOWER_HINT_PACK_SWITCH update cmd:1000000 param:0
+03-09 23:02:13.318  1380  1405 W System.err: android.content.pm.PackageManager$NameNotFoundException: ru.vk.store
+03-09 23:02:13.318  1380  1405 W System.err: 	at android.app.ApplicationPackageManager.getPackageInfoAsUser(ApplicationPackageManager.java:256)
+03-09 23:02:13.318  1380  1405 W System.err: 	at android.app.ApplicationPackageManager.getPackageInfo(ApplicationPackageManager.java:216)
+03-09 23:02:13.318  1380  1405 W System.err: 	at android.app.ApplicationPackageManager.getPackageInfo(ApplicationPackageManager.java:210)
+03-09 23:02:13.319  1380  1405 W System.err: 	at com.android.server.am.ActivityManagerService.hasRuApp(ActivityManagerService.java:1865)
+03-09 23:02:13.319  1380  1405 W System.err: 	at com.android.server.am.ActivityManagerService.checkRuState(ActivityManagerService.java:1836)
+03-09 23:02:13.319  1380  5606 W ProcessStats: Tracking association SourceState{1d12f2 system/1000 Persist #33916} whose proc state 0 is better than process ProcessState{9e0b38a com.android.bluetooth/1002 pkg=com.android.bluetooth} proc state 1 (0 skipped)
+03-09 23:02:13.319  1380  1405 W System.err: 	at com.android.server.am.ActivityManagerService.-$$Nest$mcheckRuState(ActivityManagerService.java:0)
+03-09 23:02:13.319  1380  1405 W System.err: 	at com.android.server.am.ActivityManagerService$UiHandler.handleMessage(ActivityManagerService.java:1805)
+03-09 23:02:13.319  1380  1405 W System.err: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+03-09 23:02:13.319  1380  1405 W System.err: 	at android.os.Looper.loopOnce(Looper.java:205)
+03-09 23:02:13.319  1380  1405 W System.err: 	at android.os.Looper.loop(Looper.java:294)
+03-09 23:02:13.319  1380  1405 W System.err: 	at android.os.HandlerThread.run(HandlerThread.java:67)
+03-09 23:02:13.319  1380  1405 W System.err: 	at com.android.server.ServiceThread.run(ServiceThread.java:46)
+03-09 23:02:13.319  1380  1405 W System.err: 	at com.android.server.UiThread.run(UiThread.java:45)
+03-09 23:02:13.319   733  1085 I hwcomposer: [HWCDisplay] [Display_0 (type:1)] fps:0.121513,dur:8229.55,max:8229.55,min:8229.55  
+03-09 23:02:13.320  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:02:13.320   718   724 W statsd  : StateTracker not found for state atom 29
+03-09 23:02:13.321   755  2312 E BufferQueueDebug: [com.blackview.launcher/com.android.searchlauncher.SearchLauncher#2167](this:0xb40000757688eda8,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'com.blackview.launcher/com.android.searchlauncher.SearchLauncher#2167'
+03-09 23:02:13.321   755  2312 I BufferQueueDebug: [com.blackview.launcher/com.android.searchlauncher.SearchLauncher#2167](this:0xb40000757688eda8,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 23:02:13.322  1380  1405 E MBrainLocalService: MBrainJava launch failed: SecurityException
+03-09 23:02:13.322  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:02:13.322  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:02:13.322  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:02:13.322  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:02:13.326  1380  2011 I WindowManager: Relayout Window{ddb1519 u0 com.blackview.launcher/com.android.searchlauncher.SearchLauncher}: oldVis=8 newVis=0 focusMayChange = true requestedWidth = 720 requestedHeight = 1560 outFrames = ClientWindowFrames{frame=[0,0][720,1560] display=[0,0][720,1560] parentFrame=[0,0][0,0]} outSurfaceControl = Surface(name=com.blackview.launcher/com.android.searchlauncher.SearchLauncher)/@0x9a32d62
+03-09 23:02:13.330 22840 22920 E OpenGLRenderer: Unable to match the desired swap behavior.
+03-09 23:02:13.333  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:02:13.334  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:02:13.335   718   724 W statsd  : StateTracker not found for state atom 29
+03-09 23:02:13.335   718   724 W statsd  : StateTracker not found for state atom 29
+03-09 23:02:13.335  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:02:13.335  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:02:13.335  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:02:13.335  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:02:13.335  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:02:13.335  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:02:13.335  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:02:13.335  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:02:13.340  2002  2002 I Activity: performStart: getPackageName()=com.blackview.launcher
+03-09 23:02:13.353   755   755 I BpBinder: onLastStrongRef automatically unlinking death recipients: 
+03-09 23:02:13.353   755  2312 E BufferQueueDebug: [com.blackview.launcher/com.android.searchlauncher.SearchLauncher#2168](this:0xb4000075768614a8,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'com.blackview.launcher/com.android.searchlauncher.SearchLauncher#2168'
+03-09 23:02:13.353   755  2312 I BufferQueueDebug: [com.blackview.launcher/com.android.searchlauncher.SearchLauncher#2168](this:0xb4000075768614a8,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 23:02:13.357  1380  5606 W WindowManager: Changing focus from null to Window{b4b38f4 u0 com.blackview.launcher/com.android.searchlauncher.SearchLauncher} displayId=0 Callers=com.android.server.wm.RootWindowContainer.updateFocusedWindowLocked:455 com.android.server.wm.WindowManagerService.updateFocusedWindowLocked:6224 com.android.server.wm.WindowManagerService.relayoutWindow:2525 com.android.server.wm.Session.relayout:259 
+03-09 23:02:13.358   755  2312 E BufferQueueDebug: [Surface(name=644a4 NavigationBar0)/@0x28bd233 - animation-leash of insets_animation#2169](this:0xb400007576830e18,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'Surface(name=644a4 NavigationBar0)/@0x28bd233 - animation-leash of insets_animation#2169'
+03-09 23:02:13.358   755  2312 I BufferQueueDebug: [Surface(name=644a4 NavigationBar0)/@0x28bd233 - animation-leash of insets_animation#2169](this:0xb400007576830e18,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 23:02:13.360   755  1437 E BufferQueueDebug: [Surface(name=cf97a2a StatusBar)/@0x60639f0 - animation-leash of insets_animation#2170](this:0xb40000757681a198,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'Surface(name=cf97a2a StatusBar)/@0x60639f0 - animation-leash of insets_animation#2170'
+03-09 23:02:13.360   755  1437 I BufferQueueDebug: [Surface(name=cf97a2a StatusBar)/@0x60639f0 - animation-leash of insets_animation#2170](this:0xb40000757681a198,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 23:02:13.362  1380  5606 I WindowManager: Relayout Window{b4b38f4 u0 com.blackview.launcher/com.android.searchlauncher.SearchLauncher}: oldVis=8 newVis=0 focusMayChange = true requestedWidth = 720 requestedHeight = 1560 outFrames = ClientWindowFrames{frame=[0,0][720,1560] display=[0,0][720,1560] parentFrame=[0,0][0,0]} outSurfaceControl = Surface(name=com.blackview.launcher/com.android.searchlauncher.SearchLauncher)/@0xb688161
+03-09 23:02:13.370  2002  2989 E OpenGLRenderer: Unable to match the desired swap behavior.
+03-09 23:02:13.387 22840 22840 I A       : onStart
+03-09 23:02:13.392  1380  5606 W WindowManager: finishDrawingWindow: Window{ddb1519 u0 com.blackview.launcher/com.android.searchlauncher.SearchLauncher} mDrawState=DRAW_PENDING
+03-09 23:02:13.404 22840 22840 I A       : onResume
+03-09 23:02:13.407  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:02:13.407  1380  5606 W WindowManager: finishDrawingWindow: Window{b4b38f4 u0 com.blackview.launcher/com.android.searchlauncher.SearchLauncher} mDrawState=DRAW_PENDING
+03-09 23:02:13.407  1380  1812 I PowerHalWrapper: amsBoostStop AMS_BOOST_PACK_SWITCH:true, AMS_BOOST_ACT_SWITCH:false, AMS_BOOST_PROCESS_CREATE:false 
+03-09 23:02:13.408   746   791 I mtkpower@impl: [mtkPowerHint] hint:22, hold:0, ext:30, ext_hold:2000
+03-09 23:02:13.408   746   850 I libPowerHal: [perfLockRel] hdl:1599, idx:0
+03-09 23:02:13.409   746   850 I libPowerHal: MTKPOWER_HINT_PACK_SWITCH: cpu_ctrl set cpu freq: -1 -1 -1 -1
+03-09 23:02:13.409   746   850 I libPowerHal: [PD] MTKPOWER_HINT_PACK_SWITCH update cmd:1000000, param:-1
+03-09 23:02:13.409   746   850 I libPowerHal: [PD] MTKPOWER_HINT_PACK_SWITCH update cmd:1408300 param:0
+03-09 23:02:13.409  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:02:13.409   746   850 I libPowerHal: [PD] MTKPOWER_HINT_PACK_SWITCH update cmd:1000000 param:-1
+03-09 23:02:13.409  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:02:13.409  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:02:13.409  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:02:13.411  1380  1408 W WindowManager: real show surface:Surface(name=com.android.systemui.wallpapers.ImageWallpaper)/@0x4935708
+03-09 23:02:13.414   746   850 I libPowerHal: [perfLockAcq] idx:1 hdl:1600 hint:30 pid:746 duration:2000 lock_user:mtkpower@1.0-se => ret_hdl:1600
+03-09 23:02:13.414  1380  1408 W WindowManager: real show surface:Surface(name=com.blackview.launcher/com.android.searchlauncher.SearchLauncher)/@0x4f0d486
+03-09 23:02:13.414  1380  1408 W WindowManager: real show surface:Surface(name=com.blackview.launcher/com.android.searchlauncher.SearchLauncher)/@0xef8147
+03-09 23:02:13.414   746   850 E libPowerHal: Could not open '/proc/cpufreq/cpufreq_cci_mode'
+03-09 23:02:13.414   746   850 E libPowerHal: error : 2, No such file or directory
+03-09 23:02:13.415   746   850 E libPowerHal: Could not open '/proc/gpufreq/gpufreq_opp_freq'
+03-09 23:02:13.415   746   850 E libPowerHal: error : 13, Permission denied
+03-09 23:02:13.415   746   850 E libPowerHal: Could not open '/sys/devices/system/cpu/sched/sched_boost'
+03-09 23:02:13.415   746   850 E libPowerHal: error : 2, No such file or directory
+03-09 23:02:13.415   746   850 I libPowerHal: [PE] MTKPOWER_HINT_EXT_LAUNCH update cmd:1000000, param:1
+03-09 23:02:13.415   746   850 I libPowerHal: [PE] MTKPOWER_HINT_EXT_LAUNCH update cmd:2020000, param:15
+03-09 23:02:13.415   746   850 I libPowerHal: [PE] MTKPOWER_HINT_EXT_LAUNCH update cmd:1408300, param:40
+03-09 23:02:13.415   755  1437 E BufferQueueDebug: [Transition Root: Task=39#2171](this:0xb40000757687aeb8,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'Transition Root: Task=39#2171'
+03-09 23:02:13.409   746   746 W mtkPowerMsgHdl: type=1400 audit(0.0:10041): avc:  denied  { write } for  name="gpufreq_opp_freq" dev="proc" ino=4026532213 scontext=u:r:mtk_hal_power:s0 tcontext=u:object_r:proc:s0 tclass=file permissive=0
+03-09 23:02:13.415   755  1437 I BufferQueueDebug: [Transition Root: Task=39#2171](this:0xb40000757687aeb8,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 23:02:13.416   746   850 I libPowerHal: [PE] MTKPOWER_HINT_EXT_LAUNCH update cmd:1000000 param:1
+03-09 23:02:13.423   755   755 E BufferQueueDebug: [Screenshot Parent#2172](this:0xb400007576855e68,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'Screenshot Parent#2172'
+03-09 23:02:13.423   755   755 I BufferQueueDebug: [Screenshot Parent#2172](this:0xb400007576855e68,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 23:02:13.426  1880  1922 I SecureElement-Terminal-SIM2: isNfcEventAllowed: No access rules for checking.
+03-09 23:02:13.430   755   755 I BufferQueueDebug: [Screenshot Parent#2172](this:0xb400007576855e68,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 23:02:13.433  1380  2680 I ImeTracker: com.example.omnix_dashboard:37eb2245: onRequestHide at ORIGIN_SERVER_HIDE_INPUT reason HIDE_REMOVE_CLIENT
+03-09 23:02:13.435   720   720 I Zygote  : Process 26070 exited due to signal 9 (Killed)
+03-09 23:02:13.435  1380  2680 I ImeTracker: com.example.omnix_dashboard:37eb2245: onCancelled at PHASE_SERVER_SHOULD_HIDE
+03-09 23:02:13.437   755   755 I BufferQueueDebug: [Surface(name=cf97a2a StatusBar)/@0x60639f0 - animation-leash of insets_animation#2159](this:0xb4000075766b34b8,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 23:02:13.437   755   755 I BufferQueueDebug: [Surface(name=644a4 NavigationBar0)/@0x28bd233 - animation-leash of insets_animation#2158](this:0xb40000757674d118,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 23:02:13.443   755  1437 E BufferQueueDebug: [665fdc5 ActivityRecordInputSink com.blackview.launcher/com.android.searchlauncher.SearchLauncher#2173](this:0xb40000757674d118,id:-1,api:0,p:-1,c:-1) id info cannot be read from '665fdc5 ActivityRecordInputSink com.blackview.launcher/com.android.searchlauncher.SearchLauncher#2173'
+03-09 23:02:13.443   755  1437 I BufferQueueDebug: [665fdc5 ActivityRecordInputSink com.blackview.launcher/com.android.searchlauncher.SearchLauncher#2173](this:0xb40000757674d118,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 23:02:13.447  1380  2011 I WindowManager: WIN DEATH: Window{51f89ed u0 com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity}
+03-09 23:02:13.448  1380  2011 W InputManager-JNI: Input channel object '51f89ed com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity (client)' was disposed without first being removed with the input manager!
+03-09 23:02:13.452  1380  1402 I PackageManager: pkgName null , isCallerSameApp : false
+03-09 23:02:13.456  1380  1402 W ActivityTaskManager: callingPackage for (uid=2000, pid=26322) has no WPC
+03-09 23:02:13.462   755  1437 E BufferQueueDebug: [Task=40#2174](this:0xb4000075766b34b8,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'Task=40#2174'
+03-09 23:02:13.462   755  1437 I BufferQueueDebug: [Task=40#2174](this:0xb4000075766b34b8,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 23:02:13.464  1380  1402 I BvATMServiceExt: startAppLockActivity packageName=com.blackview.launcher isAppLockedPackage=false isAppLockedVerifying=false
+03-09 23:02:13.464  1380  1402 I PowerHalWrapper: amsBoostNotify pid:2002,activity:com.android.searchlauncher.SearchLauncher, package:com.blackview.launcher, mProcessCreatePackcom.example.omnix_dashboard 
+03-09 23:02:13.464  1380  1402 I PowerHalWrapper: state: 1 
+03-09 23:02:13.465  1380  1402 I mtkpower_client: [Legacy][PowerHal_Wrap_notifyAppState] com.blackview.launcher/com.android.searchlauncher.SearchLauncher pid=2002 state:1
+03-09 23:02:13.465   746   850 I libPowerHal: [perfNotifyAppState] pack:com.blackview.launcher, act:com.android.searchlauncher.SearchLauncher, state:1, pid:2002, uid:10172, fps:60
+03-09 23:02:13.465   746   850 I libPowerHal: [perfNotifyAppState] foreground:com.blackview.launcher, pid:2002, uid:10172
+03-09 23:02:13.465   746   850 E UxUtility: notifyAppState error = NULL
+03-09 23:02:13.465   746   850 I TouchUtility: notifyAppState error = NULL
+03-09 23:02:13.466  1380  1402 I PowerHalWrapper: amsBoostNotify AMS_BOOST_PROCESS_CREATE_BOOST:true 
+03-09 23:02:13.466   746   791 I mtkpower@impl: [notifyAppState] pc:0, com.example.omnix_dashboard => com.blackview.launcher
+03-09 23:02:13.466  1380  1380 E MBrainLocalService: notifyAppSwitch failed
+03-09 23:02:13.468   755  2312 E BufferQueueDebug: [ActivityRecord{c6d670c u0 com.example.omnix_dashboard/.MainActivity#2175](this:0xb400007576855e68,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'ActivityRecord{c6d670c u0 com.example.omnix_dashboard/.MainActivity#2175'
+03-09 23:02:13.468   755  2312 I BufferQueueDebug: [ActivityRecord{c6d670c u0 com.example.omnix_dashboard/.MainActivity#2175](this:0xb400007576855e68,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 23:02:13.465   746   746 W mtkPowerMsgHdl: type=1400 audit(0.0:10042): avc:  denied  { write } for  name="gpufreq_opp_freq" dev="proc" ino=4026532213 scontext=u:r:mtk_hal_power:s0 tcontext=u:object_r:proc:s0 tclass=file permissive=0
+03-09 23:02:13.470   746   792 I mtkpower@impl: [setMode] type:5, enabled:1
+03-09 23:02:13.471   746   850 I libPowerHal: [perfLockAcq] idx:0 hdl:1601 hint:11 pid:746 duration:30000 lock_user:mtkpower@1.0-se => ret_hdl:1601
+03-09 23:02:13.471   746   850 I libPowerHal: LAUNCH: cpu_ctrl set cpu freq: 2200000 -1 1600000 -1
+03-09 23:02:13.471   746   850 E libPowerHal: Could not open '/proc/cpufreq/cpufreq_cci_mode'
+03-09 23:02:13.471   746   850 E libPowerHal: error : 2, No such file or directory
+03-09 23:02:13.471   746   850 E libPowerHal: Could not open '/proc/gpufreq/gpufreq_opp_freq'
+03-09 23:02:13.471   746   850 E libPowerHal: error : 13, Permission denied
+03-09 23:02:13.471   746   850 E libPowerHal: Could not open '/sys/devices/system/cpu/sched/sched_boost'
+03-09 23:02:13.471   746   850 E libPowerHal: error : 2, No such file or directory
+03-09 23:02:13.471   746   850 I libPowerHal: [PE] LAUNCH update cmd:1000000, param:0
+03-09 23:02:13.471   746   850 I libPowerHal: [PE] LAUNCH update cmd:1408300, param:100
+03-09 23:02:13.472   746   850 I libPowerHal: [PE] LAUNCH update cmd:1000000 param:0
+03-09 23:02:13.472  1380  1402 I PowerHalWrapper: amsBoostNotify pid:2002,activity:com.android.searchlauncher.SearchLauncher, package:com.blackview.launcher, mProcessCreatePackcom.example.omnix_dashboard 
+03-09 23:02:13.472  1380  1402 I PowerHalWrapper: state: 0 
+03-09 23:02:13.472  1380  1402 I mtkpower_client: [Legacy][PowerHal_Wrap_notifyAppState] com.blackview.launcher/com.android.searchlauncher.SearchLauncher pid=2002 state:0
+03-09 23:02:13.473   746   850 I libPowerHal: [perfNotifyAppState] pack:com.blackview.launcher, act:com.android.searchlauncher.SearchLauncher, state:0, pid:2002, uid:10172, fps:60
+03-09 23:02:13.473  1380  1402 I PowerHalWrapper: amsBoostNotify AMS_BOOST_PROCESS_CREATE_BOOST:false 
+03-09 23:02:13.475  1380  1402 I PowerHalWrapper: <amsBoostResume> last:null, next:com.example.omnix_dashboard 
+03-09 23:02:13.475   746   850 I libPowerHal: [perfLockRel] hdl:1600, idx:1
+03-09 23:02:13.475  1380  1402 I ActivityTaskManager: Add Task{cd26fe5 #39 type=standard I=com.example.omnix_dashboard/.MainActivity} to hidden list because adding Task{f42b855 #40 type=standard I=com.example.omnix_dashboard/.MainActivity}
+03-09 23:02:13.475   746   850 I libPowerHal: [PD] MTKPOWER_HINT_EXT_LAUNCH update cmd:2020000 param:1
+03-09 23:02:13.473   746   746 W mtkPowerMsgHdl: type=1400 audit(0.0:10043): avc:  denied  { write } for  name="gpufreq_opp_freq" dev="proc" ino=4026532213 scontext=u:r:mtk_hal_power:s0 tcontext=u:object_r:proc:s0 tclass=file permissive=0
+03-09 23:02:13.476   746   850 I libPowerHal: [perfLockAcq] idx:2 hdl:1602 hint:22 pid:746 duration:10000 lock_user:mtkpower@1.0-se => ret_hdl:1602
+03-09 23:02:13.476   746   850 E libPowerHal: Could not open '/proc/cpufreq/cpufreq_cci_mode'
+03-09 23:02:13.476   746   850 E libPowerHal: error : 2, No such file or directory
+03-09 23:02:13.476   746   850 E libPowerHal: Could not open '/proc/gpufreq/gpufreq_opp_freq'
+03-09 23:02:13.476   746   850 E libPowerHal: error : 13, Permission denied
+03-09 23:02:13.477   746   850 E libPowerHal: Could not open '/sys/devices/system/cpu/sched/sched_boost'
+03-09 23:02:13.477   746   850 E libPowerHal: error : 2, No such file or directory
+03-09 23:02:13.477  1380  1402 I ActivityTaskManager: START u0 {flg=0x10000000 cmp=com.example.omnix_dashboard/.MainActivity} with LAUNCH_SINGLE_TOP from uid 2000 (BAL_ALLOW_PERMISSION) result code=0
+03-09 23:02:13.484  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:02:13.486   755  2312 E BufferQueueDebug: [20fe7f8 Splash Screen com.example.omnix_dashboard#2176](this:0xb400007576891b38,id:-1,api:0,p:-1,c:-1) id info cannot be read from '20fe7f8 Splash Screen com.example.omnix_dashboard#2176'
+03-09 23:02:13.486   755  2312 I BufferQueueDebug: [20fe7f8 Splash Screen com.example.omnix_dashboard#2176](this:0xb400007576891b38,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 23:02:13.486   718   724 W statsd  : StateTracker not found for state atom 29
+03-09 23:02:13.489   746   746 W mtkPowerMsgHdl: type=1400 audit(0.0:10044): avc:  denied  { write } for  name="gpufreq_opp_freq" dev="proc" ino=4026532213 scontext=u:r:mtk_hal_power:s0 tcontext=u:object_r:proc:s0 tclass=file permissive=0
+03-09 23:02:13.492  1380  1407 I PowerHalWrapper: amsBoostProcessCreate package:com.example.omnix_dashboard 
+03-09 23:02:13.493   746   850 I libPowerHal: [perfLockAcq] idx:1 hdl:1603 hint:21 pid:746 duration:10000 lock_user:mtkpower@1.0-se => ret_hdl:1603
+03-09 23:02:13.493   746   850 E libPowerHal: Could not open '/proc/cpufreq/cpufreq_cci_mode'
+03-09 23:02:13.493   746   850 E libPowerHal: error : 2, No such file or directory
+03-09 23:02:13.493   746   850 E libPowerHal: Could not open '/proc/gpufreq/gpufreq_opp_freq'
+03-09 23:02:13.493   746   850 E libPowerHal: error : 13, Permission denied
+03-09 23:02:13.493  1380  1414 W ziparchive: Unable to open '/data/app/~~zzyEQXEMGYpsgX49b4enig==/com.example.omnix_dashboard-VKj-rDxNPnbjYFlpz_Axuw==/base.dm': No such file or directory
+03-09 23:02:13.493   746   850 E libPowerHal: Could not open '/sys/devices/system/cpu/sched/sched_boost'
+03-09 23:02:13.493   746   850 E libPowerHal: error : 2, No such file or directory
+03-09 23:02:13.493   746   850 I libPowerHal: [PE] MTKPOWER_HINT_PROCESS_CREATE update cmd:2020000, param:15
+03-09 23:02:13.494   746   850 I libPowerHal: [perfLockRel] hdl:1596, idx:-1
+03-09 23:02:13.495   718   724 W statsd  : StateTracker not found for state atom 29
+03-09 23:02:13.496  1380  1812 I ImeTracker: com.blackview.launcher:7d74bff1: onRequestHide at ORIGIN_SERVER_HIDE_INPUT reason HIDE_UNSPECIFIED_WINDOW
+03-09 23:02:13.497  1380  1812 I ImeTracker: com.blackview.launcher:7d74bff1: onCancelled at PHASE_SERVER_SHOULD_HIDE
+03-09 23:02:13.499 22409 22409 I GoogleInputMethodService: GoogleInputMethodService.onFinishInput():3096 
+03-09 23:02:13.500   755  1437 E BufferQueueDebug: [Splash Screen com.example.omnix_dashboard#2177](this:0xb4000075767d89a8,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'Splash Screen com.example.omnix_dashboard#2177'
+03-09 23:02:13.500   755  1437 I BufferQueueDebug: [Splash Screen com.example.omnix_dashboard#2177](this:0xb4000075767d89a8,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 23:02:13.502 22409 22409 I GoogleInputMethodService: GoogleInputMethodService.updateDeviceLockedStatus():2210 repeatCheckTimes = 0, locked = false
+03-09 23:02:13.502 22409 22409 I GoogleInputMethodService: GoogleInputMethodService.onStartInput():1950 onStartInput(EditorInfo{EditorInfo{packageName=com.blackview.launcher, inputType=0, inputTypeString=NULL, enableLearning=false, autoCorrection=false, autoComplete=false, imeOptions=0, privateImeOptions=null, actionName=UNSPECIFIED, actionLabel=null, initialSelStart=-1, initialSelEnd=-1, initialCapsMode=0, label=null, fieldId=0, fieldName=null, extras=null, hintText=null, hintLocales=[]}}, false)
+03-09 23:02:13.504 22409 22409 I GoogleInputMethodService: GoogleInputMethodService.updateDeviceLockedStatus():2210 repeatCheckTimes = 1, locked = false
+03-09 23:02:13.505 22409 22409 I AndroidIME: InputBundleManager.loadActiveInputBundleId():450 loadActiveInputBundleId: und-Latn-x-password, password
+03-09 23:02:13.506   755  1437 E BufferQueueDebug: [Surface(name=ff30f74 InputMethod)/@0x5413512 - animation-leash of insets_animation#2178](this:0xb4000075767b9478,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'Surface(name=ff30f74 InputMethod)/@0x5413512 - animation-leash of insets_animation#2178'
+03-09 23:02:13.506   755  1437 I BufferQueueDebug: [Surface(name=ff30f74 InputMethod)/@0x5413512 - animation-leash of insets_animation#2178](this:0xb4000075767b9478,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 23:02:13.506  1380  1402 W PackageConfigPersister: App-specific configuration not found for packageName: com.blackview.launcher and userId: 0
+03-09 23:02:13.508 21016 21052 E OpenGLRenderer: Unable to match the desired swap behavior.
+03-09 23:02:13.509  1380  1417 I ActivityManager: Start proc 26326:com.example.omnix_dashboard/u0a212 for next-top-activity {com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity}
+03-09 23:02:13.516  1380  1408 W WindowManager: Failed to deliver inset control state change to w=Window{51f89ed u0 com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity EXITING}
+03-09 23:02:13.516  1380  1408 W WindowManager: android.os.DeadObjectException
+03-09 23:02:13.516  1380  1408 W WindowManager: 	at android.os.BinderProxy.transactNative(Native Method)
+03-09 23:02:13.516  1380  1408 W WindowManager: 	at android.os.BinderProxy.transact(BinderProxy.java:584)
+03-09 23:02:13.516  1380  1408 W WindowManager: 	at android.view.IWindow$Stub$Proxy.insetsControlChanged(IWindow.java:479)
+03-09 23:02:13.516  1380  1408 W WindowManager: 	at com.android.server.wm.WindowState.notifyInsetsControlChanged(WindowState.java:3850)
+03-09 23:02:13.516  1380  1408 W WindowManager: 	at com.android.server.wm.InsetsStateController.lambda$notifyPendingInsetsControlChanged$3(InsetsStateController.java:343)
+03-09 23:02:13.516  1380  1408 W WindowManager: 	at com.android.server.wm.InsetsStateController.$r8$lambda$8yykPRG1GyNq_J17QvL9d5xANMc(InsetsStateController.java:0)
+03-09 23:02:13.516  1380  1408 W WindowManager: 	at com.android.server.wm.InsetsStateController$$ExternalSyntheticLambda2.run(R8$$SyntheticClass:0)
+03-09 23:02:13.516  1380  1408 W WindowManager: 	at com.android.server.wm.WindowAnimator.executeAfterPrepareSurfacesRunnables(WindowAnimator.java:300)
+03-09 23:02:13.516  1380  1408 W WindowManager: 	at com.android.server.wm.RootWindowContainer.performSurfacePlacementNoTrace(RootWindowContainer.java:811)
+03-09 23:02:13.516  1380  1408 W WindowManager: 	at com.android.server.wm.RootWindowContainer.performSurfacePlacement(RootWindowContainer.java:756)
+03-09 23:02:13.516  1380  1408 W WindowManager: 	at com.android.server.wm.WindowSurfacePlacer.performSurfacePlacementLoop(WindowSurfacePlacer.java:177)
+03-09 23:02:13.516  1380  1408 W WindowManager: 	at com.android.server.wm.WindowSurfacePlacer.performSurfacePlacement(WindowSurfacePlacer.java:126)
+03-09 23:02:13.516  1380  1408 W WindowManager: 	at com.android.server.wm.WindowSurfacePlacer.performSurfacePlacement(WindowSurfacePlacer.java:115)
+03-09 23:02:13.516  1380  1408 W WindowManager: 	at com.android.server.wm.WindowSurfacePlacer$Traverser.run(WindowSurfacePlacer.java:57)
+03-09 23:02:13.516  1380  1408 W WindowManager: 	at android.os.Handler.handleCallback(Handler.java:958)
+03-09 23:02:13.516  1380  1408 W WindowManager: 	at android.os.Handler.dispatchMessage(Handler.java:99)
+03-09 23:02:13.516  1380  1408 W WindowManager: 	at android.os.Looper.loopOnce(Looper.java:205)
+03-09 23:02:13.516  1380  1408 W WindowManager: 	at android.os.Looper.loop(Looper.java:294)
+03-09 23:02:13.516  1380  1408 W WindowManager: 	at android.os.HandlerThread.run(HandlerThread.java:67)
+03-09 23:02:13.516  1380  1408 W WindowManager: 	at com.android.server.ServiceThread.run(ServiceThread.java:46)
+03-09 23:02:13.532   755   755 I BufferQueueDebug: [Surface(name=ff30f74 InputMethod)/@0x5413512 - animation-leash of insets_animation#2165](this:0xb40000757681cf28,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 23:02:13.534  1380  2272 W WindowManager: finishDrawingWindow: Window{20fe7f8 u0 Splash Screen com.example.omnix_dashboard} mDrawState=DRAW_PENDING
+03-09 23:02:13.537 26326 26326 I omnix_dashboard: Late-enabling -Xcheck:jni
+03-09 23:02:13.542  1380  1812 W WindowManager: real show surface:Surface(name=Splash Screen com.example.omnix_dashboard)/@0x89d492f
+03-09 23:02:13.543   755  2312 E BufferQueueDebug: [Transition Root: Task=40#2179](this:0xb4000075768062a8,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'Transition Root: Task=40#2179'
+03-09 23:02:13.544   755  2312 I BufferQueueDebug: [Transition Root: Task=40#2179](this:0xb4000075768062a8,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 23:02:13.553   755  1437 E BufferQueueDebug: [e5523f ActivityRecordInputSink com.example.omnix_dashboard/.MainActivity#2180](this:0xb40000757681cf28,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'e5523f ActivityRecordInputSink com.example.omnix_dashboard/.MainActivity#2180'
+03-09 23:02:13.553   755  1437 I BufferQueueDebug: [e5523f ActivityRecordInputSink com.example.omnix_dashboard/.MainActivity#2180](this:0xb40000757681cf28,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 23:02:13.561  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:02:13.562   718   724 W statsd  : StateTracker not found for state atom 29
+03-09 23:02:13.563  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:02:13.563  1380  1812 W WindowManager: Exception thrown during dispatchAppVisibility Window{51f89ed u0 com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity EXITING}
+03-09 23:02:13.563  1380  1812 W WindowManager: android.os.DeadObjectException
+03-09 23:02:13.563  1380  1812 W WindowManager: 	at android.os.BinderProxy.transactNative(Native Method)
+03-09 23:02:13.563  1380  1812 W WindowManager: 	at android.os.BinderProxy.transact(BinderProxy.java:584)
+03-09 23:02:13.563  1380  1812 W WindowManager: 	at android.view.IWindow$Stub$Proxy.dispatchAppVisibility(IWindow.java:546)
+03-09 23:02:13.563  1380  1812 W WindowManager: 	at com.android.server.wm.WindowState.sendAppVisibilityToClients(WindowState.java:3311)
+03-09 23:02:13.563  1380  1812 W WindowManager: 	at com.android.server.wm.WindowContainer.sendAppVisibilityToClients(WindowContainer.java:1225)
+03-09 23:02:13.563  1380  1812 W WindowManager: 	at com.android.server.wm.WindowToken.setClientVisible(WindowToken.java:409)
+03-09 23:02:13.563  1380  1812 W WindowManager: 	at com.android.server.wm.ActivityRecord.setClientVisible(ActivityRecord.java:7022)
+03-09 23:02:13.563  1380  1812 W WindowManager: 	at com.android.server.wm.ActivityRecord.postApplyAnimation(ActivityRecord.java:5704)
+03-09 23:02:13.563  1380  1812 W WindowManager: 	at com.android.server.wm.ActivityRecord.commitVisibility(ActivityRecord.java:5646)
+03-09 23:02:13.563  1380  1812 W WindowManager: 	at com.android.server.wm.Transition.finishTransition(Transition.java:1157)
+03-09 23:02:13.563  1380  1812 W WindowManager: 	at com.android.server.wm.TransitionController.finishTransition(TransitionController.java:870)
+03-09 23:02:13.563  1380  1812 W WindowManager: 	at com.android.server.wm.WindowOrganizerController.finishTransition(WindowOrganizerController.java:396)
+03-09 23:02:13.563  1380  1812 W WindowManager: 	at android.window.IWindowOrganizerController$Stub.onTransact(IWindowOrganizerController.java:286)
+03-09 23:02:13.563  1380  1812 W WindowManager: 	at com.android.server.wm.WindowOrganizerController.onTransact(WindowOrganizerController.java:181)
+03-09 23:02:13.563  1380  1812 W WindowManager: 	at android.os.Binder.execTransactInternal(Binder.java:1344)
+03-09 23:02:13.563  1380  1812 W WindowManager: 	at android.os.Binder.execTransact(Binder.java:1275)
+03-09 23:02:13.564  1380  1812 I Process : Sending signal. PID: 26070 SIG: 9
+03-09 23:02:13.567  1380  1812 W WindowManager: Changing focus from Window{b4b38f4 u0 com.blackview.launcher/com.android.searchlauncher.SearchLauncher} to null displayId=0 Callers=com.android.server.wm.RootWindowContainer.updateFocusedWindowLocked:455 com.android.server.wm.WindowManagerService.updateFocusedWindowLocked:6224 com.android.server.wm.WindowState.setupWindowForRemoveOnExit:2573 com.android.server.wm.WindowState.removeIfPossible:2535 
+03-09 23:02:13.568   755  1437 E BufferQueueDebug: [Surface(name=644a4 NavigationBar0)/@0x28bd233 - animation-leash of insets_animation#2181](this:0xb4000075767de4c8,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'Surface(name=644a4 NavigationBar0)/@0x28bd233 - animation-leash of insets_animation#2181'
+03-09 23:02:13.569   755  1437 I BufferQueueDebug: [Surface(name=644a4 NavigationBar0)/@0x28bd233 - animation-leash of insets_animation#2181](this:0xb4000075767de4c8,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 23:02:13.572   755  1437 E BufferQueueDebug: [Surface(name=cf97a2a StatusBar)/@0x60639f0 - animation-leash of insets_animation#2182](this:0xb400007576858bf8,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'Surface(name=cf97a2a StatusBar)/@0x60639f0 - animation-leash of insets_animation#2182'
+03-09 23:02:13.573   755  1437 I BufferQueueDebug: [Surface(name=cf97a2a StatusBar)/@0x60639f0 - animation-leash of insets_animation#2182](this:0xb400007576858bf8,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 23:02:13.584  1380  1407 W ActivityManager: setHasOverlayUi called on unknown pid: 26070
+03-09 23:02:13.584   755   755 I BufferQueueDebug: [Transition Root: Task=39#2171](this:0xb40000757687aeb8,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 23:02:13.588   755  2312 E BufferQueueDebug: [Task=39#2183](this:0xb4000075768a87b8,id:-1,api:0,p:-1,c:-1) id info cannot be read from 'Task=39#2183'
+03-09 23:02:13.589   755  2312 I BufferQueueDebug: [Task=39#2183](this:0xb4000075768a87b8,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 23:02:13.595 26326 26326 I omnix_dashboard: Using CollectorTypeCC GC.
+03-09 23:02:13.599   755   755 I BufferQueueDebug: [Surface(name=cf97a2a StatusBar)/@0x60639f0 - animation-leash of insets_animation#2170](this:0xb40000757681a198,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 23:02:13.599   755   755 I BufferQueueDebug: [Surface(name=644a4 NavigationBar0)/@0x28bd233 - animation-leash of insets_animation#2169](this:0xb400007576830e18,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 23:02:13.599   755   755 I BufferQueueDebug: [64ebb4f ActivityRecordInputSink com.example.omnix_dashboard/.MainActivity#2151](this:0xb4000075768948c8,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 23:02:13.603 24596 24601 I adbd    : jdwp connection from 26326
+03-09 23:02:13.614 22840 22840 I A       : onPause
+03-09 23:02:13.615   755   755 I BufferQueueDebug: [51f89ed com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity#2156](this:0xb4000075767f23b8,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 23:02:13.615   755   755 I BufferQueueDebug: [ActivityRecord{ab202dc u0 com.example.omnix_dashboard/.MainActivity#2147](this:0xb400007576872608,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 23:02:13.615   755   755 E BpTransactionCompletedListener: Failed to transact (-32)
+03-09 23:02:13.615   755   755 I BufferQueueDebug: [com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity#2157](this:0xb400007576889288,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 23:02:13.615   755   755 I BufferQueueDebug: [Bounds for - com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity#2160](this:0xb400007576814678,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 23:02:13.615   755   755 I BufferQueueDebug: [SurfaceView[com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity]#2161](this:0xb400007576822a48,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 23:02:13.615   755   755 I BufferQueueDebug: [Background for SurfaceView[com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity]#2163](this:0xb400007576833ba8,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 23:02:13.615   755   755 E BpTransactionCompletedListener: Failed to transact (-32)
+03-09 23:02:13.615   755   755 I BufferQueueDebug: [SurfaceView[com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity](BLAST)#2162](this:0xb400007576800788,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 23:02:13.616   755   755 I BufferQueueDebug: [Task=39#2183](this:0xb4000075768a87b8,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 23:02:13.632  1380  1812 I BvATMServiceExt: startAppLockActivity packageName=com.example.omnix_dashboard isAppLockedPackage=false isAppLockedVerifying=false
+03-09 23:02:13.633  1380  1812 I PowerHalWrapper: amsBoostNotify pid:26326,activity:com.example.omnix_dashboard.MainActivity, package:com.example.omnix_dashboard, mProcessCreatePackcom.example.omnix_dashboard 
+03-09 23:02:13.633  1380  1812 I PowerHalWrapper: state: 1 
+03-09 23:02:13.634  1380  1812 I mtkpower_client: [Legacy][PowerHal_Wrap_notifyAppState] com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity pid=26326 state:1
+03-09 23:02:13.634   746   850 I libPowerHal: [perfNotifyAppState] pack:com.example.omnix_dashboard, act:com.example.omnix_dashboard.MainActivity, state:1, pid:26326, uid:10212, fps:60
+03-09 23:02:13.634   746   850 I libPowerHal: [perfNotifyAppState] foreground:com.example.omnix_dashboard, pid:26326, uid:10212
+03-09 23:02:13.634   746   850 E UxUtility: notifyAppState error = NULL
+03-09 23:02:13.634   746   850 I TouchUtility: notifyAppState error = NULL
+03-09 23:02:13.634  1380  1812 I PowerHalWrapper: amsBoostNotify AMS_BOOST_PROCESS_CREATE_BOOST:true 
+03-09 23:02:13.635  1380  1380 E MBrainLocalService: notifyAppSwitch failed
+03-09 23:02:13.636   746   791 I mtkpower@impl: [notifyAppState] pc:1, com.blackview.launcher => com.example.omnix_dashboard
+03-09 23:02:13.639  1380  1405 E ApplicationHelper: Fail to get PackageManager
+03-09 23:02:13.640   718   724 W statsd  : StateTracker not found for state atom 29
+03-09 23:02:13.641  1380  1405 E MBrainLocalService: MBrainJava launch failed: SecurityException
+03-09 23:02:13.643  1380  1405 W System.err: android.content.pm.PackageManager$NameNotFoundException: ru.vk.store
+03-09 23:02:13.643  1380  1405 W System.err: 	at android.app.ApplicationPackageManager.getPackageInfoAsUser(ApplicationPackageManager.java:256)
+03-09 23:02:13.643  1380  1405 W System.err: 	at android.app.ApplicationPackageManager.getPackageInfo(ApplicationPackageManager.java:216)
+03-09 23:02:13.643  1380  1405 W System.err: 	at android.app.ApplicationPackageManager.getPackageInfo(ApplicationPackageManager.java:210)
+03-09 23:02:13.643  1380  1405 W System.err: 	at com.android.server.am.ActivityManagerService.hasRuApp(ActivityManagerService.java:1865)
+03-09 23:02:13.643  1380  1405 W System.err: 	at com.android.server.am.ActivityManagerService.checkRuState(ActivityManagerService.java:1836)
+03-09 23:02:13.643  1380  1405 W System.err: 	at com.android.server.am.ActivityManagerService.-$$Nest$mcheckRuState(ActivityManagerService.java:0)
+03-09 23:02:13.643  1380  1405 W System.err: 	at com.android.server.am.ActivityManagerService$UiHandler.handleMessage(ActivityManagerService.java:1805)
+03-09 23:02:13.643  1380  1405 W System.err: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+03-09 23:02:13.643  1380  1405 W System.err: 	at android.os.Looper.loopOnce(Looper.java:205)
+03-09 23:02:13.643  1380  1405 W System.err: 	at android.os.Looper.loop(Looper.java:294)
+03-09 23:02:13.643  1380  1405 W System.err: 	at android.os.HandlerThread.run(HandlerThread.java:67)
+03-09 23:02:13.643  1380  1405 W System.err: 	at com.android.server.ServiceThread.run(ServiceThread.java:46)
+03-09 23:02:13.643  1380  1405 W System.err: 	at com.android.server.UiThread.run(UiThread.java:45)
+03-09 23:02:13.651   746   792 I mtkpower@impl: [setMode] type:6, enabled:1
+03-09 23:02:13.651   746   792 E mtkpower@impl: [setMode] unknown type
+03-09 23:02:13.653   755   755 I BufferQueueProducer: [FramebufferSurface](this:0xb4000074b66af370,id:-1,api:1,p:755,c:755) queueBuffer: fps=0.10 dur=143855.18 max=143628.91 min=14.13
+03-09 23:02:13.667 26326 26326 W ziparchive: Unable to open '/data/app/~~zzyEQXEMGYpsgX49b4enig==/com.example.omnix_dashboard-VKj-rDxNPnbjYFlpz_Axuw==/base.dm': No such file or directory
+03-09 23:02:13.667 26326 26326 W ziparchive: Unable to open '/data/app/~~zzyEQXEMGYpsgX49b4enig==/com.example.omnix_dashboard-VKj-rDxNPnbjYFlpz_Axuw==/base.dm': No such file or directory
+03-09 23:02:13.860   755   755 I BufferQueueProducer: [NavigationBar0#1493](this:0xb4000075767e6d78,id:-1,api:0,p:-1,c:755) queueBuffer: fps=0.13 dur=133558.83 max=133019.98 min=14.18
+03-09 23:02:13.897   746   792 I mtkpower@impl: [setMode] type:6, enabled:0
+03-09 23:02:13.897   746   792 E mtkpower@impl: [setMode] unknown type
+03-09 23:02:13.905  1380 11044 I GED     : ged_boost_gpu_freq, level 100, eOrigin 2, final_idx 2, oppidx_max 2, oppidx_min 0
+03-09 23:02:13.913 22840 22920 I GED     : ged_boost_gpu_freq, level 100, eOrigin 2, final_idx 2, oppidx_max 2, oppidx_min 0
+03-09 23:02:13.921  2002  2989 I GED     : ged_boost_gpu_freq, level 100, eOrigin 2, final_idx 2, oppidx_max 2, oppidx_min 0
+03-09 23:02:13.925   755   755 I BufferQueueDebug: [Transition Root: Task=40#2179](this:0xb4000075768062a8,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 23:02:13.941   755   755 I BufferQueueDebug: [665fdc5 ActivityRecordInputSink com.blackview.launcher/com.android.searchlauncher.SearchLauncher#2173](this:0xb40000757674d118,id:-1,api:0,p:-1,c:755) onDestructor()
+03-09 23:02:14.103  1576  1576 I WifiHAL : Get link layer stats
+03-09 23:02:14.103  1576  1576 I WifiHAL : GetLinkStatsCommand::create
+03-09 23:02:14.104  1576  1576 I android.hardware.wifi@1.0-service-lazy: WifiCommand::requestResponse err=-14
+03-09 23:02:14.104  1576  1576 I WifiHAL : wifi_get_link_stats: result=-1
+03-09 23:02:14.104  1380  1510 E WifiStaIfaceHidlImpl: getLinkLayerStatsV1_5 failed with status: {.code = ERROR_UNKNOWN, .description = unknown}
+03-09 23:02:14.117  1380  1402 I ActivityManager: Flag disabled. Ignoring finishAttachApplication from uid: 10212. pid: 26326
+03-09 23:02:14.123 26326 26326 I M-ProMotion: M-ProMotion is disabled
+03-09 23:02:14.134 26326 26354 E QT      : [QT]file does not exist
+03-09 23:02:14.164 26326 26326 I ONYX_TELEMETRY: MainActivity onCreate
+03-09 23:02:14.197 26326 26356 I ResourceExtractor: Found extracted resources res_timestamp-1-1773089977571
+03-09 23:02:14.277 26326 26326 W omnix_dashboard: type=1400 audit(0.0:10045): avc:  denied  { read } for  name="max_map_count" dev="proc" ino=407971 scontext=u:r:untrusted_app:s0:c212,c256,c512,c768 tcontext=u:object_r:proc_max_map_count:s0 tclass=file permissive=0 app=com.example.omnix_dashboard
+03-09 23:02:14.326 26326 26358 W libc    : Access denied finding property "vendor.debug.forcibly_enable_mtk_ray_tracing"
+03-09 23:02:14.335   733  1085 I hwcomposer: [HWCDisplay] [Display_0 (type:1)] fps:60.033661,dur:1016.10,max:35.43,min:11.79  
+03-09 23:02:14.384   746   835 I libPerfCtl: xgfGetFPS pid:21016 fps:62
+03-09 23:02:14.544 26326 26358 I flutter : [IMPORTANT:flutter/shell/platform/android/android_context_vk_impeller.cc(62)] Using the Impeller rendering backend (Vulkan).
+03-09 23:02:14.559   477   477 I hwservicemanager: getTransport: Cannot find entry android.hardware.configstore@1.0::ISurfaceFlingerConfigs/default in either framework or device VINTF manifest.
+03-09 23:02:14.582 26326 26358 I flutter : [IMPORTANT:flutter/shell/platform/android/android_context_gl_impeller.cc(104)] Using the Impeller rendering backend (OpenGLES).
+03-09 23:02:14.766 26326 26370 I flutter : The Dart VM service is listening on http://127.0.0.1:39859/pyba44Nz-Bo=/
+03-09 23:02:14.877   755   755 I BufferQueueProducer: [NavigationBar0#1493](this:0xb4000075767e6d78,id:-1,api:0,p:-1,c:755) queueBuffer: fps=60.95 dur=1017.15 max=19.57 min=14.09
+03-09 23:02:15.335   733  1085 I hwcomposer: [HWCDisplay] [Display_0 (type:1)] fps:60.992115,dur:1000.13,max:19.51,min:14.11  
+03-09 23:02:15.384   746   835 I libPerfCtl: xgfGetFPS pid:21016 fps:61
+03-09 23:02:15.565 26326 26326 I ONYX_TELEMETRY: configureFlutterEngine initializing guard telemetry channel
+03-09 23:02:15.620 26326 26326 I ONYX_TELEMETRY: fsk_live_facade_started action=com.onyx.fsk.SDK_HEARTBEAT connector=broadcast_intent_connector
+03-09 23:02:15.620 26326 26326 I ONYX_TELEMETRY: configureFlutterEngine guard telemetry channel ready
+03-09 23:02:15.630 26326 26326 I SurfaceFactory: [static] sSurfaceFactory = com.mediatek.view.impl.SurfaceFactoryImpl@b00197e
+03-09 23:02:15.712  1380  1399 W System  : A resource failed to call release. 
+03-09 23:02:15.713  1380  1399 W System  : A resource failed to call HardwareBuffer.close. 
+03-09 23:02:15.725 26326 26326 W omnix_dashboard: Accessing hidden method Landroid/view/accessibility/AccessibilityNodeInfo;->getSourceNodeId()J (unsupported,test-api, reflection, allowed)
+03-09 23:02:15.725 26326 26326 W omnix_dashboard: Accessing hidden method Landroid/view/accessibility/AccessibilityRecord;->getSourceNodeId()J (unsupported, reflection, allowed)
+03-09 23:02:15.725 26326 26326 W omnix_dashboard: Accessing hidden field Landroid/view/accessibility/AccessibilityNodeInfo;->mChildNodeIds:Landroid/util/LongArray; (unsupported, reflection, allowed)
+03-09 23:02:15.725 26326 26326 W omnix_dashboard: Accessing hidden method Landroid/util/LongArray;->get(I)J (unsupported, reflection, allowed)
+03-09 23:02:15.800 26326 26326 I Activity: performStart: getPackageName()=com.example.omnix_dashboard
+03-09 23:02:15.812 26326 26351 I PowerHalWrapper: PowerHalWrapper.getInstance 
+03-09 23:02:15.816  1380  1812 I ActivityManager: Broadcasting: Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }
+03-09 23:02:15.817  1380  1812 I ActivityManager: Enqueued broadcast Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }: 0
+03-09 23:02:15.818  1380  1404 I ActivityManager: Broadcast completed: result=0
+03-09 23:02:15.819 26326 26326 W OpenGLRenderer: Unknown dataspace 0
+03-09 23:02:15.828   755  1437 E BufferQueueDebug: [2d6d5ff com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity#2184](this:0xb4000075768062a8,id:-1,api:0,p:-1,c:-1) id info cannot be read from '2d6d5ff com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity#2184'
+03-09 23:02:15.828   755  1437 I BufferQueueDebug: [2d6d5ff com.example.omnix_dashboard/com.example.omnix_dashboard.MainActivity#2184](this:0xb4000075768062a8,id:-1,api:0,p:-1,c:-1) BufferQueue core=(755:/system/bin/surfaceflinger)
+03-09 23:02:16.384   746   835 I libPerfCtl: xgfGetFPS pid:21016 fps:61
+03-09 23:02:16.519 26326 26326 I flutter : Supabase not configured. Running with in-memory ledger repository.
+03-09 23:02:16.917  1380  1812 I ActivityManager: Broadcasting: Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }
+03-09 23:02:16.919  1380  1404 I ActivityManager: Broadcast completed: result=0
+03-09 23:02:16.919  1380  1812 I ActivityManager: Enqueued broadcast Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }: 0
+03-09 23:02:16.991 26326 26326 I flutter : Seed complete. Event count: 29
+03-09 23:02:17.121  1576  1576 I WifiHAL : Get link layer stats
+03-09 23:02:17.121  1576  1576 I WifiHAL : GetLinkStatsCommand::create
+03-09 23:02:17.121  1576  1576 I android.hardware.wifi@1.0-service-lazy: WifiCommand::requestResponse err=-14
+03-09 23:02:17.121  1576  1576 I WifiHAL : wifi_get_link_stats: result=-1
+03-09 23:02:17.122  1380  1510 E WifiStaIfaceHidlImpl: getLinkLayerStatsV1_5 failed with status: {.code = ERROR_UNKNOWN, .description = unknown}
+03-09 23:02:17.810 26161 26163 I AidlLazyServiceRegistrar: Process has 0 (of 1 available) client(s) in use after notification artd has clients: 0
+03-09 23:02:17.810 26161 26163 I AidlLazyServiceRegistrar: Trying to shut down the service. No clients in use for any service in process.
+03-09 23:02:17.810 26161 26163 I AidlLazyServiceRegistrar: Unregistered all clients and exiting
+03-09 23:02:18.022  1380  1812 I ActivityManager: Broadcasting: Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }
+03-09 23:02:18.024  1380  1404 I ActivityManager: Broadcast completed: result=0
+03-09 23:02:18.024  1380  1812 I ActivityManager: Enqueued broadcast Intent { act=com.onyx.fsk.SDK_HEARTBEAT flg=0x400000 (has extras) }: 0
+03-09 23:02:18.258   982   982 I thermal_repeater: [recvMdThermalInfo] ret=33, strLen=127,  0, 32767, -127, 0, 32767, -28543
+03-09 23:02:20.129  1576  1576 I WifiHAL : Get link layer stats
+03-09 23:02:20.129  1576  1576 I WifiHAL : GetLinkStatsCommand::create
+03-09 23:02:20.129  1576  1576 I android.hardware.wifi@1.0-service-lazy: WifiCommand::requestResponse err=-14
+03-09 23:02:20.129  1576  1576 I WifiHAL : wifi_get_link_stats: result=-1
+03-09 23:02:20.130  1380  1510 E WifiStaIfaceHidlImpl: getLinkLayerStatsV1_5 failed with status: {.code = ERROR_UNKNOWN, .description = unknown}
+03-09 23:02:20.172   755   755 I BufferQueueProducer: [StatusBar#1497](this:0xb400007576866fc8,id:-1,api:0,p:-1,c:755) queueBuffer: fps=0.07 dur=15086.79 max=15086.79 min=15086.79

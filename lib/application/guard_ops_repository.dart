@@ -119,6 +119,8 @@ class SupabaseGuardOpsRemoteGateway implements GuardOpsRemoteGateway {
                   'upload_status': 'uploaded',
                   'retry_count': entry.retryCount,
                   'failure_reason': entry.failureReason,
+                  'visual_norm_mode': entry.visualNorm.mode.name,
+                  'visual_norm_metadata': entry.visualNorm.toJson(),
                 },
               )
               .toList(growable: false),

@@ -1,0 +1,8 @@
+I/ONYX_TELEMETRY: facade_ingest adapter=standard payloadKeys=[activity_state,battery_percent,captured_at_utc,gps_accuracy_meters,heart_rate,movement_level]
+I/ONYX_TELEMETRY: sdk_callback_received adapter=standard callback_count=1 captured_at_utc=2026-03-09T20:19:00Z
+I/ONYX_TELEMETRY: ingestFskSdkHeartbeat result accepted=true captured_at_utc=2026-03-09T20:19:00Z message=Wearable heartbeat bridge payload ingested.
+I/ONYX_TELEMETRY: facade_ingest adapter=standard payloadKeys=[activity_state,battery_percent,captured_at_utc,gps_accuracy_meters,heart_rate,movement_level]
+I/ONYX_TELEMETRY: sdk_callback_received adapter=standard callback_count=2 captured_at_utc=2026-03-09T20:19:00Z
+I/ONYX_TELEMETRY: ingestFskSdkHeartbeat result accepted=true captured_at_utc=2026-03-09T20:19:00Z message=Wearable heartbeat bridge payload ingested.
+I/ONYX_TELEMETRY: ingestFskSdkHeartbeat requested provider=fsk_sdk payloadKeys=[activity_state,battery_percent,captured_at_utc,gps_accuracy_meters,heart_rate,movement_level]
+I/ONYX_TELEMETRY: ingestFskSdkHeartbeat requested provider=fsk_sdk payloadKeys=[activity_state,battery_percent,captured_at_utc,gps_accuracy_meters,heart_rate,movement_level]

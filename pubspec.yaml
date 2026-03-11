@@ -32,6 +32,7 @@ flutter:
     - assets/images/onyx_logo.png
     - assets/telemetry_payload_fixtures/fsk_standard_sample.json
     - assets/telemetry_payload_fixtures/fsk_legacy_ptt_sample.json
+    - assets/telemetry_payload_fixtures/fsk_hikvision_guardlink_sample.json
     - assets/fonts/Inter-Regular.ttf
     - assets/fonts/Inter-Medium.ttf
     - assets/fonts/Inter-SemiBold.ttf

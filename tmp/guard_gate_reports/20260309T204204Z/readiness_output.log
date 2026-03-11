@@ -1,0 +1,19 @@
+== ONYX Guard Pilot Readiness Check ==
+PASS: Found supabase/migrations/202603050001_create_guard_sync_tables.sql
+PASS: Found supabase/migrations/202603050002_create_guard_ops_event_log.sql
+PASS: Found supabase/migrations/202603050003_apply_guard_rls_storage_policies.sql
+PASS: Found supabase/migrations/202603050008_add_guard_projection_retention.sql
+PASS: Found supabase/migrations/202603050009_add_guard_ops_replay_safety_retention.sql
+PASS: Found supabase/migrations/202603050010_add_guard_rls_storage_readiness_checks.sql
+PASS: Found docs/guard_app_android_deployment_blueprint_v2.md
+PASS: Found docs/guard_native_telemetry_sdk_contract.md
+PASS: Found docs/guard_app_deployment_status_checklist.md
+PASS: Found docs/guard_pilot_config_matrix.md
+PASS: Found docs/guard_android_live_validation_runbook.md
+PASS: Found supabase/sql/guard_readiness_smoke_checks.sql
+PASS: Found supabase/sql/guard_actor_contract_checks.sql
+PASS: Found config/onyx.local.json
+PASS: Supabase config gate passed.
+PASS: Live telemetry gate passed (native: fsk_sdk, required: fsk_sdk)
+PASS: Live validation JSON checksum verification passed (tmp/guard_field_validation/mock-20260309T204204Z/validation_report.json)
+FAIL: Live validation artifact gate failed: report required_provider (hikvision_sdk) does not match telemetry gate required provider (fsk_sdk).

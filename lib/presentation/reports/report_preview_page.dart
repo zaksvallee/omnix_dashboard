@@ -38,7 +38,8 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
   }
 
   Future<void> _generate() async {
-    final bytes = widget.initialPdfBytes ??
+    final bytes =
+        widget.initialPdfBytes ??
         await PDFReportExporter.generate(widget.bundle);
     setState(() {
       _pdfBytes = bytes;
@@ -59,84 +60,61 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
       );
     }
 
+    final phoneLayout = MediaQuery.sizeOf(context).width < 900;
     final receipt = widget.receiptEvent;
     final replayMatched = widget.replayMatches == true;
-
-    return OnyxPageScaffold(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            OnyxPageHeader(
-              title: 'Operational Intelligence PDF',
-              subtitle:
-                  'Preview, verify, print, and distribute deterministic report output.',
-              actions: [
-                IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: IconButton.styleFrom(
-                    backgroundColor: const Color(0xFF0A142A),
-                    side: const BorderSide(color: Color(0xFF1C3153)),
-                  ),
-                  icon: const Icon(
-                    Icons.arrow_back_rounded,
-                    color: Color(0xFFBFD2EE),
-                  ),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    await Printing.layoutPdf(
-                      onLayout: (format) async => _pdfBytes!,
-                    );
-                  },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF8AD6FF),
-                    side: const BorderSide(color: Color(0xFF286AB8)),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 14,
+    final receiptSummary = receipt == null
+        ? const SizedBox.shrink()
+        : LayoutBuilder(
+            builder: (context, constraints) {
+              if (!phoneLayout) {
+                return Row(
+                  children: [
+                    Expanded(
+                      child: OnyxSummaryStat(
+                        label: 'Receipt',
+                        value: receipt.eventId,
+                        accent: const Color(0xFF63BDFF),
+                      ),
                     ),
-                  ),
-                  icon: const Icon(Icons.print_rounded),
-                  label: const Text('Print'),
-                ),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    await Printing.sharePdf(
-                      bytes: _pdfBytes!,
-                      filename: 'onyx_intelligence_report.pdf',
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1B5DA1),
-                    foregroundColor: const Color(0xFFE6F1FF),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 14,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OnyxSummaryStat(
+                        label: 'Replay',
+                        value: replayMatched ? 'Matched' : 'Failed',
+                        accent: replayMatched
+                            ? const Color(0xFF59D79B)
+                            : const Color(0xFFFF7A7A),
+                      ),
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OnyxSummaryStat(
+                        label: 'Range',
+                        value:
+                            '${receipt.eventRangeStart}-${receipt.eventRangeEnd}',
+                        accent: const Color(0xFFF6C067),
+                      ),
                     ),
-                  ),
-                  icon: const Icon(Icons.download_rounded),
-                  label: const Text('Download'),
-                ),
-              ],
-            ),
-            if (receipt != null) ...[
-              const SizedBox(height: 14),
-              Row(
+                  ],
+                );
+              }
+              final spacing = 10.0;
+              final cardWidth = (constraints.maxWidth - spacing) / 2;
+              return Wrap(
+                spacing: spacing,
+                runSpacing: spacing,
                 children: [
-                  Expanded(
+                  SizedBox(
+                    width: cardWidth,
                     child: OnyxSummaryStat(
                       label: 'Receipt',
                       value: receipt.eventId,
                       accent: const Color(0xFF63BDFF),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
+                  SizedBox(
+                    width: cardWidth,
                     child: OnyxSummaryStat(
                       label: 'Replay',
                       value: replayMatched ? 'Matched' : 'Failed',
@@ -145,8 +123,8 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
                           : const Color(0xFFFF7A7A),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
+                  SizedBox(
+                    width: constraints.maxWidth,
                     child: OnyxSummaryStat(
                       label: 'Range',
                       value:
@@ -155,90 +133,302 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
                     ),
                   ),
                 ],
+              );
+            },
+          );
+    final previewPane = OnyxSectionCard(
+      title: 'PDF Preview',
+      subtitle:
+          'Use this viewer as the final operator checkpoint before print or distribution.',
+      flexibleChild: !phoneLayout,
+      child: phoneLayout
+          ? SizedBox(
+              height: 560,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: PdfPreview(
+                  pdfFileName: 'onyx_intelligence_report.pdf',
+                  canDebug: false,
+                  useActions: false,
+                  allowPrinting: false,
+                  allowSharing: false,
+                  build: (format) async => _pdfBytes!,
+                ),
               ),
-              const SizedBox(height: 14),
-              OnyxSectionCard(
-                title: 'Receipt Integrity',
-                subtitle:
-                    'Current report receipt, content hash, event range, and replay match state.',
+            )
+          : ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: PdfPreview(
+                pdfFileName: 'onyx_intelligence_report.pdf',
+                canDebug: false,
+                useActions: false,
+                allowPrinting: false,
+                allowSharing: false,
+                build: (format) async => _pdfBytes!,
+              ),
+            ),
+    );
+
+    return OnyxPageScaffold(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+        child: phoneLayout
+            ? SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _chip(
-                          'Receipt',
-                          receipt.eventId,
-                          const Color(0xFF7BD0FF),
+                    OnyxPageHeader(
+                      title: 'Operational Intelligence PDF',
+                      subtitle:
+                          'Preview, verify, print, and distribute deterministic report output.',
+                      actions: [
+                        IconButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          style: IconButton.styleFrom(
+                            backgroundColor: const Color(0xFF0E1A2B),
+                            side: const BorderSide(color: Color(0xFF1C3153)),
+                          ),
+                          icon: const Icon(
+                            Icons.arrow_back_rounded,
+                            color: Color(0xFFBFD2EE),
+                          ),
                         ),
-                        _chip(
-                          'Hash',
-                          _shortHash(receipt.contentHash),
-                          const Color(0xFF8AA4C9),
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            await Printing.layoutPdf(
+                              onLayout: (format) async => _pdfBytes!,
+                            );
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF8AD6FF),
+                            side: const BorderSide(color: Color(0xFF286AB8)),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 14,
+                            ),
+                          ),
+                          icon: const Icon(Icons.print_rounded),
+                          label: const Text('Print'),
                         ),
-                        _chip(
-                          'Range',
-                          '${receipt.eventRangeStart}-${receipt.eventRangeEnd}',
-                          const Color(0xFF8AA4C9),
-                        ),
-                        _chip(
-                          'Replay',
-                          replayMatched ? 'MATCHED' : 'FAILED',
-                          replayMatched
-                              ? const Color(0xFF79D89A)
-                              : const Color(0xFFFF7A7A),
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            await Printing.sharePdf(
+                              bytes: _pdfBytes!,
+                              filename: 'onyx_intelligence_report.pdf',
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF225182),
+                            foregroundColor: const Color(0xFFE6F1FF),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 14,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          icon: const Icon(Icons.download_rounded),
+                          label: const Text('Download'),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF0B182B), Color(0xFF091423)],
+                    if (receipt != null) ...[
+                      const SizedBox(height: 14),
+                      receiptSummary,
+                      const SizedBox(height: 14),
+                      OnyxSectionCard(
+                        title: 'Receipt Integrity',
+                        subtitle:
+                            'Current report receipt, content hash, event range, and replay match state.',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                _chip(
+                                  'Receipt',
+                                  receipt.eventId,
+                                  const Color(0xFF7BD0FF),
+                                ),
+                                _chip(
+                                  'Hash',
+                                  _shortHash(receipt.contentHash),
+                                  const Color(0xFF8AA4C9),
+                                ),
+                                _chip(
+                                  'Range',
+                                  '${receipt.eventRangeStart}-${receipt.eventRangeEnd}',
+                                  const Color(0xFF8AA4C9),
+                                ),
+                                _chip(
+                                  'Replay',
+                                  replayMatched ? 'MATCHED' : 'FAILED',
+                                  replayMatched
+                                      ? const Color(0xFF79D89A)
+                                      : const Color(0xFFFF7A7A),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0E1A2B),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: const Color(0xFF17324F),
+                                ),
+                              ),
+                              child: Text(
+                                'Receipt integrity is tied to the generated content hash and event range. Re-open this receipt from the harness to prove replay-safe regeneration before delivery.',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF94ABCB),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFF17324F)),
                       ),
-                      child: Text(
-                        'Receipt integrity is tied to the generated content hash and event range. Re-open this receipt from the harness to prove replay-safe regeneration before delivery.',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF94ABCB),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          height: 1.4,
+                    ],
+                    const SizedBox(height: 14),
+                    previewPane,
+                  ],
+                ),
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  OnyxPageHeader(
+                    title: 'Operational Intelligence PDF',
+                    subtitle:
+                        'Preview, verify, print, and distribute deterministic report output.',
+                    actions: [
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: IconButton.styleFrom(
+                          backgroundColor: const Color(0xFF0E1A2B),
+                          side: const BorderSide(color: Color(0xFF1C3153)),
                         ),
+                        icon: const Icon(
+                          Icons.arrow_back_rounded,
+                          color: Color(0xFFBFD2EE),
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          await Printing.layoutPdf(
+                            onLayout: (format) async => _pdfBytes!,
+                          );
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF8AD6FF),
+                          side: const BorderSide(color: Color(0xFF286AB8)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 14,
+                          ),
+                        ),
+                        icon: const Icon(Icons.print_rounded),
+                        label: const Text('Print'),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          await Printing.sharePdf(
+                            bytes: _pdfBytes!,
+                            filename: 'onyx_intelligence_report.pdf',
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF225182),
+                          foregroundColor: const Color(0xFFE6F1FF),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 14,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        icon: const Icon(Icons.download_rounded),
+                        label: const Text('Download'),
+                      ),
+                    ],
+                  ),
+                  if (receipt != null) ...[
+                    const SizedBox(height: 14),
+                    receiptSummary,
+                    const SizedBox(height: 14),
+                    OnyxSectionCard(
+                      title: 'Receipt Integrity',
+                      subtitle:
+                          'Current report receipt, content hash, event range, and replay match state.',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _chip(
+                                'Receipt',
+                                receipt.eventId,
+                                const Color(0xFF7BD0FF),
+                              ),
+                              _chip(
+                                'Hash',
+                                _shortHash(receipt.contentHash),
+                                const Color(0xFF8AA4C9),
+                              ),
+                              _chip(
+                                'Range',
+                                '${receipt.eventRangeStart}-${receipt.eventRangeEnd}',
+                                const Color(0xFF8AA4C9),
+                              ),
+                              _chip(
+                                'Replay',
+                                replayMatched ? 'MATCHED' : 'FAILED',
+                                replayMatched
+                                    ? const Color(0xFF79D89A)
+                                    : const Color(0xFFFF7A7A),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0E1A2B),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: const Color(0xFF17324F),
+                              ),
+                            ),
+                            child: Text(
+                              'Receipt integrity is tied to the generated content hash and event range. Re-open this receipt from the harness to prove replay-safe regeneration before delivery.',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF94ABCB),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
-                ),
+                  const SizedBox(height: 14),
+                  Expanded(child: previewPane),
+                ],
               ),
-            ],
-            const SizedBox(height: 14),
-            Expanded(
-              child: OnyxSectionCard(
-                title: 'PDF Preview',
-                subtitle:
-                    'Use this viewer as the final operator checkpoint before print or distribution.',
-                flexibleChild: true,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child: PdfPreview(
-                    pdfFileName: 'onyx_intelligence_report.pdf',
-                    canDebug: false,
-                    useActions: false,
-                    allowPrinting: false,
-                    allowSharing: false,
-                    build: (format) async => _pdfBytes!,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -247,9 +437,7 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0B182B), Color(0xFF091423)],
-        ),
+        color: const Color(0xFF0E1A2B),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: const Color(0xFF20406B)),
       ),
@@ -257,9 +445,7 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
         text: TextSpan(
           style: GoogleFonts.inter(fontSize: 12),
           children: [
-            const TextSpan(
-              text: '',
-            ),
+            const TextSpan(text: ''),
             TextSpan(
               text: '$label: ',
               style: const TextStyle(

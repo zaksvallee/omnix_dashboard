@@ -12,13 +12,45 @@ import 'package:omnix_dashboard/ui/sites_page.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  testWidgets('sites page stays stable on phone viewport', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      const MaterialApp(home: SitesPage(events: <DispatchEvent>[])),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('No sites available in the current projection.'),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('sites page stays stable on landscape phone viewport', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(844, 390));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      const MaterialApp(home: SitesPage(events: <DispatchEvent>[])),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('No sites available in the current projection.'),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('sites page shows empty state when no site events exist', (
     tester,
   ) async {
     await tester.pumpWidget(
-      const MaterialApp(
-        home: SitesPage(events: <DispatchEvent>[]),
-      ),
+      const MaterialApp(home: SitesPage(events: <DispatchEvent>[])),
     );
 
     expect(
@@ -100,11 +132,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1440, 980));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: SitesPage(events: events),
-      ),
-    );
+    await tester.pumpWidget(MaterialApp(home: SitesPage(events: events)));
     await tester.pumpAndSettle();
 
     expect(find.text('Site Command Grid'), findsOneWidget);
