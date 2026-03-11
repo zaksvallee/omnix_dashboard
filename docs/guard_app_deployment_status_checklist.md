@@ -39,6 +39,9 @@ Last updated: 2026-03-11 (Africa/Johannesburg)
   [guard_android_ptt_sniffer.sh](/Users/zaks/omnix_dashboard/scripts/guard_android_ptt_sniffer.sh).
 - [x] OEM escalation bundle helper added for lockscreen-side-key evidence capture:
   [guard_android_oem_escalation_bundle.sh](/Users/zaks/omnix_dashboard/scripts/guard_android_oem_escalation_bundle.sh).
+- [x] Lockscreen PTT decision gate helper added:
+  [guard_android_ptt_lockscreen_gate.sh](/Users/zaks/omnix_dashboard/scripts/guard_android_ptt_lockscreen_gate.sh)
+  classifies evidence as `LOCKED_OK` vs `UNLOCKED_ONLY` for operator go/no-go.
 - [x] PTT foreground listener boot auto-start added:
   ONYX now starts `PttForegroundService` on `BOOT_COMPLETED` and
   `MY_PACKAGE_REPLACED` via `.telemetry.OnyxBootReceiver` to reduce manual app-launch dependency.

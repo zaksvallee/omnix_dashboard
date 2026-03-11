@@ -321,6 +321,16 @@ adb -s <serial> shell getevent -lt
 adb -s <serial> logcat -v time | grep -E --line-buffered "ptt_ingest_accepted|ptt_key_bridge_accepted"
 ```
 
+Operational gate command:
+
+```bash
+./scripts/guard_android_ptt_lockscreen_gate.sh --serial <serial> --duration 20 --allow-unlocked-only
+```
+
+This command generates/reads an OEM escalation bundle and emits a single decision:
+- `LOCKED_OK` (confirmed locked-state ingest evidence)
+- `UNLOCKED_ONLY` (no confirmed locked-state ingest evidence)
+
 Operational guidance:
 
 - For locked-screen PTT, require OEM/system key-routing support that emits app-visible broadcasts while locked.
