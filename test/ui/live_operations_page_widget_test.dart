@@ -81,4 +81,21 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Select a reason code (required):'), findsNothing);
   });
+
+  testWidgets('pause action records a ledger entry', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: LiveOperationsPage(events: [])),
+    );
+    await tester.pumpAndSettle();
+
+    final pauseButton = find.widgetWithText(OutlinedButton, 'Pause').first;
+    await tester.ensureVisible(pauseButton);
+    await tester.tap(pauseButton);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('Automation paused for INC-8829-QX'),
+      findsWidgets,
+    );
+  });
 }

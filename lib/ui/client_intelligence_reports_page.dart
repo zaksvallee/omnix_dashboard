@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../application/report_generation_service.dart';
@@ -519,7 +522,8 @@ class _ClientIntelligenceReportsPageState
             _pillActionButton(
               label: 'Export All',
               icon: Icons.download_rounded,
-              onTap: null,
+              buttonKey: const ValueKey('reports-export-all-button'),
+              onTap: () => _exportAllReceipts(rows),
             ),
           ],
         ),
@@ -934,9 +938,11 @@ class _ClientIntelligenceReportsPageState
     required String label,
     required IconData icon,
     required VoidCallback? onTap,
+    Key? buttonKey,
     bool filled = false,
   }) {
     return TextButton.icon(
+      key: buttonKey,
       onPressed: onTap,
       style: TextButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
@@ -956,6 +962,42 @@ class _ClientIntelligenceReportsPageState
         label,
         style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700),
       ),
+    );
+  }
+
+  void _exportAllReceipts(List<_ReceiptRow> rows) {
+    if (rows.isEmpty) {
+      _showReceiptActionFeedback('No receipts available to export.');
+      return;
+    }
+    final payload = rows
+        .map(
+          (row) => <String, Object?>{
+            'eventId': row.event.eventId,
+            'clientId': row.event.clientId,
+            'siteId': row.event.siteId,
+            'occurredAtUtc': row.event.occurredAt.toUtc().toIso8601String(),
+            'month': row.event.month,
+            'eventCount': row.event.eventCount,
+            'replayVerified': row.replayVerified,
+          },
+        )
+        .toList(growable: false);
+    final encoded = const JsonEncoder.withIndent('  ').convert(payload);
+    Clipboard.setData(ClipboardData(text: encoded));
+    _showReceiptActionFeedback(
+      'Exported ${rows.length} receipt records to clipboard.',
+    );
+  }
+
+  void _showReceiptActionFeedback(String message) {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) {
+      return;
+    }
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
     );
   }
 

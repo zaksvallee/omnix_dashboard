@@ -751,7 +751,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                           child: const Text('Override'),
                         ),
                         OutlinedButton(
-                          onPressed: () {},
+                          onPressed: activeIncident == null
+                              ? null
+                              : () => _pauseAutomation(activeIncident),
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: Color(0x333B82F6)),
                             foregroundColor: const Color(0xFFBFD1EC),
@@ -1830,6 +1832,29 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       );
       _projectFromEvents();
     });
+  }
+
+  void _pauseAutomation(_IncidentRecord incident) {
+    setState(() {
+      _manualLedger.add(
+        _LedgerEntry(
+          id: 'PAUSE-${DateTime.now().microsecondsSinceEpoch}',
+          timestamp: DateTime.now(),
+          type: _LedgerType.systemEvent,
+          description: 'Automation paused for ${incident.id}',
+          hash: _hashFor('pause-${incident.id}'),
+          verified: true,
+        ),
+      );
+    });
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    messenger?.hideCurrentSnackBar();
+    messenger?.showSnackBar(
+      SnackBar(
+        content: Text('Automation paused for ${incident.id}'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   _IncidentRecord? get _activeIncident {
