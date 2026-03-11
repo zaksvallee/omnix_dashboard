@@ -80,17 +80,19 @@ REQUIRED_ACTIONS=(
   "clients.retry_push_sync"
   "clients.open_room"
   "reports.export_all"
-  "reports.preview_sample_receipt"
-  "reports.download_sample_receipt"
   "live_operations.pause_automation"
   "live_operations.manual_override"
-  "client_app.open_first_incident"
 )
 
 OPTIONAL_ALTERNATIVES=(
-  "reports.preview_live_receipt"
-  "reports.download_live_receipt"
-  "client_app.open_first_incident_missing"
+  "client_app.reopen_selected_incident"
+  "client_app.reopen_selected_incident_missing"
+)
+
+REQUIRED_ANY_GROUPS=(
+  "reports.preview_receipt:reports.preview_sample_receipt,reports.preview_live_receipt"
+  "reports.download_receipt:reports.download_sample_receipt,reports.download_live_receipt"
+  "client_app.open_first_incident:client_app.open_first_incident,client_app.open_first_incident_missing"
 )
 
 echo "== ONYX UI Action Check =="
@@ -111,13 +113,18 @@ sleep "$DURATION"
 kill "$CAPTURE_PID" >/dev/null 2>&1 || true
 wait "$CAPTURE_PID" 2>/dev/null || true
 
-echo "\n== Action Coverage Report ==" | tee "$REPORT_FILE"
+printf "\n== Action Coverage Report ==\n" | tee "$REPORT_FILE"
 TOTAL_LINES=$(wc -l < "$LOG_FILE" | tr -d ' ')
 echo "Captured ONYX_UI_ACTION lines: $TOTAL_LINES" | tee -a "$REPORT_FILE"
 
 MISSING=0
+seen_action() {
+  local action="$1"
+  grep -Fq "\"action\":\"$action\"" "$LOG_FILE"
+}
+
 for action in "${REQUIRED_ACTIONS[@]}"; do
-  if grep -Fq "\"action\":\"$action\"" "$LOG_FILE"; then
+  if seen_action "$action"; then
     echo "PASS  $action" | tee -a "$REPORT_FILE"
   else
     echo "MISS  $action" | tee -a "$REPORT_FILE"
@@ -125,8 +132,27 @@ for action in "${REQUIRED_ACTIONS[@]}"; do
   fi
 done
 
+for group in "${REQUIRED_ANY_GROUPS[@]}"; do
+  label="${group%%:*}"
+  choices_csv="${group#*:}"
+  IFS=',' read -r -a choices <<< "$choices_csv"
+  matched=""
+  for action in "${choices[@]}"; do
+    if seen_action "$action"; then
+      matched="$action"
+      break
+    fi
+  done
+  if [[ -n "$matched" ]]; then
+    echo "PASS  $label (via $matched)" | tee -a "$REPORT_FILE"
+  else
+    echo "MISS  $label (expected one of: $choices_csv)" | tee -a "$REPORT_FILE"
+    MISSING=$((MISSING + 1))
+  fi
+done
+
 for action in "${OPTIONAL_ALTERNATIVES[@]}"; do
-  if grep -Fq "\"action\":\"$action\"" "$LOG_FILE"; then
+  if seen_action "$action"; then
     echo "INFO  optional-seen $action" | tee -a "$REPORT_FILE"
   fi
 done

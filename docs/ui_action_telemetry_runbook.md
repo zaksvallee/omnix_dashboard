@@ -42,12 +42,12 @@ Exercise these controls:
   - `Residents` (room open)
 - `Client Intelligence Reports`:
   - `Export All`
-  - sample receipt `Preview` and `Download`
+  - receipt `Preview` and `Download` (sample or live)
 - `Live Operations`:
   - `Pause`
   - `Submit Override`
 - `Client App`:
-  - `No Incident Selected` / `No Thread Selected`
+  - `No Incident Selected` / `No Thread Selected` (either incident action variant is accepted)
 
 ## 3) Expected log examples
 
