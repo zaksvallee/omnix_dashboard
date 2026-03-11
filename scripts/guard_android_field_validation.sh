@@ -128,8 +128,9 @@ for ((i = 1; i <= SAMPLES; i++)); do
   if [[ "$ADAPTER_MODE" == "legacy_ptt" ]]; then
     adb shell am broadcast \
       -a "$ACTION" \
+      --es payload_adapter "$ADAPTER_MODE" \
       --es pulse "$((70 + i))" \
-      --es motion "0.$((i + 2))" \
+      --es movement "0.$((i + 2))" \
       --es state "patrolling" \
       --es battery "$((80 - i))" \
       --es time_utc "$CAPTURED_AT" \
@@ -137,6 +138,7 @@ for ((i = 1; i <= SAMPLES; i++)); do
   elif [[ "$ADAPTER_MODE" == "hikvision_guardlink" ]]; then
     adb shell am broadcast \
       -a "$ACTION" \
+      --es payload_adapter "$ADAPTER_MODE" \
       --es vitals_hr "$((70 + i))" \
       --es motion_index "0.$((i + 2))" \
       --es duty_state "patrolling" \
@@ -146,6 +148,7 @@ for ((i = 1; i <= SAMPLES; i++)); do
   else
     adb shell am broadcast \
       -a "$ACTION" \
+      --es payload_adapter "$ADAPTER_MODE" \
       --es heart_rate "$((70 + i))" \
       --es movement_level "0.$((i + 2))" \
       --es activity_state "patrolling" \
