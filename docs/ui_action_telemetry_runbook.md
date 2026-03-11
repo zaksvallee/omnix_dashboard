@@ -47,7 +47,7 @@ Exercise these controls:
   - `Pause`
   - `Submit Override`
 - `Client App`:
-  - `No Incident Selected` / `No Thread Selected` (either incident action variant is accepted)
+  - incident jump action (`No Incident Selected` / `No Thread Selected` / selected-thread reopen action)
 
 ## 3) Expected log examples
 

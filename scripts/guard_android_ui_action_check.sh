@@ -92,7 +92,7 @@ OPTIONAL_ALTERNATIVES=(
 REQUIRED_ANY_GROUPS=(
   "reports.preview_receipt:reports.preview_sample_receipt,reports.preview_live_receipt"
   "reports.download_receipt:reports.download_sample_receipt,reports.download_live_receipt"
-  "client_app.open_first_incident:client_app.open_first_incident,client_app.open_first_incident_missing"
+  "client_app.incident_open_action:client_app.open_first_incident,client_app.open_first_incident_missing,client_app.reopen_selected_incident,client_app.reopen_selected_incident_missing"
 )
 
 echo "== ONYX UI Action Check =="
