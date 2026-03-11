@@ -90,14 +90,16 @@ echo "Output: $OUT_DIR"
 echo ""
 
 EXPECTED_ACCESSIBILITY_SERVICE="$APP_PACKAGE/${APP_PACKAGE}${ACCESSIBILITY_SERVICE_CLASS_SUFFIX}"
+EXPECTED_ACCESSIBILITY_SERVICE_SHORT="$APP_PACKAGE/${ACCESSIBILITY_SERVICE_CLASS_SUFFIX}"
 ACCESSIBILITY_ENABLED="$("${ADB[@]}" shell settings get secure accessibility_enabled | tr -d '\r')"
 ENABLED_ACCESSIBILITY_SERVICES="$("${ADB[@]}" shell settings get secure enabled_accessibility_services | tr -d '\r')"
 
 if [[ "$ACCESSIBILITY_ENABLED" != "1" ]]; then
   fail "Accessibility is disabled (accessibility_enabled=$ACCESSIBILITY_ENABLED). Enable ONYX PTT Key Bridge before capture."
 fi
-if ! printf '%s' "$ENABLED_ACCESSIBILITY_SERVICES" | grep -Fq "$EXPECTED_ACCESSIBILITY_SERVICE"; then
-  fail "Expected accessibility service not enabled: $EXPECTED_ACCESSIBILITY_SERVICE"
+if ! printf '%s' "$ENABLED_ACCESSIBILITY_SERVICES" | grep -Fq "$EXPECTED_ACCESSIBILITY_SERVICE" &&
+   ! printf '%s' "$ENABLED_ACCESSIBILITY_SERVICES" | grep -Fq "$EXPECTED_ACCESSIBILITY_SERVICE_SHORT"; then
+  fail "Expected accessibility service not enabled: $EXPECTED_ACCESSIBILITY_SERVICE (or $EXPECTED_ACCESSIBILITY_SERVICE_SHORT)"
 fi
 
 echo "Accessibility preflight: PASS"
