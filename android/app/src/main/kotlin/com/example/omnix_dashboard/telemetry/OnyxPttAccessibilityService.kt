@@ -25,7 +25,15 @@ class OnyxPttAccessibilityService : AccessibilityService() {
     }
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
-        if (event.keyCode != KeyEvent.KEYCODE_F1) {
+        if (event.action == KeyEvent.ACTION_DOWN || event.action == KeyEvent.ACTION_UP) {
+            Log.i(
+                ONYX_TELEMETRY_TAG,
+                "ptt_key_bridge_event keycode=${event.keyCode} scan=${event.scanCode} action=${event.action} repeat=${event.repeatCount} source=${event.source}",
+            )
+        }
+
+        val isMappedPttKey = event.keyCode == KeyEvent.KEYCODE_F1 || event.scanCode == 59
+        if (!isMappedPttKey) {
             return false
         }
         val mappedAction = when (event.action) {
