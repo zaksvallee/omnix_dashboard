@@ -50,7 +50,8 @@ Optional one-command rollout (install + connector doctor):
 ./scripts/guard_android_vendor_sdk_rollout.sh \
   --provider fsk_sdk \
   --sdk-artifact android/app/libs/fsk-sdk.aar \
-  --connector-class com.onyx.vendor.fsk.LiveSdkConnector
+  --connector-class com.onyx.vendor.fsk.LiveSdkConnector \
+  --manager-classes com.onyx.vendor.fsk.LiveSdkManager
 ```
 
 ## Step 1: Local readiness gate

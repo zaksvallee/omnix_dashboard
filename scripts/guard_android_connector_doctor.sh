@@ -157,9 +157,9 @@ if [[ "$fallback_count" -gt 0 ]]; then
   fi
 
   if [[ "$PROVIDER_FAMILY" == "hikvision" ]]; then
-    fail "Direct SDK connector missing for $PROVIDER_ID. Vendor SDK classes were not found or fallback activated. First match: $first_match. Ensure Hikvision SDK artifacts are linked (android/app/libs, ONYX_HIKVISION_SDK_ARTIFACT, or ONYX_HIKVISION_SDK_MAVEN_COORD) and connector class is configured via ONYX_HIKVISION_SDK_CONNECTOR_CLASS if needed."
+    fail "Direct SDK connector missing for $PROVIDER_ID. Vendor SDK classes were not found or fallback activated. First match: $first_match. Ensure Hikvision SDK artifacts are linked (android/app/libs, ONYX_HIKVISION_SDK_ARTIFACT, or ONYX_HIKVISION_SDK_MAVEN_COORD), set ONYX_HIKVISION_SDK_CONNECTOR_CLASS if needed, and provide ONYX_HIKVISION_SDK_MANAGER_CLASS_CANDIDATES when vendor manager class names differ from defaults."
   fi
-  fail "Direct SDK connector missing for $PROVIDER_ID. Vendor SDK classes were not found or fallback activated. First match: $first_match. Ensure FSK SDK artifacts are linked (android/app/libs, ONYX_FSK_SDK_ARTIFACT, or ONYX_FSK_SDK_MAVEN_COORD) and connector class is configured via ONYX_FSK_SDK_CONNECTOR_CLASS if needed."
+  fail "Direct SDK connector missing for $PROVIDER_ID. Vendor SDK classes were not found or fallback activated. First match: $first_match. Ensure FSK SDK artifacts are linked (android/app/libs, ONYX_FSK_SDK_ARTIFACT, or ONYX_FSK_SDK_MAVEN_COORD), set ONYX_FSK_SDK_CONNECTOR_CLASS if needed, and provide ONYX_FSK_SDK_MANAGER_CLASS_CANDIDATES when vendor manager class names differ from defaults."
 fi
 
 pass "Direct SDK connector is active for $PROVIDER_ID (no fallback traces)."

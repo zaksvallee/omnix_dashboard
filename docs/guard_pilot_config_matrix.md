@@ -130,12 +130,14 @@ Gradle properties used by Android facade:
 - `ONYX_FSK_SDK_HEARTBEAT_ACTION` (broadcast action for SDK callback)
 - `ONYX_FSK_SDK_PAYLOAD_ADAPTER` (`standard`, `legacy_ptt`, or `hikvision_guardlink`)
 - `ONYX_FSK_SDK_CONNECTOR_CLASS` (optional fully-qualified Kotlin class implementing `FskVendorSdkConnector`)
+- `ONYX_FSK_SDK_MANAGER_CLASS_CANDIDATES` (optional comma-separated FSK manager class candidates for reflective lookup)
 - `ONYX_FSK_SDK_ARTIFACT` (optional path to FSK vendor SDK `.aar`/`.jar`)
 - `ONYX_FSK_SDK_MAVEN_COORD` (optional Maven coordinate for FSK SDK, for example `com.vendor:fsk-sdk:1.2.3`)
 - `ONYX_USE_LIVE_HIKVISION_SDK` (`true` enables live Hikvision facade)
 - `ONYX_HIKVISION_SDK_HEARTBEAT_ACTION` (broadcast action for Hikvision SDK callback)
 - `ONYX_HIKVISION_SDK_PAYLOAD_ADAPTER` (`standard`, `legacy_ptt`, or `hikvision_guardlink`)
 - `ONYX_HIKVISION_SDK_CONNECTOR_CLASS` (optional fully-qualified Kotlin class implementing `FskVendorSdkConnector`)
+- `ONYX_HIKVISION_SDK_MANAGER_CLASS_CANDIDATES` (optional comma-separated Hikvision manager class candidates for reflective lookup)
 - `ONYX_HIKVISION_SDK_ARTIFACT` (optional path to Hikvision SDK `.aar`/`.jar`)
 - `ONYX_HIKVISION_SDK_MAVEN_COORD` (optional Maven coordinate for Hikvision SDK, for example `com.vendor:hikvision-sdk:4.5.6`)
 
@@ -185,7 +187,8 @@ One-command vendor SDK rollout + connector verification:
 ./scripts/guard_android_vendor_sdk_rollout.sh \
   --provider fsk_sdk \
   --sdk-artifact android/app/libs/fsk-sdk.aar \
-  --connector-class com.onyx.vendor.fsk.LiveSdkConnector
+  --connector-class com.onyx.vendor.fsk.LiveSdkConnector \
+  --manager-classes com.onyx.vendor.fsk.LiveSdkManager
 ```
 
 End-to-end artifact capture helper:

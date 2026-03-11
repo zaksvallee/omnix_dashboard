@@ -37,6 +37,8 @@ val fskSdkPayloadAdapter = (project.findProperty("ONYX_FSK_SDK_PAYLOAD_ADAPTER")
 val fskSdkConnectorClass = (project.findProperty("ONYX_FSK_SDK_CONNECTOR_CLASS") as String?)
     ?.trim()
     ?: ""
+val fskSdkManagerClassCandidates =
+    optionalTrimmedProperty("ONYX_FSK_SDK_MANAGER_CLASS_CANDIDATES") ?: ""
 val fskSdkArtifact = optionalExistingFileProperty("ONYX_FSK_SDK_ARTIFACT")
 val fskSdkMavenCoordinate = optionalTrimmedProperty("ONYX_FSK_SDK_MAVEN_COORD")
 val useLiveHikvisionSdk = (project.findProperty("ONYX_USE_LIVE_HIKVISION_SDK") as String?)
@@ -57,6 +59,8 @@ val hikvisionSdkConnectorClass =
     (project.findProperty("ONYX_HIKVISION_SDK_CONNECTOR_CLASS") as String?)
         ?.trim()
         ?: ""
+val hikvisionSdkManagerClassCandidates =
+    optionalTrimmedProperty("ONYX_HIKVISION_SDK_MANAGER_CLASS_CANDIDATES") ?: ""
 val hikvisionSdkArtifact = optionalExistingFileProperty("ONYX_HIKVISION_SDK_ARTIFACT")
 val hikvisionSdkMavenCoordinate = optionalTrimmedProperty("ONYX_HIKVISION_SDK_MAVEN_COORD")
 
@@ -104,6 +108,11 @@ android {
             "\"${fskSdkConnectorClass.escapeForBuildConfig()}\"",
         )
         buildConfigField(
+            "String",
+            "FSK_SDK_MANAGER_CLASS_CANDIDATES",
+            "\"${fskSdkManagerClassCandidates.escapeForBuildConfig()}\"",
+        )
+        buildConfigField(
             "boolean",
             "USE_LIVE_HIKVISION_SDK",
             useLiveHikvisionSdk.toString(),
@@ -122,6 +131,11 @@ android {
             "String",
             "HIKVISION_SDK_CONNECTOR_CLASS",
             "\"${hikvisionSdkConnectorClass.escapeForBuildConfig()}\"",
+        )
+        buildConfigField(
+            "String",
+            "HIKVISION_SDK_MANAGER_CLASS_CANDIDATES",
+            "\"${hikvisionSdkManagerClassCandidates.escapeForBuildConfig()}\"",
         )
     }
 

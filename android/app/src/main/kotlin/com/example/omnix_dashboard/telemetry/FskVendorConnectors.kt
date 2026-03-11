@@ -477,11 +477,15 @@ abstract class ReflectiveVendorSdkConnectorBase : FskVendorSdkConnector {
 class FskReflectiveVendorSdkConnector : ReflectiveVendorSdkConnectorBase() {
     override val connectorId: String = "fsk_reflective_vendor_connector"
 
-    override val managerClassCandidates: List<String> = listOf(
-        "com.onyx.vendor.fsk.LiveSdkManager",
-        "com.onyx.vendor.fsk.TelemetryManager",
-        "com.onyx.fsk.sdk.TelemetryManager",
-    )
+    override val managerClassCandidates: List<String> =
+        mergeManagerClassCandidates(
+            defaults = listOf(
+                "com.onyx.vendor.fsk.LiveSdkManager",
+                "com.onyx.vendor.fsk.TelemetryManager",
+                "com.onyx.fsk.sdk.TelemetryManager",
+            ),
+            additionalCsv = BuildConfig.FSK_SDK_MANAGER_CLASS_CANDIDATES,
+        )
     override val callbackInterfaceCandidates: List<String> = listOf(
         "com.onyx.vendor.fsk.HeartbeatListener",
         "com.onyx.vendor.fsk.TelemetryListener",
@@ -517,11 +521,15 @@ class FskReflectiveVendorSdkConnector : ReflectiveVendorSdkConnectorBase() {
 class HikvisionReflectiveVendorSdkConnector : ReflectiveVendorSdkConnectorBase() {
     override val connectorId: String = "hikvision_reflective_vendor_connector"
 
-    override val managerClassCandidates: List<String> = listOf(
-        "com.onyx.vendor.hikvision.LiveSdkManager",
-        "com.hikvision.guardlink.TelemetryManager",
-        "com.hikvision.sdk.guard.TelemetryService",
-    )
+    override val managerClassCandidates: List<String> =
+        mergeManagerClassCandidates(
+            defaults = listOf(
+                "com.onyx.vendor.hikvision.LiveSdkManager",
+                "com.hikvision.guardlink.TelemetryManager",
+                "com.hikvision.sdk.guard.TelemetryService",
+            ),
+            additionalCsv = BuildConfig.HIKVISION_SDK_MANAGER_CLASS_CANDIDATES,
+        )
     override val callbackInterfaceCandidates: List<String> = listOf(
         "com.onyx.vendor.hikvision.HeartbeatListener",
         "com.hikvision.guardlink.TelemetryListener",
@@ -580,6 +588,18 @@ class ReflectiveFskVendorSdkConnector(
     override fun stop() {
         delegate.stop()
     }
+}
+
+private fun mergeManagerClassCandidates(
+    defaults: List<String>,
+    additionalCsv: String?,
+): List<String> {
+    val additional = additionalCsv
+        ?.split(',')
+        ?.map { it.trim() }
+        ?.filter { it.isNotEmpty() }
+        ?: emptyList()
+    return (additional + defaults).distinct()
 }
 
 data class FskVendorSdkConnectorLoadResult(

@@ -9,6 +9,7 @@ SERIAL=""
 SDK_ARTIFACT=""
 SDK_MAVEN_COORD=""
 CONNECTOR_CLASS=""
+MANAGER_CLASSES=""
 APP_PACKAGE="${ONYX_ANDROID_APP_PACKAGE:-com.example.omnix_dashboard}"
 APP_ACTIVITY="${ONYX_ANDROID_APP_ACTIVITY:-.MainActivity}"
 READY_TIMEOUT_SECONDS=20
@@ -18,7 +19,7 @@ SKIP_INSTALL=0
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/guard_android_vendor_sdk_rollout.sh [--provider fsk_sdk|hikvision_sdk] [--serial <device-serial>] [--sdk-artifact <path-to-aar-or-jar>] [--sdk-maven <group:artifact:version>] [--connector-class <fqcn>] [--app-package <package>] [--app-activity <activity>] [--ready-timeout <seconds>] [--allow-broadcast-fallback] [--skip-install]
+  ./scripts/guard_android_vendor_sdk_rollout.sh [--provider fsk_sdk|hikvision_sdk] [--serial <device-serial>] [--sdk-artifact <path-to-aar-or-jar>] [--sdk-maven <group:artifact:version>] [--connector-class <fqcn>] [--manager-classes <csv>] [--app-package <package>] [--app-activity <activity>] [--ready-timeout <seconds>] [--allow-broadcast-fallback] [--skip-install]
 
 Purpose:
   Build/install ONYX Android app for a live telemetry provider with optional vendor SDK dependency overrides,
@@ -28,12 +29,14 @@ Examples:
   ./scripts/guard_android_vendor_sdk_rollout.sh \
     --provider fsk_sdk \
     --sdk-artifact android/app/libs/fsk-sdk.aar \
-    --connector-class com.onyx.vendor.fsk.LiveSdkConnector
+    --connector-class com.onyx.vendor.fsk.LiveSdkConnector \
+    --manager-classes com.onyx.vendor.fsk.LiveSdkManager
 
   ./scripts/guard_android_vendor_sdk_rollout.sh \
     --provider hikvision_sdk \
     --sdk-maven com.vendor:hikvision-sdk:4.5.6 \
-    --connector-class com.onyx.vendor.hikvision.LiveSdkConnector
+    --connector-class com.onyx.vendor.hikvision.LiveSdkConnector \
+    --manager-classes com.vendor.hikvision.TelemetryManager
 USAGE
 }
 
@@ -71,6 +74,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --connector-class)
       CONNECTOR_CLASS="${2:-}"
+      shift 2
+      ;;
+    --manager-classes)
+      MANAGER_CLASSES="${2:-}"
       shift 2
       ;;
     --app-package)
@@ -121,6 +128,7 @@ echo "Serial: ${SERIAL:-auto}"
 echo "SDK artifact: ${SDK_ARTIFACT:-<unset>}"
 echo "SDK Maven coord: ${SDK_MAVEN_COORD:-<unset>}"
 echo "Connector class: ${CONNECTOR_CLASS:-<unset>}"
+echo "Manager classes: ${MANAGER_CLASSES:-<unset>}"
 echo "Allow broadcast fallback: $([[ "$ALLOW_BROADCAST_FALLBACK" -eq 1 ]] && echo yes || echo no)"
 
 if [[ "$SKIP_INSTALL" -ne 1 ]]; then
@@ -139,6 +147,9 @@ if [[ "$SKIP_INSTALL" -ne 1 ]]; then
     if [[ -n "$CONNECTOR_CLASS" ]]; then
       gradle_cmd+=("-PONYX_HIKVISION_SDK_CONNECTOR_CLASS=$CONNECTOR_CLASS")
     fi
+    if [[ -n "$MANAGER_CLASSES" ]]; then
+      gradle_cmd+=("-PONYX_HIKVISION_SDK_MANAGER_CLASS_CANDIDATES=$MANAGER_CLASSES")
+    fi
   else
     gradle_cmd+=(
       -PONYX_USE_LIVE_FSK_SDK=true
@@ -152,6 +163,9 @@ if [[ "$SKIP_INSTALL" -ne 1 ]]; then
     fi
     if [[ -n "$CONNECTOR_CLASS" ]]; then
       gradle_cmd+=("-PONYX_FSK_SDK_CONNECTOR_CLASS=$CONNECTOR_CLASS")
+    fi
+    if [[ -n "$MANAGER_CLASSES" ]]; then
+      gradle_cmd+=("-PONYX_FSK_SDK_MANAGER_CLASS_CANDIDATES=$MANAGER_CLASSES")
     fi
   fi
 
