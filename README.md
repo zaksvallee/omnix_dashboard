@@ -80,6 +80,7 @@ make guard-auto
 ## Notes
 
 - Operator runbook: `docs/guard_android_live_validation_runbook.md`
+- UI action telemetry runbook: `docs/ui_action_telemetry_runbook.md`
 - UI compact QC signoff: `docs/ui_compact_qc_signoff_2026-03-06.md`
 # omnix_dashboard
 # omnix_dashboard
