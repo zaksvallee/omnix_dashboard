@@ -108,3 +108,36 @@ Additional fallback validation with Fast Talkie style routing:
 This indicates the lockscreen block occurs before third-party bridge apps can emit
 PTT broadcast intents, reinforcing a firmware/keyguard routing limitation rather than
 an ONYX application issue.
+
+## Follow-up Update (2026-03-11 23:45 SAST)
+
+Latest bundle:
+
+- `tmp/guard_field_validation/oem-escalation-20260311T214424Z`
+
+Automated lockscreen gate report:
+
+- `tmp/guard_field_validation/oem-escalation-20260311T214424Z/lockscreen_gate_report.md`
+- Decision: `UNLOCKED_ONLY`
+- Reason: `No confirmed lockscreen ingest evidence.`
+
+Counts (20s phase):
+
+- Unlocked key events: `347`
+- Locked key events: `300`
+- Unlocked app-layer ingest accepted: `125`
+- Locked app-layer ingest accepted: `6`
+- Locked ingest with `locked=true`: `0`
+- Locked ingest with `interactive=false`: `0`
+
+Interpretation:
+
+- Side key remains active at input layer while locked.
+- ONYX locked-phase ingest still shows only transition-window lines (`locked=false`),
+  not true keyguard-delivered locked callbacks.
+- Outcome remains unchanged: lockscreen routing is blocked before app-visible delivery.
+
+Request remains:
+
+- Provide firmware/OEM setting or documented system API path enabling whitelist
+  app-side key down/up delivery while lockscreen is active.
