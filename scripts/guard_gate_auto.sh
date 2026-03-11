@@ -13,12 +13,13 @@ RUN_FULL_TESTS=0
 CONFIG_FILE="${ONYX_DART_DEFINE_FILE:-config/onyx.local.json}"
 REQUIRE_REAL_DEVICE_ARTIFACTS=0
 SKIP_CONNECTION_DOCTOR=0
+SKIP_CONNECTOR_DOCTOR=0
 ALLOW_BROADCAST_FALLBACK=0
 
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/guard_gate_auto.sh [--provider fsk_sdk|hikvision_sdk] [--action <broadcast-action>] [--serial <device-serial>] [--samples 3] [--interval 1] [--adapter standard|legacy_ptt|hikvision_guardlink] [--expected-provider <provider-id>] [--max-report-age-hours 24] [--config <path>] [--full-tests] [--require-real-device-artifacts] [--allow-broadcast-fallback] [--skip-connection-doctor]
+  ./scripts/guard_gate_auto.sh [--provider fsk_sdk|hikvision_sdk] [--action <broadcast-action>] [--serial <device-serial>] [--samples 3] [--interval 1] [--adapter standard|legacy_ptt|hikvision_guardlink] [--expected-provider <provider-id>] [--max-report-age-hours 24] [--config <path>] [--full-tests] [--require-real-device-artifacts] [--allow-broadcast-fallback] [--skip-connection-doctor] [--skip-connector-doctor]
 
 Purpose:
   One command for both modes:
@@ -90,6 +91,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --skip-connection-doctor)
       SKIP_CONNECTION_DOCTOR=1
+      shift
+      ;;
+    --skip-connector-doctor)
+      SKIP_CONNECTOR_DOCTOR=1
       shift
       ;;
     --allow-broadcast-fallback)
@@ -182,6 +187,9 @@ if [[ "$DEVICE_COUNT" -gt 0 ]]; then
   fi
   if [[ "$SKIP_CONNECTION_DOCTOR" -eq 1 ]]; then
     pilot_cmd+=(--skip-connection-doctor)
+  fi
+  if [[ "$SKIP_CONNECTOR_DOCTOR" -eq 1 ]]; then
+    pilot_cmd+=(--skip-connector-doctor)
   fi
   if [[ "$ALLOW_BROADCAST_FALLBACK" -eq 1 ]]; then
     pilot_cmd+=(--allow-broadcast-fallback)

@@ -34,6 +34,16 @@ Expected:
 
 If this step fails, do not run live validation yet.
 
+## Step 0.5: Connector doctor (required for strict direct-SDK gates)
+
+```bash
+./scripts/guard_android_connector_doctor.sh --provider fsk_sdk
+```
+
+Expected:
+- Detects live facade startup marker for selected provider.
+- Reports no broadcast fallback traces when vendor SDK classes are present.
+
 ## Step 1: Local readiness gate
 
 ```bash
@@ -86,7 +96,9 @@ Alternative single-command gate:
 
 Note:
 - `guard_android_pilot_gate.sh` now runs `guard_android_connection_doctor.sh` automatically.
+- `guard_android_pilot_gate.sh` now runs `guard_android_connector_doctor.sh` automatically when direct connector enforcement is enabled.
 - Use `--skip-connection-doctor` only if you already validated device connectivity in the same session.
+- Use `--skip-connector-doctor` only if you intentionally want to defer connector verification.
 - `guard_android_pilot_gate.sh` now enforces direct SDK connector mode by default and fails when live mode falls back to broadcast. Use `--allow-broadcast-fallback` only for intentional debug validation.
 
 Optional auditable wrapper report:

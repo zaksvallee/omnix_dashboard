@@ -13,13 +13,14 @@ RUN_FULL_TESTS=0
 OUT_DIR=""
 REQUIRE_REAL_DEVICE_ARTIFACTS=0
 RUN_CONNECTION_DOCTOR=1
+RUN_CONNECTOR_DOCTOR=1
 REQUIRE_DIRECT_SDK_CONNECTOR=1
 CONFIG_FILE="${ONYX_DART_DEFINE_FILE:-config/onyx.local.json}"
 
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/guard_android_pilot_gate.sh [--provider fsk_sdk|hikvision_sdk] --action <broadcast-action> [--serial <device-serial>] [--samples 5] [--interval 1] [--adapter standard|legacy_ptt|hikvision_guardlink] [--expected-provider <provider-id>] [--max-report-age-hours 24] [--config <path>] [--require-real-device-artifacts] [--require-direct-sdk-connector] [--allow-broadcast-fallback] [--full-tests] [--skip-connection-doctor] [--out-dir <path>]
+  ./scripts/guard_android_pilot_gate.sh [--provider fsk_sdk|hikvision_sdk] --action <broadcast-action> [--serial <device-serial>] [--samples 5] [--interval 1] [--adapter standard|legacy_ptt|hikvision_guardlink] [--expected-provider <provider-id>] [--max-report-age-hours 24] [--config <path>] [--require-real-device-artifacts] [--require-direct-sdk-connector] [--allow-broadcast-fallback] [--full-tests] [--skip-connection-doctor] [--skip-connector-doctor] [--out-dir <path>]
 
 Purpose:
   One-command pilot gate:
@@ -97,6 +98,10 @@ while [[ $# -gt 0 ]]; do
       RUN_CONNECTION_DOCTOR=0
       shift
       ;;
+    --skip-connector-doctor)
+      RUN_CONNECTOR_DOCTOR=0
+      shift
+      ;;
     --out-dir)
       OUT_DIR="${2:-}"
       shift 2
@@ -164,6 +169,17 @@ echo "Require direct SDK connector: $([[ "$REQUIRE_DIRECT_SDK_CONNECTOR" -eq 1 ]
 
 if [[ "$RUN_CONNECTION_DOCTOR" -eq 1 ]]; then
   ./scripts/guard_android_connection_doctor.sh
+fi
+
+if [[ "$REQUIRE_DIRECT_SDK_CONNECTOR" -eq 1 && "$RUN_CONNECTOR_DOCTOR" -eq 1 ]]; then
+  connector_doctor_cmd=(
+    ./scripts/guard_android_connector_doctor.sh
+    --provider "$PROVIDER_ID"
+  )
+  if [[ -n "$SERIAL" ]]; then
+    connector_doctor_cmd+=(--serial "$SERIAL")
+  fi
+  "${connector_doctor_cmd[@]}"
 fi
 
 live_validation_cmd=(

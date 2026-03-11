@@ -163,6 +163,12 @@ On-device callback validation helper:
   --adapter standard
 ```
 
+Connector doctor (preflight strict direct-SDK validation):
+
+```bash
+./scripts/guard_android_connector_doctor.sh --provider fsk_sdk
+```
+
 End-to-end artifact capture helper:
 
 ```bash
@@ -232,6 +238,7 @@ Hikvision one-command Android pilot gate:
 
 Direct connector gate behavior:
 - `guard_android_pilot_gate.sh` now requires a direct SDK connector by default and fails if live mode falls back to broadcast.
+- `guard_android_pilot_gate.sh` runs connector doctor automatically under strict mode.
 - Use `--allow-broadcast-fallback` only for intentional non-production debug runs.
 
 No-device fallback (CI/local gate simulation):

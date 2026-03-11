@@ -61,6 +61,10 @@ Last updated: 2026-03-11 (Africa/Johannesburg)
 - [x] Direct SDK connector gate added for pilot validation:
   live-validation report/readiness now support `--require-direct-sdk-connector`
   and fail when live mode falls back to broadcast connector paths.
+- [x] Android connector doctor added:
+  [guard_android_connector_doctor.sh](/Users/zaks/omnix_dashboard/scripts/guard_android_connector_doctor.sh)
+  verifies provider-specific startup markers and direct-connector fallback status
+  before strict pilot gates.
 - [x] Validation report now emits machine-readable JSON:
   `validation_report.json` with `overall_status`, metrics, and gate booleans;
   readiness artifact gate prefers JSON over markdown parsing.
