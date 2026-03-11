@@ -134,6 +134,8 @@ Last updated: 2026-03-11 (Africa/Johannesburg)
   retention dry-run RPC calls succeeded and storage/RLS readiness views are fully `PASS`.
 - [x] Guard actor-contract compatibility check validated with non-empty recent data:
   `recent_rows=3`, all actor-context key-missing counters `0`, overall status `PASS`.
+- [x] Supabase remote smoke helper added for link/auth diagnostics and SQL editor handoff:
+  [guard_supabase_remote_smoke.sh](/Users/zaks/omnix_dashboard/scripts/guard_supabase_remote_smoke.sh).
 - [x] Real-device strict Android pilot gates passed for both provider families
   (`fsk_sdk`, `hikvision_sdk`) using `--require-real-device-artifacts --full-tests`.
 - [x] Sync/export artifacts now include telemetry payload health summaries

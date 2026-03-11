@@ -82,6 +82,7 @@ make guard-auto
 - Operator runbook: `docs/guard_android_live_validation_runbook.md`
 - UI action telemetry runbook: `docs/ui_action_telemetry_runbook.md`
 - PTT lockscreen capability gate: `scripts/guard_android_ptt_lockscreen_gate.sh`
+- Supabase remote smoke helper: `scripts/guard_supabase_remote_smoke.sh`
 - UI compact QC signoff: `docs/ui_compact_qc_signoff_2026-03-06.md`
 # omnix_dashboard
 # omnix_dashboard
