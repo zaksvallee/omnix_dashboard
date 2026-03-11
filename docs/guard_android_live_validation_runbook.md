@@ -10,6 +10,7 @@ Prove end-to-end live callback ingestion on Android guard devices with evidence 
 
 - Android device connected over `adb`.
 - ONYX app installed/running with live native telemetry config.
+- ONYX app starts foreground PTT listener service on launch (`ONYX PTT listener active` notification).
 - Local runtime config exists at `config/onyx.local.json` (bootstrap once from template).
 - `ONYX_GUARD_TELEMETRY_NATIVE_SDK=true`
 - `ONYX_GUARD_TELEMETRY_NATIVE_STUB=false`
@@ -216,6 +217,7 @@ Notes:
 - By default, the script force-stops and relaunches `com.example.omnix_dashboard/.MainActivity` and waits for a live-facade startup marker before sending samples.
 - Use `--skip-start-app` only if you intentionally want to keep the current app process/session.
 - On Android 13+ (`TIRAMISU` and above), adb broadcast injection is enabled for debug builds during validation.
+- For hardware-style PTT actions (`com.zello.ptt.*`), keep ONYX launched at least once so foreground listener service is active before field tests.
 
 Optional for legacy payload format:
 

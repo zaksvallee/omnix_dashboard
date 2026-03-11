@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <application
         android:label="omnix_dashboard"
         android:name="${applicationName}"
@@ -40,6 +42,11 @@
                 <action android:name="com.zello.ptt.toggle" />
             </intent-filter>
         </receiver>
+        <service
+            android:name=".telemetry.PttForegroundService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
