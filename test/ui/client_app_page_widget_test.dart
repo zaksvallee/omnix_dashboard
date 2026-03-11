@@ -1039,7 +1039,10 @@ void main() {
     final noThreadButton = tester.widget<TextButton>(
       find.widgetWithText(TextButton, 'No Thread Selected'),
     );
-    expect(noThreadButton.onPressed, isNull);
+    expect(noThreadButton.onPressed, isNotNull);
+    await tester.tap(find.widgetWithText(TextButton, 'No Thread Selected'));
+    await tester.pumpAndSettle();
+    expect(find.text('No incident thread is available yet.'), findsWidgets);
   });
 
   testWidgets('client app restores show-all room override', (tester) async {
@@ -1471,4 +1474,52 @@ void main() {
     await tester.pumpAndSettle();
     expect(clearRuns, 1);
   });
+
+  testWidgets(
+    'no selected incident action opens the first available incident thread',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1600, 1400));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ClientAppPage(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            initialHasTouchedIncidentExpansionByRole: const {'client': true},
+            events: [
+              DecisionCreated(
+                eventId: 'dispatch-1',
+                sequence: 1,
+                version: 1,
+                occurredAt: DateTime.utc(2026, 3, 4, 10, 20),
+                dispatchId: 'DISP-001',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-SANDTON',
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final openFirstAction = find.byKey(
+        const ValueKey('incident-feed-open-first-action'),
+      );
+      expect(openFirstAction, findsOneWidget);
+      expect(find.text('No Incident Selected'), findsOneWidget);
+
+      await tester.tap(openFirstAction);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Incident Detail'), findsOneWidget);
+      await tester.tap(find.widgetWithText(TextButton, 'Close'));
+      await tester.pumpAndSettle();
+      expect(
+        find.widgetWithText(TextButton, 'Selected Thread • DISP-001'),
+        findsOneWidget,
+      );
+    },
+  );
 }

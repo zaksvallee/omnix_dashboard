@@ -707,7 +707,10 @@ class _ClientIntelligenceReportsPageState
                 child: _pillActionButton(
                   label: 'Preview',
                   icon: Icons.visibility_rounded,
-                  onTap: hasLiveReceipts ? () => _openReceipt(row) : null,
+                  buttonKey: ValueKey<String>(
+                    'report-receipt-preview-${row.event.eventId}',
+                  ),
+                  onTap: () => _previewReceipt(row, hasLiveReceipts),
                 ),
               ),
               const SizedBox(width: 8),
@@ -715,7 +718,10 @@ class _ClientIntelligenceReportsPageState
                 child: _pillActionButton(
                   label: 'Download',
                   icon: Icons.download_rounded,
-                  onTap: hasLiveReceipts ? () => _openReceipt(row) : null,
+                  buttonKey: ValueKey<String>(
+                    'report-receipt-download-${row.event.eventId}',
+                  ),
+                  onTap: () => _downloadReceipt(row, hasLiveReceipts),
                   filled: true,
                 ),
               ),
@@ -999,6 +1005,36 @@ class _ClientIntelligenceReportsPageState
     messenger.showSnackBar(
       SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
     );
+  }
+
+  Future<void> _previewReceipt(_ReceiptRow row, bool hasLiveReceipts) async {
+    if (!hasLiveReceipts) {
+      _showReceiptActionFeedback(
+        'Sample receipt preview unavailable. Generate a live report first.',
+      );
+      return;
+    }
+    await _openReceipt(row);
+  }
+
+  Future<void> _downloadReceipt(_ReceiptRow row, bool hasLiveReceipts) async {
+    if (!hasLiveReceipts) {
+      final payload = <String, Object?>{
+        'eventId': row.event.eventId,
+        'clientId': row.event.clientId,
+        'siteId': row.event.siteId,
+        'occurredAtUtc': row.event.occurredAt.toUtc().toIso8601String(),
+        'month': row.event.month,
+        'eventCount': row.event.eventCount,
+      };
+      final encoded = const JsonEncoder.withIndent('  ').convert(payload);
+      Clipboard.setData(ClipboardData(text: encoded));
+      _showReceiptActionFeedback(
+        'Sample receipt metadata copied for ${row.event.eventId}.',
+      );
+      return;
+    }
+    await _openReceipt(row);
   }
 
   Widget _actionButton({

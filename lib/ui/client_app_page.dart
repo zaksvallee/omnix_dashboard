@@ -475,7 +475,11 @@ class _ClientAppPageState extends State<ClientAppPage> {
                         ),
                   headerAction: selectedIncidentGroup == null
                       ? TextButton(
-                          onPressed: null,
+                          key: const ValueKey(
+                            'incident-feed-open-first-action',
+                          ),
+                          onPressed: () =>
+                              _openFirstAvailableIncidentThread(incidentFeed),
                           style: _inlineHandoffButtonStyle(
                             const Color(0xFF8FD1FF),
                             disabledForegroundColor: const Color(0xFF5B7294),
@@ -3775,6 +3779,33 @@ class _ClientAppPageState extends State<ClientAppPage> {
     });
     _emitClientStateChanged();
     return _showIncidentFeedDetail(group);
+  }
+
+  Future<void> _openFirstAvailableIncidentThread(
+    List<_ClientIncidentFeedGroup> items,
+  ) {
+    if (items.isEmpty) {
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      messenger?.hideCurrentSnackBar();
+      messenger?.showSnackBar(
+        const SnackBar(
+          content: Text('No incident thread is available yet.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return Future<void>.value();
+    }
+    final first = items.first;
+    setState(() {
+      _selectedIncidentReference = first.referenceLabel;
+      _selectedIncidentReferenceByRole[_viewerRole.name] = first.referenceLabel;
+      _hasTouchedIncidentExpansionByRole[_viewerRole.name] = true;
+      _expandedIncidentReferenceByRole[_viewerRole.name] = first.referenceLabel;
+      _focusedIncidentReference = first.referenceLabel;
+      _focusedIncidentReferenceByRole[_viewerRole.name] = first.referenceLabel;
+    });
+    _emitClientStateChanged();
+    return _showIncidentFeedDetail(first);
   }
 
   void _toggleIncidentFeedExpansion(String referenceLabel) {
