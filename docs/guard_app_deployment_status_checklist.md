@@ -166,6 +166,10 @@ Last updated: 2026-03-11 (Africa/Johannesburg)
   [reports_page_widget_test.dart](/Users/zaks/omnix_dashboard/test/ui/reports_page_widget_test.dart).
 - [x] Consolidated UI regression suite passed (48 tests) after compactness
   rollout and telemetry/triage dashboard integration.
+- [x] UI action telemetry coverage closed for critical controller/ops CTAs
+  (including client-app incident-open equivalents) with runbook + checker support:
+  [ui_action_telemetry_runbook.md](/Users/zaks/omnix_dashboard/docs/ui_action_telemetry_runbook.md),
+  [ui_action_telemetry_signoff_2026-03-11.md](/Users/zaks/omnix_dashboard/docs/ui_action_telemetry_signoff_2026-03-11.md).
 - [x] Chrome runtime preflight with local config passed:
   `flutter run -d chrome --dart-define-from-file=config/onyx.local.json`
   launched successfully with Supabase init and no immediate runtime layout

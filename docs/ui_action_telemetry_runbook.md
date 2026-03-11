@@ -48,6 +48,8 @@ Exercise these controls:
   - `Submit Override`
 - `Client App`:
   - incident jump action (`No Incident Selected` / `No Thread Selected` / selected-thread reopen action)
+  - quickest path on current web surface: `Clients` page -> tap any `Incident Feed` row
+    (emits `client_app.reopen_selected_incident` via `clients_incident_feed` source)
 
 ## 3) Expected log examples
 
@@ -58,6 +60,7 @@ You should see lines like:
 - `ONYX_UI_ACTION {"action":"ledger.verify_chain", ...}`
 - `ONYX_UI_ACTION {"action":"live_operations.pause_automation", ...}`
 - `ONYX_UI_ACTION {"action":"client_app.open_first_incident", ...}`
+- `ONYX_UI_ACTION {"action":"client_app.reopen_selected_incident", ...}`
 
 ## 4) Quick troubleshooting
 
