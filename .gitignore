@@ -25,3 +25,5 @@ pubspec.lock
 
 # Environment files
 .env
+
+tmp/onyx.hikvision.local.json
