@@ -1196,6 +1196,10 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(
+      find.textContaining('PTT lockscreen capture: no recent samples'),
+      findsOneWidget,
+    );
     expect(find.text('Resume sync event throttle: 20s'), findsOneWidget);
     expect(find.text('Shift Events: 0'), findsOneWidget);
     expect(find.text('Shift Media: 0'), findsOneWidget);
@@ -1227,6 +1231,117 @@ void main() {
     expect(find.text('none yet'), findsOneWidget);
     expect(find.text('Sync Steady'), findsOneWidget);
     expect(find.textContaining('Coaching Prompt •'), findsNothing);
+  });
+
+  testWidgets('sync screen flags unlocked-only PTT lockscreen capture', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1600, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GuardMobileShellPage(
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          guardId: 'GUARD-001',
+          syncBackendEnabled: true,
+          queueDepth: 0,
+          pendingEventCount: 0,
+          pendingMediaCount: 0,
+          failedEventCount: 0,
+          failedMediaCount: 0,
+          recentEvents: [
+            GuardOpsEvent(
+              eventId: 'EVT-PTT-1',
+              guardId: 'GUARD-001',
+              siteId: 'SITE-SANDTON',
+              shiftId: 'SHIFT-PTT',
+              eventType: GuardOpsEventType.deviceHealth,
+              sequence: 1,
+              occurredAt: DateTime.utc(2026, 3, 11, 17, 41, 12),
+              deviceId: 'DEVICE-1',
+              appVersion: '1.0.0',
+              payload: const {
+                'ptt_action': 'com.zello.ptt.down',
+                'ptt_state': 'ptt_down',
+                'device_locked': false,
+              },
+            ),
+          ],
+          recentMedia: const [],
+          syncInFlight: false,
+          syncStatusLabel: 'Sync idle',
+          initialScreen: GuardMobileInitialScreen.sync,
+          lastSuccessfulSyncAtUtc: null,
+          lastFailureReason: null,
+          coachingPrompt: const GuardCoachingPrompt(
+            ruleId: 'ptt_lockscreen_visibility',
+            headline: 'PTT Lockscreen Visibility',
+            message: 'Show lockscreen telemetry state in sync status.',
+            priority: GuardCoachingPriority.low,
+          ),
+          coachingPolicy: const GuardSyncCoachingPolicy(),
+          queuedOperations: const [],
+          historyFilter: GuardSyncHistoryFilter.queued,
+          onHistoryFilterChanged: (_) async {},
+          operationModeFilter: GuardSyncOperationModeFilter.all,
+          onOperationModeFilterChanged: (_) async {},
+          onFacadeIdFilterChanged: (_) async {},
+          onSelectedOperationChanged: (_) async {},
+          onShiftStartQueued: () async {},
+          onShiftEndQueued: () async {},
+          onStatusQueued: (_) async {},
+          onCheckpointQueued:
+              ({required checkpointId, required nfcTagId}) async {},
+          onPatrolImageQueued: ({required checkpointId}) async {},
+          onPanicQueued: () async {},
+          onWearableHeartbeatQueued: () async {},
+          onDeviceHealthQueued: () async {},
+          onOutcomeLabeled:
+              ({
+                required outcomeLabel,
+                required confidence,
+                required confirmedBy,
+              }) async {},
+          outcomeGovernancePolicy: OutcomeLabelGovernancePolicy.defaultPolicy(),
+          onClearQueue: () async {},
+          onSyncNow: () async {},
+          onRetryFailedEvents: () async {},
+          onRetryFailedMedia: () async {},
+          onRetryFailedOperation: (_) async {},
+          onRetryFailedOperationsBulk: (_) async {},
+          onDispatchCloseoutPacketCopied:
+              ({
+                required generatedAtUtc,
+                required scopeKey,
+                required facadeMode,
+                required readinessState,
+              }) async {},
+          onProbeTelemetryProvider: () async {},
+          onAcknowledgeCoachingPrompt:
+              ({required ruleId, required context}) async {},
+          onSnoozeCoachingPrompt:
+              ({
+                required ruleId,
+                required context,
+                required minutes,
+                required actorRole,
+              }) async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sync Status'), findsOneWidget);
+    expect(
+      find.textContaining('PTT lockscreen capture: unlocked only'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('locked 0/1 samples (keyguard path blocked)'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('sync screen shows last app-resume sync trigger timestamp', (

@@ -1397,6 +1397,81 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
         .join(' | ');
   }
 
+  ({String label, String detail, Color color}) _pttLockscreenCaptureStatus() {
+    final pttPayloads = widget.recentEvents
+        .map((event) => event.payload)
+        .where(
+          (payload) =>
+              payload.containsKey('ptt_state') ||
+              payload.containsKey('ptt_action'),
+        )
+        .toList(growable: false);
+    if (pttPayloads.isEmpty) {
+      return (
+        label: 'no recent samples',
+        detail: 'waiting for PTT payloads',
+        color: const Color(0xFF8DA4C5),
+      );
+    }
+
+    final lockStates = pttPayloads
+        .map(_payloadPttLockedState)
+        .whereType<bool>()
+        .toList(growable: false);
+    if (lockStates.isEmpty) {
+      return (
+        label: 'metadata missing',
+        detail: 'PTT payloads do not include lock state',
+        color: const Color(0xFFF1B872),
+      );
+    }
+
+    final total = lockStates.length;
+    final lockedCount = lockStates.where((locked) => locked).length;
+    final unlockedCount = total - lockedCount;
+    if (lockedCount > 0 && unlockedCount > 0) {
+      return (
+        label: 'locked + unlocked',
+        detail: 'locked $lockedCount/$total samples',
+        color: const Color(0xFF7FD8A5),
+      );
+    }
+    if (lockedCount == 0) {
+      return (
+        label: 'unlocked only',
+        detail: 'locked 0/$total samples (keyguard path blocked)',
+        color: const Color(0xFFFF9A8B),
+      );
+    }
+    return (
+      label: 'locked only',
+      detail: 'locked $lockedCount/$total samples',
+      color: const Color(0xFF7FD8A5),
+    );
+  }
+
+  bool? _payloadPttLockedState(Map<String, Object?> payload) {
+    final locked = _payloadBool(payload, 'device_locked');
+    if (locked != null) {
+      return locked;
+    }
+    final lockState = (payload['device_lock_state'] ?? '')
+        .toString()
+        .trim()
+        .toLowerCase();
+    if (lockState == 'locked') {
+      return true;
+    }
+    if (lockState == 'unlocked') {
+      return false;
+    }
+    final interactive = _payloadBool(payload, 'device_interactive');
+    if (interactive != null) {
+      return !interactive;
+    }
+    return null;
+  }
+
   List<({DateTime atUtc, String verdict, int callbackErrorCount})>
   _telemetryPayloadHealthTrendRows() {
     final rows =
@@ -1631,10 +1706,12 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
 
   List<String> _syncTelemetryContextLines() {
     final nowUtc = DateTime.now().toUtc();
+    final pttLockscreenCapture = _pttLockscreenCaptureStatus();
     return [
       'Telemetry adapter: ${widget.telemetryAdapterLabel} (${widget.telemetryAdapterStubMode ? 'stub' : 'live'})',
       'Provider readiness: ${widget.telemetryProviderReadiness}${widget.telemetryProviderStatusLabel == null ? '' : ' • ${widget.telemetryProviderStatusLabel}'}',
       'Provider ID: ${widget.telemetryProviderId ?? 'n/a'}',
+      'PTT lockscreen capture: ${pttLockscreenCapture.label} • ${pttLockscreenCapture.detail}',
       'Live-ready gate: ${widget.telemetryLiveReadyGateEnabled ? (widget.telemetryLiveReadyGateViolation ? 'VIOLATION' : 'OK') : 'disabled'} (${widget.telemetryLiveReadyGateReason ?? 'n/a'})',
       'Resume sync event throttle: ${widget.resumeSyncEventThrottleSeconds}s',
       'Facade id: ${widget.telemetryFacadeId ?? 'n/a'}',
@@ -3403,6 +3480,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
         final latestExportAuditReset = _latestExportAuditResetEventAt();
         final latestExportAuditGenerated = _latestExportAuditGeneratedEventAt();
         final activeShiftId = widget.activeShiftId.trim();
+        final pttLockscreenCapture = _pttLockscreenCaptureStatus();
         final filteredEvents = widget.recentEvents
             .where((event) => _eventMatchesFilter(event, _eventFilter))
             .take(4)
@@ -3499,6 +3577,15 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
                   ),
                 ),
               ],
+              const SizedBox(height: 2),
+              Text(
+                'PTT lockscreen capture: ${pttLockscreenCapture.label} • ${pttLockscreenCapture.detail}',
+                style: GoogleFonts.inter(
+                  color: pttLockscreenCapture.color,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               if (_telemetryReplayOutput != null &&
                   _telemetryReplayOutput!.trim().isNotEmpty) ...[
                 const SizedBox(height: 6),

@@ -2,7 +2,10 @@ package com.example.omnix_dashboard.telemetry
 
 import android.content.Context
 import android.content.Intent
+import android.app.KeyguardManager
+import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
 import android.os.SystemClock
 import android.util.Log
 import com.example.omnix_dashboard.BuildConfig
@@ -68,6 +71,7 @@ object PttTelemetryIngestor {
         }
 
         val pttState = PttIntentActions.toState(action)
+        val deviceState = resolveDeviceState(context)
         val fallbackPayload = mutableMapOf<String, Any?>(
             "pulse" to (toIntOrNull(extrasMap["pulse"]) ?: toIntOrNull(extrasMap["hr"]) ?: 72),
             "movement" to when (pttState) {
@@ -105,6 +109,10 @@ object PttTelemetryIngestor {
             sdkStatus = if (BuildConfig.USE_LIVE_FSK_SDK) "live" else "stub",
             source = source,
         ).apply {
+            this["device_locked"] = deviceState.locked
+            this["device_interactive"] = deviceState.interactive
+            this["device_lock_state"] = if (deviceState.locked) "locked" else "unlocked"
+            this["device_state_source"] = "android_runtime"
             this["payload_adapter"] = "legacy_ptt"
             this["ptt_action"] = action
             this["ptt_state"] = pttState
@@ -121,9 +129,31 @@ object PttTelemetryIngestor {
 
         Log.i(
             ONYX_TELEMETRY_TAG,
-            "ptt_ingest_accepted action=$action source=$source state=$pttState extras=${mapPayloadKeys(extrasMap)}",
+            "ptt_ingest_accepted action=$action source=$source state=$pttState locked=${deviceState.locked} interactive=${deviceState.interactive} extras=${mapPayloadKeys(extrasMap)}",
         )
         return true
+    }
+
+    private data class DeviceState(
+        val locked: Boolean,
+        val interactive: Boolean,
+    )
+
+    private fun resolveDeviceState(context: Context): DeviceState {
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+        val keyguardManager = context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+        val interactive = when {
+            powerManager == null -> true
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH -> powerManager.isInteractive
+            else -> {
+                @Suppress("DEPRECATION")
+                powerManager.isScreenOn
+            }
+        }
+        val keyguardLocked = keyguardManager?.isKeyguardLocked ?: false
+        // Treat non-interactive as locked for telemetry triage.
+        val locked = keyguardLocked || !interactive
+        return DeviceState(locked = locked, interactive = interactive)
     }
 
     private fun isDuplicate(signature: String): Boolean {
