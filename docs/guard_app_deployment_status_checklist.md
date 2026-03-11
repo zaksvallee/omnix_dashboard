@@ -37,6 +37,10 @@ Last updated: 2026-03-11 (Africa/Johannesburg)
   [guard_android_live_validation.sh](/Users/zaks/omnix_dashboard/scripts/guard_android_live_validation.sh).
 - [x] Android PTT sniffer helper added for device action discovery:
   [guard_android_ptt_sniffer.sh](/Users/zaks/omnix_dashboard/scripts/guard_android_ptt_sniffer.sh).
+- [x] OEM escalation bundle helper added for lockscreen-side-key evidence capture:
+  [guard_android_oem_escalation_bundle.sh](/Users/zaks/omnix_dashboard/scripts/guard_android_oem_escalation_bundle.sh).
+- [x] Blackview OEM escalation brief template added:
+  [guard_blackview_oem_escalation_brief.md](/Users/zaks/omnix_dashboard/docs/guard_blackview_oem_escalation_brief.md).
 - [x] Android live telemetry artifact auto-report gate added:
   [guard_android_live_validation_report.sh](/Users/zaks/omnix_dashboard/scripts/guard_android_live_validation_report.sh).
 - [x] Runtime live-ready telemetry enforcement added:

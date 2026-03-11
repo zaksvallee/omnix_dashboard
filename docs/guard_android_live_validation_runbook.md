@@ -250,6 +250,12 @@ PTT action discovery helper (use during new handset onboarding):
 ./scripts/guard_android_ptt_sniffer.sh --serial <device-serial> --duration 20
 ```
 
+OEM escalation bundle helper (when locked-screen behavior differs from unlocked):
+
+```bash
+./scripts/guard_android_oem_escalation_bundle.sh --serial <device-serial> --duration 15
+```
+
 ## Step 3: Verify Guard Sync UI during run
 
 In ONYX Guard Sync screen, confirm:
@@ -318,3 +324,5 @@ Operational guidance:
 
 - For locked-screen PTT, require OEM/system key-routing support that emits app-visible broadcasts while locked.
 - Without OEM support, use unlocked/kiosk operation mode for dependable ONYX PTT ingest.
+- Use [guard_blackview_oem_escalation_brief.md](/Users/zaks/omnix_dashboard/docs/guard_blackview_oem_escalation_brief.md)
+  with generated escalation bundle artifacts when opening OEM support tickets.
