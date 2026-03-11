@@ -54,6 +54,8 @@ Optional one-command rollout (install + connector doctor):
   --manager-classes com.onyx.vendor.fsk.LiveSdkManager
 ```
 
+If exactly one provider-matching `.aar/.jar` is already present under `android/app/libs`, you can omit `--sdk-artifact` and the script auto-detects it.
+
 If manager class names are unknown, you can let rollout auto-discover candidates:
 
 ```bash

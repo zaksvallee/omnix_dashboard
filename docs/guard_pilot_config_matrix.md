@@ -191,6 +191,8 @@ One-command vendor SDK rollout + connector verification:
   --manager-classes com.onyx.vendor.fsk.LiveSdkManager
 ```
 
+If exactly one provider-matching `.aar/.jar` exists in `android/app/libs`, `--sdk-artifact` is optional and rollout auto-detects it.
+
 Auto-discover manager classes from artifact (recommended when class names are unknown):
 
 ```bash

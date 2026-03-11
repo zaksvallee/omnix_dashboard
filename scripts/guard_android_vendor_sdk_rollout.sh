@@ -25,6 +25,8 @@ Usage:
 Purpose:
   Build/install ONYX Android app for a live telemetry provider with optional vendor SDK dependency overrides,
   then run connector doctor to verify strict direct-SDK readiness.
+  If --sdk-artifact and --sdk-maven are omitted, the script tries to auto-detect a provider-matching
+  .aar/.jar from android/app/libs.
 
 Examples:
   ./scripts/guard_android_vendor_sdk_rollout.sh \
@@ -59,6 +61,47 @@ provider_family() {
   else
     echo "fsk"
   fi
+}
+
+auto_detect_local_artifact() {
+  local provider_family="$1"
+  local libs_dir="$ROOT_DIR/android/app/libs"
+  if [[ ! -d "$libs_dir" ]]; then
+    return 1
+  fi
+
+  mapfile -t all_candidates < <(find "$libs_dir" -maxdepth 1 -type f \( -name "*.aar" -o -name "*.jar" \) | sort)
+  if [[ "${#all_candidates[@]}" -eq 0 ]]; then
+    return 1
+  fi
+
+  local token_pattern="fsk"
+  if [[ "$provider_family" == "hikvision" ]]; then
+    token_pattern="hikvision|guardlink"
+  fi
+
+  mapfile -t family_candidates < <(
+    printf '%s\n' "${all_candidates[@]}" | rg -i "$token_pattern" || true
+  )
+
+  if [[ "${#family_candidates[@]}" -eq 1 ]]; then
+    printf '%s\n' "${family_candidates[0]}"
+    return 0
+  fi
+  if [[ "${#family_candidates[@]}" -gt 1 ]]; then
+    warn "Multiple provider-matching artifacts found in android/app/libs; specify --sdk-artifact explicitly."
+    printf '%s\n' "${family_candidates[@]}" | sed 's/^/  - /'
+    return 1
+  fi
+
+  if [[ "${#all_candidates[@]}" -eq 1 ]]; then
+    printf '%s\n' "${all_candidates[0]}"
+    return 0
+  fi
+
+  warn "Multiple artifacts found in android/app/libs; specify --sdk-artifact explicitly."
+  printf '%s\n' "${all_candidates[@]}" | sed 's/^/  - /'
+  return 1
 }
 
 while [[ $# -gt 0 ]]; do
@@ -136,6 +179,14 @@ if [[ -n "$SDK_ARTIFACT" && -n "$SDK_MAVEN_COORD" ]]; then
 fi
 
 PROVIDER_FAMILY="$(provider_family "$PROVIDER_ID")"
+
+if [[ -z "$SDK_ARTIFACT" && -z "$SDK_MAVEN_COORD" ]]; then
+  detected_artifact="$(auto_detect_local_artifact "$PROVIDER_FAMILY" || true)"
+  if [[ -n "$detected_artifact" ]]; then
+    SDK_ARTIFACT="$detected_artifact"
+    pass "Auto-detected SDK artifact: $SDK_ARTIFACT"
+  fi
+fi
 
 if [[ -z "$MANAGER_CLASSES" && "$AUTO_MANAGER_CLASSES" -eq 1 && -n "$SDK_ARTIFACT" ]]; then
   if [[ -x "$ROOT_DIR/scripts/guard_android_vendor_sdk_inspect.sh" ]]; then
