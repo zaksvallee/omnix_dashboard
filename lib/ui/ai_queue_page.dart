@@ -96,7 +96,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
   @override
   void initState() {
     super.initState();
-    _actions = _seedActions(widget.events);
+    _actions = List<_AiQueueAction>.from(_seedActions(widget.events));
     _stats = _buildDailyStats(widget.events);
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _onTick());
   }
@@ -925,7 +925,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
               timeUntilExecutionSeconds: action.timeUntilExecutionSeconds - 1,
             );
           })
-          .toList(growable: false);
+          .toList();
 
       final expiredActionIds = _actions
           .where(
@@ -973,7 +973,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
             }
             return action;
           })
-          .toList(growable: false);
+          .toList();
       _queuePaused = _actions.any(
         (action) => action.status == _AiActionStatus.paused,
       );

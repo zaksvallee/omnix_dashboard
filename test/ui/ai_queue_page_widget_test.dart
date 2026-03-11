@@ -57,4 +57,15 @@ void main() {
     await tester.pump();
     expect(find.text('00:26'), findsOneWidget);
   });
+
+  testWidgets('ai queue cancel action is stable on web', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: AIQueuePage(events: [])));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('CANCEL ACTION').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('AI Automation Queue'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
