@@ -54,6 +54,16 @@ Optional one-command rollout (install + connector doctor):
   --manager-classes com.onyx.vendor.fsk.LiveSdkManager
 ```
 
+If manager class names are unknown, you can let rollout auto-discover candidates:
+
+```bash
+./scripts/guard_android_vendor_sdk_rollout.sh \
+  --provider fsk_sdk \
+  --sdk-artifact android/app/libs/fsk-sdk.aar \
+  --connector-class com.onyx.vendor.fsk.LiveSdkConnector \
+  --auto-manager-classes
+```
+
 If vendor class names are unknown, inspect the SDK artifact first:
 
 ```bash

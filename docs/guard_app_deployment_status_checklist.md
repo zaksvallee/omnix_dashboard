@@ -73,6 +73,8 @@ Last updated: 2026-03-11 (Africa/Johannesburg)
   [guard_android_vendor_sdk_inspect.sh](/Users/zaks/omnix_dashboard/scripts/guard_android_vendor_sdk_inspect.sh)
   extracts class names from `.aar/.jar` files and suggests manager/callback candidates
   for rollout flags.
+- [x] Vendor rollout now supports automatic manager-class candidate discovery from
+  provided artifacts via `--auto-manager-classes`.
 - [x] Android Gradle vendor SDK injection paths added for connector rollout:
   local drop-in artifacts (`android/app/libs/*.aar|*.jar`) plus optional
   `ONYX_FSK_SDK_ARTIFACT` / `ONYX_HIKVISION_SDK_ARTIFACT` and

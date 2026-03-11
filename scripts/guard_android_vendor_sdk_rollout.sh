@@ -15,11 +15,12 @@ APP_ACTIVITY="${ONYX_ANDROID_APP_ACTIVITY:-.MainActivity}"
 READY_TIMEOUT_SECONDS=20
 ALLOW_BROADCAST_FALLBACK=0
 SKIP_INSTALL=0
+AUTO_MANAGER_CLASSES=1
 
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/guard_android_vendor_sdk_rollout.sh [--provider fsk_sdk|hikvision_sdk] [--serial <device-serial>] [--sdk-artifact <path-to-aar-or-jar>] [--sdk-maven <group:artifact:version>] [--connector-class <fqcn>] [--manager-classes <csv>] [--app-package <package>] [--app-activity <activity>] [--ready-timeout <seconds>] [--allow-broadcast-fallback] [--skip-install]
+  ./scripts/guard_android_vendor_sdk_rollout.sh [--provider fsk_sdk|hikvision_sdk] [--serial <device-serial>] [--sdk-artifact <path-to-aar-or-jar>] [--sdk-maven <group:artifact:version>] [--connector-class <fqcn>] [--manager-classes <csv>] [--auto-manager-classes|--no-auto-manager-classes] [--app-package <package>] [--app-activity <activity>] [--ready-timeout <seconds>] [--allow-broadcast-fallback] [--skip-install]
 
 Purpose:
   Build/install ONYX Android app for a live telemetry provider with optional vendor SDK dependency overrides,
@@ -37,6 +38,12 @@ Examples:
     --sdk-maven com.vendor:hikvision-sdk:4.5.6 \
     --connector-class com.onyx.vendor.hikvision.LiveSdkConnector \
     --manager-classes com.vendor.hikvision.TelemetryManager
+
+  ./scripts/guard_android_vendor_sdk_rollout.sh \
+    --provider fsk_sdk \
+    --sdk-artifact android/app/libs/fsk-sdk.aar \
+    --connector-class com.onyx.vendor.fsk.LiveSdkConnector \
+    --auto-manager-classes
 USAGE
 }
 
@@ -80,6 +87,14 @@ while [[ $# -gt 0 ]]; do
       MANAGER_CLASSES="${2:-}"
       shift 2
       ;;
+    --auto-manager-classes)
+      AUTO_MANAGER_CLASSES=1
+      shift
+      ;;
+    --no-auto-manager-classes)
+      AUTO_MANAGER_CLASSES=0
+      shift
+      ;;
     --app-package)
       APP_PACKAGE="${2:-}"
       shift 2
@@ -122,6 +137,26 @@ fi
 
 PROVIDER_FAMILY="$(provider_family "$PROVIDER_ID")"
 
+if [[ -z "$MANAGER_CLASSES" && "$AUTO_MANAGER_CLASSES" -eq 1 && -n "$SDK_ARTIFACT" ]]; then
+  if [[ -x "$ROOT_DIR/scripts/guard_android_vendor_sdk_inspect.sh" ]]; then
+    inspect_output="$(
+      "$ROOT_DIR/scripts/guard_android_vendor_sdk_inspect.sh" \
+        --artifact "$SDK_ARTIFACT" \
+        --provider "$PROVIDER_ID" \
+        --max-results 12 2>/dev/null || true
+    )"
+    auto_manager_csv="$(printf '%s\n' "$inspect_output" | awk -F'Suggested CSV: ' '/Suggested CSV:/ {print $2; exit}')"
+    if [[ -n "$auto_manager_csv" ]]; then
+      MANAGER_CLASSES="$auto_manager_csv"
+      pass "Auto-discovered manager classes from artifact: $MANAGER_CLASSES"
+    else
+      warn "Unable to auto-discover manager classes from artifact; provide --manager-classes explicitly."
+    fi
+  else
+    warn "Artifact inspector script is unavailable; cannot auto-discover manager classes."
+  fi
+fi
+
 echo "== ONYX Vendor SDK Rollout =="
 echo "Provider: $PROVIDER_ID"
 echo "Serial: ${SERIAL:-auto}"
@@ -129,6 +164,7 @@ echo "SDK artifact: ${SDK_ARTIFACT:-<unset>}"
 echo "SDK Maven coord: ${SDK_MAVEN_COORD:-<unset>}"
 echo "Connector class: ${CONNECTOR_CLASS:-<unset>}"
 echo "Manager classes: ${MANAGER_CLASSES:-<unset>}"
+echo "Auto manager classes: $([[ "$AUTO_MANAGER_CLASSES" -eq 1 ]] && echo yes || echo no)"
 echo "Allow broadcast fallback: $([[ "$ALLOW_BROADCAST_FALLBACK" -eq 1 ]] && echo yes || echo no)"
 
 if [[ "$SKIP_INSTALL" -ne 1 ]]; then

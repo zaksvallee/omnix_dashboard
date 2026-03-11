@@ -191,6 +191,16 @@ One-command vendor SDK rollout + connector verification:
   --manager-classes com.onyx.vendor.fsk.LiveSdkManager
 ```
 
+Auto-discover manager classes from artifact (recommended when class names are unknown):
+
+```bash
+./scripts/guard_android_vendor_sdk_rollout.sh \
+  --provider fsk_sdk \
+  --sdk-artifact android/app/libs/fsk-sdk.aar \
+  --connector-class com.onyx.vendor.fsk.LiveSdkConnector \
+  --auto-manager-classes
+```
+
 Vendor artifact class inspection helper:
 
 ```bash
