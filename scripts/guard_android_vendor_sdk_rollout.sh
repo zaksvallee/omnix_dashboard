@@ -10,6 +10,7 @@ SDK_ARTIFACT=""
 SDK_MAVEN_COORD=""
 CONNECTOR_CLASS=""
 MANAGER_CLASSES=""
+HEARTBEAT_ACTION=""
 APP_PACKAGE="${ONYX_ANDROID_APP_PACKAGE:-com.example.omnix_dashboard}"
 APP_ACTIVITY="${ONYX_ANDROID_APP_ACTIVITY:-.MainActivity}"
 READY_TIMEOUT_SECONDS=20
@@ -20,7 +21,7 @@ AUTO_MANAGER_CLASSES=1
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/guard_android_vendor_sdk_rollout.sh [--provider fsk_sdk|hikvision_sdk] [--serial <device-serial>] [--sdk-artifact <path-to-aar-or-jar>] [--sdk-maven <group:artifact:version>] [--connector-class <fqcn>] [--manager-classes <csv>] [--auto-manager-classes|--no-auto-manager-classes] [--app-package <package>] [--app-activity <activity>] [--ready-timeout <seconds>] [--allow-broadcast-fallback] [--skip-install]
+  ./scripts/guard_android_vendor_sdk_rollout.sh [--provider fsk_sdk|hikvision_sdk] [--serial <device-serial>] [--sdk-artifact <path-to-aar-or-jar>] [--sdk-maven <group:artifact:version>] [--connector-class <fqcn>] [--manager-classes <csv>] [--heartbeat-action <intent-action>] [--auto-manager-classes|--no-auto-manager-classes] [--app-package <package>] [--app-activity <activity>] [--ready-timeout <seconds>] [--allow-broadcast-fallback] [--skip-install]
 
 Purpose:
   Build/install ONYX Android app for a live telemetry provider with optional vendor SDK dependency overrides,
@@ -134,6 +135,10 @@ while [[ $# -gt 0 ]]; do
       MANAGER_CLASSES="${2:-}"
       shift 2
       ;;
+    --heartbeat-action)
+      HEARTBEAT_ACTION="${2:-}"
+      shift 2
+      ;;
     --auto-manager-classes)
       AUTO_MANAGER_CLASSES=1
       shift
@@ -219,6 +224,7 @@ echo "SDK artifact: ${SDK_ARTIFACT:-<unset>}"
 echo "SDK Maven coord: ${SDK_MAVEN_COORD:-<unset>}"
 echo "Connector class: ${CONNECTOR_CLASS:-<unset>}"
 echo "Manager classes: ${MANAGER_CLASSES:-<unset>}"
+echo "Heartbeat action override: ${HEARTBEAT_ACTION:-<unset>}"
 echo "Auto manager classes: $([[ "$AUTO_MANAGER_CLASSES" -eq 1 ]] && echo yes || echo no)"
 echo "Allow broadcast fallback: $([[ "$ALLOW_BROADCAST_FALLBACK" -eq 1 ]] && echo yes || echo no)"
 
@@ -241,6 +247,9 @@ if [[ "$SKIP_INSTALL" -ne 1 ]]; then
     if [[ -n "$MANAGER_CLASSES" ]]; then
       gradle_cmd+=("-PONYX_HIKVISION_SDK_MANAGER_CLASS_CANDIDATES=$MANAGER_CLASSES")
     fi
+    if [[ -n "$HEARTBEAT_ACTION" ]]; then
+      gradle_cmd+=("-PONYX_HIKVISION_SDK_HEARTBEAT_ACTION=$HEARTBEAT_ACTION")
+    fi
   else
     gradle_cmd+=(
       -PONYX_USE_LIVE_FSK_SDK=true
@@ -257,6 +266,9 @@ if [[ "$SKIP_INSTALL" -ne 1 ]]; then
     fi
     if [[ -n "$MANAGER_CLASSES" ]]; then
       gradle_cmd+=("-PONYX_FSK_SDK_MANAGER_CLASS_CANDIDATES=$MANAGER_CLASSES")
+    fi
+    if [[ -n "$HEARTBEAT_ACTION" ]]; then
+      gradle_cmd+=("-PONYX_FSK_SDK_HEARTBEAT_ACTION=$HEARTBEAT_ACTION")
     fi
   fi
 

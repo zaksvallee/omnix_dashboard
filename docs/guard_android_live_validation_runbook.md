@@ -74,6 +74,15 @@ If vendor class names are unknown, inspect the SDK artifact first:
   --provider fsk_sdk
 ```
 
+If your handset integration uses a non-default heartbeat broadcast action (for example a Zello button action), set it during rollout:
+
+```bash
+./scripts/guard_android_vendor_sdk_rollout.sh \
+  --provider fsk_sdk \
+  --heartbeat-action com.zello.ptt.down \
+  --allow-broadcast-fallback
+```
+
 ## Step 1: Local readiness gate
 
 ```bash

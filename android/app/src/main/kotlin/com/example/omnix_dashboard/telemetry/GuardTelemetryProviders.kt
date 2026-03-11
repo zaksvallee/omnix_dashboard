@@ -442,7 +442,8 @@ class FskSdkFacadeLive(
     override val toggleSource: String = runtimeConfig.useLiveModeSource
     override val runtimeMode: String = "live"
     override val heartbeatAction: String = runtimeConfig.heartbeatAction
-    override val heartbeatSource: String = vendorConnector.heartbeatSource
+    override val heartbeatSource: String
+        get() = vendorConnector.heartbeatSource
     override val heartbeatActionSource: String = runtimeConfig.heartbeatActionSource
     override val payloadAdapterId: String = runtimeConfig.payloadAdapterId
     override val payloadAdapterSource: String = runtimeConfig.payloadAdapterSource
