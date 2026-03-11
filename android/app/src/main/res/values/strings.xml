@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="onyx_ptt_accessibility_description">Captures hardware side-key presses for ONYX guard PTT telemetry.</string>
+</resources>

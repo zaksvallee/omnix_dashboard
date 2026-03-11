@@ -11,6 +11,7 @@ Prove end-to-end live callback ingestion on Android guard devices with evidence 
 - Android device connected over `adb`.
 - ONYX app installed/running with live native telemetry config.
 - ONYX app starts foreground PTT listener service on launch (`ONYX PTT listener active` notification).
+- If hardware key emits raw `KEY_F1` (no broadcast intent), enable `ONYX PTT Key Bridge` accessibility service in Android settings.
 - Local runtime config exists at `config/onyx.local.json` (bootstrap once from template).
 - `ONYX_GUARD_TELEMETRY_NATIVE_SDK=true`
 - `ONYX_GUARD_TELEMETRY_NATIVE_STUB=false`
