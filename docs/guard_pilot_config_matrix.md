@@ -246,9 +246,9 @@ Artifact report command:
 Note:
 - Readiness artifact gate prefers `validation_report.json` and falls back to markdown report if JSON is unavailable.
 - When JSON is available, readiness verifies embedded SHA-256 checksums against evidence files.
-- In pre-device mode, the selected `--provider` must match the runtime config provider
-  in `config/onyx.local.json` (`ONYX_GUARD_TELEMETRY_NATIVE_PROVIDER` /
-  `ONYX_GUARD_TELEMETRY_REQUIRED_PROVIDER`) or the gate fails by design.
+- `guard_gate_auto.sh` auto-aligns runtime config provider by generating a temporary
+  `tmp/onyx.auto.*.json` file when `--provider` differs and `--config` is not supplied.
+- If you explicitly pass `--config`, provider mismatch behavior remains strict by design.
 
 One-command Android pilot gate:
 

@@ -11,10 +11,12 @@ EXPECTED_PROVIDER="${ONYX_GUARD_TELEMETRY_REQUIRED_PROVIDER:-}"
 MAX_REPORT_AGE_HOURS=24
 RUN_FULL_TESTS=0
 CONFIG_FILE="${ONYX_DART_DEFINE_FILE:-config/onyx.local.json}"
+EFFECTIVE_CONFIG_FILE=""
 REQUIRE_REAL_DEVICE_ARTIFACTS=0
 SKIP_CONNECTION_DOCTOR=0
 SKIP_CONNECTOR_DOCTOR=0
 ALLOW_BROADCAST_FALLBACK=0
+USER_SUPPLIED_CONFIG=0
 
 usage() {
   cat <<'USAGE'
@@ -30,6 +32,8 @@ Defaults:
   --action defaults to provider-specific env:
     FSK: ONYX_FSK_SDK_HEARTBEAT_ACTION
     Hikvision: ONYX_HIKVISION_SDK_HEARTBEAT_ACTION
+  if --config is not supplied and provider differs from config runtime provider,
+  a temporary provider-aligned config is generated under tmp/onyx.auto.*.json.
 USAGE
 }
 
@@ -41,6 +45,92 @@ provider_family() {
   else
     echo "fsk"
   fi
+}
+
+json_value() {
+  local key="$1"
+  local file="$2"
+  if [[ ! -f "$file" ]]; then
+    echo ""
+    return 0
+  fi
+  if command -v jq >/dev/null 2>&1; then
+    jq -r --arg key "$key" '.[$key] // ""' "$file"
+    return 0
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "$file" "$key" <<'PY'
+import json
+import sys
+path, key = sys.argv[1], sys.argv[2]
+with open(path, "r", encoding="utf-8") as f:
+    data = json.load(f)
+print(data.get(key, ""))
+PY
+    return 0
+  fi
+  sed -nE "s/^[[:space:]]*\"$key\"[[:space:]]*:[[:space:]]*\"([^\"]*)\"[[:space:]]*,?[[:space:]]*$/\1/p" "$file" | head -n 1
+}
+
+align_runtime_config_if_needed() {
+  local provider_id="$1"
+  local required_provider="$2"
+
+  EFFECTIVE_CONFIG_FILE="$CONFIG_FILE"
+  if [[ ! -f "$CONFIG_FILE" ]]; then
+    return 0
+  fi
+
+  local config_provider
+  local config_required_provider
+  config_provider="$(json_value "ONYX_GUARD_TELEMETRY_NATIVE_PROVIDER" "$CONFIG_FILE" | tr -d '\r')"
+  config_required_provider="$(json_value "ONYX_GUARD_TELEMETRY_REQUIRED_PROVIDER" "$CONFIG_FILE" | tr -d '\r')"
+
+  if [[ -z "$config_provider" ]]; then
+    config_provider="android_native_sdk_stub"
+  fi
+  if [[ -z "$config_required_provider" ]]; then
+    config_required_provider="$config_provider"
+  fi
+
+  if [[ "$config_provider" == "$provider_id" && "$config_required_provider" == "$required_provider" ]]; then
+    return 0
+  fi
+
+  if [[ "$USER_SUPPLIED_CONFIG" -eq 1 ]]; then
+    echo "WARN: Requested provider '$provider_id' differs from config provider '$config_provider' in $CONFIG_FILE." >&2
+    echo "WARN: Using user-supplied config as-is." >&2
+    return 0
+  fi
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "WARN: python3 unavailable; cannot auto-align runtime config provider for $provider_id." >&2
+    return 0
+  fi
+
+  local stamp
+  stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  local out_file="tmp/onyx.auto.${provider_id}.${stamp}.json"
+  mkdir -p "$(dirname "$out_file")"
+  python3 - "$CONFIG_FILE" "$out_file" "$provider_id" "$required_provider" <<'PY'
+import json
+import sys
+
+source, target, provider, required = sys.argv[1:5]
+with open(source, "r", encoding="utf-8") as f:
+    data = json.load(f)
+
+data["ONYX_GUARD_TELEMETRY_NATIVE_PROVIDER"] = provider
+data["ONYX_GUARD_TELEMETRY_REQUIRED_PROVIDER"] = required
+data["ONYX_GUARD_TELEMETRY_NATIVE_STUB"] = "false"
+data["ONYX_GUARD_TELEMETRY_NATIVE_SDK"] = "true"
+
+with open(target, "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=2, sort_keys=True)
+    f.write("\n")
+PY
+  EFFECTIVE_CONFIG_FILE="$out_file"
+  echo "WARN: Auto-aligned runtime config for provider '$provider_id' -> $EFFECTIVE_CONFIG_FILE" >&2
 }
 
 while [[ $# -gt 0 ]]; do
@@ -79,6 +169,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --config)
       CONFIG_FILE="${2:-}"
+      USER_SUPPLIED_CONFIG=1
       shift 2
       ;;
     --full-tests)
@@ -133,6 +224,7 @@ fi
 if [[ -z "$EXPECTED_PROVIDER" ]]; then
   EXPECTED_PROVIDER="$PROVIDER_ID"
 fi
+align_runtime_config_if_needed "$PROVIDER_ID" "$EXPECTED_PROVIDER"
 
 if [[ -z "$ACTION" ]]; then
   if [[ "$PROVIDER_FAMILY" == "hikvision" ]]; then
@@ -163,6 +255,7 @@ if [[ "$DEVICE_COUNT" -gt 0 ]]; then
   echo "Connected devices: $DEVICE_COUNT"
   echo "Provider: $PROVIDER_ID"
   echo "Action: $ACTION"
+  echo "Config: $EFFECTIVE_CONFIG_FILE"
 
   pilot_cmd=(
     ./scripts/guard_android_pilot_gate.sh
@@ -173,7 +266,7 @@ if [[ "$DEVICE_COUNT" -gt 0 ]]; then
     --adapter "$ADAPTER_MODE"
     --expected-provider "$EXPECTED_PROVIDER"
     --max-report-age-hours "$MAX_REPORT_AGE_HOURS"
-    --config "$CONFIG_FILE"
+    --config "$EFFECTIVE_CONFIG_FILE"
   )
 
   if [[ -n "$SERIAL" ]]; then
@@ -200,13 +293,14 @@ else
   echo "== ONYX Guard Auto Gate =="
   echo "Mode: pre-device gate"
   echo "Connected devices: 0"
+  echo "Config: $EFFECTIVE_CONFIG_FILE"
 
   pre_cmd=(
     ./scripts/guard_predevice_gate.sh
     --provider "$PROVIDER_ID"
     --samples "$SAMPLES"
     --max-report-age-hours "$MAX_REPORT_AGE_HOURS"
-    --config "$CONFIG_FILE"
+    --config "$EFFECTIVE_CONFIG_FILE"
   )
 
   if [[ "$RUN_FULL_TESTS" -eq 1 ]]; then

@@ -161,6 +161,8 @@ Unified auto-gate (uses on-device gate when phone is connected, otherwise pre-de
   --max-report-age-hours 24
 ```
 
+If `--provider` differs from the runtime provider in the selected config and you did not pass `--config`, `guard_gate_auto.sh` now creates a temporary provider-aligned config under `tmp/onyx.auto.*.json` automatically.
+
 Operator preflight (analyze + tests + auto-gate in one command):
 
 ```bash
