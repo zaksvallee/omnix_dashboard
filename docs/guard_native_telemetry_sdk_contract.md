@@ -459,6 +459,14 @@ SDK integration note:
   - Manifest override: `<meta-data android:name="onyx.fsk_sdk_connector_class" android:value="com.onyx.vendor.fsk.LiveSdkConnector" />`
   - Gradle property: `-PONYX_HIKVISION_SDK_CONNECTOR_CLASS=com.onyx.vendor.hikvision.LiveSdkConnector`
   - Manifest override: `<meta-data android:name="onyx.hikvision_sdk_connector_class" android:value="com.onyx.vendor.hikvision.LiveSdkConnector" />`
+  - optional vendor SDK dependency injection is wired:
+    - local drop-in SDK files: `android/app/libs/*.aar` or `android/app/libs/*.jar`
+    - Gradle property artifact paths:
+      - `-PONYX_FSK_SDK_ARTIFACT=libs/fsk-sdk.aar`
+      - `-PONYX_HIKVISION_SDK_ARTIFACT=libs/hikvision-sdk.aar`
+    - Gradle property Maven coordinates:
+      - `-PONYX_FSK_SDK_MAVEN_COORD=com.vendor:fsk-sdk:1.2.3`
+      - `-PONYX_HIKVISION_SDK_MAVEN_COORD=com.vendor:hikvision-sdk:4.5.6`
   - built-in reflective connector classes are available:
     - `com.example.omnix_dashboard.telemetry.FskReflectiveVendorSdkConnector`
     - `com.example.omnix_dashboard.telemetry.HikvisionReflectiveVendorSdkConnector`

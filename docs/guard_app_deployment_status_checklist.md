@@ -65,6 +65,10 @@ Last updated: 2026-03-11 (Africa/Johannesburg)
   [guard_android_connector_doctor.sh](/Users/zaks/omnix_dashboard/scripts/guard_android_connector_doctor.sh)
   verifies provider-specific startup markers and direct-connector fallback status
   before strict pilot gates.
+- [x] Android Gradle vendor SDK injection paths added for connector rollout:
+  local drop-in artifacts (`android/app/libs/*.aar|*.jar`) plus optional
+  `ONYX_FSK_SDK_ARTIFACT` / `ONYX_HIKVISION_SDK_ARTIFACT` and
+  `ONYX_FSK_SDK_MAVEN_COORD` / `ONYX_HIKVISION_SDK_MAVEN_COORD`.
 - [x] Validation report now emits machine-readable JSON:
   `validation_report.json` with `overall_status`, metrics, and gate booleans;
   readiness artifact gate prefers JSON over markdown parsing.

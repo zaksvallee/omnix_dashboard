@@ -130,13 +130,21 @@ Gradle properties used by Android facade:
 - `ONYX_FSK_SDK_HEARTBEAT_ACTION` (broadcast action for SDK callback)
 - `ONYX_FSK_SDK_PAYLOAD_ADAPTER` (`standard`, `legacy_ptt`, or `hikvision_guardlink`)
 - `ONYX_FSK_SDK_CONNECTOR_CLASS` (optional fully-qualified Kotlin class implementing `FskVendorSdkConnector`)
+- `ONYX_FSK_SDK_ARTIFACT` (optional path to FSK vendor SDK `.aar`/`.jar`)
+- `ONYX_FSK_SDK_MAVEN_COORD` (optional Maven coordinate for FSK SDK, for example `com.vendor:fsk-sdk:1.2.3`)
 - `ONYX_USE_LIVE_HIKVISION_SDK` (`true` enables live Hikvision facade)
 - `ONYX_HIKVISION_SDK_HEARTBEAT_ACTION` (broadcast action for Hikvision SDK callback)
 - `ONYX_HIKVISION_SDK_PAYLOAD_ADAPTER` (`standard`, `legacy_ptt`, or `hikvision_guardlink`)
 - `ONYX_HIKVISION_SDK_CONNECTOR_CLASS` (optional fully-qualified Kotlin class implementing `FskVendorSdkConnector`)
+- `ONYX_HIKVISION_SDK_ARTIFACT` (optional path to Hikvision SDK `.aar`/`.jar`)
+- `ONYX_HIKVISION_SDK_MAVEN_COORD` (optional Maven coordinate for Hikvision SDK, for example `com.vendor:hikvision-sdk:4.5.6`)
 
 Default behavior note:
 - When `ONYX_USE_LIVE_FSK_SDK=true` or `ONYX_USE_LIVE_HIKVISION_SDK=true` and no connector class is provided, ONYX now defaults to built-in reflective vendor connectors and only falls back to broadcast mode if reflective startup fails.
+- Vendor SDK dependency loading supports:
+  - drop-in files in `android/app/libs/*.aar|*.jar`
+  - Gradle property artifact path (`ONYX_*_SDK_ARTIFACT`)
+  - Gradle property Maven coordinate (`ONYX_*_SDK_MAVEN_COORD`)
 
 Build example:
 
@@ -146,10 +154,12 @@ Build example:
   -PONYX_FSK_SDK_HEARTBEAT_ACTION=com.onyx.fsk.SDK_HEARTBEAT \
   -PONYX_FSK_SDK_PAYLOAD_ADAPTER=standard \
   -PONYX_FSK_SDK_CONNECTOR_CLASS=com.example.omnix_dashboard.telemetry.FskReflectiveVendorSdkConnector \
+  -PONYX_FSK_SDK_ARTIFACT=libs/fsk-sdk.aar \
   -PONYX_USE_LIVE_HIKVISION_SDK=true \
   -PONYX_HIKVISION_SDK_HEARTBEAT_ACTION=com.onyx.hikvision.SDK_HEARTBEAT \
   -PONYX_HIKVISION_SDK_PAYLOAD_ADAPTER=hikvision_guardlink \
-  -PONYX_HIKVISION_SDK_CONNECTOR_CLASS=com.example.omnix_dashboard.telemetry.HikvisionReflectiveVendorSdkConnector
+  -PONYX_HIKVISION_SDK_CONNECTOR_CLASS=com.example.omnix_dashboard.telemetry.HikvisionReflectiveVendorSdkConnector \
+  -PONYX_HIKVISION_SDK_ARTIFACT=libs/hikvision-sdk.aar
 ```
 
 On-device callback validation helper:

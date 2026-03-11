@@ -6,6 +6,21 @@ plugins {
 }
 
 fun String.escapeForBuildConfig(): String = replace("\\", "\\\\").replace("\"", "\\\"")
+fun optionalTrimmedProperty(name: String): String? =
+    (project.findProperty(name) as String?)
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+
+fun optionalExistingFileProperty(name: String): File? {
+    val raw = optionalTrimmedProperty(name) ?: return null
+    val candidate = project.file(raw)
+    if (!candidate.exists()) {
+        logger.warn("ONYX: property $name points to missing file: $candidate")
+        return null
+    }
+    logger.lifecycle("ONYX: enabling vendor SDK artifact from $name -> $candidate")
+    return candidate
+}
 
 val useLiveFskSdk = (project.findProperty("ONYX_USE_LIVE_FSK_SDK") as String?)
     ?.trim()
@@ -22,6 +37,8 @@ val fskSdkPayloadAdapter = (project.findProperty("ONYX_FSK_SDK_PAYLOAD_ADAPTER")
 val fskSdkConnectorClass = (project.findProperty("ONYX_FSK_SDK_CONNECTOR_CLASS") as String?)
     ?.trim()
     ?: ""
+val fskSdkArtifact = optionalExistingFileProperty("ONYX_FSK_SDK_ARTIFACT")
+val fskSdkMavenCoordinate = optionalTrimmedProperty("ONYX_FSK_SDK_MAVEN_COORD")
 val useLiveHikvisionSdk = (project.findProperty("ONYX_USE_LIVE_HIKVISION_SDK") as String?)
     ?.trim()
     ?.lowercase() == "true"
@@ -40,6 +57,8 @@ val hikvisionSdkConnectorClass =
     (project.findProperty("ONYX_HIKVISION_SDK_CONNECTOR_CLASS") as String?)
         ?.trim()
         ?: ""
+val hikvisionSdkArtifact = optionalExistingFileProperty("ONYX_HIKVISION_SDK_ARTIFACT")
+val hikvisionSdkMavenCoordinate = optionalTrimmedProperty("ONYX_HIKVISION_SDK_MAVEN_COORD")
 
 android {
     namespace = "com.example.omnix_dashboard"
@@ -117,4 +136,21 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Optional local drop-in SDK artifacts (android/app/libs/*.aar|*.jar).
+    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar", "*.aar"))))
+
+    fskSdkArtifact?.let { implementation(files(it)) }
+    hikvisionSdkArtifact?.let { implementation(files(it)) }
+
+    fskSdkMavenCoordinate?.let {
+        logger.lifecycle("ONYX: enabling vendor SDK dependency ONYX_FSK_SDK_MAVEN_COORD -> $it")
+        implementation(it)
+    }
+    hikvisionSdkMavenCoordinate?.let {
+        logger.lifecycle("ONYX: enabling vendor SDK dependency ONYX_HIKVISION_SDK_MAVEN_COORD -> $it")
+        implementation(it)
+    }
 }
