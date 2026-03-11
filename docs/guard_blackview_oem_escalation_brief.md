@@ -105,3 +105,28 @@ Interpretation:
 - Broadcast ingest path is valid.
 - Hardware-to-app routing under keyguard is blocked before third-party bridge apps
   (including Fast Talkie style routing) can emit app-visible PTT intents.
+
+## Latest Gate Run (2026-03-11 23:45 SAST)
+
+Bundle:
+
+- `tmp/guard_field_validation/oem-escalation-20260311T214424Z`
+
+Gate report:
+
+- `tmp/guard_field_validation/oem-escalation-20260311T214424Z/lockscreen_gate_report.md`
+- Decision: `UNLOCKED_ONLY`
+- Reason: `No confirmed lockscreen ingest evidence.`
+
+Measured counts (20s per phase):
+
+- Unlocked ingest accepted: `125`
+- Locked ingest accepted: `6`
+- Locked ingest with `locked=true`: `0`
+- Locked ingest with `interactive=false`: `0`
+
+Interpretation:
+
+- Accessibility bridge remains healthy while unlocked.
+- Locked-phase ingest still lacks true lockscreen-delivered evidence.
+- Operational mode remains `unlocked/kiosk` until OEM keyguard routing support lands.
