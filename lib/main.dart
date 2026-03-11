@@ -201,7 +201,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   const allowFontRuntimeFetching = bool.fromEnvironment(
     'ONYX_ALLOW_FONT_RUNTIME_FETCHING',
-    defaultValue: true,
+    defaultValue: false,
   );
   GoogleFonts.config.allowRuntimeFetching = allowFontRuntimeFetching;
 
