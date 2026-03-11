@@ -4,6 +4,12 @@ Last updated: 2026-03-05 (Africa/Johannesburg)
 
 ## 1. Flutter Runtime (`--dart-define`)
 
+Create your local config from the committed template:
+
+```bash
+cp config/onyx.local.example.json config/onyx.local.json
+```
+
 Use a local file for web/dev runs:
 
 ```bash

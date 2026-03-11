@@ -339,6 +339,7 @@ else
     fail "$CONFIG_FILE not found (required by the active readiness gate flags)."
   fi
   warn "$CONFIG_FILE not found (required for local chrome run with dart-define-from-file)."
+  warn "Create it with: cp config/onyx.local.example.json config/onyx.local.json"
 fi
 
 if [[ "$REQUIRE_LIVE_VALIDATION_ARTIFACTS" -eq 1 ]]; then

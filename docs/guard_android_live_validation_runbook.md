@@ -10,10 +10,17 @@ Prove end-to-end live callback ingestion on Android guard devices with evidence 
 
 - Android device connected over `adb`.
 - ONYX app installed/running with live native telemetry config.
+- Local runtime config exists at `config/onyx.local.json` (bootstrap once from template).
 - `ONYX_GUARD_TELEMETRY_NATIVE_SDK=true`
 - `ONYX_GUARD_TELEMETRY_NATIVE_STUB=false`
 - `ONYX_GUARD_TELEMETRY_NATIVE_PROVIDER=fsk_sdk` (or `hikvision_sdk`)
 - Live heartbeat action configured (`ONYX_FSK_SDK_HEARTBEAT_ACTION`, `ONYX_HIKVISION_SDK_HEARTBEAT_ACTION`, or explicit `--action`).
+
+Bootstrap command:
+
+```bash
+cp config/onyx.local.example.json config/onyx.local.json
+```
 
 ## Step 0: Connection doctor (required before on-device run)
 

@@ -4,6 +4,12 @@ Flutter command-and-control surface for ONYX dispatch, guard sync, client comms,
 
 ## Core Commands
 
+### Local config setup (first run)
+
+```bash
+cp config/onyx.local.example.json config/onyx.local.json
+```
+
 ### Local web run (with ONYX config)
 
 ```bash
