@@ -9,6 +9,7 @@ import '../domain/events/report_generated.dart';
 import '../domain/store/in_memory_event_store.dart';
 import '../presentation/reports/report_preview_page.dart';
 import 'onyx_surface.dart';
+import 'ui_action_logger.dart';
 
 class ClientIntelligenceReportsPage extends StatefulWidget {
   final InMemoryEventStore store;
@@ -973,6 +974,7 @@ class _ClientIntelligenceReportsPageState
 
   void _exportAllReceipts(List<_ReceiptRow> rows) {
     if (rows.isEmpty) {
+      logUiAction('reports.export_all', context: {'rows': 0});
       _showReceiptActionFeedback('No receipts available to export.');
       return;
     }
@@ -991,6 +993,7 @@ class _ClientIntelligenceReportsPageState
         .toList(growable: false);
     final encoded = const JsonEncoder.withIndent('  ').convert(payload);
     Clipboard.setData(ClipboardData(text: encoded));
+    logUiAction('reports.export_all', context: {'rows': rows.length});
     _showReceiptActionFeedback(
       'Exported ${rows.length} receipt records to clipboard.',
     );
@@ -1009,11 +1012,19 @@ class _ClientIntelligenceReportsPageState
 
   Future<void> _previewReceipt(_ReceiptRow row, bool hasLiveReceipts) async {
     if (!hasLiveReceipts) {
+      logUiAction(
+        'reports.preview_sample_receipt',
+        context: {'event_id': row.event.eventId},
+      );
       _showReceiptActionFeedback(
         'Sample receipt preview unavailable. Generate a live report first.',
       );
       return;
     }
+    logUiAction(
+      'reports.preview_live_receipt',
+      context: {'event_id': row.event.eventId},
+    );
     await _openReceipt(row);
   }
 
@@ -1029,11 +1040,19 @@ class _ClientIntelligenceReportsPageState
       };
       final encoded = const JsonEncoder.withIndent('  ').convert(payload);
       Clipboard.setData(ClipboardData(text: encoded));
+      logUiAction(
+        'reports.download_sample_receipt',
+        context: {'event_id': row.event.eventId},
+      );
       _showReceiptActionFeedback(
         'Sample receipt metadata copied for ${row.event.eventId}.',
       );
       return;
     }
+    logUiAction(
+      'reports.download_live_receipt',
+      context: {'event_id': row.event.eventId},
+    );
     await _openReceipt(row);
   }
 

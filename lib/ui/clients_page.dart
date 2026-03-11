@@ -7,6 +7,7 @@ import '../domain/events/incident_closed.dart';
 import '../domain/events/intelligence_received.dart';
 import '../domain/events/response_arrived.dart';
 import 'onyx_surface.dart';
+import 'ui_action_logger.dart';
 
 class ClientsPage extends StatefulWidget {
   final String clientId;
@@ -575,6 +576,14 @@ class _ClientsPageState extends State<ClientsPage> {
                 _pushSyncStatus = 'retrying';
                 _backendProbeStatus = 'queued';
               });
+              logUiAction(
+                'clients.retry_push_sync',
+                context: {
+                  'retries': _pushRetryCount,
+                  'client_id': _selectedClientId,
+                  'site_id': _selectedSiteId,
+                },
+              );
               _showActionMessage('Push sync retry queued.');
             },
             child: Container(
@@ -653,20 +662,32 @@ class _ClientsPageState extends State<ClientsPage> {
           _roomButton(
             'Residents',
             const Color(0xFF22D3EE),
-            onTap: () => _showActionMessage('Opened Residents room.'),
+            onTap: () {
+              logUiAction('clients.open_room', context: {'room': 'Residents'});
+              _showActionMessage('Opened Residents room.');
+            },
           ),
           const SizedBox(height: 6),
           _roomButton(
             'Trustees',
             const Color(0xFFC084FC),
-            onTap: () => _showActionMessage('Opened Trustees room.'),
+            onTap: () {
+              logUiAction('clients.open_room', context: {'room': 'Trustees'});
+              _showActionMessage('Opened Trustees room.');
+            },
           ),
           const SizedBox(height: 6),
           _roomButton(
             'Security Desk',
             const Color(0xFF10B981),
             unreadLabel: '2 unread',
-            onTap: () => _showActionMessage('Opened Security Desk room.'),
+            onTap: () {
+              logUiAction(
+                'clients.open_room',
+                context: {'room': 'Security Desk'},
+              );
+              _showActionMessage('Opened Security Desk room.');
+            },
           ),
         ],
       ),

@@ -10,6 +10,7 @@ import '../domain/events/incident_closed.dart';
 import '../domain/events/patrol_completed.dart';
 import '../domain/events/response_arrived.dart';
 import 'onyx_surface.dart';
+import 'ui_action_logger.dart';
 
 class SitesCommandPage extends StatefulWidget {
   final List<DispatchEvent> events;
@@ -225,8 +226,13 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               const Spacer(),
               InkWell(
                 borderRadius: BorderRadius.circular(8),
-                onTap: () =>
-                    _showActionMessage('Site onboarding request captured.'),
+                onTap: () {
+                  logUiAction(
+                    'sites.add_site',
+                    context: {'selected_site_id': _selectedSiteId},
+                  );
+                  _showActionMessage('Site onboarding request captured.');
+                },
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
@@ -386,21 +392,48 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               _miniButton(
                 'VIEW ON MAP',
                 primary: true,
-                onTap: () => _showActionMessage(
-                  'Map view opened for ${site.displayName}.',
-                ),
+                onTap: () {
+                  logUiAction(
+                    'sites.view_on_map',
+                    context: {
+                      'site_id': site.id,
+                      'site_name': site.displayName,
+                    },
+                  );
+                  _showActionMessage(
+                    'Map view opened for ${site.displayName}.',
+                  );
+                },
               ),
               _miniButton(
                 'SITE SETTINGS',
-                onTap: () => _showActionMessage(
-                  'Site settings opened for ${site.displayName}.',
-                ),
+                onTap: () {
+                  logUiAction(
+                    'sites.open_settings',
+                    context: {
+                      'site_id': site.id,
+                      'site_name': site.displayName,
+                    },
+                  );
+                  _showActionMessage(
+                    'Site settings opened for ${site.displayName}.',
+                  );
+                },
               ),
               _miniButton(
                 'GUARD ROSTER',
-                onTap: () => _showActionMessage(
-                  'Guard roster opened for ${site.displayName}.',
-                ),
+                onTap: () {
+                  logUiAction(
+                    'sites.open_guard_roster',
+                    context: {
+                      'site_id': site.id,
+                      'site_name': site.displayName,
+                    },
+                  );
+                  _showActionMessage(
+                    'Guard roster opened for ${site.displayName}.',
+                  );
+                },
               ),
             ],
           ),

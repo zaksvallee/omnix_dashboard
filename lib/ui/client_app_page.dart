@@ -8,6 +8,7 @@ import '../domain/events/intelligence_received.dart';
 import '../domain/events/response_arrived.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
+import 'ui_action_logger.dart';
 
 enum ClientAppLocale { en, zu, af }
 
@@ -3769,8 +3770,16 @@ class _ClientAppPageState extends State<ClientAppPage> {
   ) {
     final group = _selectedIncidentGroup(items);
     if (group == null) {
+      logUiAction('client_app.reopen_selected_incident_missing');
       return Future<void>.value();
     }
+    logUiAction(
+      'client_app.reopen_selected_incident',
+      context: {
+        'reference_label': group.referenceLabel,
+        'role': _viewerRole.name,
+      },
+    );
     setState(() {
       _selectedIncidentReference = group.referenceLabel;
       _selectedIncidentReferenceByRole[_viewerRole.name] = group.referenceLabel;
@@ -3785,6 +3794,10 @@ class _ClientAppPageState extends State<ClientAppPage> {
     List<_ClientIncidentFeedGroup> items,
   ) {
     if (items.isEmpty) {
+      logUiAction(
+        'client_app.open_first_incident_missing',
+        context: {'role': _viewerRole.name},
+      );
       final messenger = ScaffoldMessenger.maybeOf(context);
       messenger?.hideCurrentSnackBar();
       messenger?.showSnackBar(
@@ -3796,6 +3809,13 @@ class _ClientAppPageState extends State<ClientAppPage> {
       return Future<void>.value();
     }
     final first = items.first;
+    logUiAction(
+      'client_app.open_first_incident',
+      context: {
+        'reference_label': first.referenceLabel,
+        'role': _viewerRole.name,
+      },
+    );
     setState(() {
       _selectedIncidentReference = first.referenceLabel;
       _selectedIncidentReferenceByRole[_viewerRole.name] = first.referenceLabel;

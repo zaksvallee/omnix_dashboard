@@ -14,6 +14,7 @@ import '../domain/events/intelligence_received.dart';
 import '../domain/events/patrol_completed.dart';
 import '../domain/events/response_arrived.dart';
 import 'onyx_surface.dart';
+import 'ui_action_logger.dart';
 
 class EventsReviewPage extends StatefulWidget {
   final List<DispatchEvent> events;
@@ -775,9 +776,15 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         _outlineAction(
           'VIEW IN LEDGER',
           actionKey: const ValueKey('events-view-ledger-action'),
-          onTap: () => _showActionMessage(
-            'Open Sovereign Ledger to inspect ${selected.eventId}.',
-          ),
+          onTap: () {
+            logUiAction(
+              'events.view_in_ledger',
+              context: {'event_id': selected.eventId},
+            );
+            _showActionMessage(
+              'Open Sovereign Ledger to inspect ${selected.eventId}.',
+            );
+          },
         ),
         const SizedBox(height: 6),
         _outlineAction(
@@ -919,6 +926,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       '  ',
     ).convert(_eventPayload(event));
     Clipboard.setData(ClipboardData(text: payloadJson));
+    logUiAction(
+      'events.export_event_data',
+      context: {'event_id': event.eventId},
+    );
     _showActionMessage('Event payload copied for ${event.eventId}.');
   }
 

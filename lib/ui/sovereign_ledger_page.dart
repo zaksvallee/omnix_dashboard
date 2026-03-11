@@ -15,6 +15,7 @@ import '../domain/events/intelligence_received.dart';
 import '../domain/events/patrol_completed.dart';
 import '../domain/events/response_arrived.dart';
 import 'onyx_surface.dart';
+import 'ui_action_logger.dart';
 
 class SovereignLedgerPage extends StatefulWidget {
   final String clientId;
@@ -243,11 +244,19 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
             'VERIFY CHAIN',
             primary: true,
             onTap: () {
+              final intact = _verifyChain(entries);
               setState(() {
-                _integrity = _verifyChain(entries)
+                _integrity = intact
                     ? _ChainIntegrity.intact
                     : _ChainIntegrity.compromised;
               });
+              logUiAction(
+                'ledger.verify_chain',
+                context: {
+                  'entries': entries.length,
+                  'result': intact ? 'intact' : 'compromised',
+                },
+              );
             },
           ),
           _button('EXPORT LEDGER', onTap: () => _exportLedger(entries)),
@@ -656,9 +665,13 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
         const SizedBox(height: 8),
         _outlineButton(
           'VIEW IN EVENT REVIEW',
-          onTap: () => _showActionMessage(
-            'Open Event Review to inspect ${selected.id}.',
-          ),
+          onTap: () {
+            logUiAction(
+              'ledger.view_in_event_review',
+              context: {'entry_id': selected.id},
+            );
+            _showActionMessage('Open Event Review to inspect ${selected.id}.');
+          },
         ),
         const SizedBox(height: 6),
         _outlineButton(
@@ -889,6 +902,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
     final payload = entries.map(_entryToJson).toList(growable: false);
     final pretty = const JsonEncoder.withIndent('  ').convert(payload);
     Clipboard.setData(ClipboardData(text: pretty));
+    logUiAction('ledger.export_all', context: {'entries': entries.length});
     _showActionMessage('Ledger export copied (${entries.length} entries).');
   }
 
@@ -897,6 +911,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
       '  ',
     ).convert(_entryToJson(entry));
     Clipboard.setData(ClipboardData(text: pretty));
+    logUiAction('ledger.export_entry', context: {'entry_id': entry.id});
     _showActionMessage('Entry export copied (${entry.id}).');
   }
 

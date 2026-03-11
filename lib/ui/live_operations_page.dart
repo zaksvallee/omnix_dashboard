@@ -11,6 +11,7 @@ import '../domain/events/intelligence_received.dart';
 import '../domain/events/response_arrived.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
+import 'ui_action_logger.dart';
 
 enum _IncidentPriority { p1Critical, p2High, p3Medium, p4Low }
 
@@ -1815,6 +1816,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       );
       _projectFromEvents();
     });
+    logUiAction(
+      'live_operations.manual_override',
+      context: {'incident_id': incident.id, 'reason_code': reasonCode},
+    );
   }
 
   void _forceDispatch(_IncidentRecord incident) {
@@ -1832,6 +1837,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       );
       _projectFromEvents();
     });
+    logUiAction(
+      'live_operations.force_dispatch',
+      context: {'incident_id': incident.id},
+    );
   }
 
   void _pauseAutomation(_IncidentRecord incident) {
@@ -1847,6 +1856,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         ),
       );
     });
+    logUiAction(
+      'live_operations.pause_automation',
+      context: {'incident_id': incident.id},
+    );
     final messenger = ScaffoldMessenger.maybeOf(context);
     messenger?.hideCurrentSnackBar();
     messenger?.showSnackBar(
