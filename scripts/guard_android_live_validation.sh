@@ -11,6 +11,7 @@ EXPECTED_PROVIDER="${ONYX_GUARD_TELEMETRY_REQUIRED_PROVIDER:-}"
 OUT_DIR=""
 APP_PACKAGE="${ONYX_ANDROID_APP_PACKAGE:-com.example.omnix_dashboard}"
 APP_ACTIVITY="${ONYX_ANDROID_APP_ACTIVITY:-.MainActivity}"
+TARGET_PACKAGE=""
 START_APP=1
 READY_TIMEOUT_SECONDS=20
 
@@ -20,7 +21,7 @@ fail() { printf "FAIL: %s\n" "$1"; exit 1; }
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/guard_android_live_validation.sh [--provider fsk_sdk|hikvision_sdk] --action <broadcast-action> [--serial <device-serial>] [--samples 5] [--interval 1] [--adapter standard|legacy_ptt|hikvision_guardlink] [--expected-provider <provider-id>] [--app-package <package>] [--app-activity <activity>] [--skip-start-app] [--ready-timeout <seconds>] [--out-dir <path>]
+  ./scripts/guard_android_live_validation.sh [--provider fsk_sdk|hikvision_sdk] --action <broadcast-action> [--serial <device-serial>] [--samples 5] [--interval 1] [--adapter standard|legacy_ptt|hikvision_guardlink] [--expected-provider <provider-id>] [--app-package <package>] [--app-activity <activity>] [--target-package <package>] [--skip-start-app] [--ready-timeout <seconds>] [--out-dir <path>]
 
 Purpose:
   End-to-end Android field validation helper for ONYX telemetry callback ingestion.
@@ -80,6 +81,10 @@ while [[ $# -gt 0 ]]; do
       APP_ACTIVITY="${2:-}"
       shift 2
       ;;
+    --target-package)
+      TARGET_PACKAGE="${2:-}"
+      shift 2
+      ;;
     --skip-start-app)
       START_APP=0
       shift
@@ -118,6 +123,10 @@ fi
 
 if [[ -z "$EXPECTED_PROVIDER" ]]; then
   EXPECTED_PROVIDER="$PROVIDER_ID"
+fi
+if [[ -z "$TARGET_PACKAGE" && "$ACTION" == com.zello.* ]]; then
+  # Zello receivers can abort ordered broadcasts before ONYX sees them; scope test injections to ONYX package.
+  TARGET_PACKAGE="$APP_PACKAGE"
 fi
 
 if [[ -z "$ACTION" ]]; then
@@ -169,6 +178,7 @@ mkdir -p "$OUT_DIR"
 echo "Device serial: $SERIAL" | tee "$OUT_DIR/summary.txt"
 echo "Provider: $PROVIDER_ID" | tee -a "$OUT_DIR/summary.txt"
 echo "Broadcast action: $ACTION" | tee -a "$OUT_DIR/summary.txt"
+echo "Broadcast target package: ${TARGET_PACKAGE:-<unset>}" | tee -a "$OUT_DIR/summary.txt"
 echo "Adapter mode: $ADAPTER_MODE" | tee -a "$OUT_DIR/summary.txt"
 echo "Expected provider: $EXPECTED_PROVIDER" | tee -a "$OUT_DIR/summary.txt"
 echo "Samples: $SAMPLES" | tee -a "$OUT_DIR/summary.txt"
@@ -216,12 +226,18 @@ if [[ "$START_APP" -eq 1 ]]; then
   fi
 fi
 
+broadcast_target_args=()
+if [[ -n "$TARGET_PACKAGE" ]]; then
+  broadcast_target_args=(-p "$TARGET_PACKAGE")
+fi
+
 for ((i = 1; i <= SAMPLES; i++)); do
   captured_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
   if [[ "$ADAPTER_MODE" == "legacy_ptt" ]]; then
     "${ADB[@]}" shell am broadcast \
       -a "$ACTION" \
+      "${broadcast_target_args[@]}" \
       --es payload_adapter "$ADAPTER_MODE" \
       --es pulse "$((70 + i))" \
       --es movement "0.$((i + 2))" \
@@ -232,6 +248,7 @@ for ((i = 1; i <= SAMPLES; i++)); do
   elif [[ "$ADAPTER_MODE" == "hikvision_guardlink" ]]; then
     "${ADB[@]}" shell am broadcast \
       -a "$ACTION" \
+      "${broadcast_target_args[@]}" \
       --es payload_adapter "$ADAPTER_MODE" \
       --es vitals_hr "$((70 + i))" \
       --es motion_index "0.$((i + 2))" \
@@ -242,6 +259,7 @@ for ((i = 1; i <= SAMPLES; i++)); do
   else
     "${ADB[@]}" shell am broadcast \
       -a "$ACTION" \
+      "${broadcast_target_args[@]}" \
       --es payload_adapter "$ADAPTER_MODE" \
       --es heart_rate "$((70 + i))" \
       --es movement_level "0.$((i + 2))" \

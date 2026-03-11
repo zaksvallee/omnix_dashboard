@@ -6,6 +6,8 @@ PROVIDER_ID="${ONYX_GUARD_TELEMETRY_NATIVE_PROVIDER:-fsk_sdk}"
 SAMPLES=3
 INTERVAL_SECONDS=2
 ADAPTER_MODE=""
+APP_PACKAGE="${ONYX_ANDROID_APP_PACKAGE:-com.example.omnix_dashboard}"
+TARGET_PACKAGE=""
 
 pass() { printf "PASS: %s\n" "$1"; }
 warn() { printf "WARN: %s\n" "$1"; }
@@ -14,7 +16,7 @@ fail() { printf "FAIL: %s\n" "$1"; exit 1; }
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/guard_android_field_validation.sh [--provider fsk_sdk|hikvision_sdk] --action <broadcast-action> [--samples 3] [--interval 2] [--adapter standard|legacy_ptt|hikvision_guardlink]
+  ./scripts/guard_android_field_validation.sh [--provider fsk_sdk|hikvision_sdk] --action <broadcast-action> [--samples 3] [--interval 2] [--adapter standard|legacy_ptt|hikvision_guardlink] [--target-package <package>]
 
 Purpose:
   Emit debug heartbeat broadcasts from adb to validate live native callback ingestion on Android devices.
@@ -60,6 +62,10 @@ while [[ $# -gt 0 ]]; do
       ADAPTER_MODE="${2:-standard}"
       shift 2
       ;;
+    --target-package)
+      TARGET_PACKAGE="${2:-}"
+      shift 2
+      ;;
     -h|--help)
       usage
       exit 0
@@ -85,6 +91,10 @@ if [[ -z "$ACTION" ]]; then
   else
     ACTION="${ONYX_FSK_SDK_HEARTBEAT_ACTION:-}"
   fi
+fi
+if [[ -z "$TARGET_PACKAGE" && "$ACTION" == com.zello.* ]]; then
+  # Zello receivers can abort ordered broadcasts before ONYX sees them; scope test injections to ONYX package.
+  TARGET_PACKAGE="$APP_PACKAGE"
 fi
 
 if [[ -z "$ACTION" ]]; then
@@ -120,7 +130,12 @@ if [[ "${#DEVICES[@]}" -eq 0 ]]; then
 fi
 
 pass "Connected devices: ${DEVICES[*]}"
-echo "Sending $SAMPLES test heartbeat broadcast(s) on action: $ACTION (provider: $PROVIDER_ID, adapter: $ADAPTER_MODE)"
+echo "Sending $SAMPLES test heartbeat broadcast(s) on action: $ACTION (provider: $PROVIDER_ID, adapter: $ADAPTER_MODE, target-package: ${TARGET_PACKAGE:-<unset>})"
+
+broadcast_target_args=()
+if [[ -n "$TARGET_PACKAGE" ]]; then
+  broadcast_target_args=(-p "$TARGET_PACKAGE")
+fi
 
 for ((i = 1; i <= SAMPLES; i++)); do
   CAPTURED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -128,6 +143,7 @@ for ((i = 1; i <= SAMPLES; i++)); do
   if [[ "$ADAPTER_MODE" == "legacy_ptt" ]]; then
     adb shell am broadcast \
       -a "$ACTION" \
+      "${broadcast_target_args[@]}" \
       --es payload_adapter "$ADAPTER_MODE" \
       --es pulse "$((70 + i))" \
       --es movement "0.$((i + 2))" \
@@ -138,6 +154,7 @@ for ((i = 1; i <= SAMPLES; i++)); do
   elif [[ "$ADAPTER_MODE" == "hikvision_guardlink" ]]; then
     adb shell am broadcast \
       -a "$ACTION" \
+      "${broadcast_target_args[@]}" \
       --es payload_adapter "$ADAPTER_MODE" \
       --es vitals_hr "$((70 + i))" \
       --es motion_index "0.$((i + 2))" \
@@ -148,6 +165,7 @@ for ((i = 1; i <= SAMPLES; i++)); do
   else
     adb shell am broadcast \
       -a "$ACTION" \
+      "${broadcast_target_args[@]}" \
       --es payload_adapter "$ADAPTER_MODE" \
       --es heart_rate "$((70 + i))" \
       --es movement_level "0.$((i + 2))" \

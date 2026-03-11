@@ -83,6 +83,10 @@ If your handset integration uses a non-default heartbeat broadcast action (for e
   --allow-broadcast-fallback
 ```
 
+Validation note for Zello actions:
+- `com.zello.*` actions are often ordered broadcasts where Zello receivers can abort delivery.
+- `guard_android_live_validation.sh` now auto-targets ONYX package for `com.zello.*` test injections (or use `--target-package`) so callback parsing can still be validated.
+
 ## Step 1: Local readiness gate
 
 ```bash
