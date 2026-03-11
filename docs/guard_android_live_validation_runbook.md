@@ -219,6 +219,7 @@ Notes:
 - Use `--skip-start-app` only if you intentionally want to keep the current app process/session.
 - On Android 13+ (`TIRAMISU` and above), adb broadcast injection is enabled for debug builds during validation.
 - Foreground PTT listener auto-starts on device boot and app update (`BOOT_COMPLETED` / `MY_PACKAGE_REPLACED`). If OEM auto-start restrictions block this on your device, launch ONYX once manually before field tests.
+- ONYX also accepts Fast Talkie style intents (`android.intent.action.PTT.down` / `android.intent.action.PTT.up`) in addition to Zello actions, so hardware-key bridge apps can be validated as fallback routing.
 
 Optional for legacy payload format:
 

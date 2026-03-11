@@ -45,6 +45,8 @@
                 <action android:name="com.zello.intent.buttonExtra1.up" />
                 <action android:name="com.zello.intent.buttonSOS.down" />
                 <action android:name="com.zello.intent.buttonSOS.up" />
+                <action android:name="android.intent.action.PTT.down" />
+                <action android:name="android.intent.action.PTT.up" />
             </intent-filter>
         </receiver>
         <service

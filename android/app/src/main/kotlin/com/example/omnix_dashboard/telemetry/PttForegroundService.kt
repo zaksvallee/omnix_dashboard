@@ -107,13 +107,9 @@ class PttForegroundService : Service() {
     private fun registerPttReceiverIfNeeded() {
         if (receiverRegistered) return
         val filter = IntentFilter().apply {
-            addAction(PttIntentActions.DOWN)
-            addAction(PttIntentActions.UP)
-            addAction(PttIntentActions.TOGGLE)
-            addAction(PttIntentActions.EXTRA1_DOWN)
-            addAction(PttIntentActions.EXTRA1_UP)
-            addAction(PttIntentActions.SOS_DOWN)
-            addAction(PttIntentActions.SOS_UP)
+            for (action in PttIntentActions.all) {
+                addAction(action)
+            }
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(pttReceiver, filter, Context.RECEIVER_EXPORTED)
