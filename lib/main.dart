@@ -199,7 +199,11 @@ class _RadioPendingRetryState {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  GoogleFonts.config.allowRuntimeFetching = false;
+  const allowFontRuntimeFetching = bool.fromEnvironment(
+    'ONYX_ALLOW_FONT_RUNTIME_FETCHING',
+    defaultValue: true,
+  );
+  GoogleFonts.config.allowRuntimeFetching = allowFontRuntimeFetching;
 
   const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
   const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');

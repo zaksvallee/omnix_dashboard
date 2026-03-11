@@ -409,8 +409,9 @@ class SharedPrefsGuardOpsRepository implements GuardOpsRepository {
 
   String _nextEventId() {
     final millis = DateTime.now().toUtc().millisecondsSinceEpoch;
+    // Use a web-safe bound; bit-shift `1 << 32` overflows to zero on JS.
     final randomPart = _random
-        .nextInt(1 << 32)
+        .nextInt(0x100000000)
         .toRadixString(16)
         .padLeft(8, '0');
     return 'evt-$millis-$randomPart';
