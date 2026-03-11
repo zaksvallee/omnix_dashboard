@@ -2603,6 +2603,10 @@ class _ClientAppPageState extends State<ClientAppPage> {
   }
 
   Future<void> _showIncidentFeedDetail(_ClientIncidentFeedGroup group) {
+    logUiAction(
+      'client_app.reopen_selected_incident',
+      context: {'reference_label': group.referenceLabel, 'role': _viewerRole.name},
+    );
     return showDialog<void>(
       context: context,
       builder: (context) {
