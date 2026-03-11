@@ -164,23 +164,34 @@ Last updated: 2026-03-11 (Africa/Johannesburg)
 - [x] Android pilot auto-gate passed on 2026-03-11 (fallback allowed) on device
   `BV5300ProNEU032438`, including fresh evidence artifacts:
   `tmp/guard_field_validation/pilot-20260311T132447Z/validation_report.{md,json}`.
+- [x] Android Hikvision pilot auto-gate passed on 2026-03-11 (fallback allowed)
+  on device `BV5300ProNEU032438`, with fresh evidence artifacts:
+  `tmp/guard_field_validation/pilot-20260311T133355Z/validation_report.{md,json}`.
 
 ## In Progress
 - [ ] Native telemetry provider swap from scaffold/stub to production SDK adapters
   (FSK and later Hikvision-related telemetry providers).
 - [ ] End-to-end live hardware validation on Android field devices.
-- [ ] Strict direct-SDK connector gate currently fails for `fsk_sdk` because no
-  vendor SDK `.aar/.jar` is linked in `android/app/libs` and no Maven coordinate
-  is configured (`fallback_active=true` observed in connector doctor on 2026-03-11).
+- [ ] Strict direct-SDK connector gate currently fails for both `fsk_sdk` and
+  `hikvision_sdk` because no vendor SDK `.aar/.jar` is linked in
+  `android/app/libs` and no Maven coordinates are configured
+  (`fallback_active=true` observed in connector doctor on 2026-03-11).
 
 ## Next Execution Steps
-1. Link vendor SDK binary for FSK (`android/app/libs/*.aar|*.jar`) or provide
-   `ONYX_FSK_SDK_MAVEN_COORD`, then rerun:
+1. Link vendor SDK binaries for FSK/Hikvision (`android/app/libs/*.aar|*.jar`)
+   or provide Maven coordinates (`ONYX_FSK_SDK_MAVEN_COORD`,
+   `ONYX_HIKVISION_SDK_MAVEN_COORD`), then rerun:
    `./scripts/guard_android_vendor_sdk_rollout.sh --provider fsk_sdk --serial BV5300ProNEU032438 --connector-class com.onyx.vendor.fsk.LiveSdkConnector --auto-manager-classes`
    followed by:
-   `./scripts/guard_android_connector_doctor.sh --provider fsk_sdk --serial BV5300ProNEU032438`.
-2. Re-run strict pilot gate after connector doctor passes:
-   `./scripts/guard_gate_auto.sh --provider fsk_sdk --serial BV5300ProNEU032438`.
+   `./scripts/guard_android_connector_doctor.sh --provider fsk_sdk --serial BV5300ProNEU032438`
+   and
+   `./scripts/guard_android_vendor_sdk_rollout.sh --provider hikvision_sdk --serial BV5300ProNEU032438 --connector-class com.onyx.vendor.hikvision.LiveSdkConnector --auto-manager-classes`
+   followed by:
+   `./scripts/guard_android_connector_doctor.sh --provider hikvision_sdk --serial BV5300ProNEU032438`.
+2. Re-run strict pilot gates after connector doctor passes:
+   `./scripts/guard_gate_auto.sh --provider fsk_sdk --serial BV5300ProNEU032438`
+   and
+   `./scripts/guard_gate_auto.sh --provider hikvision_sdk --action com.onyx.hikvision.SDK_HEARTBEAT --adapter hikvision_guardlink --serial BV5300ProNEU032438 --config <hikvision-runtime-config.json>`.
 3. Implement real Android telemetry SDK adapter(s) behind `TelemetrySdkFacade`
    and `GuardTelemetryIngestionAdapter` contracts for both provider families.
 4. Run and schedule retention orchestration (`apply_guard_ops_retention_plan`)

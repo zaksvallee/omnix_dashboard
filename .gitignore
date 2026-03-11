@@ -29,5 +29,6 @@ pubspec.lock
 # Local runtime config files (may contain secrets)
 config/*.local.json
 tmp/*.local.json
+tmp/onyx*.json
 tmp/guard_field_validation/
 tmp/guard_gate_reports/
