@@ -249,6 +249,7 @@ Hikvision one-command Android pilot gate:
 Direct connector gate behavior:
 - `guard_android_pilot_gate.sh` now requires a direct SDK connector by default and fails if live mode falls back to broadcast.
 - `guard_android_pilot_gate.sh` runs connector doctor automatically under strict mode.
+- Strict mode also fails if the active connector is explicitly `broadcast_intent_connector`.
 - Use `--allow-broadcast-fallback` only for intentional non-production debug runs.
 
 No-device fallback (CI/local gate simulation):

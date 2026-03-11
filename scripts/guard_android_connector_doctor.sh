@@ -104,10 +104,10 @@ if ! "${ADB[@]}" get-state >/dev/null 2>&1; then
 fi
 
 startup_pattern="fsk_live_facade_started"
-fallback_pattern='fsk_reflective_vendor_connector.*falling back to broadcast|fsk_live_facade_started.*fallback_active=true|fsk_vendor_connector_fallback_active[^a-zA-Z0-9]*true|heartbeat_source=broadcast_fallback.*fsk'
+fallback_pattern='fsk_reflective_vendor_connector.*falling back to broadcast|fsk_live_facade_started.*fallback_active=true|fsk_live_facade_started.*connector=broadcast_intent_connector|fsk_vendor_connector_fallback_active[^a-zA-Z0-9]*true|heartbeat_source=broadcast_fallback.*fsk'
 if [[ "$PROVIDER_FAMILY" == "hikvision" ]]; then
   startup_pattern="hikvision_live_facade_started"
-  fallback_pattern='hikvision_reflective_vendor_connector.*falling back to broadcast|hikvision_live_facade_started.*fallback_active=true|hikvision_vendor_connector_fallback_active[^a-zA-Z0-9]*true|heartbeat_source=broadcast_fallback.*hikvision'
+  fallback_pattern='hikvision_reflective_vendor_connector.*falling back to broadcast|hikvision_live_facade_started.*fallback_active=true|hikvision_live_facade_started.*connector=broadcast_intent_connector|hikvision_vendor_connector_fallback_active[^a-zA-Z0-9]*true|heartbeat_source=broadcast_fallback.*hikvision'
 fi
 
 echo "== ONYX Connector Doctor =="

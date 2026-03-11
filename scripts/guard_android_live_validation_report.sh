@@ -134,9 +134,9 @@ provider_startup_count="$(grep -c "$provider_startup_marker" "$ONYX_LOG_FILE" ||
 if [[ "$provider_match_count" -lt 1 && "$provider_startup_count" -gt 0 ]]; then
   provider_match_count="$provider_startup_count"
 fi
-fallback_pattern='fsk_reflective_vendor_connector.*falling back to broadcast|fsk_live_facade_started.*fallback_active=true|fsk_vendor_connector_fallback_active[^a-zA-Z0-9]*true|heartbeat_source=broadcast_fallback.*fsk'
+fallback_pattern='fsk_reflective_vendor_connector.*falling back to broadcast|fsk_live_facade_started.*fallback_active=true|fsk_live_facade_started.*connector=broadcast_intent_connector|fsk_vendor_connector_fallback_active[^a-zA-Z0-9]*true|heartbeat_source=broadcast_fallback.*fsk'
 if [[ "$required_provider_lower" == *"hikvision"* ]]; then
-  fallback_pattern='hikvision_reflective_vendor_connector.*falling back to broadcast|hikvision_live_facade_started.*fallback_active=true|hikvision_vendor_connector_fallback_active[^a-zA-Z0-9]*true|heartbeat_source=broadcast_fallback.*hikvision'
+  fallback_pattern='hikvision_reflective_vendor_connector.*falling back to broadcast|hikvision_live_facade_started.*fallback_active=true|hikvision_live_facade_started.*connector=broadcast_intent_connector|hikvision_vendor_connector_fallback_active[^a-zA-Z0-9]*true|heartbeat_source=broadcast_fallback.*hikvision'
 fi
 connector_fallback_line_count="$(grep -Eic "$fallback_pattern" "$ONYX_LOG_FILE" || true)"
 
