@@ -74,10 +74,17 @@ class FskRuntimeConfigResolver(private val context: Context) {
         val metaConnectorClassName = toTrimmedStringOrNull(
             metaData?.get("onyx.fsk_sdk_connector_class"),
         )
+        val defaultConnectorClassName = if (useLiveMode) {
+            FskReflectiveVendorSdkConnector::class.java.name
+        } else {
+            null
+        }
         val (connectorClassName, connectorClassSource) = if (metaConnectorClassName != null) {
             metaConnectorClassName to "manifest_meta_data"
         } else if (buildConnectorClassName.isNotEmpty()) {
             buildConnectorClassName to "build_config"
+        } else if (defaultConnectorClassName != null) {
+            defaultConnectorClassName to "platform_builtin_default"
         } else {
             null to null
         }
@@ -149,10 +156,17 @@ class HikvisionRuntimeConfigResolver(private val context: Context) {
         val metaConnectorClassName = toTrimmedStringOrNull(
             metaData?.get("onyx.hikvision_sdk_connector_class"),
         )
+        val defaultConnectorClassName = if (useLiveMode) {
+            HikvisionReflectiveVendorSdkConnector::class.java.name
+        } else {
+            null
+        }
         val (connectorClassName, connectorClassSource) = if (metaConnectorClassName != null) {
             metaConnectorClassName to "manifest_meta_data"
         } else if (buildConnectorClassName.isNotEmpty()) {
             buildConnectorClassName to "build_config"
+        } else if (defaultConnectorClassName != null) {
+            defaultConnectorClassName to "platform_builtin_default"
         } else {
             null to null
         }

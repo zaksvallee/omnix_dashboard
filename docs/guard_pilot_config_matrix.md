@@ -134,6 +134,9 @@ Gradle properties used by Android facade:
 - `ONYX_HIKVISION_SDK_PAYLOAD_ADAPTER` (`standard`, `legacy_ptt`, or `hikvision_guardlink`)
 - `ONYX_HIKVISION_SDK_CONNECTOR_CLASS` (optional fully-qualified Kotlin class implementing `FskVendorSdkConnector`)
 
+Default behavior note:
+- When `ONYX_USE_LIVE_FSK_SDK=true` or `ONYX_USE_LIVE_HIKVISION_SDK=true` and no connector class is provided, ONYX now defaults to built-in reflective vendor connectors and only falls back to broadcast mode if reflective startup fails.
+
 Build example:
 
 ```bash

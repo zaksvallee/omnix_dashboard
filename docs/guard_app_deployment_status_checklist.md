@@ -83,6 +83,10 @@ Last updated: 2026-03-11 (Africa/Johannesburg)
 - [x] Built-in reflective vendor connectors are available for both native provider
   families (`FskReflectiveVendorSdkConnector`, `HikvisionReflectiveVendorSdkConnector`)
   with safe broadcast fallback when vendor SDK classes are absent.
+- [x] Live telemetry runtime now defaults to built-in reflective connectors when
+  `ONYX_USE_LIVE_FSK_SDK=true` / `ONYX_USE_LIVE_HIKVISION_SDK=true` and no explicit
+  connector class is configured; broadcast mode is used only as fallback on
+  reflective startup failure.
 - [x] Flutter native telemetry adapter now routes replay/debug method calls by
   provider family (`validateHikvisionPayloadMapping` / `emitDebugHikvisionSdkHeartbeatBroadcast`
   for Hikvision, FSK variants for FSK), while preserving legacy FSK helper APIs.
