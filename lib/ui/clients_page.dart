@@ -441,61 +441,76 @@ class _ClientsPageState extends State<ClientsPage> {
 
   Widget _feedRow(_FeedRow row) {
     final rowColor = _feedColor(row.status);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0D1117),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF30363D)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              color: const Color(0x14FFFFFF),
-              shape: BoxShape.circle,
+    return InkWell(
+      key: ValueKey('clients-incident-row-${row.title}-${row.timestampLabel}'),
+      borderRadius: BorderRadius.circular(10),
+      onTap: () {
+        logUiAction(
+          'client_app.reopen_selected_incident',
+          context: {
+            'role': 'client',
+            'reference_label': row.title,
+            'source': 'clients_incident_feed',
+          },
+        );
+        _showActionMessage('Opened incident detail.');
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0D1117),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFF30363D)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: const Color(0x14FFFFFF),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(_feedIcon(row.type), color: rowColor, size: 16),
             ),
-            child: Icon(_feedIcon(row.type), color: rowColor, size: 16),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  row.title,
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFFEAF1FB),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    row.title,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFEAF1FB),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  row.description,
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF9BB0CE),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                  const SizedBox(height: 2),
+                  Text(
+                    row.description,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF9BB0CE),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            row.timestampLabel,
-            style: GoogleFonts.inter(
-              color: const Color(0x668EA4C2),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
+            const SizedBox(width: 8),
+            Text(
+              row.timestampLabel,
+              style: GoogleFonts.inter(
+                color: const Color(0x668EA4C2),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

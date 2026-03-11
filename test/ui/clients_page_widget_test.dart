@@ -33,5 +33,13 @@ void main() {
     await tester.tap(residents, warnIfMissed: false);
     await tester.pump();
     expect(find.text('Opened Residents room.'), findsOneWidget);
+
+    final incidentRow = find.byKey(
+      const ValueKey('clients-incident-row-Officer Arrived-19:47 UTC'),
+    );
+    await tester.ensureVisible(incidentRow);
+    await tester.tap(incidentRow, warnIfMissed: false);
+    await tester.pump();
+    expect(find.text('Opened incident detail.'), findsOneWidget);
   });
 }
