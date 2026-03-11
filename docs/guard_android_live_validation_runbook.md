@@ -169,6 +169,14 @@ Operator preflight (analyze + tests + auto-gate in one command):
 ./scripts/onyx_ops_preflight.sh
 ```
 
+Provider-specific preflight example (Hikvision, fallback allowed while SDK binary is pending):
+
+```bash
+./scripts/onyx_ops_preflight.sh \
+  --provider hikvision_sdk \
+  --allow-broadcast-fallback
+```
+
 No-device simulation (for CI/local pipeline checks):
 
 ```bash
