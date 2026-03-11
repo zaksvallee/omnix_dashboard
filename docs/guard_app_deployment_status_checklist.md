@@ -69,6 +69,10 @@ Last updated: 2026-03-11 (Africa/Johannesburg)
   [guard_android_vendor_sdk_rollout.sh](/Users/zaks/omnix_dashboard/scripts/guard_android_vendor_sdk_rollout.sh)
   installs provider-specific live builds with SDK artifact/Maven overrides and
   immediately runs connector doctor verification.
+- [x] Vendor SDK artifact inspector added:
+  [guard_android_vendor_sdk_inspect.sh](/Users/zaks/omnix_dashboard/scripts/guard_android_vendor_sdk_inspect.sh)
+  extracts class names from `.aar/.jar` files and suggests manager/callback candidates
+  for rollout flags.
 - [x] Android Gradle vendor SDK injection paths added for connector rollout:
   local drop-in artifacts (`android/app/libs/*.aar|*.jar`) plus optional
   `ONYX_FSK_SDK_ARTIFACT` / `ONYX_HIKVISION_SDK_ARTIFACT` and

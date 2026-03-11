@@ -191,6 +191,14 @@ One-command vendor SDK rollout + connector verification:
   --manager-classes com.onyx.vendor.fsk.LiveSdkManager
 ```
 
+Vendor artifact class inspection helper:
+
+```bash
+./scripts/guard_android_vendor_sdk_inspect.sh \
+  --artifact android/app/libs/fsk-sdk.aar \
+  --provider fsk_sdk
+```
+
 End-to-end artifact capture helper:
 
 ```bash
