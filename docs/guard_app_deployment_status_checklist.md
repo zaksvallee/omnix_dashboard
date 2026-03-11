@@ -1,6 +1,6 @@
 # ONYX Guard App Deployment Status Checklist
 
-Last updated: 2026-03-06 (Africa/Johannesburg)
+Last updated: 2026-03-11 (Africa/Johannesburg)
 
 ## Completed
 - [x] Supabase guard sync tables migrated and linked:
@@ -89,6 +89,14 @@ Last updated: 2026-03-06 (Africa/Johannesburg)
 - [x] Android validation gate scripts now support provider-aware routing end-to-end
   (`--provider fsk_sdk|hikvision_sdk`) with provider-specific action/adapter defaults:
   `guard_android_live_validation.sh`, `guard_android_pilot_gate.sh`, `guard_gate_auto.sh`.
+- [x] Supabase project link established in CLI and remote migration parity restored;
+  `202603090001_add_guard_ops_media_visual_norm_metadata.sql` is applied remotely.
+- [x] Guard readiness smoke checks executed against linked remote project:
+  retention dry-run RPC calls succeeded and storage/RLS readiness views are fully `PASS`.
+- [x] Guard actor-contract compatibility check validated with non-empty recent data:
+  `recent_rows=3`, all actor-context key-missing counters `0`, overall status `PASS`.
+- [x] Real-device strict Android pilot gates passed for both provider families
+  (`fsk_sdk`, `hikvision_sdk`) using `--require-real-device-artifacts --full-tests`.
 - [x] Sync/export artifacts now include telemetry payload health summaries
   (verdict/reason + callback error counters/timestamps).
 - [x] Sync panel now includes telemetry payload health trend (`last 5` sync
