@@ -94,3 +94,17 @@ Interpretation:
 Request remains:
 
 - Provide firmware/OEM setting or documented API path to allow whitelisted app-side key delivery while lockscreen is active.
+
+## Follow-up Update (2026-03-11 20:05 SAST)
+
+Additional fallback validation with Fast Talkie style routing:
+
+- ONYX successfully ingests `android.intent.action.PTT.down/up` when these broadcasts
+  are injected directly (including locked runtime context).
+- Physical side-button presses while unlocked still produce ONYX ingest via accessibility bridge.
+- Physical side-button presses while locked still produce no app-visible ingest or
+  Fast Talkie-style broadcast traces.
+
+This indicates the lockscreen block occurs before third-party bridge apps can emit
+PTT broadcast intents, reinforcing a firmware/keyguard routing limitation rather than
+an ONYX application issue.

@@ -184,6 +184,10 @@ Last updated: 2026-03-11 (Africa/Johannesburg)
 - [ ] Locked-screen side-key ingest remains blocked on Blackview BV5300 Pro:
   lockscreen/keyguard consumes `KEY_F1` before app-level handlers; requires
   OEM/system key-routing support for lockscreen PTT capture.
+- [ ] Fast Talkie fallback route also blocked under lockscreen on Blackview BV5300 Pro:
+  ONYX can ingest `android.intent.action.PTT.down/up` when broadcast is delivered,
+  but physical side-button presses while locked do not produce Fast Talkie-style
+  PTT broadcasts or ONYX ingest lines.
 - [ ] Strict direct-SDK connector gate currently fails for both `fsk_sdk` and
   `hikvision_sdk` because no vendor SDK `.aar/.jar` is linked in
   `android/app/libs` and no Maven coordinates are configured

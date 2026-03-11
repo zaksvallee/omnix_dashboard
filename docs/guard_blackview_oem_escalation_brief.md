@@ -88,3 +88,20 @@ Conclusion:
 
 - Hardware key path is functional.
 - App-visible delivery while keyguard is active is restricted by OEM/lockscreen policy.
+
+## Fast Talkie Fallback Check (2026-03-11 20:05 SAST)
+
+Observed on same device/build:
+
+- ONYX ingest accepts Fast Talkie style broadcasts (`android.intent.action.PTT.down/up`)
+  when broadcast is sent directly (including locked runtime context).
+- With physical side-button presses while unlocked, ONYX logs continue via accessibility
+  bridge (`ptt_key_bridge_accepted`, `ptt_ingest_accepted`).
+- With physical side-button presses while locked, no ONYX logs and no Fast Talkie-style
+  PTT broadcast traces are emitted.
+
+Interpretation:
+
+- Broadcast ingest path is valid.
+- Hardware-to-app routing under keyguard is blocked before third-party bridge apps
+  (including Fast Talkie style routing) can emit app-visible PTT intents.
