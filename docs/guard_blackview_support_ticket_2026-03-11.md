@@ -62,3 +62,35 @@ If settings keys/values already exist, please share exact names and accepted val
 ## Contact
 
 Engineering team can provide additional logs, test APK, and live debug session if needed.
+
+---
+
+## Follow-up Update (2026-03-11 19:24 SAST)
+
+New bundle:
+
+- `tmp/guard_field_validation/oem-escalation-20260311T172358Z`
+
+Accessibility state during capture:
+
+- `enabled_accessibility_services` includes ONYX key bridge service.
+- `accessibility_enabled=1`.
+
+Counts (20s phase):
+
+- Unlocked key events: `324`
+- Locked key events: `316`
+- Unlocked app-layer ingest accepted: `162`
+- Locked app-layer ingest accepted: `6`
+- Unlocked ingest lock-state: `locked=true:0` / `locked=false:162`
+- Locked ingest lock-state: `locked=true:0` / `locked=false:6`
+
+Interpretation:
+
+- Side key is still produced at input layer while locked.
+- App-level capture drops sharply when keyguard is active.
+- Remaining locked-phase ingest lines report `locked=false interactive=true` (transition window), not confirmed true locked delivery.
+
+Request remains:
+
+- Provide firmware/OEM setting or documented API path to allow whitelisted app-side key delivery while lockscreen is active.

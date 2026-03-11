@@ -5,6 +5,7 @@ SERIAL=""
 DURATION_SECONDS=15
 OUT_DIR=""
 APP_PACKAGE="${ONYX_ANDROID_APP_PACKAGE:-com.example.omnix_dashboard}"
+ACCESSIBILITY_SERVICE_CLASS_SUFFIX=".telemetry.OnyxPttAccessibilityService"
 
 usage() {
   cat <<'USAGE'
@@ -88,6 +89,22 @@ echo "Duration per phase: ${DURATION_SECONDS}s"
 echo "Output: $OUT_DIR"
 echo ""
 
+EXPECTED_ACCESSIBILITY_SERVICE="$APP_PACKAGE/${APP_PACKAGE}${ACCESSIBILITY_SERVICE_CLASS_SUFFIX}"
+ACCESSIBILITY_ENABLED="$("${ADB[@]}" shell settings get secure accessibility_enabled | tr -d '\r')"
+ENABLED_ACCESSIBILITY_SERVICES="$("${ADB[@]}" shell settings get secure enabled_accessibility_services | tr -d '\r')"
+
+if [[ "$ACCESSIBILITY_ENABLED" != "1" ]]; then
+  fail "Accessibility is disabled (accessibility_enabled=$ACCESSIBILITY_ENABLED). Enable ONYX PTT Key Bridge before capture."
+fi
+if ! printf '%s' "$ENABLED_ACCESSIBILITY_SERVICES" | grep -Fq "$EXPECTED_ACCESSIBILITY_SERVICE"; then
+  fail "Expected accessibility service not enabled: $EXPECTED_ACCESSIBILITY_SERVICE"
+fi
+
+echo "Accessibility preflight: PASS"
+echo "  enabled_accessibility_services=$ENABLED_ACCESSIBILITY_SERVICES"
+echo "  accessibility_enabled=$ACCESSIBILITY_ENABLED"
+echo ""
+
 capture_phase() {
   local phase="$1"
   local phase_dir="$OUT_DIR/$phase"
@@ -125,6 +142,9 @@ echo "Collecting static device context..."
 "${ADB[@]}" shell settings list system > "$OUT_DIR/settings_system.txt" || true
 "${ADB[@]}" shell settings list secure > "$OUT_DIR/settings_secure.txt" || true
 "${ADB[@]}" shell settings list global > "$OUT_DIR/settings_global.txt" || true
+printf '%s\n' "$EXPECTED_ACCESSIBILITY_SERVICE" > "$OUT_DIR/accessibility_expected_service.txt"
+printf '%s\n' "$ENABLED_ACCESSIBILITY_SERVICES" > "$OUT_DIR/accessibility_enabled_services.txt"
+printf '%s\n' "$ACCESSIBILITY_ENABLED" > "$OUT_DIR/accessibility_enabled_flag.txt"
 
 grep -Ei "smart_key|key_bv_left_screen|side_button|lock|ptt|zello|button|accessibility" \
   "$OUT_DIR/settings_system.txt" > "$OUT_DIR/settings_system_focus.txt" || true
@@ -168,6 +188,12 @@ cat > "$OUT_DIR/summary.md" <<SUMMARY
 - Locked phase logcat PTT lines: \`$locked_ptt_lines\`
 - Unlocked phase key-event lines: \`$unlocked_key_lines\`
 - Locked phase key-event lines: \`$locked_key_lines\`
+
+## Accessibility Preflight
+
+- Expected ONYX service: \`$EXPECTED_ACCESSIBILITY_SERVICE\`
+- Enabled services snapshot: \`$ENABLED_ACCESSIBILITY_SERVICES\`
+- accessibility_enabled: \`$ACCESSIBILITY_ENABLED\`
 
 ## App-Layer Ingest Breakdown
 

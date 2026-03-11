@@ -55,3 +55,36 @@ Include:
 
 - Keep device unlocked/kiosk mode during operation, or
 - Use OEM-provided key mapping route that emits lockscreen-safe PTT broadcasts.
+
+## Latest Field Evidence (2026-03-11 19:24 SAST)
+
+Bundle:
+
+- `tmp/guard_field_validation/oem-escalation-20260311T172358Z`
+
+Accessibility preflight:
+
+- `enabled_accessibility_services` includes `com.example.omnix_dashboard/com.example.omnix_dashboard.telemetry.OnyxPttAccessibilityService`
+- `accessibility_enabled=1`
+
+Measured counts (20s per phase):
+
+- Unlocked logcat PTT lines: `324`
+- Locked logcat PTT lines: `12`
+- Unlocked key-event lines: `324`
+- Locked key-event lines: `316`
+- Unlocked ingest accepted: `162`
+- Locked ingest accepted: `6`
+- Unlocked ingest lock-state: `locked=true:0` / `locked=false:162`
+- Locked ingest lock-state: `locked=true:0` / `locked=false:6`
+
+Interpretation:
+
+- Side-key input (`KEY_F1`) continues at kernel/input layer while locked.
+- App-layer ingest drops from `162` to `6` when locked.
+- The few locked-phase ingest lines still report `locked=false interactive=true`, indicating they were captured near lock transition rather than true keyguard-delivered locked events.
+
+Conclusion:
+
+- Hardware key path is functional.
+- App-visible delivery while keyguard is active is restricted by OEM/lockscreen policy.
