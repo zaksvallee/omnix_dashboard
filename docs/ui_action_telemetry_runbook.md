@@ -14,6 +14,14 @@ If you have only one device connected:
 ./scripts/guard_android_ui_action_watch.sh --clear
 ```
 
+### Optional: run automated coverage check
+
+```bash
+./scripts/guard_android_ui_action_check.sh --serial <device-serial> --duration 45
+```
+
+This captures `ONYX_UI_ACTION` lines for the duration and prints `PASS/MISS` per required action.
+
 ## 2) Trigger key actions in the app
 
 Exercise these controls:
