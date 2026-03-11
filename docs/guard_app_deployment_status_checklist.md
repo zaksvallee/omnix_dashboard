@@ -161,22 +161,33 @@ Last updated: 2026-03-11 (Africa/Johannesburg)
   `flutter run -d chrome --dart-define-from-file=config/onyx.local.json`
   launched successfully with Supabase init and no immediate runtime layout
   exceptions observed.
+- [x] Android pilot auto-gate passed on 2026-03-11 (fallback allowed) on device
+  `BV5300ProNEU032438`, including fresh evidence artifacts:
+  `tmp/guard_field_validation/pilot-20260311T132447Z/validation_report.{md,json}`.
 
 ## In Progress
 - [ ] Native telemetry provider swap from scaffold/stub to production SDK adapters
   (FSK and later Hikvision-related telemetry providers).
 - [ ] End-to-end live hardware validation on Android field devices.
+- [ ] Strict direct-SDK connector gate currently fails for `fsk_sdk` because no
+  vendor SDK `.aar/.jar` is linked in `android/app/libs` and no Maven coordinate
+  is configured (`fallback_active=true` observed in connector doctor on 2026-03-11).
 
 ## Next Execution Steps
-1. Implement real Android telemetry SDK adapter(s) behind `TelemetrySdkFacade`
-   and `GuardTelemetryIngestionAdapter` contracts.
-2. Run on-device integration tests for:
-   wearable heartbeat, device health, callback ingestion, reconnect sync.
-3. Run and schedule retention orchestration (`apply_guard_ops_retention_plan`)
+1. Link vendor SDK binary for FSK (`android/app/libs/*.aar|*.jar`) or provide
+   `ONYX_FSK_SDK_MAVEN_COORD`, then rerun:
+   `./scripts/guard_android_vendor_sdk_rollout.sh --provider fsk_sdk --serial BV5300ProNEU032438 --connector-class com.onyx.vendor.fsk.LiveSdkConnector --auto-manager-classes`
+   followed by:
+   `./scripts/guard_android_connector_doctor.sh --provider fsk_sdk --serial BV5300ProNEU032438`.
+2. Re-run strict pilot gate after connector doctor passes:
+   `./scripts/guard_gate_auto.sh --provider fsk_sdk --serial BV5300ProNEU032438`.
+3. Implement real Android telemetry SDK adapter(s) behind `TelemetrySdkFacade`
+   and `GuardTelemetryIngestionAdapter` contracts for both provider families.
+4. Run and schedule retention orchestration (`apply_guard_ops_retention_plan`)
    in the linked Supabase project and review `guard_ops_retention_runs`.
-4. Apply the config matrix to each pilot environment and capture per-site
+5. Apply the config matrix to each pilot environment and capture per-site
    overrides (provider IDs, adapter mode, feed keys).
-5. Execute pilot-site runbook:
+6. Execute pilot-site runbook:
    shift start -> checkpoint/image -> panic -> sync/replay closeout.
 
 ## Operator Command
