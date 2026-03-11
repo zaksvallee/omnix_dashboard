@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
 PROVIDER_ID="${ONYX_GUARD_TELEMETRY_NATIVE_PROVIDER:-fsk_sdk}"
 SERIAL=""
 APP_PACKAGE="${ONYX_ANDROID_APP_PACKAGE:-com.example.omnix_dashboard}"
@@ -32,6 +34,39 @@ provider_family() {
   else
     echo "fsk"
   fi
+}
+
+print_local_artifact_hint() {
+  local provider_family="$1"
+  local libs_dir="$ROOT_DIR/android/app/libs"
+  local token_pattern="fsk"
+  if [[ "$provider_family" == "hikvision" ]]; then
+    token_pattern="hikvision|guardlink"
+  fi
+
+  if [[ ! -d "$libs_dir" ]]; then
+    warn "Local SDK artifact directory not found: $libs_dir (create it and place provider SDK .aar/.jar files here)."
+    return
+  fi
+
+  mapfile -t all_candidates < <(find "$libs_dir" -maxdepth 1 -type f \( -name "*.aar" -o -name "*.jar" \) | sort)
+  if [[ "${#all_candidates[@]}" -eq 0 ]]; then
+    warn "No local .aar/.jar artifacts found in $libs_dir"
+    return
+  fi
+
+  mapfile -t family_candidates < <(
+    printf '%s\n' "${all_candidates[@]}" | rg -i "$token_pattern" || true
+  )
+
+  if [[ "${#family_candidates[@]}" -gt 0 ]]; then
+    warn "Provider-matching local artifacts found in $libs_dir (verify the intended one is linked):"
+    printf '%s\n' "${family_candidates[@]}" | sed 's/^/  - /'
+    return
+  fi
+
+  warn "Local artifacts exist but none match provider tokens ($token_pattern)."
+  printf '%s\n' "${all_candidates[@]}" | sed 's/^/  - /'
 }
 
 while [[ $# -gt 0 ]]; do
@@ -149,12 +184,22 @@ fi
 fallback_count="$(grep -Eic "$fallback_pattern" "$OUT_FILE" || true)"
 if [[ "$fallback_count" -gt 0 ]]; then
   first_match="$(grep -Ein "$fallback_pattern" "$OUT_FILE" | head -n 1)"
+  reflective_error_pattern='reflective start failed|failed to initialize vendor connector|No vendor manager class found'
+  reflective_error_line="$(grep -Ein "$reflective_error_pattern" "$OUT_FILE" | tail -n 1 || true)"
   if [[ "$ALLOW_BROADCAST_FALLBACK" -eq 1 ]]; then
     warn "Connector fallback detected but allowed by flag. First match: $first_match"
+    if [[ -n "$reflective_error_line" ]]; then
+      warn "Most recent reflective connector error: $reflective_error_line"
+    fi
     pass "Connector doctor completed with fallback allowed."
     echo "Telemetry log: $OUT_FILE"
     exit 0
   fi
+
+  if [[ -n "$reflective_error_line" ]]; then
+    warn "Most recent reflective connector error: $reflective_error_line"
+  fi
+  print_local_artifact_hint "$PROVIDER_FAMILY"
 
   if [[ "$PROVIDER_FAMILY" == "hikvision" ]]; then
     fail "Direct SDK connector missing for $PROVIDER_ID. Vendor SDK classes were not found or fallback activated. First match: $first_match. Ensure Hikvision SDK artifacts are linked (android/app/libs, ONYX_HIKVISION_SDK_ARTIFACT, or ONYX_HIKVISION_SDK_MAVEN_COORD), set ONYX_HIKVISION_SDK_CONNECTOR_CLASS if needed, and provide ONYX_HIKVISION_SDK_MANAGER_CLASS_CANDIDATES when vendor manager class names differ from defaults."
