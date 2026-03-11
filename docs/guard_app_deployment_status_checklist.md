@@ -35,6 +35,8 @@ Last updated: 2026-03-11 (Africa/Johannesburg)
 - [x] Android live telemetry validation runbook + artifact collector added:
   [guard_android_live_validation_runbook.md](/Users/zaks/omnix_dashboard/docs/guard_android_live_validation_runbook.md),
   [guard_android_live_validation.sh](/Users/zaks/omnix_dashboard/scripts/guard_android_live_validation.sh).
+- [x] Android PTT sniffer helper added for device action discovery:
+  [guard_android_ptt_sniffer.sh](/Users/zaks/omnix_dashboard/scripts/guard_android_ptt_sniffer.sh).
 - [x] Android live telemetry artifact auto-report gate added:
   [guard_android_live_validation_report.sh](/Users/zaks/omnix_dashboard/scripts/guard_android_live_validation_report.sh).
 - [x] Runtime live-ready telemetry enforcement added:
@@ -172,6 +174,9 @@ Last updated: 2026-03-11 (Africa/Johannesburg)
 - [ ] Native telemetry provider swap from scaffold/stub to production SDK adapters
   (FSK and later Hikvision-related telemetry providers).
 - [ ] End-to-end live hardware validation on Android field devices.
+- [ ] Locked-screen side-key ingest remains blocked on Blackview BV5300 Pro:
+  lockscreen/keyguard consumes `KEY_F1` before app-level handlers; requires
+  OEM/system key-routing support for lockscreen PTT capture.
 - [ ] Strict direct-SDK connector gate currently fails for both `fsk_sdk` and
   `hikvision_sdk` because no vendor SDK `.aar/.jar` is linked in
   `android/app/libs` and no Maven coordinates are configured
@@ -200,6 +205,9 @@ Last updated: 2026-03-11 (Africa/Johannesburg)
    overrides (provider IDs, adapter mode, feed keys).
 6. Execute pilot-site runbook:
    shift start -> checkpoint/image -> panic -> sync/replay closeout.
+7. Escalate OEM lockscreen key-routing requirement for Blackview BV5300 Pro
+   firmware (side-key `KEY_F1` must be delivered as broadcast/PTT intent while
+   locked, or equivalent system callback path exposed).
 
 ## Operator Command
 - Local pilot readiness command:

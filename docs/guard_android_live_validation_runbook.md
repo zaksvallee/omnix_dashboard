@@ -1,6 +1,6 @@
 # ONYX Android Live Telemetry Validation Runbook
 
-Last updated: 2026-03-09 (Africa/Johannesburg)
+Last updated: 2026-03-11 (Africa/Johannesburg)
 
 ## Objective
 
@@ -244,6 +244,12 @@ Optional for Hikvision GuardLink payload format:
   --expected-provider hikvision_sdk
 ```
 
+PTT action discovery helper (use during new handset onboarding):
+
+```bash
+./scripts/guard_android_ptt_sniffer.sh --serial <device-serial> --duration 20
+```
+
 ## Step 3: Verify Guard Sync UI during run
 
 In ONYX Guard Sync screen, confirm:
@@ -293,3 +299,22 @@ Output:
 - JSON evidence checksums match on-disk artifact files.
 - Report confirms provider-matched ingest traces for required provider ID.
 - Report confirms live-facade trace lines are present.
+
+## Known Device Limitation (Blackview BV5300 Pro)
+
+- Confirmed on 2026-03-11: side key emits raw Linux input `KEY_F1` (`/dev/input/event0`).
+- ONYX bridge captures `KEY_F1` successfully while unlocked via `ONYX PTT Key Bridge` accessibility service.
+- While lockscreen is active (`mWakefulness=Dozing`), side-key events are consumed by OEM/keyguard path before app-level handlers; no ONYX ingest logs are emitted.
+- `key_bv_left_screen=1` alone did not restore locked-screen delivery in current firmware.
+
+Verification commands:
+
+```bash
+adb -s <serial> shell getevent -lt
+adb -s <serial> logcat -v time | grep -E --line-buffered "ptt_ingest_accepted|ptt_key_bridge_accepted"
+```
+
+Operational guidance:
+
+- For locked-screen PTT, require OEM/system key-routing support that emits app-visible broadcasts while locked.
+- Without OEM support, use unlocked/kiosk operation mode for dependable ONYX PTT ingest.
