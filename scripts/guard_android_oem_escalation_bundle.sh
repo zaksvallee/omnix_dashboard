@@ -147,6 +147,12 @@ unlocked_ptt_lines="$(wc -l < "$OUT_DIR/unlocked/logcat_ptt_matches.txt" | tr -d
 locked_ptt_lines="$(wc -l < "$OUT_DIR/locked/logcat_ptt_matches.txt" | tr -d ' ')"
 unlocked_key_lines="$(wc -l < "$OUT_DIR/unlocked/getevent_key_matches.txt" | tr -d ' ')"
 locked_key_lines="$(wc -l < "$OUT_DIR/locked/getevent_key_matches.txt" | tr -d ' ')"
+unlocked_ingest_lines="$(grep -c "ptt_ingest_accepted" "$OUT_DIR/unlocked/logcat_ptt_matches.txt" || true)"
+locked_ingest_lines="$(grep -c "ptt_ingest_accepted" "$OUT_DIR/locked/logcat_ptt_matches.txt" || true)"
+unlocked_ingest_locked_true="$(grep -c "ptt_ingest_accepted.*locked=true" "$OUT_DIR/unlocked/logcat_ptt_matches.txt" || true)"
+unlocked_ingest_locked_false="$(grep -c "ptt_ingest_accepted.*locked=false" "$OUT_DIR/unlocked/logcat_ptt_matches.txt" || true)"
+locked_ingest_locked_true="$(grep -c "ptt_ingest_accepted.*locked=true" "$OUT_DIR/locked/logcat_ptt_matches.txt" || true)"
+locked_ingest_locked_false="$(grep -c "ptt_ingest_accepted.*locked=false" "$OUT_DIR/locked/logcat_ptt_matches.txt" || true)"
 
 cat > "$OUT_DIR/summary.md" <<SUMMARY
 # ONYX OEM Escalation Capture
@@ -162,6 +168,13 @@ cat > "$OUT_DIR/summary.md" <<SUMMARY
 - Locked phase logcat PTT lines: \`$locked_ptt_lines\`
 - Unlocked phase key-event lines: \`$unlocked_key_lines\`
 - Locked phase key-event lines: \`$locked_key_lines\`
+
+## App-Layer Ingest Breakdown
+
+- Unlocked phase ingest accepted lines: \`$unlocked_ingest_lines\`
+- Locked phase ingest accepted lines: \`$locked_ingest_lines\`
+- Unlocked ingest lock-state: \`locked=true:$unlocked_ingest_locked_true\` / \`locked=false:$unlocked_ingest_locked_false\`
+- Locked ingest lock-state: \`locked=true:$locked_ingest_locked_true\` / \`locked=false:$locked_ingest_locked_false\`
 
 ## Key Files
 
