@@ -223,22 +223,27 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 ),
               ),
               const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF3B82F6),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0x80448FFF)),
-                ),
-                child: Text(
-                  'ADD SITE',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFFEAF1FB),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
+              InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: () =>
+                    _showActionMessage('Site onboarding request captured.'),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3B82F6),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0x80448FFF)),
+                  ),
+                  child: Text(
+                    'ADD SITE',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFEAF1FB),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
@@ -378,9 +383,25 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _miniButton('VIEW ON MAP', primary: true),
-              _miniButton('SITE SETTINGS'),
-              _miniButton('GUARD ROSTER'),
+              _miniButton(
+                'VIEW ON MAP',
+                primary: true,
+                onTap: () => _showActionMessage(
+                  'Map view opened for ${site.displayName}.',
+                ),
+              ),
+              _miniButton(
+                'SITE SETTINGS',
+                onTap: () => _showActionMessage(
+                  'Site settings opened for ${site.displayName}.',
+                ),
+              ),
+              _miniButton(
+                'GUARD ROSTER',
+                onTap: () => _showActionMessage(
+                  'Guard roster opened for ${site.displayName}.',
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -518,24 +539,43 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
     );
   }
 
-  Widget _miniButton(String text, {bool primary = false}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: primary ? const Color(0xFF3B82F6) : const Color(0xFF111822),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: primary ? const Color(0xFF4E8FFF) : const Color(0xFF2A374A),
+  Widget _miniButton(
+    String text, {
+    bool primary = false,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: primary ? const Color(0xFF3B82F6) : const Color(0xFF111822),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: primary ? const Color(0xFF4E8FFF) : const Color(0xFF2A374A),
+          ),
+        ),
+        child: Text(
+          text,
+          style: GoogleFonts.inter(
+            color: const Color(0xFFEAF1FB),
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
-      child: Text(
-        text,
-        style: GoogleFonts.inter(
-          color: const Color(0xFFEAF1FB),
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
+    );
+  }
+
+  void _showActionMessage(String message) {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) {
+      return;
+    }
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
     );
   }
 

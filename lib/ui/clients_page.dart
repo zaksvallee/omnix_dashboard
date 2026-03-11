@@ -27,6 +27,9 @@ class ClientsPage extends StatefulWidget {
 class _ClientsPageState extends State<ClientsPage> {
   String? _selectedClientId;
   String? _selectedSiteId;
+  int _pushRetryCount = 0;
+  String _pushSyncStatus = 'ok';
+  String _backendProbeStatus = 'idle';
 
   @override
   void initState() {
@@ -528,22 +531,34 @@ class _ClientsPageState extends State<ClientsPage> {
           const SizedBox(height: 8),
           _statusLine(
             'Push Sync:',
-            _statusPill('ok', const Color(0xFF10B981), const Color(0x1A10B981)),
+            _statusPill(
+              _pushSyncStatus,
+              _pushSyncStatus == 'ok'
+                  ? const Color(0xFF10B981)
+                  : const Color(0xFFF59E0B),
+              _pushSyncStatus == 'ok'
+                  ? const Color(0x1A10B981)
+                  : const Color(0x1AF59E0B),
+            ),
           ),
           const SizedBox(height: 6),
           _statusLine(
             'Backend Probe:',
             _statusPill(
-              'idle',
-              const Color(0xFF9BB0CE),
-              const Color(0x1A9BB0CE),
+              _backendProbeStatus,
+              _backendProbeStatus == 'idle'
+                  ? const Color(0xFF9BB0CE)
+                  : const Color(0xFFF59E0B),
+              _backendProbeStatus == 'idle'
+                  ? const Color(0x1A9BB0CE)
+                  : const Color(0x1AF59E0B),
             ),
           ),
           const SizedBox(height: 6),
           _statusLine(
             'Retries:',
             Text(
-              '0',
+              '$_pushRetryCount',
               style: GoogleFonts.inter(
                 color: const Color(0xFFEAF1FB),
                 fontSize: 12,
@@ -552,21 +567,32 @@ class _ClientsPageState extends State<ClientsPage> {
             ),
           ),
           const SizedBox(height: 8),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: const Color(0x1A3B82F6),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0x4D3B82F6)),
-            ),
-            child: Text(
-              'Retry Push Sync',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
-                color: const Color(0xFF63BDFF),
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+          InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: () {
+              setState(() {
+                _pushRetryCount += 1;
+                _pushSyncStatus = 'retrying';
+                _backendProbeStatus = 'queued';
+              });
+              _showActionMessage('Push sync retry queued.');
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0x1A3B82F6),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0x4D3B82F6)),
+              ),
+              child: Text(
+                'Retry Push Sync',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF63BDFF),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
@@ -624,14 +650,23 @@ class _ClientsPageState extends State<ClientsPage> {
             ),
           ),
           const SizedBox(height: 8),
-          _roomButton('Residents', const Color(0xFF22D3EE)),
+          _roomButton(
+            'Residents',
+            const Color(0xFF22D3EE),
+            onTap: () => _showActionMessage('Opened Residents room.'),
+          ),
           const SizedBox(height: 6),
-          _roomButton('Trustees', const Color(0xFFC084FC)),
+          _roomButton(
+            'Trustees',
+            const Color(0xFFC084FC),
+            onTap: () => _showActionMessage('Opened Trustees room.'),
+          ),
           const SizedBox(height: 6),
           _roomButton(
             'Security Desk',
             const Color(0xFF10B981),
             unreadLabel: '2 unread',
+            onTap: () => _showActionMessage('Opened Security Desk room.'),
           ),
         ],
       ),
@@ -674,54 +709,74 @@ class _ClientsPageState extends State<ClientsPage> {
     );
   }
 
-  Widget _roomButton(String label, Color iconColor, {String? unreadLabel}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0D1117),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF30363D)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.circle, size: 8, color: iconColor),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              label,
-              style: GoogleFonts.inter(
-                color: const Color(0xFFEAF1FB),
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          if (unreadLabel != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: const Color(0x1AEF4444),
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: const Color(0x66EF4444)),
-              ),
+  Widget _roomButton(
+    String label,
+    Color iconColor, {
+    String? unreadLabel,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0D1117),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFF30363D)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.circle, size: 8, color: iconColor),
+            const SizedBox(width: 8),
+            Expanded(
               child: Text(
-                unreadLabel,
+                label,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFFF7D8A),
-                  fontSize: 10,
+                  color: const Color(0xFFEAF1FB),
+                  fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ),
-          const SizedBox(width: 8),
-          const Icon(
-            Icons.chevron_right_rounded,
-            color: Color(0x669BB0CE),
-            size: 16,
-          ),
-        ],
+            if (unreadLabel != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0x1AEF4444),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: const Color(0x66EF4444)),
+                ),
+                child: Text(
+                  unreadLabel,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFFF7D8A),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            const SizedBox(width: 8),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: Color(0x669BB0CE),
+              size: 16,
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  void _showActionMessage(String message) {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) {
+      return;
+    }
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
     );
   }
 }

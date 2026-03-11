@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../domain/events/decision_created.dart';
@@ -47,6 +48,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   String _activeFilter = _filterAll;
   String _activeSourceFilter = _sourceFilterAll;
   String _activeProviderFilter = _providerFilterAll;
+  String _lastActionFeedback = '';
   DispatchEvent? _selectedEvent;
   final Map<String, GlobalKey> _rowKeys = <String, GlobalKey>{};
   String _lastAutoEnsuredEventId = '';
@@ -770,9 +772,19 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           ),
         ),
         const SizedBox(height: 8),
-        _outlineAction('VIEW IN LEDGER'),
+        _outlineAction(
+          'VIEW IN LEDGER',
+          actionKey: const ValueKey('events-view-ledger-action'),
+          onTap: () => _showActionMessage(
+            'Open Sovereign Ledger to inspect ${selected.eventId}.',
+          ),
+        ),
         const SizedBox(height: 6),
-        _outlineAction('EXPORT EVENT DATA'),
+        _outlineAction(
+          'EXPORT EVENT DATA',
+          actionKey: const ValueKey('events-export-data-action'),
+          onTap: () => _exportEventData(selected),
+        ),
         const SizedBox(height: 6),
         Text(
           'Selected Event',
@@ -782,6 +794,18 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             fontWeight: FontWeight.w600,
           ),
         ),
+        if (_lastActionFeedback.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            _lastActionFeedback,
+            key: const ValueKey('events-last-action-feedback'),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF63BDFF),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -859,25 +883,58 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     );
   }
 
-  Widget _outlineAction(String text) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0D1117),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF2A374A)),
-      ),
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: GoogleFonts.inter(
-          color: const Color(0xFFD9E7FA),
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.3,
+  Widget _outlineAction(
+    String text, {
+    required VoidCallback onTap,
+    Key? actionKey,
+  }) {
+    return InkWell(
+      key: actionKey,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0D1117),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFF2A374A)),
+        ),
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.inter(
+            color: const Color(0xFFD9E7FA),
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.3,
+          ),
         ),
       ),
+    );
+  }
+
+  void _exportEventData(DispatchEvent event) {
+    final payloadJson = const JsonEncoder.withIndent(
+      '  ',
+    ).convert(_eventPayload(event));
+    Clipboard.setData(ClipboardData(text: payloadJson));
+    _showActionMessage('Event payload copied for ${event.eventId}.');
+  }
+
+  void _showActionMessage(String message) {
+    if (mounted) {
+      setState(() {
+        _lastActionFeedback = message;
+      });
+    }
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) {
+      return;
+    }
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
     );
   }
 

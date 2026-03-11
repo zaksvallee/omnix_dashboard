@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../domain/events/decision_created.dart';
@@ -249,7 +250,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
               });
             },
           ),
-          _button('EXPORT LEDGER', onTap: () {}),
+          _button('EXPORT LEDGER', onTap: () => _exportLedger(entries)),
           const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -653,9 +654,17 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
           ),
         ),
         const SizedBox(height: 8),
-        _outlineButton('VIEW IN EVENT REVIEW'),
+        _outlineButton(
+          'VIEW IN EVENT REVIEW',
+          onTap: () => _showActionMessage(
+            'Open Event Review to inspect ${selected.id}.',
+          ),
+        ),
         const SizedBox(height: 6),
-        _outlineButton('EXPORT ENTRY DATA'),
+        _outlineButton(
+          'EXPORT ENTRY DATA',
+          onTap: () => _exportEntryData(selected),
+        ),
       ],
     );
 
@@ -850,25 +859,70 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
     );
   }
 
-  Widget _outlineButton(String label) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0D1117),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF2A374A)),
-      ),
-      child: Text(
-        label,
-        textAlign: TextAlign.center,
-        style: GoogleFonts.inter(
-          color: const Color(0xFFD9E7FA),
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.3,
+  Widget _outlineButton(String label, {required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0D1117),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFF2A374A)),
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.inter(
+            color: const Color(0xFFD9E7FA),
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.3,
+          ),
         ),
       ),
+    );
+  }
+
+  void _exportLedger(List<_LedgerEntryView> entries) {
+    final payload = entries.map(_entryToJson).toList(growable: false);
+    final pretty = const JsonEncoder.withIndent('  ').convert(payload);
+    Clipboard.setData(ClipboardData(text: pretty));
+    _showActionMessage('Ledger export copied (${entries.length} entries).');
+  }
+
+  void _exportEntryData(_LedgerEntryView entry) {
+    final pretty = const JsonEncoder.withIndent(
+      '  ',
+    ).convert(_entryToJson(entry));
+    Clipboard.setData(ClipboardData(text: pretty));
+    _showActionMessage('Entry export copied (${entry.id}).');
+  }
+
+  Map<String, Object?> _entryToJson(_LedgerEntryView entry) {
+    return {
+      'id': entry.id,
+      'sequence': entry.sequence,
+      'type': entry.type,
+      'title': entry.title,
+      'timestamp_utc': entry.timestamp.toIso8601String(),
+      'verified': entry.verified,
+      'hash': entry.hash,
+      'previous_hash': entry.previousHash,
+      'site': entry.site,
+      'dispatch_id': entry.dispatchId,
+    };
+  }
+
+  void _showActionMessage(String message) {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) {
+      return;
+    }
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
     );
   }
 }
