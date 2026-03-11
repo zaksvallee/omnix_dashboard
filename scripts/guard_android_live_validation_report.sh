@@ -5,6 +5,7 @@ ARTIFACT_DIR=""
 OUT_FILE=""
 JSON_OUT_FILE=""
 REQUIRED_PROVIDER="${ONYX_GUARD_TELEMETRY_REQUIRED_PROVIDER:-${ONYX_GUARD_TELEMETRY_NATIVE_PROVIDER:-fsk_sdk}}"
+REQUIRE_DIRECT_SDK_CONNECTOR=0
 
 pass() { printf "PASS: %s\n" "$1"; }
 fail() { printf "FAIL: %s\n" "$1"; exit 1; }
@@ -36,7 +37,7 @@ PY
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/guard_android_live_validation_report.sh --artifact-dir <path> [--required-provider <provider-id>] [--out <report.md>] [--json-out <report.json>]
+  ./scripts/guard_android_live_validation_report.sh --artifact-dir <path> [--required-provider <provider-id>] [--require-direct-sdk-connector] [--out <report.md>] [--json-out <report.json>]
 
 Purpose:
   Builds a markdown validation report from guard Android live-validation artifacts.
@@ -60,6 +61,10 @@ while [[ $# -gt 0 ]]; do
     --required-provider)
       REQUIRED_PROVIDER="${2:-}"
       shift 2
+      ;;
+    --require-direct-sdk-connector)
+      REQUIRE_DIRECT_SDK_CONNECTOR=1
+      shift
       ;;
     -h|--help)
       usage
@@ -129,6 +134,7 @@ provider_startup_count="$(grep -c "$provider_startup_marker" "$ONYX_LOG_FILE" ||
 if [[ "$provider_match_count" -lt 1 && "$provider_startup_count" -gt 0 ]]; then
   provider_match_count="$provider_startup_count"
 fi
+connector_fallback_line_count="$(grep -Eic 'fallback_active=true|heartbeat_source=broadcast_fallback|falling back to broadcast' "$ONYX_LOG_FILE" || true)"
 
 overall_status="PASS"
 if [[ "$broadcast_count" -lt 1 ]]; then
@@ -147,6 +153,9 @@ if [[ "$provider_match_count" -lt 1 ]]; then
   overall_status="FAIL"
 fi
 if [[ "$live_facade_trace_count" -lt 1 ]]; then
+  overall_status="FAIL"
+fi
+if [[ "$REQUIRE_DIRECT_SDK_CONNECTOR" -eq 1 && "$connector_fallback_line_count" -gt 0 ]]; then
   overall_status="FAIL"
 fi
 
@@ -181,6 +190,7 @@ cat > "$OUT_FILE" <<EOF
 - Rejected ingest results: \`$rejected_count\`
 - Provider-matched ingest traces: \`$provider_match_count\`
 - Live-facade trace lines: \`$live_facade_trace_count\`
+- Connector fallback traces: \`$connector_fallback_line_count\`
 
 ## Gate Evaluation
 
@@ -190,6 +200,13 @@ cat > "$OUT_FILE" <<EOF
 - At least one accepted ingest: $([[ "$accepted_count" -gt 0 ]] && echo "PASS" || echo "FAIL")
 - Ingest traces match required provider: $([[ "$provider_match_count" -gt 0 ]] && echo "PASS" || echo "FAIL")
 - Live facade traces present: $([[ "$live_facade_trace_count" -gt 0 ]] && echo "PASS" || echo "FAIL")
+- Direct SDK connector gate: $(
+  if [[ "$REQUIRE_DIRECT_SDK_CONNECTOR" -eq 1 ]]; then
+    [[ "$connector_fallback_line_count" -eq 0 ]] && echo "PASS" || echo "FAIL"
+  else
+    echo "SKIPPED"
+  fi
+)
 
 ## Evidence Files
 
@@ -207,6 +224,7 @@ cat > "$JSON_OUT_FILE" <<EOF
   "generated_at_utc": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "artifact_dir": "$ARTIFACT_DIR",
   "required_provider": "$REQUIRED_PROVIDER",
+  "strict_require_direct_sdk_connector": $([[ "$REQUIRE_DIRECT_SDK_CONNECTOR" -eq 1 ]] && echo "true" || echo "false"),
   "overall_status": "$overall_status",
   "metrics": {
     "broadcast_count": $broadcast_count,
@@ -215,7 +233,8 @@ cat > "$JSON_OUT_FILE" <<EOF
     "accepted_count": $accepted_count,
     "rejected_count": $rejected_count,
     "provider_match_count": $provider_match_count,
-    "live_facade_trace_count": $live_facade_trace_count
+    "live_facade_trace_count": $live_facade_trace_count,
+    "connector_fallback_line_count": $connector_fallback_line_count
   },
   "gates": {
     "broadcasts_present": $([[ "$broadcast_count" -gt 0 ]] && echo "true" || echo "false"),
@@ -223,7 +242,8 @@ cat > "$JSON_OUT_FILE" <<EOF
     "ingest_logs_present": $([[ "$ingest_line_count" -gt 0 ]] && echo "true" || echo "false"),
     "accepted_present": $([[ "$accepted_count" -gt 0 ]] && echo "true" || echo "false"),
     "provider_match_present": $([[ "$provider_match_count" -gt 0 ]] && echo "true" || echo "false"),
-    "live_facade_trace_present": $([[ "$live_facade_trace_count" -gt 0 ]] && echo "true" || echo "false")
+    "live_facade_trace_present": $([[ "$live_facade_trace_count" -gt 0 ]] && echo "true" || echo "false"),
+    "connector_fallback_inactive": $([[ "$connector_fallback_line_count" -eq 0 ]] && echo "true" || echo "false")
   },
   "files": {
     "summary": "$ARTIFACT_DIR/summary.txt",

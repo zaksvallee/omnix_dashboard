@@ -435,8 +435,10 @@ SDK integration note:
 - wire vendor callbacks into `FskSdkBridgeReceiver.ingestHeartbeatFromSdk(...)`
 - do not write directly to shared preferences from SDK glue code
 - replace `FskSdkFacadeStub` with a real `TelemetrySdkFacade` implementation that forwards SDK callbacks into the same receiver.
-- `FskSdkFacadeLive` is now wired to a broadcast callback source by default.
-  - Broadcast action defaults to `com.onyx.fsk.SDK_HEARTBEAT`.
+- `FskSdkFacadeLive` now defaults to built-in reflective connector mode when
+  live telemetry is enabled, with broadcast fallback only when reflective
+  startup fails.
+  - Broadcast action default remains `com.onyx.fsk.SDK_HEARTBEAT`.
   - Expected extras mirror `ingestFskSdkHeartbeat` input keys.
   - You can override action via:
     - Gradle: `-PONYX_FSK_SDK_HEARTBEAT_ACTION=...`
@@ -460,6 +462,9 @@ SDK integration note:
   - built-in reflective connector classes are available:
     - `com.example.omnix_dashboard.telemetry.FskReflectiveVendorSdkConnector`
     - `com.example.omnix_dashboard.telemetry.HikvisionReflectiveVendorSdkConnector`
+  - default live-mode connector mapping:
+    - `fsk_sdk` -> `com.example.omnix_dashboard.telemetry.FskReflectiveVendorSdkConnector`
+    - `hikvision_sdk` -> `com.example.omnix_dashboard.telemetry.HikvisionReflectiveVendorSdkConnector`
   - class must implement `FskVendorSdkConnector`; fallback is broadcast connector when unavailable.
   - loader supports connector instantiation via one of:
     - constructor `(Context)`

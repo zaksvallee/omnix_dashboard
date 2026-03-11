@@ -65,6 +65,7 @@ Optional real-device-only evidence gate:
 ./scripts/guard_pilot_readiness_check.sh \
   --enforce-live-telemetry \
   --require-live-validation-artifacts \
+  --require-direct-sdk-connector \
   --require-real-device-artifacts \
   --max-live-validation-report-age-hours 12
 ```
@@ -86,6 +87,7 @@ Alternative single-command gate:
 Note:
 - `guard_android_pilot_gate.sh` now runs `guard_android_connection_doctor.sh` automatically.
 - Use `--skip-connection-doctor` only if you already validated device connectivity in the same session.
+- `guard_android_pilot_gate.sh` now enforces direct SDK connector mode by default and fails when live mode falls back to broadcast. Use `--allow-broadcast-fallback` only for intentional debug validation.
 
 Optional auditable wrapper report:
 
@@ -93,6 +95,7 @@ Optional auditable wrapper report:
 ./scripts/guard_pilot_gate_report.sh -- \
   --enforce-live-telemetry \
   --require-live-validation-artifacts \
+  --require-direct-sdk-connector \
   --require-real-device-artifacts \
   --max-live-validation-report-age-hours 12
 ```

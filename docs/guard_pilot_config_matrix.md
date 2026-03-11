@@ -63,6 +63,7 @@ Pilot real-device-only evidence gate:
 ./scripts/guard_pilot_readiness_check.sh \
   --enforce-live-telemetry \
   --require-live-validation-artifacts \
+  --require-direct-sdk-connector \
   --require-real-device-artifacts \
   --max-live-validation-report-age-hours 12
 ```
@@ -229,6 +230,10 @@ Hikvision one-command Android pilot gate:
   --max-report-age-hours 12
 ```
 
+Direct connector gate behavior:
+- `guard_android_pilot_gate.sh` now requires a direct SDK connector by default and fails if live mode falls back to broadcast.
+- Use `--allow-broadcast-fallback` only for intentional non-production debug runs.
+
 No-device fallback (CI/local gate simulation):
 
 ```bash
@@ -246,6 +251,7 @@ Auditable readiness JSON wrapper:
   --enforce-live-telemetry \
   --require-supabase-config \
   --require-live-validation-artifacts \
+  --require-direct-sdk-connector \
   --require-real-device-artifacts \
   --max-live-validation-report-age-hours 12
 ```

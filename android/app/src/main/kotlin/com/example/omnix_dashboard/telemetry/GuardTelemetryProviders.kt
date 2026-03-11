@@ -450,8 +450,9 @@ class FskSdkFacadeLive(
     override val vendorConnectorId: String = vendorConnector.connectorId
     override val vendorConnectorSource: String = vendorConnector.connectorSource
     override val vendorConnectorErrorMessage: String? = vendorConnectorLoadErrorMessage
-    override val vendorConnectorFallbackActive: Boolean =
-        !vendorConnectorLoadErrorMessage.isNullOrBlank()
+    override val vendorConnectorFallbackActive: Boolean
+        get() = !vendorConnectorLoadErrorMessage.isNullOrBlank() ||
+            heartbeatSource.contains("fallback", ignoreCase = true)
     override val callbackCount: Int
         get() = bridgeReceiver.callbackCount
     override val lastCallbackAtUtc: String?
@@ -484,7 +485,7 @@ class FskSdkFacadeLive(
         }
         Log.i(
             ONYX_TELEMETRY_TAG,
-            "${logPrefix}_live_facade_started action=$heartbeatAction connector=${vendorConnector.connectorId}",
+            "${logPrefix}_live_facade_started action=$heartbeatAction connector=${vendorConnector.connectorId} connector_source=${vendorConnector.connectorSource} heartbeat_source=$heartbeatSource fallback_active=$vendorConnectorFallbackActive",
         )
     }
 

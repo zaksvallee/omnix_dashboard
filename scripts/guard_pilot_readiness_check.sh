@@ -9,6 +9,7 @@ ENFORCE_LIVE_TELEMETRY=0
 REQUIRE_LIVE_VALIDATION_ARTIFACTS=0
 REQUIRE_REAL_DEVICE_ARTIFACTS=0
 REQUIRE_SUPABASE_CONFIG=0
+REQUIRE_DIRECT_SDK_CONNECTOR=0
 CONFIG_FILE="${ONYX_DART_DEFINE_FILE:-config/onyx.local.json}"
 MAX_LIVE_VALIDATION_REPORT_AGE_HOURS="${ONYX_MAX_LIVE_VALIDATION_REPORT_AGE_HOURS:-24}"
 while [[ $# -gt 0 ]]; do
@@ -33,12 +34,16 @@ while [[ $# -gt 0 ]]; do
       REQUIRE_SUPABASE_CONFIG=1
       shift
       ;;
+    --require-direct-sdk-connector)
+      REQUIRE_DIRECT_SDK_CONNECTOR=1
+      shift
+      ;;
     --config)
       CONFIG_FILE="${2:-}"
       shift 2
       ;;
     --help|-h)
-      echo "Usage: ./scripts/guard_pilot_readiness_check.sh [--full-tests] [--enforce-live-telemetry] [--require-live-validation-artifacts] [--require-real-device-artifacts] [--require-supabase-config] [--config <path>] [--max-live-validation-report-age-hours <hours>]"
+      echo "Usage: ./scripts/guard_pilot_readiness_check.sh [--full-tests] [--enforce-live-telemetry] [--require-live-validation-artifacts] [--require-real-device-artifacts] [--require-supabase-config] [--require-direct-sdk-connector] [--config <path>] [--max-live-validation-report-age-hours <hours>]"
       exit 0
       ;;
     --max-live-validation-report-age-hours)
@@ -51,6 +56,11 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ "$REQUIRE_DIRECT_SDK_CONNECTOR" -eq 1 && "$REQUIRE_LIVE_VALIDATION_ARTIFACTS" -ne 1 ]]; then
+  echo "FAIL: --require-direct-sdk-connector requires --require-live-validation-artifacts."
+  exit 1
+fi
 
 pass() { printf "PASS: %s\n" "$1"; }
 warn() { printf "WARN: %s\n" "$1"; }
@@ -184,6 +194,30 @@ import sys
 with open(sys.argv[1], 'r', encoding='utf-8') as f:
     data = json.load(f)
 print(data.get("required_provider", ""))
+PY
+    return 0
+  fi
+  echo ""
+}
+
+json_report_connector_fallback_inactive() {
+  local report_file="$1"
+  if command -v jq >/dev/null 2>&1; then
+    jq -r '.gates.connector_fallback_inactive // ""' "$report_file"
+    return 0
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "$report_file" <<'PY'
+import json
+import sys
+with open(sys.argv[1], 'r', encoding='utf-8') as f:
+    data = json.load(f)
+gates = data.get("gates", {}) if isinstance(data, dict) else {}
+value = gates.get("connector_fallback_inactive", "")
+if isinstance(value, bool):
+    print("true" if value else "false")
+else:
+    print(value)
 PY
     return 0
   fi
@@ -379,6 +413,7 @@ PY
     fi
   fi
   overall_status=""
+  connector_fallback_inactive=""
   if [[ -n "$latest_report_json" ]]; then
     overall_status="$(json_report_overall_status "$latest_report_json" | tr '[:lower:]' '[:upper:]')"
     verify_json_report_checksums "$latest_report_json"
@@ -388,6 +423,18 @@ PY
         fail "Live validation artifact gate failed: report required_provider ($report_required_provider) does not match telemetry gate required provider ($required_provider)."
       fi
     fi
+    if [[ "$REQUIRE_DIRECT_SDK_CONNECTOR" -eq 1 ]]; then
+      connector_fallback_inactive="$(
+        json_report_connector_fallback_inactive "$latest_report_json" | tr '[:upper:]' '[:lower:]'
+      )"
+      if [[ "$connector_fallback_inactive" != "true" ]]; then
+        fail "Live validation artifact gate failed: connector fallback is active (or missing gate data) under --require-direct-sdk-connector."
+      fi
+      pass "Direct SDK connector gate passed (no broadcast fallback detected)."
+    fi
+  fi
+  if [[ "$REQUIRE_DIRECT_SDK_CONNECTOR" -eq 1 && -z "$latest_report_json" ]]; then
+    fail "Live validation artifact gate failed: --require-direct-sdk-connector requires validation_report.json."
   fi
   if [[ -z "$overall_status" && -n "$latest_report_md" ]]; then
     if grep -q "Overall status: \*\*PASS\*\*" "$latest_report_md"; then

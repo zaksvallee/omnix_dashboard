@@ -13,12 +13,13 @@ RUN_FULL_TESTS=0
 OUT_DIR=""
 REQUIRE_REAL_DEVICE_ARTIFACTS=0
 RUN_CONNECTION_DOCTOR=1
+REQUIRE_DIRECT_SDK_CONNECTOR=1
 CONFIG_FILE="${ONYX_DART_DEFINE_FILE:-config/onyx.local.json}"
 
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/guard_android_pilot_gate.sh [--provider fsk_sdk|hikvision_sdk] --action <broadcast-action> [--serial <device-serial>] [--samples 5] [--interval 1] [--adapter standard|legacy_ptt|hikvision_guardlink] [--expected-provider <provider-id>] [--max-report-age-hours 24] [--config <path>] [--require-real-device-artifacts] [--full-tests] [--skip-connection-doctor] [--out-dir <path>]
+  ./scripts/guard_android_pilot_gate.sh [--provider fsk_sdk|hikvision_sdk] --action <broadcast-action> [--serial <device-serial>] [--samples 5] [--interval 1] [--adapter standard|legacy_ptt|hikvision_guardlink] [--expected-provider <provider-id>] [--max-report-age-hours 24] [--config <path>] [--require-real-device-artifacts] [--require-direct-sdk-connector] [--allow-broadcast-fallback] [--full-tests] [--skip-connection-doctor] [--out-dir <path>]
 
 Purpose:
   One-command pilot gate:
@@ -78,6 +79,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --require-real-device-artifacts)
       REQUIRE_REAL_DEVICE_ARTIFACTS=1
+      shift
+      ;;
+    --require-direct-sdk-connector)
+      REQUIRE_DIRECT_SDK_CONNECTOR=1
+      shift
+      ;;
+    --allow-broadcast-fallback)
+      REQUIRE_DIRECT_SDK_CONNECTOR=0
       shift
       ;;
     --full-tests)
@@ -150,6 +159,7 @@ echo "Adapter: $ADAPTER_MODE"
 echo "Expected provider: $EXPECTED_PROVIDER"
 echo "Samples: $SAMPLES | Interval: ${INTERVAL_SECONDS}s"
 echo "Max report age: ${MAX_REPORT_AGE_HOURS}h"
+echo "Require direct SDK connector: $([[ "$REQUIRE_DIRECT_SDK_CONNECTOR" -eq 1 ]] && echo yes || echo no)"
 ./scripts/onyx_runtime_profile.sh --config "$CONFIG_FILE"
 
 if [[ "$RUN_CONNECTION_DOCTOR" -eq 1 ]]; then
@@ -186,9 +196,16 @@ fi
 ./scripts/onyx_runtime_profile.sh --config "$CONFIG_FILE" --json \
   > "$artifact_dir/runtime_profile.json"
 
-./scripts/guard_android_live_validation_report.sh \
-  --artifact-dir "$artifact_dir" \
+report_cmd=(
+  ./scripts/guard_android_live_validation_report.sh
+  --artifact-dir "$artifact_dir"
   --required-provider "$EXPECTED_PROVIDER"
+)
+if [[ "$REQUIRE_DIRECT_SDK_CONNECTOR" -eq 1 ]]; then
+  report_cmd+=(--require-direct-sdk-connector)
+fi
+
+"${report_cmd[@]}"
 
 readiness_cmd=(
   ./scripts/guard_pilot_readiness_check.sh
@@ -202,6 +219,9 @@ if [[ "$RUN_FULL_TESTS" -eq 1 ]]; then
 fi
 if [[ "$REQUIRE_REAL_DEVICE_ARTIFACTS" -eq 1 ]]; then
   readiness_cmd+=(--require-real-device-artifacts)
+fi
+if [[ "$REQUIRE_DIRECT_SDK_CONNECTOR" -eq 1 ]]; then
+  readiness_cmd+=(--require-direct-sdk-connector)
 fi
 
 "${readiness_cmd[@]}"

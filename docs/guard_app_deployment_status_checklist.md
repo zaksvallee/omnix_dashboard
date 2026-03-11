@@ -58,6 +58,9 @@ Last updated: 2026-03-11 (Africa/Johannesburg)
 - [x] One-command Android pilot gate added:
   [guard_android_pilot_gate.sh](/Users/zaks/omnix_dashboard/scripts/guard_android_pilot_gate.sh)
   chains live validation, report generation, and readiness gating.
+- [x] Direct SDK connector gate added for pilot validation:
+  live-validation report/readiness now support `--require-direct-sdk-connector`
+  and fail when live mode falls back to broadcast connector paths.
 - [x] Validation report now emits machine-readable JSON:
   `validation_report.json` with `overall_status`, metrics, and gate booleans;
   readiness artifact gate prefers JSON over markdown parsing.
