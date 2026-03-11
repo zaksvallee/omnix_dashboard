@@ -44,6 +44,15 @@ Expected:
 - Detects live facade startup marker for selected provider.
 - Reports no broadcast fallback traces when vendor SDK classes are present.
 
+Optional one-command rollout (install + connector doctor):
+
+```bash
+./scripts/guard_android_vendor_sdk_rollout.sh \
+  --provider fsk_sdk \
+  --sdk-artifact android/app/libs/fsk-sdk.aar \
+  --connector-class com.onyx.vendor.fsk.LiveSdkConnector
+```
+
 ## Step 1: Local readiness gate
 
 ```bash

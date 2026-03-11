@@ -179,6 +179,15 @@ Connector doctor (preflight strict direct-SDK validation):
 ./scripts/guard_android_connector_doctor.sh --provider fsk_sdk
 ```
 
+One-command vendor SDK rollout + connector verification:
+
+```bash
+./scripts/guard_android_vendor_sdk_rollout.sh \
+  --provider fsk_sdk \
+  --sdk-artifact android/app/libs/fsk-sdk.aar \
+  --connector-class com.onyx.vendor.fsk.LiveSdkConnector
+```
+
 End-to-end artifact capture helper:
 
 ```bash
