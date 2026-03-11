@@ -194,6 +194,7 @@ readiness_cmd=(
   ./scripts/guard_pilot_readiness_check.sh
   --enforce-live-telemetry
   --require-live-validation-artifacts
+  --config "$CONFIG_FILE"
   --max-live-validation-report-age-hours "$MAX_REPORT_AGE_HOURS"
 )
 if [[ "$RUN_FULL_TESTS" -eq 1 ]]; then
