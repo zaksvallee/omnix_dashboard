@@ -12,13 +12,29 @@ object PttIntentActions {
     const val DOWN: String = "com.zello.ptt.down"
     const val UP: String = "com.zello.ptt.up"
     const val TOGGLE: String = "com.zello.ptt.toggle"
+    const val EXTRA1_DOWN: String = "com.zello.intent.buttonExtra1.down"
+    const val EXTRA1_UP: String = "com.zello.intent.buttonExtra1.up"
+    const val SOS_DOWN: String = "com.zello.intent.buttonSOS.down"
+    const val SOS_UP: String = "com.zello.intent.buttonSOS.up"
 
-    val all: Set<String> = setOf(DOWN, UP, TOGGLE)
+    val all: Set<String> = setOf(
+        DOWN,
+        UP,
+        TOGGLE,
+        EXTRA1_DOWN,
+        EXTRA1_UP,
+        SOS_DOWN,
+        SOS_UP,
+    )
 
     fun toState(action: String): String = when (action) {
         DOWN -> "ptt_down"
         UP -> "ptt_up"
         TOGGLE -> "ptt_toggle"
+        EXTRA1_DOWN -> "ptt2_down"
+        EXTRA1_UP -> "ptt2_up"
+        SOS_DOWN -> "sos_down"
+        SOS_UP -> "sos_up"
         else -> "ptt_event"
     }
 }

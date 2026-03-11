@@ -40,6 +40,10 @@
                 <action android:name="com.zello.ptt.down" />
                 <action android:name="com.zello.ptt.up" />
                 <action android:name="com.zello.ptt.toggle" />
+                <action android:name="com.zello.intent.buttonExtra1.down" />
+                <action android:name="com.zello.intent.buttonExtra1.up" />
+                <action android:name="com.zello.intent.buttonSOS.down" />
+                <action android:name="com.zello.intent.buttonSOS.up" />
             </intent-filter>
         </receiver>
         <service

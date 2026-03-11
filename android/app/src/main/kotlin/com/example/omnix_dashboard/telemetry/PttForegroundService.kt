@@ -110,6 +110,10 @@ class PttForegroundService : Service() {
             addAction(PttIntentActions.DOWN)
             addAction(PttIntentActions.UP)
             addAction(PttIntentActions.TOGGLE)
+            addAction(PttIntentActions.EXTRA1_DOWN)
+            addAction(PttIntentActions.EXTRA1_UP)
+            addAction(PttIntentActions.SOS_DOWN)
+            addAction(PttIntentActions.SOS_UP)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(pttReceiver, filter, Context.RECEIVER_EXPORTED)
