@@ -49,15 +49,19 @@ print_local_artifact_hint() {
     return
   fi
 
-  mapfile -t all_candidates < <(find "$libs_dir" -maxdepth 1 -type f \( -name "*.aar" -o -name "*.jar" \) | sort)
+  local all_candidates=()
+  while IFS= read -r candidate; do
+    [[ -n "$candidate" ]] && all_candidates+=("$candidate")
+  done < <(find "$libs_dir" -maxdepth 1 -type f \( -name "*.aar" -o -name "*.jar" \) | sort)
   if [[ "${#all_candidates[@]}" -eq 0 ]]; then
     warn "No local .aar/.jar artifacts found in $libs_dir"
     return
   fi
 
-  mapfile -t family_candidates < <(
-    printf '%s\n' "${all_candidates[@]}" | rg -i "$token_pattern" || true
-  )
+  local family_candidates=()
+  while IFS= read -r candidate; do
+    [[ -n "$candidate" ]] && family_candidates+=("$candidate")
+  done < <(printf '%s\n' "${all_candidates[@]}" | rg -i "$token_pattern" || true)
 
   if [[ "${#family_candidates[@]}" -gt 0 ]]; then
     warn "Provider-matching local artifacts found in $libs_dir (verify the intended one is linked):"
