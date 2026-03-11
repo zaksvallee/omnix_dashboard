@@ -218,7 +218,7 @@ Notes:
 - By default, the script force-stops and relaunches `com.example.omnix_dashboard/.MainActivity` and waits for a live-facade startup marker before sending samples.
 - Use `--skip-start-app` only if you intentionally want to keep the current app process/session.
 - On Android 13+ (`TIRAMISU` and above), adb broadcast injection is enabled for debug builds during validation.
-- For hardware-style PTT actions (`com.zello.ptt.*`), keep ONYX launched at least once so foreground listener service is active before field tests.
+- Foreground PTT listener auto-starts on device boot and app update (`BOOT_COMPLETED` / `MY_PACKAGE_REPLACED`). If OEM auto-start restrictions block this on your device, launch ONYX once manually before field tests.
 
 Optional for legacy payload format:
 

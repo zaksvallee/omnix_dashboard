@@ -39,6 +39,9 @@ Last updated: 2026-03-11 (Africa/Johannesburg)
   [guard_android_ptt_sniffer.sh](/Users/zaks/omnix_dashboard/scripts/guard_android_ptt_sniffer.sh).
 - [x] OEM escalation bundle helper added for lockscreen-side-key evidence capture:
   [guard_android_oem_escalation_bundle.sh](/Users/zaks/omnix_dashboard/scripts/guard_android_oem_escalation_bundle.sh).
+- [x] PTT foreground listener boot auto-start added:
+  ONYX now starts `PttForegroundService` on `BOOT_COMPLETED` and
+  `MY_PACKAGE_REPLACED` via `.telemetry.OnyxBootReceiver` to reduce manual app-launch dependency.
 - [x] Blackview OEM escalation brief template added:
   [guard_blackview_oem_escalation_brief.md](/Users/zaks/omnix_dashboard/docs/guard_blackview_oem_escalation_brief.md).
 - [x] Android live telemetry artifact auto-report gate added:
