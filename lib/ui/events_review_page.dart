@@ -1130,6 +1130,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     const preferred = <String>[
       'NEWS',
       'HARDWARE',
+      'DVR',
       'RADIO',
       'WEARABLE',
       'COMMUNITY',
