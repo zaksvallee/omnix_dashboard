@@ -15,6 +15,7 @@ Current repo scope:
 - CCTV signoff now also emits a sibling audited JSON artifact that records the staged validation-bundle integrity certificate refs/status on both pass and fail
 - CCTV release posture can now be emitted as a final `release_gate.json` / `release_gate.md` pair that consumes the staged integrity certificate plus CCTV signoff JSON
 - CCTV release posture can now be compared across runs with `release_trend_report.json` / `release_trend_report.md`, which surface result regressions and signoff/integrity drift in the current or previous staged bundle
+- CCTV readiness and signoff can now optionally require those staged `release_gate.json` / `release_trend_report.json` artifacts before final closeout
 - each ingested `IntelligenceReceived` event can now carry:
   - `snapshotReferenceHash`
   - `clipReferenceHash`

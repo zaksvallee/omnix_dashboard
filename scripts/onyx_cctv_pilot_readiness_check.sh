@@ -10,6 +10,10 @@ EXPECT_ZONE=""
 REPORT_JSON=""
 MAX_REPORT_AGE_HOURS="${ONYX_CCTV_MAX_VALIDATION_REPORT_AGE_HOURS:-24}"
 REQUIRE_REAL_ARTIFACTS=0
+RELEASE_GATE_JSON=""
+RELEASE_TREND_REPORT_JSON=""
+REQUIRE_RELEASE_GATE_PASS=0
+REQUIRE_RELEASE_TREND_PASS=0
 
 pass() { printf "PASS: %s\n" "$1"; }
 fail() { printf "FAIL: %s\n" "$1"; exit 1; }
@@ -17,7 +21,7 @@ fail() { printf "FAIL: %s\n" "$1"; exit 1; }
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/onyx_cctv_pilot_readiness_check.sh [--provider <id>] [--expect-camera <camera_id>] [--expect-zone <zone>] [--report-json <path>] [--max-report-age-hours <hours>] [--require-real-artifacts]
+  ./scripts/onyx_cctv_pilot_readiness_check.sh [--provider <id>] [--expect-camera <camera_id>] [--expect-zone <zone>] [--report-json <path>] [--release-gate-json <path>] [--release-trend-report-json <path>] [--max-report-age-hours <hours>] [--require-real-artifacts] [--require-release-gate-pass] [--require-release-trend-pass]
 
 Purpose:
   Validate the latest CCTV field-validation artifact under tmp/cctv_field_validation/
@@ -43,12 +47,28 @@ while [[ $# -gt 0 ]]; do
       REPORT_JSON="${2:-}"
       shift 2
       ;;
+    --release-gate-json)
+      RELEASE_GATE_JSON="${2:-}"
+      shift 2
+      ;;
+    --release-trend-report-json)
+      RELEASE_TREND_REPORT_JSON="${2:-}"
+      shift 2
+      ;;
     --max-report-age-hours)
       MAX_REPORT_AGE_HOURS="${2:-}"
       shift 2
       ;;
     --require-real-artifacts)
       REQUIRE_REAL_ARTIFACTS=1
+      shift
+      ;;
+    --require-release-gate-pass)
+      REQUIRE_RELEASE_GATE_PASS=1
+      shift
+      ;;
+    --require-release-trend-pass)
+      REQUIRE_RELEASE_TREND_PASS=1
       shift
       ;;
     -h|--help)
@@ -243,10 +263,22 @@ then
   fail "Latest CCTV validation report is stale (${report_age}h old > ${MAX_REPORT_AGE_HOURS}h)."
 fi
 
+if [[ -n "$latest_report_json" ]]; then
+  artifact_dir="$(json_get "$latest_report_json" "artifact_dir")"
+  if [[ -z "$artifact_dir" ]]; then
+    artifact_dir="$(cd "$(dirname "$latest_report_json")" && pwd)"
+  fi
+  if [[ -z "$RELEASE_GATE_JSON" && -f "$artifact_dir/release_gate.json" ]]; then
+    RELEASE_GATE_JSON="$artifact_dir/release_gate.json"
+  fi
+  if [[ -z "$RELEASE_TREND_REPORT_JSON" && -f "$artifact_dir/release_trend_report.json" ]]; then
+    RELEASE_TREND_REPORT_JSON="$artifact_dir/release_trend_report.json"
+  fi
+fi
+
 overall_status=""
 if [[ -n "$latest_report_json" ]]; then
   overall_status="$(json_get "$latest_report_json" "overall_status" | tr '[:lower:]' '[:upper:]')"
-  artifact_dir="$(json_get "$latest_report_json" "artifact_dir")"
   report_provider="$(json_get "$latest_report_json" "provider")"
   report_camera="$(json_get "$latest_report_json" "expected_camera")"
   report_zone="$(json_get "$latest_report_json" "expected_zone")"
@@ -286,6 +318,74 @@ if [[ -n "$latest_report_json" ]]; then
   fi
   if [[ "$first_event_captured" != "true" ]]; then
     fail "CCTV readiness failed: first end-to-end event gate is not true."
+  fi
+
+  if [[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]]; then
+    if [[ -z "$RELEASE_GATE_JSON" || ! -f "$RELEASE_GATE_JSON" ]]; then
+      fail "CCTV readiness failed: release gate artifact not found."
+    fi
+    if [[ "$RELEASE_GATE_JSON" != "$artifact_dir/release_gate.json" ]]; then
+      fail "CCTV readiness failed: release gate does not use the canonical staged filename."
+    fi
+    release_gate_validation_report="$(json_get "$RELEASE_GATE_JSON" "validation_report_json")"
+    release_gate_signoff_file="$(json_get "$RELEASE_GATE_JSON" "signoff_file")"
+    release_gate_signoff_report="$(json_get "$RELEASE_GATE_JSON" "signoff_report_json")"
+    release_gate_result="$(json_get "$RELEASE_GATE_JSON" "result" | tr '[:lower:]' '[:upper:]')"
+    release_gate_integrity_json="$(json_get "$RELEASE_GATE_JSON" "integrity_certificate_json")"
+    release_gate_integrity_md="$(json_get "$RELEASE_GATE_JSON" "integrity_certificate_markdown")"
+    release_gate_integrity_status="$(json_get "$RELEASE_GATE_JSON" "statuses.integrity_certificate_status" | tr '[:lower:]' '[:upper:]')"
+    release_gate_signoff_status="$(json_get "$RELEASE_GATE_JSON" "statuses.signoff_status" | tr '[:lower:]' '[:upper:]')"
+    if [[ -n "$release_gate_validation_report" && "$release_gate_validation_report" != "$latest_report_json" ]]; then
+      fail "CCTV readiness failed: release gate points at a different validation bundle."
+    fi
+    if [[ -n "$release_gate_signoff_file" && "$release_gate_signoff_file" != "$artifact_dir/signoff.md" ]]; then
+      fail "CCTV readiness failed: release gate signoff markdown path is not canonical."
+    fi
+    if [[ -n "$release_gate_signoff_report" && "$release_gate_signoff_report" != "$artifact_dir/signoff.json" ]]; then
+      fail "CCTV readiness failed: release gate signoff report path is not canonical."
+    fi
+    if [[ "$release_gate_result" != "PASS" ]]; then
+      fail "CCTV readiness failed: release gate is ${release_gate_result:-UNKNOWN}, expected PASS."
+    fi
+    if [[ -n "$release_gate_integrity_json" && "$release_gate_integrity_json" != "$artifact_dir/integrity_certificate.json" ]]; then
+      fail "CCTV readiness failed: release gate points at a different integrity certificate JSON."
+    fi
+    if [[ -n "$release_gate_integrity_md" && "$release_gate_integrity_md" != "$artifact_dir/integrity_certificate.md" ]]; then
+      fail "CCTV readiness failed: release gate points at a different integrity certificate markdown."
+    fi
+    if [[ -n "$release_gate_integrity_status" && "$release_gate_integrity_status" != "PASS" ]]; then
+      fail "CCTV readiness failed: release gate integrity certificate status is not PASS."
+    fi
+    if [[ -n "$release_gate_signoff_status" && "$release_gate_signoff_status" != "PASS" ]]; then
+      fail "CCTV readiness failed: release gate signoff status is not PASS."
+    fi
+  fi
+
+  if [[ "$REQUIRE_RELEASE_TREND_PASS" -eq 1 ]]; then
+    if [[ -z "$RELEASE_TREND_REPORT_JSON" || ! -f "$RELEASE_TREND_REPORT_JSON" ]]; then
+      fail "CCTV readiness failed: release trend artifact not found."
+    fi
+    if [[ "$RELEASE_TREND_REPORT_JSON" != "$artifact_dir/release_trend_report.json" ]]; then
+      fail "CCTV readiness failed: release trend does not use the canonical staged filename."
+    fi
+    release_trend_current_gate="$(json_get "$RELEASE_TREND_REPORT_JSON" "current_release_gate_json")"
+    release_trend_previous_gate="$(json_get "$RELEASE_TREND_REPORT_JSON" "previous_release_gate_json")"
+    release_trend_status="$(json_get "$RELEASE_TREND_REPORT_JSON" "status" | tr '[:lower:]' '[:upper:]')"
+    if [[ -n "$RELEASE_GATE_JSON" && -n "$release_trend_current_gate" && "$release_trend_current_gate" != "$RELEASE_GATE_JSON" ]]; then
+      fail "CCTV readiness failed: release trend points at a different current release gate."
+    fi
+    if [[ -z "$release_trend_previous_gate" ]]; then
+      fail "CCTV readiness failed: release trend is missing its previous release gate reference."
+    fi
+    if [[ ! -f "$release_trend_previous_gate" ]]; then
+      fail "CCTV readiness failed: release trend previous gate artifact was not found."
+    fi
+    if [[ "$(basename "$release_trend_previous_gate")" != "release_gate.json" ]]; then
+      fail "CCTV readiness failed: release trend previous gate does not use the canonical staged filename."
+    fi
+    if [[ "$release_trend_status" != "PASS" ]]; then
+      fail "CCTV readiness failed: release trend is ${release_trend_status:-UNKNOWN}, expected PASS."
+    fi
   fi
 fi
 

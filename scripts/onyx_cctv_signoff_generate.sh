@@ -11,11 +11,15 @@ PROVIDER="${ONYX_CCTV_PROVIDER:-frigate}"
 EXPECT_CAMERA=""
 EXPECT_ZONE=""
 ALLOW_MOCK_ARTIFACTS=0
+RELEASE_GATE_JSON=""
+RELEASE_TREND_REPORT_JSON=""
+REQUIRE_RELEASE_GATE_PASS=0
+REQUIRE_RELEASE_TREND_PASS=0
 
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/onyx_cctv_signoff_generate.sh [--report-json <path>] [--out <path>] [--json-out <path>] [--provider <id>] [--expect-camera <camera_id>] [--expect-zone <zone>] [--allow-mock-artifacts]
+  ./scripts/onyx_cctv_signoff_generate.sh [--report-json <path>] [--out <path>] [--json-out <path>] [--provider <id>] [--expect-camera <camera_id>] [--expect-zone <zone>] [--release-gate-json <path>] [--release-trend-report-json <path>] [--require-release-gate-pass] [--require-release-trend-pass] [--allow-mock-artifacts]
 
 Purpose:
   Generate a CCTV pilot signoff note from the latest validation artifact and the
@@ -48,6 +52,22 @@ while [[ $# -gt 0 ]]; do
     --expect-zone)
       EXPECT_ZONE="${2:-}"
       shift 2
+      ;;
+    --release-gate-json)
+      RELEASE_GATE_JSON="${2:-}"
+      shift 2
+      ;;
+    --release-trend-report-json)
+      RELEASE_TREND_REPORT_JSON="${2:-}"
+      shift 2
+      ;;
+    --require-release-gate-pass)
+      REQUIRE_RELEASE_GATE_PASS=1
+      shift
+      ;;
+    --require-release-trend-pass)
+      REQUIRE_RELEASE_TREND_PASS=1
+      shift
       ;;
     --allow-mock-artifacts)
       ALLOW_MOCK_ARTIFACTS=1
@@ -113,7 +133,13 @@ write_signoff_json() {
   local integrity_json="${11}"
   local integrity_md="${12}"
   local integrity_status="${13}"
-  python3 - "$JSON_OUT_FILE" "$status" "$failure_code" "$REPORT_JSON" "$OUT_FILE" "$provider_value" "$camera_value" "$zone_value" "$require_real_artifacts" "$readiness_status" "$overall_status" "$artifact_dir" "$capture_dir" "$integrity_json" "$integrity_md" "$integrity_status" <<'PY'
+  local release_gate_json="${14}"
+  local release_trend_report_json="${15}"
+  local release_gate_result="${16}"
+  local release_trend_status="${17}"
+  local require_release_gate_pass="${18}"
+  local require_release_trend_pass="${19}"
+  python3 - "$JSON_OUT_FILE" "$status" "$failure_code" "$REPORT_JSON" "$OUT_FILE" "$provider_value" "$camera_value" "$zone_value" "$require_real_artifacts" "$readiness_status" "$overall_status" "$artifact_dir" "$capture_dir" "$integrity_json" "$integrity_md" "$integrity_status" "$release_gate_json" "$release_trend_report_json" "$release_gate_result" "$release_trend_status" "$require_release_gate_pass" "$require_release_trend_pass" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -135,6 +161,12 @@ payload = {
     "integrity_certificate_json": sys.argv[14],
     "integrity_certificate_markdown": sys.argv[15],
     "integrity_certificate_status": sys.argv[16],
+    "release_gate_json": sys.argv[17],
+    "release_trend_report_json": sys.argv[18],
+    "release_gate_result": sys.argv[19],
+    "release_trend_status": sys.argv[20],
+    "require_release_gate_pass": sys.argv[21] == "true",
+    "require_release_trend_pass": sys.argv[22] == "true",
 }
 out_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 PY
@@ -153,7 +185,7 @@ fi
 mkdir -p "$(dirname "$OUT_FILE")"
 mkdir -p "$(dirname "$JSON_OUT_FILE")"
 if [[ -z "$REPORT_JSON" || ! -f "$REPORT_JSON" ]]; then
-  write_signoff_json "FAIL" "validation_report_not_found" "" "$([[ "$ALLOW_MOCK_ARTIFACTS" -eq 1 ]] && echo false || echo true)" "$PROVIDER" "$EXPECT_CAMERA" "$EXPECT_ZONE" "" "" "" "" "" ""
+  write_signoff_json "FAIL" "validation_report_not_found" "" "$([[ "$ALLOW_MOCK_ARTIFACTS" -eq 1 ]] && echo false || echo true)" "$PROVIDER" "$EXPECT_CAMERA" "$EXPECT_ZONE" "" "" "" "" "" "" "$RELEASE_GATE_JSON" "$RELEASE_TREND_REPORT_JSON" "" "" "$([[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]] && echo true || echo false)" "$([[ "$REQUIRE_RELEASE_TREND_PASS" -eq 1 ]] && echo true || echo false)"
   echo "FAIL: validation_report.json not found."
   echo "Signoff JSON: $JSON_OUT_FILE"
   exit 1
@@ -173,11 +205,29 @@ fi
 if [[ "$ALLOW_MOCK_ARTIFACTS" -ne 1 ]]; then
   readiness_cmd+=(--require-real-artifacts)
 fi
+if [[ -n "$RELEASE_GATE_JSON" ]]; then
+  readiness_cmd+=(--release-gate-json "$RELEASE_GATE_JSON")
+fi
+if [[ -n "$RELEASE_TREND_REPORT_JSON" ]]; then
+  readiness_cmd+=(--release-trend-report-json "$RELEASE_TREND_REPORT_JSON")
+fi
+if [[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]]; then
+  readiness_cmd+=(--require-release-gate-pass)
+fi
+if [[ "$REQUIRE_RELEASE_TREND_PASS" -eq 1 ]]; then
+  readiness_cmd+=(--require-release-trend-pass)
+fi
 
 artifact_dir="$(json_get "$REPORT_JSON" "artifact_dir")"
 capture_dir="$(json_get "$REPORT_JSON" "capture_dir")"
 provider="$(json_get "$REPORT_JSON" "provider")"
 overall_status="$(json_get "$REPORT_JSON" "overall_status")"
+if [[ -z "$RELEASE_GATE_JSON" && -f "$artifact_dir/release_gate.json" ]]; then
+  RELEASE_GATE_JSON="$artifact_dir/release_gate.json"
+fi
+if [[ -z "$RELEASE_TREND_REPORT_JSON" && -f "$artifact_dir/release_trend_report.json" ]]; then
+  RELEASE_TREND_REPORT_JSON="$artifact_dir/release_trend_report.json"
+fi
 integrity_certificate_json="$artifact_dir/integrity_certificate.json"
 integrity_certificate_md="$artifact_dir/integrity_certificate.md"
 integrity_status=""
@@ -185,9 +235,17 @@ if [[ -f "$integrity_certificate_json" ]]; then
   integrity_status="$(json_get "$integrity_certificate_json" "status" | tr '[:lower:]' '[:upper:]')"
 fi
 require_real_artifacts="$([[ "$ALLOW_MOCK_ARTIFACTS" -eq 1 ]] && echo false || echo true)"
+release_gate_result=""
+release_trend_status=""
+if [[ -n "$RELEASE_GATE_JSON" && -f "$RELEASE_GATE_JSON" ]]; then
+  release_gate_result="$(json_get "$RELEASE_GATE_JSON" "result" | tr '[:lower:]' '[:upper:]')"
+fi
+if [[ -n "$RELEASE_TREND_REPORT_JSON" && -f "$RELEASE_TREND_REPORT_JSON" ]]; then
+  release_trend_status="$(json_get "$RELEASE_TREND_REPORT_JSON" "status" | tr '[:lower:]' '[:upper:]')"
+fi
 
 if ! "${readiness_cmd[@]}" >/dev/null; then
-  write_signoff_json "FAIL" "readiness_not_pass" "FAIL" "$require_real_artifacts" "${provider:-$PROVIDER}" "$EXPECT_CAMERA" "$EXPECT_ZONE" "$overall_status" "$artifact_dir" "$capture_dir" "$integrity_certificate_json" "$integrity_certificate_md" "$integrity_status"
+  write_signoff_json "FAIL" "readiness_not_pass" "FAIL" "$require_real_artifacts" "${provider:-$PROVIDER}" "$EXPECT_CAMERA" "$EXPECT_ZONE" "$overall_status" "$artifact_dir" "$capture_dir" "$integrity_certificate_json" "$integrity_certificate_md" "$integrity_status" "$RELEASE_GATE_JSON" "$RELEASE_TREND_REPORT_JSON" "$release_gate_result" "$release_trend_status" "$([[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]] && echo true || echo false)" "$([[ "$REQUIRE_RELEASE_TREND_PASS" -eq 1 ]] && echo true || echo false)"
   echo "FAIL: CCTV signoff blocked: readiness did not pass."
   echo "Signoff JSON: $JSON_OUT_FILE"
   exit 1
@@ -253,7 +311,7 @@ fi
   echo "- Remaining blockers: \`$([[ "$overall_status" == "PASS" ]] && echo none || echo review_validation_bundle)\`"
 } >"$OUT_FILE"
 
-write_signoff_json "PASS" "" "PASS" "$require_real_artifacts" "${provider:-$PROVIDER}" "${camera_id:-$EXPECT_CAMERA}" "${zone:-$EXPECT_ZONE}" "$overall_status" "$artifact_dir" "$capture_dir" "$integrity_certificate_json" "$integrity_certificate_md" "$integrity_status"
+write_signoff_json "PASS" "" "PASS" "$require_real_artifacts" "${provider:-$PROVIDER}" "${camera_id:-$EXPECT_CAMERA}" "${zone:-$EXPECT_ZONE}" "$overall_status" "$artifact_dir" "$capture_dir" "$integrity_certificate_json" "$integrity_certificate_md" "$integrity_status" "$RELEASE_GATE_JSON" "$RELEASE_TREND_REPORT_JSON" "$release_gate_result" "$release_trend_status" "$([[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]] && echo true || echo false)" "$([[ "$REQUIRE_RELEASE_TREND_PASS" -eq 1 ]] && echo true || echo false)"
 
 echo "PASS: CCTV pilot signoff generated: $OUT_FILE"
 echo "Signoff JSON: $JSON_OUT_FILE"

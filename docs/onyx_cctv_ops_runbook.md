@@ -151,12 +151,16 @@ When CCTV is degraded but ONYX is still online:
 - `make cctv-signoff`
   - runs `scripts/onyx_cctv_signoff_generate.sh`
   - writes a pilot signoff note plus `signoff.json` from the latest validation bundle and field notes
+  - can optionally require a passing staged `release_gate.json` and `release_trend_report.json` before signoff generation
 - `make cctv-release-gate`
   - runs `scripts/onyx_cctv_release_gate.sh`
   - writes `release_gate.json` plus `release_gate.md` from the staged validation bundle, integrity certificate, and CCTV signoff JSON
 - `make cctv-release-trend`
   - runs `scripts/onyx_cctv_release_trend_check.sh`
   - writes `release_trend_report.json` plus `release_trend_report.md` by comparing the current and previous staged CCTV `release_gate.json`
+- release-aware readiness:
+  - `scripts/onyx_cctv_pilot_readiness_check.sh --require-release-gate-pass --require-release-trend-pass`
+  - verifies the staged `release_gate.json` / `release_trend_report.json` align with the active validation bundle before CCTV signoff or release-closeout
 - Exit codes:
   - `0`: pass
   - `1`: fail
