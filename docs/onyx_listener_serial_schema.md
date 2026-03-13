@@ -243,6 +243,8 @@ To compare the latest parity run against the prior one:
 
 The pilot gate can also run this trend comparison inline and emit
 `trend_report.json` plus `trend_report.md` into the pilot artifact directory.
+It now also emits `parity_readiness_report.json` plus
+`parity_readiness_report.md` in that same directory.
 
 The parity-trend artifact also carries `primary_regression_code` plus
 `regression_codes`, so downstream gates can classify parity regressions

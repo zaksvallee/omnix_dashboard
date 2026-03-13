@@ -128,6 +128,7 @@ Notes:
   - Listener signoff artifacts now persist on both pass and fail and carry a machine-readable `failure_code`, so blocked signoff attempts remain auditable without parsing terminal output.
   - Listener parity artifacts now emit stable issue and regression codes, so downstream automation does not need to parse parity drift summaries to classify divergence or regression.
   - Listener parity readiness now persists `parity_readiness_report.json` on both pass and fail and carries a machine-readable `failure_code`, so blocked parity gates remain auditable without parsing terminal output.
+  - The standalone listener pilot gate now stages the parity readiness artifact into its artifact directory and surfaces readiness status/failure code in its terminal summary.
 
 ---
 

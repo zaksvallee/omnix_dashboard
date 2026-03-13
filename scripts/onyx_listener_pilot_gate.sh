@@ -371,6 +371,8 @@ fi
 readiness_cmd=(
   ./scripts/onyx_listener_parity_readiness_check.sh
   --report-json "$ARTIFACT_DIR/report.json"
+  --json-out "$ARTIFACT_DIR/parity_readiness_report.json"
+  --markdown-out "$ARTIFACT_DIR/parity_readiness_report.md"
   --max-report-age-hours "$MAX_REPORT_AGE_HOURS"
   --min-match-rate-percent "$MIN_MATCH_RATE_PERCENT"
 )
@@ -397,6 +399,29 @@ fi
 
 "${readiness_cmd[@]}"
 
+PARITY_READINESS_STATUS=""
+PARITY_READINESS_FAILURE_CODE=""
+if [[ -f "$ARTIFACT_DIR/parity_readiness_report.json" ]]; then
+  PARITY_READINESS_STATUS="$(
+    python3 - "$ARTIFACT_DIR/parity_readiness_report.json" <<'PY'
+import json
+import sys
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+print(str(data.get("status", "")).upper())
+PY
+  )"
+  PARITY_READINESS_FAILURE_CODE="$(
+    python3 - "$ARTIFACT_DIR/parity_readiness_report.json" <<'PY'
+import json
+import sys
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+print(str(data.get("failure_code", "")))
+PY
+  )"
+fi
+
 if [[ "$COMPARE_PREVIOUS" -eq 1 ]]; then
   trend_cmd=(
     ./scripts/onyx_listener_parity_trend_check.sh
@@ -419,6 +444,15 @@ echo ""
 echo "PASS: Listener pilot gate completed."
 echo "Capture pack: $CAPTURE_DIR"
 echo "Parity artifact: $ARTIFACT_DIR/report.json"
+if [[ -f "$ARTIFACT_DIR/parity_readiness_report.json" ]]; then
+  echo "Parity readiness artifact: $ARTIFACT_DIR/parity_readiness_report.json"
+  if [[ -n "$PARITY_READINESS_STATUS" ]]; then
+    echo "Parity readiness status: $PARITY_READINESS_STATUS"
+  fi
+  if [[ -n "$PARITY_READINESS_FAILURE_CODE" ]]; then
+    echo "Parity readiness failure code: $PARITY_READINESS_FAILURE_CODE"
+  fi
+fi
 if [[ "$COMPARE_PREVIOUS" -eq 1 ]]; then
   echo "Trend artifact: $ARTIFACT_DIR/trend_report.json"
 fi
