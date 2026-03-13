@@ -177,6 +177,47 @@ void main() {
     expect(find.textContaining('ok 4 • fail 0'), findsOneWidget);
   });
 
+  testWidgets('system tab shows video integrity certificate preview', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: AdministrationPage(
+          events: <DispatchEvent>[],
+          supabaseReady: false,
+          videoOpsLabel: 'DVR',
+          videoIntegrityCertificateStatus: 'PASS',
+          videoIntegrityCertificateSummary:
+              'Bundle hash sealed for dvr validation_report.json.',
+          videoIntegrityCertificateJsonPreview:
+              '{\n  "status": "PASS",\n  "bundle_hash": "abc123"\n}',
+          videoIntegrityCertificateMarkdownPreview:
+              '# Integrity Certificate\n\n- Status: `PASS`\n- Bundle hash: `abc123`',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('System').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('DVR Integrity Certificate'), findsOneWidget);
+    expect(
+      find.textContaining('Bundle hash sealed for dvr validation_report.json.'),
+      findsOneWidget,
+    );
+
+    await tester.ensureVisible(find.text('View Certificate'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('View Certificate'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('DVR Integrity Certificate'), findsAtLeastNWidgets(1));
+    expect(find.text('JSON'), findsOneWidget);
+    expect(find.text('Markdown'), findsOneWidget);
+    expect(find.textContaining('"bundle_hash": "abc123"'), findsOneWidget);
+  });
+
   testWidgets('system tab validates and saves radio intent dictionary', (
     tester,
   ) async {

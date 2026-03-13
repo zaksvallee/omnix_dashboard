@@ -396,6 +396,10 @@ class AdministrationPage extends StatefulWidget {
   final String? cctvRecentSignalSummary;
   final String? cctvEvidenceHealthSummary;
   final String? cctvCameraHealthSummary;
+  final String? videoIntegrityCertificateStatus;
+  final String? videoIntegrityCertificateSummary;
+  final String? videoIntegrityCertificateJsonPreview;
+  final String? videoIntegrityCertificateMarkdownPreview;
   final String? wearableOpsPollHealth;
   final String? newsOpsPollHealth;
   final String telegramBridgeHealthLabel;
@@ -464,6 +468,10 @@ class AdministrationPage extends StatefulWidget {
     this.cctvRecentSignalSummary,
     this.cctvEvidenceHealthSummary,
     this.cctvCameraHealthSummary,
+    this.videoIntegrityCertificateStatus,
+    this.videoIntegrityCertificateSummary,
+    this.videoIntegrityCertificateJsonPreview,
+    this.videoIntegrityCertificateMarkdownPreview,
     this.wearableOpsPollHealth,
     this.newsOpsPollHealth,
     this.telegramBridgeHealthLabel = 'disabled',
@@ -2555,6 +2563,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
           _telegramBridgeStatusPanel(),
           const SizedBox(height: 12),
           _telegramAiAssistantPanel(),
+          if (_hasVideoIntegrityCertificatePreview()) ...[
+            const SizedBox(height: 12),
+            _videoIntegrityCertificatePanel(),
+          ],
           if (_opsPollHealthRows().isNotEmpty) ...[
             const SizedBox(height: 12),
             _subTitle('Ops Integration Poll Health'),
@@ -2564,6 +2576,198 @@ class _AdministrationPageState extends State<AdministrationPage> {
             _opsQueueActionButtons(),
           ],
         ],
+      ),
+    );
+  }
+
+  bool _hasVideoIntegrityCertificatePreview() {
+    return (widget.videoIntegrityCertificateStatus ?? '').trim().isNotEmpty ||
+        (widget.videoIntegrityCertificateSummary ?? '').trim().isNotEmpty ||
+        (widget.videoIntegrityCertificateJsonPreview ?? '').trim().isNotEmpty ||
+        (widget.videoIntegrityCertificateMarkdownPreview ?? '').trim().isNotEmpty;
+  }
+
+  Widget _videoIntegrityCertificatePanel() {
+    final status = (widget.videoIntegrityCertificateStatus ?? '').trim();
+    final summary = (widget.videoIntegrityCertificateSummary ?? '').trim();
+    final hasPreview =
+        (widget.videoIntegrityCertificateJsonPreview ?? '').trim().isNotEmpty ||
+        (widget.videoIntegrityCertificateMarkdownPreview ?? '').trim().isNotEmpty;
+    final statusUpper = status.toUpperCase();
+    final accent = statusUpper == 'PASS'
+        ? const Color(0xFF34D399)
+        : statusUpper == 'WARN' || statusUpper == 'HOLD'
+        ? const Color(0xFFF59E0B)
+        : const Color(0xFF67E8F9);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C1117),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: const Color(0x332B425F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.verified_rounded, size: 16, color: accent),
+              const SizedBox(width: 6),
+              Text(
+                '${widget.videoOpsLabel} Integrity Certificate',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFEAF4FF),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const Spacer(),
+              if (status.isNotEmpty)
+                Text(
+                  statusUpper,
+                  style: GoogleFonts.inter(
+                    color: accent,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            summary.isEmpty
+                ? 'No staged validation-bundle integrity summary available.'
+                : summary,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB1CF),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (hasPreview) ...[
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _showVideoIntegrityCertificatePreview,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFFEAF4FF),
+                side: const BorderSide(color: Color(0xFF35506F)),
+              ),
+              icon: const Icon(Icons.description_rounded, size: 16),
+              label: Text(
+                'View Certificate',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showVideoIntegrityCertificatePreview() {
+    final jsonPreview =
+        (widget.videoIntegrityCertificateJsonPreview ?? '').trim().isEmpty
+        ? '{\n  "note": "No staged JSON preview provided."\n}'
+        : widget.videoIntegrityCertificateJsonPreview!.trim();
+    final markdownPreview =
+        (widget.videoIntegrityCertificateMarkdownPreview ?? '').trim().isEmpty
+        ? '# Integrity Certificate\n\nNo staged markdown preview provided.'
+        : widget.videoIntegrityCertificateMarkdownPreview!.trim();
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: const Color(0xFF0E1A2B),
+          child: DefaultTabController(
+            length: 2,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 760, maxHeight: 640),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${widget.videoOpsLabel} Integrity Certificate',
+                      style: GoogleFonts.rajdhani(
+                        color: const Color(0xFFE8F1FF),
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Preview the staged validation-bundle integrity certificate for the active video provider.',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF8EA5C6),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const TabBar(
+                      tabs: [
+                        Tab(text: 'JSON'),
+                        Tab(text: 'Markdown'),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: TabBarView(
+                        children: [
+                          _adminCertificatePane(jsonPreview),
+                          _adminCertificatePane(markdownPreview),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        child: Text(
+                          'Close',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFEAF4FF),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _adminCertificatePane(String content) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF091221),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF1A355A)),
+      ),
+      child: SingleChildScrollView(
+        child: SelectableText(
+          content,
+          style: GoogleFonts.robotoMono(
+            color: const Color(0xFFE6F0FF),
+            fontSize: 12,
+            height: 1.45,
+          ),
+        ),
       ),
     );
   }
