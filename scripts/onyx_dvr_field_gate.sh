@@ -19,7 +19,8 @@ ALLOW_MOCK_ARTIFACTS=0
 USE_MOCK_ARTIFACTS=0
 GENERATE_SIGNOFF=0
 SIGNOFF_OUT=""
-EFFECTIVE_SIGNOFF_OUT=""
+CANONICAL_SIGNOFF_OUT=""
+EXPORT_SIGNOFF_OUT=""
 COMPARE_PREVIOUS_RELEASE=0
 PREVIOUS_RELEASE_GATE_JSON=""
 ALLOW_RELEASE_HOLD_REASON_INCREASE_COUNT=0
@@ -114,10 +115,9 @@ if [[ -z "$ARTIFACT_DIR" ]]; then
 fi
 
 if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
+  CANONICAL_SIGNOFF_OUT="$ARTIFACT_DIR/dvr_pilot_signoff.md"
   if [[ -n "$SIGNOFF_OUT" ]]; then
-    EFFECTIVE_SIGNOFF_OUT="$SIGNOFF_OUT"
-  else
-    EFFECTIVE_SIGNOFF_OUT="$ARTIFACT_DIR/dvr_pilot_signoff.md"
+    EXPORT_SIGNOFF_OUT="$SIGNOFF_OUT"
   fi
 fi
 
@@ -225,7 +225,7 @@ if [[ "$COMPARE_PREVIOUS_RELEASE" -eq 1 && "$GENERATE_SIGNOFF" -ne 1 ]]; then
 fi
 
 if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
-  signoff_json_out="$(dirname "$EFFECTIVE_SIGNOFF_OUT")/$(basename "$EFFECTIVE_SIGNOFF_OUT" .md).json"
+  signoff_json_out="$ARTIFACT_DIR/dvr_pilot_signoff.json"
   run_signoff() {
     local include_release_gate_refs="${1:-0}"
     local include_release_trend_refs="${2:-0}"
@@ -233,7 +233,7 @@ if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
       ./scripts/onyx_dvr_signoff_generate.sh
       --report-json "$ARTIFACT_DIR/validation_report.json"
       --provider "$PROVIDER"
-      --out "$EFFECTIVE_SIGNOFF_OUT"
+      --out "$CANONICAL_SIGNOFF_OUT"
     )
     [[ -n "$CAMERA_ID" ]] && signoff_cmd+=(--expect-camera "$CAMERA_ID")
     [[ -n "$ZONE" ]] && signoff_cmd+=(--expect-zone "$ZONE")
@@ -257,7 +257,7 @@ if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
     bash ./scripts/onyx_dvr_release_gate.sh
     --validation-report-json "$ARTIFACT_DIR/validation_report.json"
     --readiness-report-json "$ARTIFACT_DIR/readiness_report.json"
-    --signoff-file "$EFFECTIVE_SIGNOFF_OUT"
+    --signoff-file "$CANONICAL_SIGNOFF_OUT"
     --signoff-report-json "$signoff_json_out"
     --out-dir "$ARTIFACT_DIR"
   )
@@ -292,6 +292,12 @@ if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
     # Refresh signoff again so the saved audit JSON reflects the final trend
     # posture when compare mode is enabled.
     run_signoff 1 1
+  fi
+
+  if [[ -n "$EXPORT_SIGNOFF_OUT" && "$EXPORT_SIGNOFF_OUT" != "$CANONICAL_SIGNOFF_OUT" ]]; then
+    mkdir -p "$(dirname "$EXPORT_SIGNOFF_OUT")"
+    cp "$CANONICAL_SIGNOFF_OUT" "$EXPORT_SIGNOFF_OUT"
+    cp "$signoff_json_out" "$(dirname "$EXPORT_SIGNOFF_OUT")/$(basename "$EXPORT_SIGNOFF_OUT" .md).json"
   fi
 fi
 
@@ -380,6 +386,10 @@ if [[ -f "$ARTIFACT_DIR/release_trend_report.json" ]]; then
   echo "Release trend artifact: $ARTIFACT_DIR/release_trend_report.json"
 fi
 if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
-  echo "Signoff note: $EFFECTIVE_SIGNOFF_OUT"
-  echo "Signoff artifact: $(dirname "$EFFECTIVE_SIGNOFF_OUT")/$(basename "$EFFECTIVE_SIGNOFF_OUT" .md).json"
+  echo "Signoff note: $CANONICAL_SIGNOFF_OUT"
+  echo "Signoff artifact: $ARTIFACT_DIR/dvr_pilot_signoff.json"
+  if [[ -n "$EXPORT_SIGNOFF_OUT" && "$EXPORT_SIGNOFF_OUT" != "$CANONICAL_SIGNOFF_OUT" ]]; then
+    echo "Signoff export note: $EXPORT_SIGNOFF_OUT"
+    echo "Signoff export artifact: $(dirname "$EXPORT_SIGNOFF_OUT")/$(basename "$EXPORT_SIGNOFF_OUT" .md).json"
+  fi
 fi

@@ -81,6 +81,8 @@ Current scope:
   - `scripts/onyx_dvr_mock_validation_artifacts.sh`
   - `scripts/onyx_dvr_pilot_gate.sh`
   - `scripts/onyx_dvr_field_gate.sh`
+    - always writes canonical staged signoff artifacts to `dvr_pilot_signoff.md` and `dvr_pilot_signoff.json`
+    - treats `--signoff-out` as an additional export copy, not as the primary staged signoff path used by release gating
   - `scripts/onyx_dvr_signoff_generate.sh`
     - emits a sibling `*.json` signoff report on pass and fail once the validation bundle is resolved
     - now rejects release gate or release trend artifacts that point at a different validation or release chain

@@ -181,6 +181,7 @@ DVR pilot commands:
 - readiness and signoff now also require canonical staged names for `release_gate.json` and `release_trend_report.json`
 - release trend now also requires canonical staged input names for current and previous `release_gate.json`
 - readiness and signoff now also reject release-trend artifacts whose `previous_release_gate_json` is not named `release_gate.json`
+- `onyx_dvr_field_gate.sh --signoff-out ...` now exports an extra signoff copy while keeping the canonical staged signoff files for release gating
 
 CCTV pilot commands:
 - `./scripts/onyx_cctv_capture_pack_init.sh`
