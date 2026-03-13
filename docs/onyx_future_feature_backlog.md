@@ -5,6 +5,9 @@ outside the active CCTV, DVR, and listener rollout checklists.
 
 Use this as a prioritization backlog, not as a release signoff sheet.
 
+Related planning doc:
+[ONYX Platform Operating Model](/Users/zaks/omnix_dashboard/docs/onyx_platform_operating_model.md)
+
 ## Build Next
 
 - Edge AI resilience and offline incident continuity
@@ -37,6 +40,16 @@ Use this as a prioritization backlog, not as a release signoff sheet.
   - Prioritize fence vibration, gate tamper, tilt, and glass-break style signals.
   - Use the Sovereign Edge box as the local gateway so the tripwire lane survives load shedding and WAN loss.
 
+- RF anti-jamming and SIGINT sniffing
+  - Use a low-cost SDR on the Sovereign Edge box or responder vehicle to watch for Wi-Fi de-authentication, jammer noise, and suspicious RF spikes near protected sites.
+  - Trigger pre-emptive technical-breach alerts before camera or telemetry lanes actually fail.
+  - Treat this as an edge-resilience and breach-detection feature, not as broad-spectrum surveillance.
+
+- Managed Edge-as-a-Service
+  - Package ONYX Nodes as a managed resilience product instead of software-only deployment.
+  - Keep local inference, local comms bridge, local speaker actions, and degraded-mode continuity on the node even when WAN links fail.
+  - Position this as a physical guarantee of continuity for high-value sites.
+
 ## Build Later
 
 - Behavioral anomaly detection
@@ -52,6 +65,16 @@ Use this as a prioritization backlog, not as a release signoff sheet.
   - Add gunshot, glass-break, and distress-audio detection from camera audio channels.
   - Treat gunshot and glass-break as higher-confidence use cases than scream detection.
   - Keep audio inference as a separate worker from the video path.
+
+- Cognitive denial and deception routines
+  - Add controlled deterrence patterns such as alternate light activation, approved radio-chatter playback, or dog-bark simulation after a high-confidence breach.
+  - Keep this behind explicit site policy, confidence gates, and audited action logs.
+  - Treat it as a controlled deterrence layer, not an always-on autonomy feature.
+
+- Agentic briefing and multi-agent collaboration
+  - Move from single-model alert summarization into coordinated agents for visual, comms, logistics, and SOP checks.
+  - Keep the first versions in briefing and recommendation lanes before allowing broader autonomous control.
+  - Require evidence-linked reasoning and explicit source traceability for every briefing claim.
 
 - Digital guard fleet management
   - Add responder vehicle OBD-II, siren, speed, impact, and GPS telemetry.
@@ -70,12 +93,31 @@ Use this as a prioritization backlog, not as a release signoff sheet.
   - Add site-level 3D operational views and cross-camera subject continuity.
   - Defer until camera calibration, re-identification quality, and site-model upkeep are operationally defensible.
 
+- Tactical AR overlays
+  - Add waypoint-style AR guidance on Blackview devices for responder navigation to panic, intruder, or welfare events.
+  - Defer until core field workflows and site-positioning accuracy are stable enough to avoid misleading responders.
+
+- Drone-in-a-box first response
+  - Add autonomous drone launch, spotlight, and thermal reconnaissance for high-confidence incidents.
+  - Treat this as a premium future lane after edge autonomy, evidence integrity, and legal/airspace controls are mature.
+
+- UEBA for guard and controller operations
+  - Detect operational fatigue, missed checkpoints, and degraded response behavior from field and controller telemetry.
+  - Keep the first versions supervisory and welfare-oriented, not punitive automation.
+
 ## Working Notes
 
 - Core platform priorities remain:
   - sovereign edge resilience
   - forensic integrity
   - reliable field validation
+
+- Product language should prefer:
+  - evidence provenance
+  - tamper-evident ledger
+  - certificate of integrity
+  - chain of custody
+  and avoid hype-heavy terms such as NFT in external-facing positioning.
 
 - Advanced prediction and immersive UX should follow only after:
   - CCTV and DVR live pilots are field-proven
