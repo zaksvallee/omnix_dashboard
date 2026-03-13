@@ -9,6 +9,10 @@ MAX_REPORT_AGE_HOURS=24
 REQUIRE_REAL_ARTIFACTS=0
 JSON_OUT=""
 MARKDOWN_OUT=""
+ARTIFACT_DIR=""
+REPORT_AGE_HOURS=""
+OVERALL_STATUS=""
+BENCH_BASELINE_JSON=""
 REQUIRE_TREND_PASS=0
 VALIDATION_TREND_REPORT_JSON=""
 REQUIRE_VALIDATION_TREND_PASS=0
@@ -24,7 +28,126 @@ REQUIRE_BASELINE_HISTORY=0
 MAX_BASELINE_AGE_DAYS=""
 
 pass() { printf "PASS: %s\n" "$1"; }
-fail() { printf "FAIL: %s\n" "$1"; exit 1; }
+
+write_readiness_report() {
+  [[ -n "${JSON_OUT:-}" ]] || return 0
+  [[ -n "${MARKDOWN_OUT:-}" ]] || MARKDOWN_OUT="$(dirname "$JSON_OUT")/readiness_report.md"
+
+  mkdir -p "$(dirname "$JSON_OUT")"
+  mkdir -p "$(dirname "$MARKDOWN_OUT")"
+
+  python3 - "$JSON_OUT" "$MARKDOWN_OUT" "${READINESS_STATUS:-FAIL}" "${READINESS_SUMMARY:-Listener readiness failed.}" "${REPORT_JSON:-}" "${ARTIFACT_DIR:-}" "${REPORT_AGE_HOURS:-}" "${OVERALL_STATUS:-}" "$REQUIRE_REAL_ARTIFACTS" "$REQUIRE_TREND_PASS" "$REQUIRE_VALIDATION_TREND_PASS" "$REQUIRE_CUTOVER_GO" "$REQUIRE_CUTOVER_TREND_PASS" "$REQUIRE_RELEASE_GATE_PASS" "$REQUIRE_RELEASE_TREND_PASS" "$REQUIRE_BASELINE_HISTORY" "${MAX_BASELINE_AGE_DAYS:-}" "${VALIDATION_TREND_REPORT_JSON:-}" "${CUTOVER_DECISION_JSON:-}" "${CUTOVER_TREND_REPORT_JSON:-}" "${RELEASE_GATE_JSON:-}" "${RELEASE_TREND_REPORT_JSON:-}" "${BENCH_BASELINE_JSON:-}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+json_out = Path(sys.argv[1])
+md_out = Path(sys.argv[2])
+status = sys.argv[3]
+summary = sys.argv[4]
+validation_report_json = sys.argv[5]
+artifact_dir = sys.argv[6]
+report_age_hours_raw = sys.argv[7]
+overall_status = sys.argv[8]
+
+def as_bool(raw: str) -> bool:
+    return raw == "1"
+
+require_real_artifacts = as_bool(sys.argv[9])
+require_trend_pass = as_bool(sys.argv[10])
+require_validation_trend_pass = as_bool(sys.argv[11])
+require_cutover_go = as_bool(sys.argv[12])
+require_cutover_trend_pass = as_bool(sys.argv[13])
+require_release_gate_pass = as_bool(sys.argv[14])
+require_release_trend_pass = as_bool(sys.argv[15])
+require_baseline_history = as_bool(sys.argv[16])
+max_baseline_age_days = sys.argv[17]
+validation_trend_report_json = sys.argv[18]
+cutover_decision_json = sys.argv[19]
+cutover_trend_report_json = sys.argv[20]
+release_gate_json = sys.argv[21]
+release_trend_report_json = sys.argv[22]
+bench_baseline_json = sys.argv[23]
+
+report_age_hours = None
+if report_age_hours_raw:
+    try:
+        report_age_hours = round(float(report_age_hours_raw), 2)
+    except ValueError:
+        report_age_hours = None
+
+payload = {
+    "status": status,
+    "summary": summary,
+    "validation_report_json": validation_report_json,
+    "artifact_dir": artifact_dir,
+    "report_age_hours": report_age_hours,
+    "statuses": {
+        "validation_overall_status": overall_status,
+    },
+    "requirements": {
+        "require_real_artifacts": require_real_artifacts,
+        "require_trend_pass": require_trend_pass,
+        "require_validation_trend_pass": require_validation_trend_pass,
+        "require_cutover_go": require_cutover_go,
+        "require_cutover_trend_pass": require_cutover_trend_pass,
+        "require_release_gate_pass": require_release_gate_pass,
+        "require_release_trend_pass": require_release_trend_pass,
+        "require_baseline_history": require_baseline_history,
+        "max_baseline_age_days": max_baseline_age_days,
+    },
+    "resolved_files": {
+        "validation_trend_report_json": validation_trend_report_json,
+        "cutover_decision_json": cutover_decision_json,
+        "cutover_trend_report_json": cutover_trend_report_json,
+        "release_gate_json": release_gate_json,
+        "release_trend_report_json": release_trend_report_json,
+        "bench_baseline_json": bench_baseline_json,
+    },
+}
+
+json_out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+age_display = f"{report_age_hours:.2f}" if report_age_hours is not None else "n/a"
+lines = [
+    "# ONYX Listener Readiness Report",
+    "",
+    f"- Status: `{status}`",
+    f"- Summary: `{summary}`",
+    f"- Validation report: `{validation_report_json or 'n/a'}`",
+    f"- Artifact dir: `{artifact_dir or 'n/a'}`",
+    f"- Report age hours: `{age_display}`",
+    "",
+    "## Requirements",
+    f"- Require real artifacts: `{require_real_artifacts}`",
+    f"- Require trend pass: `{require_trend_pass}`",
+    f"- Require validation trend pass: `{require_validation_trend_pass}`",
+    f"- Require cutover GO: `{require_cutover_go}`",
+    f"- Require cutover trend pass: `{require_cutover_trend_pass}`",
+    f"- Require release gate pass: `{require_release_gate_pass}`",
+    f"- Require release trend pass: `{require_release_trend_pass}`",
+    f"- Require baseline history: `{require_baseline_history}`",
+    f"- Max baseline age days: `{max_baseline_age_days or 'disabled'}`",
+    "",
+    "## Resolved Files",
+    f"- Validation trend report JSON: `{validation_trend_report_json or 'n/a'}`",
+    f"- Cutover decision JSON: `{cutover_decision_json or 'n/a'}`",
+    f"- Cutover trend report JSON: `{cutover_trend_report_json or 'n/a'}`",
+    f"- Release gate JSON: `{release_gate_json or 'n/a'}`",
+    f"- Release trend report JSON: `{release_trend_report_json or 'n/a'}`",
+    f"- Bench baseline JSON: `{bench_baseline_json or 'n/a'}`",
+]
+md_out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+PY
+}
+
+fail() {
+  READINESS_STATUS="FAIL"
+  READINESS_SUMMARY="$1"
+  write_readiness_report
+  printf "FAIL: %s\n" "$1"
+  exit 1
+}
 
 usage() {
   cat <<'USAGE'
@@ -443,10 +566,10 @@ then
   fail "Latest listener validation report is stale (${report_age}h old > ${MAX_REPORT_AGE_HOURS}h)."
 fi
 
-overall_status="$(json_get "$latest_report_json" "overall_status" | tr '[:lower:]' '[:upper:]')"
-artifact_dir="$(json_get "$latest_report_json" "artifact_dir")"
+OVERALL_STATUS="$(json_get "$latest_report_json" "overall_status" | tr '[:lower:]' '[:upper:]')"
+ARTIFACT_DIR="$(json_get "$latest_report_json" "artifact_dir")"
 is_mock="$(json_get "$latest_report_json" "is_mock" | tr '[:upper:]' '[:lower:]')"
-bench_baseline_json="$(json_get "$latest_report_json" "files.bench_baseline_json")"
+BENCH_BASELINE_JSON="$(json_get "$latest_report_json" "files.bench_baseline_json")"
 serial_capture_present="$(json_get "$latest_report_json" "gates.serial_capture_present" | tr '[:upper:]' '[:lower:]')"
 legacy_capture_present="$(json_get "$latest_report_json" "gates.legacy_capture_present" | tr '[:upper:]' '[:lower:]')"
 field_notes_present="$(json_get "$latest_report_json" "gates.field_notes_present" | tr '[:upper:]' '[:lower:]')"
@@ -454,14 +577,16 @@ read_only_wiring_documented="$(json_get "$latest_report_json" "gates.read_only_w
 bench_anomaly_gate_passed="$(json_get "$latest_report_json" "gates.bench_anomaly_gate_passed" | tr '[:upper:]' '[:lower:]')"
 parity_gate_passed="$(json_get "$latest_report_json" "gates.parity_gate_passed" | tr '[:upper:]' '[:lower:]')"
 trend_gate_passed="$(json_get "$latest_report_json" "gates.trend_gate_passed" | tr '[:upper:]' '[:lower:]')"
+REPORT_JSON="$latest_report_json"
+REPORT_AGE_HOURS="$report_age"
 verify_result="$(verify_json_report_checksums "$latest_report_json")" || fail "Listener validation checksum verification failed: $verify_result"
 pass "Listener validation checksums verified."
 
 if [[ "$REQUIRE_REAL_ARTIFACTS" -eq 1 ]]; then
-  if [[ "$is_mock" == "true" || "$artifact_dir" == *"/mock-"* || "$artifact_dir" == mock-* || "$artifact_dir" == *"/mock-pass"* || "$artifact_dir" == mock-pass* ]]; then
-    fail "Listener readiness failed: mock artifact directory is not allowed under --require-real-artifacts ($artifact_dir)."
+  if [[ "$is_mock" == "true" || "$ARTIFACT_DIR" == *"/mock-"* || "$ARTIFACT_DIR" == mock-* || "$ARTIFACT_DIR" == *"/mock-pass"* || "$ARTIFACT_DIR" == mock-pass* ]]; then
+    fail "Listener readiness failed: mock artifact directory is not allowed under --require-real-artifacts ($ARTIFACT_DIR)."
   fi
-  pass "Real-artifact gate passed ($artifact_dir)."
+  pass "Real-artifact gate passed ($ARTIFACT_DIR)."
 fi
 
 if [[ "$REQUIRE_VALIDATION_TREND_PASS" -eq 1 ]]; then
@@ -554,8 +679,8 @@ if [[ "$REQUIRE_RELEASE_TREND_PASS" -eq 1 ]]; then
 fi
 
 if [[ "$REQUIRE_BASELINE_HISTORY" -eq 1 ]]; then
-  [[ -n "$bench_baseline_json" && -f "$bench_baseline_json" ]] || fail "Listener readiness failed: bench baseline JSON is missing under --require-baseline-history."
-  baseline_history_result="$(verify_baseline_history "$bench_baseline_json" "$MAX_BASELINE_AGE_DAYS" 2>&1)" || {
+  [[ -n "$BENCH_BASELINE_JSON" && -f "$BENCH_BASELINE_JSON" ]] || fail "Listener readiness failed: bench baseline JSON is missing under --require-baseline-history."
+  baseline_history_result="$(verify_baseline_history "$BENCH_BASELINE_JSON" "$MAX_BASELINE_AGE_DAYS" 2>&1)" || {
     case "$baseline_history_result" in
       missing_history)
         fail "Listener readiness failed: bench baseline has no promotion_history."
@@ -591,104 +716,11 @@ fi
 if [[ "$REQUIRE_TREND_PASS" -eq 1 ]]; then
   [[ "$trend_gate_passed" == "true" ]] || fail "Listener readiness failed: trend gate is not true."
 fi
-[[ "$overall_status" == "PASS" ]] || fail "Listener readiness failed: overall status is $overall_status, expected PASS."
+[[ "$OVERALL_STATUS" == "PASS" ]] || fail "Listener readiness failed: overall status is $OVERALL_STATUS, expected PASS."
 
-mkdir -p "$(dirname "$JSON_OUT")"
-mkdir -p "$(dirname "$MARKDOWN_OUT")"
-python3 - "$JSON_OUT" "$MARKDOWN_OUT" "$latest_report_json" "$artifact_dir" "$report_age" "$overall_status" "$REQUIRE_REAL_ARTIFACTS" "$REQUIRE_TREND_PASS" "$REQUIRE_VALIDATION_TREND_PASS" "$REQUIRE_CUTOVER_GO" "$REQUIRE_CUTOVER_TREND_PASS" "$REQUIRE_RELEASE_GATE_PASS" "$REQUIRE_RELEASE_TREND_PASS" "$REQUIRE_BASELINE_HISTORY" "$MAX_BASELINE_AGE_DAYS" "$VALIDATION_TREND_REPORT_JSON" "$CUTOVER_DECISION_JSON" "$CUTOVER_TREND_REPORT_JSON" "$RELEASE_GATE_JSON" "$RELEASE_TREND_REPORT_JSON" "$bench_baseline_json" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-json_out = Path(sys.argv[1])
-md_out = Path(sys.argv[2])
-validation_report_json = sys.argv[3]
-artifact_dir = sys.argv[4]
-report_age_hours = float(sys.argv[5])
-overall_status = sys.argv[6]
-
-def as_bool(raw: str) -> bool:
-    return raw == "1"
-
-require_real_artifacts = as_bool(sys.argv[7])
-require_trend_pass = as_bool(sys.argv[8])
-require_validation_trend_pass = as_bool(sys.argv[9])
-require_cutover_go = as_bool(sys.argv[10])
-require_cutover_trend_pass = as_bool(sys.argv[11])
-require_release_gate_pass = as_bool(sys.argv[12])
-require_release_trend_pass = as_bool(sys.argv[13])
-require_baseline_history = as_bool(sys.argv[14])
-max_baseline_age_days = sys.argv[15]
-validation_trend_report_json = sys.argv[16]
-cutover_decision_json = sys.argv[17]
-cutover_trend_report_json = sys.argv[18]
-release_gate_json = sys.argv[19]
-release_trend_report_json = sys.argv[20]
-bench_baseline_json = sys.argv[21]
-
-payload = {
-    "status": "PASS",
-    "summary": "Listener readiness checks passed.",
-    "validation_report_json": validation_report_json,
-    "artifact_dir": artifact_dir,
-    "report_age_hours": round(report_age_hours, 2),
-    "statuses": {
-        "validation_overall_status": overall_status,
-    },
-    "requirements": {
-        "require_real_artifacts": require_real_artifacts,
-        "require_trend_pass": require_trend_pass,
-        "require_validation_trend_pass": require_validation_trend_pass,
-        "require_cutover_go": require_cutover_go,
-        "require_cutover_trend_pass": require_cutover_trend_pass,
-        "require_release_gate_pass": require_release_gate_pass,
-        "require_release_trend_pass": require_release_trend_pass,
-        "require_baseline_history": require_baseline_history,
-        "max_baseline_age_days": max_baseline_age_days,
-    },
-    "resolved_files": {
-        "validation_trend_report_json": validation_trend_report_json,
-        "cutover_decision_json": cutover_decision_json,
-        "cutover_trend_report_json": cutover_trend_report_json,
-        "release_gate_json": release_gate_json,
-        "release_trend_report_json": release_trend_report_json,
-        "bench_baseline_json": bench_baseline_json,
-    },
-}
-
-json_out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-
-lines = [
-    "# ONYX Listener Readiness Report",
-    "",
-    "- Status: `PASS`",
-    "- Summary: `Listener readiness checks passed.`",
-    f"- Validation report: `{validation_report_json}`",
-    f"- Artifact dir: `{artifact_dir}`",
-    f"- Report age hours: `{report_age_hours:.2f}`",
-    "",
-    "## Requirements",
-    f"- Require real artifacts: `{require_real_artifacts}`",
-    f"- Require trend pass: `{require_trend_pass}`",
-    f"- Require validation trend pass: `{require_validation_trend_pass}`",
-    f"- Require cutover GO: `{require_cutover_go}`",
-    f"- Require cutover trend pass: `{require_cutover_trend_pass}`",
-    f"- Require release gate pass: `{require_release_gate_pass}`",
-    f"- Require release trend pass: `{require_release_trend_pass}`",
-    f"- Require baseline history: `{require_baseline_history}`",
-    f"- Max baseline age days: `{max_baseline_age_days or 'disabled'}`",
-    "",
-    "## Resolved Files",
-    f"- Validation trend report JSON: `{validation_trend_report_json or 'n/a'}`",
-    f"- Cutover decision JSON: `{cutover_decision_json or 'n/a'}`",
-    f"- Cutover trend report JSON: `{cutover_trend_report_json or 'n/a'}`",
-    f"- Release gate JSON: `{release_gate_json or 'n/a'}`",
-    f"- Release trend report JSON: `{release_trend_report_json or 'n/a'}`",
-    f"- Bench baseline JSON: `{bench_baseline_json or 'n/a'}`",
-]
-md_out.write_text("\n".join(lines) + "\n", encoding="utf-8")
-PY
-
+READINESS_STATUS="PASS"
+READINESS_SUMMARY="Listener readiness checks passed."
+write_readiness_report
 pass "Listener readiness report written ($JSON_OUT)."
 
 pass "Listener readiness passed ($latest_report_json)."

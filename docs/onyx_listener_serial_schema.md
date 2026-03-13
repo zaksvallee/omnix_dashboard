@@ -344,6 +344,11 @@ To confirm the latest listener field-validation bundle is signoff-ready:
   --max-baseline-age-days 30
 ```
 
+This writes `readiness_report.json` plus `readiness_report.md`. The readiness
+artifact is emitted on both passing and failing runs once the validation bundle
+has been resolved, so downstream tooling can audit failed readiness checks
+without relying on terminal output alone.
+
 To drive the full listener field flow in one command:
 
 ```bash

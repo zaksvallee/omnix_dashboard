@@ -117,6 +117,7 @@ Notes:
   - Listener readiness can now enforce `release_gate = PASS` and `release_trend = PASS` explicitly once those artifacts exist in the validation bundle.
   - Listener field gate can now enforce `--require-release-trend-pass`, treating a failing release-trend check as a blocking outcome for that invocation.
   - Listener readiness now emits a machine-readable `readiness_report.json` plus `readiness_report.md` so downstream release posture can reference audited readiness state instead of terminal output alone.
+  - Listener readiness now writes that artifact on both pass and fail once the validation bundle is resolved, so failed gate outcomes remain auditable.
 
 ---
 
