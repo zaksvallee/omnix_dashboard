@@ -143,10 +143,14 @@ if overall_status != "PASS":
     fail_reasons.append(f"validation overall_status is {overall_status or 'missing'}")
 
 readiness_status = ""
+readiness_failure_code = ""
 if readiness is not None:
     readiness_status = str(readiness.get("status", "")).upper()
+    readiness_failure_code = str(readiness.get("failure_code", "")).strip()
     if readiness_status != "PASS":
         fail_reasons.append(f"readiness status is {readiness_status or 'missing'}")
+        if readiness_failure_code:
+            fail_reasons.append(f"readiness failure_code is {readiness_failure_code}")
 
 if require_real and (is_mock or "/mock-" in artifact_dir or artifact_dir.startswith("mock-")):
     fail_reasons.append("validation artifact is mock while real artifacts are required")
@@ -197,6 +201,7 @@ payload = {
     "statuses": {
         "validation_overall_status": overall_status,
         "readiness_status": readiness_status,
+        "readiness_failure_code": readiness_failure_code,
         "cutover_decision": cutover_decision,
         "cutover_trend_status": cutover_trend_status,
         "baseline_review_recommendation": str(baseline_review),
@@ -231,6 +236,7 @@ lines.extend([
     "## Statuses",
     f"- Validation overall status: `{overall_status or 'missing'}`",
     f"- Readiness status: `{readiness_status or 'missing'}`",
+    f"- Readiness failure code: `{readiness_failure_code or 'missing'}`",
     f"- Cutover decision: `{cutover_decision or 'missing'}`",
     f"- Cutover trend status: `{cutover_trend_status or 'missing'}`",
     f"- Baseline review recommendation: `{baseline_review or 'missing'}`",

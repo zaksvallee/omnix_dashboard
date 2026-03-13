@@ -302,6 +302,10 @@ This emits `release_gate.json` plus `release_gate.md` with:
 - `hold_reasons`
 - resolved validation/readiness/cutover/signoff references
 
+When a readiness artifact is present, the release gate now also carries
+`statuses.readiness_failure_code` forward so downstream tooling can distinguish
+why readiness failed without parsing prose.
+
 To compare release posture across listener runs:
 
 ```bash

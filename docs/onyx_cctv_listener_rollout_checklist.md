@@ -119,6 +119,7 @@ Notes:
   - Listener readiness now emits a machine-readable `readiness_report.json` plus `readiness_report.md` so downstream release posture can reference audited readiness state instead of terminal output alone.
   - Listener readiness now writes that artifact on both pass and fail once the validation bundle is resolved, so failed gate outcomes remain auditable.
   - Listener readiness failure artifacts now include a machine-readable `failure_code`, so downstream tooling does not need to parse prose summaries.
+  - Listener release posture now carries `readiness_failure_code` forward when readiness fails, preserving the structured failure cause through the release gate.
 
 ---
 
