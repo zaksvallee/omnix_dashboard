@@ -137,6 +137,7 @@ Notes:
   - Standalone listener signoff now auto-resolves validation and cutover artifacts from a staged field-validation bundle when parity artifacts are colocated there, so one-command closeout no longer assumes the older parent-directory layout.
   - Listener cutover-trend and release-trend checks now compare stable reason codes instead of prose reason text when those codes are present, preventing wording-only changes from showing up as false regressions.
   - Listener release posture now accepts a passing `signoff_report.json` as sufficient signoff evidence even if the companion markdown file is absent, preventing false `missing_signoff_file` holds when the audited signoff artifact already exists.
+  - Listener field-validation now stages `parity_readiness_report.json` and `parity_readiness_report.md` from the pilot artifact and readiness verifies their checksums, so the bundled evidence preserves the full standalone parity-readiness chain.
 
 ---
 

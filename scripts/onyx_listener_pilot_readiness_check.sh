@@ -337,6 +337,8 @@ pairs = [
     ("field_notes", "field_notes_sha256"),
     ("parity_report_json", "parity_report_json_sha256"),
     ("parity_report_markdown", "parity_report_markdown_sha256"),
+    ("parity_readiness_report_json", "parity_readiness_report_json_sha256"),
+    ("parity_readiness_report_markdown", "parity_readiness_report_markdown_sha256"),
     ("trend_report_json", "trend_report_json_sha256"),
     ("trend_report_markdown", "trend_report_markdown_sha256"),
     ("pilot_gate_report_json", "pilot_gate_report_json_sha256"),

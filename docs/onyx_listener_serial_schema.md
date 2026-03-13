@@ -436,6 +436,11 @@ The validation bundle stages `pilot_gate_report.json` plus
 under `files.*` and `checksums.*`. Listener readiness verifies those staged
 checksums alongside the rest of the validation evidence bundle.
 
+It now also stages `parity_readiness_report.json` plus
+`parity_readiness_report.md` from the standalone pilot artifact when present,
+so the field-validation bundle preserves the full parity-readiness evidence
+chain instead of only the top-level validation gate result.
+
 To drive the full listener field flow in one command:
 
 ```bash
@@ -477,6 +482,8 @@ rejected for real pilot signoff with `--require-real-artifacts`.
 When `--compare-previous-validation` is enabled, the field gate also emits:
 - `pilot_gate_report.json`
 - `pilot_gate_report.md`
+- `parity_readiness_report.json`
+- `parity_readiness_report.md`
 - `validation_trend_report.json`
 - `validation_trend_report.md`
 - `cutover_decision.json`
