@@ -388,6 +388,10 @@ without relying on terminal output alone.
 On failure, `readiness_report.json` now also includes a machine-readable
 `failure_code` so downstream gates do not need to parse the human summary.
 
+The parity readiness gate follows the same pattern and emits
+`parity_readiness_report.json` plus `parity_readiness_report.md` on both pass
+and fail, with a machine-readable `failure_code`.
+
 To drive the full listener field flow in one command:
 
 ```bash
