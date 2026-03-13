@@ -115,6 +115,7 @@ def signoff_consistency_regressions(gate, gate_path, label):
     gate_dir = gate_path.parent
     signoff_report_path = str(gate.get("signoff_report_json", "")).strip()
     signoff_file_path = str(gate.get("signoff_file", "")).strip()
+    reported_signoff_status = str((gate.get("statuses", {}) or {}).get("signoff_status", "")).upper()
     if signoff_file_path and signoff_file_path != str(gate_dir / Path(signoff_file_path).name):
         items.append({
             "code": f"{label}_signoff_file_path_mismatch",
@@ -130,6 +131,11 @@ def signoff_consistency_regressions(gate, gate_path, label):
         return items
     signoff_status = str(signoff_report.get("status", "")).upper()
     signoff_failure_code = str(signoff_report.get("failure_code", "")).strip()
+    if reported_signoff_status and signoff_status and reported_signoff_status != signoff_status:
+        items.append({
+            "code": f"{label}_signoff_status_mismatch",
+            "message": f"{label} release gate signoff_status does not match the referenced signoff report status.",
+        })
     if signoff_status == "PASS" and signoff_failure_code:
         items.append({
             "code": f"{label}_signoff_failure_code_present_on_pass",

@@ -172,6 +172,7 @@ DVR pilot commands:
 - `./scripts/onyx_dvr_release_trend_check.sh`
 - release posture now validates audited signoff JSON alignment, not just signoff file presence
 - release trend now also fails if a current or previous release gate points signoff artifacts outside its own artifact dir
+- readiness and release trend now also reject top-level `signoff_status` summaries that drift from the referenced signoff report
 
 CCTV pilot commands:
 - `./scripts/onyx_cctv_capture_pack_init.sh`

@@ -92,3 +92,4 @@ Current scope:
     - emits `release_trend_report.json` and `release_trend_report.md` from the current and previous release-gate posture
     - surfaces signoff-to-release mismatches as direct regressions
     - now also fails when a current or previous release gate points its signoff artifacts outside its own staged artifact dir
+    - now also treats release-gate `signoff_status` summary drift as a direct regression
