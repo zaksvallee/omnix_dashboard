@@ -76,6 +76,26 @@ latest_validation_report_json() {
     | head -n 1
 }
 
+latest_signoff_markdown() {
+  local base_dir="$1"
+  if [[ ! -d "$base_dir" ]]; then
+    return 1
+  fi
+  find "$base_dir" -maxdepth 1 -type f -name "*signoff*.md" -print0 2>/dev/null \
+    | xargs -0 ls -1t 2>/dev/null \
+    | head -n 1
+}
+
+latest_signoff_json() {
+  local base_dir="$1"
+  if [[ ! -d "$base_dir" ]]; then
+    return 1
+  fi
+  find "$base_dir" -maxdepth 1 -type f -name "*signoff*.json" -print0 2>/dev/null \
+    | xargs -0 ls -1t 2>/dev/null \
+    | head -n 1
+}
+
 if [[ -z "$VALIDATION_REPORT_JSON" ]]; then
   VALIDATION_REPORT_JSON="$(latest_validation_report_json || true)"
 fi
@@ -95,15 +115,20 @@ if [[ -z "$READINESS_REPORT_JSON" && -f "$artifact_dir/readiness_report.json" ]]
   READINESS_REPORT_JSON="$artifact_dir/readiness_report.json"
 fi
 if [[ -z "$SIGNOFF_FILE" ]]; then
-  latest_signoff="$(find "$artifact_dir" -maxdepth 1 -type f -name "*.md" -print0 2>/dev/null | xargs -0 ls -1t 2>/dev/null | head -n 1 || true)"
-  if [[ -n "$latest_signoff" && "$latest_signoff" != *"/validation_report.md" && "$latest_signoff" != *"/cutover_decision.md" && "$latest_signoff" != *"/cutover_trend_report.md" ]]; then
+  latest_signoff="$(latest_signoff_markdown "$artifact_dir" || true)"
+  if [[ -n "$latest_signoff" ]]; then
     SIGNOFF_FILE="$latest_signoff"
   fi
 fi
-if [[ -z "$SIGNOFF_REPORT_JSON" && -n "$SIGNOFF_FILE" ]]; then
-  candidate_signoff_json="${SIGNOFF_FILE%.md}.json"
-  if [[ -f "$candidate_signoff_json" ]]; then
-    SIGNOFF_REPORT_JSON="$candidate_signoff_json"
+if [[ -z "$SIGNOFF_REPORT_JSON" ]]; then
+  latest_signoff_json_candidate="$(latest_signoff_json "$artifact_dir" || true)"
+  if [[ -n "$latest_signoff_json_candidate" ]]; then
+    SIGNOFF_REPORT_JSON="$latest_signoff_json_candidate"
+  elif [[ -n "$SIGNOFF_FILE" ]]; then
+    candidate_signoff_json="${SIGNOFF_FILE%.md}.json"
+    if [[ -f "$candidate_signoff_json" ]]; then
+      SIGNOFF_REPORT_JSON="$candidate_signoff_json"
+    fi
   fi
 fi
 

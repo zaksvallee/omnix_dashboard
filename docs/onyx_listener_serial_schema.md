@@ -332,6 +332,10 @@ This emits `release_gate.json` plus `release_gate.md` with:
 - `hold_reasons`
 - resolved validation/readiness/cutover/signoff references
 
+Standalone release-gate discovery now only auto-selects signoff artifacts whose
+filenames contain `signoff`, so `readiness_report.md`, `release_trend_report.md`,
+and other audited markdown/json artifacts cannot be misclassified as signoff.
+
 When a readiness artifact is present, the release gate now also carries
 `statuses.readiness_failure_code` forward so downstream tooling can distinguish
 why readiness failed without parsing prose.
