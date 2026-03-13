@@ -51,6 +51,8 @@ REQUIRE_RELEASE_GATE_PASS=0
 REQUIRE_RELEASE_TREND_PASS=0
 REQUIRE_BASELINE_HISTORY=0
 MAX_BASELINE_AGE_DAYS=""
+EFFECTIVE_SIGNOFF_OUT=""
+EFFECTIVE_SIGNOFF_JSON_OUT=""
 
 usage() {
   cat <<'USAGE'
@@ -576,9 +578,16 @@ fi
 "${readiness_cmd[@]}"
 
 if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
+  EFFECTIVE_SIGNOFF_OUT="$SIGNOFF_OUT"
+  if [[ -z "$EFFECTIVE_SIGNOFF_OUT" ]]; then
+    EFFECTIVE_SIGNOFF_OUT="$ARTIFACT_DIR/listener_pilot_signoff.md"
+  fi
+  EFFECTIVE_SIGNOFF_JSON_OUT="${EFFECTIVE_SIGNOFF_OUT%.md}.json"
   signoff_cmd=(
     ./scripts/onyx_listener_signoff_generate.sh
     --report-json "$ARTIFACT_DIR/pilot_artifact/report.json"
+    --out "$EFFECTIVE_SIGNOFF_OUT"
+    --json-out "$EFFECTIVE_SIGNOFF_JSON_OUT"
   )
   if [[ -f "$ARTIFACT_DIR/pilot_artifact/trend_report.json" ]]; then
     signoff_cmd+=(--trend-report-json "$ARTIFACT_DIR/pilot_artifact/trend_report.json")
@@ -605,9 +614,6 @@ if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
   if [[ "$REQUIRE_CUTOVER_TREND_PASS" -eq 1 ]]; then
     signoff_cmd+=(--require-cutover-trend-pass)
   fi
-  if [[ -n "$SIGNOFF_OUT" ]]; then
-    signoff_cmd+=(--out "$SIGNOFF_OUT")
-  fi
   if [[ "$ALLOW_MOCK_ARTIFACTS" -eq 1 ]]; then
     signoff_cmd+=(--allow-mock-artifacts)
   fi
@@ -626,8 +632,11 @@ fi
 if [[ -f "$ARTIFACT_DIR/cutover_trend_report.json" ]]; then
   release_gate_cmd+=(--cutover-trend-report-json "$ARTIFACT_DIR/cutover_trend_report.json")
 fi
-if [[ -n "$SIGNOFF_OUT" && -f "$SIGNOFF_OUT" ]]; then
-  release_gate_cmd+=(--signoff-file "$SIGNOFF_OUT")
+if [[ -n "$EFFECTIVE_SIGNOFF_OUT" && -f "$EFFECTIVE_SIGNOFF_OUT" ]]; then
+  release_gate_cmd+=(--signoff-file "$EFFECTIVE_SIGNOFF_OUT")
+fi
+if [[ -n "$EFFECTIVE_SIGNOFF_JSON_OUT" && -f "$EFFECTIVE_SIGNOFF_JSON_OUT" ]]; then
+  release_gate_cmd+=(--signoff-report-json "$EFFECTIVE_SIGNOFF_JSON_OUT")
 fi
 if [[ "$ALLOW_MOCK_ARTIFACTS" -ne 1 ]]; then
   release_gate_cmd+=(--require-real-artifacts)
@@ -799,10 +808,11 @@ if [[ -n "$RELEASE_TREND_STATUS" ]]; then
   echo "Release trend artifact: $ARTIFACT_DIR/release_trend_report.json"
 fi
 if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
-  if [[ -n "$SIGNOFF_OUT" ]]; then
-    echo "Signoff: $SIGNOFF_OUT"
-  else
-    echo "Signoff: docs/onyx_listener_pilot_signoff_$(TZ=Africa/Johannesburg date +%Y-%m-%d).md"
+  if [[ -n "$EFFECTIVE_SIGNOFF_OUT" ]]; then
+    echo "Signoff: $EFFECTIVE_SIGNOFF_OUT"
+  fi
+  if [[ -n "$EFFECTIVE_SIGNOFF_JSON_OUT" ]]; then
+    echo "Signoff report: $EFFECTIVE_SIGNOFF_JSON_OUT"
   fi
 else
   echo "Signoff template: docs/onyx_listener_pilot_signoff_template.md"

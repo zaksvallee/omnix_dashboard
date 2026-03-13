@@ -426,6 +426,14 @@ To drive the full listener field flow in one command:
   --generate-signoff
 ```
 
+When `--generate-signoff` is used without `--signoff-out`, the field gate now
+writes:
+- `listener_pilot_signoff.md`
+- `listener_pilot_signoff.json`
+
+directly into the field artifact directory, and the release gate consumes both
+artifacts explicitly instead of relying on loose markdown discovery.
+
 For local tooling checks without real hardware:
 
 ```bash
