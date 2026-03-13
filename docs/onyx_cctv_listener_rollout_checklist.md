@@ -26,40 +26,50 @@ Last updated: 2026-03-13 (Africa/Johannesburg)
 ## 2) CCTV MVP Build (Next)
 
 - [ ] Provision one edge node (pilot site).
-- [ ] Add camera stream profiles:
+- [x] Add camera stream profiles:
   - Sub-stream for continuous detection.
   - Main stream for evidence/snapshot quality.
-- [ ] Enable Frigate event transport (MQTT topics) for ONYX bridge.
-- [ ] Implement ONYX `cctv_bridge_service` event mapping:
+- [x] Enable Frigate event transport (MQTT topics) for ONYX bridge.
+- [x] Implement ONYX `cctv_bridge_service` event mapping:
   - Camera ID, site ID, zone, label, confidence, timestamp.
-- [ ] Implement ONYX media pull path:
+- [x] Implement ONYX media pull path:
   - Snapshot URL fetch on event.
   - Clip reference fetch for post-incident timeline.
-- [ ] Persist normalized CCTV events into ONYX event flow.
-- [ ] Add operator visibility:
-  - Health state in `/bridges` and `/pollops`.
-  - Incident enrichment in Tactical/Operations views.
+- [x] Persist normalized CCTV events into ONYX event flow.
+- [x] Add operator visibility:
+  - [x] Health state in `/bridges` and `/pollops`.
+  - [x] Incident enrichment in Tactical/Operations views.
 
 Acceptance for MVP:
 - [ ] Motion/intrusion event reaches ONYX in near real time.
 - [ ] Snapshot is retrievable per event.
-- [ ] Event appears in status/incident context without manual refresh.
+- [x] Event appears in status/incident context without manual refresh.
+
+Repo validation gates for MVP:
+- `test/application/cctv_phase1_flow_test.dart`
+- `deploy/cctv_pilot_edge/validate_pilot.sh`
+- `scripts/onyx_cctv_field_validation.sh`
 
 ---
 
 ## 3) CCTV Hardening (After MVP)
 
-- [ ] Add per-camera health checks (stream up/down, stale frame age).
-- [ ] Add retry/backoff for snapshot/clip fetch.
-- [ ] Add queue protection (bounded queue + drop policy + alerting).
-- [ ] Add false-positive tuning workflow by zone/time window.
-- [ ] Add retention policy for snapshots/clips + audit controls.
-- [ ] Add bridge failure drills (camera offline, MQTT down, VPN flap).
+- [x] Add per-camera health checks (stream up/down, stale frame age).
+- [x] Add retry/backoff for snapshot/clip fetch.
+- [x] Add queue protection (bounded queue + drop policy + alerting).
+- [x] Add false-positive tuning workflow by zone/time window.
+- [x] Add retention policy for snapshots/clips + audit controls.
+- [x] Add bridge failure drills (camera offline, MQTT down, VPN flap).
 
 Acceptance for hardening:
-- [ ] ONYX bridge survives transient outages without silent data loss.
-- [ ] Health degradation is visible in admin commands.
-- [ ] Evidence references remain deterministic for replay/reporting.
+- [x] ONYX bridge survives transient outages without silent data loss.
+- [x] Health degradation is visible in admin commands.
+- [x] Evidence references remain deterministic for replay/reporting.
+
+Repo validation gates for hardening:
+- `test/application/cctv_phase1_flow_test.dart`
+- `test/application/cctv_evidence_probe_service_test.dart`
+- `scripts/onyx_cctv_field_validation.sh`
 
 ---
 
@@ -86,17 +96,26 @@ Notes:
 
 ## 5) Operations Runbook Hooks
 
-- [ ] Add CCTV bridge checks to daily controller routine.
-- [ ] Add weekly edge node health review.
-- [ ] Add “incident evidence retrieval” drill to demo/prep routine.
-- [ ] Add “CCTV degraded mode” response steps for controllers.
+- [x] Add CCTV bridge checks to daily controller routine.
+- [x] Add weekly edge node health review.
+- [x] Add “incident evidence retrieval” drill to demo/prep routine.
+- [x] Add “CCTV degraded mode” response steps for controllers.
 
 ---
 
 ## 6) Immediate Next Actions
 
-- [ ] Stand up pilot Frigate/go2rtc edge compose.
+- [x] Stand up pilot Frigate/go2rtc edge compose.
 - [ ] Wire one camera to ONYX `cctv_bridge_service`.
-- [ ] Verify `/pollops` and `/bridges` reflect CCTV health.
+- [x] Verify `/pollops` and `/bridges` reflect CCTV health.
 - [ ] Capture first end-to-end event + snapshot + ONYX timeline record.
 
+Field gate:
+- Initialize `tmp/cctv_capture` with `scripts/onyx_cctv_capture_pack_init.sh` before the live pilot.
+- Run `scripts/onyx_cctv_field_validation.sh --capture-dir tmp/cctv_capture` before checking the remaining live-pilot items.
+- Keep both `validation_report.md` and `validation_report.json` as the pilot evidence bundle.
+- Run `scripts/onyx_cctv_pilot_readiness_check.sh --require-real-artifacts` after validation to confirm the latest pilot evidence bundle is fresh and signoff-ready.
+- Use `scripts/onyx_cctv_pilot_gate.sh` as the one-command wrapper after the capture pack is filled.
+- Use `scripts/onyx_cctv_signoff_generate.sh` to generate the final pilot closeout note from the validated bundle.
+- Use `scripts/onyx_cctv_mock_validation_artifacts.sh` only for local gate/tooling checks, never for real pilot signoff.
+- Use `docs/onyx_cctv_pilot_signoff_template.md` for the final pilot closeout note.

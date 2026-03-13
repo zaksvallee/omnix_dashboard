@@ -30,6 +30,10 @@ class _IncidentRecord {
   final String site;
   final String timestamp;
   final _IncidentStatus status;
+  final String? latestIntelHeadline;
+  final String? latestIntelSummary;
+  final String? snapshotUrl;
+  final String? clipUrl;
 
   const _IncidentRecord({
     required this.id,
@@ -38,6 +42,10 @@ class _IncidentRecord {
     required this.site,
     required this.timestamp,
     required this.status,
+    this.latestIntelHeadline,
+    this.latestIntelSummary,
+    this.snapshotUrl,
+    this.clipUrl,
   });
 
   _IncidentRecord copyWith({
@@ -47,6 +55,10 @@ class _IncidentRecord {
     String? site,
     String? timestamp,
     _IncidentStatus? status,
+    String? latestIntelHeadline,
+    String? latestIntelSummary,
+    String? snapshotUrl,
+    String? clipUrl,
   }) {
     return _IncidentRecord(
       id: id ?? this.id,
@@ -55,6 +67,10 @@ class _IncidentRecord {
       site: site ?? this.site,
       timestamp: timestamp ?? this.timestamp,
       status: status ?? this.status,
+      latestIntelHeadline: latestIntelHeadline ?? this.latestIntelHeadline,
+      latestIntelSummary: latestIntelSummary ?? this.latestIntelSummary,
+      snapshotUrl: snapshotUrl ?? this.snapshotUrl,
+      clipUrl: clipUrl ?? this.clipUrl,
     );
   }
 }
@@ -964,6 +980,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       return _muted('Select an incident from the queue.');
     }
     final duress = _duressDetected(incident);
+    final evidenceReady = _evidenceReadyLabel(incident);
     final rows = <Widget>[
       _metaRow('Incident', incident.id),
       _metaRow('Type', incident.type),
@@ -976,6 +993,18 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       _metaRow('Client', 'Sandton HOA'),
       _metaRow('Contact', 'John Sovereign'),
       _metaRow('Client Safe Word', 'PHOENIX'),
+      if ((incident.latestIntelHeadline ?? '').trim().isNotEmpty)
+        _metaRow('Latest CCTV Intel', incident.latestIntelHeadline!.trim()),
+      if ((incident.latestIntelSummary ?? '').trim().isNotEmpty)
+        _metaRow(
+          'Intel Detail',
+          _compactContextLabel(incident.latestIntelSummary!),
+        ),
+      _metaRow('Evidence Ready', evidenceReady),
+      if ((incident.snapshotUrl ?? '').trim().isNotEmpty)
+        _metaRow('Snapshot Ref', _compactContextLabel(incident.snapshotUrl!)),
+      if ((incident.clipUrl ?? '').trim().isNotEmpty)
+        _metaRow('Clip Ref', _compactContextLabel(incident.clipUrl!)),
       if (duress) ...[
         const SizedBox(height: 8),
         Container(
@@ -1177,6 +1206,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
   Widget _visualTab(_IncidentRecord? incident) {
     if (incident == null) return _muted('No visual comparison available.');
+    final snapshotAvailable = (incident.snapshotUrl ?? '').trim().isNotEmpty;
+    final clipAvailable = (incident.clipUrl ?? '').trim().isNotEmpty;
     final score = incident.priority == _IncidentPriority.p1Critical
         ? 58
         : incident.priority == _IncidentPriority.p2High
@@ -1215,6 +1246,43 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           ],
         ),
         const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _metaRow(
+                'Snapshot',
+                snapshotAvailable ? 'READY' : 'PENDING',
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _metaRow('Clip', clipAvailable ? 'READY' : 'PENDING'),
+            ),
+          ],
+        ),
+        if (snapshotAvailable || clipAvailable) ...[
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              color: const Color(0x120F766E),
+              border: Border.all(color: const Color(0x5534D399)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (snapshotAvailable)
+                  _anomalyRow('Snapshot reference captured', 100),
+                if (snapshotAvailable && clipAvailable)
+                  const SizedBox(height: 4),
+                if (clipAvailable) _anomalyRow('Clip reference captured', 100),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
         if (score < 60) ...[
           Container(
             width: double.infinity,
@@ -1997,10 +2065,18 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       ),
     };
     final riskBySite = <String, int>{};
+    final latestHardwareIntelBySite = <String, IntelligenceReceived>{};
     for (final intel in events.whereType<IntelligenceReceived>()) {
       final existing = riskBySite[intel.siteId] ?? 0;
       if (intel.riskScore > existing) {
         riskBySite[intel.siteId] = intel.riskScore;
+      }
+      if (intel.sourceType != 'hardware') {
+        continue;
+      }
+      final current = latestHardwareIntelBySite[intel.siteId];
+      if (current == null || intel.occurredAt.isAfter(current.occurredAt)) {
+        latestHardwareIntelBySite[intel.siteId] = intel;
       }
     }
     final incidents =
@@ -2026,6 +2102,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   ? _IncidentPriority.p3Medium
                   : _IncidentPriority.p4Low;
               final status = _statusOverrides[normalizedId] ?? baseStatus;
+              final latestIntel = latestHardwareIntelBySite[decision.siteId];
               return _IncidentRecord(
                 id: normalizedId,
                 priority: priority,
@@ -2033,6 +2110,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 site: decision.siteId,
                 timestamp: _hhmm(decision.occurredAt.toLocal()),
                 status: status,
+                latestIntelHeadline: latestIntel?.headline,
+                latestIntelSummary: latestIntel?.summary,
+                snapshotUrl: latestIntel?.snapshotUrl,
+                clipUrl: latestIntel?.clipUrl,
               );
             })
             .toList(growable: false)
@@ -2537,6 +2618,29 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final hh = timestamp.hour.toString().padLeft(2, '0');
     final mm = timestamp.minute.toString().padLeft(2, '0');
     return '$hh:$mm';
+  }
+
+  String _evidenceReadyLabel(_IncidentRecord incident) {
+    final snapshot = (incident.snapshotUrl ?? '').trim().isNotEmpty;
+    final clip = (incident.clipUrl ?? '').trim().isNotEmpty;
+    if (snapshot && clip) {
+      return 'snapshot + clip';
+    }
+    if (snapshot) {
+      return 'snapshot only';
+    }
+    if (clip) {
+      return 'clip only';
+    }
+    return 'pending';
+  }
+
+  String _compactContextLabel(String value, {int maxLength = 68}) {
+    final trimmed = value.trim();
+    if (trimmed.length <= maxLength) {
+      return trimmed;
+    }
+    return '${trimmed.substring(0, maxLength).trimRight()}...';
   }
 
   String _hashFor(String seed) {

@@ -393,6 +393,8 @@ class AdministrationPage extends StatefulWidget {
   final String? cctvOpsPollHealth;
   final String? cctvCapabilitySummary;
   final String? cctvRecentSignalSummary;
+  final String? cctvEvidenceHealthSummary;
+  final String? cctvCameraHealthSummary;
   final String? wearableOpsPollHealth;
   final String? newsOpsPollHealth;
   final String telegramBridgeHealthLabel;
@@ -458,6 +460,8 @@ class AdministrationPage extends StatefulWidget {
     this.cctvOpsPollHealth,
     this.cctvCapabilitySummary,
     this.cctvRecentSignalSummary,
+    this.cctvEvidenceHealthSummary,
+    this.cctvCameraHealthSummary,
     this.wearableOpsPollHealth,
     this.newsOpsPollHealth,
     this.telegramBridgeHealthLabel = 'disabled',
@@ -3292,6 +3296,12 @@ class _AdministrationPageState extends State<AdministrationPage> {
     }
     if ((widget.cctvRecentSignalSummary ?? '').trim().isNotEmpty) {
       rows.add(('CCTV Recent', widget.cctvRecentSignalSummary!.trim()));
+    }
+    if ((widget.cctvEvidenceHealthSummary ?? '').trim().isNotEmpty) {
+      rows.add(('CCTV Evidence', widget.cctvEvidenceHealthSummary!.trim()));
+    }
+    if ((widget.cctvCameraHealthSummary ?? '').trim().isNotEmpty) {
+      rows.add(('CCTV Cameras', widget.cctvCameraHealthSummary!.trim()));
     }
     if ((widget.wearableOpsPollHealth ?? '').trim().isNotEmpty) {
       rows.add(('Wearable', widget.wearableOpsPollHealth!.trim()));

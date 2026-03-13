@@ -1,4 +1,4 @@
-.PHONY: run-web analyze test smoke-ui preflight preflight-smoke guard-auto guard-predevice guard-pilot
+.PHONY: run-web analyze test smoke-ui preflight preflight-smoke guard-auto guard-predevice guard-pilot cctv-validate cctv-readiness cctv-mock-artifacts cctv-capture-pack cctv-pilot-gate cctv-signoff
 
 CONFIG ?= config/onyx.local.json
 ACTION ?= com.onyx.fsk.SDK_HEARTBEAT
@@ -31,3 +31,21 @@ guard-predevice:
 
 guard-pilot:
 	./scripts/guard_android_pilot_gate.sh --action $(ACTION) --samples $(SAMPLES) --max-report-age-hours $(MAX_REPORT_AGE_HOURS) --config $(CONFIG)
+
+cctv-validate:
+	./scripts/onyx_cctv_field_validation.sh
+
+cctv-readiness:
+	./scripts/onyx_cctv_pilot_readiness_check.sh
+
+cctv-mock-artifacts:
+	./scripts/onyx_cctv_mock_validation_artifacts.sh
+
+cctv-capture-pack:
+	./scripts/onyx_cctv_capture_pack_init.sh
+
+cctv-pilot-gate:
+	./scripts/onyx_cctv_pilot_gate.sh
+
+cctv-signoff:
+	./scripts/onyx_cctv_signoff_generate.sh

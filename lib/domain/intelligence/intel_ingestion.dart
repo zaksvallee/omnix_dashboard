@@ -13,10 +13,16 @@ class NormalizedIntelRecord {
   final String clientId;
   final String regionId;
   final String siteId;
+  final String? cameraId;
+  final String? zone;
+  final String? objectLabel;
+  final double? objectConfidence;
   final String headline;
   final String summary;
   final int riskScore;
   final DateTime occurredAtUtc;
+  final String? snapshotUrl;
+  final String? clipUrl;
 
   const NormalizedIntelRecord({
     required this.provider,
@@ -25,10 +31,16 @@ class NormalizedIntelRecord {
     required this.clientId,
     required this.regionId,
     required this.siteId,
+    this.cameraId,
+    this.zone,
+    this.objectLabel,
+    this.objectConfidence,
     required this.headline,
     required this.summary,
     required this.riskScore,
     required this.occurredAtUtc,
+    this.snapshotUrl,
+    this.clipUrl,
   });
 }
 
@@ -95,9 +107,15 @@ class DeterministicIntelligenceIngestionService {
           clientId: record.clientId,
           regionId: record.regionId,
           siteId: record.siteId,
+          cameraId: record.cameraId,
+          zone: record.zone,
+          objectLabel: record.objectLabel,
+          objectConfidence: record.objectConfidence,
           headline: record.headline,
           summary: record.summary,
           riskScore: record.riskScore,
+          snapshotUrl: record.snapshotUrl,
+          clipUrl: record.clipUrl,
           canonicalHash: canonicalHash,
         ),
       );
@@ -120,10 +138,16 @@ class DeterministicIntelligenceIngestionService {
       'clientId': record.clientId,
       'regionId': record.regionId,
       'siteId': record.siteId,
+      'cameraId': record.cameraId,
+      'zone': record.zone,
+      'objectLabel': record.objectLabel,
+      'objectConfidence': record.objectConfidence,
       'headline': record.headline,
       'summary': record.summary,
       'riskScore': record.riskScore,
       'occurredAtUtc': record.occurredAtUtc.toUtc().toIso8601String(),
+      'snapshotUrl': record.snapshotUrl,
+      'clipUrl': record.clipUrl,
     };
   }
 }

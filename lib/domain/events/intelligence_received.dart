@@ -8,9 +8,15 @@ class IntelligenceReceived extends DispatchEvent {
   final String clientId;
   final String regionId;
   final String siteId;
+  final String? cameraId;
+  final String? zone;
+  final String? objectLabel;
+  final double? objectConfidence;
   final String headline;
   final String summary;
   final int riskScore;
+  final String? snapshotUrl;
+  final String? clipUrl;
   final String canonicalHash;
 
   const IntelligenceReceived({
@@ -25,9 +31,15 @@ class IntelligenceReceived extends DispatchEvent {
     required this.clientId,
     required this.regionId,
     required this.siteId,
+    this.cameraId,
+    this.zone,
+    this.objectLabel,
+    this.objectConfidence,
     required this.headline,
     required this.summary,
     required this.riskScore,
+    this.snapshotUrl,
+    this.clipUrl,
     required this.canonicalHash,
   });
 
@@ -45,9 +57,15 @@ class IntelligenceReceived extends DispatchEvent {
       clientId: clientId,
       regionId: regionId,
       siteId: siteId,
+      cameraId: cameraId,
+      zone: zone,
+      objectLabel: objectLabel,
+      objectConfidence: objectConfidence,
       headline: headline,
       summary: summary,
       riskScore: riskScore,
+      snapshotUrl: snapshotUrl,
+      clipUrl: clipUrl,
       canonicalHash: canonicalHash,
     );
   }

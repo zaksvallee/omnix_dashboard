@@ -81,6 +81,8 @@ class _CctvLensTelemetry {
   final int frMatches;
   final int lprHits;
   final int anomalies;
+  final int snapshotsReady;
+  final int clipsReady;
   final int suggestedMatchScore;
   final String anomalyTrend;
 
@@ -89,6 +91,8 @@ class _CctvLensTelemetry {
     required this.frMatches,
     required this.lprHits,
     required this.anomalies,
+    required this.snapshotsReady,
+    required this.clipsReady,
     required this.suggestedMatchScore,
     required this.anomalyTrend,
   });
@@ -745,6 +749,16 @@ class TacticalPage extends StatelessWidget {
                 const Color(0xFFFF99A8),
               ),
               _topChip(
+                'Snapshots',
+                '${telemetry.snapshotsReady}',
+                const Color(0xFF93C5FD),
+              ),
+              _topChip(
+                'Clips',
+                '${telemetry.clipsReady}',
+                const Color(0xFFA7F3D0),
+              ),
+              _topChip(
                 'Trend',
                 telemetry.anomalyTrend,
                 const Color(0xFFFACC15),
@@ -791,6 +805,8 @@ class TacticalPage extends StatelessWidget {
     var frMatches = 0;
     var lprHits = 0;
     var anomalies = 0;
+    var snapshotsReady = 0;
+    var clipsReady = 0;
     var anomalyRecentWindow = 0;
     var anomalyPreviousWindow = 0;
 
@@ -817,6 +833,12 @@ class TacticalPage extends StatelessWidget {
       }
       if (isLpr) {
         lprHits += 1;
+      }
+      if ((event.snapshotUrl ?? '').trim().isNotEmpty) {
+        snapshotsReady += 1;
+      }
+      if ((event.clipUrl ?? '').trim().isNotEmpty) {
+        clipsReady += 1;
       }
 
       final isAnomaly =
@@ -852,6 +874,8 @@ class TacticalPage extends StatelessWidget {
       frMatches: frMatches,
       lprHits: lprHits,
       anomalies: anomalies,
+      snapshotsReady: snapshotsReady,
+      clipsReady: clipsReady,
       suggestedMatchScore: suggestedMatchScore,
       anomalyTrend: anomalyTrend,
     );

@@ -1,0 +1,58 @@
+mqtt:
+  host: mosquitto
+  port: 1883
+  topic_prefix: frigate
+  user: onyx_cctv
+  password: change-me
+
+go2rtc:
+  streams:
+    pilot_gate_sub:
+      - rtsp://camera-user:camera-pass@10.0.10.20:554/Streaming/Channels/102
+    pilot_gate_main:
+      - rtsp://camera-user:camera-pass@10.0.10.20:554/Streaming/Channels/101
+
+birdseye:
+  enabled: true
+
+snapshots:
+  enabled: true
+  timestamp: true
+  retain:
+    default: 14
+
+record:
+  enabled: true
+  retain:
+    days: 30
+    mode: motion
+
+objects:
+  track:
+    - person
+    - car
+
+cameras:
+  pilot_gate:
+    enabled: true
+    ffmpeg:
+      inputs:
+        - path: rtsp://127.0.0.1:8554/pilot_gate_sub
+          input_args: preset-rtsp-restream
+          roles:
+            - detect
+        - path: rtsp://127.0.0.1:8554/pilot_gate_main
+          input_args: preset-rtsp-restream
+          roles:
+            - record
+    detect:
+      width: 1280
+      height: 720
+      fps: 5
+    review:
+      alerts:
+        required_zones:
+          - north_gate
+    zones:
+      north_gate:
+        coordinates: 0,0,1280,0,1280,720,0,720

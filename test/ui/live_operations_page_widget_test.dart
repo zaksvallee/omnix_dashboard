@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:omnix_dashboard/domain/events/decision_created.dart';
+import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/ui/live_operations_page.dart';
 
 void main() {
@@ -97,5 +99,57 @@ void main() {
       find.textContaining('Automation paused for INC-8829-QX'),
       findsWidgets,
     );
+  });
+
+  testWidgets('live operations enriches incident context with CCTV evidence', (
+    tester,
+  ) async {
+    final now = DateTime.now().toUtc();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LiveOperationsPage(
+          events: [
+            DecisionCreated(
+              eventId: 'decision-1',
+              sequence: 1,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 3)),
+              dispatchId: 'D-1001',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-SANDTON',
+            ),
+            IntelligenceReceived(
+              eventId: 'intel-1',
+              sequence: 2,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 2)),
+              intelligenceId: 'INT-1',
+              provider: 'frigate',
+              sourceType: 'hardware',
+              externalId: 'evt-1',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-SANDTON',
+              headline: 'FRIGATE INTRUSION',
+              summary: 'CCTV person detected in north_gate',
+              riskScore: 95,
+              snapshotUrl:
+                  'https://edge.example.com/api/events/evt-1/snapshot.jpg',
+              clipUrl: 'https://edge.example.com/api/events/evt-1/clip.mp4',
+              canonicalHash: 'hash-1',
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Latest CCTV Intel'), findsOneWidget);
+    expect(find.text('FRIGATE INTRUSION'), findsOneWidget);
+    expect(find.text('Evidence Ready'), findsOneWidget);
+    expect(find.text('snapshot + clip'), findsOneWidget);
+    expect(find.textContaining('snapshot.jpg'), findsOneWidget);
+    expect(find.textContaining('clip.mp4'), findsOneWidget);
   });
 }

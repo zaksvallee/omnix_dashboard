@@ -77,6 +77,21 @@ Minimum keys for Supabase-backed runs:
 }
 ```
 
+CCTV pilot minimum keys:
+
+```json
+{
+  "ONYX_CCTV_PROVIDER": "frigate",
+  "ONYX_CCTV_EVENTS_URL": "https://<edge-host>/api/events",
+  "ONYX_CCTV_LIVE_MONITORING": "true",
+  "ONYX_CCTV_FR": "false",
+  "ONYX_CCTV_LPR": "false",
+  "ONYX_CCTV_EVIDENCE_QUEUE_DEPTH": "12",
+  "ONYX_CCTV_STALE_FRAME_SECONDS": "1800",
+  "ONYX_CCTV_FALSE_POSITIVE_RULES_JSON": "[]"
+}
+```
+
 Guard telemetry adapter keys:
 - `ONYX_GUARD_TELEMETRY_NATIVE_SDK` (`true` or `false`)
 - `ONYX_GUARD_TELEMETRY_NATIVE_PROVIDER` (default `android_native_sdk_stub`)
@@ -105,6 +120,24 @@ Guard telemetry adapter keys:
 - `ONYX_TELEGRAM_AI_OPENAI_API_KEY` (optional OpenAI API key for model-backed drafts; fallback templates are used when unset)
 - `ONYX_TELEGRAM_AI_OPENAI_MODEL` (default `gpt-4.1-mini`)
 - `ONYX_TELEGRAM_AI_OPENAI_ENDPOINT` (optional override for the OpenAI Responses API endpoint)
+
+CCTV pilot keys:
+- `ONYX_CCTV_PROVIDER` (default empty; use `frigate` for the pilot edge path)
+- `ONYX_CCTV_EVENTS_URL` (Frigate event feed, typically `https://<edge-host>/api/events`)
+- `ONYX_CCTV_BEARER_TOKEN` (optional bearer token for protected edge endpoints)
+- `ONYX_CCTV_LIVE_MONITORING` (`true` enables CCTV live-monitoring capability labels)
+- `ONYX_CCTV_FR` (`true` advertises facial-recognition capability labels when enabled upstream)
+- `ONYX_CCTV_LPR` (`true` advertises license-plate recognition capability labels when enabled upstream)
+- `ONYX_CCTV_EVIDENCE_QUEUE_DEPTH` (bounded queue size for snapshot/clip verification; default `12`)
+- `ONYX_CCTV_STALE_FRAME_SECONDS` (camera stale threshold; default `1800`)
+- `ONYX_CCTV_FALSE_POSITIVE_RULES_JSON` (JSON array of suppression rules keyed by `zone`, `object_label`, `start_hour_local`, `end_hour_local`, and optional `min_confidence_percent`)
+
+CCTV pilot commands:
+- `./scripts/onyx_cctv_capture_pack_init.sh`
+- `./scripts/onyx_cctv_field_validation.sh`
+- `./scripts/onyx_cctv_pilot_readiness_check.sh --require-real-artifacts`
+- `./scripts/onyx_cctv_pilot_gate.sh`
+- `./scripts/onyx_cctv_signoff_generate.sh`
 
 Telegram admin commands (when admin control is enabled):
 - `/status [full]`

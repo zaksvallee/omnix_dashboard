@@ -1009,9 +1009,20 @@ class _EventsPageState extends State<EventsPage> {
         ("clientId", event.clientId),
         ("regionId", event.regionId),
         ("siteId", event.siteId),
+        if ((event.cameraId ?? '').trim().isNotEmpty)
+          ("cameraId", event.cameraId!.trim()),
+        if ((event.zone ?? '').trim().isNotEmpty) ("zone", event.zone!.trim()),
+        if ((event.objectLabel ?? '').trim().isNotEmpty)
+          ("objectLabel", event.objectLabel!.trim()),
+        if (event.objectConfidence != null)
+          ("objectConfidence", event.objectConfidence!.toStringAsFixed(2)),
         ("riskScore", event.riskScore.toString()),
         ("headline", event.headline),
         ("summary", event.summary),
+        if ((event.snapshotUrl ?? '').trim().isNotEmpty)
+          ("snapshotUrl", event.snapshotUrl!.trim()),
+        if ((event.clipUrl ?? '').trim().isNotEmpty)
+          ("clipUrl", event.clipUrl!.trim()),
         ("canonicalHash", event.canonicalHash),
       ];
     }

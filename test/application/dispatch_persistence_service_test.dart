@@ -251,6 +251,31 @@ void main() {
             'skip_count': 1,
             'last_run_at_utc': '2026-03-11T10:06:20.000Z',
             'last_detail': '2/2 appended',
+            'evidence': {
+              'queue_depth': 2,
+              'bounded_queue_limit': 12,
+              'dropped_count': 0,
+              'verified_count': 2,
+              'failure_count': 0,
+              'last_run_at_utc': '2026-03-11T10:06:20.000Z',
+              'last_alert': '',
+              'cameras': [
+                {
+                  'camera_id': 'front-gate',
+                  'event_count': 1,
+                  'snapshot_refs': 1,
+                  'clip_refs': 1,
+                  'snapshot_verified': 1,
+                  'clip_verified': 1,
+                  'probe_failures': 0,
+                  'last_seen_at_utc': '2026-03-11T10:05:59.000Z',
+                  'last_zone': 'north_gate',
+                  'last_object_label': 'person',
+                  'stale_frame_age_seconds': 21,
+                  'status': 'healthy',
+                },
+              ],
+            },
           },
         };
 

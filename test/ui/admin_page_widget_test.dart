@@ -118,6 +118,10 @@ void main() {
           cctvCapabilitySummary: 'caps LIVE AI MONITORING • FR • LPR',
           cctvRecentSignalSummary:
               'recent hardware intel 5 (6h) • intrusion 2 • line_crossing 1 • motion 1 • fr 1 • lpr 2',
+          cctvEvidenceHealthSummary:
+              'verified 2 • fail 0 • dropped 0 • queue 2/12 • last 10:05:01 UTC',
+          cctvCameraHealthSummary:
+              'front-gate:healthy • zone north_gate • stale 1m | yard:stale • zone driveway • stale 42m',
           wearableOpsPollHealth: 'ok 1 • fail 0 • skip 0 • last 10:05:02 UTC',
           newsOpsPollHealth: 'ok 4 • fail 0 • skip 0 • last 10:05:03 UTC',
         ),
@@ -159,6 +163,14 @@ void main() {
     );
     expect(
       find.textContaining('recent hardware intel 5 (6h) • intrusion 2'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('verified 2 • fail 0 • dropped 0 • queue 2/12'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('front-gate:healthy • zone north_gate'),
       findsOneWidget,
     );
     expect(find.textContaining('ok 1 • fail 0'), findsOneWidget);

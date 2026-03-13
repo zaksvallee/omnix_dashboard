@@ -59,6 +59,7 @@ void main() {
         headline: 'fr_match watchlist',
         summary: 'fr: person matched breach pattern',
         riskScore: 91,
+        snapshotUrl: 'https://edge.example.com/api/events/ext-1/snapshot.jpg',
         canonicalHash: 'hash-1',
       ),
       IntelligenceReceived(
@@ -76,6 +77,7 @@ void main() {
         headline: 'lpr_alert gate',
         summary: 'lpr: unauthorized vehicle',
         riskScore: 60,
+        clipUrl: 'https://edge.example.com/api/events/ext-2/clip.mp4',
         canonicalHash: 'hash-2',
       ),
       IntelligenceReceived(
@@ -143,6 +145,8 @@ void main() {
     expect(find.text('Signals • 4'), findsOneWidget);
     expect(find.text('LPR Hits • 1'), findsOneWidget);
     expect(find.text('Anomalies • 3'), findsOneWidget);
+    expect(find.text('Snapshots • 1'), findsOneWidget);
+    expect(find.text('Clips • 1'), findsOneWidget);
     expect(find.text('Trend • UP'), findsOneWidget);
     expect(find.text('62%'), findsOneWidget);
     expect(tester.takeException(), isNull);

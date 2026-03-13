@@ -11,6 +11,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'application/client_conversation_repository.dart';
 import 'application/client_messaging_bridge_repository.dart';
 import 'application/cctv_bridge_service.dart';
+import 'application/cctv_evidence_probe_service.dart';
+import 'application/cctv_false_positive_policy.dart';
 import 'application/dispatch_persistence_service.dart';
 import 'application/dispatch_snapshot_file_service.dart';
 import 'application/dispatch_application_service.dart';
@@ -25,6 +27,7 @@ import 'application/morning_sovereign_report_service.dart';
 import 'application/ops_integration_profile.dart';
 import 'application/radio_bridge_service.dart';
 import 'application/runtime_config.dart';
+import 'application/telegram_admin_command_formatter.dart';
 import 'application/telegram_ai_assistant_service.dart';
 import 'application/telegram_bridge_service.dart';
 import 'application/wearable_bridge_service.dart';
@@ -47,6 +50,7 @@ import 'domain/guard/operational_tiers.dart';
 import 'domain/guard/outcome_label_governance.dart';
 import 'domain/guard/guard_sync_coaching_policy.dart';
 import 'domain/guard/guard_sync_selection_scope.dart';
+import 'domain/intelligence/intel_ingestion.dart';
 import 'domain/intelligence/risk_policy.dart';
 import 'domain/store/in_memory_event_store.dart';
 import 'engine/execution/execution_engine.dart';
@@ -433,6 +437,17 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     'ONYX_CCTV_LPR',
     defaultValue: false,
   );
+  static const _cctvEvidenceProbeQueueDepthEnv = int.fromEnvironment(
+    'ONYX_CCTV_EVIDENCE_QUEUE_DEPTH',
+    defaultValue: 12,
+  );
+  static const _cctvEvidenceProbeStaleSecondsEnv = int.fromEnvironment(
+    'ONYX_CCTV_STALE_FRAME_SECONDS',
+    defaultValue: 1800,
+  );
+  static const _cctvFalsePositiveRulesEnv = String.fromEnvironment(
+    'ONYX_CCTV_FALSE_POSITIVE_RULES_JSON',
+  );
   static const _guardTelemetryPreferNativeSdk = bool.fromEnvironment(
     'ONYX_GUARD_TELEMETRY_NATIVE_SDK',
     defaultValue: false,
@@ -585,8 +600,25 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         _opsIntegrationProfile.cctv.facialRecognitionEnabled,
     licensePlateRecognitionEnabled:
         _opsIntegrationProfile.cctv.licensePlateRecognitionEnabled,
+    falsePositivePolicy: _cctvFalsePositivePolicy,
     client: _cctvBridgeHttpClient,
   );
+  late final CctvFalsePositivePolicy _cctvFalsePositivePolicy =
+      CctvFalsePositivePolicy.fromJsonString(_cctvFalsePositiveRulesEnv);
+  late final HttpCctvEvidenceProbeService _cctvEvidenceProbeService =
+      HttpCctvEvidenceProbeService(
+        client: _cctvBridgeHttpClient,
+        maxQueueDepth: _positiveThreshold(
+          _cctvEvidenceProbeQueueDepthEnv,
+          fallback: 12,
+        ),
+        staleFrameThreshold: Duration(
+          seconds: _positiveThreshold(
+            _cctvEvidenceProbeStaleSecondsEnv,
+            fallback: 1800,
+          ),
+        ),
+      );
   late final Uri? _wearableBridgeUri = Uri.tryParse(
     _wearableEventsUrlEnv.trim(),
   );
@@ -882,6 +914,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   _OpsIntegrationHealth _cctvOpsHealth = const _OpsIntegrationHealth();
   _OpsIntegrationHealth _wearableOpsHealth = const _OpsIntegrationHealth();
   _OpsIntegrationHealth _newsOpsHealth = const _OpsIntegrationHealth();
+  CctvEvidenceProbeSnapshot _cctvEvidenceHealth =
+      const CctvEvidenceProbeSnapshot();
   bool _opsIntegrationPollInFlight = false;
   DateTime? _lastGuardResumeSyncEventQueuedAtUtc;
   late final OutcomeLabelGovernancePolicy _outcomeGovernancePolicy;
@@ -1568,12 +1602,20 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final cctvRaw = _asObjectMap(snapshot['cctv']);
     final wearableRaw = _asObjectMap(snapshot['wearable']);
     final newsRaw = _asObjectMap(snapshot['news']);
+    final cctvEvidenceRaw = cctvRaw == null
+        ? null
+        : _asObjectMap(cctvRaw['evidence']);
     if (!mounted) {
       if (radioRaw != null) {
         _radioOpsHealth = _OpsIntegrationHealth.fromJson(radioRaw);
       }
       if (cctvRaw != null) {
         _cctvOpsHealth = _OpsIntegrationHealth.fromJson(cctvRaw);
+      }
+      if (cctvEvidenceRaw != null) {
+        _cctvEvidenceHealth = CctvEvidenceProbeSnapshot.fromJson(
+          cctvEvidenceRaw,
+        );
       }
       if (wearableRaw != null) {
         _wearableOpsHealth = _OpsIntegrationHealth.fromJson(wearableRaw);
@@ -1590,6 +1632,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       if (cctvRaw != null) {
         _cctvOpsHealth = _OpsIntegrationHealth.fromJson(cctvRaw);
       }
+      if (cctvEvidenceRaw != null) {
+        _cctvEvidenceHealth = CctvEvidenceProbeSnapshot.fromJson(
+          cctvEvidenceRaw,
+        );
+      }
       if (wearableRaw != null) {
         _wearableOpsHealth = _OpsIntegrationHealth.fromJson(wearableRaw);
       }
@@ -1601,9 +1648,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   Future<void> _persistOpsIntegrationHealthSnapshot() async {
     final persistence = await _persistenceServiceFuture;
+    final cctvJson = {
+      ..._cctvOpsHealth.toJson(),
+      'evidence': _cctvEvidenceHealth.toJson(),
+    };
     await persistence.saveOpsIntegrationHealthSnapshot({
       'radio': _radioOpsHealth.toJson(),
-      'cctv': _cctvOpsHealth.toJson(),
+      'cctv': cctvJson,
       'wearable': _wearableOpsHealth.toJson(),
       'news': _newsOpsHealth.toJson(),
     });
@@ -5021,6 +5072,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         regionId: _selectedRegion,
         siteId: _selectedSite,
       );
+      final evidenceProbe = await _cctvEvidenceProbeService.probeBatch(records);
+      if (mounted) {
+        setState(() {
+          _cctvEvidenceHealth = evidenceProbe.snapshot;
+        });
+      } else {
+        _cctvEvidenceHealth = evidenceProbe.snapshot;
+      }
       final provider = _opsIntegrationProfile.cctv.provider;
       final runId = _nextRunId('CCTV');
       final outcome = _recordLiveIngest(
@@ -5039,8 +5098,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         _OpsIntegrationIngestResult(
           source: 'cctv',
           success: true,
-          detail:
-              '${outcome.appendedIntelligence}/${outcome.attemptedIntelligence} appended',
+          detail: _cctvIngestDetail(
+            provider: provider,
+            records: records,
+            attempted: outcome.attemptedIntelligence,
+            appended: outcome.appendedIntelligence,
+            evidence: evidenceProbe.snapshot,
+          ),
         ),
       );
     } on FormatException catch (error) {
@@ -5253,9 +5317,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         ? 'never'
         : '${lastRun.hour.toString().padLeft(2, '0')}:${lastRun.minute.toString().padLeft(2, '0')}:${lastRun.second.toString().padLeft(2, '0')} UTC';
     final detail = health.lastDetail.trim();
-    final compactDetail = detail.length <= 56
+    final compactDetail = detail.length <= 84
         ? detail
-        : '${detail.substring(0, 56).trimRight()}...';
+        : '${detail.substring(0, 84).trimRight()}...';
     return 'ok ${health.okCount} • fail ${health.failCount} • skip ${health.skipCount} • last $lastLabel${compactDetail.isEmpty ? '' : ' • $compactDetail'}';
   }
 
@@ -5423,6 +5487,110 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'motion $motion • '
         'fr $fr • '
         'lpr $lpr';
+  }
+
+  String _cctvBridgeStatusSummary() {
+    final profile = _opsIntegrationProfile.cctv;
+    if (!profile.configured) {
+      return 'disabled • configure ONYX_CCTV_PROVIDER and ONYX_CCTV_EVENTS_URL.';
+    }
+    final provider = profile.provider.trim().isEmpty
+        ? 'cctv'
+        : profile.provider.trim();
+    final endpoint = _integrationEndpointLabel(profile.eventsUrl);
+    final endpointLabel = endpoint.isEmpty ? '' : ' • edge $endpoint';
+    final pilotLabel = provider.toLowerCase().contains('frigate')
+        ? 'configured • pilot edge'
+        : 'configured';
+    final evidence = _cctvEvidenceSummary();
+    return '$pilotLabel • provider $provider$endpointLabel • ${_cctvCapabilitySummary()}${evidence.isEmpty ? '' : ' • $evidence'}';
+  }
+
+  String _cctvPilotContextSummary(List<DispatchEvent> events) {
+    final profile = _opsIntegrationProfile.cctv;
+    if (!profile.configured) {
+      return '';
+    }
+    final provider = profile.provider.trim().isEmpty
+        ? 'cctv'
+        : profile.provider.trim();
+    final cameraHealth = _cctvCameraHealthSummary();
+    return 'provider $provider • ${_cctvRecentSignalSummary(events)}${cameraHealth.isEmpty ? '' : ' • $cameraHealth'}';
+  }
+
+  String _cctvIngestDetail({
+    required String provider,
+    required List<NormalizedIntelRecord> records,
+    required int attempted,
+    required int appended,
+    required CctvEvidenceProbeSnapshot evidence,
+  }) {
+    final providerLabel = provider.trim().isEmpty ? 'cctv' : provider.trim();
+    final latest = records.isEmpty
+        ? null
+        : records.reduce(
+            (current, next) => next.occurredAtUtc.isAfter(current.occurredAtUtc)
+                ? next
+                : current,
+          );
+    final latestSummary = latest == null
+        ? 'no events'
+        : _compactDetail(latest.summary);
+    final evidenceLabel = evidence.lastAlert.trim().isEmpty
+        ? 'evidence ok ${evidence.verifiedCount}'
+        : _compactDetail(evidence.lastAlert.trim(), maxLength: 32);
+    return '$appended/$attempted appended • $providerLabel • $latestSummary • $evidenceLabel';
+  }
+
+  String _cctvEvidenceSummary() {
+    if (_cctvEvidenceHealth.boundedQueueLimit <= 0 &&
+        _cctvEvidenceHealth.lastRunAtUtc == null) {
+      return '';
+    }
+    return _cctvEvidenceHealth.summaryLabel();
+  }
+
+  String _cctvCameraHealthSummary() {
+    if (_cctvEvidenceHealth.cameras.isEmpty) {
+      return '';
+    }
+    return _cctvEvidenceHealth.cameraSummaryLabel();
+  }
+
+  String _cctvOpsDetailLabel() {
+    final base = _opsIntegrationProfile.cctv.detailLabel.trim();
+    final evidence = _cctvEvidenceSummary();
+    final tuning = _cctvFalsePositivePolicy.enabled
+        ? _cctvFalsePositivePolicy.summaryLabel()
+        : '';
+    final extras = [
+      if (tuning.isNotEmpty) tuning,
+      if (evidence.isNotEmpty) evidence,
+    ];
+    if (extras.isEmpty) {
+      return base;
+    }
+    return '$base • ${extras.join(' • ')}';
+  }
+
+  String _integrationEndpointLabel(Uri? uri) {
+    if (uri == null) {
+      return '';
+    }
+    final authority = uri.authority.trim();
+    if (authority.isNotEmpty) {
+      return authority;
+    }
+    final path = uri.path.trim();
+    return path;
+  }
+
+  String _compactDetail(String value, {int maxLength = 84}) {
+    final trimmed = value.trim();
+    if (trimmed.length <= maxLength) {
+      return trimmed;
+    }
+    return '${trimmed.substring(0, maxLength).trimRight()}...';
   }
 
   String _radioQueueFailureSummary() {
@@ -7845,19 +8013,21 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   Future<String> _telegramAdminPollOpsCommand() async {
     await _pollOpsIntegrationOnce();
-    return '📡 <b>ONYX POLLOPS</b>\n\n'
-        '<b>Poll Result</b>\n'
-        '${_telegramHtmlEscape((_lastIntakeStatus ?? 'no status').trim())}\n\n'
-        '---\n\n'
-        '<b>Integrations</b>\n'
-        '• <b>Radio:</b> ${_telegramHtmlEscape(_opsHealthSummary(_radioOpsHealth))}\n'
-        '• <b>CCTV:</b> ${_telegramHtmlEscape(_opsHealthSummary(_cctvOpsHealth))}\n'
-        '• <b>Wearable:</b> ${_telegramHtmlEscape(_opsHealthSummary(_wearableOpsHealth))}\n'
-        '• <b>News:</b> ${_telegramHtmlEscape(_opsHealthSummary(_newsOpsHealth))}\n'
-        '\n---\n\n'
-        '<b>Next</b>\n'
-        '• If any source is failing, run <code>/bridges</code> for deeper diagnostics.\n'
-        '\nUTC: ${_telegramUtcStamp()}';
+    return TelegramAdminCommandFormatter.pollOps(
+      pollResult: _telegramHtmlEscape(
+        (_lastIntakeStatus ?? 'no status').trim(),
+      ),
+      radioHealth: _telegramHtmlEscape(_opsHealthSummary(_radioOpsHealth)),
+      cctvHealth: _telegramHtmlEscape(_opsHealthSummary(_cctvOpsHealth)),
+      cctvContext: _telegramHtmlEscape(
+        _cctvPilotContextSummary(store.allEvents()),
+      ),
+      wearableHealth: _telegramHtmlEscape(
+        _opsHealthSummary(_wearableOpsHealth),
+      ),
+      newsHealth: _telegramHtmlEscape(_opsHealthSummary(_newsOpsHealth)),
+      utcStamp: _telegramUtcStamp(),
+    );
   }
 
   String _telegramAdminHistorySnapshot() {
@@ -9996,17 +10166,28 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   String _telegramAdminBridgeSnapshot() {
     final radioConfigured = _opsIntegrationProfile.radio.configured;
-    final cctvConfigured = _opsIntegrationProfile.cctv.configured;
     final wearableConfigured =
         _wearableProviderEnv.trim().isNotEmpty && _wearableBridgeUri != null;
     final pollLabel = _livePollingLabel ?? 'disabled';
-    return 'ONYX BRIDGES\n'
-        'Telegram: ${_telegramBridgeHealthLabel.toUpperCase()}${_telegramBridgeHealthDetail == null ? '' : ' • $_telegramBridgeHealthDetail'}\n'
-        'Radio: ${radioConfigured ? 'configured' : 'disabled'} • ${_radioQueueHealthSummary()}\n'
-        'CCTV: ${cctvConfigured ? 'configured' : 'disabled'} • ${_cctvCapabilitySummary()}\n'
-        'Wearable: ${wearableConfigured ? 'configured' : 'disabled'}\n'
-        'Live polling: $pollLabel\n'
-        'UTC: ${DateTime.now().toUtc().toIso8601String()}';
+    return TelegramAdminCommandFormatter.bridges(
+      telegramStatus:
+          _telegramBridgeHealthLabel.toUpperCase() +
+          (_telegramBridgeHealthDetail == null
+              ? ''
+              : ' • $_telegramBridgeHealthDetail'),
+      radioStatus:
+          '${radioConfigured ? 'configured' : 'disabled'} • ${_radioQueueHealthSummary()}',
+      cctvStatus: _cctvBridgeStatusSummary(),
+      cctvHealth: _opsIntegrationProfile.cctv.configured
+          ? _opsHealthSummary(_cctvOpsHealth)
+          : null,
+      cctvRecent: _opsIntegrationProfile.cctv.configured
+          ? _cctvRecentSignalSummary(store.allEvents())
+          : null,
+      wearableStatus: wearableConfigured ? 'configured' : 'disabled',
+      livePollingLabel: pollLabel,
+      utcStamp: DateTime.now().toUtc().toIso8601String(),
+    );
   }
 
   String _composeOpsIntegrationPollSummary(
@@ -11678,10 +11859,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           events: events,
           focusIncidentReference: _operationsFocusIncidentReference,
           cctvOpsReadiness: _opsIntegrationProfile.cctv.readinessLabel,
-          cctvOpsDetail: _opsIntegrationProfile.cctv.detailLabel,
+          cctvOpsDetail: _cctvOpsDetailLabel(),
           cctvProvider: _opsIntegrationProfile.cctv.provider,
           cctvCapabilitySummary: _cctvCapabilitySummary(),
-          cctvRecentSignalSummary: _cctvRecentSignalSummary(events),
+          cctvRecentSignalSummary:
+              '${_cctvRecentSignalSummary(events)}${_cctvCameraHealthSummary().isEmpty ? '' : ' • ${_cctvCameraHealthSummary()}'}',
         );
 
       case OnyxRoute.governance:
@@ -11790,9 +11972,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           radioAiAutoAllClearEnabled:
               _opsIntegrationProfile.radio.aiAutoAllClearEnabled,
           cctvOpsReadiness: _opsIntegrationProfile.cctv.readinessLabel,
-          cctvOpsDetail: _opsIntegrationProfile.cctv.detailLabel,
+          cctvOpsDetail: _cctvOpsDetailLabel(),
           cctvCapabilitySummary: _cctvCapabilitySummary(),
-          cctvRecentSignalSummary: _cctvRecentSignalSummary(events),
+          cctvRecentSignalSummary:
+              '${_cctvRecentSignalSummary(events)}${_cctvCameraHealthSummary().isEmpty ? '' : ' • ${_cctvCameraHealthSummary()}'}',
           wearableOpsReadiness:
               _wearableProviderEnv.trim().isNotEmpty &&
                   _wearableBridgeUri != null
@@ -11977,6 +12160,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           cctvOpsPollHealth: _opsHealthSummary(_cctvOpsHealth),
           cctvCapabilitySummary: _cctvCapabilitySummary(),
           cctvRecentSignalSummary: _cctvRecentSignalSummary(events),
+          cctvEvidenceHealthSummary: _cctvEvidenceSummary(),
+          cctvCameraHealthSummary: _cctvCameraHealthSummary(),
           wearableOpsPollHealth: _opsHealthSummary(_wearableOpsHealth),
           newsOpsPollHealth: _opsHealthSummary(_newsOpsHealth),
           telegramBridgeHealthLabel: _telegramBridgeHealthLabel,
