@@ -238,9 +238,6 @@ else:
             f"cutover trend status is {cutover_trend_status or 'missing'}",
         )
 
-if signoff_path is None or not signoff_path.is_file():
-    add_reason(hold_items, "missing_signoff_file", "signoff file missing")
-
 signoff_status = ""
 if signoff_report is not None:
     signoff_status = str(signoff_report.get("status", "")).upper()
@@ -250,6 +247,8 @@ if signoff_report is not None:
             "signoff_not_pass",
             f"signoff status is {signoff_status or 'missing'}",
         )
+elif signoff_path is None or not signoff_path.is_file():
+    add_reason(hold_items, "missing_signoff_file", "signoff file missing")
 elif signoff_path is not None and signoff_path.is_file():
     add_reason(
         hold_items,

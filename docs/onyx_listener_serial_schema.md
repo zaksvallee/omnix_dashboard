@@ -359,6 +359,10 @@ signoff status when present. The signoff report now persists on both pass and
 fail and carries `failure_code`, so downstream tooling does not need to parse
 terminal output when signoff generation is blocked.
 
+Release posture now treats a present `signoff_report.json` as sufficient
+evidence of signoff presence. Missing markdown alone no longer forces a hold
+when the audited signoff report exists and passes.
+
 Standalone signoff generation now also auto-resolves:
 - `validation_report.json`
 - `validation_trend_report.json`
