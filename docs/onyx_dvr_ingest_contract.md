@@ -15,6 +15,9 @@ Shared contract:
   - provider-neutral bridge fetch interface
   - provider-neutral evidence probe snapshot used by runtime health
   - CCTV adapters so `main.dart` now depends on a shared video bridge surface
+- `lib/application/video_bridge_health_formatter.dart`
+  - provider-neutral bridge and pilot summary formatting
+  - shared `/bridges` and `/pollops` summary surface for CCTV now, DVR next
 
 DVR scaffold:
 - `lib/application/dvr_ingest_contract.dart`
@@ -61,4 +64,5 @@ Fixture refs:
 Current scope:
 - scaffold and replay-fixture normalization only
 - not yet field-proven against a live DVR
-- not yet wired into `/pollops`, `/bridges`, or a runtime bridge service
+- shared runtime and health-summary path is in place
+- DVR-specific live bridge implementation is not built yet

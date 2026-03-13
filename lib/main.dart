@@ -30,6 +30,7 @@ import 'application/runtime_config.dart';
 import 'application/telegram_admin_command_formatter.dart';
 import 'application/telegram_ai_assistant_service.dart';
 import 'application/telegram_bridge_service.dart';
+import 'application/video_bridge_health_formatter.dart';
 import 'application/video_bridge_runtime.dart';
 import 'application/wearable_bridge_service.dart';
 import 'domain/authority/operator_context.dart';
@@ -5497,31 +5498,23 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   String _cctvBridgeStatusSummary() {
     final profile = _opsIntegrationProfile.cctv;
-    if (!profile.configured) {
-      return 'disabled • configure ONYX_CCTV_PROVIDER and ONYX_CCTV_EVENTS_URL.';
-    }
-    final provider = profile.provider.trim().isEmpty
-        ? 'cctv'
-        : profile.provider.trim();
-    final endpoint = _integrationEndpointLabel(profile.eventsUrl);
-    final endpointLabel = endpoint.isEmpty ? '' : ' • edge $endpoint';
-    final pilotLabel = provider.toLowerCase().contains('frigate')
-        ? 'configured • pilot edge'
-        : 'configured';
-    final evidence = _cctvEvidenceSummary();
-    return '$pilotLabel • provider $provider$endpointLabel • ${_cctvCapabilitySummary()}${evidence.isEmpty ? '' : ' • $evidence'}';
+    return VideoBridgeHealthFormatter.bridgeStatus(
+      configured: profile.configured,
+      provider: profile.provider,
+      endpointLabel: _integrationEndpointLabel(profile.eventsUrl),
+      capabilitySummary: _cctvCapabilitySummary(),
+      evidence: _cctvEvidenceHealth,
+      pilotEdge: profile.provider.toLowerCase().contains('frigate'),
+    );
   }
 
   String _cctvPilotContextSummary(List<DispatchEvent> events) {
-    final profile = _opsIntegrationProfile.cctv;
-    if (!profile.configured) {
-      return '';
-    }
-    final provider = profile.provider.trim().isEmpty
-        ? 'cctv'
-        : profile.provider.trim();
-    final cameraHealth = _cctvCameraHealthSummary();
-    return 'provider $provider • ${_cctvRecentSignalSummary(events)}${cameraHealth.isEmpty ? '' : ' • $cameraHealth'}';
+    return VideoBridgeHealthFormatter.pilotContext(
+      configured: _opsIntegrationProfile.cctv.configured,
+      provider: _opsIntegrationProfile.cctv.provider,
+      recentSignalSummary: _cctvRecentSignalSummary(events),
+      evidence: _cctvEvidenceHealth,
+    );
   }
 
   String _cctvIngestDetail({
@@ -5531,36 +5524,22 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     required int appended,
     required VideoEvidenceProbeSnapshot evidence,
   }) {
-    final providerLabel = provider.trim().isEmpty ? 'cctv' : provider.trim();
-    final latest = records.isEmpty
-        ? null
-        : records.reduce(
-            (current, next) => next.occurredAtUtc.isAfter(current.occurredAtUtc)
-                ? next
-                : current,
-          );
-    final latestSummary = latest == null
-        ? 'no events'
-        : _compactDetail(latest.summary);
-    final evidenceLabel = evidence.lastAlert.trim().isEmpty
-        ? 'evidence ok ${evidence.verifiedCount}'
-        : _compactDetail(evidence.lastAlert.trim(), maxLength: 32);
-    return '$appended/$attempted appended • $providerLabel • $latestSummary • $evidenceLabel';
+    return VideoBridgeHealthFormatter.ingestDetail(
+      provider: provider,
+      records: records,
+      attempted: attempted,
+      appended: appended,
+      evidence: evidence,
+      compactDetail: _compactDetail,
+    );
   }
 
   String _cctvEvidenceSummary() {
-    if (_cctvEvidenceHealth.boundedQueueLimit <= 0 &&
-        _cctvEvidenceHealth.lastRunAtUtc == null) {
-      return '';
-    }
-    return _cctvEvidenceHealth.summaryLabel();
+    return VideoBridgeHealthFormatter.evidenceSummary(_cctvEvidenceHealth);
   }
 
   String _cctvCameraHealthSummary() {
-    if (_cctvEvidenceHealth.cameras.isEmpty) {
-      return '';
-    }
-    return _cctvEvidenceHealth.cameraSummaryLabel();
+    return VideoBridgeHealthFormatter.cameraHealthSummary(_cctvEvidenceHealth);
   }
 
   String _cctvOpsDetailLabel() {
