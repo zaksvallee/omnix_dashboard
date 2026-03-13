@@ -180,6 +180,30 @@ def path_exists(raw_path):
         return True
     return Path(candidate).is_file()
 
+def cutover_decision_chain_issues(path_str, label):
+    issues = []
+    if not path_str:
+        return issues
+    report_path = Path(path_str)
+    if not report_path.is_file():
+        issues.append((f"cutover_trend_missing_{label}_decision", f"cutover trend references a missing {label} cutover decision"))
+        return issues
+    with report_path.open("r", encoding="utf-8") as handle:
+        report = json.load(handle)
+    validation_report = str(report.get("validation_report_json", "")).strip()
+    parity_report = str(report.get("parity_report_json", "")).strip()
+    parity_trend = str(report.get("parity_trend_report_json", "")).strip()
+    validation_trend = str(report.get("validation_trend_report_json", "")).strip()
+    if validation_report and not path_exists(validation_report):
+        issues.append((f"cutover_trend_{label}_missing_validation_report", f"cutover trend {label} decision references a missing validation report"))
+    if parity_report and not path_exists(parity_report):
+        issues.append((f"cutover_trend_{label}_missing_parity_report", f"cutover trend {label} decision references a missing parity report"))
+    if parity_trend and not path_exists(parity_trend):
+        issues.append((f"cutover_trend_{label}_missing_parity_trend_report", f"cutover trend {label} decision references a missing parity trend report"))
+    if validation_trend and not path_exists(validation_trend):
+        issues.append((f"cutover_trend_{label}_missing_validation_trend_report", f"cutover trend {label} decision references a missing validation trend report"))
+    return issues
+
 overall_status = str(validation.get("overall_status", "")).upper()
 is_mock = bool(validation.get("is_mock", False))
 artifact_dir = str(validation.get("artifact_dir", ""))
@@ -286,6 +310,10 @@ else:
             "cutover_trend_missing_previous_decision",
             "cutover trend references a missing previous cutover decision",
         )
+    for code, message in cutover_decision_chain_issues(current_cutover_decision, "current"):
+        add_reason(fail_items, code, message)
+    for code, message in cutover_decision_chain_issues(previous_cutover_decision, "previous"):
+        add_reason(fail_items, code, message)
     if cutover_trend_status != "PASS":
         add_reason(
             fail_items,

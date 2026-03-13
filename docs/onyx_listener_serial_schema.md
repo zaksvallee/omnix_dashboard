@@ -550,10 +550,17 @@ evidence-chain integrity:
 - `cutover_decision.json` cannot resolve to `GO` if the staged parity report
   points at missing copied serial/legacy inputs or a missing parity markdown
   summary, or if the staged parity trend points at missing current/previous
-  parity reports.
+  parity reports or at current/previous parity reports whose own copied inputs
+  or markdown summaries are missing.
 - `signoff_report.json` cannot resolve to `PASS` if the supplied parity report
   or parity trend points at missing copied inputs or missing markdown
   summaries, even when validation/readiness posture is otherwise passing.
+
+Standalone release posture now also walks one level deeper through staged
+cutover-trend evidence:
+- `release_gate.json` cannot resolve cleanly from a `PASS` cutover-trend if
+  that trend points at current or previous cutover decisions whose referenced
+  validation, parity, parity-trend, or validation-trend files are missing.
 
 Readiness and signoff can also enforce validation-trend pass explicitly:
 - `--validation-trend-report-json <path>`

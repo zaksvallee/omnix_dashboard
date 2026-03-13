@@ -165,6 +165,28 @@ def path_exists(raw_path):
         return True
     return Path(candidate).is_file()
 
+def parity_report_chain_issues(path_str, label):
+    issues = []
+    if not path_str:
+        return issues
+    report_path = Path(path_str)
+    if not report_path.is_file():
+        issues.append((f"parity_trend_missing_{label}_report", f"parity trend references a missing {label} parity report"))
+        return issues
+    with report_path.open("r", encoding="utf-8") as handle:
+        report = json.load(handle)
+    files = report.get("files", {}) or {}
+    serial_input = str(files.get("serial_input", "")).strip()
+    legacy_input = str(files.get("legacy_input", "")).strip()
+    report_markdown = str(files.get("report_markdown", "")).strip()
+    if serial_input and not path_exists(serial_input):
+        issues.append((f"parity_trend_{label}_missing_serial_input", f"parity trend {label} parity report references a missing serial input"))
+    if legacy_input and not path_exists(legacy_input):
+        issues.append((f"parity_trend_{label}_missing_legacy_input", f"parity trend {label} parity report references a missing legacy input"))
+    if report_markdown and not path_exists(report_markdown):
+        issues.append((f"parity_trend_{label}_missing_report_markdown", f"parity trend {label} parity report references a missing markdown summary"))
+    return issues
+
 parity = load_optional(parity_path)
 parity_trend = load_optional(parity_trend_path)
 validation_trend = load_optional(validation_trend_path)
@@ -286,6 +308,10 @@ if parity_trend is not None:
             "parity_trend_missing_previous_report",
             "parity trend references a missing previous parity report",
         )
+    for code, message in parity_report_chain_issues(current_parity_report, "current"):
+        add_reason(blocking_items, code, message)
+    for code, message in parity_report_chain_issues(previous_parity_report, "previous"):
+        add_reason(blocking_items, code, message)
     if parity_trend_status != "PASS":
         add_reason(
             blocking_items,
