@@ -289,6 +289,7 @@ checksums = data.get("checksums", {})
 for file_key, checksum_key in (
     ("serial_input", "serial_input_sha256"),
     ("legacy_input", "legacy_input_sha256"),
+    ("report_markdown", "report_markdown_sha256"),
 ):
     path = files.get(file_key, "")
     expected = checksums.get(checksum_key, "")

@@ -431,6 +431,12 @@ The parity readiness gate follows the same pattern and emits
 `parity_readiness_report.json` plus `parity_readiness_report.md` on both pass
 and fail, with a machine-readable `failure_code`.
 
+The standalone parity bundle now also records
+`checksums.report_markdown_sha256`, and parity readiness verifies the copied
+parity markdown summary alongside the copied serial and legacy inputs. A parity
+artifact with a missing or mutated `report.md` is now treated as corrupted
+evidence, not just incomplete documentation.
+
 The validation bundle stages `pilot_gate_report.json` plus
 `pilot_gate_report.md` when present, and records both paths plus checksums
 under `files.*` and `checksums.*`. Listener readiness verifies those staged

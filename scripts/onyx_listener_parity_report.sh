@@ -410,6 +410,8 @@ if not fail_codes and not warning_codes:
     lines.append("- None")
 
 summary_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+report["checksums"]["report_markdown_sha256"] = sha(summary_file)
+out_file.write_text(json.dumps(report, indent=2), encoding="utf-8")
 print(f"{status}: Listener parity report written to {out_file}")
 print(f"{status}: Listener parity markdown summary written to {summary_file}")
 print(report["summary"])
