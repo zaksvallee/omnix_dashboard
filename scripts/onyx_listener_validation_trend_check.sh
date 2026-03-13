@@ -88,6 +88,7 @@ mkdir -p "$OUT_DIR"
 
 python3 - "$CURRENT_REPORT_JSON" "$PREVIOUS_REPORT_JSON" "$OUT_DIR" "$ALLOW_BASELINE_AGE_INCREASE_DAYS" <<'PY'
 import json
+import hashlib
 import sys
 from pathlib import Path
 
@@ -106,6 +107,10 @@ def path_exists(raw_path):
     if not candidate:
         return True
     return Path(candidate).is_file()
+
+def sha256_file(path_str):
+    with open(path_str, "rb") as handle:
+        return hashlib.sha256(handle.read()).hexdigest()
 
 def validation_chain_regressions(report, label):
     regressions = []
@@ -140,6 +145,22 @@ def validation_chain_regressions(report, label):
                 "report_label": label,
                 "missing_field": file_key,
                 "missing_path": path_value,
+            })
+        elif path_value and not checksum_value:
+            regressions.append({
+                "code": f"{label}_validation_missing_{file_key}_checksum",
+                "kind": "validation_chain_missing_checksum",
+                "report_label": label,
+                "missing_field": file_key,
+                "missing_checksum_field": checksum_key,
+            })
+        elif path_value and checksum_value and sha256_file(path_value) != checksum_value:
+            regressions.append({
+                "code": f"{label}_validation_{file_key}_checksum_mismatch",
+                "kind": "validation_chain_checksum_mismatch",
+                "report_label": label,
+                "mismatch_field": file_key,
+                "path": path_value,
             })
         elif checksum_value and not path_value:
             regressions.append({
@@ -420,6 +441,17 @@ if regressions:
                 f"path metadata for `{item['missing_field']}` while checksum "
                 f"`{item['missing_checksum_field']}` is set"
             )
+        elif item["kind"] == "validation_chain_missing_checksum":
+            lines.append(
+                f"- `{item['code']}`: `{item['report_label']}` validation missing "
+                f"checksum metadata `{item['missing_checksum_field']}` for "
+                f"`{item['missing_field']}`"
+            )
+        elif item["kind"] == "validation_chain_checksum_mismatch":
+            lines.append(
+                f"- `{item['code']}`: `{item['report_label']}` validation "
+                f"`{item['mismatch_field']}` checksum mismatch at `{item['path']}`"
+            )
         elif item["kind"] == "validation_chain_missing_dir":
             lines.append(
                 f"- `{item['code']}`: `{item['report_label']}` validation missing "
@@ -456,6 +488,16 @@ if regressions:
             print(
                 f"REGRESSION: {item['code']} {item['report_label']} missing path "
                 f"for {item['missing_field']} while {item['missing_checksum_field']} is set"
+            )
+        elif item["kind"] == "validation_chain_missing_checksum":
+            print(
+                f"REGRESSION: {item['code']} {item['report_label']} missing "
+                f"checksum {item['missing_checksum_field']} for {item['missing_field']}"
+            )
+        elif item["kind"] == "validation_chain_checksum_mismatch":
+            print(
+                f"REGRESSION: {item['code']} {item['report_label']} checksum "
+                f"mismatch for {item['mismatch_field']} at {item['path']}"
             )
         elif item["kind"] == "validation_chain_missing_dir":
             print(

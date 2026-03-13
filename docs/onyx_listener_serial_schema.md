@@ -570,8 +570,9 @@ previous inputs instead of deferring that detection to downstream gates:
   missing copied serial/legacy inputs, missing parity markdown, or checksum
   mismatches between those copied files and the parity report metadata.
 - `validation_trend_report.json` fails if the current or previous validation
-  bundle points at missing staged evidence files, missing staged metadata
-  paths, or a missing validation artifact directory.
+  bundle points at missing staged evidence files, checksum-mismatched staged
+  evidence files, missing staged metadata paths, missing staged checksum
+  metadata, or a missing validation artifact directory.
 - `cutover_trend_report.json` fails if the current or previous cutover
   decision points at missing validation, parity, parity-trend, or
   validation-trend files.
