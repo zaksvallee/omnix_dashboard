@@ -10,6 +10,8 @@ Current repo scope:
 - intelligence ingestion now records deterministic provenance hashes for video evidence
 - new video intelligence provenance rows are now sealed into the existing client evidence ledger
 - ledger-backed integrity certificate export is now available for `IntelligenceReceived` evidence
+- staged validation bundles now auto-emit deterministic integrity certificates from `validation_report.json`
+- CCTV, DVR, and listener readiness now verify those staged bundle certificates before signoff posture can pass
 - each ingested `IntelligenceReceived` event can now carry:
   - `snapshotReferenceHash`
   - `clipReferenceHash`
@@ -33,6 +35,11 @@ Certificate model:
 - `lib/application/evidence_certificate_export_service.dart`
   - `EvidenceCertificateExportService`
   - joins an intelligence provenance certificate with its sealed client-ledger row
+- `scripts/onyx_validation_bundle_certificate.sh`
+  - emits `integrity_certificate.json` and `integrity_certificate.md`
+  - verifies staged file checksums from a validation bundle
+  - derives a deterministic `bundle_hash` from report metadata plus staged file hashes
+  - is now called automatically by CCTV, DVR, and listener field-validation flows
 - current certificate JSON includes:
   - intelligence id
   - provider/source identity
@@ -44,4 +51,4 @@ Certificate model:
 
 Next step candidates:
 - add certificate export UI/API
-- hash staged validation/signoff artifacts into the same provenance flow
+- hash staged signoff artifacts into the same provenance flow

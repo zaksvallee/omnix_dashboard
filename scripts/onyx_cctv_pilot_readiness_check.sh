@@ -165,6 +165,56 @@ print("ok")
 PY
 }
 
+verify_integrity_certificate() {
+  local report_file="$1"
+  local cert_json="$2"
+  local cert_md="$3"
+  local artifact_dir
+  artifact_dir="$(cd "$(dirname "$report_file")" && pwd)"
+  if [[ -z "$cert_json" || ! -f "$cert_json" ]]; then
+    echo "missing_json:${cert_json:-}"
+    return 1
+  fi
+  if [[ "$cert_json" != "$artifact_dir/integrity_certificate.json" ]]; then
+    echo "json_path_mismatch:$cert_json"
+    return 1
+  fi
+  if [[ -z "$cert_md" || ! -f "$cert_md" ]]; then
+    echo "missing_markdown:${cert_md:-}"
+    return 1
+  fi
+  if [[ "$cert_md" != "$artifact_dir/integrity_certificate.md" ]]; then
+    echo "markdown_path_mismatch:$cert_md"
+    return 1
+  fi
+  local tmp_json tmp_md
+  tmp_json="$(mktemp "$artifact_dir/integrity_certificate_check_json.XXXXXX")"
+  tmp_md="$(mktemp "$artifact_dir/integrity_certificate_check_md.XXXXXX")"
+  if ! ./scripts/onyx_validation_bundle_certificate.sh --report-json "$report_file" --out-json "$tmp_json" --out-md "$tmp_md" >/dev/null 2>&1; then
+    rm -f "$tmp_json" "$tmp_md"
+    echo "regenerate_failed"
+    return 1
+  fi
+  if ! python3 - "$cert_json" "$tmp_json" <<'PY'
+import json
+import sys
+
+current = json.load(open(sys.argv[1], "r", encoding="utf-8"))
+regenerated = json.load(open(sys.argv[2], "r", encoding="utf-8"))
+current.pop("generated_at_utc", None)
+regenerated.pop("generated_at_utc", None)
+if current != regenerated:
+    raise SystemExit(1)
+PY
+  then
+    rm -f "$tmp_json" "$tmp_md"
+    echo "content_mismatch:$cert_json"
+    return 1
+  fi
+  rm -f "$tmp_json" "$tmp_md"
+  echo "ok"
+}
+
 latest_report_json="$REPORT_JSON"
 if [[ -z "$latest_report_json" ]]; then
   latest_report_json="$(latest_validation_report_json || true)"
@@ -206,6 +256,8 @@ if [[ -n "$latest_report_json" ]]; then
   camera_wired="$(json_get "$latest_report_json" "gates.camera_wired" | tr '[:upper:]' '[:lower:]')"
   verify_result="$(verify_json_report_checksums "$latest_report_json")" || fail "CCTV validation checksum verification failed: $verify_result"
   pass "CCTV validation checksums verified."
+  cert_verify_result="$(verify_integrity_certificate "$latest_report_json" "$artifact_dir/integrity_certificate.json" "$artifact_dir/integrity_certificate.md")" || fail "CCTV integrity certificate verification failed: $cert_verify_result"
+  pass "CCTV integrity certificate verified."
 
   if [[ "$REQUIRE_REAL_ARTIFACTS" -eq 1 ]]; then
     if [[ "$artifact_dir" == *"/mock-"* || "$artifact_dir" == mock-* || "$artifact_dir" == *"/mock-pass"* || "$artifact_dir" == mock-pass* ]]; then

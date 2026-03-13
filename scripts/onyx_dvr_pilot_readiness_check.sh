@@ -203,6 +203,56 @@ print("ok")
 PY
 }
 
+verify_integrity_certificate() {
+  local report_file="$1"
+  local cert_json="$2"
+  local cert_md="$3"
+  local artifact_dir
+  artifact_dir="$(cd "$(dirname "$report_file")" && pwd)"
+  if [[ -z "$cert_json" || ! -f "$cert_json" ]]; then
+    echo "missing_json:${cert_json:-}"
+    return 1
+  fi
+  if [[ "$cert_json" != "$artifact_dir/integrity_certificate.json" ]]; then
+    echo "json_path_mismatch:$cert_json"
+    return 1
+  fi
+  if [[ -z "$cert_md" || ! -f "$cert_md" ]]; then
+    echo "missing_markdown:${cert_md:-}"
+    return 1
+  fi
+  if [[ "$cert_md" != "$artifact_dir/integrity_certificate.md" ]]; then
+    echo "markdown_path_mismatch:$cert_md"
+    return 1
+  fi
+  local tmp_json tmp_md
+  tmp_json="$(mktemp "$artifact_dir/integrity_certificate_check_json.XXXXXX")"
+  tmp_md="$(mktemp "$artifact_dir/integrity_certificate_check_md.XXXXXX")"
+  if ! ./scripts/onyx_validation_bundle_certificate.sh --report-json "$report_file" --out-json "$tmp_json" --out-md "$tmp_md" >/dev/null 2>&1; then
+    rm -f "$tmp_json" "$tmp_md"
+    echo "regenerate_failed"
+    return 1
+  fi
+  if ! python3 - "$cert_json" "$tmp_json" <<'PY'
+import json
+import sys
+
+current = json.load(open(sys.argv[1], "r", encoding="utf-8"))
+regenerated = json.load(open(sys.argv[2], "r", encoding="utf-8"))
+current.pop("generated_at_utc", None)
+regenerated.pop("generated_at_utc", None)
+if current != regenerated:
+    raise SystemExit(1)
+PY
+  then
+    rm -f "$tmp_json" "$tmp_md"
+    echo "content_mismatch:$cert_json"
+    return 1
+  fi
+  rm -f "$tmp_json" "$tmp_md"
+  echo "ok"
+}
+
 if [[ -z "$REPORT_JSON" ]]; then
   REPORT_JSON="$(latest_validation_report_json || true)"
 fi
@@ -234,6 +284,8 @@ fi
 
 verify_result="$(verify_json_report_checksums "$REPORT_JSON")" || fail "DVR validation checksum verification failed: $verify_result" "validation_checksum_failed"
 pass "DVR validation checksums verified."
+cert_verify_result="$(verify_integrity_certificate "$REPORT_JSON" "$ARTIFACT_DIR/integrity_certificate.json" "$ARTIFACT_DIR/integrity_certificate.md")" || fail "DVR integrity certificate verification failed: $cert_verify_result" "integrity_certificate_failed"
+pass "DVR integrity certificate verified."
 
 overall_status="$(json_get "$REPORT_JSON" "overall_status" | tr '[:lower:]' '[:upper:]')"
 artifact_dir="$(json_get "$REPORT_JSON" "artifact_dir")"

@@ -874,9 +874,21 @@ cat >"$JSON_OUT_FILE" <<EOF
 }
 EOF
 
+INTEGRITY_CERT_JSON="$ARTIFACT_DIR/integrity_certificate.json"
+INTEGRITY_CERT_MD="$ARTIFACT_DIR/integrity_certificate.md"
+if ! ./scripts/onyx_validation_bundle_certificate.sh \
+  --report-json "$JSON_OUT_FILE" \
+  --out-json "$INTEGRITY_CERT_JSON" \
+  --out-md "$INTEGRITY_CERT_MD" >/dev/null; then
+  echo "FAIL: Listener integrity certificate generation failed." >&2
+  exit 1
+fi
+
 echo "Listener field validation artifact: $ARTIFACT_DIR"
 echo "Validation report JSON: $JSON_OUT_FILE"
 echo "Validation report markdown: $VALIDATION_REPORT_MD"
+echo "Integrity certificate JSON: $INTEGRITY_CERT_JSON"
+echo "Integrity certificate markdown: $INTEGRITY_CERT_MD"
 echo "Overall status: $OVERALL_STATUS"
 
 if [[ "$OVERALL_STATUS" == "FAIL" ]]; then

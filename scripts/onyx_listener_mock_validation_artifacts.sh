@@ -213,6 +213,11 @@ with open(path, "w", encoding="utf-8") as handle:
     json.dump(data, handle, indent=2)
 PY
 
+./scripts/onyx_validation_bundle_certificate.sh \
+  --report-json "$OUT_DIR/validation_report.json" \
+  --out-json "$OUT_DIR/integrity_certificate.json" \
+  --out-md "$OUT_DIR/integrity_certificate.md" >/dev/null
+
 echo "PASS: Mock listener validation artifacts generated: $OUT_DIR"
 echo "Report: $OUT_DIR/validation_report.json"
 echo "These artifacts are for tooling verification only and are not valid for real pilot signoff."

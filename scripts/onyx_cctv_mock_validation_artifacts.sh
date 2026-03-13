@@ -255,5 +255,10 @@ data["checksums"]["markdown_report_sha256"] = sha("validation_report.md")
 report.write_text(json.dumps(data, indent=2), encoding="utf-8")
 PY
 
+./scripts/onyx_validation_bundle_certificate.sh \
+  --report-json "$OUT_DIR/validation_report.json" \
+  --out-json "$OUT_DIR/integrity_certificate.json" \
+  --out-md "$OUT_DIR/integrity_certificate.md" >/dev/null
+
 echo "PASS: Mock CCTV validation artifacts generated: $OUT_DIR"
 echo "Report: $OUT_DIR/validation_report.json"

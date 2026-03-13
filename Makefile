@@ -1,4 +1,4 @@
-.PHONY: run-web analyze test smoke-ui preflight preflight-smoke guard-auto guard-predevice guard-pilot cctv-validate cctv-readiness cctv-mock-artifacts cctv-capture-pack cctv-pilot-gate cctv-signoff dvr-validate dvr-readiness dvr-mock-artifacts dvr-capture-pack dvr-pilot-gate dvr-field-gate dvr-release-gate dvr-release-trend dvr-signoff listener-bench listener-baseline-promote listener-parity listener-parity-trend listener-validation-trend listener-cutover-decision listener-cutover-trend listener-release-gate listener-release-trend listener-capture-pack listener-validate listener-readiness listener-mock-artifacts listener-field-gate listener-parity-readiness listener-pilot-gate listener-signoff
+.PHONY: run-web analyze test smoke-ui preflight preflight-smoke guard-auto guard-predevice guard-pilot validation-bundle-cert cctv-validate cctv-readiness cctv-mock-artifacts cctv-capture-pack cctv-pilot-gate cctv-signoff dvr-validate dvr-readiness dvr-mock-artifacts dvr-capture-pack dvr-pilot-gate dvr-field-gate dvr-release-gate dvr-release-trend dvr-signoff listener-bench listener-baseline-promote listener-parity listener-parity-trend listener-validation-trend listener-cutover-decision listener-cutover-trend listener-release-gate listener-release-trend listener-capture-pack listener-validate listener-readiness listener-mock-artifacts listener-field-gate listener-parity-readiness listener-pilot-gate listener-signoff
 
 CONFIG ?= config/onyx.local.json
 ACTION ?= com.onyx.fsk.SDK_HEARTBEAT
@@ -31,6 +31,9 @@ guard-predevice:
 
 guard-pilot:
 	./scripts/guard_android_pilot_gate.sh --action $(ACTION) --samples $(SAMPLES) --max-report-age-hours $(MAX_REPORT_AGE_HOURS) --config $(CONFIG)
+
+validation-bundle-cert:
+	./scripts/onyx_validation_bundle_certificate.sh
 
 cctv-validate:
 	./scripts/onyx_cctv_field_validation.sh

@@ -494,10 +494,22 @@ cat >"$JSON_OUT_FILE" <<EOF
 }
 EOF
 
+INTEGRITY_CERT_JSON="$ARTIFACT_DIR/integrity_certificate.json"
+INTEGRITY_CERT_MD="$ARTIFACT_DIR/integrity_certificate.md"
+if ! ./scripts/onyx_validation_bundle_certificate.sh \
+  --report-json "$JSON_OUT_FILE" \
+  --out-json "$INTEGRITY_CERT_JSON" \
+  --out-md "$INTEGRITY_CERT_MD" >/dev/null; then
+  echo "FAIL: CCTV integrity certificate generation failed." >&2
+  exit 1
+fi
+
 echo "== ONYX CCTV Field Validation =="
 echo "Overall: $OVERALL_STATUS"
 echo "Report: $REPORT_FILE"
 echo "Report JSON: $JSON_OUT_FILE"
+echo "Integrity certificate JSON: $INTEGRITY_CERT_JSON"
+echo "Integrity certificate markdown: $INTEGRITY_CERT_MD"
 echo "Edge: $EDGE_STATUS - $EDGE_MESSAGE"
 echo "/bridges: $BRIDGES_STATUS - $BRIDGES_MESSAGE"
 echo "/pollops: $POLLOPS_STATUS - $POLLOPS_MESSAGE"

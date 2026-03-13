@@ -482,6 +482,18 @@ checksums["markdown_report_sha256"] = sha(files.get("markdown_report", ""))
 report.write_text(json.dumps(data, indent=2), encoding='utf-8')
 PY
 
+INTEGRITY_CERT_JSON="$ARTIFACT_DIR/integrity_certificate.json"
+INTEGRITY_CERT_MD="$ARTIFACT_DIR/integrity_certificate.md"
+if ! ./scripts/onyx_validation_bundle_certificate.sh \
+  --report-json "$JSON_OUT_FILE" \
+  --out-json "$INTEGRITY_CERT_JSON" \
+  --out-md "$INTEGRITY_CERT_MD" >/dev/null; then
+  echo "FAIL: DVR integrity certificate generation failed." >&2
+  exit 1
+fi
+
 echo "DVR validation report: $JSON_OUT_FILE"
+echo "Integrity certificate JSON: $INTEGRITY_CERT_JSON"
+echo "Integrity certificate markdown: $INTEGRITY_CERT_MD"
 echo "Overall status: $OVERALL_STATUS"
 exit "$EXIT_CODE"
