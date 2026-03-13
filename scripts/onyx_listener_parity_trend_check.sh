@@ -129,6 +129,44 @@ with current_path.open("r", encoding="utf-8") as handle:
 with previous_path.open("r", encoding="utf-8") as handle:
     previous = json.load(handle)
 
+def path_exists(raw_path):
+    candidate = str(raw_path or "").strip()
+    if not candidate:
+        return True
+    return Path(candidate).is_file()
+
+def report_chain_regressions(report, label):
+    regressions = []
+    files = report.get("files", {}) or {}
+    serial_input = str(files.get("serial_input", "")).strip()
+    legacy_input = str(files.get("legacy_input", "")).strip()
+    report_markdown = str(files.get("report_markdown", "")).strip()
+    if serial_input and not path_exists(serial_input):
+        regressions.append({
+            "code": f"{label}_report_missing_serial_input",
+            "kind": "report_chain_missing_file",
+            "report_label": label,
+            "missing_field": "serial_input",
+            "missing_path": serial_input,
+        })
+    if legacy_input and not path_exists(legacy_input):
+        regressions.append({
+            "code": f"{label}_report_missing_legacy_input",
+            "kind": "report_chain_missing_file",
+            "report_label": label,
+            "missing_field": "legacy_input",
+            "missing_path": legacy_input,
+        })
+    if report_markdown and not path_exists(report_markdown):
+        regressions.append({
+            "code": f"{label}_report_missing_report_markdown",
+            "kind": "report_chain_missing_file",
+            "report_label": label,
+            "missing_field": "report_markdown",
+            "missing_path": report_markdown,
+        })
+    return regressions
+
 current_drift = current.get("drift_reason_counts", {}) or {}
 previous_drift = previous.get("drift_reason_counts", {}) or {}
 all_reasons = sorted(set(current_drift) | set(previous_drift))
@@ -139,6 +177,8 @@ current_max_skew = int(float(current.get("max_skew_seconds_observed", 0) or 0))
 previous_max_skew = int(float(previous.get("max_skew_seconds_observed", 0) or 0))
 
 regressions = []
+regressions.extend(report_chain_regressions(current, "current"))
+regressions.extend(report_chain_regressions(previous, "previous"))
 match_rate_drop = round(previous_match_rate - current_match_rate, 2)
 if match_rate_drop > allow_match_drop:
     regressions.append(
@@ -258,6 +298,11 @@ if regressions:
                 f"`{item['previous']} -> {item['current']}` "
                 f"(delta `{item['delta']}`, allowed `{item['allowed_increase']}`)"
             )
+        elif item["kind"] == "report_chain_missing_file":
+            lines.append(
+                f"- `{item['code']}`: `{item['report_label']}` report missing "
+                f"`{item['missing_field']}` at `{item['missing_path']}`"
+            )
         else:
             lines.append(
                 f"- `{item['code']}`: `{item['previous']} -> {item['current']}` "
@@ -281,6 +326,13 @@ if regressions:
                 f" {item['code']} on {item['reason']}"
                 f" ({item['previous']} -> {item['current']},"
                 f" delta {item['delta']}, allowed {item['allowed_increase']})"
+            )
+        elif item["kind"] == "report_chain_missing_file":
+            print(
+                "Regression:"
+                f" {item['code']}"
+                f" ({item['report_label']} missing {item['missing_field']}:"
+                f" {item['missing_path']})"
             )
         else:
             print(

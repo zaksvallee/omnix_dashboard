@@ -110,6 +110,34 @@ with current_path.open("r", encoding="utf-8") as handle:
 with previous_path.open("r", encoding="utf-8") as handle:
     previous = json.load(handle)
 
+def path_exists(raw_path):
+    candidate = str(raw_path or "").strip()
+    if not candidate:
+        return True
+    return Path(candidate).is_file()
+
+def decision_chain_regressions(report, label):
+    regressions = []
+    validation_report = str(report.get("validation_report_json", "")).strip()
+    parity_report = str(report.get("parity_report_json", "")).strip()
+    parity_trend_report = str(report.get("parity_trend_report_json", "")).strip()
+    validation_trend_report = str(report.get("validation_trend_report_json", "")).strip()
+    for field_name, value in (
+        ("validation_report", validation_report),
+        ("parity_report", parity_report),
+        ("parity_trend_report", parity_trend_report),
+        ("validation_trend_report", validation_trend_report),
+    ):
+        if value and not path_exists(value):
+            regressions.append({
+                "code": f"{label}_decision_missing_{field_name}",
+                "kind": "decision_chain_missing_file",
+                "decision_label": label,
+                "missing_field": field_name,
+                "missing_path": value,
+            })
+    return regressions
+
 decision_rank = {"BLOCK": 0, "HOLD": 1, "GO": 2}
 
 current_decision = str(current.get("decision", "")).upper()
@@ -121,6 +149,8 @@ current_blocking_codes = list(current.get("blocking_codes", []) or current.get("
 previous_blocking_codes = list(previous.get("blocking_codes", []) or previous.get("blocking_reasons", []) or [])
 
 regressions = []
+regressions.extend(decision_chain_regressions(current, "current"))
+regressions.extend(decision_chain_regressions(previous, "previous"))
 if decision_rank.get(current_decision, -1) < decision_rank.get(previous_decision, -1):
     regressions.append(
         {
@@ -242,6 +272,11 @@ if regressions:
     for item in regressions:
         if item["kind"] == "decision_regression":
             lines.append(f"- `{item['code']}`: `{item['previous']} -> {item['current']}`")
+        elif item["kind"] == "decision_chain_missing_file":
+            lines.append(
+                f"- `{item['code']}`: `{item['decision_label']}` decision missing "
+                f"`{item['missing_field']}` at `{item['missing_path']}`"
+            )
         else:
             lines.append(
                 f"- `{item['code']}`: `{item['previous']} -> {item['current']}` "
@@ -260,6 +295,11 @@ if regressions:
     for item in regressions:
         if item["kind"] == "decision_regression":
             print(f"REGRESSION: {item['code']} {item['previous']} -> {item['current']}")
+        elif item["kind"] == "decision_chain_missing_file":
+            print(
+                f"REGRESSION: {item['code']} {item['decision_label']} missing "
+                f"{item['missing_field']} at {item['missing_path']}"
+            )
         else:
             print(
                 f"REGRESSION: {item['code']} {item['previous']} -> {item['current']} "

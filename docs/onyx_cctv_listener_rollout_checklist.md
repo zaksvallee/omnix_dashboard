@@ -125,6 +125,7 @@ Notes:
   - Standalone listener release posture now also fails when staged cutover or signoff reports point at missing evidence files, so hollow aggregate artifacts cannot produce a clean release result outside the readiness path.
   - Standalone listener cutover and signoff now also fail when parity reports or parity-trend artifacts point at missing copied inputs or missing parity summaries, so corrupted parity evidence cannot be promoted by later aggregate gates.
   - Standalone listener cutover now also blocks on hollow parity-trend current/previous reports, and standalone release now also fails on hollow cutover-trend current/previous decisions, so trend artifacts cannot mask missing lower-level evidence.
+  - Listener parity-trend, cutover-trend, and release-trend artifacts now also fail directly on hollow current or previous inputs, so broken evidence chains are visible at the trend layer instead of only in downstream readiness or release checks.
   - Listener signoff now emits a machine-readable `signoff_report.json`, and release posture consumes that structured signoff state instead of only checking markdown file presence.
   - Listener release posture and release-trend artifacts now emit stable reason/regression codes, so downstream automation does not need to parse prose fail or hold summaries.
   - Listener cutover posture and cutover-trend artifacts now emit stable reason/regression codes, so downstream automation does not need to parse prose blocking or hold summaries.

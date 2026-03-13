@@ -562,6 +562,17 @@ cutover-trend evidence:
   that trend points at current or previous cutover decisions whose referenced
   validation, parity, parity-trend, or validation-trend files are missing.
 
+The trend generators themselves now also fail early on hollow current or
+previous inputs instead of deferring that detection to downstream gates:
+- `trend_report.json` fails if the current or previous parity report points at
+  missing copied serial/legacy inputs or a missing parity markdown summary.
+- `cutover_trend_report.json` fails if the current or previous cutover
+  decision points at missing validation, parity, parity-trend, or
+  validation-trend files.
+- `release_trend_report.json` fails if the current or previous release gate
+  points at missing validation, readiness, cutover, cutover-trend, signoff
+  markdown, or signoff report files.
+
 Readiness and signoff can also enforce validation-trend pass explicitly:
 - `--validation-trend-report-json <path>`
 - `--require-validation-trend-pass`

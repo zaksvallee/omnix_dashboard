@@ -110,6 +110,38 @@ with current_path.open("r", encoding="utf-8") as handle:
 with previous_path.open("r", encoding="utf-8") as handle:
     previous = json.load(handle)
 
+def path_exists(raw_path):
+    candidate = str(raw_path or "").strip()
+    if not candidate:
+        return True
+    return Path(candidate).is_file()
+
+def gate_chain_regressions(report, label):
+    regressions = []
+    validation_report = str(report.get("validation_report_json", "")).strip()
+    readiness_report = str(report.get("readiness_report_json", "")).strip()
+    cutover_decision = str(report.get("cutover_decision_json", "")).strip()
+    cutover_trend = str(report.get("cutover_trend_report_json", "")).strip()
+    signoff_file = str(report.get("signoff_file", "")).strip()
+    signoff_report = str(report.get("signoff_report_json", "")).strip()
+    for field_name, value in (
+        ("validation_report", validation_report),
+        ("readiness_report", readiness_report),
+        ("cutover_decision", cutover_decision),
+        ("cutover_trend_report", cutover_trend),
+        ("signoff_file", signoff_file),
+        ("signoff_report", signoff_report),
+    ):
+        if value and not path_exists(value):
+            regressions.append({
+                "code": f"{label}_gate_missing_{field_name}",
+                "kind": "gate_chain_missing_file",
+                "gate_label": label,
+                "missing_field": field_name,
+                "missing_path": value,
+            })
+    return regressions
+
 result_rank = {"FAIL": 0, "HOLD": 1, "PASS": 2}
 
 current_result = str(current.get("result", "")).upper()
@@ -121,6 +153,8 @@ current_fail_codes = list(current.get("fail_codes", []) or current.get("fail_rea
 previous_fail_codes = list(previous.get("fail_codes", []) or previous.get("fail_reasons", []) or [])
 
 regressions = []
+regressions.extend(gate_chain_regressions(current, "current"))
+regressions.extend(gate_chain_regressions(previous, "previous"))
 if result_rank.get(current_result, -1) < result_rank.get(previous_result, -1):
     regressions.append(
         {
@@ -242,6 +276,11 @@ if regressions:
     for item in regressions:
         if item["kind"] == "result_regression":
             lines.append(f"- `{item['code']}`: `{item['previous']} -> {item['current']}`")
+        elif item["kind"] == "gate_chain_missing_file":
+            lines.append(
+                f"- `{item['code']}`: `{item['gate_label']}` gate missing "
+                f"`{item['missing_field']}` at `{item['missing_path']}`"
+            )
         else:
             lines.append(
                 f"- `{item['code']}`: `{item['previous']} -> {item['current']}` "
@@ -260,6 +299,11 @@ if regressions:
     for item in regressions:
         if item["kind"] == "result_regression":
             print(f"REGRESSION: {item['code']} {item['previous']} -> {item['current']}")
+        elif item["kind"] == "gate_chain_missing_file":
+            print(
+                f"REGRESSION: {item['code']} {item['gate_label']} missing "
+                f"{item['missing_field']} at {item['missing_path']}"
+            )
         else:
             print(
                 f"REGRESSION: {item['code']} {item['previous']} -> {item['current']} "
