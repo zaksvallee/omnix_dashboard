@@ -612,12 +612,13 @@ if [[ -f "$CUTOVER_TREND_JSON" ]]; then
   CUTOVER_TREND_STATUS="$(json_get "$CUTOVER_TREND_JSON" "status" | tr '[:lower:]' '[:upper:]')"
 fi
 RELEASE_GATE_RESULT=""
+RELEASE_GATE_SUMMARY=""
 if [[ -f "$RELEASE_GATE_JSON" ]]; then
   RELEASE_GATE_RESULT="$(json_get "$RELEASE_GATE_JSON" "result")"
+  RELEASE_GATE_SUMMARY="$(json_get "$RELEASE_GATE_JSON" "summary")"
 fi
 
 echo ""
-echo "PASS: Listener field gate completed."
 echo "Capture pack: $CAPTURE_DIR"
 echo "Validation artifact: $ARTIFACT_DIR"
 echo "Baseline review: ${BASELINE_REVIEW_RECOMMENDATION:-unknown} (${BASELINE_REVIEW_STATUS:-unknown})"
@@ -644,6 +645,7 @@ if [[ -n "$CUTOVER_TREND_STATUS" ]]; then
 fi
 if [[ -n "$RELEASE_GATE_RESULT" ]]; then
   echo "Release gate: ${RELEASE_GATE_RESULT}"
+  echo "Release gate summary: ${RELEASE_GATE_SUMMARY:-n/a}"
   echo "Release gate artifact: $ARTIFACT_DIR/release_gate.json"
 fi
 if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
@@ -655,3 +657,16 @@ if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
 else
   echo "Signoff template: docs/onyx_listener_pilot_signoff_template.md"
 fi
+
+if [[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]]; then
+  if [[ -z "$RELEASE_GATE_RESULT" ]]; then
+    echo "FAIL: Listener release gate artifact was not generated under --require-release-gate-pass."
+    exit 1
+  fi
+  if [[ "$RELEASE_GATE_RESULT" != "PASS" ]]; then
+    echo "FAIL: Listener release gate is ${RELEASE_GATE_RESULT}, expected PASS under --require-release-gate-pass."
+    exit 1
+  fi
+fi
+
+echo "PASS: Listener field gate completed."

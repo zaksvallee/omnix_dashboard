@@ -346,6 +346,7 @@ To drive the full listener field flow in one command:
   --compare-previous \
   --compare-previous-validation \
   --allow-validation-baseline-age-increase-days 7 \
+  --require-release-gate-pass \
   --generate-signoff
 ```
 
@@ -370,6 +371,11 @@ When `--compare-previous-validation` is enabled, the field gate also emits:
 
 The field-gate terminal summary now prints validation-trend status and summary
 alongside the baseline review, baseline health, cutover decision, cutover trend, and release-gate result.
+
+When `--require-release-gate-pass` is enabled, the field gate will fail unless
+`release_gate.json` resolves to `result = PASS`. A `HOLD` release posture is
+still emitted as an artifact, but it is treated as a blocking outcome for that
+invocation.
 
 Readiness and signoff can also enforce validation-trend pass explicitly:
 - `--validation-trend-report-json <path>`
