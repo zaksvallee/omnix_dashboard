@@ -148,6 +148,10 @@ When CCTV is degraded but ONYX is still online:
 - `make cctv-pilot-gate`
   - runs `scripts/onyx_cctv_pilot_gate.sh`
   - executes validation + readiness in one command once the capture pack is filled
+- `make cctv-field-gate`
+  - runs `scripts/onyx_cctv_field_gate.sh`
+  - drives validation, readiness, release gate, optional release trend, and optional signoff from one command
+  - supports `--use-mock-artifacts` for local tooling checks and `--generate-signoff` for staged CCTV signoff artifacts
 - `make cctv-signoff`
   - runs `scripts/onyx_cctv_signoff_generate.sh`
   - writes a pilot signoff note plus `signoff.json` from the latest validation bundle and field notes
