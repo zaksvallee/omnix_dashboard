@@ -518,6 +518,14 @@ Readiness can also enforce release posture explicitly:
 When enabled, readiness verifies that the release gate resolves to `PASS` and
 that the release-trend artifact resolves to `PASS`.
 
+Readiness now also verifies the referenced evidence chain inside those
+aggregated artifacts instead of trusting only their top-level status:
+- `cutover_decision.json` must still point at existing staged validation,
+  parity, parity-trend, and validation-trend files when those paths are set.
+- `release_gate.json` must still point at existing staged validation,
+  readiness, cutover, cutover-trend, signoff markdown, and signoff report
+  files when those paths are set.
+
 Readiness and signoff can also enforce validation-trend pass explicitly:
 - `--validation-trend-report-json <path>`
 - `--require-validation-trend-pass`

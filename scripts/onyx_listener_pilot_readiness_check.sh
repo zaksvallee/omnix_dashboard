@@ -445,8 +445,17 @@ with open(path, "r", encoding="utf-8") as handle:
 
 decision = str(data.get("decision", "")).upper()
 validation_report = str(data.get("validation_report_json", "")).strip()
+parity_report = str(data.get("parity_report_json", "")).strip()
+parity_trend_report = str(data.get("parity_trend_report_json", "")).strip()
+validation_trend_report = str(data.get("validation_trend_report_json", "")).strip()
 if not validation_report or not os.path.isfile(validation_report):
     raise SystemExit("missing_validation_report")
+if parity_report and not os.path.isfile(parity_report):
+    raise SystemExit("missing_parity_report")
+if parity_trend_report and not os.path.isfile(parity_trend_report):
+    raise SystemExit("missing_parity_trend_report")
+if validation_trend_report and not os.path.isfile(validation_trend_report):
+    raise SystemExit("missing_validation_trend_report")
 
 print(decision)
 PY
@@ -489,9 +498,24 @@ with open(path, "r", encoding="utf-8") as handle:
 
 result = str(data.get("result", "")).upper()
 validation_report = str(data.get("validation_report_json", "")).strip()
+readiness_report = str(data.get("readiness_report_json", "")).strip()
+cutover_decision_report = str(data.get("cutover_decision_json", "")).strip()
+cutover_trend_report = str(data.get("cutover_trend_report_json", "")).strip()
+signoff_file = str(data.get("signoff_file", "")).strip()
+signoff_report = str(data.get("signoff_report_json", "")).strip()
 
 if not validation_report or not os.path.isfile(validation_report):
     raise SystemExit("missing_validation_report")
+if readiness_report and not os.path.isfile(readiness_report):
+    raise SystemExit("missing_readiness_report")
+if cutover_decision_report and not os.path.isfile(cutover_decision_report):
+    raise SystemExit("missing_cutover_decision_report")
+if cutover_trend_report and not os.path.isfile(cutover_trend_report):
+    raise SystemExit("missing_cutover_trend_report")
+if signoff_file and not os.path.isfile(signoff_file):
+    raise SystemExit("missing_signoff_file")
+if signoff_report and not os.path.isfile(signoff_report):
+    raise SystemExit("missing_signoff_report")
 
 print(result)
 PY
@@ -628,6 +652,15 @@ if [[ "$REQUIRE_CUTOVER_GO" -eq 1 ]]; then
       missing_validation_report)
         fail cutover_decision_missing_validation_report "Listener readiness failed: cutover decision references a missing validation report."
         ;;
+      missing_parity_report)
+        fail cutover_decision_missing_parity_report "Listener readiness failed: cutover decision references a missing parity report."
+        ;;
+      missing_parity_trend_report)
+        fail cutover_decision_missing_parity_trend_report "Listener readiness failed: cutover decision references a missing parity trend report."
+        ;;
+      missing_validation_trend_report)
+        fail cutover_decision_missing_validation_trend_report "Listener readiness failed: cutover decision references a missing validation trend report."
+        ;;
       *)
         fail cutover_decision_verification_failed "Listener readiness failed: cutover decision verification failed: ${cutover_decision_status:-unknown}."
         ;;
@@ -662,6 +695,21 @@ if [[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]]; then
     case "$release_gate_status" in
       missing_validation_report)
         fail release_gate_missing_validation_report "Listener readiness failed: release gate references a missing validation report."
+        ;;
+      missing_readiness_report)
+        fail release_gate_missing_readiness_report "Listener readiness failed: release gate references a missing readiness report."
+        ;;
+      missing_cutover_decision_report)
+        fail release_gate_missing_cutover_decision_report "Listener readiness failed: release gate references a missing cutover decision report."
+        ;;
+      missing_cutover_trend_report)
+        fail release_gate_missing_cutover_trend_report "Listener readiness failed: release gate references a missing cutover trend report."
+        ;;
+      missing_signoff_file)
+        fail release_gate_missing_signoff_file "Listener readiness failed: release gate references a missing signoff file."
+        ;;
+      missing_signoff_report)
+        fail release_gate_missing_signoff_report "Listener readiness failed: release gate references a missing signoff report."
         ;;
       *)
         fail release_gate_verification_failed "Listener readiness failed: release gate verification failed: ${release_gate_status:-unknown}."
