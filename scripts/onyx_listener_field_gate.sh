@@ -41,13 +41,15 @@ SIGNOFF_OUT=""
 ALLOW_MOCK_ARTIFACTS=0
 REQUIRE_TREND_PASS=0
 REQUIRE_VALIDATION_TREND_PASS=0
+REQUIRE_CUTOVER_GO=0
+REQUIRE_CUTOVER_TREND_PASS=0
 REQUIRE_BASELINE_HISTORY=0
 MAX_BASELINE_AGE_DAYS=""
 
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/onyx_listener_field_gate.sh [--capture-dir <path>] [--site-id <site_id>] [--device-path <tty>] [--legacy-source <label>] [--client-id <id>] [--region-id <id>] [--artifact-dir <path>] [--bench-baseline-json <path>] [--max-report-age-hours <hours>] [--min-match-rate-percent 95] [--max-skew-seconds 90] [--max-observed-skew-seconds <n>] [--allow-drift-reason <reason>]... [--max-drift-reason-count <reason=count>]... [--compare-previous] [--previous-report-json <path>] [--allow-match-rate-drop-percent 0] [--allow-max-skew-increase-seconds 0] [--allow-trend-drift-count-increase <reason=count>]... [--compare-previous-validation] [--previous-validation-report-json <path>] [--allow-validation-baseline-age-increase-days 0] [--compare-previous-cutover] [--previous-cutover-decision-json <path>] [--allow-cutover-hold-reason-increase-count 0] [--allow-cutover-blocking-reason-increase-count 0] [--max-capture-signatures <count>] [--allow-capture-signature <signature>]... [--max-unexpected-signatures <count>] [--max-fallback-timestamp-count <count>] [--max-unknown-event-rate-percent <percent>] [--init-capture-pack] [--generate-signoff] [--signoff-out <path>] [--require-trend-pass] [--require-validation-trend-pass] [--require-baseline-history] [--max-baseline-age-days <days>] [--allow-mock-artifacts]
+  ./scripts/onyx_listener_field_gate.sh [--capture-dir <path>] [--site-id <site_id>] [--device-path <tty>] [--legacy-source <label>] [--client-id <id>] [--region-id <id>] [--artifact-dir <path>] [--bench-baseline-json <path>] [--max-report-age-hours <hours>] [--min-match-rate-percent 95] [--max-skew-seconds 90] [--max-observed-skew-seconds <n>] [--allow-drift-reason <reason>]... [--max-drift-reason-count <reason=count>]... [--compare-previous] [--previous-report-json <path>] [--allow-match-rate-drop-percent 0] [--allow-max-skew-increase-seconds 0] [--allow-trend-drift-count-increase <reason=count>]... [--compare-previous-validation] [--previous-validation-report-json <path>] [--allow-validation-baseline-age-increase-days 0] [--compare-previous-cutover] [--previous-cutover-decision-json <path>] [--allow-cutover-hold-reason-increase-count 0] [--allow-cutover-blocking-reason-increase-count 0] [--max-capture-signatures <count>] [--allow-capture-signature <signature>]... [--max-unexpected-signatures <count>] [--max-fallback-timestamp-count <count>] [--max-unknown-event-rate-percent <percent>] [--init-capture-pack] [--generate-signoff] [--signoff-out <path>] [--require-trend-pass] [--require-validation-trend-pass] [--require-cutover-go] [--require-cutover-trend-pass] [--require-baseline-history] [--max-baseline-age-days <days>] [--allow-mock-artifacts]
 
 Purpose:
   One-command listener field gate:
@@ -204,6 +206,14 @@ while [[ $# -gt 0 ]]; do
       REQUIRE_VALIDATION_TREND_PASS=1
       shift
       ;;
+    --require-cutover-go)
+      REQUIRE_CUTOVER_GO=1
+      shift
+      ;;
+    --require-cutover-trend-pass)
+      REQUIRE_CUTOVER_TREND_PASS=1
+      shift
+      ;;
     --require-baseline-history)
       REQUIRE_BASELINE_HISTORY=1
       shift
@@ -320,6 +330,8 @@ echo "Allowed cutover hold-reason increase: ${ALLOW_CUTOVER_HOLD_REASON_INCREASE
 echo "Allowed cutover blocking-reason increase: ${ALLOW_CUTOVER_BLOCKING_REASON_INCREASE_COUNT}"
 echo "Require trend pass: $([[ "$REQUIRE_TREND_PASS" -eq 1 ]] && echo yes || echo no)"
 echo "Require validation trend pass: $([[ "$REQUIRE_VALIDATION_TREND_PASS" -eq 1 ]] && echo yes || echo no)"
+echo "Require cutover GO: $([[ "$REQUIRE_CUTOVER_GO" -eq 1 ]] && echo yes || echo no)"
+echo "Require cutover trend pass: $([[ "$REQUIRE_CUTOVER_TREND_PASS" -eq 1 ]] && echo yes || echo no)"
 echo "Require baseline history: $([[ "$REQUIRE_BASELINE_HISTORY" -eq 1 ]] && echo yes || echo no)"
 echo "Max baseline age: ${MAX_BASELINE_AGE_DAYS:-<disabled>}d"
 echo "Generate signoff: $([[ "$GENERATE_SIGNOFF" -eq 1 ]] && echo yes || echo no)"
@@ -429,59 +441,6 @@ if [[ "$COMPARE_PREVIOUS_VALIDATION" -eq 1 ]]; then
   fi
 fi
 
-readiness_cmd=(
-  ./scripts/onyx_listener_pilot_readiness_check.sh
-  --report-json "$ARTIFACT_DIR/validation_report.json"
-  --max-report-age-hours "$MAX_REPORT_AGE_HOURS"
-)
-if [[ "$REQUIRE_TREND_PASS" -eq 1 ]]; then
-  readiness_cmd+=(--require-trend-pass)
-fi
-if [[ -f "$ARTIFACT_DIR/validation_trend_report.json" ]]; then
-  readiness_cmd+=(--validation-trend-report-json "$ARTIFACT_DIR/validation_trend_report.json")
-fi
-if [[ "$REQUIRE_VALIDATION_TREND_PASS" -eq 1 ]]; then
-  readiness_cmd+=(--require-validation-trend-pass)
-fi
-if [[ "$REQUIRE_BASELINE_HISTORY" -eq 1 ]]; then
-  readiness_cmd+=(--require-baseline-history)
-fi
-if [[ -n "$MAX_BASELINE_AGE_DAYS" ]]; then
-  readiness_cmd+=(--max-baseline-age-days "$MAX_BASELINE_AGE_DAYS")
-fi
-if [[ "$ALLOW_MOCK_ARTIFACTS" -ne 1 ]]; then
-  readiness_cmd+=(--require-real-artifacts)
-fi
-
-"${readiness_cmd[@]}"
-
-if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
-  signoff_cmd=(
-    ./scripts/onyx_listener_signoff_generate.sh
-    --report-json "$ARTIFACT_DIR/pilot_artifact/report.json"
-  )
-  if [[ -f "$ARTIFACT_DIR/pilot_artifact/trend_report.json" ]]; then
-    signoff_cmd+=(--trend-report-json "$ARTIFACT_DIR/pilot_artifact/trend_report.json")
-  fi
-  signoff_cmd+=(--validation-report-json "$ARTIFACT_DIR/validation_report.json")
-  if [[ -f "$ARTIFACT_DIR/validation_trend_report.json" ]]; then
-    signoff_cmd+=(--validation-trend-report-json "$ARTIFACT_DIR/validation_trend_report.json")
-  fi
-  if [[ "$REQUIRE_TREND_PASS" -eq 1 ]]; then
-    signoff_cmd+=(--require-trend-pass)
-  fi
-  if [[ "$REQUIRE_VALIDATION_TREND_PASS" -eq 1 ]]; then
-    signoff_cmd+=(--require-validation-trend-pass)
-  fi
-  if [[ -n "$SIGNOFF_OUT" ]]; then
-    signoff_cmd+=(--out "$SIGNOFF_OUT")
-  fi
-  if [[ "$ALLOW_MOCK_ARTIFACTS" -eq 1 ]]; then
-    signoff_cmd+=(--allow-mock-artifacts)
-  fi
-  "${signoff_cmd[@]}"
-fi
-
 CUTOVER_DECISION_JSON=""
 cutover_cmd=(
   ./scripts/onyx_listener_cutover_decision.sh
@@ -526,6 +485,83 @@ if [[ "$COMPARE_PREVIOUS_CUTOVER" -eq 1 ]]; then
   if [[ -f "$CUTOVER_TREND_JSON" ]]; then
     CUTOVER_TREND_SUMMARY="$(json_get "$CUTOVER_TREND_JSON" "summary")"
   fi
+fi
+
+readiness_cmd=(
+  ./scripts/onyx_listener_pilot_readiness_check.sh
+  --report-json "$ARTIFACT_DIR/validation_report.json"
+  --max-report-age-hours "$MAX_REPORT_AGE_HOURS"
+)
+if [[ "$REQUIRE_TREND_PASS" -eq 1 ]]; then
+  readiness_cmd+=(--require-trend-pass)
+fi
+if [[ -f "$ARTIFACT_DIR/validation_trend_report.json" ]]; then
+  readiness_cmd+=(--validation-trend-report-json "$ARTIFACT_DIR/validation_trend_report.json")
+fi
+if [[ "$REQUIRE_VALIDATION_TREND_PASS" -eq 1 ]]; then
+  readiness_cmd+=(--require-validation-trend-pass)
+fi
+if [[ -f "$ARTIFACT_DIR/cutover_decision.json" ]]; then
+  readiness_cmd+=(--cutover-decision-json "$ARTIFACT_DIR/cutover_decision.json")
+fi
+if [[ "$REQUIRE_CUTOVER_GO" -eq 1 ]]; then
+  readiness_cmd+=(--require-cutover-go)
+fi
+if [[ -f "$ARTIFACT_DIR/cutover_trend_report.json" ]]; then
+  readiness_cmd+=(--cutover-trend-report-json "$ARTIFACT_DIR/cutover_trend_report.json")
+fi
+if [[ "$REQUIRE_CUTOVER_TREND_PASS" -eq 1 ]]; then
+  readiness_cmd+=(--require-cutover-trend-pass)
+fi
+if [[ "$REQUIRE_BASELINE_HISTORY" -eq 1 ]]; then
+  readiness_cmd+=(--require-baseline-history)
+fi
+if [[ -n "$MAX_BASELINE_AGE_DAYS" ]]; then
+  readiness_cmd+=(--max-baseline-age-days "$MAX_BASELINE_AGE_DAYS")
+fi
+if [[ "$ALLOW_MOCK_ARTIFACTS" -ne 1 ]]; then
+  readiness_cmd+=(--require-real-artifacts)
+fi
+
+"${readiness_cmd[@]}"
+
+if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
+  signoff_cmd=(
+    ./scripts/onyx_listener_signoff_generate.sh
+    --report-json "$ARTIFACT_DIR/pilot_artifact/report.json"
+  )
+  if [[ -f "$ARTIFACT_DIR/pilot_artifact/trend_report.json" ]]; then
+    signoff_cmd+=(--trend-report-json "$ARTIFACT_DIR/pilot_artifact/trend_report.json")
+  fi
+  signoff_cmd+=(--validation-report-json "$ARTIFACT_DIR/validation_report.json")
+  if [[ -f "$ARTIFACT_DIR/validation_trend_report.json" ]]; then
+    signoff_cmd+=(--validation-trend-report-json "$ARTIFACT_DIR/validation_trend_report.json")
+  fi
+  if [[ -f "$ARTIFACT_DIR/cutover_decision.json" ]]; then
+    signoff_cmd+=(--cutover-decision-json "$ARTIFACT_DIR/cutover_decision.json")
+  fi
+  if [[ -f "$ARTIFACT_DIR/cutover_trend_report.json" ]]; then
+    signoff_cmd+=(--cutover-trend-report-json "$ARTIFACT_DIR/cutover_trend_report.json")
+  fi
+  if [[ "$REQUIRE_TREND_PASS" -eq 1 ]]; then
+    signoff_cmd+=(--require-trend-pass)
+  fi
+  if [[ "$REQUIRE_VALIDATION_TREND_PASS" -eq 1 ]]; then
+    signoff_cmd+=(--require-validation-trend-pass)
+  fi
+  if [[ "$REQUIRE_CUTOVER_GO" -eq 1 ]]; then
+    signoff_cmd+=(--require-cutover-go)
+  fi
+  if [[ "$REQUIRE_CUTOVER_TREND_PASS" -eq 1 ]]; then
+    signoff_cmd+=(--require-cutover-trend-pass)
+  fi
+  if [[ -n "$SIGNOFF_OUT" ]]; then
+    signoff_cmd+=(--out "$SIGNOFF_OUT")
+  fi
+  if [[ "$ALLOW_MOCK_ARTIFACTS" -eq 1 ]]; then
+    signoff_cmd+=(--allow-mock-artifacts)
+  fi
+  "${signoff_cmd[@]}"
 fi
 
 VALIDATION_REPORT_JSON="$ARTIFACT_DIR/validation_report.json"

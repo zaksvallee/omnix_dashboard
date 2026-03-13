@@ -8,12 +8,16 @@ REQUIRE_TREND_PASS=0
 VALIDATION_REPORT_JSON=""
 VALIDATION_TREND_REPORT_JSON=""
 REQUIRE_VALIDATION_TREND_PASS=0
+CUTOVER_DECISION_JSON=""
+REQUIRE_CUTOVER_GO=0
+CUTOVER_TREND_REPORT_JSON=""
+REQUIRE_CUTOVER_TREND_PASS=0
 ALLOW_MOCK_ARTIFACTS=0
 
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/onyx_listener_signoff_generate.sh [--report-json <path>] [--trend-report-json <path>] [--require-trend-pass] [--validation-report-json <path>] [--validation-trend-report-json <path>] [--require-validation-trend-pass] [--out <path>] [--allow-mock-artifacts]
+  ./scripts/onyx_listener_signoff_generate.sh [--report-json <path>] [--trend-report-json <path>] [--require-trend-pass] [--validation-report-json <path>] [--validation-trend-report-json <path>] [--require-validation-trend-pass] [--cutover-decision-json <path>] [--require-cutover-go] [--cutover-trend-report-json <path>] [--require-cutover-trend-pass] [--out <path>] [--allow-mock-artifacts]
 
 Purpose:
   Generate a listener pilot signoff note from the parity report and field notes.
@@ -46,6 +50,22 @@ while [[ $# -gt 0 ]]; do
       ;;
     --require-validation-trend-pass)
       REQUIRE_VALIDATION_TREND_PASS=1
+      shift
+      ;;
+    --cutover-decision-json)
+      CUTOVER_DECISION_JSON="${2:-}"
+      shift 2
+      ;;
+    --require-cutover-go)
+      REQUIRE_CUTOVER_GO=1
+      shift
+      ;;
+    --cutover-trend-report-json)
+      CUTOVER_TREND_REPORT_JSON="${2:-}"
+      shift 2
+      ;;
+    --require-cutover-trend-pass)
+      REQUIRE_CUTOVER_TREND_PASS=1
       shift
       ;;
     --out)
@@ -148,12 +168,32 @@ if [[ "$REQUIRE_VALIDATION_TREND_PASS" -eq 1 && -z "$VALIDATION_TREND_REPORT_JSO
     VALIDATION_TREND_REPORT_JSON="$validation_artifact_dir/validation_trend_report.json"
   fi
 fi
+if [[ "$REQUIRE_CUTOVER_GO" -eq 1 && -z "$CUTOVER_DECISION_JSON" && -n "$VALIDATION_REPORT_JSON" ]]; then
+  validation_artifact_dir="$(dirname "$VALIDATION_REPORT_JSON")"
+  if [[ -f "$validation_artifact_dir/cutover_decision.json" ]]; then
+    CUTOVER_DECISION_JSON="$validation_artifact_dir/cutover_decision.json"
+  fi
+fi
+if [[ "$REQUIRE_CUTOVER_TREND_PASS" -eq 1 && -z "$CUTOVER_TREND_REPORT_JSON" && -n "$VALIDATION_REPORT_JSON" ]]; then
+  validation_artifact_dir="$(dirname "$VALIDATION_REPORT_JSON")"
+  if [[ -f "$validation_artifact_dir/cutover_trend_report.json" ]]; then
+    CUTOVER_TREND_REPORT_JSON="$validation_artifact_dir/cutover_trend_report.json"
+  fi
+fi
 if [[ -n "$VALIDATION_REPORT_JSON" && ! -f "$VALIDATION_REPORT_JSON" ]]; then
   echo "FAIL: validation report not found: $VALIDATION_REPORT_JSON"
   exit 1
 fi
 if [[ -n "$VALIDATION_TREND_REPORT_JSON" && ! -f "$VALIDATION_TREND_REPORT_JSON" ]]; then
   echo "FAIL: validation trend report not found: $VALIDATION_TREND_REPORT_JSON"
+  exit 1
+fi
+if [[ -n "$CUTOVER_DECISION_JSON" && ! -f "$CUTOVER_DECISION_JSON" ]]; then
+  echo "FAIL: cutover decision report not found: $CUTOVER_DECISION_JSON"
+  exit 1
+fi
+if [[ -n "$CUTOVER_TREND_REPORT_JSON" && ! -f "$CUTOVER_TREND_REPORT_JSON" ]]; then
+  echo "FAIL: cutover trend report not found: $CUTOVER_TREND_REPORT_JSON"
   exit 1
 fi
 
@@ -167,6 +207,18 @@ if [[ -n "$VALIDATION_REPORT_JSON" || "$REQUIRE_VALIDATION_TREND_PASS" -eq 1 ]];
   fi
   if [[ "$REQUIRE_VALIDATION_TREND_PASS" -eq 1 ]]; then
     readiness_cmd+=(--require-validation-trend-pass)
+  fi
+  if [[ -n "$CUTOVER_DECISION_JSON" ]]; then
+    readiness_cmd+=(--cutover-decision-json "$CUTOVER_DECISION_JSON")
+  fi
+  if [[ "$REQUIRE_CUTOVER_GO" -eq 1 ]]; then
+    readiness_cmd+=(--require-cutover-go)
+  fi
+  if [[ -n "$CUTOVER_TREND_REPORT_JSON" ]]; then
+    readiness_cmd+=(--cutover-trend-report-json "$CUTOVER_TREND_REPORT_JSON")
+  fi
+  if [[ "$REQUIRE_CUTOVER_TREND_PASS" -eq 1 ]]; then
+    readiness_cmd+=(--require-cutover-trend-pass)
   fi
 else
   readiness_cmd=(./scripts/onyx_listener_parity_readiness_check.sh --report-json "$REPORT_JSON")
@@ -206,6 +258,38 @@ if [[ "$REQUIRE_VALIDATION_TREND_PASS" -eq 1 ]]; then
   fi
   if [[ "$validation_trend_status" != "PASS" ]]; then
     echo "FAIL: listener validation trend report is not PASS (${validation_trend_status:-missing})."
+    exit 1
+  fi
+fi
+
+cutover_decision=""
+if [[ -n "$CUTOVER_DECISION_JSON" ]]; then
+  cutover_decision="$(json_get "$CUTOVER_DECISION_JSON" "decision")"
+fi
+if [[ "$REQUIRE_CUTOVER_GO" -eq 1 ]]; then
+  if [[ -z "$CUTOVER_DECISION_JSON" ]]; then
+    echo "FAIL: --require-cutover-go was set but no cutover decision report was found."
+    exit 1
+  fi
+  if [[ "$cutover_decision" != "GO" ]]; then
+    echo "FAIL: listener cutover decision is not GO (${cutover_decision:-missing})."
+    exit 1
+  fi
+fi
+
+cutover_trend_status=""
+cutover_trend_markdown=""
+if [[ -n "$CUTOVER_TREND_REPORT_JSON" ]]; then
+  cutover_trend_status="$(json_get "$CUTOVER_TREND_REPORT_JSON" "status")"
+  cutover_trend_markdown="$(dirname "$CUTOVER_TREND_REPORT_JSON")/cutover_trend_report.md"
+fi
+if [[ "$REQUIRE_CUTOVER_TREND_PASS" -eq 1 ]]; then
+  if [[ -z "$CUTOVER_TREND_REPORT_JSON" ]]; then
+    echo "FAIL: --require-cutover-trend-pass was set but no cutover trend report was found."
+    exit 1
+  fi
+  if [[ "$cutover_trend_status" != "PASS" ]]; then
+    echo "FAIL: listener cutover trend report is not PASS (${cutover_trend_status:-missing})."
     exit 1
   fi
 fi
@@ -261,6 +345,15 @@ mkdir -p "$(dirname "$OUT_FILE")"
   if [[ -n "$validation_trend_markdown" && -f "$validation_trend_markdown" ]]; then
     echo "- Validation trend markdown: \`${validation_trend_markdown}\`"
   fi
+  if [[ -n "$CUTOVER_DECISION_JSON" ]]; then
+    echo "- Cutover decision JSON: \`${CUTOVER_DECISION_JSON}\`"
+  fi
+  if [[ -n "$CUTOVER_TREND_REPORT_JSON" ]]; then
+    echo "- Cutover trend report JSON: \`${CUTOVER_TREND_REPORT_JSON}\`"
+  fi
+  if [[ -n "$cutover_trend_markdown" && -f "$cutover_trend_markdown" ]]; then
+    echo "- Cutover trend markdown: \`${cutover_trend_markdown}\`"
+  fi
   echo
   echo "## Results"
   echo "- Summary: \`${summary}\`"
@@ -274,6 +367,12 @@ mkdir -p "$(dirname "$OUT_FILE")"
   fi
   if [[ -n "$validation_trend_status" ]]; then
     echo "- Validation trend status: \`${validation_trend_status}\`"
+  fi
+  if [[ -n "$cutover_decision" ]]; then
+    echo "- Cutover decision: \`${cutover_decision}\`"
+  fi
+  if [[ -n "$cutover_trend_status" ]]; then
+    echo "- Cutover trend status: \`${cutover_trend_status}\`"
   fi
   echo
   echo "## Notes"
@@ -296,6 +395,16 @@ mkdir -p "$(dirname "$OUT_FILE")"
     echo "- Listener validation trend check acceptable for pilot: \`yes\`"
   elif [[ -n "$validation_trend_status" ]]; then
     echo "- Listener validation trend check acceptable for pilot: \`$([[ "$validation_trend_status" == "PASS" ]] && echo yes || echo no)\`"
+  fi
+  if [[ "$REQUIRE_CUTOVER_GO" -eq 1 ]]; then
+    echo "- Listener cutover decision acceptable for pilot: \`yes\`"
+  elif [[ -n "$cutover_decision" ]]; then
+    echo "- Listener cutover decision acceptable for pilot: \`$([[ "$cutover_decision" == "GO" ]] && echo yes || echo no)\`"
+  fi
+  if [[ "$REQUIRE_CUTOVER_TREND_PASS" -eq 1 ]]; then
+    echo "- Listener cutover trend acceptable for pilot: \`yes\`"
+  elif [[ -n "$cutover_trend_status" ]]; then
+    echo "- Listener cutover trend acceptable for pilot: \`$([[ "$cutover_trend_status" == "PASS" ]] && echo yes || echo no)\`"
   fi
   echo "- Remaining blockers: \`none\`"
 } >"$OUT_FILE"

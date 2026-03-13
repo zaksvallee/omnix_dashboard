@@ -311,6 +311,8 @@ To confirm the latest listener field-validation bundle is signoff-ready:
 ./scripts/onyx_listener_pilot_readiness_check.sh \
   --require-trend-pass \
   --require-validation-trend-pass \
+  --require-cutover-go \
+  --require-cutover-trend-pass \
   --require-baseline-history \
   --max-baseline-age-days 30
 ```
@@ -359,6 +361,15 @@ Readiness and signoff can also enforce validation-trend pass explicitly:
 
 When enabled, readiness verifies that the validation-trend artifact exists,
 references real current/previous validation reports, and has `status = PASS`.
+
+Readiness and signoff can also enforce cutover posture explicitly:
+- `--cutover-decision-json <path>`
+- `--require-cutover-go`
+- `--cutover-trend-report-json <path>`
+- `--require-cutover-trend-pass`
+
+When enabled, readiness verifies that the cutover decision resolves to `GO`
+and that the cutover trend artifact resolves to `PASS`.
 
 Field validation and readiness now also enforce the serial bench anomaly gate:
 - `gates.bench_anomaly_gate_passed`
