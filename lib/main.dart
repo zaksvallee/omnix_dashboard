@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
@@ -47,6 +48,7 @@ import 'domain/events/patrol_completed.dart';
 import 'domain/events/response_arrived.dart';
 import 'domain/evidence/client_ledger_repository.dart';
 import 'domain/evidence/client_ledger_service.dart';
+import 'domain/evidence/evidence_provenance.dart';
 import 'domain/guard/guard_ops_event.dart';
 import 'domain/guard/guard_event_contract.dart';
 import 'domain/guard/guard_mobile_ops.dart';
@@ -5484,6 +5486,100 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'motion $motion • '
         'fr $fr • '
         'lpr $lpr';
+  }
+
+  bool _matchesActiveVideoProviderEvent(IntelligenceReceived event) {
+    if (event.sourceType != 'hardware' && event.sourceType != 'dvr') {
+      return false;
+    }
+    final configuredProvider = _activeVideoProfile.provider.trim().toLowerCase();
+    if (configuredProvider.isNotEmpty &&
+        event.provider.trim().toLowerCase() != configuredProvider) {
+      return false;
+    }
+    final expectedSourceType = _activeVideoProfile.isDvr ? 'dvr' : 'hardware';
+    return event.sourceType == expectedSourceType;
+  }
+
+  IntelligenceReceived? _latestActiveVideoIntelligence(List<DispatchEvent> events) {
+    IntelligenceReceived? latest;
+    for (final event in events.whereType<IntelligenceReceived>()) {
+      if (!_matchesActiveVideoProviderEvent(event)) {
+        continue;
+      }
+      if (latest == null || event.occurredAt.isAfter(latest.occurredAt)) {
+        latest = event;
+      }
+    }
+    return latest;
+  }
+
+  String? _videoIntegrityCertificateStatus(List<DispatchEvent> events) {
+    final event = _latestActiveVideoIntelligence(events);
+    if (event == null) {
+      return null;
+    }
+    final certificate = EvidenceProvenanceCertificate.fromIntelligence(event);
+    if (certificate.evidenceRecordHash.trim().isEmpty) {
+      return 'WARN';
+    }
+    return 'PASS';
+  }
+
+  String? _videoIntegrityCertificateSummary(List<DispatchEvent> events) {
+    final event = _latestActiveVideoIntelligence(events);
+    if (event == null) {
+      return null;
+    }
+    final certificate = EvidenceProvenanceCertificate.fromIntelligence(event);
+    final snapshotState = certificate.snapshot.isPresent ? 'present' : 'missing';
+    final clipState = certificate.clip.isPresent ? 'present' : 'missing';
+    return 'Latest ${_activeVideoOpsLabel.toLowerCase()} evidence certificate • '
+        '${certificate.intelligenceId} • '
+        'record ${certificate.evidenceRecordHash.substring(0, math.min(12, certificate.evidenceRecordHash.length))} • '
+        'snapshot $snapshotState • clip $clipState';
+  }
+
+  String? _videoIntegrityCertificateJsonPreview(List<DispatchEvent> events) {
+    final event = _latestActiveVideoIntelligence(events);
+    if (event == null) {
+      return null;
+    }
+    final certificate = EvidenceProvenanceCertificate.fromIntelligence(event);
+    final payload = <String, Object?>{
+      'certificate_type': 'onyx_evidence_integrity_certificate_preview',
+      'intelligence': certificate.toJson(),
+      'ledger': {
+        'sealed': false,
+        'note':
+            'Preview only. Ledger-backed export is available from the evidence export flow.',
+      },
+    };
+    return const JsonEncoder.withIndent('  ').convert(payload);
+  }
+
+  String? _videoIntegrityCertificateMarkdownPreview(List<DispatchEvent> events) {
+    final event = _latestActiveVideoIntelligence(events);
+    if (event == null) {
+      return null;
+    }
+    final certificate = EvidenceProvenanceCertificate.fromIntelligence(event);
+    return [
+      '# ONYX Evidence Integrity Certificate',
+      '',
+      '- Intelligence ID: `${certificate.intelligenceId}`',
+      '- Provider: `${certificate.provider}`',
+      '- Source type: `${certificate.sourceType}`',
+      '- External ID: `${certificate.externalId}`',
+      '- Client / Site: `${certificate.clientId}` / `${certificate.siteId}`',
+      '- Occurred at UTC: `${certificate.occurredAtUtc.toIso8601String()}`',
+      '- Canonical hash: `${certificate.canonicalHash}`',
+      '- Evidence record hash: `${certificate.evidenceRecordHash}`',
+      '- Snapshot locator hash: `${certificate.snapshot.locatorHash}`',
+      '- Clip locator hash: `${certificate.clip.locatorHash}`',
+      '- Ledger sealed: `false`',
+      '- Ledger note: `Preview only. Ledger-backed export is available from the evidence export flow.`',
+    ].join('\n');
   }
 
   String _cctvBridgeStatusSummary() {
@@ -12217,6 +12313,16 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           cctvRecentSignalSummary: _cctvRecentSignalSummary(events),
           cctvEvidenceHealthSummary: _cctvEvidenceSummary(),
           cctvCameraHealthSummary: _cctvCameraHealthSummary(),
+          videoIntegrityCertificateStatus: _videoIntegrityCertificateStatus(
+            events,
+          ),
+          videoIntegrityCertificateSummary: _videoIntegrityCertificateSummary(
+            events,
+          ),
+          videoIntegrityCertificateJsonPreview:
+              _videoIntegrityCertificateJsonPreview(events),
+          videoIntegrityCertificateMarkdownPreview:
+              _videoIntegrityCertificateMarkdownPreview(events),
           wearableOpsPollHealth: _opsHealthSummary(_wearableOpsHealth),
           newsOpsPollHealth: _opsHealthSummary(_newsOpsHealth),
           telegramBridgeHealthLabel: _telegramBridgeHealthLabel,

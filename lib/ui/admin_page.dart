@@ -2638,7 +2638,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           const SizedBox(height: 6),
           Text(
             summary.isEmpty
-                ? 'No staged validation-bundle integrity summary available.'
+                ? 'No active ${widget.videoOpsLabel} integrity summary available.'
                 : summary,
             style: GoogleFonts.inter(
               color: const Color(0xFF9AB1CF),
@@ -2672,11 +2672,11 @@ class _AdministrationPageState extends State<AdministrationPage> {
   void _showVideoIntegrityCertificatePreview() {
     final jsonPreview =
         (widget.videoIntegrityCertificateJsonPreview ?? '').trim().isEmpty
-        ? '{\n  "note": "No staged JSON preview provided."\n}'
+        ? '{\n  "note": "No runtime JSON preview provided."\n}'
         : widget.videoIntegrityCertificateJsonPreview!.trim();
     final markdownPreview =
         (widget.videoIntegrityCertificateMarkdownPreview ?? '').trim().isEmpty
-        ? '# Integrity Certificate\n\nNo staged markdown preview provided.'
+        ? '# Integrity Certificate\n\nNo runtime markdown preview provided.'
         : widget.videoIntegrityCertificateMarkdownPreview!.trim();
 
     showDialog<void>(
@@ -2703,7 +2703,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Preview the staged validation-bundle integrity certificate for the active video provider.',
+                      'Preview the latest ${widget.videoOpsLabel} integrity certificate derived from runtime video intelligence evidence.',
                       style: GoogleFonts.inter(
                         color: const Color(0xFF8EA5C6),
                         fontSize: 12,
