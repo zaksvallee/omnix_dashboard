@@ -360,6 +360,7 @@ To drive the full listener field flow in one command:
   --compare-previous-release \
   --allow-validation-baseline-age-increase-days 7 \
   --require-release-gate-pass \
+  --require-release-trend-pass \
   --generate-signoff
 ```
 
@@ -391,6 +392,18 @@ When `--require-release-gate-pass` is enabled, the field gate will fail unless
 `release_gate.json` resolves to `result = PASS`. A `HOLD` release posture is
 still emitted as an artifact, but it is treated as a blocking outcome for that
 invocation.
+
+When `--require-release-trend-pass` is enabled, the field gate will fail unless
+`release_trend_report.json` resolves to `status = PASS`.
+
+Readiness can also enforce release posture explicitly:
+- `--release-gate-json <path>`
+- `--require-release-gate-pass`
+- `--release-trend-report-json <path>`
+- `--require-release-trend-pass`
+
+When enabled, readiness verifies that the release gate resolves to `PASS` and
+that the release-trend artifact resolves to `PASS`.
 
 Readiness and signoff can also enforce validation-trend pass explicitly:
 - `--validation-trend-report-json <path>`

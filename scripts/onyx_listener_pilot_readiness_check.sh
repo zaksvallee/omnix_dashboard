@@ -14,6 +14,10 @@ CUTOVER_DECISION_JSON=""
 REQUIRE_CUTOVER_GO=0
 CUTOVER_TREND_REPORT_JSON=""
 REQUIRE_CUTOVER_TREND_PASS=0
+RELEASE_GATE_JSON=""
+REQUIRE_RELEASE_GATE_PASS=0
+RELEASE_TREND_REPORT_JSON=""
+REQUIRE_RELEASE_TREND_PASS=0
 REQUIRE_BASELINE_HISTORY=0
 MAX_BASELINE_AGE_DAYS=""
 
@@ -23,7 +27,7 @@ fail() { printf "FAIL: %s\n" "$1"; exit 1; }
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/onyx_listener_pilot_readiness_check.sh [--report-json <path>] [--max-report-age-hours <hours>] [--require-real-artifacts] [--require-trend-pass] [--validation-trend-report-json <path>] [--require-validation-trend-pass] [--cutover-decision-json <path>] [--require-cutover-go] [--cutover-trend-report-json <path>] [--require-cutover-trend-pass] [--require-baseline-history] [--max-baseline-age-days <days>]
+  ./scripts/onyx_listener_pilot_readiness_check.sh [--report-json <path>] [--max-report-age-hours <hours>] [--require-real-artifacts] [--require-trend-pass] [--validation-trend-report-json <path>] [--require-validation-trend-pass] [--cutover-decision-json <path>] [--require-cutover-go] [--cutover-trend-report-json <path>] [--require-cutover-trend-pass] [--release-gate-json <path>] [--require-release-gate-pass] [--release-trend-report-json <path>] [--require-release-trend-pass] [--require-baseline-history] [--max-baseline-age-days <days>]
 
 Purpose:
   Validate the latest listener field-validation artifact under
@@ -72,6 +76,22 @@ while [[ $# -gt 0 ]]; do
       ;;
     --require-cutover-trend-pass)
       REQUIRE_CUTOVER_TREND_PASS=1
+      shift
+      ;;
+    --release-gate-json)
+      RELEASE_GATE_JSON="${2:-}"
+      shift 2
+      ;;
+    --require-release-gate-pass)
+      REQUIRE_RELEASE_GATE_PASS=1
+      shift
+      ;;
+    --release-trend-report-json)
+      RELEASE_TREND_REPORT_JSON="${2:-}"
+      shift 2
+      ;;
+    --require-release-trend-pass)
+      REQUIRE_RELEASE_TREND_PASS=1
       shift
       ;;
     --require-baseline-history)
@@ -310,6 +330,51 @@ print(status)
 PY
 }
 
+verify_release_gate_report() {
+  local report_file="$1"
+  python3 - "$report_file" <<'PY'
+import json
+import os
+import sys
+
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+
+result = str(data.get("result", "")).upper()
+validation_report = str(data.get("validation_report_json", "")).strip()
+
+if not validation_report or not os.path.isfile(validation_report):
+    raise SystemExit("missing_validation_report")
+
+print(result)
+PY
+}
+
+verify_release_trend_report() {
+  local report_file="$1"
+  python3 - "$report_file" <<'PY'
+import json
+import os
+import sys
+
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+
+status = str(data.get("status", "")).upper()
+current_gate = str(data.get("current_release_gate_json", "")).strip()
+previous_gate = str(data.get("previous_release_gate_json", "")).strip()
+
+if not current_gate or not os.path.isfile(current_gate):
+    raise SystemExit("missing_current_release_gate")
+if not previous_gate or not os.path.isfile(previous_gate):
+    raise SystemExit("missing_previous_release_gate")
+
+print(status)
+PY
+}
+
 latest_report_json="$REPORT_JSON"
 if [[ -z "$latest_report_json" ]]; then
   latest_report_json="$(latest_validation_report_json || true)"
@@ -334,6 +399,18 @@ if [[ -z "$CUTOVER_TREND_REPORT_JSON" ]]; then
   candidate_dir="$(dirname "$latest_report_json")"
   if [[ -f "$candidate_dir/cutover_trend_report.json" ]]; then
     CUTOVER_TREND_REPORT_JSON="$candidate_dir/cutover_trend_report.json"
+  fi
+fi
+if [[ -z "$RELEASE_GATE_JSON" ]]; then
+  candidate_dir="$(dirname "$latest_report_json")"
+  if [[ -f "$candidate_dir/release_gate.json" ]]; then
+    RELEASE_GATE_JSON="$candidate_dir/release_gate.json"
+  fi
+fi
+if [[ -z "$RELEASE_TREND_REPORT_JSON" ]]; then
+  candidate_dir="$(dirname "$latest_report_json")"
+  if [[ -f "$candidate_dir/release_trend_report.json" ]]; then
+    RELEASE_TREND_REPORT_JSON="$candidate_dir/release_trend_report.json"
   fi
 fi
 
@@ -421,6 +498,41 @@ if [[ "$REQUIRE_CUTOVER_TREND_PASS" -eq 1 ]]; then
   }
   [[ "$cutover_trend_status" == "PASS" ]] || fail "Listener readiness failed: cutover trend report is not PASS (${cutover_trend_status:-missing})."
   pass "Cutover trend gate passed ($CUTOVER_TREND_REPORT_JSON)."
+fi
+
+if [[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]]; then
+  [[ -n "$RELEASE_GATE_JSON" && -f "$RELEASE_GATE_JSON" ]] || fail "Listener readiness failed: release gate report is missing under --require-release-gate-pass."
+  release_gate_status="$(verify_release_gate_report "$RELEASE_GATE_JSON" 2>&1)" || {
+    case "$release_gate_status" in
+      missing_validation_report)
+        fail "Listener readiness failed: release gate references a missing validation report."
+        ;;
+      *)
+        fail "Listener readiness failed: release gate verification failed: ${release_gate_status:-unknown}."
+        ;;
+    esac
+  }
+  [[ "$release_gate_status" == "PASS" ]] || fail "Listener readiness failed: release gate is not PASS (${release_gate_status:-missing})."
+  pass "Release gate passed ($RELEASE_GATE_JSON)."
+fi
+
+if [[ "$REQUIRE_RELEASE_TREND_PASS" -eq 1 ]]; then
+  [[ -n "$RELEASE_TREND_REPORT_JSON" && -f "$RELEASE_TREND_REPORT_JSON" ]] || fail "Listener readiness failed: release trend report is missing under --require-release-trend-pass."
+  release_trend_status="$(verify_release_trend_report "$RELEASE_TREND_REPORT_JSON" 2>&1)" || {
+    case "$release_trend_status" in
+      missing_current_release_gate)
+        fail "Listener readiness failed: release trend report references a missing current release gate."
+        ;;
+      missing_previous_release_gate)
+        fail "Listener readiness failed: release trend report references a missing previous release gate."
+        ;;
+      *)
+        fail "Listener readiness failed: release trend verification failed: ${release_trend_status:-unknown}."
+        ;;
+    esac
+  }
+  [[ "$release_trend_status" == "PASS" ]] || fail "Listener readiness failed: release trend report is not PASS (${release_trend_status:-missing})."
+  pass "Release trend gate passed ($RELEASE_TREND_REPORT_JSON)."
 fi
 
 if [[ "$REQUIRE_BASELINE_HISTORY" -eq 1 ]]; then

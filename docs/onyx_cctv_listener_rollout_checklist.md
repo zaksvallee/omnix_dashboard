@@ -114,6 +114,8 @@ Notes:
   - Listener release posture can now be emitted as explicit `PASS|HOLD|FAIL` artifacts that collapse validation, cutover posture, and signoff presence into one final release gate.
   - Listener field gate can now enforce `--require-release-gate-pass`, treating a `HOLD` release posture as a blocking outcome for that invocation.
   - Listener release posture can now be compared run-to-run so `PASS|HOLD|FAIL` regressions and increasing hold/fail reason counts are surfaced explicitly.
+  - Listener readiness can now enforce `release_gate = PASS` and `release_trend = PASS` explicitly once those artifacts exist in the validation bundle.
+  - Listener field gate can now enforce `--require-release-trend-pass`, treating a failing release-trend check as a blocking outcome for that invocation.
 
 ---
 

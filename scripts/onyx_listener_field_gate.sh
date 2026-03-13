@@ -48,13 +48,14 @@ REQUIRE_VALIDATION_TREND_PASS=0
 REQUIRE_CUTOVER_GO=0
 REQUIRE_CUTOVER_TREND_PASS=0
 REQUIRE_RELEASE_GATE_PASS=0
+REQUIRE_RELEASE_TREND_PASS=0
 REQUIRE_BASELINE_HISTORY=0
 MAX_BASELINE_AGE_DAYS=""
 
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/onyx_listener_field_gate.sh [--capture-dir <path>] [--site-id <site_id>] [--device-path <tty>] [--legacy-source <label>] [--client-id <id>] [--region-id <id>] [--artifact-dir <path>] [--bench-baseline-json <path>] [--max-report-age-hours <hours>] [--min-match-rate-percent 95] [--max-skew-seconds 90] [--max-observed-skew-seconds <n>] [--allow-drift-reason <reason>]... [--max-drift-reason-count <reason=count>]... [--compare-previous] [--previous-report-json <path>] [--allow-match-rate-drop-percent 0] [--allow-max-skew-increase-seconds 0] [--allow-trend-drift-count-increase <reason=count>]... [--compare-previous-validation] [--previous-validation-report-json <path>] [--allow-validation-baseline-age-increase-days 0] [--compare-previous-cutover] [--previous-cutover-decision-json <path>] [--allow-cutover-hold-reason-increase-count 0] [--allow-cutover-blocking-reason-increase-count 0] [--compare-previous-release] [--previous-release-gate-json <path>] [--allow-release-hold-reason-increase-count 0] [--allow-release-fail-reason-increase-count 0] [--max-capture-signatures <count>] [--allow-capture-signature <signature>]... [--max-unexpected-signatures <count>] [--max-fallback-timestamp-count <count>] [--max-unknown-event-rate-percent <percent>] [--init-capture-pack] [--generate-signoff] [--signoff-out <path>] [--require-trend-pass] [--require-validation-trend-pass] [--require-cutover-go] [--require-cutover-trend-pass] [--require-release-gate-pass] [--require-baseline-history] [--max-baseline-age-days <days>] [--allow-mock-artifacts]
+  ./scripts/onyx_listener_field_gate.sh [--capture-dir <path>] [--site-id <site_id>] [--device-path <tty>] [--legacy-source <label>] [--client-id <id>] [--region-id <id>] [--artifact-dir <path>] [--bench-baseline-json <path>] [--max-report-age-hours <hours>] [--min-match-rate-percent 95] [--max-skew-seconds 90] [--max-observed-skew-seconds <n>] [--allow-drift-reason <reason>]... [--max-drift-reason-count <reason=count>]... [--compare-previous] [--previous-report-json <path>] [--allow-match-rate-drop-percent 0] [--allow-max-skew-increase-seconds 0] [--allow-trend-drift-count-increase <reason=count>]... [--compare-previous-validation] [--previous-validation-report-json <path>] [--allow-validation-baseline-age-increase-days 0] [--compare-previous-cutover] [--previous-cutover-decision-json <path>] [--allow-cutover-hold-reason-increase-count 0] [--allow-cutover-blocking-reason-increase-count 0] [--compare-previous-release] [--previous-release-gate-json <path>] [--allow-release-hold-reason-increase-count 0] [--allow-release-fail-reason-increase-count 0] [--max-capture-signatures <count>] [--allow-capture-signature <signature>]... [--max-unexpected-signatures <count>] [--max-fallback-timestamp-count <count>] [--max-unknown-event-rate-percent <percent>] [--init-capture-pack] [--generate-signoff] [--signoff-out <path>] [--require-trend-pass] [--require-validation-trend-pass] [--require-cutover-go] [--require-cutover-trend-pass] [--require-release-gate-pass] [--require-release-trend-pass] [--require-baseline-history] [--max-baseline-age-days <days>] [--allow-mock-artifacts]
 
 Purpose:
   One-command listener field gate:
@@ -239,6 +240,10 @@ while [[ $# -gt 0 ]]; do
       REQUIRE_RELEASE_GATE_PASS=1
       shift
       ;;
+    --require-release-trend-pass)
+      REQUIRE_RELEASE_TREND_PASS=1
+      shift
+      ;;
     --require-baseline-history)
       REQUIRE_BASELINE_HISTORY=1
       shift
@@ -372,6 +377,7 @@ echo "Require validation trend pass: $([[ "$REQUIRE_VALIDATION_TREND_PASS" -eq 1
 echo "Require cutover GO: $([[ "$REQUIRE_CUTOVER_GO" -eq 1 ]] && echo yes || echo no)"
 echo "Require cutover trend pass: $([[ "$REQUIRE_CUTOVER_TREND_PASS" -eq 1 ]] && echo yes || echo no)"
 echo "Require release gate pass: $([[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]] && echo yes || echo no)"
+echo "Require release trend pass: $([[ "$REQUIRE_RELEASE_TREND_PASS" -eq 1 ]] && echo yes || echo no)"
 echo "Require baseline history: $([[ "$REQUIRE_BASELINE_HISTORY" -eq 1 ]] && echo yes || echo no)"
 echo "Max baseline age: ${MAX_BASELINE_AGE_DAYS:-<disabled>}d"
 echo "Generate signoff: $([[ "$GENERATE_SIGNOFF" -eq 1 ]] && echo yes || echo no)"
@@ -731,6 +737,17 @@ if [[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]]; then
   fi
   if [[ "$RELEASE_GATE_RESULT" != "PASS" ]]; then
     echo "FAIL: Listener release gate is ${RELEASE_GATE_RESULT}, expected PASS under --require-release-gate-pass."
+    exit 1
+  fi
+fi
+
+if [[ "$REQUIRE_RELEASE_TREND_PASS" -eq 1 ]]; then
+  if [[ -z "$RELEASE_TREND_STATUS" ]]; then
+    echo "FAIL: Listener release trend artifact was not generated under --require-release-trend-pass."
+    exit 1
+  fi
+  if [[ "$RELEASE_TREND_STATUS" != "PASS" ]]; then
+    echo "FAIL: Listener release trend is ${RELEASE_TREND_STATUS}, expected PASS under --require-release-trend-pass."
     exit 1
   fi
 fi
