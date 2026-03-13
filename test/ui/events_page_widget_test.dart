@@ -202,6 +202,8 @@ void main() {
     expect(find.textContaining('record-hash-001'), findsOneWidget);
     expect(find.text('Markdown'), findsOneWidget);
     expect(find.text('JSON'), findsOneWidget);
+    expect(find.text('Copy JSON'), findsOneWidget);
+    expect(find.text('Copy Markdown'), findsOneWidget);
   });
 
 }

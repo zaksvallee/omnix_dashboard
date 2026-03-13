@@ -2727,18 +2727,58 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () => Navigator.of(dialogContext).pop(),
-                        child: Text(
-                          'Close',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFEAF4FF),
-                            fontWeight: FontWeight.w700,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton.icon(
+                          onPressed: () async {
+                            await Clipboard.setData(
+                              ClipboardData(text: jsonPreview),
+                            );
+                          },
+                          icon: const Icon(
+                            Icons.content_copy_rounded,
+                            size: 16,
+                          ),
+                          label: Text(
+                            'Copy JSON',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFEAF4FF),
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        TextButton.icon(
+                          onPressed: () async {
+                            await Clipboard.setData(
+                              ClipboardData(text: markdownPreview),
+                            );
+                          },
+                          icon: const Icon(
+                            Icons.content_copy_rounded,
+                            size: 16,
+                          ),
+                          label: Text(
+                            'Copy Markdown',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFEAF4FF),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        TextButton(
+                          onPressed: () => Navigator.of(dialogContext).pop(),
+                          child: Text(
+                            'Close',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFEAF4FF),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

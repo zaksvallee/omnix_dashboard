@@ -216,6 +216,8 @@ void main() {
     expect(find.text('JSON'), findsOneWidget);
     expect(find.text('Markdown'), findsOneWidget);
     expect(find.textContaining('"bundle_hash": "abc123"'), findsOneWidget);
+    expect(find.text('Copy JSON'), findsOneWidget);
+    expect(find.text('Copy Markdown'), findsOneWidget);
   });
 
   testWidgets('system tab validates and saves radio intent dictionary', (

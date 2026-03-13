@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../domain/evidence/evidence_provenance.dart';
@@ -1554,18 +1555,52 @@ class IntegrityCertificatePreviewCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: Text(
-                        'Close',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFFE6F0FF),
-                          fontWeight: FontWeight.w700,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton.icon(
+                        onPressed: () async {
+                          await Clipboard.setData(
+                            ClipboardData(text: prettyJson),
+                          );
+                        },
+                        icon: const Icon(Icons.content_copy_rounded, size: 16),
+                        label: Text(
+                          'Copy JSON',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFE6F0FF),
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      TextButton.icon(
+                        onPressed: () async {
+                          await Clipboard.setData(
+                            ClipboardData(text: markdown),
+                          );
+                        },
+                        icon: const Icon(Icons.content_copy_rounded, size: 16),
+                        label: Text(
+                          'Copy Markdown',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFE6F0FF),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: Text(
+                          'Close',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFE6F0FF),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
