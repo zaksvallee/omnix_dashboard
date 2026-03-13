@@ -568,7 +568,29 @@ resolved_validation_trend_path = ""
 if readiness is not None:
     readiness_status = str(readiness.get("status", "")).upper()
     readiness_failure_code = str(readiness.get("failure_code", "")).strip()
-    resolved_validation_trend_path = str(((readiness.get("resolved_files") or {}).get("validation_trend_report_json", ""))).strip()
+    readiness_resolved_files = readiness.get("resolved_files", {}) or {}
+    resolved_validation_trend_path = str((readiness_resolved_files.get("validation_trend_report_json", ""))).strip()
+    readiness_validation_report = str(readiness.get("validation_report_json", "")).strip()
+    readiness_cutover_decision = str((readiness_resolved_files.get("cutover_decision_json", ""))).strip()
+    readiness_cutover_trend = str((readiness_resolved_files.get("cutover_trend_report_json", ""))).strip()
+    if readiness_validation_report != str(validation_path or ""):
+        add_reason(
+            fail_items,
+            "readiness_validation_report_mismatch",
+            "readiness report validation report does not match release gate validation report",
+        )
+    if readiness_cutover_decision != str(cutover_path or ""):
+        add_reason(
+            fail_items,
+            "readiness_cutover_decision_report_mismatch",
+            "readiness report cutover decision does not match release gate cutover decision",
+        )
+    if readiness_cutover_trend != str(cutover_trend_path or ""):
+        add_reason(
+            fail_items,
+            "readiness_cutover_trend_report_mismatch",
+            "readiness report cutover trend does not match release gate cutover trend report",
+        )
     if readiness_status != "PASS":
         add_reason(
             fail_items,

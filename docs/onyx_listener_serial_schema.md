@@ -372,6 +372,9 @@ summarize.
 The field-gate cutover producer now also keys that handoff off the staged
 artifact paths themselves, so cutover generation no longer depends on the
 presence of pilot-subdirectory copies when the staged bundle already exists.
+Release posture and release trend now apply the same exact-alignment rule to
+`readiness_report.json`, so readiness cannot quietly point at a different
+validation or cutover chain than the release gate consuming it.
 
 Cutover and release trend comparisons now prefer stable machine-readable
 `hold_codes`, `blocking_codes`, and `fail_codes` when present, falling back to

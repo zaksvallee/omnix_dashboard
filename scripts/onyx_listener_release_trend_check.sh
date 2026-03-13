@@ -1057,6 +1057,16 @@ def release_gate_consistency_regressions(report, label):
         actual_readiness_failure = str(readiness_data.get("failure_code", "")).strip()
         if str(statuses.get("readiness_failure_code", "")).strip() != actual_readiness_failure:
             add("readiness_failure_code_mismatch", "release_gate_status_mismatch", actual_readiness_failure, str(statuses.get("readiness_failure_code", "")).strip())
+        readiness_resolved_files = (readiness_data.get("resolved_files") or {})
+        actual_readiness_validation = str(readiness_data.get("validation_report_json", "")).strip()
+        actual_readiness_cutover = str(readiness_resolved_files.get("cutover_decision_json", "")).strip()
+        actual_readiness_cutover_trend = str(readiness_resolved_files.get("cutover_trend_report_json", "")).strip()
+        if actual_readiness_validation != validation_report:
+            add("readiness_validation_report_mismatch", "release_gate_status_mismatch", validation_report, actual_readiness_validation)
+        if actual_readiness_cutover != cutover_decision:
+            add("readiness_cutover_decision_report_mismatch", "release_gate_status_mismatch", cutover_decision, actual_readiness_cutover)
+        if actual_readiness_cutover_trend != cutover_trend:
+            add("readiness_cutover_trend_report_mismatch", "release_gate_status_mismatch", cutover_trend, actual_readiness_cutover_trend)
 
     if cutover_data is not None:
         actual_cutover_decision = str(cutover_data.get("decision", "")).upper()
