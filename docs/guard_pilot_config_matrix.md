@@ -150,6 +150,13 @@ Video provider selection:
 - ONYX prefers `ONYX_CCTV_*` when both CCTV and DVR are configured.
 - If CCTV is unconfigured and DVR is configured, ONYX uses the DVR bridge path for video ingest, `/bridges`, and `/pollops`.
 
+DVR pilot commands:
+- `./scripts/onyx_dvr_capture_pack_init.sh`
+- `./scripts/onyx_dvr_field_validation.sh`
+- `./scripts/onyx_dvr_pilot_readiness_check.sh --require-real-artifacts`
+- `./scripts/onyx_dvr_pilot_gate.sh`
+- `./scripts/onyx_dvr_signoff_generate.sh`
+
 CCTV pilot commands:
 - `./scripts/onyx_cctv_capture_pack_init.sh`
 - `./scripts/onyx_cctv_field_validation.sh`

@@ -69,3 +69,10 @@ Current scope:
 - shared runtime and health-summary path is in place
 - DVR-specific live bridge implementation is built
 - DVR provider selection is wired into runtime env/config with CCTV-first precedence
+- DVR field-tooling scaffold is in place:
+  - `scripts/onyx_dvr_capture_pack_init.sh`
+  - `scripts/onyx_dvr_field_validation.sh`
+  - `scripts/onyx_dvr_pilot_readiness_check.sh`
+  - `scripts/onyx_dvr_mock_validation_artifacts.sh`
+  - `scripts/onyx_dvr_pilot_gate.sh`
+  - `scripts/onyx_dvr_signoff_generate.sh`

@@ -1,0 +1,165 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
+PROVIDER="${ONYX_DVR_PROVIDER:-hikvision_dvr}"
+EXPECT_CAMERA=""
+EXPECT_ZONE=""
+REPORT_JSON=""
+MAX_REPORT_AGE_HOURS="${ONYX_DVR_MAX_VALIDATION_REPORT_AGE_HOURS:-24}"
+REQUIRE_REAL_ARTIFACTS=0
+
+pass() { printf "PASS: %s\n" "$1"; }
+fail() { printf "FAIL: %s\n" "$1"; exit 1; }
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  ./scripts/onyx_dvr_pilot_readiness_check.sh [--provider <id>] [--expect-camera <camera_id>] [--expect-zone <zone>] [--report-json <path>] [--max-report-age-hours <hours>] [--require-real-artifacts]
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --provider) PROVIDER="${2:-}"; shift 2 ;;
+    --expect-camera) EXPECT_CAMERA="${2:-}"; shift 2 ;;
+    --expect-zone) EXPECT_ZONE="${2:-}"; shift 2 ;;
+    --report-json) REPORT_JSON="${2:-}"; shift 2 ;;
+    --max-report-age-hours) MAX_REPORT_AGE_HOURS="${2:-}"; shift 2 ;;
+    --require-real-artifacts) REQUIRE_REAL_ARTIFACTS=1; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) fail "Unknown argument: $1" ;;
+  esac
+done
+
+if ! [[ "$MAX_REPORT_AGE_HOURS" =~ ^[0-9]+$ ]]; then
+  fail "--max-report-age-hours must be a non-negative integer."
+fi
+
+latest_validation_report_json() {
+  local base_dir="tmp/dvr_field_validation"
+  if [[ ! -d "$base_dir" ]]; then
+    return 1
+  fi
+  find "$base_dir" -type f -name "validation_report.json" -print0 2>/dev/null \
+    | xargs -0 ls -1t 2>/dev/null \
+    | head -n 1
+}
+
+report_age_hours() {
+  local report_file="$1"
+  python3 - "$report_file" <<'PY'
+import os, sys, time
+print(f"{((time.time() - os.path.getmtime(sys.argv[1])) / 3600.0):.2f}")
+PY
+}
+
+json_get() {
+  local report_file="$1"
+  local expression="$2"
+  python3 - "$report_file" "$expression" <<'PY'
+import json, sys
+path = sys.argv[1]
+expr = sys.argv[2].split(".")
+with open(path, "r", encoding="utf-8") as handle:
+    value = json.load(handle)
+for key in expr:
+    if not isinstance(value, dict):
+        value = ""
+        break
+    value = value.get(key, "")
+if isinstance(value, bool):
+    print("true" if value else "false")
+elif value is None:
+    print("")
+else:
+    print(value)
+PY
+}
+
+verify_json_report_checksums() {
+  local report_file="$1"
+  python3 - "$report_file" <<'PY'
+import hashlib, json, os, sys
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+files = data.get("files", {})
+checksums = data.get("checksums", {})
+for file_key, checksum_key in [
+    ("edge_validation", "edge_validation_sha256"),
+    ("events_response", "events_response_sha256"),
+    ("bridges_capture", "bridges_capture_sha256"),
+    ("pollops_capture", "pollops_capture_sha256"),
+    ("timeline_capture", "timeline_capture_sha256"),
+    ("markdown_report", "markdown_report_sha256"),
+]:
+    path = files.get(file_key, "")
+    expected = checksums.get(checksum_key, "")
+    if not path or not expected:
+        continue
+    if not os.path.isfile(path):
+        raise SystemExit(f"missing:{file_key}:{path}")
+    digest = hashlib.sha256(open(path, "rb").read()).hexdigest()
+    if digest != expected:
+        raise SystemExit(f"checksum:{file_key}:{path}")
+print("ok")
+PY
+}
+
+if [[ -z "$REPORT_JSON" ]]; then
+  REPORT_JSON="$(latest_validation_report_json || true)"
+fi
+if [[ -z "$REPORT_JSON" || ! -f "$REPORT_JSON" ]]; then
+  fail "DVR validation_report.json not found."
+fi
+
+report_age="$(report_age_hours "$REPORT_JSON")"
+if ! python3 - "$report_age" "$MAX_REPORT_AGE_HOURS" <<'PY'
+import sys
+raise SystemExit(0 if float(sys.argv[1]) <= float(sys.argv[2]) else 1)
+PY
+then
+  fail "Latest DVR validation report is stale (${report_age}h old > ${MAX_REPORT_AGE_HOURS}h)."
+fi
+
+verify_result="$(verify_json_report_checksums "$REPORT_JSON")" || fail "DVR validation checksum verification failed: $verify_result"
+pass "DVR validation checksums verified."
+
+overall_status="$(json_get "$REPORT_JSON" "overall_status" | tr '[:lower:]' '[:upper:]')"
+artifact_dir="$(json_get "$REPORT_JSON" "artifact_dir")"
+is_mock="$(json_get "$REPORT_JSON" "is_mock" | tr '[:upper:]' '[:lower:]')"
+report_provider="$(json_get "$REPORT_JSON" "provider")"
+report_camera="$(json_get "$REPORT_JSON" "expected_camera")"
+report_zone="$(json_get "$REPORT_JSON" "expected_zone")"
+
+if [[ "$REQUIRE_REAL_ARTIFACTS" -eq 1 && "$is_mock" == "true" ]]; then
+  fail "DVR readiness failed: mock artifacts are not allowed under --require-real-artifacts."
+fi
+if [[ "$REQUIRE_REAL_ARTIFACTS" -eq 1 ]]; then
+  pass "Real-artifact gate passed ($artifact_dir)."
+fi
+
+if [[ -n "$PROVIDER" && -n "$report_provider" && "$report_provider" != "$PROVIDER" ]]; then
+  fail "DVR validation provider mismatch: report=$report_provider expected=$PROVIDER."
+fi
+if [[ -n "$EXPECT_CAMERA" && -n "$report_camera" && "$report_camera" != "$EXPECT_CAMERA" ]]; then
+  fail "DVR validation camera mismatch: report=$report_camera expected=$EXPECT_CAMERA."
+fi
+if [[ -n "$EXPECT_ZONE" && -n "$report_zone" && "$report_zone" != "$EXPECT_ZONE" ]]; then
+  fail "DVR validation zone mismatch: report=$report_zone expected=$EXPECT_ZONE."
+fi
+
+for gate in edge_validation snapshot_validation clip_validation bridges_validation pollops_validation timeline_validation camera_wired health_visible first_event_captured; do
+  gate_value="$(json_get "$REPORT_JSON" "gates.$gate" | tr '[:upper:]' '[:lower:]')"
+  if [[ "$gate_value" != "true" ]]; then
+    fail "DVR readiness failed: $gate gate is not true."
+  fi
+done
+
+if [[ "$overall_status" != "PASS" ]]; then
+  fail "DVR readiness failed: latest report overall_status is not PASS ($REPORT_JSON)."
+fi
+
+pass "DVR readiness passed ($REPORT_JSON, age=${report_age}h)."
