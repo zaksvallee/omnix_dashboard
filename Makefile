@@ -1,4 +1,4 @@
-.PHONY: run-web analyze test smoke-ui preflight preflight-smoke guard-auto guard-predevice guard-pilot cctv-validate cctv-readiness cctv-mock-artifacts cctv-capture-pack cctv-pilot-gate cctv-signoff dvr-validate dvr-readiness dvr-mock-artifacts dvr-capture-pack dvr-pilot-gate dvr-signoff listener-bench listener-baseline-promote listener-parity listener-parity-trend listener-validation-trend listener-cutover-decision listener-cutover-trend listener-release-gate listener-release-trend listener-capture-pack listener-validate listener-readiness listener-mock-artifacts listener-field-gate listener-parity-readiness listener-pilot-gate listener-signoff
+.PHONY: run-web analyze test smoke-ui preflight preflight-smoke guard-auto guard-predevice guard-pilot cctv-validate cctv-readiness cctv-mock-artifacts cctv-capture-pack cctv-pilot-gate cctv-signoff dvr-validate dvr-readiness dvr-mock-artifacts dvr-capture-pack dvr-pilot-gate dvr-field-gate dvr-signoff listener-bench listener-baseline-promote listener-parity listener-parity-trend listener-validation-trend listener-cutover-decision listener-cutover-trend listener-release-gate listener-release-trend listener-capture-pack listener-validate listener-readiness listener-mock-artifacts listener-field-gate listener-parity-readiness listener-pilot-gate listener-signoff
 
 CONFIG ?= config/onyx.local.json
 ACTION ?= com.onyx.fsk.SDK_HEARTBEAT
@@ -64,6 +64,9 @@ dvr-capture-pack:
 
 dvr-pilot-gate:
 	./scripts/onyx_dvr_pilot_gate.sh
+
+dvr-field-gate:
+	./scripts/onyx_dvr_field_gate.sh
 
 dvr-signoff:
 	./scripts/onyx_dvr_signoff_generate.sh

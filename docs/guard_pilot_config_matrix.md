@@ -159,6 +159,7 @@ DVR pilot commands:
 - `./scripts/onyx_dvr_field_validation.sh`
 - `./scripts/onyx_dvr_pilot_readiness_check.sh --require-real-artifacts`
 - `./scripts/onyx_dvr_pilot_gate.sh`
+- `./scripts/onyx_dvr_field_gate.sh`
 - `./scripts/onyx_dvr_signoff_generate.sh`
 
 CCTV pilot commands:

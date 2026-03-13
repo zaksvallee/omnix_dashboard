@@ -76,4 +76,5 @@ Current scope:
   - `scripts/onyx_dvr_pilot_readiness_check.sh`
   - `scripts/onyx_dvr_mock_validation_artifacts.sh`
   - `scripts/onyx_dvr_pilot_gate.sh`
+  - `scripts/onyx_dvr_field_gate.sh`
   - `scripts/onyx_dvr_signoff_generate.sh`
