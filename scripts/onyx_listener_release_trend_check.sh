@@ -1030,12 +1030,15 @@ def release_gate_consistency_regressions(report, label, report_path=""):
     cutover_trend = str(report.get("cutover_trend_report_json", "")).strip()
     signoff_file = str(report.get("signoff_file", "")).strip()
     signoff_report = str(report.get("signoff_report_json", "")).strip()
+    integrity_certificate_json = str(report.get("integrity_certificate_json", "")).strip()
+    integrity_certificate_markdown = str(report.get("integrity_certificate_markdown", "")).strip()
 
     validation_data = load_json(validation_report)
     readiness_data = load_json(readiness_report)
     cutover_data = load_json(cutover_decision)
     cutover_trend_data = load_json(cutover_trend)
     signoff_data = load_json(signoff_report)
+    integrity_certificate_data = load_json(integrity_certificate_json)
     validation_files = (validation_data or {}).get("files", {}) or {}
     validation_parity_report = str(validation_files.get("parity_report_json", "")).strip()
     validation_parity_trend = str(validation_files.get("trend_report_json", "")).strip()
@@ -1052,6 +1055,12 @@ def release_gate_consistency_regressions(report, label, report_path=""):
     expected_cutover_trend = f"{validation_artifact_dir}/cutover_trend_report.json" if validation_artifact_dir else ""
     if expected_cutover_trend and not path_exists(expected_cutover_trend):
         expected_cutover_trend = ""
+    expected_integrity_certificate_json = f"{validation_artifact_dir}/integrity_certificate.json" if validation_artifact_dir else ""
+    if expected_integrity_certificate_json and not path_exists(expected_integrity_certificate_json):
+        expected_integrity_certificate_json = ""
+    expected_integrity_certificate_markdown = f"{validation_artifact_dir}/integrity_certificate.md" if validation_artifact_dir else ""
+    if expected_integrity_certificate_markdown and not path_exists(expected_integrity_certificate_markdown):
+        expected_integrity_certificate_markdown = ""
     expected_signoff_file = latest_matching_file(validation_artifact_dir, "*signoff*.md")
     expected_signoff_report = latest_matching_file(validation_artifact_dir, "*signoff*.json")
     expected_validation_trend = str((validation_data or {}).get("artifact_dir", "")).strip()
@@ -1095,6 +1104,10 @@ def release_gate_consistency_regressions(report, label, report_path=""):
         add("signoff_file_path_mismatch", "release_gate_status_mismatch", expected_signoff_file, signoff_file)
     if signoff_report != expected_signoff_report:
         add("signoff_report_path_mismatch", "release_gate_status_mismatch", expected_signoff_report, signoff_report)
+    if integrity_certificate_json != expected_integrity_certificate_json:
+        add("integrity_certificate_path_mismatch", "release_gate_status_mismatch", expected_integrity_certificate_json, integrity_certificate_json)
+    if integrity_certificate_markdown != expected_integrity_certificate_markdown:
+        add("integrity_certificate_markdown_path_mismatch", "release_gate_status_mismatch", expected_integrity_certificate_markdown, integrity_certificate_markdown)
 
     if readiness_data is not None:
         actual_readiness_status = str(readiness_data.get("status", "")).upper()
@@ -1133,6 +1146,22 @@ def release_gate_consistency_regressions(report, label, report_path=""):
         if str(statuses.get("cutover_trend_status", "")).upper() != actual_cutover_trend_status:
             add("cutover_trend_status_mismatch", "release_gate_status_mismatch", actual_cutover_trend_status, str(statuses.get("cutover_trend_status", "")).upper())
 
+    if not integrity_certificate_json:
+        add("missing_integrity_certificate", "release_gate_status_mismatch", expected_integrity_certificate_json, integrity_certificate_json)
+    elif integrity_certificate_data is None:
+        add("integrity_certificate_not_found", "release_gate_status_mismatch", "file_present", integrity_certificate_json)
+    else:
+        actual_integrity_status = str(integrity_certificate_data.get("status", "")).upper()
+        actual_integrity_report = str(integrity_certificate_data.get("report_json", "")).strip()
+        if str(statuses.get("integrity_certificate_status", "")).upper() != actual_integrity_status:
+            add("integrity_certificate_status_mismatch", "release_gate_status_mismatch", actual_integrity_status, str(statuses.get("integrity_certificate_status", "")).upper())
+        if actual_integrity_status != "PASS":
+            add("integrity_certificate_not_pass", "release_gate_status_mismatch", "PASS", actual_integrity_status)
+        if actual_integrity_report != validation_report:
+            add("integrity_certificate_validation_report_mismatch", "release_gate_status_mismatch", validation_report, actual_integrity_report)
+    if not integrity_certificate_markdown:
+        add("missing_integrity_certificate_markdown", "release_gate_status_mismatch", expected_integrity_certificate_markdown, integrity_certificate_markdown)
+
     if signoff_data is not None:
         actual_signoff_status = str(signoff_data.get("status", "")).upper()
         if str(statuses.get("signoff_status", "")).upper() != actual_signoff_status:
@@ -1144,6 +1173,9 @@ def release_gate_consistency_regressions(report, label, report_path=""):
         actual_signoff_validation_trend = str(signoff_data.get("validation_trend_report_json", "")).strip()
         actual_signoff_cutover = str(signoff_data.get("cutover_decision_json", "")).strip()
         actual_signoff_cutover_trend = str(signoff_data.get("cutover_trend_report_json", "")).strip()
+        actual_signoff_integrity_certificate = str(signoff_data.get("integrity_certificate_json", "")).strip()
+        actual_signoff_integrity_certificate_markdown = str(signoff_data.get("integrity_certificate_markdown", "")).strip()
+        actual_signoff_integrity_status = str(((signoff_data.get("statuses") or {}).get("integrity_certificate_status", ""))).upper()
         if actual_signoff_validation != validation_report:
             add("signoff_validation_report_mismatch", "release_gate_status_mismatch", validation_report, actual_signoff_validation)
         if actual_signoff_readiness != readiness_report:
@@ -1158,6 +1190,12 @@ def release_gate_consistency_regressions(report, label, report_path=""):
             add("signoff_cutover_decision_report_mismatch", "release_gate_status_mismatch", cutover_decision, actual_signoff_cutover)
         if actual_signoff_cutover_trend != cutover_trend:
             add("signoff_cutover_trend_report_mismatch", "release_gate_status_mismatch", cutover_trend, actual_signoff_cutover_trend)
+        if actual_signoff_integrity_certificate != integrity_certificate_json:
+            add("signoff_integrity_certificate_mismatch", "release_gate_status_mismatch", integrity_certificate_json, actual_signoff_integrity_certificate)
+        if actual_signoff_integrity_certificate_markdown != integrity_certificate_markdown:
+            add("signoff_integrity_certificate_markdown_mismatch", "release_gate_status_mismatch", integrity_certificate_markdown, actual_signoff_integrity_certificate_markdown)
+        if actual_signoff_integrity_status != str((integrity_certificate_data or {}).get("status", "")).upper():
+            add("signoff_integrity_certificate_status_mismatch", "release_gate_status_mismatch", str((integrity_certificate_data or {}).get("status", "")).upper(), actual_signoff_integrity_status)
 
     expected_primary_fail = fail_codes[0] if fail_codes else ""
     expected_primary_hold = hold_codes[0] if hold_codes else ""

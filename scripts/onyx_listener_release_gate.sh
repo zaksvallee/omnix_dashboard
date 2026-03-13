@@ -548,6 +548,9 @@ is_mock = bool(validation.get("is_mock", False))
 artifact_dir = str(validation.get("artifact_dir", ""))
 baseline_review = (validation.get("baseline_review") or {}).get("recommendation", "")
 baseline_health = (validation.get("baseline_health") or {}).get("category", "")
+integrity_certificate_json = f"{artifact_dir}/integrity_certificate.json" if artifact_dir else ""
+integrity_certificate_markdown = f"{artifact_dir}/integrity_certificate.md" if artifact_dir else ""
+integrity_certificate = load_json(integrity_certificate_json)
 validation_files = validation.get("files", {}) or {}
 validation_parity_report = str(validation_files.get("parity_report_json", "")).strip()
 validation_parity_trend = str(validation_files.get("trend_report_json", "")).strip()
@@ -627,6 +630,34 @@ if require_real and (is_mock or "/mock-" in artifact_dir or artifact_dir.startsw
         fail_items,
         "mock_artifacts_not_allowed",
         "validation artifact is mock while real artifacts are required",
+    )
+
+if not integrity_certificate_json or not path_exists(integrity_certificate_json):
+    add_reason(
+        fail_items,
+        "missing_integrity_certificate",
+        "validation bundle integrity certificate missing",
+    )
+elif integrity_certificate is not None:
+    actual_integrity_status = str(integrity_certificate.get("status", "")).upper()
+    actual_integrity_report_json = str(integrity_certificate.get("report_json", "")).strip()
+    if actual_integrity_status != "PASS":
+        add_reason(
+            fail_items,
+            "integrity_certificate_not_pass",
+            f"validation bundle integrity certificate status is {actual_integrity_status or 'missing'}",
+        )
+    if actual_integrity_report_json != str(validation_path or ""):
+        add_reason(
+            fail_items,
+            "integrity_certificate_validation_report_mismatch",
+            "validation bundle integrity certificate does not match release gate validation report",
+        )
+if not integrity_certificate_markdown or not path_exists(integrity_certificate_markdown):
+    add_reason(
+        fail_items,
+        "missing_integrity_certificate_markdown",
+        "validation bundle integrity certificate markdown missing",
     )
 
 cutover_decision = ""
@@ -727,6 +758,9 @@ if signoff_report is not None:
     signoff_validation_trend = str(signoff_report.get("validation_trend_report_json", "")).strip()
     signoff_cutover_decision = str(signoff_report.get("cutover_decision_json", "")).strip()
     signoff_cutover_trend = str(signoff_report.get("cutover_trend_report_json", "")).strip()
+    signoff_integrity_certificate_json = str(signoff_report.get("integrity_certificate_json", "")).strip()
+    signoff_integrity_certificate_markdown = str(signoff_report.get("integrity_certificate_markdown", "")).strip()
+    signoff_integrity_certificate_status = str(((signoff_report.get("statuses") or {}).get("integrity_certificate_status", ""))).upper()
     if signoff_validation_report != str(validation_path or ""):
         add_reason(
             fail_items,
@@ -768,6 +802,24 @@ if signoff_report is not None:
             fail_items,
             "signoff_cutover_trend_report_mismatch",
             "signoff report cutover trend does not match release gate cutover trend report",
+        )
+    if signoff_integrity_certificate_json != str(integrity_certificate_json or ""):
+        add_reason(
+            fail_items,
+            "signoff_integrity_certificate_mismatch",
+            "signoff report integrity certificate does not match release gate integrity certificate",
+        )
+    if signoff_integrity_certificate_markdown != str(integrity_certificate_markdown or ""):
+        add_reason(
+            fail_items,
+            "signoff_integrity_certificate_markdown_mismatch",
+            "signoff report integrity certificate markdown does not match release gate integrity certificate markdown",
+        )
+    if signoff_integrity_certificate_status != str((integrity_certificate or {}).get("status", "")).upper():
+        add_reason(
+            fail_items,
+            "signoff_integrity_certificate_status_mismatch",
+            "signoff report integrity certificate status does not match release gate integrity certificate status",
         )
     if signoff_readiness_report and not path_exists(signoff_readiness_report):
         add_reason(
@@ -859,6 +911,8 @@ payload = {
         else "Listener release gate failed."
     ),
     "validation_report_json": str(validation_path),
+    "integrity_certificate_json": str(integrity_certificate_json or ""),
+    "integrity_certificate_markdown": str(integrity_certificate_markdown or ""),
     "readiness_report_json": str(readiness_path) if readiness_path else "",
     "cutover_decision_json": str(cutover_path) if cutover_path else "",
     "cutover_trend_report_json": str(cutover_trend_path) if cutover_trend_path else "",
@@ -866,6 +920,7 @@ payload = {
     "signoff_report_json": str(signoff_report_path) if signoff_report_path else "",
     "statuses": {
         "validation_overall_status": overall_status,
+        "integrity_certificate_status": str((integrity_certificate or {}).get("status", "")).upper(),
         "readiness_status": readiness_status,
         "readiness_failure_code": readiness_failure_code,
         "cutover_decision": cutover_decision,
@@ -908,6 +963,7 @@ lines.extend([
     "",
     "## Statuses",
     f"- Validation overall status: `{overall_status or 'missing'}`",
+    f"- Integrity certificate status: `{str((integrity_certificate or {}).get('status', '')).upper() or 'missing'}`",
     f"- Readiness status: `{readiness_status or 'missing'}`",
     f"- Readiness failure code: `{readiness_failure_code or 'missing'}`",
     f"- Cutover decision: `{cutover_decision or 'missing'}`",

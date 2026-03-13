@@ -432,6 +432,9 @@ next to the markdown closeout, and the release gate consumes that structured
 signoff status when present. The signoff report now persists on both pass and
 fail and carries `failure_code`, so downstream tooling does not need to parse
 terminal output when signoff generation is blocked.
+The signoff artifact now also carries the staged validation-bundle integrity
+certificate references and status, and it refuses to close out when the staged
+integrity certificate is missing or not `PASS`.
 When signoff is generated through the one-command field gate, it now uses the
 staged parity report and staged parity trend from the field-validation bundle
 rather than the pilot subdirectory copies, so release posture sees one
@@ -440,6 +443,9 @@ consistent parity chain.
 Release posture now treats a present `signoff_report.json` as sufficient
 evidence of signoff presence. Missing markdown alone no longer forces a hold
 when the audited signoff report exists and passes.
+Release posture now also carries the staged validation-bundle integrity
+certificate forward and rejects signoff or release summaries that point at a
+different certificate chain.
 
 Standalone signoff generation now also auto-resolves:
 - `validation_report.json`
@@ -466,6 +472,8 @@ fails when:
 The release-trend artifact also carries `primary_regression_code` plus
 `regression_codes`, so downstream gates can classify release regressions
 without parsing markdown or prose summaries.
+Release-trend integrity checks now also treat validation-bundle integrity
+certificate path, status, and signoff-alignment drift as direct regressions.
 
 To create a self-contained field-validation bundle from a real capture pack:
 

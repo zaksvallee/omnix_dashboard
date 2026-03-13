@@ -16,6 +16,8 @@ REQUIRE_CUTOVER_TREND_PASS=0
 ALLOW_MOCK_ARTIFACTS=0
 READINESS_REPORT_JSON=""
 READINESS_REPORT_MD=""
+INTEGRITY_CERTIFICATE_JSON=""
+INTEGRITY_CERTIFICATE_MD=""
 readiness_status=""
 readiness_failure_code=""
 
@@ -277,7 +279,7 @@ write_signoff_json_report() {
   local signoff_summary="$2"
   local signoff_failure_code="${3:-}"
   mkdir -p "$(dirname "$JSON_OUT_FILE")"
-  python3 - "$JSON_OUT_FILE" "$OUT_FILE" "$REPORT_JSON" "$TREND_REPORT_JSON" "$VALIDATION_REPORT_JSON" "$VALIDATION_TREND_REPORT_JSON" "$CUTOVER_DECISION_JSON" "$CUTOVER_TREND_REPORT_JSON" "$READINESS_REPORT_JSON" "$READINESS_REPORT_MD" "${trend_status:-}" "${validation_trend_status:-}" "${cutover_decision:-}" "${cutover_trend_status:-}" "${readiness_status:-}" "${readiness_failure_code:-}" "$REQUIRE_TREND_PASS" "$REQUIRE_VALIDATION_TREND_PASS" "$REQUIRE_CUTOVER_GO" "$REQUIRE_CUTOVER_TREND_PASS" "$ALLOW_MOCK_ARTIFACTS" "$signoff_status" "$signoff_summary" "$signoff_failure_code" <<'PY'
+  python3 - "$JSON_OUT_FILE" "$OUT_FILE" "$REPORT_JSON" "$TREND_REPORT_JSON" "$VALIDATION_REPORT_JSON" "$VALIDATION_TREND_REPORT_JSON" "$CUTOVER_DECISION_JSON" "$CUTOVER_TREND_REPORT_JSON" "$READINESS_REPORT_JSON" "$READINESS_REPORT_MD" "$INTEGRITY_CERTIFICATE_JSON" "$INTEGRITY_CERTIFICATE_MD" "${trend_status:-}" "${validation_trend_status:-}" "${cutover_decision:-}" "${cutover_trend_status:-}" "${readiness_status:-}" "${readiness_failure_code:-}" "${integrity_certificate_status:-}" "$REQUIRE_TREND_PASS" "$REQUIRE_VALIDATION_TREND_PASS" "$REQUIRE_CUTOVER_GO" "$REQUIRE_CUTOVER_TREND_PASS" "$ALLOW_MOCK_ARTIFACTS" "$signoff_status" "$signoff_summary" "$signoff_failure_code" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -292,24 +294,27 @@ cutover_decision_json = sys.argv[7]
 cutover_trend_report_json = sys.argv[8]
 readiness_report_json = sys.argv[9]
 readiness_report_markdown = sys.argv[10]
-trend_status = sys.argv[11]
-validation_trend_status = sys.argv[12]
-cutover_decision = sys.argv[13]
-cutover_trend_status = sys.argv[14]
-readiness_status = sys.argv[15]
-readiness_failure_code = sys.argv[16]
+integrity_certificate_json = sys.argv[11]
+integrity_certificate_markdown = sys.argv[12]
+trend_status = sys.argv[13]
+validation_trend_status = sys.argv[14]
+cutover_decision = sys.argv[15]
+cutover_trend_status = sys.argv[16]
+readiness_status = sys.argv[17]
+readiness_failure_code = sys.argv[18]
+integrity_certificate_status = sys.argv[19]
 
 def as_bool(raw: str) -> bool:
     return raw == "1"
 
-require_trend_pass = as_bool(sys.argv[17])
-require_validation_trend_pass = as_bool(sys.argv[18])
-require_cutover_go = as_bool(sys.argv[19])
-require_cutover_trend_pass = as_bool(sys.argv[20])
-allow_mock_artifacts = as_bool(sys.argv[21])
-signoff_status = sys.argv[22]
-signoff_summary = sys.argv[23]
-signoff_failure_code = sys.argv[24]
+require_trend_pass = as_bool(sys.argv[20])
+require_validation_trend_pass = as_bool(sys.argv[21])
+require_cutover_go = as_bool(sys.argv[22])
+require_cutover_trend_pass = as_bool(sys.argv[23])
+allow_mock_artifacts = as_bool(sys.argv[24])
+signoff_status = sys.argv[25]
+signoff_summary = sys.argv[26]
+signoff_failure_code = sys.argv[27]
 
 payload = {
     "status": signoff_status,
@@ -324,6 +329,8 @@ payload = {
     "cutover_trend_report_json": cutover_trend_report_json,
     "readiness_report_json": readiness_report_json,
     "readiness_report_markdown": readiness_report_markdown,
+    "integrity_certificate_json": integrity_certificate_json,
+    "integrity_certificate_markdown": integrity_certificate_markdown,
     "statuses": {
         "trend_status": trend_status,
         "validation_trend_status": validation_trend_status,
@@ -331,6 +338,7 @@ payload = {
         "cutover_trend_status": cutover_trend_status,
         "readiness_status": readiness_status,
         "readiness_failure_code": readiness_failure_code,
+        "integrity_certificate_status": integrity_certificate_status,
     },
     "requirements": {
         "require_trend_pass": require_trend_pass,
@@ -493,6 +501,12 @@ validation_artifact_dir=""
 if [[ -n "$VALIDATION_REPORT_JSON" ]]; then
   validation_artifact_dir="$(dirname "$VALIDATION_REPORT_JSON")"
 fi
+if [[ -n "$validation_artifact_dir" && -f "$validation_artifact_dir/integrity_certificate.json" ]]; then
+  INTEGRITY_CERTIFICATE_JSON="$validation_artifact_dir/integrity_certificate.json"
+fi
+if [[ -n "$validation_artifact_dir" && -f "$validation_artifact_dir/integrity_certificate.md" ]]; then
+  INTEGRITY_CERTIFICATE_MD="$validation_artifact_dir/integrity_certificate.md"
+fi
 VALIDATION_TREND_REPORT_JSON="$(resolve_optional_report_path "$VALIDATION_TREND_REPORT_JSON" "$validation_artifact_dir" "validation_trend_report.json")"
 CUTOVER_DECISION_JSON="$(resolve_optional_report_path "$CUTOVER_DECISION_JSON" "$validation_artifact_dir" "cutover_decision.json")"
 CUTOVER_TREND_REPORT_JSON="$(resolve_optional_report_path "$CUTOVER_TREND_REPORT_JSON" "$validation_artifact_dir" "cutover_trend_report.json")"
@@ -507,6 +521,20 @@ if [[ -n "$CUTOVER_DECISION_JSON" && ! -f "$CUTOVER_DECISION_JSON" ]]; then
 fi
 if [[ -n "$CUTOVER_TREND_REPORT_JSON" && ! -f "$CUTOVER_TREND_REPORT_JSON" ]]; then
   fail_signoff "missing_cutover_trend_report" "cutover trend report not found: $CUTOVER_TREND_REPORT_JSON"
+fi
+if [[ -z "$INTEGRITY_CERTIFICATE_JSON" || ! -f "$INTEGRITY_CERTIFICATE_JSON" ]]; then
+  fail_signoff "missing_integrity_certificate" "validation bundle integrity certificate not found."
+fi
+if [[ -z "$INTEGRITY_CERTIFICATE_MD" || ! -f "$INTEGRITY_CERTIFICATE_MD" ]]; then
+  fail_signoff "missing_integrity_certificate_markdown" "validation bundle integrity certificate markdown not found."
+fi
+integrity_certificate_report_json="$(json_get "$INTEGRITY_CERTIFICATE_JSON" "report_json")"
+integrity_certificate_status="$(json_get "$INTEGRITY_CERTIFICATE_JSON" "status")"
+if [[ -n "$VALIDATION_REPORT_JSON" && "$integrity_certificate_report_json" != "$VALIDATION_REPORT_JSON" ]]; then
+  fail_signoff "integrity_certificate_validation_report_mismatch" "validation bundle integrity certificate points at a different validation report."
+fi
+if [[ "$integrity_certificate_status" != "PASS" ]]; then
+  fail_signoff "integrity_certificate_not_pass" "validation bundle integrity certificate is not PASS."
 fi
 
 if [[ -n "$VALIDATION_REPORT_JSON" || "$REQUIRE_VALIDATION_TREND_PASS" -eq 1 ]]; then
@@ -664,6 +692,12 @@ mkdir -p "$(dirname "$JSON_OUT_FILE")"
   if [[ -n "$CUTOVER_TREND_REPORT_JSON" ]]; then
     echo "- Cutover trend report JSON: \`${CUTOVER_TREND_REPORT_JSON}\`"
   fi
+  if [[ -n "$INTEGRITY_CERTIFICATE_JSON" ]]; then
+    echo "- Integrity certificate JSON: \`${INTEGRITY_CERTIFICATE_JSON}\`"
+  fi
+  if [[ -n "$INTEGRITY_CERTIFICATE_MD" ]]; then
+    echo "- Integrity certificate markdown: \`${INTEGRITY_CERTIFICATE_MD}\`"
+  fi
   if [[ -n "$cutover_trend_markdown" && -f "$cutover_trend_markdown" ]]; then
     echo "- Cutover trend markdown: \`${cutover_trend_markdown}\`"
   fi
@@ -687,6 +721,7 @@ mkdir -p "$(dirname "$JSON_OUT_FILE")"
   if [[ -n "$cutover_trend_status" ]]; then
     echo "- Cutover trend status: \`${cutover_trend_status}\`"
   fi
+  echo "- Integrity certificate status: \`${integrity_certificate_status:-}\`"
   echo
   echo "## Notes"
   if [[ -n "$field_notes_file" ]]; then
