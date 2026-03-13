@@ -154,7 +154,11 @@ if [[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]]; then
   if [[ -z "$RELEASE_GATE_JSON" || ! -f "$RELEASE_GATE_JSON" ]]; then
     fail "DVR signoff blocked: release gate artifact not found." "release_gate_not_found"
   fi
+  release_gate_validation_report="$(json_get "$RELEASE_GATE_JSON" "validation_report_json")"
   release_gate_result="$(json_get "$RELEASE_GATE_JSON" "result" | tr '[:lower:]' '[:upper:]')"
+  if [[ -n "$release_gate_validation_report" && "$release_gate_validation_report" != "$REPORT_JSON" ]]; then
+    fail "DVR signoff blocked: release gate points at a different validation bundle." "release_gate_validation_report_mismatch"
+  fi
   if [[ "$release_gate_result" != "PASS" ]]; then
     release_gate_code="$(json_get "$RELEASE_GATE_JSON" "primary_fail_code")"
     if [[ -z "$release_gate_code" ]]; then
@@ -168,7 +172,11 @@ if [[ "$REQUIRE_RELEASE_TREND_PASS" -eq 1 ]]; then
   if [[ -z "$RELEASE_TREND_REPORT_JSON" || ! -f "$RELEASE_TREND_REPORT_JSON" ]]; then
     fail "DVR signoff blocked: release trend artifact not found." "release_trend_not_found"
   fi
+  release_trend_current_gate="$(json_get "$RELEASE_TREND_REPORT_JSON" "current_release_gate_json")"
   release_trend_status="$(json_get "$RELEASE_TREND_REPORT_JSON" "status" | tr '[:lower:]' '[:upper:]')"
+  if [[ -n "$RELEASE_GATE_JSON" && -n "$release_trend_current_gate" && "$release_trend_current_gate" != "$RELEASE_GATE_JSON" ]]; then
+    fail "DVR signoff blocked: release trend points at a different current release gate." "release_trend_current_gate_mismatch"
+  fi
   if [[ "$release_trend_status" != "PASS" ]]; then
     release_trend_code="$(json_get "$RELEASE_TREND_REPORT_JSON" "primary_regression_code")"
     fail "DVR signoff blocked: release trend is ${release_trend_status:-UNKNOWN}, expected PASS." "${release_trend_code:-release_trend_not_pass}"

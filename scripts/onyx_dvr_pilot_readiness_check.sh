@@ -265,9 +265,17 @@ if [[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]]; then
     fail "DVR readiness failed: release gate artifact was not found under --require-release-gate-pass." "release_gate_not_found"
   fi
   release_gate_validation_report="$(json_get "$RELEASE_GATE_JSON" "validation_report_json")"
+  release_gate_signoff_file="$(json_get "$RELEASE_GATE_JSON" "signoff_file")"
+  release_gate_signoff_report="$(json_get "$RELEASE_GATE_JSON" "signoff_report_json")"
   release_gate_result="$(json_get "$RELEASE_GATE_JSON" "result" | tr '[:lower:]' '[:upper:]')"
   if [[ -n "$release_gate_validation_report" && "$release_gate_validation_report" != "$REPORT_JSON" ]]; then
     fail "DVR readiness failed: release gate validation report does not match the active validation bundle." "release_gate_validation_report_mismatch"
+  fi
+  if [[ -n "$release_gate_signoff_file" && "$release_gate_signoff_file" != "$ARTIFACT_DIR/$(basename "$release_gate_signoff_file")" ]]; then
+    fail "DVR readiness failed: release gate signoff markdown is not staged under the active artifact dir." "release_gate_signoff_file_path_mismatch"
+  fi
+  if [[ -n "$release_gate_signoff_report" && "$release_gate_signoff_report" != "$ARTIFACT_DIR/$(basename "$release_gate_signoff_report")" ]]; then
+    fail "DVR readiness failed: release gate signoff report is not staged under the active artifact dir." "release_gate_signoff_report_path_mismatch"
   fi
   if [[ "$release_gate_result" != "PASS" ]]; then
     release_gate_primary_code="$(json_get "$RELEASE_GATE_JSON" "primary_fail_code")"

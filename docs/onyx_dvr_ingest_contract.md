@@ -76,11 +76,13 @@ Current scope:
   - `scripts/onyx_dvr_pilot_readiness_check.sh`
     - emits `readiness_report.json` and `readiness_report.md` in the validation artifact dir
     - can require `release_gate.json` and `release_trend_report.json` to pass when those artifacts are part of the DVR pilot decision path
+    - now also requires release-gate signoff artifacts to stay inside the active artifact dir when release posture is enforced
   - `scripts/onyx_dvr_mock_validation_artifacts.sh`
   - `scripts/onyx_dvr_pilot_gate.sh`
   - `scripts/onyx_dvr_field_gate.sh`
   - `scripts/onyx_dvr_signoff_generate.sh`
     - emits a sibling `*.json` signoff report on pass and fail once the validation bundle is resolved
+    - now rejects release gate or release trend artifacts that point at a different validation or release chain
   - `scripts/onyx_dvr_release_gate.sh`
     - emits `release_gate.json` and `release_gate.md` from validation, readiness, and signoff posture
     - rejects contradictory or misaligned signoff audit JSON instead of trusting signoff presence alone
