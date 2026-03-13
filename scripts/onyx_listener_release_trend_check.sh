@@ -1079,6 +1079,9 @@ def release_gate_consistency_regressions(report, label):
         actual_cutover_decision = str(cutover_data.get("decision", "")).upper()
         if str(statuses.get("cutover_decision", "")).upper() != actual_cutover_decision:
             add("cutover_decision_mismatch", "release_gate_status_mismatch", actual_cutover_decision, str(statuses.get("cutover_decision", "")).upper())
+        actual_cutover_validation = str(cutover_data.get("validation_report_json", "")).strip()
+        if actual_cutover_validation != validation_report:
+            add("cutover_validation_report_mismatch", "release_gate_status_mismatch", validation_report, actual_cutover_validation)
 
     if cutover_trend_data is not None:
         actual_cutover_trend_status = str(cutover_trend_data.get("status", "")).upper()

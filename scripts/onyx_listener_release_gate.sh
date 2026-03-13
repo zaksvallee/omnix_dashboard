@@ -638,6 +638,12 @@ else:
     cutover_parity_report = str(cutover.get("parity_report_json", "")).strip()
     cutover_parity_trend = str(cutover.get("parity_trend_report_json", "")).strip()
     cutover_validation_trend = str(cutover.get("validation_trend_report_json", "")).strip()
+    if cutover_validation_report != str(validation_path or ""):
+        add_reason(
+            fail_items,
+            "cutover_validation_report_mismatch",
+            "cutover decision validation report does not match release gate validation report",
+        )
     if not resolved_validation_trend_path and cutover_validation_trend:
         resolved_validation_trend_path = cutover_validation_trend
     if cutover_validation_report and not path_exists(cutover_validation_report):

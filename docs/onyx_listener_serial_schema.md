@@ -378,6 +378,9 @@ validation or cutover chain than the release gate consuming it.
 That readiness alignment now also covers the resolved validation-trend
 artifact, so readiness cannot quietly borrow a different validation-trend
 report from another run.
+Release posture now also requires `cutover_decision.json.validation_report_json`
+to match the same staged validation bundle, so cutover cannot quietly point at
+another validation run while copying compatible status fields.
 
 Cutover and release trend comparisons now prefer stable machine-readable
 `hold_codes`, `blocking_codes`, and `fail_codes` when present, falling back to
