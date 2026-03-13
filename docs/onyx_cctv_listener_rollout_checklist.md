@@ -130,6 +130,7 @@ Notes:
   - Listener parity readiness now persists `parity_readiness_report.json` on both pass and fail and carries a machine-readable `failure_code`, so blocked parity gates remain auditable without parsing terminal output.
   - The standalone listener pilot gate now stages the parity readiness artifact into its artifact directory and surfaces readiness status/failure code in its terminal summary.
   - The standalone listener pilot gate now also surfaces parity status, parity primary issue code, and parity-trend primary regression code in its terminal summary when those artifacts exist.
+  - The standalone listener pilot gate now persists `pilot_gate_report.json` on both pass and fail, carrying parity, parity readiness, and parity trend statuses plus their primary codes so the standalone dual-path bench flow is auditable without terminal output alone.
 
 ---
 

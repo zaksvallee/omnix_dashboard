@@ -29,6 +29,17 @@ INIT_CAPTURE_PACK=0
 ALLOW_UNMATCHED_SERIAL=0
 ALLOW_UNMATCHED_LEGACY=0
 ALLOW_MOCK_ARTIFACTS=0
+CURRENT_STAGE="argument_validation"
+PILOT_GATE_REPORT_JSON=""
+PILOT_GATE_REPORT_MD=""
+BENCH_ANOMALY_STATUS=""
+BENCH_PRIMARY_FAILURE_CODE=""
+PARITY_STATUS=""
+PARITY_PRIMARY_ISSUE_CODE=""
+PARITY_READINESS_STATUS=""
+PARITY_READINESS_FAILURE_CODE=""
+PARITY_TREND_STATUS=""
+PARITY_TREND_PRIMARY_REGRESSION_CODE=""
 
 usage() {
   cat <<'USAGE'
@@ -193,6 +204,245 @@ else:
 PY
 }
 
+json_get() {
+  local report_file="$1"
+  local expression="$2"
+  python3 - "$report_file" "$expression" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+expr = sys.argv[2].split(".")
+with open(path, "r", encoding="utf-8") as handle:
+    value = json.load(handle)
+for key in expr:
+    if isinstance(value, dict):
+        value = value.get(key, "")
+    elif isinstance(value, list):
+        try:
+            value = value[int(key)]
+        except Exception:
+            value = ""
+            break
+    else:
+        value = ""
+        break
+if isinstance(value, bool):
+    print("true" if value else "false")
+elif value is None:
+    print("")
+else:
+    print(value)
+PY
+}
+
+refresh_pilot_gate_state() {
+  if [[ -f "$ARTIFACT_DIR/serial_parsed.json" ]]; then
+    BENCH_ANOMALY_STATUS="$(json_get "$ARTIFACT_DIR/serial_parsed.json" "anomaly_gate.status" | tr '[:lower:]' '[:upper:]')"
+    BENCH_PRIMARY_FAILURE_CODE="$(json_get "$ARTIFACT_DIR/serial_parsed.json" "anomaly_gate.failures.0.type")"
+  fi
+
+  if [[ -f "$ARTIFACT_DIR/report.json" ]]; then
+    PARITY_STATUS="$(json_get "$ARTIFACT_DIR/report.json" "status" | tr '[:lower:]' '[:upper:]')"
+    PARITY_PRIMARY_ISSUE_CODE="$(json_get "$ARTIFACT_DIR/report.json" "primary_issue_code")"
+  fi
+
+  if [[ -f "$ARTIFACT_DIR/parity_readiness_report.json" ]]; then
+    PARITY_READINESS_STATUS="$(json_get "$ARTIFACT_DIR/parity_readiness_report.json" "status" | tr '[:lower:]' '[:upper:]')"
+    PARITY_READINESS_FAILURE_CODE="$(json_get "$ARTIFACT_DIR/parity_readiness_report.json" "failure_code")"
+  fi
+
+  if [[ -f "$ARTIFACT_DIR/trend_report.json" ]]; then
+    PARITY_TREND_STATUS="$(json_get "$ARTIFACT_DIR/trend_report.json" "status" | tr '[:lower:]' '[:upper:]')"
+    PARITY_TREND_PRIMARY_REGRESSION_CODE="$(json_get "$ARTIFACT_DIR/trend_report.json" "primary_regression_code")"
+  fi
+}
+
+write_pilot_gate_report() {
+  local report_status="$1"
+  local report_summary="$2"
+  local report_failure_code="$3"
+
+  mkdir -p "$(dirname "$PILOT_GATE_REPORT_JSON")"
+  mkdir -p "$(dirname "$PILOT_GATE_REPORT_MD")"
+
+  python3 - "$PILOT_GATE_REPORT_JSON" "$PILOT_GATE_REPORT_MD" "$report_status" "$report_summary" "$report_failure_code" "$CAPTURE_DIR" "$ARTIFACT_DIR" "$SITE_ID" "$DEVICE_PATH" "$LEGACY_SOURCE" "$CLIENT_ID" "$REGION_ID" "$COMPARE_PREVIOUS" "$ALLOW_MOCK_ARTIFACTS" "$MAX_REPORT_AGE_HOURS" "$MAX_SKEW_SECONDS" "$MIN_MATCH_RATE_PERCENT" "${MAX_OBSERVED_SKEW_SECONDS:-}" "${MAX_CAPTURE_SIGNATURES:-}" "${MAX_UNEXPECTED_SIGNATURES:-}" "${MAX_FALLBACK_TIMESTAMP_COUNT:-}" "${MAX_UNKNOWN_EVENT_RATE_PERCENT:-}" "${BENCH_ANOMALY_STATUS:-}" "${BENCH_PRIMARY_FAILURE_CODE:-}" "${PARITY_STATUS:-}" "${PARITY_PRIMARY_ISSUE_CODE:-}" "${PARITY_READINESS_STATUS:-}" "${PARITY_READINESS_FAILURE_CODE:-}" "${PARITY_TREND_STATUS:-}" "${PARITY_TREND_PRIMARY_REGRESSION_CODE:-}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+json_out = Path(sys.argv[1])
+markdown_out = Path(sys.argv[2])
+status = sys.argv[3]
+summary = sys.argv[4]
+failure_code = sys.argv[5]
+capture_dir = sys.argv[6]
+artifact_dir = sys.argv[7]
+site_id = sys.argv[8]
+device_path = sys.argv[9]
+legacy_source = sys.argv[10]
+client_id = sys.argv[11]
+region_id = sys.argv[12]
+compare_previous = sys.argv[13] == "1"
+allow_mock_artifacts = sys.argv[14] == "1"
+max_report_age_hours = sys.argv[15]
+max_skew_seconds = sys.argv[16]
+min_match_rate_percent = sys.argv[17]
+max_observed_skew_seconds = sys.argv[18]
+max_capture_signatures = sys.argv[19]
+max_unexpected_signatures = sys.argv[20]
+max_fallback_timestamp_count = sys.argv[21]
+max_unknown_event_rate_percent = sys.argv[22]
+bench_anomaly_status = sys.argv[23]
+bench_primary_failure_code = sys.argv[24]
+parity_status = sys.argv[25]
+parity_primary_issue_code = sys.argv[26]
+parity_readiness_status = sys.argv[27]
+parity_readiness_failure_code = sys.argv[28]
+parity_trend_status = sys.argv[29]
+parity_trend_primary_regression_code = sys.argv[30]
+
+artifact_dir_path = Path(artifact_dir)
+files = {
+    "serial_parsed_json": str(artifact_dir_path / "serial_parsed.json"),
+    "parity_report_json": str(artifact_dir_path / "report.json"),
+    "parity_report_markdown": str(artifact_dir_path / "report.md"),
+    "parity_readiness_report_json": str(artifact_dir_path / "parity_readiness_report.json"),
+    "parity_readiness_report_markdown": str(artifact_dir_path / "parity_readiness_report.md"),
+    "trend_report_json": str(artifact_dir_path / "trend_report.json"),
+    "trend_report_markdown": str(artifact_dir_path / "trend_report.md"),
+    "markdown_report": str(markdown_out),
+}
+
+payload = {
+    "status": status,
+    "summary": summary,
+    "failure_code": failure_code,
+    "capture_dir": capture_dir,
+    "artifact_dir": artifact_dir,
+    "site_id": site_id,
+    "device_path": device_path,
+    "legacy_source": legacy_source,
+    "client_id": client_id,
+    "region_id": region_id,
+    "compare_previous": compare_previous,
+    "allow_mock_artifacts": allow_mock_artifacts,
+    "requirements": {
+        "max_report_age_hours": max_report_age_hours,
+        "max_skew_seconds": max_skew_seconds,
+        "min_match_rate_percent": min_match_rate_percent,
+        "max_observed_skew_seconds": max_observed_skew_seconds,
+        "max_capture_signatures": max_capture_signatures,
+        "max_unexpected_signatures": max_unexpected_signatures,
+        "max_fallback_timestamp_count": max_fallback_timestamp_count,
+        "max_unknown_event_rate_percent": max_unknown_event_rate_percent,
+    },
+    "statuses": {
+        "bench_anomaly_status": bench_anomaly_status,
+        "bench_primary_failure_code": bench_primary_failure_code,
+        "parity_status": parity_status,
+        "parity_primary_issue_code": parity_primary_issue_code,
+        "parity_readiness_status": parity_readiness_status,
+        "parity_readiness_failure_code": parity_readiness_failure_code,
+        "parity_trend_status": parity_trend_status,
+        "parity_trend_primary_regression_code": parity_trend_primary_regression_code,
+    },
+    "files": files,
+}
+
+json_out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+lines = [
+    "# ONYX Listener Pilot Gate",
+    "",
+    f"- Status: `{status}`",
+    f"- Summary: `{summary}`",
+    f"- Failure code: `{failure_code or 'n/a'}`",
+    f"- Capture dir: `{capture_dir}`",
+    f"- Artifact dir: `{artifact_dir}`",
+    f"- Site ID: `{site_id or 'n/a'}`",
+    f"- Device path: `{device_path or 'n/a'}`",
+    f"- Legacy source: `{legacy_source or 'n/a'}`",
+    f"- Compare previous: `{'yes' if compare_previous else 'no'}`",
+    "",
+    "## Gate Status",
+    f"- Bench anomaly: `{bench_anomaly_status or 'n/a'}`",
+    f"- Bench primary failure code: `{bench_primary_failure_code or 'n/a'}`",
+    f"- Parity: `{parity_status or 'n/a'}`",
+    f"- Parity primary issue code: `{parity_primary_issue_code or 'n/a'}`",
+    f"- Parity readiness: `{parity_readiness_status or 'n/a'}`",
+    f"- Parity readiness failure code: `{parity_readiness_failure_code or 'n/a'}`",
+    f"- Parity trend: `{parity_trend_status or 'n/a'}`",
+    f"- Parity trend primary regression code: `{parity_trend_primary_regression_code or 'n/a'}`",
+    "",
+    "## Artifacts",
+]
+
+for label, path in [
+    ("Serial parsed JSON", files["serial_parsed_json"]),
+    ("Parity report JSON", files["parity_report_json"]),
+    ("Parity report markdown", files["parity_report_markdown"]),
+    ("Parity readiness JSON", files["parity_readiness_report_json"]),
+    ("Parity readiness markdown", files["parity_readiness_report_markdown"]),
+    ("Trend report JSON", files["trend_report_json"]),
+    ("Trend report markdown", files["trend_report_markdown"]),
+]:
+    lines.append(f"- {label}: `{path if Path(path).exists() else 'missing'}`")
+
+markdown_out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+PY
+}
+
+pilot_gate_exit_trap() {
+  local exit_code=$?
+  local report_status="PASS"
+  local report_summary="Listener pilot gate passed."
+  local report_failure_code=""
+
+  if [[ -z "$PILOT_GATE_REPORT_JSON" || -z "$PILOT_GATE_REPORT_MD" ]]; then
+    return "$exit_code"
+  fi
+
+  set +e
+  refresh_pilot_gate_state
+
+  if [[ "$exit_code" -ne 0 ]]; then
+    report_status="FAIL"
+    case "$CURRENT_STAGE" in
+      capture_pack_init)
+        report_failure_code="capture_pack_init_failed"
+        report_summary="Listener capture-pack initialization failed."
+        ;;
+      serial_bench)
+        report_failure_code="${BENCH_PRIMARY_FAILURE_CODE:-serial_bench_failed}"
+        report_summary="Listener serial bench failed."
+        ;;
+      parity_report)
+        report_failure_code="${PARITY_PRIMARY_ISSUE_CODE:-parity_report_failed}"
+        report_summary="Listener parity report failed."
+        ;;
+      parity_readiness)
+        report_failure_code="${PARITY_READINESS_FAILURE_CODE:-parity_readiness_failed}"
+        report_summary="Listener parity readiness failed."
+        ;;
+      parity_trend)
+        report_failure_code="${PARITY_TREND_PRIMARY_REGRESSION_CODE:-parity_trend_failed}"
+        report_summary="Listener parity trend check failed."
+        ;;
+      *)
+        report_failure_code="pilot_gate_failed"
+        report_summary="Listener pilot gate failed."
+        ;;
+    esac
+  elif [[ "$COMPARE_PREVIOUS" -eq 1 && -f "$ARTIFACT_DIR/trend_report.json" ]]; then
+    report_summary="Listener pilot gate passed with parity trend comparison."
+  fi
+
+  write_pilot_gate_report "$report_status" "$report_summary" "$report_failure_code" || true
+  set -e
+  return "$exit_code"
+}
+
 if [[ -z "$BENCH_BASELINE_JSON" && -f "$CAPTURE_DIR/listener_bench_baseline.json" ]]; then
   BENCH_BASELINE_JSON="$CAPTURE_DIR/listener_bench_baseline.json"
 fi
@@ -273,6 +523,9 @@ done
 if [[ -z "$ARTIFACT_DIR" ]]; then
   ARTIFACT_DIR="tmp/listener_parity/pilot-$(date -u +%Y%m%dT%H%M%SZ)"
 fi
+PILOT_GATE_REPORT_JSON="$ARTIFACT_DIR/pilot_gate_report.json"
+PILOT_GATE_REPORT_MD="$ARTIFACT_DIR/pilot_gate_report.md"
+trap pilot_gate_exit_trap EXIT
 
 echo "== ONYX Listener Pilot Gate =="
 echo "Capture dir: $CAPTURE_DIR"
@@ -314,6 +567,7 @@ fi
 echo "Real-artifact enforcement: $([[ "$ALLOW_MOCK_ARTIFACTS" -eq 1 ]] && echo no || echo yes)"
 
 if [[ "$INIT_CAPTURE_PACK" -eq 1 ]]; then
+  CURRENT_STAGE="capture_pack_init"
   init_cmd=(
     ./scripts/onyx_listener_capture_pack_init.sh
     --out-dir "$CAPTURE_DIR"
@@ -334,6 +588,7 @@ fi
 
 mkdir -p "$ARTIFACT_DIR"
 
+CURRENT_STAGE="serial_bench"
 bench_cmd=(
   ./scripts/onyx_listener_serial_bench.sh
   --input "$CAPTURE_DIR/serial_raw.txt"
@@ -361,6 +616,7 @@ fi
 
 "${bench_cmd[@]}"
 
+CURRENT_STAGE="parity_report"
 ./scripts/onyx_listener_parity_report.sh \
   --serial "$ARTIFACT_DIR/serial_parsed.json" \
   --legacy "$CAPTURE_DIR/legacy_events.json" \
@@ -397,78 +653,12 @@ if [[ "$ALLOW_MOCK_ARTIFACTS" -ne 1 ]]; then
   readiness_cmd+=(--require-real-artifacts)
 fi
 
+CURRENT_STAGE="parity_readiness"
 "${readiness_cmd[@]}"
-
-PARITY_STATUS=""
-PARITY_PRIMARY_ISSUE_CODE=""
-if [[ -f "$ARTIFACT_DIR/report.json" ]]; then
-  PARITY_STATUS="$(
-    python3 - "$ARTIFACT_DIR/report.json" <<'PY'
-import json
-import sys
-with open(sys.argv[1], "r", encoding="utf-8") as handle:
-    data = json.load(handle)
-print(str(data.get("status", "")).upper())
-PY
-  )"
-  PARITY_PRIMARY_ISSUE_CODE="$(
-    python3 - "$ARTIFACT_DIR/report.json" <<'PY'
-import json
-import sys
-with open(sys.argv[1], "r", encoding="utf-8") as handle:
-    data = json.load(handle)
-print(str(data.get("primary_issue_code", "")))
-PY
-  )"
-fi
-
-PARITY_READINESS_STATUS=""
-PARITY_READINESS_FAILURE_CODE=""
-if [[ -f "$ARTIFACT_DIR/parity_readiness_report.json" ]]; then
-  PARITY_READINESS_STATUS="$(
-    python3 - "$ARTIFACT_DIR/parity_readiness_report.json" <<'PY'
-import json
-import sys
-with open(sys.argv[1], "r", encoding="utf-8") as handle:
-    data = json.load(handle)
-print(str(data.get("status", "")).upper())
-PY
-  )"
-  PARITY_READINESS_FAILURE_CODE="$(
-    python3 - "$ARTIFACT_DIR/parity_readiness_report.json" <<'PY'
-import json
-import sys
-with open(sys.argv[1], "r", encoding="utf-8") as handle:
-    data = json.load(handle)
-print(str(data.get("failure_code", "")))
-PY
-  )"
-fi
-
-PARITY_TREND_STATUS=""
-PARITY_TREND_PRIMARY_REGRESSION_CODE=""
-if [[ -f "$ARTIFACT_DIR/trend_report.json" ]]; then
-  PARITY_TREND_STATUS="$(
-    python3 - "$ARTIFACT_DIR/trend_report.json" <<'PY'
-import json
-import sys
-with open(sys.argv[1], "r", encoding="utf-8") as handle:
-    data = json.load(handle)
-print(str(data.get("status", "")).upper())
-PY
-  )"
-  PARITY_TREND_PRIMARY_REGRESSION_CODE="$(
-    python3 - "$ARTIFACT_DIR/trend_report.json" <<'PY'
-import json
-import sys
-with open(sys.argv[1], "r", encoding="utf-8") as handle:
-    data = json.load(handle)
-print(str(data.get("primary_regression_code", "")))
-PY
-  )"
-fi
+refresh_pilot_gate_state
 
 if [[ "$COMPARE_PREVIOUS" -eq 1 ]]; then
+  CURRENT_STAGE="parity_trend"
   trend_cmd=(
     ./scripts/onyx_listener_parity_trend_check.sh
     --current-report-json "$ARTIFACT_DIR/report.json"
@@ -484,7 +674,10 @@ if [[ "$COMPARE_PREVIOUS" -eq 1 ]]; then
     trend_cmd+=(--allow-drift-count-increase "$trend_drift_cap")
   done
   "${trend_cmd[@]}"
+  refresh_pilot_gate_state
 fi
+
+CURRENT_STAGE="completed"
 
 echo ""
 echo "PASS: Listener pilot gate completed."
@@ -514,3 +707,4 @@ if [[ "$COMPARE_PREVIOUS" -eq 1 ]]; then
     echo "Parity trend primary regression code: $PARITY_TREND_PRIMARY_REGRESSION_CODE"
   fi
 fi
+echo "Pilot gate artifact: $PILOT_GATE_REPORT_JSON"

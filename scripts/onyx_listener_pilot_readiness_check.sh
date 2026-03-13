@@ -339,6 +339,8 @@ pairs = [
     ("parity_report_markdown", "parity_report_markdown_sha256"),
     ("trend_report_json", "trend_report_json_sha256"),
     ("trend_report_markdown", "trend_report_markdown_sha256"),
+    ("pilot_gate_report_json", "pilot_gate_report_json_sha256"),
+    ("pilot_gate_report_markdown", "pilot_gate_report_markdown_sha256"),
     ("pilot_gate_output", "pilot_gate_output_sha256"),
     ("markdown_report", "markdown_report_sha256"),
 ]

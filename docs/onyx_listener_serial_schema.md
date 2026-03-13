@@ -245,6 +245,9 @@ The pilot gate can also run this trend comparison inline and emit
 `trend_report.json` plus `trend_report.md` into the pilot artifact directory.
 It now also emits `parity_readiness_report.json` plus
 `parity_readiness_report.md` in that same directory.
+It also emits `pilot_gate_report.json` plus `pilot_gate_report.md` on both
+pass and fail, so parity, parity readiness, and parity trend posture remain
+auditable without relying on terminal output alone.
 The pilot-gate terminal summary now also prints the parity report status,
 parity primary issue code, parity-trend status, and parity-trend primary
 regression code when those artifacts exist.
@@ -397,6 +400,11 @@ The parity readiness gate follows the same pattern and emits
 `parity_readiness_report.json` plus `parity_readiness_report.md` on both pass
 and fail, with a machine-readable `failure_code`.
 
+The validation bundle stages `pilot_gate_report.json` plus
+`pilot_gate_report.md` when present, and records both paths plus checksums
+under `files.*` and `checksums.*`. Listener readiness verifies those staged
+checksums alongside the rest of the validation evidence bundle.
+
 To drive the full listener field flow in one command:
 
 ```bash
@@ -428,6 +436,8 @@ These mock artifacts are valid for local gate verification only and should be
 rejected for real pilot signoff with `--require-real-artifacts`.
 
 When `--compare-previous-validation` is enabled, the field gate also emits:
+- `pilot_gate_report.json`
+- `pilot_gate_report.md`
 - `validation_trend_report.json`
 - `validation_trend_report.md`
 - `cutover_decision.json`
