@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../infrastructure/intelligence/news_intelligence_service.dart';
 import '../domain/guard/guard_mobile_ops.dart';
 import 'radio_bridge_service.dart';
+import 'offline_incident_spool_service.dart';
 import '../ui/client_app_page.dart';
 import '../ui/dispatch_models.dart';
 
@@ -37,6 +38,10 @@ class DispatchPersistenceService {
   static const clientAppPushSyncStateKey = 'onyx_client_app_push_sync_state_v1';
   static const telegramAdminRuntimeStateKey =
       'onyx_telegram_admin_runtime_state_v1';
+  static const offlineIncidentSpoolEntriesKey =
+      'onyx_offline_incident_spool_entries_v1';
+  static const offlineIncidentSpoolSyncStateKey =
+      'onyx_offline_incident_spool_sync_state_v1';
   static const guardAssignmentsKey = 'onyx_guard_assignments_v1';
   static const guardSyncOperationsKey = 'onyx_guard_sync_operations_v1';
   static const guardSyncHistoryFilterKey = 'onyx_guard_sync_history_filter_v1';
@@ -546,6 +551,77 @@ class DispatchPersistenceService {
 
   Future<void> clearTelegramAdminRuntimeState() async {
     await prefs.remove(telegramAdminRuntimeStateKey);
+  }
+
+  Future<List<OfflineIncidentSpoolEntry>> readOfflineIncidentSpoolEntries() async {
+    final raw = prefs.getString(offlineIncidentSpoolEntriesKey);
+    if (raw == null || raw.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return const [];
+      return decoded
+          .whereType<Map>()
+          .map(
+            (item) => OfflineIncidentSpoolEntry.fromJson(
+              item.map((key, value) => MapEntry(key.toString(), value)),
+            ),
+          )
+          .where(
+            (entry) =>
+                entry.entryId.isNotEmpty &&
+                entry.incidentReference.isNotEmpty &&
+                entry.siteId.isNotEmpty,
+          )
+          .toList(growable: false);
+    } catch (_) {
+      await clearOfflineIncidentSpoolEntries();
+      return const [];
+    }
+  }
+
+  Future<void> saveOfflineIncidentSpoolEntries(
+    List<OfflineIncidentSpoolEntry> entries,
+  ) async {
+    await prefs.setString(
+      offlineIncidentSpoolEntriesKey,
+      jsonEncode(entries.map((entry) => entry.toJson()).toList()),
+    );
+  }
+
+  Future<void> clearOfflineIncidentSpoolEntries() async {
+    await prefs.remove(offlineIncidentSpoolEntriesKey);
+  }
+
+  Future<OfflineIncidentSpoolSyncState> readOfflineIncidentSpoolSyncState() async {
+    final raw = prefs.getString(offlineIncidentSpoolSyncStateKey);
+    if (raw == null || raw.isEmpty) {
+      return const OfflineIncidentSpoolSyncState();
+    }
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) {
+        return const OfflineIncidentSpoolSyncState();
+      }
+      return OfflineIncidentSpoolSyncState.fromJson(
+        decoded.map((key, value) => MapEntry(key.toString(), value as Object?)),
+      );
+    } catch (_) {
+      await clearOfflineIncidentSpoolSyncState();
+      return const OfflineIncidentSpoolSyncState();
+    }
+  }
+
+  Future<void> saveOfflineIncidentSpoolSyncState(
+    OfflineIncidentSpoolSyncState state,
+  ) async {
+    await prefs.setString(
+      offlineIncidentSpoolSyncStateKey,
+      jsonEncode(state.toJson()),
+    );
+  }
+
+  Future<void> clearOfflineIncidentSpoolSyncState() async {
+    await prefs.remove(offlineIncidentSpoolSyncStateKey);
   }
 
   Future<List<GuardAssignment>> readGuardAssignments() async {

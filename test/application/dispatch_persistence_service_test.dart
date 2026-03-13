@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:omnix_dashboard/application/dispatch_persistence_service.dart';
+import 'package:omnix_dashboard/application/offline_incident_spool_service.dart';
 import 'package:omnix_dashboard/domain/guard/guard_mobile_ops.dart';
 import 'package:omnix_dashboard/infrastructure/intelligence/news_intelligence_service.dart';
 import 'package:omnix_dashboard/application/radio_bridge_service.dart';
@@ -962,6 +963,66 @@ void main() {
       expect(
         service.prefs.containsKey(
           DispatchPersistenceService.guardCoachingTelemetryKey,
+        ),
+        isFalse,
+      );
+    });
+
+    test('saves and restores offline incident spool entries and sync state', () async {
+      final service = await DispatchPersistenceService.create();
+      final entries = [
+        OfflineIncidentSpoolEntry(
+          entryId: 'spool-001',
+          incidentReference: 'INC-001',
+          sourceType: 'dvr',
+          provider: 'hikvision_dvr',
+          clientId: 'CLIENT-1',
+          siteId: 'SITE-1',
+          createdAtUtc: DateTime.parse('2026-03-13T08:00:00Z'),
+          occurredAtUtc: DateTime.parse('2026-03-13T07:59:00Z'),
+          summary: 'Buffered DVR incident',
+          payload: const {'event_id': 'dvr-001'},
+        ),
+      ];
+      const state = OfflineIncidentSpoolSyncState(
+        statusLabel: 'buffering',
+        pendingCount: 1,
+        history: ['Queued INC-001 • dvr'],
+      );
+
+      await service.saveOfflineIncidentSpoolEntries(entries);
+      await service.saveOfflineIncidentSpoolSyncState(state);
+
+      final restoredEntries = await service.readOfflineIncidentSpoolEntries();
+      final restoredState = await service.readOfflineIncidentSpoolSyncState();
+
+      expect(restoredEntries, hasLength(1));
+      expect(restoredEntries.single.toJson(), entries.single.toJson());
+      expect(restoredState.toJson(), state.toJson());
+    });
+
+    test('clears corrupt offline incident spool caches', () async {
+      SharedPreferences.setMockInitialValues({
+        DispatchPersistenceService.offlineIncidentSpoolEntriesKey: '{not-json',
+        DispatchPersistenceService.offlineIncidentSpoolSyncStateKey:
+            '{not-json',
+      });
+      final service = await DispatchPersistenceService.create();
+
+      final restoredEntries = await service.readOfflineIncidentSpoolEntries();
+      final restoredState = await service.readOfflineIncidentSpoolSyncState();
+
+      expect(restoredEntries, isEmpty);
+      expect(restoredState.statusLabel, 'idle');
+      expect(
+        service.prefs.containsKey(
+          DispatchPersistenceService.offlineIncidentSpoolEntriesKey,
+        ),
+        isFalse,
+      );
+      expect(
+        service.prefs.containsKey(
+          DispatchPersistenceService.offlineIncidentSpoolSyncStateKey,
         ),
         isFalse,
       );
