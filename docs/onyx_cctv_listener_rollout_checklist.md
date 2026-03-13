@@ -126,6 +126,7 @@ Notes:
   - Listener validation-trend artifacts now emit stable regression codes, so downstream automation does not need to parse prose validation-regression summaries.
   - Listener validation bundles now emit stable failure and warning codes, so downstream automation does not need to parse gate messages to classify incomplete or failed runs.
   - Listener signoff artifacts now persist on both pass and fail and carry a machine-readable `failure_code`, so blocked signoff attempts remain auditable without parsing terminal output.
+  - Listener parity artifacts now emit stable issue and regression codes, so downstream automation does not need to parse parity drift summaries to classify divergence or regression.
 
 ---
 

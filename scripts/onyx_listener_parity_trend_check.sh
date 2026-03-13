@@ -143,6 +143,7 @@ match_rate_drop = round(previous_match_rate - current_match_rate, 2)
 if match_rate_drop > allow_match_drop:
     regressions.append(
         {
+            "code": "match_rate_drop",
             "kind": "match_rate_drop",
             "previous": previous_match_rate,
             "current": current_match_rate,
@@ -155,6 +156,7 @@ max_skew_increase = current_max_skew - previous_max_skew
 if max_skew_increase > allow_skew_increase:
     regressions.append(
         {
+            "code": "max_skew_increase",
             "kind": "max_skew_increase",
             "previous": previous_max_skew,
             "current": current_max_skew,
@@ -180,6 +182,7 @@ for reason in all_reasons:
     if delta > allow_drift_increases.get(reason, 0):
         regressions.append(
             {
+                "code": "drift_count_increase",
                 "kind": "drift_count_increase",
                 "reason": reason,
                 "previous": previous_count,
@@ -211,6 +214,8 @@ result = {
         },
     },
     "drift_deltas": drift_deltas,
+    "primary_regression_code": regressions[0]["code"] if regressions else "",
+    "regression_codes": [item["code"] for item in regressions],
     "regressions": regressions,
 }
 
@@ -249,13 +254,13 @@ if regressions:
     for item in regressions:
         if item["kind"] == "drift_count_increase":
             lines.append(
-                f"- `{item['kind']}` on `{item['reason']}`: "
+                f"- `{item['code']}` on `{item['reason']}`: "
                 f"`{item['previous']} -> {item['current']}` "
                 f"(delta `{item['delta']}`, allowed `{item['allowed_increase']}`)"
             )
         else:
             lines.append(
-                f"- `{item['kind']}`: `{item['previous']} -> {item['current']}` "
+                f"- `{item['code']}`: `{item['previous']} -> {item['current']}` "
                 f"(delta `{item['delta']}`, allowance "
                 f"`{item.get('allowed_drop', item.get('allowed_increase'))}`)"
             )
@@ -273,14 +278,14 @@ if regressions:
         if item["kind"] == "drift_count_increase":
             print(
                 "Regression:"
-                f" {item['kind']} on {item['reason']}"
+                f" {item['code']} on {item['reason']}"
                 f" ({item['previous']} -> {item['current']},"
                 f" delta {item['delta']}, allowed {item['allowed_increase']})"
             )
         else:
             print(
                 "Regression:"
-                f" {item['kind']}"
+                f" {item['code']}"
                 f" ({item['previous']} -> {item['current']},"
                 f" delta {item['delta']}, allowance"
                 f" {item.get('allowed_drop', item.get('allowed_increase'))})"

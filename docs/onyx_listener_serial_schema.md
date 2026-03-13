@@ -178,6 +178,10 @@ listener export:
 
 The report emits:
 - `report.md` alongside `report.json` for field review
+- `status`
+- `primary_issue_code`
+- `fail_codes`
+- `warning_codes`
 - `matched_count`
 - `unmatched_serial_count`
 - `unmatched_legacy_count`
@@ -239,6 +243,10 @@ To compare the latest parity run against the prior one:
 
 The pilot gate can also run this trend comparison inline and emit
 `trend_report.json` plus `trend_report.md` into the pilot artifact directory.
+
+The parity-trend artifact also carries `primary_regression_code` plus
+`regression_codes`, so downstream gates can classify parity regressions
+without parsing prose summaries.
 
 To compare the latest field-validation bundle against the prior one:
 

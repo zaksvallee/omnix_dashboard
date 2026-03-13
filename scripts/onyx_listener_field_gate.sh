@@ -665,6 +665,19 @@ fi
 VALIDATION_REPORT_JSON="$ARTIFACT_DIR/validation_report.json"
 VALIDATION_PRIMARY_FAILURE_CODE="$(json_get "$VALIDATION_REPORT_JSON" "primary_failure_code")"
 VALIDATION_PRIMARY_WARNING_CODE="$(json_get "$VALIDATION_REPORT_JSON" "primary_warning_code")"
+PARITY_REPORT_JSON="$ARTIFACT_DIR/pilot_artifact/report.json"
+PARITY_STATUS=""
+PARITY_SUMMARY=""
+PARITY_PRIMARY_ISSUE_CODE=""
+if [[ -f "$PARITY_REPORT_JSON" ]]; then
+  PARITY_STATUS="$(json_get "$PARITY_REPORT_JSON" "status" | tr '[:lower:]' '[:upper:]')"
+  PARITY_SUMMARY="$(json_get "$PARITY_REPORT_JSON" "summary")"
+  PARITY_PRIMARY_ISSUE_CODE="$(json_get "$PARITY_REPORT_JSON" "primary_issue_code")"
+fi
+PARITY_TREND_PRIMARY_CODE=""
+if [[ -f "$ARTIFACT_DIR/pilot_artifact/trend_report.json" ]]; then
+  PARITY_TREND_PRIMARY_CODE="$(json_get "$ARTIFACT_DIR/pilot_artifact/trend_report.json" "primary_regression_code")"
+fi
 BASELINE_REVIEW_STATUS="$(json_get "$VALIDATION_REPORT_JSON" "baseline_review.status" | tr '[:lower:]' '[:upper:]')"
 BASELINE_REVIEW_RECOMMENDATION="$(json_get "$VALIDATION_REPORT_JSON" "baseline_review.recommendation")"
 BASELINE_REVIEW_SUMMARY="$(json_get "$VALIDATION_REPORT_JSON" "baseline_review.summary")"
@@ -718,6 +731,14 @@ fi
 if [[ -n "$VALIDATION_PRIMARY_WARNING_CODE" ]]; then
   echo "Validation primary warning code: ${VALIDATION_PRIMARY_WARNING_CODE}"
 fi
+if [[ -n "$PARITY_STATUS" ]]; then
+  echo "Parity status: ${PARITY_STATUS}"
+  echo "Parity summary: ${PARITY_SUMMARY:-n/a}"
+  if [[ -n "$PARITY_PRIMARY_ISSUE_CODE" ]]; then
+    echo "Parity primary issue code: ${PARITY_PRIMARY_ISSUE_CODE}"
+  fi
+  echo "Parity artifact: $PARITY_REPORT_JSON"
+fi
 echo "Baseline review: ${BASELINE_REVIEW_RECOMMENDATION:-unknown} (${BASELINE_REVIEW_STATUS:-unknown})"
 echo "Baseline review summary: ${BASELINE_REVIEW_SUMMARY:-n/a}"
 if [[ -n "$BASELINE_HEALTH_AGE_DAYS" ]]; then
@@ -733,6 +754,9 @@ if [[ -n "$VALIDATION_TREND_STATUS" ]]; then
     echo "Validation trend primary regression code: ${VALIDATION_TREND_PRIMARY_CODE}"
   fi
   echo "Validation trend artifact: $ARTIFACT_DIR/validation_trend_report.json"
+fi
+if [[ -f "$ARTIFACT_DIR/pilot_artifact/trend_report.json" && -n "$PARITY_TREND_PRIMARY_CODE" ]]; then
+  echo "Parity trend primary regression code: ${PARITY_TREND_PRIMARY_CODE}"
 fi
 if [[ -n "$CUTOVER_DECISION" ]]; then
   echo "Cutover decision: ${CUTOVER_DECISION}"

@@ -309,6 +309,27 @@ report = {
     "unmatched_legacy_drifts": unmatched_legacy_drifts,
 }
 
+fail_codes = []
+warning_codes = []
+if report["matched_count"] < 1:
+    fail_codes.append("no_matched_events")
+if report["match_rate_percent"] < report["min_required_match_rate_percent"]:
+    fail_codes.append("match_rate_below_min")
+if report["max_skew_seconds_observed"] > report["max_allowed_skew_seconds"]:
+    fail_codes.append("observed_skew_above_limit")
+if report["unmatched_serial_count"] > 0:
+    warning_codes.append("unmatched_serial_present")
+if report["unmatched_legacy_count"] > 0:
+    warning_codes.append("unmatched_legacy_present")
+for reason in sorted(drift_reason_counts):
+    warning_codes.append(f"drift_reason_{reason}")
+
+status = "FAIL" if fail_codes else "WARN" if warning_codes else "PASS"
+report["status"] = status
+report["primary_issue_code"] = (fail_codes + warning_codes)[0] if (fail_codes or warning_codes) else ""
+report["fail_codes"] = fail_codes
+report["warning_codes"] = warning_codes
+
 drift_summary = ", ".join(f"{key} {value}" for key, value in drift_reason_counts.items())
 report["summary"] = (
     f"serial {report['serial_count']} • legacy {report['legacy_count']} • "
@@ -326,6 +347,8 @@ lines = [
     "# ONYX Listener Parity Report",
     "",
     f"- Generated (UTC): `{report['generated_at_utc']}`",
+    f"- Status: `{report['status']}`",
+    f"- Primary issue code: `{report['primary_issue_code'] or 'none'}`",
     f"- Artifact dir: `{artifact_dir}`",
     f"- Serial input: `{report['files']['serial_input']}`",
     f"- Legacy input: `{report['files']['legacy_input']}`",
@@ -376,8 +399,18 @@ if drift_samples:
 else:
     lines.append("- None")
 
+lines.extend(["", "## Issue Codes"])
+if fail_codes:
+    for code in fail_codes:
+        lines.append(f"- FAIL `{code}`")
+if warning_codes:
+    for code in warning_codes:
+        lines.append(f"- WARN `{code}`")
+if not fail_codes and not warning_codes:
+    lines.append("- None")
+
 summary_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
-print(f"PASS: Listener parity report written to {out_file}")
-print(f"PASS: Listener parity markdown summary written to {summary_file}")
+print(f"{status}: Listener parity report written to {out_file}")
+print(f"{status}: Listener parity markdown summary written to {summary_file}")
 print(report["summary"])
 PY
