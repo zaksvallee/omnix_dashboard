@@ -180,6 +180,13 @@ def path_exists(raw_path):
         return True
     return Path(candidate).is_file()
 
+def load_json(path_str):
+    candidate = str(path_str or "").strip()
+    if not candidate or not Path(candidate).is_file():
+        return None
+    with Path(candidate).open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
 def cutover_decision_chain_issues(path_str, label):
     issues = []
     if not path_str:
@@ -202,6 +209,54 @@ def cutover_decision_chain_issues(path_str, label):
         issues.append((f"cutover_trend_{label}_missing_parity_trend_report", f"cutover trend {label} decision references a missing parity trend report"))
     if validation_trend and not path_exists(validation_trend):
         issues.append((f"cutover_trend_{label}_missing_validation_trend_report", f"cutover trend {label} decision references a missing validation trend report"))
+    return issues
+
+def signoff_report_consistency_issues(report):
+    issues = []
+    statuses = report.get("statuses", {}) or {}
+    requirements = report.get("requirements", {}) or {}
+    trend_report = str(report.get("trend_report_json", "")).strip()
+    validation_trend = str(report.get("validation_trend_report_json", "")).strip()
+    cutover_decision = str(report.get("cutover_decision_json", "")).strip()
+    cutover_trend = str(report.get("cutover_trend_report_json", "")).strip()
+
+    trend_data = load_json(trend_report)
+    validation_trend_data = load_json(validation_trend)
+    cutover_data = load_json(cutover_decision)
+    cutover_trend_data = load_json(cutover_trend)
+
+    actual_trend_status = str((trend_data or {}).get("status", "")).upper()
+    actual_validation_trend_status = str((validation_trend_data or {}).get("status", "")).upper()
+    actual_cutover_decision = str((cutover_data or {}).get("decision", "")).upper()
+    actual_cutover_trend_status = str((cutover_trend_data or {}).get("status", "")).upper()
+
+    reported_trend_status = str(statuses.get("trend_status", "")).upper()
+    reported_validation_trend_status = str(statuses.get("validation_trend_status", "")).upper()
+    reported_cutover_decision = str(statuses.get("cutover_decision", "")).upper()
+    reported_cutover_trend_status = str(statuses.get("cutover_trend_status", "")).upper()
+
+    if trend_data is not None and reported_trend_status != actual_trend_status:
+        issues.append(("signoff_trend_status_mismatch", f"signoff report trend status does not match referenced trend report ({reported_trend_status or 'missing'} vs {actual_trend_status or 'missing'})"))
+    if validation_trend_data is not None and reported_validation_trend_status != actual_validation_trend_status:
+        issues.append(("signoff_validation_trend_status_mismatch", f"signoff report validation trend status does not match referenced validation trend report ({reported_validation_trend_status or 'missing'} vs {actual_validation_trend_status or 'missing'})"))
+    if cutover_data is not None and reported_cutover_decision != actual_cutover_decision:
+        issues.append(("signoff_cutover_decision_mismatch", f"signoff report cutover decision does not match referenced cutover decision ({reported_cutover_decision or 'missing'} vs {actual_cutover_decision or 'missing'})"))
+    if cutover_trend_data is not None and reported_cutover_trend_status != actual_cutover_trend_status:
+        issues.append(("signoff_cutover_trend_status_mismatch", f"signoff report cutover trend status does not match referenced cutover trend report ({reported_cutover_trend_status or 'missing'} vs {actual_cutover_trend_status or 'missing'})"))
+
+    require_trend_pass = bool(requirements.get("require_trend_pass", False))
+    require_validation_trend_pass = bool(requirements.get("require_validation_trend_pass", False))
+    require_cutover_go = bool(requirements.get("require_cutover_go", False))
+    require_cutover_trend_pass = bool(requirements.get("require_cutover_trend_pass", False))
+
+    if require_trend_pass and actual_trend_status != "PASS":
+        issues.append(("signoff_required_trend_not_pass", f"signoff report requires trend PASS but referenced trend status is {actual_trend_status or 'missing'}"))
+    if require_validation_trend_pass and actual_validation_trend_status != "PASS":
+        issues.append(("signoff_required_validation_trend_not_pass", f"signoff report requires validation trend PASS but referenced validation trend status is {actual_validation_trend_status or 'missing'}"))
+    if require_cutover_go and actual_cutover_decision != "GO":
+        issues.append(("signoff_required_cutover_not_go", f"signoff report requires cutover GO but referenced cutover decision is {actual_cutover_decision or 'missing'}"))
+    if require_cutover_trend_pass and actual_cutover_trend_status != "PASS":
+        issues.append(("signoff_required_cutover_trend_not_pass", f"signoff report requires cutover trend PASS but referenced cutover trend status is {actual_cutover_trend_status or 'missing'}"))
     return issues
 
 overall_status = str(validation.get("overall_status", "")).upper()
@@ -366,6 +421,8 @@ if signoff_report is not None:
             "signoff_missing_cutover_trend_report",
             "signoff report references a missing cutover trend report",
         )
+    for code, message in signoff_report_consistency_issues(signoff_report):
+        add_reason(fail_items, code, message)
     if signoff_status != "PASS":
         add_reason(
             fail_items,

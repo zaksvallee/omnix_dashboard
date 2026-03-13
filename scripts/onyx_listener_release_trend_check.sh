@@ -117,6 +117,13 @@ def path_exists(raw_path):
         return True
     return Path(candidate).is_file()
 
+def load_json(path_str):
+    candidate = str(path_str or "").strip()
+    if not candidate or not Path(candidate).is_file():
+        return None
+    with Path(candidate).open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
 def sha256_file(path_str):
     with open(path_str, "rb") as handle:
         return hashlib.sha256(handle.read()).hexdigest()
@@ -487,6 +494,79 @@ def signoff_report_chain_regressions(path_str, label):
         })
     else:
         regressions.extend(cutover_trend_chain_regressions(cutover_trend, f"{label}_cutover_trend"))
+
+    statuses = report.get("statuses", {}) or {}
+    requirements = report.get("requirements", {}) or {}
+    trend_data = load_json(parity_trend)
+    validation_trend_data = load_json(validation_trend)
+    cutover_data = load_json(cutover_decision)
+    cutover_trend_data = load_json(cutover_trend)
+
+    actual_trend_status = str((trend_data or {}).get("status", "")).upper()
+    actual_validation_trend_status = str((validation_trend_data or {}).get("status", "")).upper()
+    actual_cutover_decision = str((cutover_data or {}).get("decision", "")).upper()
+    actual_cutover_trend_status = str((cutover_trend_data or {}).get("status", "")).upper()
+
+    reported_trend_status = str(statuses.get("trend_status", "")).upper()
+    reported_validation_trend_status = str(statuses.get("validation_trend_status", "")).upper()
+    reported_cutover_decision = str(statuses.get("cutover_decision", "")).upper()
+    reported_cutover_trend_status = str(statuses.get("cutover_trend_status", "")).upper()
+
+    def add_consistency(code_suffix, expected, actual):
+        regressions.append({
+            "code": f"{label}_{code_suffix}",
+            "kind": "signoff_chain_status_mismatch",
+            "report_label": label,
+            "expected": expected,
+            "actual": actual,
+        })
+
+    if trend_data is not None and reported_trend_status != actual_trend_status:
+        add_consistency("trend_status_mismatch", actual_trend_status, reported_trend_status)
+    if validation_trend_data is not None and reported_validation_trend_status != actual_validation_trend_status:
+        add_consistency("validation_trend_status_mismatch", actual_validation_trend_status, reported_validation_trend_status)
+    if cutover_data is not None and reported_cutover_decision != actual_cutover_decision:
+        add_consistency("cutover_decision_mismatch", actual_cutover_decision, reported_cutover_decision)
+    if cutover_trend_data is not None and reported_cutover_trend_status != actual_cutover_trend_status:
+        add_consistency("cutover_trend_status_mismatch", actual_cutover_trend_status, reported_cutover_trend_status)
+
+    require_trend_pass = bool(requirements.get("require_trend_pass", False))
+    require_validation_trend_pass = bool(requirements.get("require_validation_trend_pass", False))
+    require_cutover_go = bool(requirements.get("require_cutover_go", False))
+    require_cutover_trend_pass = bool(requirements.get("require_cutover_trend_pass", False))
+
+    if require_trend_pass and actual_trend_status != "PASS":
+        regressions.append({
+            "code": f"{label}_required_trend_not_pass",
+            "kind": "signoff_chain_requirement_mismatch",
+            "report_label": label,
+            "requirement": "require_trend_pass",
+            "actual": actual_trend_status,
+        })
+    if require_validation_trend_pass and actual_validation_trend_status != "PASS":
+        regressions.append({
+            "code": f"{label}_required_validation_trend_not_pass",
+            "kind": "signoff_chain_requirement_mismatch",
+            "report_label": label,
+            "requirement": "require_validation_trend_pass",
+            "actual": actual_validation_trend_status,
+        })
+    if require_cutover_go and actual_cutover_decision != "GO":
+        regressions.append({
+            "code": f"{label}_required_cutover_not_go",
+            "kind": "signoff_chain_requirement_mismatch",
+            "report_label": label,
+            "requirement": "require_cutover_go",
+            "actual": actual_cutover_decision,
+        })
+    if require_cutover_trend_pass and actual_cutover_trend_status != "PASS":
+        regressions.append({
+            "code": f"{label}_required_cutover_trend_not_pass",
+            "kind": "signoff_chain_requirement_mismatch",
+            "report_label": label,
+            "requirement": "require_cutover_trend_pass",
+            "actual": actual_cutover_trend_status,
+        })
     return regressions
 
 def cutover_trend_chain_regressions(path_str, label):
@@ -742,6 +822,16 @@ if regressions:
                 f"- `{item['code']}`: `{item['report_label']}` checksum mismatch "
                 f"for `{item['mismatch_field']}` at `{item['path']}`"
             )
+        elif item["kind"] == "signoff_chain_status_mismatch":
+            lines.append(
+                f"- `{item['code']}`: `{item['report_label']}` expected "
+                f"`{item['expected'] or 'missing'}` but saw `{item['actual'] or 'missing'}`"
+            )
+        elif item["kind"] == "signoff_chain_requirement_mismatch":
+            lines.append(
+                f"- `{item['code']}`: `{item['report_label']}` requires "
+                f"`{item['requirement']}` but underlying status is `{item['actual'] or 'missing'}`"
+            )
         elif item["kind"] == "validation_chain_missing_metadata":
             lines.append(
                 f"- `{item['code']}`: `{item['report_label']}` has checksum "
@@ -804,6 +894,16 @@ if regressions:
             print(
                 f"REGRESSION: {item['code']} {item['report_label']} checksum mismatch "
                 f"for {item['mismatch_field']} at {item['path']}"
+            )
+        elif item["kind"] == "signoff_chain_status_mismatch":
+            print(
+                f"REGRESSION: {item['code']} {item['report_label']} expected "
+                f"{item['expected'] or 'missing'} but saw {item['actual'] or 'missing'}"
+            )
+        elif item["kind"] == "signoff_chain_requirement_mismatch":
+            print(
+                f"REGRESSION: {item['code']} {item['report_label']} requires "
+                f"{item['requirement']} but underlying status is {item['actual'] or 'missing'}"
             )
         elif item["kind"] == "validation_chain_missing_metadata":
             print(

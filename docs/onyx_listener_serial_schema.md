@@ -547,7 +547,8 @@ time for the evidence it consumes directly:
   files are missing.
 - a staged `signoff_report.json` cannot contribute to a clean release result
   if its referenced parity, trend, validation, validation-trend, cutover, or
-  cutover-trend files are missing.
+  cutover-trend files are missing, or if its recorded status fields and
+  enforced requirement flags do not match those referenced artifacts.
 
 Standalone cutover and signoff generation now enforce the same parity-side
 evidence-chain integrity:
