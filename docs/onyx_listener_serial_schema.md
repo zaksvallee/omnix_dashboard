@@ -240,6 +240,42 @@ To compare the latest parity run against the prior one:
 The pilot gate can also run this trend comparison inline and emit
 `trend_report.json` plus `trend_report.md` into the pilot artifact directory.
 
+To compare the latest field-validation bundle against the prior one:
+
+```bash
+./scripts/onyx_listener_validation_trend_check.sh \
+  --allow-baseline-age-increase-days 7
+```
+
+This emits `validation_trend_report.json` plus `validation_trend_report.md`
+next to the current `validation_report.json`, and it fails when:
+- `overall_status` regresses
+- any validation gate flips from `true` to `false`
+- `baseline_review` regresses from `hold_baseline` to `promote_baseline` or `investigate_new_frame_shape`
+- `baseline_health` regresses from `fresh` to a weaker category
+- `baseline_health.age_days` increases beyond the allowed threshold
+
+To collapse the latest validation/trend posture into one cutover decision:
+
+```bash
+./scripts/onyx_listener_cutover_decision.sh \
+  --require-real-artifacts
+```
+
+This emits `cutover_decision.json` plus `cutover_decision.md` with:
+- `decision = GO|HOLD|BLOCK`
+- `blocking_reasons`
+- `hold_reasons`
+- resolved validation/parity/trend artifact references
+
+Decision policy:
+- `GO`
+  all hard validation gates pass, the bundle is non-mock when required, baseline review is `hold_baseline`, baseline health is not degraded, and any supplied parity/validation trend artifacts are `PASS`
+- `HOLD`
+  software validation passed, but cutover should wait for baseline promotion/freshness or missing trend artifacts
+- `BLOCK`
+  validation failed, hard gates regressed, investigation is required, or a supplied trend artifact failed
+
 To create a self-contained field-validation bundle from a real capture pack:
 
 ```bash
@@ -262,6 +298,7 @@ To confirm the latest listener field-validation bundle is signoff-ready:
 ```bash
 ./scripts/onyx_listener_pilot_readiness_check.sh \
   --require-trend-pass \
+  --require-validation-trend-pass \
   --require-baseline-history \
   --max-baseline-age-days 30
 ```
@@ -279,6 +316,8 @@ To drive the full listener field flow in one command:
   --max-fallback-timestamp-count 0 \
   --max-unknown-event-rate-percent 5 \
   --compare-previous \
+  --compare-previous-validation \
+  --allow-validation-baseline-age-increase-days 7 \
   --generate-signoff
 ```
 
@@ -290,6 +329,22 @@ For local tooling checks without real hardware:
 
 These mock artifacts are valid for local gate verification only and should be
 rejected for real pilot signoff with `--require-real-artifacts`.
+
+When `--compare-previous-validation` is enabled, the field gate also emits:
+- `validation_trend_report.json`
+- `validation_trend_report.md`
+- `cutover_decision.json`
+- `cutover_decision.md`
+
+The field-gate terminal summary now prints validation-trend status and summary
+alongside the baseline review, baseline health, and cutover decision result.
+
+Readiness and signoff can also enforce validation-trend pass explicitly:
+- `--validation-trend-report-json <path>`
+- `--require-validation-trend-pass`
+
+When enabled, readiness verifies that the validation-trend artifact exists,
+references real current/previous validation reports, and has `status = PASS`.
 
 Field validation and readiness now also enforce the serial bench anomaly gate:
 - `gates.bench_anomaly_gate_passed`

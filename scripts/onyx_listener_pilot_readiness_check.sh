@@ -8,6 +8,8 @@ REPORT_JSON=""
 MAX_REPORT_AGE_HOURS=24
 REQUIRE_REAL_ARTIFACTS=0
 REQUIRE_TREND_PASS=0
+VALIDATION_TREND_REPORT_JSON=""
+REQUIRE_VALIDATION_TREND_PASS=0
 REQUIRE_BASELINE_HISTORY=0
 MAX_BASELINE_AGE_DAYS=""
 
@@ -17,7 +19,7 @@ fail() { printf "FAIL: %s\n" "$1"; exit 1; }
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/onyx_listener_pilot_readiness_check.sh [--report-json <path>] [--max-report-age-hours <hours>] [--require-real-artifacts] [--require-trend-pass] [--require-baseline-history] [--max-baseline-age-days <days>]
+  ./scripts/onyx_listener_pilot_readiness_check.sh [--report-json <path>] [--max-report-age-hours <hours>] [--require-real-artifacts] [--require-trend-pass] [--validation-trend-report-json <path>] [--require-validation-trend-pass] [--require-baseline-history] [--max-baseline-age-days <days>]
 
 Purpose:
   Validate the latest listener field-validation artifact under
@@ -42,6 +44,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --require-trend-pass)
       REQUIRE_TREND_PASS=1
+      shift
+      ;;
+    --validation-trend-report-json)
+      VALIDATION_TREND_REPORT_JSON="${2:-}"
+      shift 2
+      ;;
+    --require-validation-trend-pass)
+      REQUIRE_VALIDATION_TREND_PASS=1
       shift
       ;;
     --require-baseline-history)
@@ -212,12 +222,43 @@ print(last_promoted)
 PY
 }
 
+verify_validation_trend_report() {
+  local report_file="$1"
+  python3 - "$report_file" <<'PY'
+import json
+import os
+import sys
+
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+
+status = str(data.get("status", "")).upper()
+current_report = str(data.get("current_report_json", "")).strip()
+previous_report = str(data.get("previous_report_json", "")).strip()
+
+if not current_report or not os.path.isfile(current_report):
+    raise SystemExit("missing_current_report")
+if not previous_report or not os.path.isfile(previous_report):
+    raise SystemExit("missing_previous_report")
+
+print(status)
+PY
+}
+
 latest_report_json="$REPORT_JSON"
 if [[ -z "$latest_report_json" ]]; then
   latest_report_json="$(latest_validation_report_json || true)"
 fi
 if [[ -z "$latest_report_json" || ! -f "$latest_report_json" ]]; then
   fail "No listener validation_report.json found under tmp/listener_field_validation."
+fi
+
+if [[ -z "$VALIDATION_TREND_REPORT_JSON" ]]; then
+  candidate_dir="$(dirname "$latest_report_json")"
+  if [[ -f "$candidate_dir/validation_trend_report.json" ]]; then
+    VALIDATION_TREND_REPORT_JSON="$candidate_dir/validation_trend_report.json"
+  fi
 fi
 
 report_age="$(report_age_hours "$latest_report_json")"
@@ -250,6 +291,25 @@ if [[ "$REQUIRE_REAL_ARTIFACTS" -eq 1 ]]; then
     fail "Listener readiness failed: mock artifact directory is not allowed under --require-real-artifacts ($artifact_dir)."
   fi
   pass "Real-artifact gate passed ($artifact_dir)."
+fi
+
+if [[ "$REQUIRE_VALIDATION_TREND_PASS" -eq 1 ]]; then
+  [[ -n "$VALIDATION_TREND_REPORT_JSON" && -f "$VALIDATION_TREND_REPORT_JSON" ]] || fail "Listener readiness failed: validation trend report is missing under --require-validation-trend-pass."
+  validation_trend_status="$(verify_validation_trend_report "$VALIDATION_TREND_REPORT_JSON" 2>&1)" || {
+    case "$validation_trend_status" in
+      missing_current_report)
+        fail "Listener readiness failed: validation trend report references a missing current validation report."
+        ;;
+      missing_previous_report)
+        fail "Listener readiness failed: validation trend report references a missing previous validation report."
+        ;;
+      *)
+        fail "Listener readiness failed: validation trend verification failed: ${validation_trend_status:-unknown}."
+        ;;
+    esac
+  }
+  [[ "$validation_trend_status" == "PASS" ]] || fail "Listener readiness failed: validation trend report is not PASS (${validation_trend_status:-missing})."
+  pass "Validation trend gate passed ($VALIDATION_TREND_REPORT_JSON)."
 fi
 
 if [[ "$REQUIRE_BASELINE_HISTORY" -eq 1 ]]; then
