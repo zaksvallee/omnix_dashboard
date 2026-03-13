@@ -150,7 +150,7 @@ When CCTV is degraded but ONYX is still online:
   - executes validation + readiness in one command once the capture pack is filled
 - `make cctv-signoff`
   - runs `scripts/onyx_cctv_signoff_generate.sh`
-  - writes a pilot signoff note from the latest validation bundle and field notes
+  - writes a pilot signoff note plus `signoff.json` from the latest validation bundle and field notes
 - Exit codes:
   - `0`: pass
   - `1`: fail
@@ -158,3 +158,4 @@ When CCTV is degraded but ONYX is still online:
 - Reports:
   - `validation_report.md` for operator signoff
   - `validation_report.json` for machine-readable gate checks and evidence checksums
+  - `signoff.json` for machine-readable CCTV signoff posture, including integrity-certificate refs/status and failure codes on blocked signoff

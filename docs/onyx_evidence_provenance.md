@@ -12,6 +12,7 @@ Current repo scope:
 - ledger-backed integrity certificate export is now available for `IntelligenceReceived` evidence
 - staged validation bundles now auto-emit deterministic integrity certificates from `validation_report.json`
 - CCTV, DVR, and listener readiness now verify those staged bundle certificates before signoff posture can pass
+- CCTV signoff now also emits a sibling audited JSON artifact that records the staged validation-bundle integrity certificate refs/status on both pass and fail
 - each ingested `IntelligenceReceived` event can now carry:
   - `snapshotReferenceHash`
   - `clipReferenceHash`
