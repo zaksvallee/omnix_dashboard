@@ -161,6 +161,7 @@ DVR pilot commands:
 - readiness writes `readiness_report.json` and `readiness_report.md` into the DVR validation artifact dir
 - readiness can also enforce `release_gate.json` and `release_trend_report.json` with `--require-release-gate-pass --require-release-trend-pass`
 - when enforced, readiness now also rejects release-gate signoff paths that point outside the active DVR artifact dir
+- when enforced, readiness now also rejects staged signoff JSON that points at a different validation bundle or release gate
 - `./scripts/onyx_dvr_pilot_gate.sh`
 - `./scripts/onyx_dvr_field_gate.sh`
 - `./scripts/onyx_dvr_signoff_generate.sh`

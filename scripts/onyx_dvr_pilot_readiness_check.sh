@@ -164,6 +164,16 @@ else:
 PY
 }
 
+json_get_optional() {
+  local report_file="$1"
+  local expression="$2"
+  if [[ -z "$report_file" || ! -f "$report_file" ]]; then
+    echo ""
+    return 0
+  fi
+  json_get "$report_file" "$expression"
+}
+
 verify_json_report_checksums() {
   local report_file="$1"
   python3 - "$report_file" <<'PY'
@@ -267,6 +277,7 @@ if [[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]]; then
   release_gate_validation_report="$(json_get "$RELEASE_GATE_JSON" "validation_report_json")"
   release_gate_signoff_file="$(json_get "$RELEASE_GATE_JSON" "signoff_file")"
   release_gate_signoff_report="$(json_get "$RELEASE_GATE_JSON" "signoff_report_json")"
+  release_gate_signoff_status="$(json_get "$RELEASE_GATE_JSON" "statuses.signoff_status" | tr '[:lower:]' '[:upper:]')"
   release_gate_result="$(json_get "$RELEASE_GATE_JSON" "result" | tr '[:lower:]' '[:upper:]')"
   if [[ -n "$release_gate_validation_report" && "$release_gate_validation_report" != "$REPORT_JSON" ]]; then
     fail "DVR readiness failed: release gate validation report does not match the active validation bundle." "release_gate_validation_report_mismatch"
@@ -276,6 +287,24 @@ if [[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]]; then
   fi
   if [[ -n "$release_gate_signoff_report" && "$release_gate_signoff_report" != "$ARTIFACT_DIR/$(basename "$release_gate_signoff_report")" ]]; then
     fail "DVR readiness failed: release gate signoff report is not staged under the active artifact dir." "release_gate_signoff_report_path_mismatch"
+  fi
+  if [[ -n "$release_gate_signoff_report" && -f "$release_gate_signoff_report" ]]; then
+    signoff_report_validation="$(json_get_optional "$release_gate_signoff_report" "report_json")"
+    signoff_report_release_gate="$(json_get_optional "$release_gate_signoff_report" "release_gate_json")"
+    signoff_report_markdown="$(json_get_optional "$release_gate_signoff_report" "signoff_markdown")"
+    signoff_report_status="$(json_get_optional "$release_gate_signoff_report" "status" | tr '[:lower:]' '[:upper:]')"
+    if [[ -n "$signoff_report_validation" && "$signoff_report_validation" != "$REPORT_JSON" ]]; then
+      fail "DVR readiness failed: release gate signoff report points at a different validation bundle." "release_gate_signoff_validation_report_mismatch"
+    fi
+    if [[ -n "$signoff_report_release_gate" && "$signoff_report_release_gate" != "$RELEASE_GATE_JSON" ]]; then
+      fail "DVR readiness failed: release gate signoff report points at a different release gate artifact." "release_gate_signoff_release_gate_mismatch"
+    fi
+    if [[ -n "$release_gate_signoff_file" && -n "$signoff_report_markdown" && "$signoff_report_markdown" != "$release_gate_signoff_file" ]]; then
+      fail "DVR readiness failed: release gate signoff report markdown path does not match the release gate signoff markdown." "release_gate_signoff_markdown_mismatch"
+    fi
+    if [[ -n "$release_gate_signoff_status" && -n "$signoff_report_status" && "$release_gate_signoff_status" != "$signoff_report_status" ]]; then
+      fail "DVR readiness failed: release gate signoff status does not match the referenced signoff report." "release_gate_signoff_status_mismatch"
+    fi
   fi
   if [[ "$release_gate_result" != "PASS" ]]; then
     release_gate_primary_code="$(json_get "$RELEASE_GATE_JSON" "primary_fail_code")"
