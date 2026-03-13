@@ -112,6 +112,13 @@ def sha256_file(path_str):
     with open(path_str, "rb") as handle:
         return hashlib.sha256(handle.read()).hexdigest()
 
+def load_json(path_str):
+    candidate = str(path_str or "").strip()
+    if not candidate or not Path(candidate).is_file():
+        return None
+    with Path(candidate).open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
 def validation_chain_regressions(report, label):
     regressions = []
     files = report.get("files", {}) or {}
@@ -128,6 +135,8 @@ def validation_chain_regressions(report, label):
         ("parity_report_markdown", "parity_report_markdown_sha256"),
         ("parity_readiness_report_json", "parity_readiness_report_json_sha256"),
         ("parity_readiness_report_markdown", "parity_readiness_report_markdown_sha256"),
+        ("parity_integrity_certificate_json", "parity_integrity_certificate_json_sha256"),
+        ("parity_integrity_certificate_markdown", "parity_integrity_certificate_markdown_sha256"),
         ("trend_report_json", "trend_report_json_sha256"),
         ("trend_report_markdown", "trend_report_markdown_sha256"),
         ("pilot_gate_report_json", "pilot_gate_report_json_sha256"),
@@ -222,6 +231,58 @@ def validation_chain_regressions(report, label):
                 "summary_field": "baseline_health.age_days",
                 "expected": "" if expected_age is None else str(expected_age),
                 "actual": "" if actual_age is None else str(actual_age),
+            })
+    parity_report_path = str(files.get("parity_report_json", "")).strip()
+    parity_certificate_path = str(files.get("parity_integrity_certificate_json", "")).strip()
+    parity_report_data = load_json(parity_report_path)
+    parity_certificate_data = load_json(parity_certificate_path)
+    if parity_report_path and not parity_certificate_path:
+        regressions.append({
+            "code": f"{label}_validation_missing_parity_integrity_certificate_json",
+            "kind": "validation_chain_missing_file",
+            "report_label": label,
+            "missing_field": "parity_integrity_certificate_json",
+        })
+    if parity_certificate_data is not None:
+        actual_status = upper(parity_certificate_data.get("status"))
+        if actual_status != "PASS":
+            regressions.append({
+                "code": f"{label}_validation_parity_integrity_certificate_not_pass",
+                "kind": "validation_summary_mismatch",
+                "report_label": label,
+                "summary_field": "parity_integrity_certificate.status",
+                "expected": "PASS",
+                "actual": actual_status,
+            })
+        referenced_report = str(parity_certificate_data.get("report_json", "")).strip()
+        if not referenced_report:
+            regressions.append({
+                "code": f"{label}_validation_parity_integrity_certificate_missing_report_json",
+                "kind": "validation_chain_missing_metadata",
+                "report_label": label,
+                "missing_field": "parity_integrity_certificate.report_json",
+            })
+        actual_summary = str(parity_certificate_data.get("report_summary", "")).strip()
+        expected_summary = str((parity_report_data or {}).get("summary", "")).strip()
+        if parity_report_data is not None and actual_summary != expected_summary:
+            regressions.append({
+                "code": f"{label}_validation_parity_integrity_certificate_report_summary_mismatch",
+                "kind": "validation_summary_mismatch",
+                "report_label": label,
+                "summary_field": "parity_integrity_certificate.report_summary",
+                "expected": expected_summary,
+                "actual": actual_summary,
+            })
+        actual_markdown_sha = str(((parity_certificate_data.get("checksums") or {}).get("report_markdown_sha256", ""))).strip()
+        expected_markdown_sha = str(checksums.get("parity_report_markdown_sha256", "")).strip()
+        if expected_markdown_sha and actual_markdown_sha != expected_markdown_sha:
+            regressions.append({
+                "code": f"{label}_validation_parity_integrity_certificate_report_markdown_checksum_mismatch",
+                "kind": "validation_summary_mismatch",
+                "report_label": label,
+                "summary_field": "parity_integrity_certificate.checksums.report_markdown_sha256",
+                "expected": expected_markdown_sha,
+                "actual": actual_markdown_sha,
             })
     gates = report.get("gates", {}) or {}
     statuses = report.get("statuses", {}) or {}

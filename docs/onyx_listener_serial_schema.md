@@ -274,6 +274,9 @@ next to the current `validation_report.json`, and it fails when:
 The validation-trend artifact also carries `primary_regression_code` plus
 `regression_codes`, so downstream gates can classify validation regressions
 without parsing prose summaries.
+Validation trend now also walks the staged parity integrity certificate inside
+the validation bundle, so checksum or summary drift on that parity certificate
+surfaces directly as a validation regression.
 
 To collapse the latest validation/trend posture into one cutover decision:
 
