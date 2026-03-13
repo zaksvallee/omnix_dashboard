@@ -365,6 +365,71 @@ print("ok")
 PY
 }
 
+verify_validation_report_consistency() {
+  local report_file="$1"
+  python3 - "$report_file" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+
+files = data.get("files", {}) or {}
+gates = data.get("gates", {}) or {}
+statuses = data.get("statuses", {}) or {}
+baseline_review = data.get("baseline_review", {}) or {}
+baseline_health = data.get("baseline_health", {}) or {}
+
+def read_json(path_value):
+    with open(path_value, "r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+baseline_review_path = str(files.get("baseline_review_json", "")).strip()
+if baseline_review_path:
+    review_data = read_json(baseline_review_path)
+    for key in ("status", "recommendation", "summary", "bench_anomaly_status"):
+        if str(baseline_review.get(key, "")).strip() != str(review_data.get(key, "")).strip():
+            raise SystemExit(f"baseline_review_{key}_mismatch")
+
+baseline_health_path = str(files.get("baseline_health_json", "")).strip()
+if baseline_health_path:
+    health_data = read_json(baseline_health_path)
+    for key in ("status", "category", "summary"):
+        if str(baseline_health.get(key, "")).strip() != str(health_data.get(key, "")).strip():
+            raise SystemExit(f"baseline_health_{key}_mismatch")
+    if baseline_health.get("age_days") != health_data.get("age_days"):
+        raise SystemExit("baseline_health_age_days_mismatch")
+
+for gate_key, status_key in (
+    ("serial_capture_present", "serial_capture"),
+    ("legacy_capture_present", "legacy_capture"),
+    ("field_notes_present", "field_notes"),
+    ("read_only_wiring_documented", "read_only_wiring"),
+    ("bench_anomaly_gate_passed", "bench_anomaly_gate"),
+    ("parity_gate_passed", "parity_gate"),
+    ("trend_gate_passed", "trend_gate"),
+):
+    gate_value = bool(gates.get(gate_key, False))
+    status_value = str(statuses.get(status_key, "")).upper()
+    if gate_value != (status_value == "PASS"):
+        raise SystemExit(f"{gate_key}_status_mismatch")
+
+failure_codes = [str(item) for item in (data.get("failure_codes", []) or [])]
+warning_codes = [str(item) for item in (data.get("warning_codes", []) or [])]
+primary_failure_code = str(data.get("primary_failure_code", "")).strip()
+primary_warning_code = str(data.get("primary_warning_code", "")).strip()
+expected_primary_failure = failure_codes[0] if failure_codes else ""
+expected_primary_warning = warning_codes[0] if warning_codes else ""
+if primary_failure_code != expected_primary_failure:
+    raise SystemExit("primary_failure_code_mismatch")
+if primary_warning_code != expected_primary_warning:
+    raise SystemExit("primary_warning_code_mismatch")
+
+print("ok")
+PY
+}
+
 verify_pilot_gate_report() {
   local report_file="$1"
   python3 - "$report_file" <<'PY'
@@ -736,6 +801,47 @@ REPORT_JSON="$latest_report_json"
 REPORT_AGE_HOURS="$report_age"
 verify_result="$(verify_json_report_checksums "$latest_report_json")" || fail validation_checksum_failed "Listener validation checksum verification failed: $verify_result"
 pass "Listener validation checksums verified."
+validation_consistency_result="$(verify_validation_report_consistency "$latest_report_json" 2>&1)" || {
+  case "$validation_consistency_result" in
+    baseline_review_status_mismatch)
+      fail validation_baseline_review_status_mismatch "Listener readiness failed: validation baseline review status does not match staged baseline review JSON."
+      ;;
+    baseline_review_recommendation_mismatch)
+      fail validation_baseline_review_recommendation_mismatch "Listener readiness failed: validation baseline review recommendation does not match staged baseline review JSON."
+      ;;
+    baseline_review_summary_mismatch)
+      fail validation_baseline_review_summary_mismatch "Listener readiness failed: validation baseline review summary does not match staged baseline review JSON."
+      ;;
+    baseline_review_bench_anomaly_status_mismatch)
+      fail validation_baseline_review_bench_anomaly_status_mismatch "Listener readiness failed: validation baseline review bench anomaly status does not match staged baseline review JSON."
+      ;;
+    baseline_health_status_mismatch)
+      fail validation_baseline_health_status_mismatch "Listener readiness failed: validation baseline health status does not match staged baseline health JSON."
+      ;;
+    baseline_health_category_mismatch)
+      fail validation_baseline_health_category_mismatch "Listener readiness failed: validation baseline health category does not match staged baseline health JSON."
+      ;;
+    baseline_health_summary_mismatch)
+      fail validation_baseline_health_summary_mismatch "Listener readiness failed: validation baseline health summary does not match staged baseline health JSON."
+      ;;
+    baseline_health_age_days_mismatch)
+      fail validation_baseline_health_age_days_mismatch "Listener readiness failed: validation baseline health age_days does not match staged baseline health JSON."
+      ;;
+    serial_capture_present_status_mismatch|legacy_capture_present_status_mismatch|field_notes_present_status_mismatch|read_only_wiring_documented_status_mismatch|bench_anomaly_gate_passed_status_mismatch|parity_gate_passed_status_mismatch|trend_gate_passed_status_mismatch)
+      fail validation_gate_status_mismatch "Listener readiness failed: validation gate booleans do not match validation status fields."
+      ;;
+    primary_failure_code_mismatch)
+      fail validation_primary_failure_code_mismatch "Listener readiness failed: validation primary failure code does not match failure_codes."
+      ;;
+    primary_warning_code_mismatch)
+      fail validation_primary_warning_code_mismatch "Listener readiness failed: validation primary warning code does not match warning_codes."
+      ;;
+    *)
+      fail validation_consistency_verification_failed "Listener readiness failed: validation report consistency verification failed: ${validation_consistency_result:-unknown}."
+      ;;
+  esac
+}
+pass "Validation summary consistency verified."
 pilot_gate_report_json="$(json_get "$latest_report_json" "files.pilot_gate_report_json")"
 if [[ -n "$pilot_gate_report_json" ]]; then
   pilot_gate_verify_result="$(verify_pilot_gate_report "$pilot_gate_report_json" 2>&1)" || {

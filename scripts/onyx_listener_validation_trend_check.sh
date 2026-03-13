@@ -178,6 +178,100 @@ def validation_chain_regressions(report, label):
             "report_label": label,
             "missing_path": artifact_dir,
         })
+    baseline_review = report.get("baseline_review", {}) or {}
+    baseline_health = report.get("baseline_health", {}) or {}
+    staged_baseline_review = str(files.get("baseline_review_json", "")).strip()
+    staged_baseline_health = str(files.get("baseline_health_json", "")).strip()
+    if staged_baseline_review and Path(staged_baseline_review).is_file():
+        with Path(staged_baseline_review).open("r", encoding="utf-8") as handle:
+            review_data = json.load(handle)
+        for key in ("status", "recommendation", "summary", "bench_anomaly_status"):
+            expected = str(review_data.get(key, "")).strip()
+            actual = str(baseline_review.get(key, "")).strip()
+            if actual != expected:
+                regressions.append({
+                    "code": f"{label}_validation_baseline_review_{key}_mismatch",
+                    "kind": "validation_summary_mismatch",
+                    "report_label": label,
+                    "summary_field": f"baseline_review.{key}",
+                    "expected": expected,
+                    "actual": actual,
+                })
+    if staged_baseline_health and Path(staged_baseline_health).is_file():
+        with Path(staged_baseline_health).open("r", encoding="utf-8") as handle:
+            health_data = json.load(handle)
+        for key in ("status", "category", "summary"):
+            expected = str(health_data.get(key, "")).strip()
+            actual = str(baseline_health.get(key, "")).strip()
+            if actual != expected:
+                regressions.append({
+                    "code": f"{label}_validation_baseline_health_{key}_mismatch",
+                    "kind": "validation_summary_mismatch",
+                    "report_label": label,
+                    "summary_field": f"baseline_health.{key}",
+                    "expected": expected,
+                    "actual": actual,
+                })
+        expected_age = health_data.get("age_days")
+        actual_age = baseline_health.get("age_days")
+        if expected_age != actual_age:
+            regressions.append({
+                "code": f"{label}_validation_baseline_health_age_days_mismatch",
+                "kind": "validation_summary_mismatch",
+                "report_label": label,
+                "summary_field": "baseline_health.age_days",
+                "expected": "" if expected_age is None else str(expected_age),
+                "actual": "" if actual_age is None else str(actual_age),
+            })
+    gates = report.get("gates", {}) or {}
+    statuses = report.get("statuses", {}) or {}
+    for gate_key, status_key in (
+        ("serial_capture_present", "serial_capture"),
+        ("legacy_capture_present", "legacy_capture"),
+        ("field_notes_present", "field_notes"),
+        ("read_only_wiring_documented", "read_only_wiring"),
+        ("bench_anomaly_gate_passed", "bench_anomaly_gate"),
+        ("parity_gate_passed", "parity_gate"),
+        ("trend_gate_passed", "trend_gate"),
+    ):
+        gate_value = bool(gates.get(gate_key, False))
+        status_value = upper(statuses.get(status_key, ""))
+        expected_gate_value = status_value == "PASS"
+        if gate_value != expected_gate_value:
+            regressions.append({
+                "code": f"{label}_validation_{gate_key}_status_mismatch",
+                "kind": "validation_status_gate_mismatch",
+                "report_label": label,
+                "gate_field": gate_key,
+                "status_field": status_key,
+                "expected": str(expected_gate_value).lower(),
+                "actual": str(gate_value).lower(),
+                "status": status_value,
+            })
+    failure_codes = [str(item) for item in (report.get("failure_codes", []) or [])]
+    warning_codes = [str(item) for item in (report.get("warning_codes", []) or [])]
+    primary_failure_code = str(report.get("primary_failure_code", "")).strip()
+    primary_warning_code = str(report.get("primary_warning_code", "")).strip()
+    expected_primary_failure = failure_codes[0] if failure_codes else ""
+    expected_primary_warning = warning_codes[0] if warning_codes else ""
+    if primary_failure_code != expected_primary_failure:
+        regressions.append({
+            "code": f"{label}_validation_primary_failure_code_mismatch",
+            "kind": "validation_primary_code_mismatch",
+            "report_label": label,
+            "summary_field": "primary_failure_code",
+            "expected": expected_primary_failure,
+            "actual": primary_failure_code,
+        })
+    if primary_warning_code != expected_primary_warning:
+        regressions.append({
+            "code": f"{label}_validation_primary_warning_code_mismatch",
+            "kind": "validation_primary_code_mismatch",
+            "report_label": label,
+            "summary_field": "primary_warning_code",
+            "expected": expected_primary_warning,
+            "actual": primary_warning_code,
+        })
     pilot_gate_report_path = str(files.get("pilot_gate_report_json", "")).strip()
     if pilot_gate_report_path and Path(pilot_gate_report_path).is_file():
         with Path(pilot_gate_report_path).open("r", encoding="utf-8") as handle:
@@ -541,6 +635,24 @@ if regressions:
                 f"- `{item['code']}`: `{item['report_label']}` validation missing "
                 f"artifact dir `{item['missing_path']}`"
             )
+        elif item["kind"] == "validation_summary_mismatch":
+            lines.append(
+                f"- `{item['code']}`: `{item['report_label']}` expected "
+                f"`{item['summary_field']}` to be `{item['expected'] or 'missing'}` "
+                f"but saw `{item['actual'] or 'missing'}`"
+            )
+        elif item["kind"] == "validation_status_gate_mismatch":
+            lines.append(
+                f"- `{item['code']}`: `{item['report_label']}` gate "
+                f"`{item['gate_field']}` is `{item['actual']}` but "
+                f"`{item['status_field']}` is `{item['status'] or 'missing'}`"
+            )
+        elif item["kind"] == "validation_primary_code_mismatch":
+            lines.append(
+                f"- `{item['code']}`: `{item['report_label']}` expected "
+                f"`{item['summary_field']}` to be `{item['expected'] or 'missing'}` "
+                f"but saw `{item['actual'] or 'missing'}`"
+            )
         elif item["kind"] == "pilot_gate_missing_file":
             suffix = f" at `{item['missing_path']}`" if item["missing_path"] else ""
             lines.append(
@@ -598,6 +710,23 @@ if regressions:
             print(
                 f"REGRESSION: {item['code']} {item['report_label']} missing artifact dir "
                 f"{item['missing_path']}"
+            )
+        elif item["kind"] == "validation_summary_mismatch":
+            print(
+                f"REGRESSION: {item['code']} {item['report_label']} expected "
+                f"{item['summary_field']}={item['expected'] or 'missing'} "
+                f"but saw {item['actual'] or 'missing'}"
+            )
+        elif item["kind"] == "validation_status_gate_mismatch":
+            print(
+                f"REGRESSION: {item['code']} {item['report_label']} gate "
+                f"{item['gate_field']}={item['actual']} but {item['status_field']}={item['status'] or 'missing'}"
+            )
+        elif item["kind"] == "validation_primary_code_mismatch":
+            print(
+                f"REGRESSION: {item['code']} {item['report_label']} expected "
+                f"{item['summary_field']}={item['expected'] or 'missing'} "
+                f"but saw {item['actual'] or 'missing'}"
             )
         elif item["kind"] == "pilot_gate_missing_file":
             suffix = f" at {item['missing_path']}" if item["missing_path"] else ""

@@ -542,6 +542,10 @@ aggregated artifacts instead of trusting only their top-level status:
 - later release consumers also verify that `readiness_report.json` still
   matches the validation/trend/cutover artifacts and requirement flags it
   resolved when the readiness report was written.
+- readiness and validation-trend also verify that the top-level
+  `baseline_review`, `baseline_health`, gate booleans, and primary code fields
+  inside `validation_report.json` still match the staged JSON artifacts and
+  status arrays they summarize.
 
 Standalone release posture now enforces the same rule at artifact generation
 time for the evidence it consumes directly:
