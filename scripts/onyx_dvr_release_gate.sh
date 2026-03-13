@@ -134,6 +134,8 @@ expected_validation_path = out_dir / validation_path.name
 expected_readiness_path = out_dir / readiness_path.name if readiness_path else None
 expected_signoff_path = out_dir / signoff_path.name if signoff_path else None
 expected_signoff_report_path = out_dir / signoff_report_path.name if signoff_report_path else None
+canonical_validation_path = out_dir / "validation_report.json"
+canonical_readiness_path = out_dir / "readiness_report.json"
 
 def add_reason(items, code, message):
     items.append({"code": code, "message": message})
@@ -144,6 +146,9 @@ if str(validation.get("overall_status", "")).upper() != "PASS":
 if validation_path != expected_validation_path:
     result = "FAIL"
     add_reason(fail_items, "validation_report_path_mismatch", "Validation report is not staged under the active release artifact dir.")
+if validation_path != canonical_validation_path:
+    result = "FAIL"
+    add_reason(fail_items, "validation_report_name_mismatch", "Validation report does not use the canonical staged filename validation_report.json.")
 
 is_mock = bool(validation.get("is_mock", False))
 if require_real and is_mock:
@@ -157,6 +162,9 @@ else:
     if expected_readiness_path is not None and readiness_path != expected_readiness_path:
       result = "FAIL"
       add_reason(fail_items, "readiness_report_path_mismatch", "Readiness report is not staged under the active release artifact dir.")
+    if readiness_path != canonical_readiness_path:
+      result = "FAIL"
+      add_reason(fail_items, "readiness_report_name_mismatch", "Readiness report does not use the canonical staged filename readiness_report.json.")
     readiness_status = str(readiness.get("status", "")).upper()
     readiness_failure_code = str(readiness.get("failure_code", "")).strip()
     readiness_validation_report = str(readiness.get("report_json", "")).strip()

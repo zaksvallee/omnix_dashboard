@@ -167,15 +167,27 @@ def readiness_consistency_regressions(gate, gate_path, label):
     gate_dir = gate_path.parent
     gate_validation_report = str(gate.get("validation_report_json", "")).strip()
     readiness_report_path = str(gate.get("readiness_report_json", "")).strip()
+    canonical_validation = str(gate_dir / "validation_report.json")
+    canonical_readiness = str(gate_dir / "readiness_report.json")
     if gate_validation_report and gate_validation_report != str(gate_dir / Path(gate_validation_report).name):
         items.append({
             "code": f"{label}_validation_report_path_mismatch",
             "message": f"{label} release gate validation report is not staged under its own artifact dir.",
         })
+    if gate_validation_report and gate_validation_report != canonical_validation:
+        items.append({
+            "code": f"{label}_validation_report_name_mismatch",
+            "message": f"{label} release gate validation report does not use the canonical staged filename validation_report.json.",
+        })
     if readiness_report_path and readiness_report_path != str(gate_dir / Path(readiness_report_path).name):
         items.append({
             "code": f"{label}_readiness_report_path_mismatch",
             "message": f"{label} release gate readiness report is not staged under its own artifact dir.",
+        })
+    if readiness_report_path and readiness_report_path != canonical_readiness:
+        items.append({
+            "code": f"{label}_readiness_report_name_mismatch",
+            "message": f"{label} release gate readiness report does not use the canonical staged filename readiness_report.json.",
         })
     readiness_report = load_json(readiness_report_path)
     reported_status = str((gate.get("statuses", {}) or {}).get("readiness_status", "")).upper()

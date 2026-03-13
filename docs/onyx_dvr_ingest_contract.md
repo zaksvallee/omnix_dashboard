@@ -91,6 +91,7 @@ Current scope:
     - now also rejects contradictory or misaligned readiness audit JSON instead of trusting readiness presence alone
     - now also rejects top-level validation and readiness paths that drift outside the active staged artifact dir
     - now also rejects top-level signoff markdown/report paths that drift outside the active staged artifact dir
+    - now also requires canonical staged filenames for `validation_report.json` and `readiness_report.json`
   - `scripts/onyx_dvr_release_trend_check.sh`
     - emits `release_trend_report.json` and `release_trend_report.md` from the current and previous release-gate posture
     - surfaces signoff-to-release mismatches as direct regressions
@@ -98,3 +99,4 @@ Current scope:
     - now also treats release-gate `signoff_status` summary drift as a direct regression
     - now also treats release-gate `readiness_status` and `readiness_failure_code` summary drift as direct regressions
     - now also treats release-gate top-level validation/readiness path swaps as direct regressions
+    - now also treats renamed staged validation/readiness report files as direct regressions
