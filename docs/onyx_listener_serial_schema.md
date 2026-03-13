@@ -470,6 +470,14 @@ Field validation and readiness now also enforce the serial bench anomaly gate:
 - `checksums.baseline_review_json_sha256`
 - `checksums.baseline_health_json_sha256`
 
+The top-level validation bundle also carries:
+- `primary_failure_code` and `primary_warning_code`
+- `failure_codes`
+- `warning_codes`
+
+so downstream automation can classify validation posture without parsing the
+human summary or gate messages.
+
 Field validation also emits `baseline_review` with:
 - `status`
 - `recommendation`

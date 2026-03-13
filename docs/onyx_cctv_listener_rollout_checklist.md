@@ -124,6 +124,7 @@ Notes:
   - Listener release posture and release-trend artifacts now emit stable reason/regression codes, so downstream automation does not need to parse prose fail or hold summaries.
   - Listener cutover posture and cutover-trend artifacts now emit stable reason/regression codes, so downstream automation does not need to parse prose blocking or hold summaries.
   - Listener validation-trend artifacts now emit stable regression codes, so downstream automation does not need to parse prose validation-regression summaries.
+  - Listener validation bundles now emit stable failure and warning codes, so downstream automation does not need to parse gate messages to classify incomplete or failed runs.
 
 ---
 

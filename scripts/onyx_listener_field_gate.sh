@@ -663,6 +663,8 @@ if [[ "$COMPARE_PREVIOUS_RELEASE" -eq 1 ]]; then
 fi
 
 VALIDATION_REPORT_JSON="$ARTIFACT_DIR/validation_report.json"
+VALIDATION_PRIMARY_FAILURE_CODE="$(json_get "$VALIDATION_REPORT_JSON" "primary_failure_code")"
+VALIDATION_PRIMARY_WARNING_CODE="$(json_get "$VALIDATION_REPORT_JSON" "primary_warning_code")"
 BASELINE_REVIEW_STATUS="$(json_get "$VALIDATION_REPORT_JSON" "baseline_review.status" | tr '[:lower:]' '[:upper:]')"
 BASELINE_REVIEW_RECOMMENDATION="$(json_get "$VALIDATION_REPORT_JSON" "baseline_review.recommendation")"
 BASELINE_REVIEW_SUMMARY="$(json_get "$VALIDATION_REPORT_JSON" "baseline_review.summary")"
@@ -710,6 +712,12 @@ fi
 echo ""
 echo "Capture pack: $CAPTURE_DIR"
 echo "Validation artifact: $ARTIFACT_DIR"
+if [[ -n "$VALIDATION_PRIMARY_FAILURE_CODE" ]]; then
+  echo "Validation primary failure code: ${VALIDATION_PRIMARY_FAILURE_CODE}"
+fi
+if [[ -n "$VALIDATION_PRIMARY_WARNING_CODE" ]]; then
+  echo "Validation primary warning code: ${VALIDATION_PRIMARY_WARNING_CODE}"
+fi
 echo "Baseline review: ${BASELINE_REVIEW_RECOMMENDATION:-unknown} (${BASELINE_REVIEW_STATUS:-unknown})"
 echo "Baseline review summary: ${BASELINE_REVIEW_SUMMARY:-n/a}"
 if [[ -n "$BASELINE_HEALTH_AGE_DAYS" ]]; then

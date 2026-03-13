@@ -232,6 +232,14 @@ else:
 PY
 }
 
+json_array_from_bash_array() {
+  python3 - "$@" <<'PY'
+import json
+import sys
+print(json.dumps(sys.argv[1:]))
+PY
+}
+
 write_baseline_review_json() {
   local serial_report="${1:-}"
   local baseline_file="${2:-}"
@@ -635,6 +643,60 @@ BASELINE_HEALTH_SUMMARY="$(json_get "$BASELINE_HEALTH_JSON" "summary")"
 BASELINE_HEALTH_AGE_DAYS="$(json_get "$BASELINE_HEALTH_JSON" "age_days")"
 STAGED_BASELINE_HEALTH_JSON="$(stage_optional_file "$BASELINE_HEALTH_JSON" "baseline_health.json" || true)"
 
+VALIDATION_FAILURE_CODES=()
+VALIDATION_WARNING_CODES=()
+
+if [[ "$SERIAL_CAPTURE_STATUS" != "PASS" ]]; then
+  VALIDATION_WARNING_CODES+=("serial_capture_missing")
+fi
+if [[ "$LEGACY_CAPTURE_STATUS" != "PASS" ]]; then
+  VALIDATION_WARNING_CODES+=("legacy_capture_missing")
+fi
+if [[ "$FIELD_NOTES_STATUS" != "PASS" ]]; then
+  VALIDATION_WARNING_CODES+=("field_notes_missing")
+fi
+if [[ "$WIRING_STATUS" != "PASS" ]]; then
+  VALIDATION_FAILURE_CODES+=("read_only_wiring_not_documented")
+fi
+if [[ "$BENCH_ANOMALY_STATUS" != "PASS" ]]; then
+  VALIDATION_FAILURE_CODES+=("bench_anomaly_gate_not_pass")
+fi
+if [[ "$PARITY_STATUS" != "PASS" ]]; then
+  VALIDATION_FAILURE_CODES+=("parity_gate_not_pass")
+fi
+if [[ "$COMPARE_PREVIOUS" -eq 1 && "$TREND_STATUS" != "PASS" ]]; then
+  VALIDATION_FAILURE_CODES+=("trend_gate_not_pass")
+fi
+
+case "$BASELINE_REVIEW_RECOMMENDATION" in
+  investigate_new_frame_shape)
+    VALIDATION_FAILURE_CODES+=("baseline_review_investigate_new_frame_shape")
+    ;;
+  promote_baseline)
+    VALIDATION_WARNING_CODES+=("baseline_review_promote_baseline")
+    ;;
+esac
+
+case "$BASELINE_HEALTH_CATEGORY" in
+  stale)
+    VALIDATION_WARNING_CODES+=("baseline_health_stale")
+    ;;
+  missing_history)
+    VALIDATION_WARNING_CODES+=("baseline_health_missing_history")
+    ;;
+  invalid_timestamp)
+    VALIDATION_WARNING_CODES+=("baseline_health_invalid_timestamp")
+    ;;
+  missing_baseline)
+    VALIDATION_WARNING_CODES+=("baseline_health_missing_baseline")
+    ;;
+esac
+
+PRIMARY_VALIDATION_FAILURE_CODE="${VALIDATION_FAILURE_CODES[0]-}"
+PRIMARY_VALIDATION_WARNING_CODE="${VALIDATION_WARNING_CODES[0]-}"
+VALIDATION_FAILURE_CODES_JSON="$(json_array_from_bash_array "${VALIDATION_FAILURE_CODES[@]-}")"
+VALIDATION_WARNING_CODES_JSON="$(json_array_from_bash_array "${VALIDATION_WARNING_CODES[@]-}")"
+
 VALIDATION_REPORT_MD="$ARTIFACT_DIR/validation_report.md"
 
 {
@@ -642,6 +704,8 @@ VALIDATION_REPORT_MD="$ARTIFACT_DIR/validation_report.md"
   echo
   echo "- Generated (UTC): $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "- Overall status: \`${OVERALL_STATUS}\`"
+  echo "- Primary failure code: \`${PRIMARY_VALIDATION_FAILURE_CODE:-}\`"
+  echo "- Primary warning code: \`${PRIMARY_VALIDATION_WARNING_CODE:-}\`"
   echo "- Capture dir: \`${CAPTURE_DIR}\`"
   echo "- Site ID: \`${SITE_ID:-}\`"
   echo "- Device path: \`${DEVICE_PATH:-}\`"
@@ -657,6 +721,18 @@ VALIDATION_REPORT_MD="$ARTIFACT_DIR/validation_report.md"
   echo "- Bench anomaly gate: \`${BENCH_ANOMALY_STATUS}\` - ${BENCH_ANOMALY_MESSAGE}"
   echo "- Parity gate: \`${PARITY_STATUS}\` - ${PARITY_MESSAGE}"
   echo "- Trend gate: \`${TREND_STATUS}\` - ${TREND_MESSAGE}"
+  echo
+  echo "## Validation Codes"
+  if [[ ${#VALIDATION_FAILURE_CODES[@]} -gt 0 ]]; then
+    echo "- Failure codes: \`${VALIDATION_FAILURE_CODES[*]}\`"
+  else
+    echo "- Failure codes: \`none\`"
+  fi
+  if [[ ${#VALIDATION_WARNING_CODES[@]} -gt 0 ]]; then
+    echo "- Warning codes: \`${VALIDATION_WARNING_CODES[*]}\`"
+  else
+    echo "- Warning codes: \`none\`"
+  fi
   echo
   echo "## Baseline Review"
   echo "- Status: \`${BASELINE_REVIEW_STATUS}\`"
@@ -703,6 +779,10 @@ cat >"$JSON_OUT_FILE" <<EOF
 {
   "generated_at_utc": $(printf '%s' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" | json_escape),
   "overall_status": $(printf '%s' "$OVERALL_STATUS" | json_escape),
+  "primary_failure_code": $(printf '%s' "$PRIMARY_VALIDATION_FAILURE_CODE" | json_escape),
+  "primary_warning_code": $(printf '%s' "$PRIMARY_VALIDATION_WARNING_CODE" | json_escape),
+  "failure_codes": $VALIDATION_FAILURE_CODES_JSON,
+  "warning_codes": $VALIDATION_WARNING_CODES_JSON,
   "capture_dir": $(printf '%s' "$CAPTURE_DIR" | json_escape),
   "artifact_dir": $(printf '%s' "$ARTIFACT_DIR" | json_escape),
   "site_id": $(printf '%s' "$SITE_ID" | json_escape),
