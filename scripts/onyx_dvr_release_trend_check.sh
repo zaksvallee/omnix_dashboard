@@ -110,6 +110,18 @@ previous_fail_codes = [str(item) for item in (previous.get("fail_codes", []) or 
 
 regressions = []
 
+if current_path.name != "release_gate.json":
+    regressions.append({
+        "code": "current_gate_name_mismatch",
+        "message": "Current release gate does not use the canonical staged filename release_gate.json.",
+    })
+
+if previous_path.name != "release_gate.json":
+    regressions.append({
+        "code": "previous_gate_name_mismatch",
+        "message": "Previous release gate does not use the canonical staged filename release_gate.json.",
+    })
+
 def signoff_consistency_regressions(gate, gate_path, label):
     items = []
     gate_dir = gate_path.parent

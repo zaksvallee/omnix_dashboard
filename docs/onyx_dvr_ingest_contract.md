@@ -96,6 +96,7 @@ Current scope:
     - readiness and signoff now also require canonical staged filenames for `release_gate.json` and `release_trend_report.json` when those gates are enforced
   - `scripts/onyx_dvr_release_trend_check.sh`
     - emits `release_trend_report.json` and `release_trend_report.md` from the current and previous release-gate posture
+    - now also requires canonical staged input names for the current and previous `release_gate.json`
     - surfaces signoff-to-release mismatches as direct regressions
     - now also fails when a current or previous release gate points its signoff artifacts outside its own staged artifact dir
     - now also treats release-gate `signoff_status` summary drift as a direct regression

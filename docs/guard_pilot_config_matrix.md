@@ -179,6 +179,7 @@ DVR pilot commands:
 - release posture and release trend now also require canonical staged names for `validation_report.json` and `readiness_report.json`
 - release posture, readiness, and release trend now also require canonical staged names for `dvr_pilot_signoff.md` and `dvr_pilot_signoff.json`
 - readiness and signoff now also require canonical staged names for `release_gate.json` and `release_trend_report.json`
+- release trend now also requires canonical staged input names for current and previous `release_gate.json`
 
 CCTV pilot commands:
 - `./scripts/onyx_cctv_capture_pack_init.sh`
