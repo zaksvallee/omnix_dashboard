@@ -644,6 +644,12 @@ else:
             "cutover_validation_report_mismatch",
             "cutover decision validation report does not match release gate validation report",
         )
+    if cutover_validation_trend != expected_validation_trend_path:
+        add_reason(
+            fail_items,
+            "cutover_validation_trend_report_mismatch",
+            "cutover decision validation trend does not match release gate validation trend report",
+        )
     if not resolved_validation_trend_path and cutover_validation_trend:
         resolved_validation_trend_path = cutover_validation_trend
     if cutover_validation_report and not path_exists(cutover_validation_report):

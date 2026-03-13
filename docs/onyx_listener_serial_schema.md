@@ -381,6 +381,8 @@ report from another run.
 Release posture now also requires `cutover_decision.json.validation_report_json`
 to match the same staged validation bundle, so cutover cannot quietly point at
 another validation run while copying compatible status fields.
+The same release-side exact-alignment rule now also covers
+`cutover_decision.json.validation_trend_report_json`.
 
 Cutover and release trend comparisons now prefer stable machine-readable
 `hold_codes`, `blocking_codes`, and `fail_codes` when present, falling back to

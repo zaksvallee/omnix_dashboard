@@ -148,6 +148,7 @@ Notes:
   - Release posture and release trend now apply the same exact-alignment rule to `readiness_report.json`, preventing readiness from silently pointing at a different validation or cutover chain than the release gate consuming it.
   - Readiness/release alignment now also covers the resolved validation-trend artifact, preventing readiness from silently borrowing a different validation-trend report from another run.
   - Release posture now also requires `cutover_decision.json.validation_report_json` to match the same staged validation bundle, preventing cutover from silently pointing at another validation run with compatible copied statuses.
+  - Release posture now also requires `cutover_decision.json.validation_trend_report_json` to match the staged validation-trend artifact when one exists.
   - Listener signoff now emits a machine-readable `signoff_report.json`, and release posture consumes that structured signoff state instead of only checking markdown file presence.
   - Field-gate signoff now uses the staged parity report and staged parity trend from the validation bundle, preventing self-inflicted parity-path mismatches between signoff and release posture.
   - Listener release posture and release-trend artifacts now emit stable reason/regression codes, so downstream automation does not need to parse prose fail or hold summaries.
