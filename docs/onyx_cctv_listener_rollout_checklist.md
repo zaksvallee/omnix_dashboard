@@ -133,6 +133,7 @@ Notes:
   - The standalone listener pilot gate now persists `pilot_gate_report.json` on both pass and fail, carrying parity, parity readiness, and parity trend statuses plus their primary codes so the standalone dual-path bench flow is auditable without terminal output alone.
   - Listener field-gate signoff now defaults into the field artifact directory and is passed to the release gate explicitly, so a generated signoff cannot be silently ignored by release posture when `--signoff-out` is omitted.
   - Standalone listener release-gate auto-discovery now only accepts filenames containing `signoff`, preventing `readiness_report.md` or other audited artifacts from being misclassified as signoff evidence.
+  - Standalone listener cutover decision now auto-resolves staged parity and trend artifacts from the validation bundle, so one-command cutover evaluation no longer reports missing parity evidence when that evidence is already staged in the field-validation artifact.
 
 ---
 

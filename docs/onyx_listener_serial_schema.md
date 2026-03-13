@@ -291,6 +291,14 @@ This emits `cutover_decision.json` plus `cutover_decision.md` with:
 - `hold_reasons`
 - resolved validation/parity/trend artifact references
 
+When parity or trend paths are not passed explicitly, standalone cutover
+decision generation now auto-resolves:
+- `files.parity_report_json`
+- `files.trend_report_json`
+- `validation_trend_report.json`
+
+from the validation bundle before falling back to same-directory defaults.
+
 Decision policy:
 - `GO`
   all hard validation gates pass, the bundle is non-mock when required, baseline review is `hold_baseline`, baseline health is not degraded, and any supplied parity/validation trend artifacts are `PASS`

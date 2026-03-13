@@ -74,6 +74,63 @@ if [[ -z "$VALIDATION_REPORT_JSON" || ! -f "$VALIDATION_REPORT_JSON" ]]; then
   exit 1
 fi
 
+json_get() {
+  local report_file="$1"
+  local expression="$2"
+  python3 - "$report_file" "$expression" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+expr = sys.argv[2].split(".")
+with open(path, "r", encoding="utf-8") as handle:
+    value = json.load(handle)
+for key in expr:
+    if isinstance(value, dict):
+        value = value.get(key, "")
+    else:
+        value = ""
+        break
+if isinstance(value, bool):
+    print("true" if value else "false")
+elif value is None:
+    print("")
+else:
+    print(value)
+PY
+}
+
+validation_artifact_dir="$(dirname "$VALIDATION_REPORT_JSON")"
+
+resolve_optional_report_path() {
+  local existing_path="$1"
+  local files_key="$2"
+  local fallback_name="$3"
+
+  if [[ -n "$existing_path" ]]; then
+    printf '%s\n' "$existing_path"
+    return 0
+  fi
+
+  local staged_path=""
+  staged_path="$(json_get "$VALIDATION_REPORT_JSON" "files.${files_key}")"
+  if [[ -n "$staged_path" && -f "$staged_path" ]]; then
+    printf '%s\n' "$staged_path"
+    return 0
+  fi
+
+  if [[ -n "$fallback_name" && -f "$validation_artifact_dir/$fallback_name" ]]; then
+    printf '%s\n' "$validation_artifact_dir/$fallback_name"
+    return 0
+  fi
+
+  printf '\n'
+}
+
+PARITY_REPORT_JSON="$(resolve_optional_report_path "$PARITY_REPORT_JSON" "parity_report_json" "report.json")"
+PARITY_TREND_REPORT_JSON="$(resolve_optional_report_path "$PARITY_TREND_REPORT_JSON" "trend_report_json" "trend_report.json")"
+VALIDATION_TREND_REPORT_JSON="$(resolve_optional_report_path "$VALIDATION_TREND_REPORT_JSON" "validation_trend_report_json" "validation_trend_report.json")"
+
 if [[ -z "$OUT_DIR" ]]; then
   OUT_DIR="$(dirname "$VALIDATION_REPORT_JSON")"
 fi
