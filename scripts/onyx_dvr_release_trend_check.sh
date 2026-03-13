@@ -202,7 +202,29 @@ def signoff_consistency_regressions(gate, gate_path, label):
                     "message": f"{label} signoff report points at a release trend artifact that was not found.",
                 })
             else:
+                actual_release_trend_current_gate = str(release_trend_report.get("current_release_gate_json", "")).strip()
+                actual_release_trend_previous_gate = str(release_trend_report.get("previous_release_gate_json", "")).strip()
                 actual_release_trend_status = str(release_trend_report.get("status", "")).upper()
+                if actual_release_trend_current_gate and actual_release_trend_current_gate != str(gate_path):
+                    items.append({
+                        "code": f"{label}_signoff_release_trend_current_gate_mismatch",
+                        "message": f"{label} signoff release trend points at a different current release gate than the release gate bundle.",
+                    })
+                if not actual_release_trend_previous_gate:
+                    items.append({
+                        "code": f"{label}_signoff_release_trend_previous_gate_missing",
+                        "message": f"{label} signoff release trend is missing its previous release gate reference.",
+                    })
+                elif not Path(actual_release_trend_previous_gate).is_file():
+                    items.append({
+                        "code": f"{label}_signoff_release_trend_previous_gate_not_found",
+                        "message": f"{label} signoff release trend previous gate artifact was not found.",
+                    })
+                elif Path(actual_release_trend_previous_gate).name != "release_gate.json":
+                    items.append({
+                        "code": f"{label}_signoff_release_trend_previous_gate_name_mismatch",
+                        "message": f"{label} signoff release trend previous gate does not use the canonical staged filename release_gate.json.",
+                    })
                 if signoff_release_trend_status and signoff_release_trend_status != actual_release_trend_status:
                     items.append({
                         "code": f"{label}_signoff_release_trend_status_mismatch",

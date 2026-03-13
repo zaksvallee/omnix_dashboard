@@ -92,6 +92,7 @@ Current scope:
     - emits `release_gate.json` and `release_gate.md` from validation, readiness, and signoff posture
     - rejects contradictory or misaligned signoff audit JSON instead of trusting signoff presence alone
     - now also rejects signoff that records a different release-trend artifact, a mismatched `release_trend_status`, or a required-but-missing/non-passing release trend
+    - now also rejects signoff whose nested release trend points at the wrong current gate or a missing/non-canonical previous gate
     - now also rejects contradictory or misaligned readiness audit JSON instead of trusting readiness presence alone
     - now also rejects top-level validation and readiness paths that drift outside the active staged artifact dir
     - now also rejects top-level signoff markdown/report paths that drift outside the active staged artifact dir
@@ -105,6 +106,7 @@ Current scope:
     - now also requires canonical staged input names for the current and previous `release_gate.json`
     - surfaces signoff-to-release mismatches as direct regressions
     - now also surfaces signoff-to-release-trend mismatches as direct regressions
+    - now also surfaces nested signoff release-trend gate-reference drift as direct regressions
     - now also fails when a current or previous release gate points its signoff artifacts outside its own staged artifact dir
     - now also treats release-gate `signoff_status` summary drift as a direct regression
     - now also treats release-gate `readiness_status` and `readiness_failure_code` summary drift as direct regressions

@@ -236,7 +236,21 @@ else:
         else:
             with canonical_release_trend_report_path.open("r", encoding="utf-8") as handle:
                 release_trend_report = json.load(handle)
+            actual_release_trend_current_gate = str(release_trend_report.get("current_release_gate_json", "")).strip()
+            actual_release_trend_previous_gate = str(release_trend_report.get("previous_release_gate_json", "")).strip()
             actual_release_trend_status = str(release_trend_report.get("status", "")).upper()
+            if actual_release_trend_current_gate and actual_release_trend_current_gate != str(release_gate_path):
+                result = "FAIL"
+                add_reason(fail_items, "signoff_release_trend_current_gate_mismatch", "Signoff release trend points at a different current release gate than the active release bundle.")
+            if not actual_release_trend_previous_gate:
+                result = "FAIL"
+                add_reason(fail_items, "signoff_release_trend_previous_gate_missing", "Signoff release trend is missing its previous release gate reference.")
+            elif not Path(actual_release_trend_previous_gate).is_file():
+                result = "FAIL"
+                add_reason(fail_items, "signoff_release_trend_previous_gate_not_found", "Signoff release trend previous gate artifact was not found.")
+            elif Path(actual_release_trend_previous_gate).name != "release_gate.json":
+                result = "FAIL"
+                add_reason(fail_items, "signoff_release_trend_previous_gate_name_mismatch", "Signoff release trend previous gate does not use the canonical staged filename release_gate.json.")
             if signoff_release_trend_status and signoff_release_trend_status != actual_release_trend_status:
                 result = "FAIL"
                 add_reason(fail_items, "signoff_release_trend_status_mismatch", "Signoff report release_trend_status does not match the referenced release trend status.")
