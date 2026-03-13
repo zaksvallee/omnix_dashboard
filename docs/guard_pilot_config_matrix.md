@@ -163,6 +163,7 @@ DVR pilot commands:
 - when enforced, readiness now also rejects release-gate signoff paths that point outside the active DVR artifact dir
 - when enforced, readiness now also rejects staged signoff JSON that points at a different validation bundle or release gate
 - when enforced, readiness now also rejects staged signoff JSON whose nested release-trend reference or `release_trend_status` no longer matches the active DVR artifact chain
+- when enforced, readiness now also rejects staged signoff JSON whose nested release-trend gate links no longer point at the active current gate and a real canonical previous gate
 - `./scripts/onyx_dvr_pilot_gate.sh`
 - `./scripts/onyx_dvr_field_gate.sh`
 - `./scripts/onyx_dvr_signoff_generate.sh`

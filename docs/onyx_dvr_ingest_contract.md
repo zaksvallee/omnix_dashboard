@@ -79,6 +79,7 @@ Current scope:
     - now also requires release-gate signoff artifacts to stay inside the active artifact dir when release posture is enforced
     - now also verifies that the referenced signoff JSON still points at the active validation bundle and active release gate
     - now also verifies that nested signoff release-trend references and `release_trend_status` still match the active DVR artifact chain
+    - now also verifies that nested signoff release-trend gate links still point at the active current gate and a real canonical previous gate
   - `scripts/onyx_dvr_mock_validation_artifacts.sh`
   - `scripts/onyx_dvr_pilot_gate.sh`
   - `scripts/onyx_dvr_field_gate.sh`

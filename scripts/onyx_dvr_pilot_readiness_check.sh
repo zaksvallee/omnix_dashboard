@@ -318,7 +318,21 @@ if [[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]]; then
       fail "DVR readiness failed: release gate signoff release trend artifact was not found." "release_gate_signoff_release_trend_report_not_found"
     fi
     if [[ -n "$signoff_report_release_trend" && -f "$signoff_report_release_trend" ]]; then
+      actual_signoff_release_trend_current_gate="$(json_get_optional "$signoff_report_release_trend" "current_release_gate_json")"
+      actual_signoff_release_trend_previous_gate="$(json_get_optional "$signoff_report_release_trend" "previous_release_gate_json")"
       actual_signoff_release_trend_status="$(json_get_optional "$signoff_report_release_trend" "status" | tr '[:lower:]' '[:upper:]')"
+      if [[ -n "$actual_signoff_release_trend_current_gate" && "$actual_signoff_release_trend_current_gate" != "$RELEASE_GATE_JSON" ]]; then
+        fail "DVR readiness failed: release gate signoff release trend points at a different current release gate." "release_gate_signoff_release_trend_current_gate_mismatch"
+      fi
+      if [[ -z "$actual_signoff_release_trend_previous_gate" ]]; then
+        fail "DVR readiness failed: release gate signoff release trend is missing its previous release gate reference." "release_gate_signoff_release_trend_previous_gate_missing"
+      fi
+      if [[ -n "$actual_signoff_release_trend_previous_gate" && ! -f "$actual_signoff_release_trend_previous_gate" ]]; then
+        fail "DVR readiness failed: release gate signoff release trend previous gate artifact was not found." "release_gate_signoff_release_trend_previous_gate_not_found"
+      fi
+      if [[ -n "$actual_signoff_release_trend_previous_gate" && "$(basename "$actual_signoff_release_trend_previous_gate")" != "release_gate.json" ]]; then
+        fail "DVR readiness failed: release gate signoff release trend previous gate does not use the canonical staged filename." "release_gate_signoff_release_trend_previous_gate_name_mismatch"
+      fi
       if [[ -n "$signoff_report_release_trend_status" && "$signoff_report_release_trend_status" != "$actual_signoff_release_trend_status" ]]; then
         fail "DVR readiness failed: release gate signoff release trend status does not match the referenced release trend." "release_gate_signoff_release_trend_status_mismatch"
       fi
