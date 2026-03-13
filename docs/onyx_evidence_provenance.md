@@ -18,6 +18,7 @@ Current repo scope:
 - CCTV readiness and signoff can now optionally require those staged `release_gate.json` / `release_trend_report.json` artifacts before final closeout
 - CCTV field orchestration can now emit validation, readiness, release, release-trend, and signoff provenance artifacts from one staged `field_gate` run
 - CCTV release and release-trend now also verify nested signoff release-gate and release-trend posture, so contradictory signoff summaries cannot pass through the staged chain
+- Event Review now includes an integrity-certificate preview for intelligence events so operators can inspect the canonical hash, evidence-record hash, and locator hashes in-app
 - each ingested `IntelligenceReceived` event can now carry:
   - `snapshotReferenceHash`
   - `clipReferenceHash`

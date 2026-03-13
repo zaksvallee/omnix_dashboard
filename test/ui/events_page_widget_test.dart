@@ -12,7 +12,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('events page stays stable on phone viewport', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(390, 1200));
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(
@@ -105,7 +105,7 @@ void main() {
       ),
     ];
 
-    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    await tester.binding.setSurfaceSize(const Size(390, 1200));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(MaterialApp(home: EventsPage(events: events)));
@@ -158,6 +158,50 @@ void main() {
 
     expect(find.text('Selected Event'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('integrity certificate preview card opens certificate dialog', (
+    tester,
+  ) async {
+    final occurredAt = DateTime.utc(2026, 3, 13, 10, 5);
+    final event = IntelligenceReceived(
+      eventId: 'INT-CERT-1',
+      sequence: 1,
+      version: 1,
+      occurredAt: occurredAt,
+      intelligenceId: 'INTEL-CERT-001',
+      provider: 'frigate',
+      sourceType: 'hardware',
+      externalId: 'evt-9001',
+      clientId: 'CLIENT-001',
+      regionId: 'REGION-GAUTENG',
+      siteId: 'SITE-SANDTON',
+      headline: 'Person detected',
+      summary: 'Intrusion candidate at east gate.',
+      riskScore: 92,
+      canonicalHash: 'canon-hash-001',
+      snapshotUrl: 'https://edge.example.com/snap.jpg',
+      clipUrl: 'https://edge.example.com/clip.mp4',
+      snapshotReferenceHash: 'snap-hash-001',
+      clipReferenceHash: 'clip-hash-001',
+      evidenceRecordHash: 'record-hash-001',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: IntegrityCertificatePreviewCard(event: event)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Integrity Certificate'), findsOneWidget);
+    await tester.tap(find.text('View Certificate'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('ONYX Evidence Integrity Certificate'), findsOneWidget);
+    expect(find.textContaining('record-hash-001'), findsOneWidget);
+    expect(find.text('Markdown'), findsOneWidget);
+    expect(find.text('JSON'), findsOneWidget);
   });
 
 }

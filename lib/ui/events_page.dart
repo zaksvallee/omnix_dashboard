@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../domain/evidence/evidence_provenance.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_completed.dart';
@@ -722,6 +725,12 @@ class _EventsPageState extends State<EventsPage> {
           const SizedBox(height: 10),
           _detailHero(row),
           const SizedBox(height: 8),
+          if (row.event is IntelligenceReceived) ...[
+            IntegrityCertificatePreviewCard(
+              event: row.event as IntelligenceReceived,
+            ),
+            const SizedBox(height: 8),
+          ],
           if (embeddedDetailScroll)
             Expanded(
               child: Column(
@@ -1369,8 +1378,276 @@ class _EventInfo {
   const _EventInfo({
     required this.label,
     required this.color,
-    required this.summary,
+  required this.summary,
   });
+}
+
+class IntegrityCertificatePreviewCard extends StatelessWidget {
+  final IntelligenceReceived event;
+
+  const IntegrityCertificatePreviewCard({super.key, required this.event});
+
+  @override
+  Widget build(BuildContext context) {
+    final certificate = EvidenceProvenanceCertificate.fromIntelligence(event);
+    final hasEvidence =
+        certificate.evidenceRecordHash.trim().isNotEmpty ||
+        certificate.snapshot.isPresent ||
+        certificate.clip.isPresent;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B1930),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF1A355A)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Integrity Certificate',
+                  style: GoogleFonts.rajdhani(
+                    color: const Color(0xFFE8F1FF),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: hasEvidence
+                      ? const Color(0x162FD6A3)
+                      : const Color(0x16FF8C69),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: hasEvidence
+                        ? const Color(0xFF2FD6A3)
+                        : const Color(0xFFFF8C69),
+                  ),
+                ),
+                child: Text(
+                  hasEvidence ? 'READY' : 'EMPTY',
+                  style: GoogleFonts.inter(
+                    color: hasEvidence
+                        ? const Color(0xFF9AF3D6)
+                        : const Color(0xFFFFB6A1),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Preview the tamper-evident evidence certificate for this intelligence event, including the canonical hash and locator hashes.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA5C6),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _previewPill('record ${_shortHash(certificate.evidenceRecordHash)}'),
+              _previewPill('snapshot ${_shortHash(certificate.snapshot.locatorHash)}'),
+              _previewPill('clip ${_shortHash(certificate.clip.locatorHash)}'),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton(
+              onPressed: () => _showIntegrityCertificatePreview(context),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFFE6F0FF),
+                side: const BorderSide(color: Color(0xFF315B88)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+              ),
+              child: Text(
+                'View Certificate',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showIntegrityCertificatePreview(BuildContext context) {
+    final certificate = EvidenceProvenanceCertificate.fromIntelligence(event);
+    final payload = <String, Object?>{
+      'certificate_type': 'onyx_evidence_integrity_certificate_preview',
+      'intelligence': certificate.toJson(),
+      'ledger': {
+        'sealed': false,
+        'note': 'Preview only. Ledger-backed export is available from the evidence export flow.',
+      },
+    };
+    final prettyJson = const JsonEncoder.withIndent('  ').convert(payload);
+    final markdown = _buildIntegrityCertificateMarkdown(certificate);
+
+    showDialog<void>(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: const Color(0xFF0E1A2B),
+        child: DefaultTabController(
+          length: 2,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760, maxHeight: 640),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'ONYX Evidence Integrity Certificate',
+                    style: GoogleFonts.rajdhani(
+                      color: const Color(0xFFE8F1FF),
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Certificate preview for ${event.intelligenceId}. This view is derived from the staged evidence hashes currently stored on the event.',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF8EA5C6),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const TabBar(
+                    tabs: [
+                      Tab(text: 'JSON'),
+                      Tab(text: 'Markdown'),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        _certificatePane(prettyJson),
+                        _certificatePane(markdown),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text(
+                        'Close',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFE6F0FF),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _certificatePane(String content) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF091221),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF1A355A)),
+      ),
+      child: SingleChildScrollView(
+        child: SelectableText(
+          content,
+          style: GoogleFonts.robotoMono(
+            color: const Color(0xFFE6F0FF),
+            fontSize: 12,
+            height: 1.45,
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _buildIntegrityCertificateMarkdown(
+    EvidenceProvenanceCertificate certificate,
+  ) {
+    return [
+      '# ONYX Evidence Integrity Certificate',
+      '',
+      '- Intelligence ID: `${certificate.intelligenceId}`',
+      '- Provider: `${certificate.provider}`',
+      '- Source type: `${certificate.sourceType}`',
+      '- External ID: `${certificate.externalId}`',
+      '- Client / Site: `${certificate.clientId}` / `${certificate.siteId}`',
+      '- Occurred at UTC: `${certificate.occurredAtUtc.toIso8601String()}`',
+      '- Canonical hash: `${certificate.canonicalHash}`',
+      '- Evidence record hash: `${certificate.evidenceRecordHash}`',
+      '- Snapshot locator hash: `${certificate.snapshot.locatorHash}`',
+      '- Clip locator hash: `${certificate.clip.locatorHash}`',
+      '- Ledger sealed: `false`',
+      '- Ledger note: `Preview only. Ledger-backed export is available from the evidence export flow.`',
+    ].join('\n');
+  }
+
+  String _shortHash(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return 'none';
+    }
+    if (trimmed.length <= 12) {
+      return trimmed;
+    }
+    return '${trimmed.substring(0, 12)}...';
+  }
+
+  Widget _previewPill(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF10233D),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFF274A72)),
+      ),
+      child: Text(
+        text,
+        style: GoogleFonts.inter(
+          color: const Color(0xFFB8CCE8),
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
 }
 
 enum _TimeWindow {
