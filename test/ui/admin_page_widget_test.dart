@@ -117,7 +117,7 @@ void main() {
           cctvOpsPollHealth: 'ok 2 • fail 0 • skip 0 • last 10:05:01 UTC',
           cctvCapabilitySummary: 'caps LIVE AI MONITORING • FR • LPR',
           cctvRecentSignalSummary:
-              'recent hardware intel 5 (6h) • intrusion 2 • line_crossing 1 • motion 1 • fr 1 • lpr 2',
+              'recent video intel 5 (6h) • intrusion 2 • line_crossing 1 • motion 1 • fr 1 • lpr 2',
           cctvEvidenceHealthSummary:
               'verified 2 • fail 0 • dropped 0 • queue 2/12 • last 10:05:01 UTC',
           cctvCameraHealthSummary:
@@ -162,7 +162,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.textContaining('recent hardware intel 5 (6h) • intrusion 2'),
+      find.textContaining('recent video intel 5 (6h) • intrusion 2'),
       findsOneWidget,
     );
     expect(

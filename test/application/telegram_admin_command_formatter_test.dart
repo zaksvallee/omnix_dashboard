@@ -10,7 +10,7 @@ void main() {
       cctvHealth:
           'ok 3 • fail 0 • skip 0 • last 10:05:01 UTC • 1/1 appended • frigate • CCTV person detected in north_gate',
       cctvContext:
-          'provider frigate • recent hardware intel 5 (6h) • intrusion 2 • line_crossing 1 • motion 1 • fr 0 • lpr 0',
+          'provider frigate • recent video intel 5 (6h) • intrusion 2 • line_crossing 1 • motion 1 • fr 0 • lpr 0',
       wearableHealth: 'ok 1 • fail 0 • skip 0 • last 10:05:02 UTC',
       newsHealth: 'ok 4 • fail 0 • skip 0 • last 10:05:03 UTC',
       utcStamp: '2026-03-13T10:05:10Z',
@@ -20,7 +20,7 @@ void main() {
     expect(
       response,
       contains(
-        '<b>CCTV Context:</b> provider frigate • recent hardware intel 5 (6h)',
+        '<b>CCTV Context:</b> provider frigate • recent video intel 5 (6h)',
       ),
     );
     expect(response, contains('run <code>/bridges</code>'));
@@ -59,7 +59,7 @@ void main() {
       cctvHealth:
           'ok 2 • fail 0 • skip 0 • last 10:05:01 UTC • 1/1 appended • frigate • CCTV person detected in north_gate',
       cctvRecent:
-          'recent hardware intel 5 (6h) • intrusion 2 • line_crossing 1 • motion 1 • fr 0 • lpr 0',
+          'recent video intel 5 (6h) • intrusion 2 • line_crossing 1 • motion 1 • fr 0 • lpr 0',
       wearableStatus: 'configured',
       livePollingLabel: 'enabled',
       utcStamp: '2026-03-13T10:05:10Z',
@@ -75,7 +75,7 @@ void main() {
     expect(
       response,
       contains(
-        'CCTV Recent: recent hardware intel 5 (6h) • intrusion 2 • line_crossing 1',
+        'CCTV Recent: recent video intel 5 (6h) • intrusion 2 • line_crossing 1',
       ),
     );
   });

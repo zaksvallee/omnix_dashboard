@@ -43,12 +43,12 @@ void main() {
     final value = VideoBridgeHealthFormatter.pilotContext(
       configured: true,
       provider: 'hikvision_dvr',
-      recentSignalSummary: 'recent hardware intel 3 (6h) • intrusion 1',
+      recentSignalSummary: 'recent video intel 3 (6h) • intrusion 1',
       evidence: evidence,
     );
 
     expect(value, contains('provider hikvision_dvr'));
-    expect(value, contains('recent hardware intel 3 (6h)'));
+    expect(value, contains('recent video intel 3 (6h)'));
     expect(value, contains('front-gate:healthy'));
   });
 

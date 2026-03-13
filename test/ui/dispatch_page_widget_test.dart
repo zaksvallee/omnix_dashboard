@@ -269,7 +269,7 @@ void main() {
         onIngestFeeds: () {},
         cctvCapabilitySummary: 'caps LIVE AI MONITORING • FR • LPR',
         cctvRecentSignalSummary:
-            'recent hardware intel 8 (6h) • intrusion 3 • line_crossing 2 • motion 1 • fr 2 • lpr 3',
+            'recent video intel 8 (6h) • intrusion 3 • line_crossing 2 • motion 1 • fr 2 • lpr 3',
         onExecute: (_) {},
       ),
     );
@@ -282,7 +282,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.textContaining('recent hardware intel 8 (6h) • intrusion 3'),
+      find.textContaining('recent video intel 8 (6h) • intrusion 3'),
       findsOneWidget,
     );
   });
