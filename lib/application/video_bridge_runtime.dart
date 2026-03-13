@@ -1,6 +1,7 @@
 import '../domain/intelligence/intel_ingestion.dart';
 import 'cctv_bridge_service.dart';
 import 'cctv_evidence_probe_service.dart';
+import 'dvr_bridge_service.dart';
 
 abstract class VideoBridgeService {
   Future<List<NormalizedIntelRecord>> fetchLatest({
@@ -239,6 +240,25 @@ class CctvBackedVideoEvidenceProbeService implements VideoEvidenceProbeService {
     final result = await delegate.probeBatch(records);
     return VideoEvidenceProbeBatchResult(
       snapshot: VideoEvidenceProbeSnapshot.fromCctv(result.snapshot),
+    );
+  }
+}
+
+class DvrBackedVideoBridgeService implements VideoBridgeService {
+  final DvrBridgeService delegate;
+
+  const DvrBackedVideoBridgeService({required this.delegate});
+
+  @override
+  Future<List<NormalizedIntelRecord>> fetchLatest({
+    required String clientId,
+    required String regionId,
+    required String siteId,
+  }) {
+    return delegate.fetchLatest(
+      clientId: clientId,
+      regionId: regionId,
+      siteId: siteId,
     );
   }
 }

@@ -24,6 +24,9 @@ DVR scaffold:
   - provider profile metadata
   - private evidence URL templates
   - fixture-backed normalization scaffold
+- `lib/application/dvr_bridge_service.dart`
+  - live HTTP DVR bridge backed by the shared contract normalizer
+  - provider-profile factory for Hikvision and generic DVR transports
 
 Current provider profiles:
 - `hikvision_dvr`
@@ -62,7 +65,7 @@ Fixture refs:
 - `test/fixtures/dvr_generic_event_sample.json`
 
 Current scope:
-- scaffold and replay-fixture normalization only
 - not yet field-proven against a live DVR
 - shared runtime and health-summary path is in place
-- DVR-specific live bridge implementation is not built yet
+- DVR-specific live bridge implementation is built
+- DVR provider selection is not wired into runtime env/config yet

@@ -21,6 +21,20 @@ class DvrProviderProfile {
     this.privateEvidenceFetch = true,
   });
 
+  static DvrProviderProfile? fromProvider(String provider) {
+    final key = provider.trim().toLowerCase().replaceAll('-', '_');
+    if (key.isEmpty) {
+      return null;
+    }
+    if (key.contains('hikvision')) {
+      return hikvisionIsapi;
+    }
+    if (key.contains('generic')) {
+      return genericEventList;
+    }
+    return null;
+  }
+
   static const hikvisionIsapi = DvrProviderProfile(
     provider: 'hikvision_dvr',
     schemaId: 'hikvision_isapi_event_notification_alert',
