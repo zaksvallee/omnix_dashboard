@@ -90,8 +90,10 @@ Current scope:
     - now rejects release gate or release trend artifacts that point at a different validation or release chain
     - now also rejects release gates that point at different signoff markdown or signoff JSON paths than the signoff being generated
     - now also rejects release-trend previous gates that point at missing validation/readiness/signoff artifacts
+    - now also requires the staged validation-bundle integrity certificate and records it in the signoff audit JSON
   - `scripts/onyx_dvr_release_gate.sh`
     - emits `release_gate.json` and `release_gate.md` from validation, readiness, and signoff posture
+    - now also carries the staged validation-bundle integrity certificate forward as part of release posture
     - rejects contradictory or misaligned signoff audit JSON instead of trusting signoff presence alone
     - now also rejects signoff that records a different release-trend artifact, a mismatched `release_trend_status`, or a required-but-missing/non-passing release trend
     - now also rejects signoff whose nested release trend points at the wrong current gate or a missing/non-canonical previous gate
@@ -105,6 +107,7 @@ Current scope:
     - readiness and signoff now also reject release-trend artifacts whose `previous_release_gate_json` is missing or points at a nonexistent file
   - `scripts/onyx_dvr_release_trend_check.sh`
     - emits `release_trend_report.json` and `release_trend_report.md` from the current and previous release-gate posture
+    - now also treats integrity-certificate path/status drift as direct regressions
     - now also requires canonical staged input names for the current and previous `release_gate.json`
     - surfaces signoff-to-release mismatches as direct regressions
     - now also surfaces signoff-to-release-trend mismatches as direct regressions

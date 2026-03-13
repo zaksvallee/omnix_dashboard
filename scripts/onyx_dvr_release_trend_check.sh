@@ -305,10 +305,58 @@ def readiness_consistency_regressions(gate, gate_path, label):
         })
     return items
 
+def integrity_consistency_regressions(gate, gate_path, label):
+    items = []
+    gate_dir = gate_path.parent
+    integrity_json_path = str(gate.get("integrity_certificate_json", "")).strip()
+    integrity_md_path = str(gate.get("integrity_certificate_markdown", "")).strip()
+    reported_status = str((gate.get("statuses", {}) or {}).get("integrity_certificate_status", "")).upper()
+    canonical_integrity_json = str(gate_dir / "integrity_certificate.json")
+    canonical_integrity_md = str(gate_dir / "integrity_certificate.md")
+    if integrity_json_path and integrity_json_path != canonical_integrity_json:
+        items.append({
+            "code": f"{label}_integrity_certificate_path_mismatch",
+            "message": f"{label} release gate integrity certificate JSON is not the canonical staged file.",
+        })
+    if integrity_md_path and integrity_md_path != canonical_integrity_md:
+        items.append({
+            "code": f"{label}_integrity_certificate_markdown_path_mismatch",
+            "message": f"{label} release gate integrity certificate markdown is not the canonical staged file.",
+        })
+    integrity_report = load_json(integrity_json_path)
+    if integrity_report is None:
+        if integrity_json_path:
+            items.append({
+                "code": f"{label}_integrity_certificate_not_found",
+                "message": f"{label} release gate integrity certificate JSON was not found.",
+            })
+        return items
+    integrity_status = str(integrity_report.get("status", "")).upper()
+    integrity_report_json = str(integrity_report.get("report_json", "")).strip()
+    gate_validation_report = str(gate.get("validation_report_json", "")).strip()
+    if reported_status and integrity_status and reported_status != integrity_status:
+        items.append({
+            "code": f"{label}_integrity_certificate_status_mismatch",
+            "message": f"{label} release gate integrity_certificate_status does not match the referenced integrity certificate status.",
+        })
+    if integrity_status != "PASS":
+        items.append({
+            "code": f"{label}_integrity_certificate_not_pass",
+            "message": f"{label} release gate integrity certificate is not PASS.",
+        })
+    if integrity_report_json and gate_validation_report and integrity_report_json != gate_validation_report:
+        items.append({
+            "code": f"{label}_integrity_certificate_validation_report_mismatch",
+            "message": f"{label} integrity certificate points at a different validation report than the release gate.",
+        })
+    return items
+
 regressions.extend(signoff_consistency_regressions(current, current_path, "current_gate"))
 regressions.extend(signoff_consistency_regressions(previous, previous_path, "previous_gate"))
 regressions.extend(readiness_consistency_regressions(current, current_path, "current_gate"))
 regressions.extend(readiness_consistency_regressions(previous, previous_path, "previous_gate"))
+regressions.extend(integrity_consistency_regressions(current, current_path, "current_gate"))
+regressions.extend(integrity_consistency_regressions(previous, previous_path, "previous_gate"))
 
 if rank.get(current_result, 99) > rank.get(previous_result, 99):
     regressions.append({

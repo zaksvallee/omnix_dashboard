@@ -16,6 +16,8 @@ RELEASE_GATE_JSON=""
 RELEASE_TREND_REPORT_JSON=""
 REQUIRE_RELEASE_GATE_PASS=0
 REQUIRE_RELEASE_TREND_PASS=0
+INTEGRITY_CERTIFICATE_JSON=""
+INTEGRITY_CERTIFICATE_MARKDOWN=""
 
 usage() {
   cat <<'USAGE'
@@ -51,8 +53,11 @@ write_signoff_report() {
   "artifact_dir": $(json_string "$ARTIFACT_DIR"),
   "release_gate_json": $(json_string "$RELEASE_GATE_JSON"),
   "release_trend_report_json": $(json_string "$RELEASE_TREND_REPORT_JSON"),
+  "integrity_certificate_json": $(json_string "$INTEGRITY_CERTIFICATE_JSON"),
+  "integrity_certificate_markdown": $(json_string "$INTEGRITY_CERTIFICATE_MARKDOWN"),
   "release_gate_result": $(json_string "$( [[ -n "$RELEASE_GATE_JSON" && -f "$RELEASE_GATE_JSON" ]] && json_get "$RELEASE_GATE_JSON" "result" || true )"),
   "release_trend_status": $(json_string "$( [[ -n "$RELEASE_TREND_REPORT_JSON" && -f "$RELEASE_TREND_REPORT_JSON" ]] && json_get "$RELEASE_TREND_REPORT_JSON" "status" || true )"),
+  "integrity_certificate_status": $(json_string "$( [[ -n "$INTEGRITY_CERTIFICATE_JSON" && -f "$INTEGRITY_CERTIFICATE_JSON" ]] && json_get "$INTEGRITY_CERTIFICATE_JSON" "status" || true )"),
   "require_release_gate_pass": $([[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]] && echo true || echo false),
   "require_release_trend_pass": $([[ "$REQUIRE_RELEASE_TREND_PASS" -eq 1 ]] && echo true || echo false),
   "signoff_markdown": $(json_string "$OUT_FILE"),
@@ -137,6 +142,12 @@ fi
 if [[ -z "$RELEASE_TREND_REPORT_JSON" && -f "$ARTIFACT_DIR/release_trend_report.json" ]]; then
   RELEASE_TREND_REPORT_JSON="$ARTIFACT_DIR/release_trend_report.json"
 fi
+if [[ -f "$ARTIFACT_DIR/integrity_certificate.json" ]]; then
+  INTEGRITY_CERTIFICATE_JSON="$ARTIFACT_DIR/integrity_certificate.json"
+fi
+if [[ -f "$ARTIFACT_DIR/integrity_certificate.md" ]]; then
+  INTEGRITY_CERTIFICATE_MARKDOWN="$ARTIFACT_DIR/integrity_certificate.md"
+fi
 
 if [[ -z "$OUT_FILE" ]]; then
   OUT_FILE="docs/onyx_dvr_pilot_signoff_$(TZ=Africa/Johannesburg date +%Y-%m-%d).md"
@@ -149,6 +160,21 @@ readiness_cmd=(./scripts/onyx_dvr_pilot_readiness_check.sh --provider "$PROVIDER
 [[ -n "$EXPECT_ZONE" ]] && readiness_cmd+=(--expect-zone "$EXPECT_ZONE")
 [[ "$ALLOW_MOCK_ARTIFACTS" -ne 1 ]] && readiness_cmd+=(--require-real-artifacts)
 "${readiness_cmd[@]}" >/dev/null || fail "DVR signoff blocked: readiness gate did not pass." "readiness_not_pass"
+
+if [[ -z "$INTEGRITY_CERTIFICATE_JSON" || ! -f "$INTEGRITY_CERTIFICATE_JSON" ]]; then
+  fail "DVR signoff blocked: validation bundle integrity certificate was not found." "integrity_certificate_not_found"
+fi
+if [[ -z "$INTEGRITY_CERTIFICATE_MARKDOWN" || ! -f "$INTEGRITY_CERTIFICATE_MARKDOWN" ]]; then
+  fail "DVR signoff blocked: validation bundle integrity certificate markdown was not found." "integrity_certificate_markdown_not_found"
+fi
+integrity_certificate_report="$(json_get "$INTEGRITY_CERTIFICATE_JSON" "report_json")"
+integrity_certificate_status="$(json_get "$INTEGRITY_CERTIFICATE_JSON" "status" | tr '[:lower:]' '[:upper:]')"
+if [[ -n "$integrity_certificate_report" && "$integrity_certificate_report" != "$REPORT_JSON" ]]; then
+  fail "DVR signoff blocked: integrity certificate points at a different validation bundle." "integrity_certificate_report_mismatch"
+fi
+if [[ "$integrity_certificate_status" != "PASS" ]]; then
+  fail "DVR signoff blocked: integrity certificate is ${integrity_certificate_status:-UNKNOWN}, expected PASS." "integrity_certificate_not_pass"
+fi
 
 if [[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]]; then
   if [[ -z "$RELEASE_GATE_JSON" || ! -f "$RELEASE_GATE_JSON" ]]; then
@@ -176,6 +202,18 @@ if [[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]]; then
       release_gate_code="$(json_get "$RELEASE_GATE_JSON" "primary_hold_code")"
     fi
     fail "DVR signoff blocked: release gate is ${release_gate_result:-UNKNOWN}, expected PASS." "${release_gate_code:-release_gate_not_pass}"
+  fi
+  release_gate_integrity_certificate="$(json_get "$RELEASE_GATE_JSON" "integrity_certificate_json")"
+  release_gate_integrity_markdown="$(json_get "$RELEASE_GATE_JSON" "integrity_certificate_markdown")"
+  release_gate_integrity_status="$(json_get "$RELEASE_GATE_JSON" "statuses.integrity_certificate_status" | tr '[:lower:]' '[:upper:]')"
+  if [[ -n "$release_gate_integrity_certificate" && "$release_gate_integrity_certificate" != "$INTEGRITY_CERTIFICATE_JSON" ]]; then
+    fail "DVR signoff blocked: release gate points at a different integrity certificate JSON." "release_gate_integrity_certificate_mismatch"
+  fi
+  if [[ -n "$release_gate_integrity_markdown" && "$release_gate_integrity_markdown" != "$INTEGRITY_CERTIFICATE_MARKDOWN" ]]; then
+    fail "DVR signoff blocked: release gate points at a different integrity certificate markdown." "release_gate_integrity_certificate_markdown_mismatch"
+  fi
+  if [[ -n "$release_gate_integrity_status" && "$release_gate_integrity_status" != "$integrity_certificate_status" ]]; then
+    fail "DVR signoff blocked: release gate integrity certificate status does not match the active integrity certificate." "release_gate_integrity_certificate_status_mismatch"
   fi
 fi
 
@@ -265,10 +303,17 @@ fi
   if [[ -n "$RELEASE_TREND_REPORT_JSON" ]]; then
     echo "- Release trend artifact: \`${RELEASE_TREND_REPORT_JSON}\`"
   fi
+  if [[ -n "$INTEGRITY_CERTIFICATE_JSON" ]]; then
+    echo "- Integrity certificate JSON: \`${INTEGRITY_CERTIFICATE_JSON}\`"
+  fi
+  if [[ -n "$INTEGRITY_CERTIFICATE_MARKDOWN" ]]; then
+    echo "- Integrity certificate markdown: \`${INTEGRITY_CERTIFICATE_MARKDOWN}\`"
+  fi
   echo
   echo "## Results"
   echo "- Field validation overall status: \`${overall_status:-}\`"
   echo "- Readiness gate overall status: \`PASS\`"
+  echo "- Integrity certificate status: \`${integrity_certificate_status:-}\`"
   if [[ -n "$release_gate_result" ]]; then
     echo "- Release gate result: \`${release_gate_result}\`"
   fi

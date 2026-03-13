@@ -126,6 +126,9 @@ def load_optional(path):
 
 readiness = load_optional(readiness_path)
 signoff_report = load_optional(signoff_report_path)
+integrity_certificate_path = out_dir / "integrity_certificate.json"
+integrity_certificate_markdown_path = out_dir / "integrity_certificate.md"
+integrity_certificate = load_optional(integrity_certificate_path)
 
 result = "PASS"
 fail_items = []
@@ -157,6 +160,26 @@ is_mock = bool(validation.get("is_mock", False))
 if require_real and is_mock:
     result = "FAIL"
     add_reason(fail_items, "mock_artifacts_not_allowed", "Validation bundle is marked as mock while real artifacts are required.")
+
+if integrity_certificate is None:
+    result = "FAIL"
+    add_reason(fail_items, "missing_integrity_certificate", "Validation bundle integrity certificate is missing.")
+else:
+    cert_report_json = str(integrity_certificate.get("report_json", "")).strip()
+    cert_artifact_dir = str(integrity_certificate.get("artifact_dir", "")).strip()
+    cert_status = str(integrity_certificate.get("status", "")).upper()
+    if not integrity_certificate_markdown_path.is_file():
+        result = "FAIL"
+        add_reason(fail_items, "missing_integrity_certificate_markdown", "Validation bundle integrity certificate markdown is missing.")
+    if cert_report_json and cert_report_json != str(validation_path):
+        result = "FAIL"
+        add_reason(fail_items, "integrity_certificate_report_mismatch", "Integrity certificate points at a different validation report than the release gate.")
+    if cert_artifact_dir and cert_artifact_dir != str(out_dir):
+        result = "FAIL"
+        add_reason(fail_items, "integrity_certificate_artifact_dir_mismatch", "Integrity certificate points at a different artifact dir than the release gate.")
+    if cert_status != "PASS":
+        result = "FAIL"
+        add_reason(fail_items, "integrity_certificate_not_pass", "Integrity certificate status is not PASS.")
 
 if readiness is None:
     result = "HOLD" if result != "FAIL" else result
@@ -210,6 +233,9 @@ else:
     signoff_release_trend_report = str(signoff_report.get("release_trend_report_json", "")).strip()
     signoff_release_trend_status = str(signoff_report.get("release_trend_status", "")).upper()
     signoff_require_release_trend_pass = bool(signoff_report.get("require_release_trend_pass", False))
+    signoff_integrity_certificate_json = str(signoff_report.get("integrity_certificate_json", "")).strip()
+    signoff_integrity_certificate_markdown = str(signoff_report.get("integrity_certificate_markdown", "")).strip()
+    signoff_integrity_certificate_status = str(signoff_report.get("integrity_certificate_status", "")).upper()
     if signoff_status != "PASS":
         result = "FAIL"
         code = signoff_failure_code or "signoff_not_pass"
@@ -226,6 +252,15 @@ else:
     if signoff_release_gate_json and signoff_release_gate_json != str(release_gate_path):
         result = "FAIL"
         add_reason(fail_items, "signoff_release_gate_mismatch", "Signoff report points at a different release gate artifact than the active release gate.")
+    if signoff_integrity_certificate_json and signoff_integrity_certificate_json != str(integrity_certificate_path):
+        result = "FAIL"
+        add_reason(fail_items, "signoff_integrity_certificate_mismatch", "Signoff report points at a different integrity certificate JSON than the active release bundle.")
+    if signoff_integrity_certificate_markdown and signoff_integrity_certificate_markdown != str(integrity_certificate_markdown_path):
+        result = "FAIL"
+        add_reason(fail_items, "signoff_integrity_certificate_markdown_mismatch", "Signoff report points at a different integrity certificate markdown than the active release bundle.")
+    if signoff_integrity_certificate_status and integrity_certificate is not None and signoff_integrity_certificate_status != str(integrity_certificate.get("status", "")).upper():
+        result = "FAIL"
+        add_reason(fail_items, "signoff_integrity_certificate_status_mismatch", "Signoff report integrity_certificate_status does not match the referenced integrity certificate status.")
     if signoff_release_trend_report:
         if signoff_release_trend_report != str(canonical_release_trend_report_path):
             result = "FAIL"
@@ -297,11 +332,14 @@ report = {
     "result": result,
     "summary": summary,
     "validation_report_json": str(validation_path),
+    "integrity_certificate_json": str(integrity_certificate_path),
+    "integrity_certificate_markdown": str(integrity_certificate_markdown_path),
     "readiness_report_json": str(readiness_path) if readiness_path else "",
     "signoff_file": str(signoff_path) if signoff_path else "",
     "signoff_report_json": str(signoff_report_path) if signoff_report_path else "",
     "statuses": {
         "validation_status": str(validation.get("overall_status", "")).upper(),
+        "integrity_certificate_status": str((integrity_certificate or {}).get("status", "")).upper(),
         "readiness_status": str((readiness or {}).get("status", "")).upper(),
         "signoff_status": str((signoff_report or {}).get("status", "")).upper(),
         "readiness_failure_code": str((readiness or {}).get("failure_code", "")).strip(),
@@ -328,6 +366,7 @@ md_path.write_text(
             f"- Result: {result}",
             f"- Summary: {summary}",
             f"- Validation status: {report['statuses']['validation_status'] or 'UNKNOWN'}",
+            f"- Integrity certificate status: {report['statuses']['integrity_certificate_status'] or 'MISSING'}",
             f"- Readiness status: {report['statuses']['readiness_status'] or 'MISSING'}",
             f"- Signoff status: {report['statuses']['signoff_status'] or 'MISSING'}",
             f"- Primary fail code: {primary_fail_code or 'none'}",
