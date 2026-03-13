@@ -14,6 +14,7 @@ import 'application/cctv_bridge_service.dart';
 import 'application/cctv_evidence_probe_service.dart';
 import 'application/cctv_false_positive_policy.dart';
 import 'application/dvr_bridge_service.dart';
+import 'application/dvr_evidence_probe_service.dart';
 import 'application/dispatch_persistence_service.dart';
 import 'application/dispatch_snapshot_file_service.dart';
 import 'application/dispatch_application_service.dart';
@@ -433,6 +434,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   );
   static const _dvrProviderEnv = String.fromEnvironment('ONYX_DVR_PROVIDER');
   static const _dvrEventsUrlEnv = String.fromEnvironment('ONYX_DVR_EVENTS_URL');
+  static const _dvrEvidenceProbeQueueDepthEnv = int.fromEnvironment(
+    'ONYX_DVR_EVIDENCE_QUEUE_DEPTH',
+    defaultValue: 12,
+  );
+  static const _dvrEvidenceProbeStaleSecondsEnv = int.fromEnvironment(
+    'ONYX_DVR_STALE_FRAME_SECONDS',
+    defaultValue: 1800,
+  );
   static const _cctvLiveMonitoringEnv = bool.fromEnvironment(
     'ONYX_CCTV_LIVE_MONITORING',
     defaultValue: false,
@@ -605,21 +614,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   late final CctvFalsePositivePolicy _cctvFalsePositivePolicy =
       CctvFalsePositivePolicy.fromJsonString(_cctvFalsePositiveRulesEnv);
   late final VideoEvidenceProbeService _videoEvidenceProbeService =
-      CctvBackedVideoEvidenceProbeService(
-        delegate: HttpCctvEvidenceProbeService(
-          client: _cctvBridgeHttpClient,
-          maxQueueDepth: _positiveThreshold(
-            _cctvEvidenceProbeQueueDepthEnv,
-            fallback: 12,
-          ),
-          staleFrameThreshold: Duration(
-            seconds: _positiveThreshold(
-              _cctvEvidenceProbeStaleSecondsEnv,
-              fallback: 1800,
-            ),
-          ),
-        ),
-      );
+      _buildVideoEvidenceProbeService();
   late final Uri? _wearableBridgeUri = Uri.tryParse(
     _wearableEventsUrlEnv.trim(),
   );
@@ -5591,6 +5586,43 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         licensePlateRecognitionEnabled: profile.licensePlateRecognitionEnabled,
         falsePositivePolicy: _cctvFalsePositivePolicy,
         client: _cctvBridgeHttpClient,
+      ),
+    );
+  }
+
+  VideoEvidenceProbeService _buildVideoEvidenceProbeService() {
+    final profile = _activeVideoProfile;
+    if (profile.isDvr) {
+      return DvrBackedVideoEvidenceProbeService(
+        delegate: HttpDvrEvidenceProbeService(
+          client: _cctvBridgeHttpClient,
+          bearerToken: _dvrBearerTokenEnv,
+          maxQueueDepth: _positiveThreshold(
+            _dvrEvidenceProbeQueueDepthEnv,
+            fallback: 12,
+          ),
+          staleFrameThreshold: Duration(
+            seconds: _positiveThreshold(
+              _dvrEvidenceProbeStaleSecondsEnv,
+              fallback: 1800,
+            ),
+          ),
+        ),
+      );
+    }
+    return CctvBackedVideoEvidenceProbeService(
+      delegate: HttpCctvEvidenceProbeService(
+        client: _cctvBridgeHttpClient,
+        maxQueueDepth: _positiveThreshold(
+          _cctvEvidenceProbeQueueDepthEnv,
+          fallback: 12,
+        ),
+        staleFrameThreshold: Duration(
+          seconds: _positiveThreshold(
+            _cctvEvidenceProbeStaleSecondsEnv,
+            fallback: 1800,
+          ),
+        ),
       ),
     );
   }

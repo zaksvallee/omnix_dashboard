@@ -97,7 +97,9 @@ DVR minimum keys:
 ```json
 {
   "ONYX_DVR_PROVIDER": "hikvision_dvr",
-  "ONYX_DVR_EVENTS_URL": "https://<dvr-host>/ISAPI/Event/notification/alertStream"
+  "ONYX_DVR_EVENTS_URL": "https://<dvr-host>/ISAPI/Event/notification/alertStream",
+  "ONYX_DVR_EVIDENCE_QUEUE_DEPTH": "12",
+  "ONYX_DVR_STALE_FRAME_SECONDS": "1800"
 }
 ```
 
@@ -145,6 +147,8 @@ DVR keys:
 - `ONYX_DVR_PROVIDER` (default empty; currently `hikvision_dvr` or `generic_dvr`)
 - `ONYX_DVR_EVENTS_URL` (private DVR event endpoint, for example Hikvision ISAPI alert stream)
 - `ONYX_DVR_BEARER_TOKEN` (optional bearer token for protected DVR endpoints)
+- `ONYX_DVR_EVIDENCE_QUEUE_DEPTH` (bounded queue size for DVR snapshot/clip verification; default `12`)
+- `ONYX_DVR_STALE_FRAME_SECONDS` (DVR camera stale threshold; default `1800`)
 
 Video provider selection:
 - ONYX prefers `ONYX_CCTV_*` when both CCTV and DVR are configured.

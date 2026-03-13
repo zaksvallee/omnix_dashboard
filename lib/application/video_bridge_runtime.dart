@@ -2,6 +2,7 @@ import '../domain/intelligence/intel_ingestion.dart';
 import 'cctv_bridge_service.dart';
 import 'cctv_evidence_probe_service.dart';
 import 'dvr_bridge_service.dart';
+import 'dvr_evidence_probe_service.dart';
 
 abstract class VideoBridgeService {
   Future<List<NormalizedIntelRecord>> fetchLatest({
@@ -64,6 +65,23 @@ class VideoCameraHealth {
   }
 
   factory VideoCameraHealth.fromCctv(CctvCameraHealth source) {
+    return VideoCameraHealth(
+      cameraId: source.cameraId,
+      eventCount: source.eventCount,
+      snapshotRefs: source.snapshotRefs,
+      clipRefs: source.clipRefs,
+      snapshotVerified: source.snapshotVerified,
+      clipVerified: source.clipVerified,
+      probeFailures: source.probeFailures,
+      lastSeenAtUtc: source.lastSeenAtUtc,
+      lastZone: source.lastZone,
+      lastObjectLabel: source.lastObjectLabel,
+      staleFrameAgeSeconds: source.staleFrameAgeSeconds,
+      status: source.status,
+    );
+  }
+
+  factory VideoCameraHealth.fromDvr(DvrCameraHealth source) {
     return VideoCameraHealth(
       cameraId: source.cameraId,
       eventCount: source.eventCount,
@@ -159,6 +177,23 @@ class VideoEvidenceProbeSnapshot {
       lastAlert: source.lastAlert,
       cameras: source.cameras
           .map(VideoCameraHealth.fromCctv)
+          .toList(growable: false),
+    );
+  }
+
+  factory VideoEvidenceProbeSnapshot.fromDvr(
+    DvrEvidenceProbeSnapshot source,
+  ) {
+    return VideoEvidenceProbeSnapshot(
+      queueDepth: source.queueDepth,
+      boundedQueueLimit: source.boundedQueueLimit,
+      droppedCount: source.droppedCount,
+      verifiedCount: source.verifiedCount,
+      failureCount: source.failureCount,
+      lastRunAtUtc: source.lastRunAtUtc,
+      lastAlert: source.lastAlert,
+      cameras: source.cameras
+          .map(VideoCameraHealth.fromDvr)
           .toList(growable: false),
     );
   }
@@ -259,6 +294,22 @@ class DvrBackedVideoBridgeService implements VideoBridgeService {
       clientId: clientId,
       regionId: regionId,
       siteId: siteId,
+    );
+  }
+}
+
+class DvrBackedVideoEvidenceProbeService implements VideoEvidenceProbeService {
+  final HttpDvrEvidenceProbeService delegate;
+
+  const DvrBackedVideoEvidenceProbeService({required this.delegate});
+
+  @override
+  Future<VideoEvidenceProbeBatchResult> probeBatch(
+    List<NormalizedIntelRecord> records,
+  ) async {
+    final result = await delegate.probeBatch(records);
+    return VideoEvidenceProbeBatchResult(
+      snapshot: VideoEvidenceProbeSnapshot.fromDvr(result.snapshot),
     );
   }
 }
