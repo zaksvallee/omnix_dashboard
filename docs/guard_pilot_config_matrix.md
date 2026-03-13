@@ -92,6 +92,15 @@ CCTV pilot minimum keys:
 }
 ```
 
+DVR minimum keys:
+
+```json
+{
+  "ONYX_DVR_PROVIDER": "hikvision_dvr",
+  "ONYX_DVR_EVENTS_URL": "https://<dvr-host>/ISAPI/Event/notification/alertStream"
+}
+```
+
 Guard telemetry adapter keys:
 - `ONYX_GUARD_TELEMETRY_NATIVE_SDK` (`true` or `false`)
 - `ONYX_GUARD_TELEMETRY_NATIVE_PROVIDER` (default `android_native_sdk_stub`)
@@ -131,6 +140,15 @@ CCTV pilot keys:
 - `ONYX_CCTV_EVIDENCE_QUEUE_DEPTH` (bounded queue size for snapshot/clip verification; default `12`)
 - `ONYX_CCTV_STALE_FRAME_SECONDS` (camera stale threshold; default `1800`)
 - `ONYX_CCTV_FALSE_POSITIVE_RULES_JSON` (JSON array of suppression rules keyed by `zone`, `object_label`, `start_hour_local`, `end_hour_local`, and optional `min_confidence_percent`)
+
+DVR keys:
+- `ONYX_DVR_PROVIDER` (default empty; currently `hikvision_dvr` or `generic_dvr`)
+- `ONYX_DVR_EVENTS_URL` (private DVR event endpoint, for example Hikvision ISAPI alert stream)
+- `ONYX_DVR_BEARER_TOKEN` (optional bearer token for protected DVR endpoints)
+
+Video provider selection:
+- ONYX prefers `ONYX_CCTV_*` when both CCTV and DVR are configured.
+- If CCTV is unconfigured and DVR is configured, ONYX uses the DVR bridge path for video ingest, `/bridges`, and `/pollops`.
 
 CCTV pilot commands:
 - `./scripts/onyx_cctv_capture_pack_init.sh`

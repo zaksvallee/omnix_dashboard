@@ -68,4 +68,4 @@ Current scope:
 - not yet field-proven against a live DVR
 - shared runtime and health-summary path is in place
 - DVR-specific live bridge implementation is built
-- DVR provider selection is not wired into runtime env/config yet
+- DVR provider selection is wired into runtime env/config with CCTV-first precedence

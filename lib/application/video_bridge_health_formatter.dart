@@ -16,7 +16,7 @@ class VideoBridgeHealthFormatter {
     bool pilotEdge = false,
   }) {
     if (!configured) {
-      return 'disabled • configure ONYX_CCTV_PROVIDER and ONYX_CCTV_EVENTS_URL.';
+      return 'disabled • configure ONYX_CCTV_PROVIDER and ONYX_CCTV_EVENTS_URL, or ONYX_DVR_PROVIDER and ONYX_DVR_EVENTS_URL.';
     }
     final providerLabel = provider.trim().isEmpty ? 'video' : provider.trim();
     final endpoint = endpointLabel.trim();

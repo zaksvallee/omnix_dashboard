@@ -13,6 +13,7 @@ import 'application/client_messaging_bridge_repository.dart';
 import 'application/cctv_bridge_service.dart';
 import 'application/cctv_evidence_probe_service.dart';
 import 'application/cctv_false_positive_policy.dart';
+import 'application/dvr_bridge_service.dart';
 import 'application/dispatch_persistence_service.dart';
 import 'application/dispatch_snapshot_file_service.dart';
 import 'application/dispatch_application_service.dart';
@@ -397,6 +398,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   static const _cctvBearerTokenEnv = String.fromEnvironment(
     'ONYX_CCTV_BEARER_TOKEN',
   );
+  static const _dvrBearerTokenEnv = String.fromEnvironment(
+    'ONYX_DVR_BEARER_TOKEN',
+  );
   static const _wearableProviderEnv = String.fromEnvironment(
     'ONYX_WEARABLE_PROVIDER',
   );
@@ -427,6 +431,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   static const _cctvEventsUrlEnv = String.fromEnvironment(
     'ONYX_CCTV_EVENTS_URL',
   );
+  static const _dvrProviderEnv = String.fromEnvironment('ONYX_DVR_PROVIDER');
+  static const _dvrEventsUrlEnv = String.fromEnvironment('ONYX_DVR_EVENTS_URL');
   static const _cctvLiveMonitoringEnv = bool.fromEnvironment(
     'ONYX_CCTV_LIVE_MONITORING',
     defaultValue: false,
@@ -585,6 +591,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         cctvLiveMonitoringEnabled: _cctvLiveMonitoringEnv,
         cctvFacialRecognitionEnabled: _cctvFacialRecognitionEnv,
         cctvLicensePlateRecognitionEnabled: _cctvLicensePlateRecognitionEnv,
+        dvrProvider: _dvrProviderEnv,
+        dvrEventsUrl: _dvrEventsUrlEnv,
       );
   late final RadioBridgeService _radioBridgeService = createRadioBridgeService(
     provider: _opsIntegrationProfile.radio.provider,
@@ -593,21 +601,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     bearerToken: _radioBearerTokenEnv,
     client: _radioBridgeHttpClient,
   );
-  late final VideoBridgeService _videoBridgeService =
-      CctvBackedVideoBridgeService(
-        delegate: createCctvBridgeService(
-          provider: _opsIntegrationProfile.cctv.provider,
-          eventsUri: _opsIntegrationProfile.cctv.eventsUrl,
-          bearerToken: _cctvBearerTokenEnv,
-          liveMonitoringEnabled: _opsIntegrationProfile.cctv.liveMonitoringEnabled,
-          facialRecognitionEnabled:
-              _opsIntegrationProfile.cctv.facialRecognitionEnabled,
-          licensePlateRecognitionEnabled:
-              _opsIntegrationProfile.cctv.licensePlateRecognitionEnabled,
-          falsePositivePolicy: _cctvFalsePositivePolicy,
-          client: _cctvBridgeHttpClient,
-        ),
-      );
+  late final VideoBridgeService _videoBridgeService = _buildVideoBridgeService();
   late final CctvFalsePositivePolicy _cctvFalsePositivePolicy =
       CctvFalsePositivePolicy.fromJsonString(_cctvFalsePositiveRulesEnv);
   late final VideoEvidenceProbeService _videoEvidenceProbeService =
@@ -5052,11 +5046,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   Future<_OpsIntegrationIngestResult> _ingestCctvSignals({
     bool updateStatus = true,
   }) async {
-    if (!_opsIntegrationProfile.cctv.configured) {
+    final profile = _activeVideoProfile;
+    if (!profile.configured) {
       if (updateStatus && mounted) {
         setState(() {
           _lastIntakeStatus =
-              'CCTV ingest unavailable: configure ONYX_CCTV_PROVIDER and ONYX_CCTV_EVENTS_URL.';
+              'Video ingest unavailable: configure ONYX_CCTV_PROVIDER and ONYX_CCTV_EVENTS_URL, or ONYX_DVR_PROVIDER and ONYX_DVR_EVENTS_URL.';
         });
       }
       return _recordOpsIntegrationHealth(
@@ -5070,7 +5065,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     if (updateStatus && mounted) {
       setState(() {
-        _lastIntakeStatus = 'Fetching CCTV AI events...';
+        _lastIntakeStatus = 'Fetching ${profile.provider.trim().isEmpty ? 'video' : profile.provider} events...';
       });
     }
     try {
@@ -5087,17 +5082,17 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       } else {
         _cctvEvidenceHealth = evidenceProbe.snapshot;
       }
-      final provider = _opsIntegrationProfile.cctv.provider;
+      final provider = profile.provider;
       final runId = _nextRunId('CCTV');
       final outcome = _recordLiveIngest(
         runId: runId,
         batch: LiveFeedBatch(
           records: records,
           feedDistribution: {
-            (provider.trim().isEmpty ? 'cctv' : provider): records.length,
+            (provider.trim().isEmpty ? 'video' : provider): records.length,
           },
           isConfigured: true,
-          sourceLabel: 'cctv-${provider.trim().isEmpty ? 'events' : provider}',
+          sourceLabel: 'video-${provider.trim().isEmpty ? 'events' : provider}',
         ),
         updateStatus: updateStatus,
       );
@@ -5117,7 +5112,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     } on FormatException catch (error) {
       if (updateStatus && mounted) {
         setState(() {
-          _lastIntakeStatus = 'CCTV ingest failed: ${error.message}';
+          _lastIntakeStatus = 'Video ingest failed: ${error.message}';
         });
       }
       return _recordOpsIntegrationHealth(
@@ -5130,7 +5125,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     } catch (error) {
       if (updateStatus && mounted) {
         setState(() {
-          _lastIntakeStatus = 'CCTV ingest failed: $error';
+          _lastIntakeStatus = 'Video ingest failed: $error';
         });
       }
       return _recordOpsIntegrationHealth(
@@ -5433,10 +5428,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }
 
   String _cctvCapabilitySummary() {
-    if (!_opsIntegrationProfile.cctv.configured) {
+    if (!_activeVideoProfile.configured) {
       return 'caps none';
     }
-    final caps = _opsIntegrationProfile.cctv.capabilityLabels;
+    final caps = _activeVideoProfile.capabilityLabels;
     if (caps.isEmpty) {
       return 'caps none';
     }
@@ -5446,7 +5441,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   String _cctvRecentSignalSummary(List<DispatchEvent> events) {
     final nowUtc = DateTime.now().toUtc();
     final windowStartUtc = nowUtc.subtract(const Duration(hours: 6));
-    final configuredProvider = _opsIntegrationProfile.cctv.provider
+    final configuredProvider = _activeVideoProfile.provider
         .trim()
         .toLowerCase();
     var total = 0;
@@ -5457,7 +5452,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     var lpr = 0;
 
     for (final event in events.whereType<IntelligenceReceived>()) {
-      if (event.sourceType != 'hardware') {
+      if (event.sourceType != 'hardware' && event.sourceType != 'dvr') {
         continue;
       }
       if (event.occurredAt.toUtc().isBefore(windowStartUtc)) {
@@ -5488,7 +5483,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       }
     }
 
-    return 'recent hardware intel $total (6h) • '
+    return 'recent video intel $total (6h) • '
         'intrusion $intrusion • '
         'line_crossing $lineCrossing • '
         'motion $motion • '
@@ -5497,21 +5492,22 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }
 
   String _cctvBridgeStatusSummary() {
-    final profile = _opsIntegrationProfile.cctv;
+    final profile = _activeVideoProfile;
     return VideoBridgeHealthFormatter.bridgeStatus(
       configured: profile.configured,
       provider: profile.provider,
       endpointLabel: _integrationEndpointLabel(profile.eventsUrl),
       capabilitySummary: _cctvCapabilitySummary(),
       evidence: _cctvEvidenceHealth,
-      pilotEdge: profile.provider.toLowerCase().contains('frigate'),
+      pilotEdge:
+          !profile.isDvr && profile.provider.toLowerCase().contains('frigate'),
     );
   }
 
   String _cctvPilotContextSummary(List<DispatchEvent> events) {
     return VideoBridgeHealthFormatter.pilotContext(
-      configured: _opsIntegrationProfile.cctv.configured,
-      provider: _opsIntegrationProfile.cctv.provider,
+      configured: _activeVideoProfile.configured,
+      provider: _activeVideoProfile.provider,
       recentSignalSummary: _cctvRecentSignalSummary(events),
       evidence: _cctvEvidenceHealth,
     );
@@ -5543,9 +5539,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }
 
   String _cctvOpsDetailLabel() {
-    final base = _opsIntegrationProfile.cctv.detailLabel.trim();
+    final base = _activeVideoProfile.detailLabel.trim();
     final evidence = _cctvEvidenceSummary();
-    final tuning = _cctvFalsePositivePolicy.enabled
+    final tuning = !_activeVideoProfile.isDvr && _cctvFalsePositivePolicy.enabled
         ? _cctvFalsePositivePolicy.summaryLabel()
         : '';
     final extras = [
@@ -5568,6 +5564,35 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     final path = uri.path.trim();
     return path;
+  }
+
+  OnyxVideoIntegrationProfile get _activeVideoProfile =>
+      _opsIntegrationProfile.activeVideo;
+
+  VideoBridgeService _buildVideoBridgeService() {
+    final profile = _activeVideoProfile;
+    if (profile.isDvr) {
+      return DvrBackedVideoBridgeService(
+        delegate: createDvrBridgeService(
+          provider: profile.provider,
+          eventsUri: profile.eventsUrl,
+          bearerToken: _dvrBearerTokenEnv,
+          client: _cctvBridgeHttpClient,
+        ),
+      );
+    }
+    return CctvBackedVideoBridgeService(
+      delegate: createCctvBridgeService(
+        provider: profile.provider,
+        eventsUri: profile.eventsUrl,
+        bearerToken: _cctvBearerTokenEnv,
+        liveMonitoringEnabled: profile.liveMonitoringEnabled,
+        facialRecognitionEnabled: profile.facialRecognitionEnabled,
+        licensePlateRecognitionEnabled: profile.licensePlateRecognitionEnabled,
+        falsePositivePolicy: _cctvFalsePositivePolicy,
+        client: _cctvBridgeHttpClient,
+      ),
+    );
   }
 
   String _compactDetail(String value, {int maxLength = 84}) {
@@ -5836,7 +5861,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final wearableConfigured =
         _wearableProviderEnv.trim().isNotEmpty && _wearableBridgeUri != null;
     return _opsIntegrationProfile.radio.configured ||
-        _opsIntegrationProfile.cctv.configured ||
+        _activeVideoProfile.configured ||
         wearableConfigured ||
         _newsIntel.configuredProviders.isNotEmpty;
   }
@@ -5869,7 +5894,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       if (_opsIntegrationProfile.radio.configured) {
         results.add(await _ingestRadioOpsSignals(updateStatus: false));
       }
-      if (_opsIntegrationProfile.cctv.configured) {
+      if (_activeVideoProfile.configured) {
         results.add(await _ingestCctvSignals(updateStatus: false));
       }
       if (_wearableProviderEnv.trim().isNotEmpty &&
@@ -10163,10 +10188,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       radioStatus:
           '${radioConfigured ? 'configured' : 'disabled'} • ${_radioQueueHealthSummary()}',
       cctvStatus: _cctvBridgeStatusSummary(),
-      cctvHealth: _opsIntegrationProfile.cctv.configured
+      cctvHealth: _activeVideoProfile.configured
           ? _opsHealthSummary(_cctvOpsHealth)
           : null,
-      cctvRecent: _opsIntegrationProfile.cctv.configured
+      cctvRecent: _activeVideoProfile.configured
           ? _cctvRecentSignalSummary(store.allEvents())
           : null,
       wearableStatus: wearableConfigured ? 'configured' : 'disabled',
@@ -11843,9 +11868,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         return TacticalPage(
           events: events,
           focusIncidentReference: _operationsFocusIncidentReference,
-          cctvOpsReadiness: _opsIntegrationProfile.cctv.readinessLabel,
+          cctvOpsReadiness: _activeVideoProfile.readinessLabel,
           cctvOpsDetail: _cctvOpsDetailLabel(),
-          cctvProvider: _opsIntegrationProfile.cctv.provider,
+          cctvProvider: _activeVideoProfile.provider,
           cctvCapabilitySummary: _cctvCapabilitySummary(),
           cctvRecentSignalSummary:
               '${_cctvRecentSignalSummary(events)}${_cctvCameraHealthSummary().isEmpty ? '' : ' • ${_cctvCameraHealthSummary()}'}',
@@ -11956,7 +11981,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           radioQueueManualActionDetail: _radioQueueManualActionSummary(),
           radioAiAutoAllClearEnabled:
               _opsIntegrationProfile.radio.aiAutoAllClearEnabled,
-          cctvOpsReadiness: _opsIntegrationProfile.cctv.readinessLabel,
+          cctvOpsReadiness: _activeVideoProfile.readinessLabel,
           cctvOpsDetail: _cctvOpsDetailLabel(),
           cctvCapabilitySummary: _cctvCapabilitySummary(),
           cctvRecentSignalSummary:
@@ -12104,7 +12129,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
                   await _ingestRadioOpsSignals();
                 }
               : null,
-          onRunCctvPoll: _opsIntegrationProfile.cctv.configured
+          onRunCctvPoll: _activeVideoProfile.configured
               ? () async {
                   await _ingestCctvSignals();
                 }

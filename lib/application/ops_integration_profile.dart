@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'dvr_ingest_contract.dart';
+
 class OnyxRadioIntegrationProfile {
   final String provider;
   final Uri? listenUrl;
@@ -88,13 +90,158 @@ class OnyxCctvIntegrationProfile {
         : capabilityLabels.join(' • ');
     return '$provider • $caps';
   }
+
+  OnyxVideoIntegrationProfile toVideoProfile() {
+    return OnyxVideoIntegrationProfile(
+      kind: 'cctv',
+      provider: provider,
+      eventsUrl: eventsUrl,
+      liveMonitoringEnabled: liveMonitoringEnabled,
+      facialRecognitionEnabled: facialRecognitionEnabled,
+      licensePlateRecognitionEnabled: licensePlateRecognitionEnabled,
+    );
+  }
+}
+
+class OnyxDvrIntegrationProfile {
+  final String provider;
+  final Uri? eventsUrl;
+  final bool liveMonitoringEnabled;
+  final bool facialRecognitionEnabled;
+  final bool licensePlateRecognitionEnabled;
+
+  const OnyxDvrIntegrationProfile({
+    required this.provider,
+    required this.eventsUrl,
+    required this.liveMonitoringEnabled,
+    required this.facialRecognitionEnabled,
+    required this.licensePlateRecognitionEnabled,
+  });
+
+  bool get configured => provider.isNotEmpty && eventsUrl != null;
+
+  String get readinessLabel {
+    if (!configured) {
+      return 'UNCONFIGURED';
+    }
+    if (!liveMonitoringEnabled) {
+      return 'PARTIAL';
+    }
+    return 'ACTIVE';
+  }
+
+  List<String> get capabilityLabels {
+    final labels = <String>[];
+    if (liveMonitoringEnabled) {
+      labels.add('LIVE AI MONITORING');
+    }
+    if (facialRecognitionEnabled) {
+      labels.add('FR');
+    }
+    if (licensePlateRecognitionEnabled) {
+      labels.add('LPR');
+    }
+    return labels;
+  }
+
+  String get detailLabel {
+    if (!configured) {
+      return 'Configure ONYX_DVR_PROVIDER and ONYX_DVR_EVENTS_URL.';
+    }
+    final caps = capabilityLabels.isEmpty
+        ? 'No capabilities enabled'
+        : capabilityLabels.join(' • ');
+    return '$provider • $caps';
+  }
+
+  OnyxVideoIntegrationProfile toVideoProfile() {
+    return OnyxVideoIntegrationProfile(
+      kind: 'dvr',
+      provider: provider,
+      eventsUrl: eventsUrl,
+      liveMonitoringEnabled: liveMonitoringEnabled,
+      facialRecognitionEnabled: facialRecognitionEnabled,
+      licensePlateRecognitionEnabled: licensePlateRecognitionEnabled,
+    );
+  }
+}
+
+class OnyxVideoIntegrationProfile {
+  final String kind;
+  final String provider;
+  final Uri? eventsUrl;
+  final bool liveMonitoringEnabled;
+  final bool facialRecognitionEnabled;
+  final bool licensePlateRecognitionEnabled;
+
+  const OnyxVideoIntegrationProfile({
+    required this.kind,
+    required this.provider,
+    required this.eventsUrl,
+    required this.liveMonitoringEnabled,
+    required this.facialRecognitionEnabled,
+    required this.licensePlateRecognitionEnabled,
+  });
+
+  bool get configured => provider.isNotEmpty && eventsUrl != null;
+
+  bool get isDvr => kind == 'dvr';
+
+  List<String> get capabilityLabels {
+    final labels = <String>[];
+    if (liveMonitoringEnabled) {
+      labels.add('LIVE AI MONITORING');
+    }
+    if (facialRecognitionEnabled) {
+      labels.add('FR');
+    }
+    if (licensePlateRecognitionEnabled) {
+      labels.add('LPR');
+    }
+    return labels;
+  }
+
+  String get readinessLabel {
+    if (!configured) {
+      return 'UNCONFIGURED';
+    }
+    if (!liveMonitoringEnabled) {
+      return 'PARTIAL';
+    }
+    return 'ACTIVE';
+  }
+
+  String get detailLabel {
+    if (!configured) {
+      return 'Configure ONYX_CCTV_PROVIDER and ONYX_CCTV_EVENTS_URL, or ONYX_DVR_PROVIDER and ONYX_DVR_EVENTS_URL.';
+    }
+    final caps = capabilityLabels.isEmpty
+        ? 'No capabilities enabled'
+        : capabilityLabels.join(' • ');
+    return '$provider • $caps';
+  }
 }
 
 class OnyxOpsIntegrationProfile {
   final OnyxRadioIntegrationProfile radio;
   final OnyxCctvIntegrationProfile cctv;
+  final OnyxDvrIntegrationProfile dvr;
 
-  const OnyxOpsIntegrationProfile({required this.radio, required this.cctv});
+  const OnyxOpsIntegrationProfile({
+    required this.radio,
+    required this.cctv,
+    required this.dvr,
+  });
+
+  OnyxVideoIntegrationProfile get activeVideo {
+    if (cctv.configured) {
+      return cctv.toVideoProfile();
+    }
+    if (dvr.configured) {
+      return dvr.toVideoProfile();
+    }
+    return cctv.toVideoProfile();
+  }
 
   factory OnyxOpsIntegrationProfile.fromEnvironment({
     required String radioProvider,
@@ -107,7 +254,10 @@ class OnyxOpsIntegrationProfile {
     required bool cctvLiveMonitoringEnabled,
     required bool cctvFacialRecognitionEnabled,
     required bool cctvLicensePlateRecognitionEnabled,
+    required String dvrProvider,
+    required String dvrEventsUrl,
   }) {
+    final dvrProfile = DvrProviderProfile.fromProvider(dvrProvider.trim());
     return OnyxOpsIntegrationProfile(
       radio: OnyxRadioIntegrationProfile(
         provider: radioProvider.trim(),
@@ -122,6 +272,16 @@ class OnyxOpsIntegrationProfile {
         liveMonitoringEnabled: cctvLiveMonitoringEnabled,
         facialRecognitionEnabled: cctvFacialRecognitionEnabled,
         licensePlateRecognitionEnabled: cctvLicensePlateRecognitionEnabled,
+      ),
+      dvr: OnyxDvrIntegrationProfile(
+        provider: dvrProvider.trim(),
+        eventsUrl: _usableHttpUri(dvrEventsUrl),
+        liveMonitoringEnabled:
+            dvrProfile?.capabilities.liveMonitoringEnabled ?? false,
+        facialRecognitionEnabled:
+            dvrProfile?.capabilities.facialRecognitionEnabled ?? false,
+        licensePlateRecognitionEnabled:
+            dvrProfile?.capabilities.licensePlateRecognitionEnabled ?? false,
       ),
     );
   }

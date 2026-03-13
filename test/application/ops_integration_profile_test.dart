@@ -15,6 +15,8 @@ void main() {
       cctvLiveMonitoringEnabled: false,
       cctvFacialRecognitionEnabled: false,
       cctvLicensePlateRecognitionEnabled: false,
+      dvrProvider: '',
+      dvrEventsUrl: '',
     );
 
     expect(profile.radio.readinessLabel, 'LISTEN + RESPOND');
@@ -35,6 +37,8 @@ void main() {
       cctvLiveMonitoringEnabled: true,
       cctvFacialRecognitionEnabled: true,
       cctvLicensePlateRecognitionEnabled: true,
+      dvrProvider: '',
+      dvrEventsUrl: '',
     );
 
     expect(profile.cctv.readinessLabel, 'ACTIVE');
@@ -42,6 +46,51 @@ void main() {
       profile.cctv.capabilityLabels,
       containsAll(<String>['LIVE AI MONITORING', 'FR', 'LPR']),
     );
+  });
+
+  test('dvr profile becomes active video path when cctv is unconfigured', () {
+    final profile = OnyxOpsIntegrationProfile.fromEnvironment(
+      radioProvider: '',
+      radioListenUrl: '',
+      radioRespondUrl: '',
+      radioChannel: '',
+      radioAiAutoAllClearEnabled: false,
+      cctvProvider: '',
+      cctvEventsUrl: '',
+      cctvLiveMonitoringEnabled: false,
+      cctvFacialRecognitionEnabled: false,
+      cctvLicensePlateRecognitionEnabled: false,
+      dvrProvider: 'hikvision_dvr',
+      dvrEventsUrl: 'https://dvr.example.com/ISAPI/Event/notification/alertStream',
+    );
+
+    expect(profile.dvr.configured, isTrue);
+    expect(profile.activeVideo.isDvr, isTrue);
+    expect(profile.activeVideo.provider, 'hikvision_dvr');
+    expect(
+      profile.activeVideo.capabilityLabels,
+      containsAll(<String>['LIVE AI MONITORING', 'FR', 'LPR']),
+    );
+  });
+
+  test('cctv retains precedence when both cctv and dvr are configured', () {
+    final profile = OnyxOpsIntegrationProfile.fromEnvironment(
+      radioProvider: '',
+      radioListenUrl: '',
+      radioRespondUrl: '',
+      radioChannel: '',
+      radioAiAutoAllClearEnabled: false,
+      cctvProvider: 'frigate',
+      cctvEventsUrl: 'https://edge.example.com/api/events',
+      cctvLiveMonitoringEnabled: true,
+      cctvFacialRecognitionEnabled: false,
+      cctvLicensePlateRecognitionEnabled: false,
+      dvrProvider: 'hikvision_dvr',
+      dvrEventsUrl: 'https://dvr.example.com/ISAPI/Event/notification/alertStream',
+    );
+
+    expect(profile.activeVideo.isDvr, isFalse);
+    expect(profile.activeVideo.provider, 'frigate');
   });
 
   test('radio all-clear classifier detects safe confirmations', () {
