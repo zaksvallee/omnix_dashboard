@@ -671,43 +671,43 @@ if signoff_report is not None:
     signoff_validation_trend = str(signoff_report.get("validation_trend_report_json", "")).strip()
     signoff_cutover_decision = str(signoff_report.get("cutover_decision_json", "")).strip()
     signoff_cutover_trend = str(signoff_report.get("cutover_trend_report_json", "")).strip()
-    if signoff_validation_report and str(validation_path) and signoff_validation_report != str(validation_path):
+    if signoff_validation_report != str(validation_path or ""):
         add_reason(
             fail_items,
             "signoff_validation_report_mismatch",
             "signoff report validation report does not match release gate validation report",
         )
-    if signoff_readiness_report and readiness_path and signoff_readiness_report != str(readiness_path):
+    if signoff_readiness_report != str(readiness_path or ""):
         add_reason(
             fail_items,
             "signoff_readiness_report_mismatch",
             "signoff report readiness report does not match release gate readiness report",
         )
-    if signoff_parity_report and validation_parity_report and signoff_parity_report != validation_parity_report:
+    if signoff_parity_report != validation_parity_report:
         add_reason(
             fail_items,
             "signoff_parity_report_mismatch",
             "signoff report parity report does not match validation bundle parity report",
         )
-    if signoff_trend_report and validation_parity_trend and signoff_trend_report != validation_parity_trend:
+    if signoff_trend_report != validation_parity_trend:
         add_reason(
             fail_items,
             "signoff_parity_trend_report_mismatch",
             "signoff report parity trend does not match validation bundle parity trend report",
         )
-    if signoff_validation_trend and resolved_validation_trend_path and signoff_validation_trend != resolved_validation_trend_path:
+    if signoff_validation_trend != resolved_validation_trend_path:
         add_reason(
             fail_items,
             "signoff_validation_trend_report_mismatch",
             "signoff report validation trend does not match release gate validation trend report",
         )
-    if signoff_cutover_decision and cutover_path and signoff_cutover_decision != str(cutover_path):
+    if signoff_cutover_decision != str(cutover_path or ""):
         add_reason(
             fail_items,
             "signoff_cutover_decision_report_mismatch",
             "signoff report cutover decision does not match release gate cutover decision",
         )
-    if signoff_cutover_trend and cutover_trend_path and signoff_cutover_trend != str(cutover_trend_path):
+    if signoff_cutover_trend != str(cutover_trend_path or ""):
         add_reason(
             fail_items,
             "signoff_cutover_trend_report_mismatch",

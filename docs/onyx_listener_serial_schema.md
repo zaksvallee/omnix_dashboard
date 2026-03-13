@@ -361,6 +361,9 @@ different listener run.
 It also covers the resolved validation-trend artifact, so signoff cannot
 quietly borrow a different validation-trend report while still citing the same
 validation bundle.
+That comparison is now exact rather than best-effort: if the release bundle
+does not have a given aligned artifact, signoff is not allowed to invent one
+from another run.
 
 Cutover and release trend comparisons now prefer stable machine-readable
 `hold_codes`, `blocking_codes`, and `fail_codes` when present, falling back to

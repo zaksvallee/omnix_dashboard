@@ -1079,19 +1079,19 @@ def release_gate_consistency_regressions(report, label):
         actual_signoff_validation_trend = str(signoff_data.get("validation_trend_report_json", "")).strip()
         actual_signoff_cutover = str(signoff_data.get("cutover_decision_json", "")).strip()
         actual_signoff_cutover_trend = str(signoff_data.get("cutover_trend_report_json", "")).strip()
-        if validation_report and actual_signoff_validation and actual_signoff_validation != validation_report:
+        if actual_signoff_validation != validation_report:
             add("signoff_validation_report_mismatch", "release_gate_status_mismatch", validation_report, actual_signoff_validation)
-        if readiness_report and actual_signoff_readiness and actual_signoff_readiness != readiness_report:
+        if actual_signoff_readiness != readiness_report:
             add("signoff_readiness_report_mismatch", "release_gate_status_mismatch", readiness_report, actual_signoff_readiness)
-        if validation_parity_report and actual_signoff_parity and actual_signoff_parity != validation_parity_report:
+        if actual_signoff_parity != validation_parity_report:
             add("signoff_parity_report_mismatch", "release_gate_status_mismatch", validation_parity_report, actual_signoff_parity)
-        if validation_parity_trend and actual_signoff_parity_trend and actual_signoff_parity_trend != validation_parity_trend:
+        if actual_signoff_parity_trend != validation_parity_trend:
             add("signoff_parity_trend_report_mismatch", "release_gate_status_mismatch", validation_parity_trend, actual_signoff_parity_trend)
-        if resolved_validation_trend and actual_signoff_validation_trend and actual_signoff_validation_trend != resolved_validation_trend:
+        if actual_signoff_validation_trend != resolved_validation_trend:
             add("signoff_validation_trend_report_mismatch", "release_gate_status_mismatch", resolved_validation_trend, actual_signoff_validation_trend)
-        if cutover_decision and actual_signoff_cutover and actual_signoff_cutover != cutover_decision:
+        if actual_signoff_cutover != cutover_decision:
             add("signoff_cutover_decision_report_mismatch", "release_gate_status_mismatch", cutover_decision, actual_signoff_cutover)
-        if cutover_trend and actual_signoff_cutover_trend and actual_signoff_cutover_trend != cutover_trend:
+        if actual_signoff_cutover_trend != cutover_trend:
             add("signoff_cutover_trend_report_mismatch", "release_gate_status_mismatch", cutover_trend, actual_signoff_cutover_trend)
 
     expected_primary_fail = fail_codes[0] if fail_codes else ""
