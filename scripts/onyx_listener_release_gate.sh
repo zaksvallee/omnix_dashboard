@@ -454,6 +454,8 @@ def cutover_decision_chain_issues(path_str, label):
 
 def signoff_report_consistency_issues(report):
     issues = []
+    signoff_status = str(report.get("status", "")).upper()
+    signoff_failure_code = str(report.get("failure_code", "")).strip()
     statuses = report.get("statuses", {}) or {}
     requirements = report.get("requirements", {}) or {}
     readiness_report = str(report.get("readiness_report_json", "")).strip()
@@ -481,6 +483,13 @@ def signoff_report_consistency_issues(report):
     reported_validation_trend_status = str(statuses.get("validation_trend_status", "")).upper()
     reported_cutover_decision = str(statuses.get("cutover_decision", "")).upper()
     reported_cutover_trend_status = str(statuses.get("cutover_trend_status", "")).upper()
+
+    if signoff_status not in {"PASS", "FAIL"}:
+        issues.append(("signoff_invalid_status", f"signoff report status is {signoff_status or 'missing'}"))
+    if signoff_status == "PASS" and signoff_failure_code:
+        issues.append(("signoff_failure_code_present_on_pass", f"signoff report status is PASS but failure_code is {signoff_failure_code}"))
+    if signoff_status == "FAIL" and not signoff_failure_code:
+        issues.append(("signoff_missing_failure_code", "signoff report status is FAIL but failure_code is missing"))
 
     if readiness_data is not None and reported_readiness_status != actual_readiness_status:
         issues.append(("signoff_readiness_status_mismatch", f"signoff report readiness status does not match referenced readiness report ({reported_readiness_status or 'missing'} vs {actual_readiness_status or 'missing'})"))

@@ -748,6 +748,8 @@ def signoff_report_chain_regressions(path_str, label):
         return regressions
     with report_path.open("r", encoding="utf-8") as handle:
         report = json.load(handle)
+    signoff_status = str(report.get("status", "")).upper()
+    signoff_failure_code = str(report.get("failure_code", "")).strip()
     signoff_file = str(report.get("signoff_file", "")).strip()
     readiness_report = str(report.get("readiness_report_json", "")).strip()
     parity_report = str(report.get("report_json", "")).strip()
@@ -864,6 +866,31 @@ def signoff_report_chain_regressions(path_str, label):
             "report_label": label,
             "expected": expected,
             "actual": actual,
+        })
+
+    if signoff_status not in {"PASS", "FAIL"}:
+        regressions.append({
+            "code": f"{label}_invalid_status",
+            "kind": "signoff_chain_status_mismatch",
+            "report_label": label,
+            "expected": "PASS|FAIL",
+            "actual": signoff_status or "missing",
+        })
+    if signoff_status == "PASS" and signoff_failure_code:
+        regressions.append({
+            "code": f"{label}_failure_code_present_on_pass",
+            "kind": "signoff_chain_status_mismatch",
+            "report_label": label,
+            "expected": "",
+            "actual": signoff_failure_code,
+        })
+    if signoff_status == "FAIL" and not signoff_failure_code:
+        regressions.append({
+            "code": f"{label}_missing_failure_code",
+            "kind": "signoff_chain_status_mismatch",
+            "report_label": label,
+            "expected": "non-empty failure_code",
+            "actual": "",
         })
 
     if readiness_data is not None and reported_readiness_status != actual_readiness_status:

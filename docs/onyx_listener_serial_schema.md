@@ -346,6 +346,9 @@ Listener signoff now also records the readiness artifact it actually used, plus
 the copied readiness status and failure code. Release posture and release-trend
 checks verify those readiness fields the same way they already verify signoff
 trend and cutover fields.
+Release posture and release-trend also reject contradictory top-level signoff
+state, such as `status = PASS` with a non-empty `failure_code` or
+`status = FAIL` without one.
 
 Cutover and release trend comparisons now prefer stable machine-readable
 `hold_codes`, `blocking_codes`, and `fail_codes` when present, falling back to
