@@ -470,6 +470,7 @@ fi
 
 VALIDATION_TREND_REPORT_JSON=""
 VALIDATION_TREND_SUMMARY=""
+VALIDATION_TREND_PRIMARY_CODE=""
 if [[ "$COMPARE_PREVIOUS_VALIDATION" -eq 1 ]]; then
   validation_trend_cmd=(
     ./scripts/onyx_listener_validation_trend_check.sh
@@ -484,6 +485,7 @@ if [[ "$COMPARE_PREVIOUS_VALIDATION" -eq 1 ]]; then
   VALIDATION_TREND_REPORT_JSON="$ARTIFACT_DIR/validation_trend_report.json"
   if [[ -f "$VALIDATION_TREND_REPORT_JSON" ]]; then
     VALIDATION_TREND_SUMMARY="$(json_get "$VALIDATION_TREND_REPORT_JSON" "summary")"
+    VALIDATION_TREND_PRIMARY_CODE="$(json_get "$VALIDATION_TREND_REPORT_JSON" "primary_regression_code")"
   fi
 fi
 
@@ -719,6 +721,9 @@ echo "Baseline health summary: ${BASELINE_HEALTH_SUMMARY:-n/a}"
 if [[ -n "$VALIDATION_TREND_STATUS" ]]; then
   echo "Validation trend: ${VALIDATION_TREND_STATUS}"
   echo "Validation trend summary: ${VALIDATION_TREND_SUMMARY:-n/a}"
+  if [[ -n "$VALIDATION_TREND_PRIMARY_CODE" ]]; then
+    echo "Validation trend primary regression code: ${VALIDATION_TREND_PRIMARY_CODE}"
+  fi
   echo "Validation trend artifact: $ARTIFACT_DIR/validation_trend_report.json"
 fi
 if [[ -n "$CUTOVER_DECISION" ]]; then

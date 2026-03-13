@@ -255,6 +255,10 @@ next to the current `validation_report.json`, and it fails when:
 - `baseline_health` regresses from `fresh` to a weaker category
 - `baseline_health.age_days` increases beyond the allowed threshold
 
+The validation-trend artifact also carries `primary_regression_code` plus
+`regression_codes`, so downstream gates can classify validation regressions
+without parsing prose summaries.
+
 To collapse the latest validation/trend posture into one cutover decision:
 
 ```bash

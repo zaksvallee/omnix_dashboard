@@ -123,6 +123,7 @@ Notes:
   - Listener signoff now emits a machine-readable `signoff_report.json`, and release posture consumes that structured signoff state instead of only checking markdown file presence.
   - Listener release posture and release-trend artifacts now emit stable reason/regression codes, so downstream automation does not need to parse prose fail or hold summaries.
   - Listener cutover posture and cutover-trend artifacts now emit stable reason/regression codes, so downstream automation does not need to parse prose blocking or hold summaries.
+  - Listener validation-trend artifacts now emit stable regression codes, so downstream automation does not need to parse prose validation-regression summaries.
 
 ---
 

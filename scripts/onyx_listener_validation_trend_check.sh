@@ -162,6 +162,7 @@ regressions = []
 if rank(status_rank, current_overall) < rank(status_rank, previous_overall):
     regressions.append(
         {
+            "code": "overall_status_regression",
             "kind": "overall_status_regression",
             "previous": previous_overall,
             "current": current_overall,
@@ -171,6 +172,7 @@ if rank(status_rank, current_overall) < rank(status_rank, previous_overall):
 if rank(status_rank, current_review_status) < rank(status_rank, previous_review_status):
     regressions.append(
         {
+            "code": "baseline_review_status_regression",
             "kind": "baseline_review_status_regression",
             "previous": previous_review_status,
             "current": current_review_status,
@@ -180,6 +182,7 @@ if rank(status_rank, current_review_status) < rank(status_rank, previous_review_
 if rank(review_rank, current_review_recommendation) < rank(review_rank, previous_review_recommendation):
     regressions.append(
         {
+            "code": "baseline_review_recommendation_regression",
             "kind": "baseline_review_recommendation_regression",
             "previous": previous_review_recommendation,
             "current": current_review_recommendation,
@@ -189,6 +192,7 @@ if rank(review_rank, current_review_recommendation) < rank(review_rank, previous
 if rank(status_rank, current_health_status) < rank(status_rank, previous_health_status):
     regressions.append(
         {
+            "code": "baseline_health_status_regression",
             "kind": "baseline_health_status_regression",
             "previous": previous_health_status,
             "current": current_health_status,
@@ -198,6 +202,7 @@ if rank(status_rank, current_health_status) < rank(status_rank, previous_health_
 if rank(health_rank, current_health_category) < rank(health_rank, previous_health_category):
     regressions.append(
         {
+            "code": "baseline_health_category_regression",
             "kind": "baseline_health_category_regression",
             "previous": previous_health_category,
             "current": current_health_category,
@@ -219,6 +224,7 @@ for gate_name in all_gates:
     if previous_gate and not current_gate:
         regressions.append(
             {
+                "code": "gate_regression",
                 "kind": "gate_regression",
                 "gate": gate_name,
                 "previous": previous_gate,
@@ -232,6 +238,7 @@ if current_age_days is not None and previous_age_days is not None:
     if age_delta > allow_age_increase:
         regressions.append(
             {
+                "code": "baseline_age_increase",
                 "kind": "baseline_age_increase",
                 "previous": previous_age_days,
                 "current": current_age_days,
@@ -287,6 +294,8 @@ result = {
             "allowed_increase_days": allow_age_increase,
         }
     },
+    "primary_regression_code": regressions[0]["code"] if regressions else "",
+    "regression_codes": [item["code"] for item in regressions],
     "regressions": regressions,
 }
 
@@ -338,16 +347,16 @@ if regressions:
     for item in regressions:
         if item["kind"] == "gate_regression":
             lines.append(
-                f"- `{item['kind']}` on `{item['gate']}`: `{item['previous']} -> {item['current']}`"
+                f"- `{item['code']}` on `{item['gate']}`: `{item['previous']} -> {item['current']}`"
             )
         elif item["kind"] == "baseline_age_increase":
             lines.append(
-                f"- `{item['kind']}`: `{item['previous']:.2f}d -> {item['current']:.2f}d` "
+                f"- `{item['code']}`: `{item['previous']:.2f}d -> {item['current']:.2f}d` "
                 f"(delta `{item['delta']:.2f}d`, allowed `{item['allowed_increase_days']:.2f}d`)"
             )
         else:
             lines.append(
-                f"- `{item['kind']}`: `{item['previous'] or 'missing'} -> {item['current'] or 'missing'}`"
+                f"- `{item['code']}`: `{item['previous'] or 'missing'} -> {item['current'] or 'missing'}`"
             )
 else:
     lines.append("- None")
@@ -361,8 +370,8 @@ print(f"Status: {status}")
 if regressions:
     for item in regressions:
         if item["kind"] == "gate_regression":
-            print(f"REGRESSION: {item['kind']}:{item['gate']} {item['previous']} -> {item['current']}")
+            print(f"REGRESSION: {item['code']}:{item['gate']} {item['previous']} -> {item['current']}")
         else:
-            print(f"REGRESSION: {item['kind']} {item.get('previous')} -> {item.get('current')}")
+            print(f"REGRESSION: {item['code']} {item.get('previous')} -> {item.get('current')}")
     sys.exit(1)
 PY
