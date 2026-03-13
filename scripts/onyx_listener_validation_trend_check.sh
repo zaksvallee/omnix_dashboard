@@ -101,6 +101,64 @@ with current_path.open("r", encoding="utf-8") as handle:
 with previous_path.open("r", encoding="utf-8") as handle:
     previous = json.load(handle)
 
+def path_exists(raw_path):
+    candidate = str(raw_path or "").strip()
+    if not candidate:
+        return True
+    return Path(candidate).is_file()
+
+def validation_chain_regressions(report, label):
+    regressions = []
+    files = report.get("files", {}) or {}
+    checksums = report.get("checksums", {}) or {}
+    pairs = (
+        ("serial_capture", "serial_capture_sha256"),
+        ("serial_parsed_json", "serial_parsed_json_sha256"),
+        ("bench_baseline_json", "bench_baseline_json_sha256"),
+        ("baseline_review_json", "baseline_review_json_sha256"),
+        ("baseline_health_json", "baseline_health_json_sha256"),
+        ("legacy_capture", "legacy_capture_sha256"),
+        ("field_notes", "field_notes_sha256"),
+        ("parity_report_json", "parity_report_json_sha256"),
+        ("parity_report_markdown", "parity_report_markdown_sha256"),
+        ("parity_readiness_report_json", "parity_readiness_report_json_sha256"),
+        ("parity_readiness_report_markdown", "parity_readiness_report_markdown_sha256"),
+        ("trend_report_json", "trend_report_json_sha256"),
+        ("trend_report_markdown", "trend_report_markdown_sha256"),
+        ("pilot_gate_report_json", "pilot_gate_report_json_sha256"),
+        ("pilot_gate_report_markdown", "pilot_gate_report_markdown_sha256"),
+        ("pilot_gate_output", "pilot_gate_output_sha256"),
+        ("markdown_report", "markdown_report_sha256"),
+    )
+    for file_key, checksum_key in pairs:
+        path_value = str(files.get(file_key, "")).strip()
+        checksum_value = str(checksums.get(checksum_key, "")).strip()
+        if path_value and not path_exists(path_value):
+            regressions.append({
+                "code": f"{label}_validation_missing_{file_key}",
+                "kind": "validation_chain_missing_file",
+                "report_label": label,
+                "missing_field": file_key,
+                "missing_path": path_value,
+            })
+        elif checksum_value and not path_value:
+            regressions.append({
+                "code": f"{label}_validation_missing_{file_key}_path",
+                "kind": "validation_chain_missing_metadata",
+                "report_label": label,
+                "missing_field": file_key,
+                "missing_checksum_field": checksum_key,
+            })
+    artifact_dir = str(report.get("artifact_dir", "")).strip()
+    if artifact_dir and not Path(artifact_dir).is_dir():
+        regressions.append({
+            "code": f"{label}_validation_missing_artifact_dir",
+            "kind": "validation_chain_missing_dir",
+            "report_label": label,
+            "missing_path": artifact_dir,
+        })
+    return regressions
+
 status_rank = {
     "FAIL": 0,
     "WARN": 1,
@@ -158,6 +216,8 @@ current_age_days = maybe_float((current.get("baseline_health") or {}).get("age_d
 previous_age_days = maybe_float((previous.get("baseline_health") or {}).get("age_days"))
 
 regressions = []
+regressions.extend(validation_chain_regressions(current, "current"))
+regressions.extend(validation_chain_regressions(previous, "previous"))
 
 if rank(status_rank, current_overall) < rank(status_rank, previous_overall):
     regressions.append(
@@ -349,6 +409,22 @@ if regressions:
             lines.append(
                 f"- `{item['code']}` on `{item['gate']}`: `{item['previous']} -> {item['current']}`"
             )
+        elif item["kind"] == "validation_chain_missing_file":
+            lines.append(
+                f"- `{item['code']}`: `{item['report_label']}` validation missing "
+                f"`{item['missing_field']}` at `{item['missing_path']}`"
+            )
+        elif item["kind"] == "validation_chain_missing_metadata":
+            lines.append(
+                f"- `{item['code']}`: `{item['report_label']}` validation missing "
+                f"path metadata for `{item['missing_field']}` while checksum "
+                f"`{item['missing_checksum_field']}` is set"
+            )
+        elif item["kind"] == "validation_chain_missing_dir":
+            lines.append(
+                f"- `{item['code']}`: `{item['report_label']}` validation missing "
+                f"artifact dir `{item['missing_path']}`"
+            )
         elif item["kind"] == "baseline_age_increase":
             lines.append(
                 f"- `{item['code']}`: `{item['previous']:.2f}d -> {item['current']:.2f}d` "
@@ -371,6 +447,21 @@ if regressions:
     for item in regressions:
         if item["kind"] == "gate_regression":
             print(f"REGRESSION: {item['code']}:{item['gate']} {item['previous']} -> {item['current']}")
+        elif item["kind"] == "validation_chain_missing_file":
+            print(
+                f"REGRESSION: {item['code']} {item['report_label']} missing "
+                f"{item['missing_field']} at {item['missing_path']}"
+            )
+        elif item["kind"] == "validation_chain_missing_metadata":
+            print(
+                f"REGRESSION: {item['code']} {item['report_label']} missing path "
+                f"for {item['missing_field']} while {item['missing_checksum_field']} is set"
+            )
+        elif item["kind"] == "validation_chain_missing_dir":
+            print(
+                f"REGRESSION: {item['code']} {item['report_label']} missing artifact dir "
+                f"{item['missing_path']}"
+            )
         else:
             print(f"REGRESSION: {item['code']} {item.get('previous')} -> {item.get('current')}")
     sys.exit(1)

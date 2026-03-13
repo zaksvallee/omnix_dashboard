@@ -566,6 +566,9 @@ The trend generators themselves now also fail early on hollow current or
 previous inputs instead of deferring that detection to downstream gates:
 - `trend_report.json` fails if the current or previous parity report points at
   missing copied serial/legacy inputs or a missing parity markdown summary.
+- `validation_trend_report.json` fails if the current or previous validation
+  bundle points at missing staged evidence files, missing staged metadata
+  paths, or a missing validation artifact directory.
 - `cutover_trend_report.json` fails if the current or previous cutover
   decision points at missing validation, parity, parity-trend, or
   validation-trend files.
