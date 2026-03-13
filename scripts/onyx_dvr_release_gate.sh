@@ -138,6 +138,7 @@ canonical_validation_path = out_dir / "validation_report.json"
 canonical_readiness_path = out_dir / "readiness_report.json"
 canonical_signoff_path = out_dir / "dvr_pilot_signoff.md"
 canonical_signoff_report_path = out_dir / "dvr_pilot_signoff.json"
+canonical_release_trend_report_path = out_dir / "release_trend_report.json"
 
 def add_reason(items, code, message):
     items.append({"code": code, "message": message})
@@ -206,6 +207,9 @@ else:
     signoff_validation_report = str(signoff_report.get("report_json", "")).strip()
     signoff_markdown = str(signoff_report.get("signoff_markdown", "")).strip()
     signoff_release_gate_json = str(signoff_report.get("release_gate_json", "")).strip()
+    signoff_release_trend_report = str(signoff_report.get("release_trend_report_json", "")).strip()
+    signoff_release_trend_status = str(signoff_report.get("release_trend_status", "")).upper()
+    signoff_require_release_trend_pass = bool(signoff_report.get("require_release_trend_pass", False))
     if signoff_status != "PASS":
         result = "FAIL"
         code = signoff_failure_code or "signoff_not_pass"
@@ -222,6 +226,27 @@ else:
     if signoff_release_gate_json and signoff_release_gate_json != str(release_gate_path):
         result = "FAIL"
         add_reason(fail_items, "signoff_release_gate_mismatch", "Signoff report points at a different release gate artifact than the active release gate.")
+    if signoff_release_trend_report:
+        if signoff_release_trend_report != str(canonical_release_trend_report_path):
+            result = "FAIL"
+            add_reason(fail_items, "signoff_release_trend_report_mismatch", "Signoff report points at a different release trend artifact than the active release bundle.")
+        elif not canonical_release_trend_report_path.is_file():
+            result = "FAIL"
+            add_reason(fail_items, "signoff_release_trend_report_not_found", "Signoff report points at a release trend artifact that was not found.")
+        else:
+            with canonical_release_trend_report_path.open("r", encoding="utf-8") as handle:
+                release_trend_report = json.load(handle)
+            actual_release_trend_status = str(release_trend_report.get("status", "")).upper()
+            if signoff_release_trend_status and signoff_release_trend_status != actual_release_trend_status:
+                result = "FAIL"
+                add_reason(fail_items, "signoff_release_trend_status_mismatch", "Signoff report release_trend_status does not match the referenced release trend status.")
+            if signoff_require_release_trend_pass and actual_release_trend_status != "PASS":
+                result = "FAIL"
+                code = str(release_trend_report.get("primary_regression_code", "")).strip() or "signoff_release_trend_not_pass"
+                add_reason(fail_items, code, "Signoff requires a PASS release trend, but the referenced release trend is not PASS.")
+    elif signoff_require_release_trend_pass:
+        result = "FAIL"
+        add_reason(fail_items, "signoff_release_trend_required_missing", "Signoff requires a release trend artifact, but none was recorded.")
 
 if signoff_path and not signoff_path.is_file():
     result = "HOLD" if result != "FAIL" else result

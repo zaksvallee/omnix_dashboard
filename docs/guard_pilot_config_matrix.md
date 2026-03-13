@@ -171,6 +171,7 @@ DVR pilot commands:
 - `./scripts/onyx_dvr_release_gate.sh`
 - `./scripts/onyx_dvr_release_trend_check.sh`
 - release posture now validates audited signoff JSON alignment, not just signoff file presence
+- release posture and release trend now also reject signoff that records a different release-trend artifact, a mismatched `release_trend_status`, or a required-but-missing/non-passing release trend
 - release trend now also fails if a current or previous release gate points signoff artifacts outside its own artifact dir
 - readiness and release trend now also reject top-level `signoff_status` summaries that drift from the referenced signoff report
 - release posture and release trend now also reject contradictory readiness JSON and readiness summary drift
