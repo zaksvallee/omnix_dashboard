@@ -163,6 +163,70 @@ resolve_optional_report_path() {
   printf '\n'
 }
 
+verify_parity_report_chain() {
+  local report_file="$1"
+  python3 - "$report_file" <<'PY'
+import json
+import os
+import sys
+
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+
+files = data.get("files", {}) or {}
+serial_input = str(files.get("serial_input", "")).strip()
+legacy_input = str(files.get("legacy_input", "")).strip()
+report_markdown = str(files.get("report_markdown", "")).strip()
+
+if serial_input and not os.path.isfile(serial_input):
+    raise SystemExit("missing_serial_input")
+if legacy_input and not os.path.isfile(legacy_input):
+    raise SystemExit("missing_legacy_input")
+if report_markdown and not os.path.isfile(report_markdown):
+    raise SystemExit("missing_report_markdown")
+
+print("ok")
+PY
+}
+
+verify_parity_trend_report_chain() {
+  local report_file="$1"
+  python3 - "$report_file" <<'PY'
+import json
+import os
+import sys
+
+def verify_parity_report(path_str, label):
+    if not path_str:
+        raise SystemExit(f"missing_{label}_report")
+    if not os.path.isfile(path_str):
+        raise SystemExit(f"missing_{label}_report")
+    with open(path_str, "r", encoding="utf-8") as handle:
+        report = json.load(handle)
+    files = report.get("files", {}) or {}
+    serial_input = str(files.get("serial_input", "")).strip()
+    legacy_input = str(files.get("legacy_input", "")).strip()
+    report_markdown = str(files.get("report_markdown", "")).strip()
+    if serial_input and not os.path.isfile(serial_input):
+        raise SystemExit(f"missing_{label}_serial_input")
+    if legacy_input and not os.path.isfile(legacy_input):
+        raise SystemExit(f"missing_{label}_legacy_input")
+    if report_markdown and not os.path.isfile(report_markdown):
+        raise SystemExit(f"missing_{label}_report_markdown")
+
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+
+current_report = str(data.get("current_report_json", "")).strip()
+previous_report = str(data.get("previous_report_json", "")).strip()
+verify_parity_report(current_report, "current")
+verify_parity_report(previous_report, "previous")
+print("ok")
+PY
+}
+
 write_signoff_json_report() {
   local signoff_status="$1"
   local signoff_summary="$2"
@@ -243,6 +307,22 @@ fi
 if [[ -z "$REPORT_JSON" || ! -f "$REPORT_JSON" ]]; then
   fail_signoff "missing_parity_report" "listener parity report not found."
 fi
+parity_chain_status="$(verify_parity_report_chain "$REPORT_JSON" 2>&1)" || {
+  case "$parity_chain_status" in
+    missing_serial_input)
+      fail_signoff "parity_missing_serial_input" "listener parity report references a missing serial input."
+      ;;
+    missing_legacy_input)
+      fail_signoff "parity_missing_legacy_input" "listener parity report references a missing legacy input."
+      ;;
+    missing_report_markdown)
+      fail_signoff "parity_missing_report_markdown" "listener parity report references a missing markdown summary."
+      ;;
+    *)
+      fail_signoff "parity_report_chain_verification_failed" "listener parity report chain verification failed: ${parity_chain_status:-unknown}."
+      ;;
+  esac
+}
 
 if [[ "$REQUIRE_TREND_PASS" -eq 1 && -z "$TREND_REPORT_JSON" ]]; then
   report_artifact_dir="$(json_get "$REPORT_JSON" "artifact_dir")"
@@ -254,6 +334,39 @@ if [[ "$REQUIRE_TREND_PASS" -eq 1 && -z "$TREND_REPORT_JSON" ]]; then
 fi
 if [[ -n "$TREND_REPORT_JSON" && ! -f "$TREND_REPORT_JSON" ]]; then
   fail_signoff "missing_trend_report" "trend report not found: $TREND_REPORT_JSON"
+fi
+if [[ -n "$TREND_REPORT_JSON" ]]; then
+  parity_trend_chain_status="$(verify_parity_trend_report_chain "$TREND_REPORT_JSON" 2>&1)" || {
+    case "$parity_trend_chain_status" in
+      missing_current_report)
+        fail_signoff "trend_missing_current_report" "listener trend report references a missing current parity report."
+        ;;
+      missing_previous_report)
+        fail_signoff "trend_missing_previous_report" "listener trend report references a missing previous parity report."
+        ;;
+      missing_current_serial_input)
+        fail_signoff "trend_current_missing_serial_input" "listener trend report current parity report references a missing serial input."
+        ;;
+      missing_current_legacy_input)
+        fail_signoff "trend_current_missing_legacy_input" "listener trend report current parity report references a missing legacy input."
+        ;;
+      missing_current_report_markdown)
+        fail_signoff "trend_current_missing_report_markdown" "listener trend report current parity report references a missing markdown summary."
+        ;;
+      missing_previous_serial_input)
+        fail_signoff "trend_previous_missing_serial_input" "listener trend report previous parity report references a missing serial input."
+        ;;
+      missing_previous_legacy_input)
+        fail_signoff "trend_previous_missing_legacy_input" "listener trend report previous parity report references a missing legacy input."
+        ;;
+      missing_previous_report_markdown)
+        fail_signoff "trend_previous_missing_report_markdown" "listener trend report previous parity report references a missing markdown summary."
+        ;;
+      *)
+        fail_signoff "trend_report_chain_verification_failed" "listener trend report chain verification failed: ${parity_trend_chain_status:-unknown}."
+        ;;
+    esac
+  }
 fi
 
 if [[ -z "$VALIDATION_REPORT_JSON" ]]; then

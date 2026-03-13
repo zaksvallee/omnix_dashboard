@@ -159,6 +159,12 @@ def load_optional(path):
     with path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
 
+def path_exists(raw_path):
+    candidate = str(raw_path or "").strip()
+    if not candidate:
+        return True
+    return Path(candidate).is_file()
+
 parity = load_optional(parity_path)
 parity_trend = load_optional(parity_trend_path)
 validation_trend = load_optional(validation_trend_path)
@@ -238,12 +244,48 @@ elif not baseline_health_category:
 
 if parity is not None:
     parity_summary = str(parity.get("summary", "")).strip()
+    parity_files = parity.get("files", {}) or {}
+    parity_serial_input = str(parity_files.get("serial_input", "")).strip()
+    parity_legacy_input = str(parity_files.get("legacy_input", "")).strip()
+    parity_report_markdown = str(parity_files.get("report_markdown", "")).strip()
+    if parity_serial_input and not path_exists(parity_serial_input):
+        add_reason(
+            blocking_items,
+            "parity_missing_serial_input",
+            "parity report references a missing serial input",
+        )
+    if parity_legacy_input and not path_exists(parity_legacy_input):
+        add_reason(
+            blocking_items,
+            "parity_missing_legacy_input",
+            "parity report references a missing legacy input",
+        )
+    if parity_report_markdown and not path_exists(parity_report_markdown):
+        add_reason(
+            blocking_items,
+            "parity_missing_report_markdown",
+            "parity report references a missing markdown summary",
+        )
 else:
     parity_summary = ""
     add_reason(hold_items, "missing_parity_report", "parity report artifact missing")
 
 if parity_trend is not None:
     parity_trend_status = str(parity_trend.get("status", "")).upper()
+    current_parity_report = str(parity_trend.get("current_report_json", "")).strip()
+    previous_parity_report = str(parity_trend.get("previous_report_json", "")).strip()
+    if current_parity_report and not path_exists(current_parity_report):
+        add_reason(
+            blocking_items,
+            "parity_trend_missing_current_report",
+            "parity trend references a missing current parity report",
+        )
+    if previous_parity_report and not path_exists(previous_parity_report):
+        add_reason(
+            blocking_items,
+            "parity_trend_missing_previous_report",
+            "parity trend references a missing previous parity report",
+        )
     if parity_trend_status != "PASS":
         add_reason(
             blocking_items,

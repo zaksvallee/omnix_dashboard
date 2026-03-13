@@ -539,6 +539,16 @@ time for the evidence it consumes directly:
   if its referenced parity, trend, validation, validation-trend, cutover, or
   cutover-trend files are missing.
 
+Standalone cutover and signoff generation now enforce the same parity-side
+evidence-chain integrity:
+- `cutover_decision.json` cannot resolve to `GO` if the staged parity report
+  points at missing copied serial/legacy inputs or a missing parity markdown
+  summary, or if the staged parity trend points at missing current/previous
+  parity reports.
+- `signoff_report.json` cannot resolve to `PASS` if the supplied parity report
+  or parity trend points at missing copied inputs or missing markdown
+  summaries, even when validation/readiness posture is otherwise passing.
+
 Readiness and signoff can also enforce validation-trend pass explicitly:
 - `--validation-trend-report-json <path>`
 - `--require-validation-trend-pass`
