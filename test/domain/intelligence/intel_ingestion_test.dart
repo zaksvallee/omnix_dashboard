@@ -32,6 +32,7 @@ void main() {
       expect(result.attempted, 1);
       expect(result.appended, 1);
       expect(result.skipped, 0);
+      expect(result.appendedEvents, hasLength(1));
 
       final ingested = store
           .allEvents()

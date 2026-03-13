@@ -81,6 +81,7 @@ class DeterministicIntelligenceIngestionService {
 
     var appended = 0;
     var skipped = 0;
+    final appendedEvents = <IntelligenceReceived>[];
     for (final record in sorted) {
       final canonicalPayload = _canonicalPayload(record);
       final canonicalHash = sha256
@@ -109,8 +110,7 @@ class DeterministicIntelligenceIngestionService {
         continue;
       }
 
-      store.append(
-        IntelligenceReceived(
+      final event = IntelligenceReceived(
           eventId: 'E-$intelligenceId',
           sequence: 0,
           version: 1,
@@ -137,8 +137,9 @@ class DeterministicIntelligenceIngestionService {
               : snapshotReferenceHash,
           clipReferenceHash: clipReferenceHash.isEmpty ? null : clipReferenceHash,
           evidenceRecordHash: evidenceRecordHash,
-        ),
-      );
+        );
+      store.append(event);
+      appendedEvents.add(event);
       knownIntelIds.add(intelligenceId);
       appended++;
     }
@@ -147,6 +148,7 @@ class DeterministicIntelligenceIngestionService {
       attempted: sorted.length,
       appended: appended,
       skipped: skipped,
+      appendedEvents: appendedEvents,
     );
   }
 
@@ -176,10 +178,12 @@ class IntelligenceBatchIngestResult {
   final int attempted;
   final int appended;
   final int skipped;
+  final List<IntelligenceReceived> appendedEvents;
 
   const IntelligenceBatchIngestResult({
     required this.attempted,
     required this.appended,
     required this.skipped,
+    this.appendedEvents = const [],
   });
 }

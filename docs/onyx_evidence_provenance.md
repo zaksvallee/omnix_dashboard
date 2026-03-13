@@ -8,6 +8,7 @@ Purpose:
 
 Current repo scope:
 - intelligence ingestion now records deterministic provenance hashes for video evidence
+- new video intelligence provenance rows are now sealed into the existing client evidence ledger
 - each ingested `IntelligenceReceived` event can now carry:
   - `snapshotReferenceHash`
   - `clipReferenceHash`
@@ -38,6 +39,5 @@ Certificate model:
   - snapshot and clip locator hashes
 
 Next step candidates:
-- persist provenance rows into the client evidence ledger
 - add certificate export UI/API
 - hash staged validation/signoff artifacts into the same provenance flow

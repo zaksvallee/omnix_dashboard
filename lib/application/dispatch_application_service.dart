@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
@@ -137,6 +138,14 @@ class DispatchApplicationService {
     if (verifyReplay &&
         (ingestResult.appended > 0 || triage.createdDecisions > 0)) {
       _verifyReplay();
+    }
+
+    if (ingestResult.appendedEvents.isNotEmpty) {
+      unawaited(
+        ledgerService.sealIntelligenceBatch(
+          events: ingestResult.appendedEvents,
+        ),
+      );
     }
 
     return IntelligenceIngestionOutcome(

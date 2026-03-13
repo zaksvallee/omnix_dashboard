@@ -3,6 +3,20 @@ import '../../domain/evidence/client_ledger_repository.dart';
 class InMemoryClientLedgerRepository implements ClientLedgerRepository {
   final Map<String, List<_LedgerRow>> _rowsByClient = {};
 
+  List<Map<String, Object?>> rowsForClient(String clientId) {
+    final rows = _rowsByClient[clientId] ?? const <_LedgerRow>[];
+    return rows
+        .map(
+          (row) => <String, Object?>{
+            'dispatch_id': row.dispatchId,
+            'canonical_json': row.canonicalJson,
+            'hash': row.hash,
+            'previous_hash': row.previousHash,
+          },
+        )
+        .toList(growable: false);
+  }
+
   @override
   Future<String?> fetchPreviousHash(String clientId) async {
     final rows = _rowsByClient[clientId];
