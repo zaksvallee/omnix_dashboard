@@ -498,10 +498,10 @@ cutover_cmd=(
   --out-dir "$ARTIFACT_DIR"
 )
 if [[ -f "$ARTIFACT_DIR/pilot_artifact/report.json" ]]; then
-  cutover_cmd+=(--parity-report-json "$ARTIFACT_DIR/pilot_artifact/report.json")
+  cutover_cmd+=(--parity-report-json "$ARTIFACT_DIR/report.json")
 fi
-if [[ -f "$ARTIFACT_DIR/pilot_artifact/trend_report.json" ]]; then
-  cutover_cmd+=(--parity-trend-report-json "$ARTIFACT_DIR/pilot_artifact/trend_report.json")
+if [[ -f "$ARTIFACT_DIR/trend_report.json" ]]; then
+  cutover_cmd+=(--parity-trend-report-json "$ARTIFACT_DIR/trend_report.json")
 fi
 if [[ -f "$ARTIFACT_DIR/validation_trend_report.json" ]]; then
   cutover_cmd+=(--validation-trend-report-json "$ARTIFACT_DIR/validation_trend_report.json")

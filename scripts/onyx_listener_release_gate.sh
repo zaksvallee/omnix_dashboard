@@ -362,6 +362,9 @@ def cutover_decision_consistency_issues(report):
     parity_data = load_json(parity_report)
     parity_trend_data = load_json(parity_trend)
     validation_trend_data = load_json(validation_trend)
+    validation_files = (validation_data or {}).get("files", {}) or {}
+    validation_parity_report = str(validation_files.get("parity_report_json", "")).strip()
+    validation_parity_trend = str(validation_files.get("trend_report_json", "")).strip()
 
     if validation_data is not None:
         actual_validation_status = str(validation_data.get("overall_status", "")).upper()
@@ -390,6 +393,16 @@ def cutover_decision_consistency_issues(report):
             reported_gate = bool(gates.get(gate_key, False))
             if reported_gate != actual_gate:
                 issues.append((f"cutover_gate_{gate_key}_mismatch", f"cutover decision gate {gate_key} does not match referenced validation report ({str(reported_gate).lower()} vs {str(actual_gate).lower()})"))
+        if parity_report != validation_parity_report:
+            issues.append(("cutover_parity_report_mismatch", "cutover decision parity report does not match referenced validation bundle parity report"))
+        if parity_trend != validation_parity_trend:
+            issues.append(("cutover_parity_trend_report_mismatch", "cutover decision parity trend does not match referenced validation bundle parity trend report"))
+        expected_validation_trend = str((validation_data.get("artifact_dir") or "")).strip()
+        expected_validation_trend = f"{expected_validation_trend}/validation_trend_report.json" if expected_validation_trend else ""
+        if expected_validation_trend and not path_exists(expected_validation_trend):
+            expected_validation_trend = ""
+        if validation_trend != expected_validation_trend:
+            issues.append(("cutover_validation_trend_report_mismatch", "cutover decision validation trend does not match referenced validation bundle validation trend report"))
 
     if parity_data is not None:
         actual_parity_summary = str(parity_data.get("summary", "")).strip()

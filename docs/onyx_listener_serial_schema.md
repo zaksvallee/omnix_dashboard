@@ -364,6 +364,11 @@ validation bundle.
 That comparison is now exact rather than best-effort: if the release bundle
 does not have a given aligned artifact, signoff is not allowed to invent one
 from another run.
+The same exact-alignment rule now applies one level earlier to cutover:
+field-gate cutover uses the staged validation-bundle parity artifacts, and
+downstream cutover/release consumers reject cutover reports that cite a
+different parity or validation-trend chain than the validation bundle they
+summarize.
 
 Cutover and release trend comparisons now prefer stable machine-readable
 `hold_codes`, `blocking_codes`, and `fail_codes` when present, falling back to

@@ -543,6 +543,13 @@ def cutover_decision_consistency_regressions(report, label):
     parity_data = load_json(parity_report)
     parity_trend_data = load_json(parity_trend_report)
     validation_trend_data = load_json(validation_trend_report)
+    validation_files = (validation_data or {}).get("files", {}) or {}
+    validation_parity_report = str(validation_files.get("parity_report_json", "")).strip()
+    validation_parity_trend = str(validation_files.get("trend_report_json", "")).strip()
+    expected_validation_trend = str((validation_data or {}).get("artifact_dir", "")).strip()
+    expected_validation_trend = f"{expected_validation_trend}/validation_trend_report.json" if expected_validation_trend else ""
+    if expected_validation_trend and not path_exists(expected_validation_trend):
+        expected_validation_trend = ""
 
     def add(code_suffix, kind, expected, actual):
         regressions.append({
@@ -576,6 +583,12 @@ def cutover_decision_consistency_regressions(report, label):
             actual = bool(gates.get(gate_key, False))
             if actual != expected:
                 add(f"gate_{gate_key}_mismatch", "decision_gate_mismatch", str(expected).lower(), str(actual).lower())
+        if parity_report != validation_parity_report:
+            add("parity_report_mismatch", "decision_summary_mismatch", validation_parity_report, parity_report)
+        if parity_trend_report != validation_parity_trend:
+            add("parity_trend_report_mismatch", "decision_summary_mismatch", validation_parity_trend, parity_trend_report)
+        if validation_trend_report != expected_validation_trend:
+            add("validation_trend_report_mismatch", "decision_summary_mismatch", expected_validation_trend, validation_trend_report)
 
     if parity_data is not None:
         actual_parity_summary = str(parity_data.get("summary", "")).strip()
