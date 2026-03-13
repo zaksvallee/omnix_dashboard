@@ -173,6 +173,7 @@ def sha256_file(path_str):
 def validation_report_consistency_issues(report):
     issues = []
     files = report.get("files", {}) or {}
+    checksums = report.get("checksums", {}) or {}
     gates = report.get("gates", {}) or {}
     statuses = report.get("statuses", {}) or {}
     baseline_review = report.get("baseline_review", {}) or {}
@@ -227,6 +228,47 @@ def validation_report_consistency_issues(report):
         issues.append(("validation_primary_failure_code_mismatch", "validation primary_failure_code does not match failure_codes"))
     if primary_warning_code != expected_primary_warning:
         issues.append(("validation_primary_warning_code_mismatch", "validation primary_warning_code does not match warning_codes"))
+
+    parity_report_path = str(files.get("parity_report_json", "")).strip()
+    parity_report_markdown_sha = str(checksums.get("parity_report_markdown_sha256", "")).strip()
+    parity_integrity_certificate_json = str(files.get("parity_integrity_certificate_json", "")).strip()
+    parity_integrity_certificate_markdown = str(files.get("parity_integrity_certificate_markdown", "")).strip()
+    if parity_report_path:
+        if not parity_integrity_certificate_json:
+            issues.append(("validation_missing_parity_integrity_certificate_json", "validation bundle is missing staged parity integrity certificate JSON"))
+        elif not path_exists(parity_integrity_certificate_json):
+            issues.append(("validation_missing_parity_integrity_certificate_json", "validation bundle references a missing staged parity integrity certificate JSON"))
+        if not parity_integrity_certificate_markdown:
+            issues.append(("validation_missing_parity_integrity_certificate_markdown", "validation bundle is missing staged parity integrity certificate markdown"))
+        elif not path_exists(parity_integrity_certificate_markdown):
+            issues.append(("validation_missing_parity_integrity_certificate_markdown", "validation bundle references a missing staged parity integrity certificate markdown"))
+
+    parity_data = load_json_file(parity_report_path)
+    parity_integrity_data = load_json_file(parity_integrity_certificate_json)
+    if parity_integrity_data is not None:
+        actual_status = str(parity_integrity_data.get("status", "")).upper()
+        if actual_status != "PASS":
+            issues.append(("validation_parity_integrity_certificate_not_pass", "validation parity integrity certificate is not PASS"))
+        referenced_report_json = str(parity_integrity_data.get("report_json", "")).strip()
+        if not referenced_report_json:
+            issues.append(("validation_parity_integrity_certificate_missing_report_json", "validation parity integrity certificate is missing report_json"))
+        elif not path_exists(referenced_report_json):
+            issues.append(("validation_parity_integrity_certificate_missing_report_json", "validation parity integrity certificate references a missing parity report"))
+        else:
+            referenced_report = load_json_file(referenced_report_json)
+            if referenced_report is not None and parity_data is not None:
+                for key in ("status", "summary", "primary_issue_code"):
+                    expected = str(parity_data.get(key, "")).strip()
+                    actual = str(referenced_report.get(key, "")).strip()
+                    if actual != expected:
+                        issues.append((f"validation_parity_integrity_certificate_{key}_mismatch", f"validation parity integrity certificate parity report {key} does not match staged parity report"))
+        actual_summary = str(parity_integrity_data.get("report_summary", "")).strip()
+        expected_summary = str((parity_data or {}).get("summary", "")).strip()
+        if parity_data is not None and actual_summary != expected_summary:
+            issues.append(("validation_parity_integrity_certificate_report_summary_mismatch", "validation parity integrity certificate report summary does not match staged parity report"))
+        actual_markdown_sha = str(((parity_integrity_data.get("checksums") or {}).get("report_markdown_sha256", ""))).strip()
+        if parity_report_markdown_sha and actual_markdown_sha != parity_report_markdown_sha:
+            issues.append(("validation_parity_integrity_certificate_report_markdown_checksum_mismatch", "validation parity integrity certificate markdown checksum does not match staged parity markdown"))
 
     pilot_gate = load_json_file(files.get("pilot_gate_report_json", ""))
     if pilot_gate is not None:

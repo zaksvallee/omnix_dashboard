@@ -327,6 +327,9 @@ Cutover and cutover-trend now also treat the staged validation-bundle
 integrity certificate as first-class evidence, so a cutover decision cannot
 quietly point at a different certificate chain than the validation bundle it
 claims to summarize.
+They also enforce the staged parity integrity certificate inside the validation
+bundle, so cutover now blocks when that parity certificate is missing, not
+`PASS`, or no longer matches the staged parity report it is supposed to attest.
 
 Cutover decision consumers now also verify that the decision artifact's copied
 `statuses.*`, `gates.*`, `parity_summary`, and primary code fields still match
@@ -451,6 +454,9 @@ when the audited signoff report exists and passes.
 Release posture now also carries the staged validation-bundle integrity
 certificate forward and rejects signoff or release summaries that point at a
 different certificate chain.
+It also treats the staged parity integrity certificate inside the validation
+bundle as audited release evidence, so a release gate now fails if that staged
+parity certificate is missing or no longer matches the staged parity report.
 
 Standalone signoff generation now also auto-resolves:
 - `validation_report.json`
