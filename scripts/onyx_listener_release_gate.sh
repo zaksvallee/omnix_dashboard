@@ -535,6 +535,9 @@ is_mock = bool(validation.get("is_mock", False))
 artifact_dir = str(validation.get("artifact_dir", ""))
 baseline_review = (validation.get("baseline_review") or {}).get("recommendation", "")
 baseline_health = (validation.get("baseline_health") or {}).get("category", "")
+validation_files = validation.get("files", {}) or {}
+validation_parity_report = str(validation_files.get("parity_report_json", "")).strip()
+validation_parity_trend = str(validation_files.get("trend_report_json", "")).strip()
 
 if overall_status != "PASS":
     add_reason(
@@ -675,6 +678,18 @@ if signoff_report is not None:
             fail_items,
             "signoff_readiness_report_mismatch",
             "signoff report readiness report does not match release gate readiness report",
+        )
+    if signoff_parity_report and validation_parity_report and signoff_parity_report != validation_parity_report:
+        add_reason(
+            fail_items,
+            "signoff_parity_report_mismatch",
+            "signoff report parity report does not match validation bundle parity report",
+        )
+    if signoff_trend_report and validation_parity_trend and signoff_trend_report != validation_parity_trend:
+        add_reason(
+            fail_items,
+            "signoff_parity_trend_report_mismatch",
+            "signoff report parity trend does not match validation bundle parity trend report",
         )
     if signoff_cutover_decision and cutover_path and signoff_cutover_decision != str(cutover_path):
         add_reason(

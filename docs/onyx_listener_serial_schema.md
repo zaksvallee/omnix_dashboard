@@ -355,6 +355,9 @@ were disallowed while still pointing at a mock field bundle.
 Release posture also rejects mixed-bundle signoff, so a signoff report cannot
 quietly point at a different validation, readiness, or cutover artifact than
 the release gate that is trying to consume it.
+That alignment now also covers the validation bundle's staged parity report
+and parity trend, so a signoff cannot quietly borrow a parity chain from a
+different listener run.
 
 Cutover and release trend comparisons now prefer stable machine-readable
 `hold_codes`, `blocking_codes`, and `fail_codes` when present, falling back to

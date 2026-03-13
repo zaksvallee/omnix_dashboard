@@ -140,6 +140,7 @@ Notes:
   - Listener release posture and release-trend now also reject contradictory top-level `signoff_report.json` state, such as `PASS` with a non-empty `failure_code` or `FAIL` without one.
   - Listener release posture and release-trend now also verify the signoff mock-artifact policy against the referenced validation bundle, so a tampered signoff report cannot claim mock artifacts were disallowed while still pointing at mock validation evidence.
   - Listener release posture now also rejects mixed-bundle signoff, so a signoff report cannot quietly point at different validation, readiness, or cutover artifacts than the release gate consuming it.
+  - Mixed-bundle signoff rejection now also covers staged parity reports and parity trends from the validation bundle, preventing signoff from silently borrowing a different parity chain.
   - Listener signoff now emits a machine-readable `signoff_report.json`, and release posture consumes that structured signoff state instead of only checking markdown file presence.
   - Listener release posture and release-trend artifacts now emit stable reason/regression codes, so downstream automation does not need to parse prose fail or hold summaries.
   - Listener cutover posture and cutover-trend artifacts now emit stable reason/regression codes, so downstream automation does not need to parse prose blocking or hold summaries.
