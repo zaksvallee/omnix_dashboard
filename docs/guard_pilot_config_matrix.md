@@ -166,9 +166,11 @@ DVR pilot commands:
 - `./scripts/onyx_dvr_signoff_generate.sh`
 - signoff now writes both markdown and sibling JSON audit output in the target directory
 - signoff now rejects `PASS` release artifacts that point at a different validation or release chain than the active bundle
+- signoff now also rejects release gates that point at different signoff markdown or signoff JSON paths than the signoff being generated
 - `./scripts/onyx_dvr_release_gate.sh`
 - `./scripts/onyx_dvr_release_trend_check.sh`
 - release posture now validates audited signoff JSON alignment, not just signoff file presence
+- release trend now also fails if a current or previous release gate points signoff artifacts outside its own artifact dir
 
 CCTV pilot commands:
 - `./scripts/onyx_cctv_capture_pack_init.sh`

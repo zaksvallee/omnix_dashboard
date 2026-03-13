@@ -112,7 +112,19 @@ regressions = []
 
 def signoff_consistency_regressions(gate, gate_path, label):
     items = []
+    gate_dir = gate_path.parent
     signoff_report_path = str(gate.get("signoff_report_json", "")).strip()
+    signoff_file_path = str(gate.get("signoff_file", "")).strip()
+    if signoff_file_path and signoff_file_path != str(gate_dir / Path(signoff_file_path).name):
+        items.append({
+            "code": f"{label}_signoff_file_path_mismatch",
+            "message": f"{label} release gate signoff markdown is not staged under its own artifact dir.",
+        })
+    if signoff_report_path and signoff_report_path != str(gate_dir / Path(signoff_report_path).name):
+        items.append({
+            "code": f"{label}_signoff_report_path_mismatch",
+            "message": f"{label} release gate signoff report is not staged under its own artifact dir.",
+        })
     signoff_report = load_json(signoff_report_path)
     if signoff_report is None:
         return items

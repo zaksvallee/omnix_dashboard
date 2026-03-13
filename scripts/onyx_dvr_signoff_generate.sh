@@ -155,9 +155,17 @@ if [[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]]; then
     fail "DVR signoff blocked: release gate artifact not found." "release_gate_not_found"
   fi
   release_gate_validation_report="$(json_get "$RELEASE_GATE_JSON" "validation_report_json")"
+  release_gate_signoff_file="$(json_get "$RELEASE_GATE_JSON" "signoff_file")"
+  release_gate_signoff_report="$(json_get "$RELEASE_GATE_JSON" "signoff_report_json")"
   release_gate_result="$(json_get "$RELEASE_GATE_JSON" "result" | tr '[:lower:]' '[:upper:]')"
   if [[ -n "$release_gate_validation_report" && "$release_gate_validation_report" != "$REPORT_JSON" ]]; then
     fail "DVR signoff blocked: release gate points at a different validation bundle." "release_gate_validation_report_mismatch"
+  fi
+  if [[ -n "$release_gate_signoff_file" && "$release_gate_signoff_file" != "$OUT_FILE" ]]; then
+    fail "DVR signoff blocked: release gate points at a different signoff markdown path." "release_gate_signoff_file_mismatch"
+  fi
+  if [[ -n "$release_gate_signoff_report" && "$release_gate_signoff_report" != "$SIGNOFF_JSON_OUT" ]]; then
+    fail "DVR signoff blocked: release gate points at a different signoff report path." "release_gate_signoff_report_mismatch"
   fi
   if [[ "$release_gate_result" != "PASS" ]]; then
     release_gate_code="$(json_get "$RELEASE_GATE_JSON" "primary_fail_code")"
