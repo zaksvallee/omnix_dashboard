@@ -124,6 +124,7 @@ regressions = []
 if result_rank.get(current_result, -1) < result_rank.get(previous_result, -1):
     regressions.append(
         {
+            "code": "result_regression",
             "kind": "result_regression",
             "previous": previous_result,
             "current": current_result,
@@ -134,6 +135,7 @@ hold_increase = len(current_hold) - len(previous_hold)
 if hold_increase > allow_hold_increase:
     regressions.append(
         {
+            "code": "hold_reason_increase",
             "kind": "hold_reason_increase",
             "previous": len(previous_hold),
             "current": len(current_hold),
@@ -146,6 +148,7 @@ fail_increase = len(current_fail) - len(previous_fail)
 if fail_increase > allow_fail_increase:
     regressions.append(
         {
+            "code": "fail_reason_increase",
             "kind": "fail_reason_increase",
             "previous": len(previous_fail),
             "current": len(current_fail),
@@ -187,6 +190,8 @@ result = {
     },
     "new_hold_reasons": new_hold_reasons,
     "new_fail_reasons": new_fail_reasons,
+    "primary_regression_code": regressions[0]["code"] if regressions else "",
+    "regression_codes": [item["code"] for item in regressions],
     "regressions": regressions,
 }
 
@@ -236,10 +241,10 @@ lines.extend(["", "## Regressions"])
 if regressions:
     for item in regressions:
         if item["kind"] == "result_regression":
-            lines.append(f"- `{item['kind']}`: `{item['previous']} -> {item['current']}`")
+            lines.append(f"- `{item['code']}`: `{item['previous']} -> {item['current']}`")
         else:
             lines.append(
-                f"- `{item['kind']}`: `{item['previous']} -> {item['current']}` "
+                f"- `{item['code']}`: `{item['previous']} -> {item['current']}` "
                 f"(delta `{item['delta']}`, allowed `{item['allowed_increase']}`)"
             )
 else:
@@ -254,10 +259,10 @@ print(f"Status: {status}")
 if regressions:
     for item in regressions:
         if item["kind"] == "result_regression":
-            print(f"REGRESSION: {item['kind']} {item['previous']} -> {item['current']}")
+            print(f"REGRESSION: {item['code']} {item['previous']} -> {item['current']}")
         else:
             print(
-                f"REGRESSION: {item['kind']} {item['previous']} -> {item['current']} "
+                f"REGRESSION: {item['code']} {item['previous']} -> {item['current']} "
                 f"(delta {item['delta']}, allowed {item['allowed_increase']})"
             )
     sys.exit(1)

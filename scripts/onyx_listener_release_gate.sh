@@ -143,8 +143,11 @@ cutover_trend = load_optional(cutover_trend_path)
 signoff_report = load_optional(signoff_report_path)
 
 result = "PASS"
-fail_reasons = []
-hold_reasons = []
+fail_items = []
+hold_items = []
+
+def add_reason(items, code, message):
+    items.append({"code": code, "message": message})
 
 overall_status = str(validation.get("overall_status", "")).upper()
 is_mock = bool(validation.get("is_mock", False))
@@ -153,7 +156,11 @@ baseline_review = (validation.get("baseline_review") or {}).get("recommendation"
 baseline_health = (validation.get("baseline_health") or {}).get("category", "")
 
 if overall_status != "PASS":
-    fail_reasons.append(f"validation overall_status is {overall_status or 'missing'}")
+    add_reason(
+        fail_items,
+        "validation_not_pass",
+        f"validation overall_status is {overall_status or 'missing'}",
+    )
 
 readiness_status = ""
 readiness_failure_code = ""
@@ -161,50 +168,91 @@ if readiness is not None:
     readiness_status = str(readiness.get("status", "")).upper()
     readiness_failure_code = str(readiness.get("failure_code", "")).strip()
     if readiness_status != "PASS":
-        fail_reasons.append(f"readiness status is {readiness_status or 'missing'}")
+        add_reason(
+            fail_items,
+            "readiness_not_pass",
+            f"readiness status is {readiness_status or 'missing'}",
+        )
         if readiness_failure_code:
-            fail_reasons.append(f"readiness failure_code is {readiness_failure_code}")
+            add_reason(
+                fail_items,
+                f"readiness_failure_{readiness_failure_code}",
+                f"readiness failure_code is {readiness_failure_code}",
+            )
 
 if require_real and (is_mock or "/mock-" in artifact_dir or artifact_dir.startswith("mock-")):
-    fail_reasons.append("validation artifact is mock while real artifacts are required")
+    add_reason(
+        fail_items,
+        "mock_artifacts_not_allowed",
+        "validation artifact is mock while real artifacts are required",
+    )
 
 cutover_decision = ""
 if cutover is None:
-    hold_reasons.append("cutover decision artifact missing")
+    add_reason(hold_items, "missing_cutover_decision", "cutover decision artifact missing")
 else:
     cutover_decision = str(cutover.get("decision", "")).upper()
     if cutover_decision == "BLOCK":
-      fail_reasons.append("cutover decision is BLOCK")
+      add_reason(fail_items, "cutover_blocked", "cutover decision is BLOCK")
     elif cutover_decision != "GO":
-      hold_reasons.append(f"cutover decision is {cutover_decision or 'missing'}")
+      add_reason(
+          hold_items,
+          "cutover_not_go",
+          f"cutover decision is {cutover_decision or 'missing'}",
+      )
 
 cutover_trend_status = ""
 if cutover_trend is None:
-    hold_reasons.append("cutover trend artifact missing")
+    add_reason(hold_items, "missing_cutover_trend", "cutover trend artifact missing")
 else:
     cutover_trend_status = str(cutover_trend.get("status", "")).upper()
     if cutover_trend_status != "PASS":
-        fail_reasons.append(f"cutover trend status is {cutover_trend_status or 'missing'}")
+        add_reason(
+            fail_items,
+            "cutover_trend_not_pass",
+            f"cutover trend status is {cutover_trend_status or 'missing'}",
+        )
 
 if signoff_path is None or not signoff_path.is_file():
-    hold_reasons.append("signoff file missing")
+    add_reason(hold_items, "missing_signoff_file", "signoff file missing")
 
 signoff_status = ""
 if signoff_report is not None:
     signoff_status = str(signoff_report.get("status", "")).upper()
     if signoff_status != "PASS":
-        fail_reasons.append(f"signoff status is {signoff_status or 'missing'}")
+        add_reason(
+            fail_items,
+            "signoff_not_pass",
+            f"signoff status is {signoff_status or 'missing'}",
+        )
 elif signoff_path is not None and signoff_path.is_file():
-    hold_reasons.append("signoff report artifact missing")
+    add_reason(
+        hold_items,
+        "missing_signoff_report",
+        "signoff report artifact missing",
+    )
 
 if baseline_review and baseline_review != "hold_baseline":
-    hold_reasons.append(f"baseline review recommendation is {baseline_review}")
+    add_reason(
+        hold_items,
+        f"baseline_review_{baseline_review}",
+        f"baseline review recommendation is {baseline_review}",
+    )
 if baseline_health and baseline_health in {"stale", "missing_history", "invalid_timestamp", "missing_baseline"}:
-    hold_reasons.append(f"baseline health category is {baseline_health}")
+    add_reason(
+        hold_items,
+        f"baseline_health_{baseline_health}",
+        f"baseline health category is {baseline_health}",
+    )
 
-if fail_reasons:
+fail_reasons = [item["message"] for item in fail_items]
+hold_reasons = [item["message"] for item in hold_items]
+fail_codes = [item["code"] for item in fail_items]
+hold_codes = [item["code"] for item in hold_items]
+
+if fail_items:
     result = "FAIL"
-elif hold_reasons:
+elif hold_items:
     result = "HOLD"
 
 payload = {
@@ -230,6 +278,10 @@ payload = {
         "baseline_review_recommendation": str(baseline_review),
         "baseline_health_category": str(baseline_health),
     },
+    "primary_fail_code": fail_codes[0] if fail_codes else "",
+    "primary_hold_code": hold_codes[0] if hold_codes else "",
+    "fail_codes": fail_codes,
+    "hold_codes": hold_codes,
     "require_real_artifacts": require_real,
     "fail_reasons": fail_reasons,
     "hold_reasons": hold_reasons,
@@ -267,18 +319,20 @@ lines.extend([
     f"- Signoff status: `{signoff_status or 'missing'}`",
     f"- Baseline review recommendation: `{baseline_review or 'missing'}`",
     f"- Baseline health category: `{baseline_health or 'missing'}`",
+    f"- Primary fail code: `{payload['primary_fail_code'] or 'missing'}`",
+    f"- Primary hold code: `{payload['primary_hold_code'] or 'missing'}`",
     "",
     "## Fail Reasons",
 ])
-if fail_reasons:
-    for item in fail_reasons:
-        lines.append(f"- {item}")
+if fail_items:
+    for item in fail_items:
+        lines.append(f"- `{item['code']}`: {item['message']}")
 else:
     lines.append("- None")
 lines.extend(["", "## Hold Reasons"])
-if hold_reasons:
-    for item in hold_reasons:
-        lines.append(f"- {item}")
+if hold_items:
+    for item in hold_items:
+        lines.append(f"- `{item['code']}`: {item['message']}")
 else:
     lines.append("- None")
 

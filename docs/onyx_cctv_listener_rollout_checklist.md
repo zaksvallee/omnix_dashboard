@@ -121,6 +121,7 @@ Notes:
   - Listener readiness failure artifacts now include a machine-readable `failure_code`, so downstream tooling does not need to parse prose summaries.
   - Listener release posture now carries `readiness_failure_code` forward when readiness fails, preserving the structured failure cause through the release gate.
   - Listener signoff now emits a machine-readable `signoff_report.json`, and release posture consumes that structured signoff state instead of only checking markdown file presence.
+  - Listener release posture and release-trend artifacts now emit stable reason/regression codes, so downstream automation does not need to parse prose fail or hold summaries.
 
 ---
 

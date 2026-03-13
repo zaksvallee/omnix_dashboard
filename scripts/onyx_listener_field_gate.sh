@@ -682,9 +682,17 @@ if [[ -f "$CUTOVER_TREND_JSON" ]]; then
 fi
 RELEASE_GATE_RESULT=""
 RELEASE_GATE_SUMMARY=""
+RELEASE_GATE_PRIMARY_FAIL_CODE=""
+RELEASE_GATE_PRIMARY_HOLD_CODE=""
 if [[ -f "$RELEASE_GATE_JSON" ]]; then
   RELEASE_GATE_RESULT="$(json_get "$RELEASE_GATE_JSON" "result")"
   RELEASE_GATE_SUMMARY="$(json_get "$RELEASE_GATE_JSON" "summary")"
+  RELEASE_GATE_PRIMARY_FAIL_CODE="$(json_get "$RELEASE_GATE_JSON" "primary_fail_code")"
+  RELEASE_GATE_PRIMARY_HOLD_CODE="$(json_get "$RELEASE_GATE_JSON" "primary_hold_code")"
+fi
+RELEASE_TREND_PRIMARY_CODE=""
+if [[ -f "$ARTIFACT_DIR/release_trend_report.json" ]]; then
+  RELEASE_TREND_PRIMARY_CODE="$(json_get "$ARTIFACT_DIR/release_trend_report.json" "primary_regression_code")"
 fi
 
 echo ""
@@ -715,6 +723,12 @@ fi
 if [[ -n "$RELEASE_GATE_RESULT" ]]; then
   echo "Release gate: ${RELEASE_GATE_RESULT}"
   echo "Release gate summary: ${RELEASE_GATE_SUMMARY:-n/a}"
+  if [[ -n "$RELEASE_GATE_PRIMARY_FAIL_CODE" ]]; then
+    echo "Release gate primary fail code: ${RELEASE_GATE_PRIMARY_FAIL_CODE}"
+  fi
+  if [[ -n "$RELEASE_GATE_PRIMARY_HOLD_CODE" ]]; then
+    echo "Release gate primary hold code: ${RELEASE_GATE_PRIMARY_HOLD_CODE}"
+  fi
   echo "Release gate artifact: $ARTIFACT_DIR/release_gate.json"
 fi
 if [[ -f "$ARTIFACT_DIR/readiness_report.json" ]]; then
@@ -723,6 +737,9 @@ fi
 if [[ -n "$RELEASE_TREND_STATUS" ]]; then
   echo "Release trend: ${RELEASE_TREND_STATUS}"
   echo "Release trend summary: ${RELEASE_TREND_SUMMARY:-n/a}"
+  if [[ -n "$RELEASE_TREND_PRIMARY_CODE" ]]; then
+    echo "Release trend primary regression code: ${RELEASE_TREND_PRIMARY_CODE}"
+  fi
   echo "Release trend artifact: $ARTIFACT_DIR/release_trend_report.json"
 fi
 if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
@@ -741,7 +758,7 @@ if [[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]]; then
     exit 1
   fi
   if [[ "$RELEASE_GATE_RESULT" != "PASS" ]]; then
-    echo "FAIL: Listener release gate is ${RELEASE_GATE_RESULT}, expected PASS under --require-release-gate-pass."
+    echo "FAIL: Listener release gate is ${RELEASE_GATE_RESULT}, expected PASS under --require-release-gate-pass. Primary code: ${RELEASE_GATE_PRIMARY_FAIL_CODE:-${RELEASE_GATE_PRIMARY_HOLD_CODE:-missing}}."
     exit 1
   fi
 fi
@@ -752,7 +769,7 @@ if [[ "$REQUIRE_RELEASE_TREND_PASS" -eq 1 ]]; then
     exit 1
   fi
   if [[ "$RELEASE_TREND_STATUS" != "PASS" ]]; then
-    echo "FAIL: Listener release trend is ${RELEASE_TREND_STATUS}, expected PASS under --require-release-trend-pass."
+    echo "FAIL: Listener release trend is ${RELEASE_TREND_STATUS}, expected PASS under --require-release-trend-pass. Primary code: ${RELEASE_TREND_PRIMARY_CODE:-missing}."
     exit 1
   fi
 fi

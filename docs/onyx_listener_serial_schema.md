@@ -298,6 +298,9 @@ release gate:
 
 This emits `release_gate.json` plus `release_gate.md` with:
 - `result = PASS|HOLD|FAIL`
+- `primary_fail_code` and `primary_hold_code`
+- `fail_codes`
+- `hold_codes`
 - `fail_reasons`
 - `hold_reasons`
 - resolved validation/readiness/cutover/signoff references
@@ -321,6 +324,10 @@ fails when:
 - release `result` regresses from `PASS -> HOLD` or `HOLD -> FAIL`
 - hold-reason count increases beyond the allowed threshold
 - fail-reason count increases beyond the allowed threshold
+
+The release-trend artifact also carries `primary_regression_code` plus
+`regression_codes`, so downstream gates can classify release regressions
+without parsing markdown or prose summaries.
 
 To create a self-contained field-validation bundle from a real capture pack:
 
