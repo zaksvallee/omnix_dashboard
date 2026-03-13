@@ -170,6 +170,65 @@ def sha256_file(path_str):
     with open(path_str, "rb") as handle:
         return hashlib.sha256(handle.read()).hexdigest()
 
+def validation_report_consistency_issues(report):
+    issues = []
+    files = report.get("files", {}) or {}
+    gates = report.get("gates", {}) or {}
+    statuses = report.get("statuses", {}) or {}
+    baseline_review = report.get("baseline_review", {}) or {}
+    baseline_health = report.get("baseline_health", {}) or {}
+
+    def load_json_file(path_str):
+        candidate = str(path_str or "").strip()
+        if not candidate or not Path(candidate).is_file():
+            return None
+        with Path(candidate).open("r", encoding="utf-8") as handle:
+            return json.load(handle)
+
+    staged_review = load_json_file(files.get("baseline_review_json", ""))
+    if staged_review is not None:
+        for key in ("status", "recommendation", "summary", "bench_anomaly_status"):
+            expected = str(staged_review.get(key, "")).strip()
+            actual = str(baseline_review.get(key, "")).strip()
+            if actual != expected:
+                issues.append((f"validation_baseline_review_{key}_mismatch", f"validation baseline review {key} does not match staged baseline review JSON"))
+
+    staged_health = load_json_file(files.get("baseline_health_json", ""))
+    if staged_health is not None:
+        for key in ("status", "category", "summary"):
+            expected = str(staged_health.get(key, "")).strip()
+            actual = str(baseline_health.get(key, "")).strip()
+            if actual != expected:
+                issues.append((f"validation_baseline_health_{key}_mismatch", f"validation baseline health {key} does not match staged baseline health JSON"))
+        if baseline_health.get("age_days") != staged_health.get("age_days"):
+            issues.append(("validation_baseline_health_age_days_mismatch", "validation baseline health age_days does not match staged baseline health JSON"))
+
+    for gate_key, status_key in (
+        ("serial_capture_present", "serial_capture"),
+        ("legacy_capture_present", "legacy_capture"),
+        ("field_notes_present", "field_notes"),
+        ("read_only_wiring_documented", "read_only_wiring"),
+        ("bench_anomaly_gate_passed", "bench_anomaly_gate"),
+        ("parity_gate_passed", "parity_gate"),
+        ("trend_gate_passed", "trend_gate"),
+    ):
+        gate_value = bool(gates.get(gate_key, False))
+        status_value = str(statuses.get(status_key, "")).upper()
+        if gate_value != (status_value == "PASS"):
+            issues.append((f"validation_{gate_key}_status_mismatch", f"validation gate {gate_key} does not match status field {status_key}"))
+
+    failure_codes = [str(item) for item in (report.get("failure_codes", []) or [])]
+    warning_codes = [str(item) for item in (report.get("warning_codes", []) or [])]
+    primary_failure_code = str(report.get("primary_failure_code", "")).strip()
+    primary_warning_code = str(report.get("primary_warning_code", "")).strip()
+    expected_primary_failure = failure_codes[0] if failure_codes else ""
+    expected_primary_warning = warning_codes[0] if warning_codes else ""
+    if primary_failure_code != expected_primary_failure:
+        issues.append(("validation_primary_failure_code_mismatch", "validation primary_failure_code does not match failure_codes"))
+    if primary_warning_code != expected_primary_warning:
+        issues.append(("validation_primary_warning_code_mismatch", "validation primary_warning_code does not match warning_codes"))
+    return issues
+
 def parity_report_chain_issues(path_str, label):
     issues = []
     if not path_str:
@@ -247,6 +306,9 @@ if overall_status != "PASS":
         "validation_not_pass",
         f"validation overall_status is {overall_status or 'missing'}",
     )
+
+for code, message in validation_report_consistency_issues(validation):
+    add_reason(blocking_items, code, message)
 
 if require_real and (is_mock or "/mock-" in artifact_dir or artifact_dir.startswith("mock-")):
     add_reason(

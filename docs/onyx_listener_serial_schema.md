@@ -546,6 +546,9 @@ aggregated artifacts instead of trusting only their top-level status:
   `baseline_review`, `baseline_health`, gate booleans, and primary code fields
   inside `validation_report.json` still match the staged JSON artifacts and
   status arrays they summarize.
+- standalone cutover/release consumers and cutover/release trend artifacts now
+  enforce that same validation-bundle summary consistency, so misleading
+  top-level validation summaries cannot survive outside the readiness path.
 
 Standalone release posture now enforces the same rule at artifact generation
 time for the evidence it consumes directly:
