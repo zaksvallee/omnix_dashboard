@@ -530,6 +530,9 @@ The standalone parity bundle now also records
 parity markdown summary alongside the copied serial and legacy inputs. A parity
 artifact with a missing or mutated `report.md` is now treated as corrupted
 evidence, not just incomplete documentation.
+The parity bundle now also emits `integrity_certificate.json` plus
+`integrity_certificate.md`, and parity readiness verifies that certificate
+against the copied serial input, legacy input, and parity markdown summary.
 
 The validation bundle stages `pilot_gate_report.json` plus
 `pilot_gate_report.md` when present, and records both paths plus checksums

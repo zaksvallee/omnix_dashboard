@@ -90,6 +90,8 @@ min_match_rate = float(sys.argv[5])
 artifact_dir = out_file.parent
 artifact_dir.mkdir(parents=True, exist_ok=True)
 summary_file = artifact_dir / "report.md"
+integrity_certificate_json = artifact_dir / "integrity_certificate.json"
+integrity_certificate_md = artifact_dir / "integrity_certificate.md"
 
 serial_copy = artifact_dir / "serial_input.json"
 legacy_copy = artifact_dir / "legacy_input.json"
@@ -411,8 +413,56 @@ if not fail_codes and not warning_codes:
 
 summary_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
 report["checksums"]["report_markdown_sha256"] = sha(summary_file)
+
+certificate_payload = {
+    "generated_at_utc": report["generated_at_utc"],
+    "status": "PASS",
+    "artifact_dir": str(artifact_dir),
+    "report_json": str(out_file),
+    "report_summary": report["summary"],
+    "files": {
+        "serial_input": str(serial_copy),
+        "legacy_input": str(legacy_copy),
+        "report_markdown": str(summary_file),
+    },
+    "checksums": {
+        "serial_input_sha256": report["checksums"]["serial_input_sha256"],
+        "legacy_input_sha256": report["checksums"]["legacy_input_sha256"],
+        "report_markdown_sha256": report["checksums"]["report_markdown_sha256"],
+    },
+}
+certificate_payload["bundle_hash"] = hashlib.sha256(
+    json.dumps(
+        {
+            "artifact_dir": certificate_payload["artifact_dir"],
+            "report_json": certificate_payload["report_json"],
+            "checksums": certificate_payload["checksums"],
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+).hexdigest()
+integrity_certificate_json.write_text(json.dumps(certificate_payload, indent=2), encoding="utf-8")
+integrity_lines = [
+    "# ONYX Listener Parity Integrity Certificate",
+    "",
+    f"- Generated (UTC): `{certificate_payload['generated_at_utc']}`",
+    f"- Status: `{certificate_payload['status']}`",
+    f"- Report JSON: `{out_file}`",
+    f"- Report markdown: `{summary_file}`",
+    f"- Bundle hash: `{certificate_payload['bundle_hash']}`",
+    "",
+    "## Checksums",
+    f"- Serial input SHA-256: `{certificate_payload['checksums']['serial_input_sha256']}`",
+    f"- Legacy input SHA-256: `{certificate_payload['checksums']['legacy_input_sha256']}`",
+    f"- Report markdown SHA-256: `{certificate_payload['checksums']['report_markdown_sha256']}`",
+]
+integrity_certificate_md.write_text("\n".join(integrity_lines) + "\n", encoding="utf-8")
+report["files"]["integrity_certificate_json"] = str(integrity_certificate_json)
+report["files"]["integrity_certificate_markdown"] = str(integrity_certificate_md)
 out_file.write_text(json.dumps(report, indent=2), encoding="utf-8")
 print(f"{status}: Listener parity report written to {out_file}")
 print(f"{status}: Listener parity markdown summary written to {summary_file}")
+print(f"{status}: Listener parity integrity certificate written to {integrity_certificate_json}")
 print(report["summary"])
 PY

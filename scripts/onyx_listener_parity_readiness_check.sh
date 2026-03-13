@@ -12,6 +12,9 @@ MAX_DRIFT_REASON_COUNTS=()
 ALLOW_UNMATCHED_SERIAL=0
 ALLOW_UNMATCHED_LEGACY=0
 REQUIRE_REAL_ARTIFACTS=0
+INTEGRITY_CERTIFICATE_JSON=""
+INTEGRITY_CERTIFICATE_MD=""
+INTEGRITY_CERTIFICATE_STATUS=""
 
 usage() {
   cat <<'USAGE'
@@ -166,7 +169,7 @@ write_parity_readiness_report() {
   [[ -n "$MARKDOWN_OUT" ]] || MARKDOWN_OUT="${JSON_OUT%.json}.md"
   mkdir -p "$(dirname "$JSON_OUT")"
   mkdir -p "$(dirname "$MARKDOWN_OUT")"
-  python3 - "$JSON_OUT" "$MARKDOWN_OUT" "$READINESS_STATUS" "$READINESS_SUMMARY" "$READINESS_FAILURE_CODE" "${REPORT_JSON:-}" "${artifact_dir:-}" "${report_age:-}" "${matched_count:-}" "${unmatched_serial_count:-}" "${unmatched_legacy_count:-}" "${match_rate_percent:-}" "${min_required_match_rate_percent:-}" "${max_skew_seconds_observed:-}" "${summary:-}" "${drift_reason_counts:-}" "$MAX_REPORT_AGE_HOURS" "$MIN_MATCH_RATE_PERCENT" "${MAX_OBSERVED_SKEW_SECONDS:-}" "$ALLOW_UNMATCHED_SERIAL" "$ALLOW_UNMATCHED_LEGACY" "$REQUIRE_REAL_ARTIFACTS" <<'PY'
+  python3 - "$JSON_OUT" "$MARKDOWN_OUT" "$READINESS_STATUS" "$READINESS_SUMMARY" "$READINESS_FAILURE_CODE" "${REPORT_JSON:-}" "${artifact_dir:-}" "${report_age:-}" "${matched_count:-}" "${unmatched_serial_count:-}" "${unmatched_legacy_count:-}" "${match_rate_percent:-}" "${min_required_match_rate_percent:-}" "${max_skew_seconds_observed:-}" "${summary:-}" "${drift_reason_counts:-}" "$MAX_REPORT_AGE_HOURS" "$MIN_MATCH_RATE_PERCENT" "${MAX_OBSERVED_SKEW_SECONDS:-}" "$ALLOW_UNMATCHED_SERIAL" "$ALLOW_UNMATCHED_LEGACY" "$REQUIRE_REAL_ARTIFACTS" "${INTEGRITY_CERTIFICATE_JSON:-}" "${INTEGRITY_CERTIFICATE_MD:-}" "${INTEGRITY_CERTIFICATE_STATUS:-}" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -193,6 +196,9 @@ requested_max_observed_skew_seconds = sys.argv[19]
 allow_unmatched_serial = sys.argv[20] == "1"
 allow_unmatched_legacy = sys.argv[21] == "1"
 require_real_artifacts = sys.argv[22] == "1"
+integrity_certificate_json = sys.argv[23]
+integrity_certificate_markdown = sys.argv[24]
+integrity_certificate_status = sys.argv[25]
 
 payload = {
     "status": status,
@@ -218,6 +224,13 @@ payload = {
         "allow_unmatched_serial": allow_unmatched_serial,
         "allow_unmatched_legacy": allow_unmatched_legacy,
         "require_real_artifacts": require_real_artifacts,
+    },
+    "statuses": {
+        "integrity_certificate_status": integrity_certificate_status,
+    },
+    "resolved_files": {
+        "integrity_certificate_json": integrity_certificate_json,
+        "integrity_certificate_markdown": integrity_certificate_markdown,
     },
 }
 json_out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -247,6 +260,11 @@ lines = [
     f"- Allow unmatched serial: `{allow_unmatched_serial}`",
     f"- Allow unmatched legacy: `{allow_unmatched_legacy}`",
     f"- Require real artifacts: `{require_real_artifacts}`",
+    "",
+    "## Integrity Certificate",
+    f"- Integrity certificate JSON: `{integrity_certificate_json or 'n/a'}`",
+    f"- Integrity certificate markdown: `{integrity_certificate_markdown or 'n/a'}`",
+    f"- Integrity certificate status: `{integrity_certificate_status or 'n/a'}`",
     "",
     "## Report Summary",
     f"- `{report_summary or 'n/a'}`",
@@ -303,6 +321,71 @@ for file_key, checksum_key in (
 
 if artifact_dir and not os.path.isdir(artifact_dir):
     raise SystemExit(f"artifact-dir:{artifact_dir}")
+PY
+}
+
+verify_parity_integrity_certificate() {
+  local report_file="$1"
+  python3 - "$report_file" <<'PY'
+import hashlib
+import json
+import os
+import sys
+
+report_file = sys.argv[1]
+with open(report_file, "r", encoding="utf-8") as handle:
+    report = json.load(handle)
+
+files = report.get("files", {}) or {}
+checksums = report.get("checksums", {}) or {}
+cert_json = str(files.get("integrity_certificate_json", "")).strip()
+cert_md = str(files.get("integrity_certificate_markdown", "")).strip()
+if not cert_json:
+    raise SystemExit("missing-certificate-json")
+if not os.path.isfile(cert_json):
+    raise SystemExit(f"missing-certificate-json:{cert_json}")
+if not cert_md:
+    raise SystemExit("missing-certificate-markdown")
+if not os.path.isfile(cert_md):
+    raise SystemExit(f"missing-certificate-markdown:{cert_md}")
+
+with open(cert_json, "r", encoding="utf-8") as handle:
+    cert = json.load(handle)
+
+if str(cert.get("status", "")).upper() != "PASS":
+    raise SystemExit("certificate-not-pass")
+if str(cert.get("report_json", "")).strip() != report_file:
+    raise SystemExit("certificate-report-json-mismatch")
+cert_files = cert.get("files", {}) or {}
+cert_checksums = cert.get("checksums", {}) or {}
+for report_key, cert_key in (
+    ("serial_input", "serial_input"),
+    ("legacy_input", "legacy_input"),
+    ("report_markdown", "report_markdown"),
+):
+    if str(cert_files.get(cert_key, "")).strip() != str(files.get(report_key, "")).strip():
+        raise SystemExit(f"certificate-file-mismatch:{report_key}")
+for report_key, cert_key in (
+    ("serial_input_sha256", "serial_input_sha256"),
+    ("legacy_input_sha256", "legacy_input_sha256"),
+    ("report_markdown_sha256", "report_markdown_sha256"),
+):
+    if str(cert_checksums.get(cert_key, "")).strip() != str(checksums.get(report_key, "")).strip():
+        raise SystemExit(f"certificate-checksum-mismatch:{report_key}")
+bundle_hash_expected = hashlib.sha256(
+    json.dumps(
+        {
+            "artifact_dir": str(cert.get("artifact_dir", "")),
+            "report_json": str(cert.get("report_json", "")),
+            "checksums": cert_checksums,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+).hexdigest()
+if str(cert.get("bundle_hash", "")).strip() != bundle_hash_expected:
+    raise SystemExit("certificate-bundle-hash-mismatch")
+print("ok")
 PY
 }
 
@@ -385,6 +468,13 @@ if ! verify_json_report_checksums "$REPORT_JSON"; then
   fail_readiness "parity_report_checksum_failed" "listener parity checksums did not verify."
 fi
 echo "PASS: Listener parity checksums verified."
+if ! verify_parity_integrity_certificate "$REPORT_JSON"; then
+  fail_readiness "parity_integrity_certificate_failed" "listener parity integrity certificate did not verify."
+fi
+INTEGRITY_CERTIFICATE_JSON="$(json_get "$REPORT_JSON" "files.integrity_certificate_json")"
+INTEGRITY_CERTIFICATE_MD="$(json_get "$REPORT_JSON" "files.integrity_certificate_markdown")"
+INTEGRITY_CERTIFICATE_STATUS="PASS"
+echo "PASS: Listener parity integrity certificate verified."
 matched_count="$(json_get "$REPORT_JSON" "matched_count")"
 unmatched_serial_count="$(json_get "$REPORT_JSON" "unmatched_serial_count")"
 unmatched_legacy_count="$(json_get "$REPORT_JSON" "unmatched_legacy_count")"
