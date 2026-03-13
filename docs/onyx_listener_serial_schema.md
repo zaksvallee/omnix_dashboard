@@ -145,6 +145,46 @@ To compare the latest parity run against the prior one:
 The pilot gate can also run this trend comparison inline and emit
 `trend_report.json` plus `trend_report.md` into the pilot artifact directory.
 
+To create a self-contained field-validation bundle from a real capture pack:
+
+```bash
+./scripts/onyx_listener_field_validation.sh \
+  --capture-dir tmp/listener_capture \
+  --site-id SITE-SANDTON \
+  --device-path /dev/ttyUSB0 \
+  --legacy-source legacy_listener \
+  --compare-previous \
+  --allow-match-rate-drop-percent 1 \
+  --allow-max-skew-increase-seconds 5
+```
+
+To confirm the latest listener field-validation bundle is signoff-ready:
+
+```bash
+./scripts/onyx_listener_pilot_readiness_check.sh --require-trend-pass
+```
+
+To drive the full listener field flow in one command:
+
+```bash
+./scripts/onyx_listener_field_gate.sh \
+  --capture-dir tmp/listener_capture \
+  --site-id SITE-SANDTON \
+  --device-path /dev/ttyUSB0 \
+  --legacy-source legacy_listener \
+  --compare-previous \
+  --generate-signoff
+```
+
+For local tooling checks without real hardware:
+
+```bash
+./scripts/onyx_listener_mock_validation_artifacts.sh
+```
+
+These mock artifacts are valid for local gate verification only and should be
+rejected for real pilot signoff with `--require-real-artifacts`.
+
 ## Non-Goals
 
 - No transmit/control path

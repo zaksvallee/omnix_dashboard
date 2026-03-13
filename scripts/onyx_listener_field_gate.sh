@@ -1,0 +1,297 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
+CAPTURE_DIR="tmp/listener_capture"
+SITE_ID=""
+DEVICE_PATH=""
+LEGACY_SOURCE=""
+CLIENT_ID="CLIENT-001"
+REGION_ID="REGION-GAUTENG"
+ARTIFACT_DIR=""
+MAX_REPORT_AGE_HOURS=24
+MIN_MATCH_RATE_PERCENT=95
+MAX_SKEW_SECONDS=90
+MAX_OBSERVED_SKEW_SECONDS=""
+ALLOW_DRIFT_REASONS=()
+MAX_DRIFT_REASON_COUNTS=()
+COMPARE_PREVIOUS=0
+PREVIOUS_REPORT_JSON=""
+ALLOW_MATCH_RATE_DROP_PERCENT=0
+ALLOW_MAX_SKEW_INCREASE_SECONDS=0
+ALLOW_TREND_DRIFT_COUNT_INCREASES=()
+INIT_CAPTURE_PACK=0
+GENERATE_SIGNOFF=0
+SIGNOFF_OUT=""
+ALLOW_MOCK_ARTIFACTS=0
+REQUIRE_TREND_PASS=0
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  ./scripts/onyx_listener_field_gate.sh [--capture-dir <path>] [--site-id <site_id>] [--device-path <tty>] [--legacy-source <label>] [--client-id <id>] [--region-id <id>] [--artifact-dir <path>] [--max-report-age-hours <hours>] [--min-match-rate-percent 95] [--max-skew-seconds 90] [--max-observed-skew-seconds <n>] [--allow-drift-reason <reason>]... [--max-drift-reason-count <reason=count>]... [--compare-previous] [--previous-report-json <path>] [--allow-match-rate-drop-percent 0] [--allow-max-skew-increase-seconds 0] [--allow-trend-drift-count-increase <reason=count>]... [--init-capture-pack] [--generate-signoff] [--signoff-out <path>] [--require-trend-pass] [--allow-mock-artifacts]
+
+Purpose:
+  One-command listener field gate:
+  1) optionally initialize the capture pack
+  2) run listener field validation
+  3) run listener readiness with real-artifact enforcement by default
+  4) optionally generate the listener signoff note
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --capture-dir)
+      CAPTURE_DIR="${2:-}"
+      shift 2
+      ;;
+    --site-id)
+      SITE_ID="${2:-}"
+      shift 2
+      ;;
+    --device-path)
+      DEVICE_PATH="${2:-}"
+      shift 2
+      ;;
+    --legacy-source)
+      LEGACY_SOURCE="${2:-}"
+      shift 2
+      ;;
+    --client-id)
+      CLIENT_ID="${2:-}"
+      shift 2
+      ;;
+    --region-id)
+      REGION_ID="${2:-}"
+      shift 2
+      ;;
+    --artifact-dir)
+      ARTIFACT_DIR="${2:-}"
+      shift 2
+      ;;
+    --max-report-age-hours)
+      MAX_REPORT_AGE_HOURS="${2:-24}"
+      shift 2
+      ;;
+    --min-match-rate-percent)
+      MIN_MATCH_RATE_PERCENT="${2:-95}"
+      shift 2
+      ;;
+    --max-skew-seconds)
+      MAX_SKEW_SECONDS="${2:-90}"
+      shift 2
+      ;;
+    --max-observed-skew-seconds)
+      MAX_OBSERVED_SKEW_SECONDS="${2:-}"
+      shift 2
+      ;;
+    --allow-drift-reason)
+      ALLOW_DRIFT_REASONS+=("${2:-}")
+      shift 2
+      ;;
+    --max-drift-reason-count)
+      MAX_DRIFT_REASON_COUNTS+=("${2:-}")
+      shift 2
+      ;;
+    --compare-previous)
+      COMPARE_PREVIOUS=1
+      shift
+      ;;
+    --previous-report-json)
+      PREVIOUS_REPORT_JSON="${2:-}"
+      shift 2
+      ;;
+    --allow-match-rate-drop-percent)
+      ALLOW_MATCH_RATE_DROP_PERCENT="${2:-0}"
+      shift 2
+      ;;
+    --allow-max-skew-increase-seconds)
+      ALLOW_MAX_SKEW_INCREASE_SECONDS="${2:-0}"
+      shift 2
+      ;;
+    --allow-trend-drift-count-increase)
+      ALLOW_TREND_DRIFT_COUNT_INCREASES+=("${2:-}")
+      shift 2
+      ;;
+    --init-capture-pack)
+      INIT_CAPTURE_PACK=1
+      shift
+      ;;
+    --generate-signoff)
+      GENERATE_SIGNOFF=1
+      shift
+      ;;
+    --signoff-out)
+      SIGNOFF_OUT="${2:-}"
+      shift 2
+      ;;
+    --require-trend-pass)
+      REQUIRE_TREND_PASS=1
+      shift
+      ;;
+    --allow-mock-artifacts)
+      ALLOW_MOCK_ARTIFACTS=1
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "FAIL: Unknown argument: $1"
+      exit 1
+      ;;
+  esac
+done
+
+if ! [[ "$MAX_REPORT_AGE_HOURS" =~ ^[0-9]+$ ]]; then
+  echo "FAIL: --max-report-age-hours must be a non-negative integer."
+  exit 1
+fi
+if [[ -n "$MAX_OBSERVED_SKEW_SECONDS" ]] && ! [[ "$MAX_OBSERVED_SKEW_SECONDS" =~ ^[0-9]+$ ]]; then
+  echo "FAIL: --max-observed-skew-seconds must be a non-negative integer."
+  exit 1
+fi
+if [[ "$COMPARE_PREVIOUS" -eq 1 ]]; then
+  REQUIRE_TREND_PASS=1
+fi
+
+if [[ -z "$ARTIFACT_DIR" ]]; then
+  ARTIFACT_DIR="tmp/listener_field_validation/pilot-$(date -u +%Y%m%dT%H%M%SZ)"
+fi
+
+echo "== ONYX Listener Field Gate =="
+echo "Capture dir: $CAPTURE_DIR"
+echo "Artifact dir: $ARTIFACT_DIR"
+echo "Site ID: ${SITE_ID:-<unset>}"
+echo "Device path: ${DEVICE_PATH:-<unset>}"
+echo "Legacy source: ${LEGACY_SOURCE:-<unset>}"
+echo "Client ID: $CLIENT_ID"
+echo "Region ID: $REGION_ID"
+echo "Min match rate: ${MIN_MATCH_RATE_PERCENT}%"
+echo "Max skew: ${MAX_SKEW_SECONDS}s"
+echo "Max observed skew gate: ${MAX_OBSERVED_SKEW_SECONDS:-<disabled>}"
+echo "Compare previous parity run: $([[ "$COMPARE_PREVIOUS" -eq 1 ]] && echo yes || echo no)"
+if [[ -n "$PREVIOUS_REPORT_JSON" ]]; then
+  echo "Previous report override: $PREVIOUS_REPORT_JSON"
+fi
+echo "Require trend pass: $([[ "$REQUIRE_TREND_PASS" -eq 1 ]] && echo yes || echo no)"
+echo "Generate signoff: $([[ "$GENERATE_SIGNOFF" -eq 1 ]] && echo yes || echo no)"
+echo "Real-artifact enforcement: $([[ "$ALLOW_MOCK_ARTIFACTS" -eq 1 ]] && echo no || echo yes)"
+
+if [[ "$INIT_CAPTURE_PACK" -eq 1 ]]; then
+  init_cmd=(
+    ./scripts/onyx_listener_capture_pack_init.sh
+    --out-dir "$CAPTURE_DIR"
+    --client-id "$CLIENT_ID"
+    --region-id "$REGION_ID"
+  )
+  if [[ -n "$SITE_ID" ]]; then
+    init_cmd+=(--site-id "$SITE_ID")
+  fi
+  if [[ -n "$DEVICE_PATH" ]]; then
+    init_cmd+=(--device-path "$DEVICE_PATH")
+  fi
+  if [[ -n "$LEGACY_SOURCE" ]]; then
+    init_cmd+=(--legacy-source "$LEGACY_SOURCE")
+  fi
+  "${init_cmd[@]}"
+fi
+
+validate_cmd=(
+  ./scripts/onyx_listener_field_validation.sh
+  --capture-dir "$CAPTURE_DIR"
+  --client-id "$CLIENT_ID"
+  --region-id "$REGION_ID"
+  --artifact-dir "$ARTIFACT_DIR"
+  --min-match-rate-percent "$MIN_MATCH_RATE_PERCENT"
+  --max-skew-seconds "$MAX_SKEW_SECONDS"
+  --allow-match-rate-drop-percent "$ALLOW_MATCH_RATE_DROP_PERCENT"
+  --allow-max-skew-increase-seconds "$ALLOW_MAX_SKEW_INCREASE_SECONDS"
+)
+if [[ -n "$SITE_ID" ]]; then
+  validate_cmd+=(--site-id "$SITE_ID")
+fi
+if [[ -n "$DEVICE_PATH" ]]; then
+  validate_cmd+=(--device-path "$DEVICE_PATH")
+fi
+if [[ -n "$LEGACY_SOURCE" ]]; then
+  validate_cmd+=(--legacy-source "$LEGACY_SOURCE")
+fi
+if [[ -n "$MAX_OBSERVED_SKEW_SECONDS" ]]; then
+  validate_cmd+=(--max-observed-skew-seconds "$MAX_OBSERVED_SKEW_SECONDS")
+fi
+for allow_reason in "${ALLOW_DRIFT_REASONS[@]-}"; do
+  [[ -n "$allow_reason" ]] || continue
+  validate_cmd+=(--allow-drift-reason "$allow_reason")
+done
+for drift_cap in "${MAX_DRIFT_REASON_COUNTS[@]-}"; do
+  [[ -n "$drift_cap" ]] || continue
+  validate_cmd+=(--max-drift-reason-count "$drift_cap")
+done
+if [[ "$COMPARE_PREVIOUS" -eq 1 ]]; then
+  validate_cmd+=(--compare-previous)
+fi
+if [[ -n "$PREVIOUS_REPORT_JSON" ]]; then
+  validate_cmd+=(--previous-report-json "$PREVIOUS_REPORT_JSON")
+fi
+for trend_cap in "${ALLOW_TREND_DRIFT_COUNT_INCREASES[@]-}"; do
+  [[ -n "$trend_cap" ]] || continue
+  validate_cmd+=(--allow-trend-drift-count-increase "$trend_cap")
+done
+if [[ "$ALLOW_MOCK_ARTIFACTS" -eq 1 ]]; then
+  validate_cmd+=(--allow-mock-artifacts)
+fi
+
+"${validate_cmd[@]}"
+
+readiness_cmd=(
+  ./scripts/onyx_listener_pilot_readiness_check.sh
+  --report-json "$ARTIFACT_DIR/validation_report.json"
+  --max-report-age-hours "$MAX_REPORT_AGE_HOURS"
+)
+if [[ "$REQUIRE_TREND_PASS" -eq 1 ]]; then
+  readiness_cmd+=(--require-trend-pass)
+fi
+if [[ "$ALLOW_MOCK_ARTIFACTS" -ne 1 ]]; then
+  readiness_cmd+=(--require-real-artifacts)
+fi
+
+"${readiness_cmd[@]}"
+
+if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
+  signoff_cmd=(
+    ./scripts/onyx_listener_signoff_generate.sh
+    --report-json "$ARTIFACT_DIR/pilot_artifact/report.json"
+  )
+  if [[ -f "$ARTIFACT_DIR/pilot_artifact/trend_report.json" ]]; then
+    signoff_cmd+=(--trend-report-json "$ARTIFACT_DIR/pilot_artifact/trend_report.json")
+  fi
+  if [[ "$REQUIRE_TREND_PASS" -eq 1 ]]; then
+    signoff_cmd+=(--require-trend-pass)
+  fi
+  if [[ -n "$SIGNOFF_OUT" ]]; then
+    signoff_cmd+=(--out "$SIGNOFF_OUT")
+  fi
+  if [[ "$ALLOW_MOCK_ARTIFACTS" -eq 1 ]]; then
+    signoff_cmd+=(--allow-mock-artifacts)
+  fi
+  "${signoff_cmd[@]}"
+fi
+
+echo ""
+echo "PASS: Listener field gate completed."
+echo "Capture pack: $CAPTURE_DIR"
+echo "Validation artifact: $ARTIFACT_DIR"
+if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
+  if [[ -n "$SIGNOFF_OUT" ]]; then
+    echo "Signoff: $SIGNOFF_OUT"
+  else
+    echo "Signoff: docs/onyx_listener_pilot_signoff_$(TZ=Africa/Johannesburg date +%Y-%m-%d).md"
+  fi
+else
+  echo "Signoff template: docs/onyx_listener_pilot_signoff_template.md"
+fi

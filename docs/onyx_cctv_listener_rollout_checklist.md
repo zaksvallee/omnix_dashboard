@@ -106,6 +106,9 @@ Notes:
   - Listener trend checks can now compare the latest parity report to the previous run and flag regressions in match rate, skew, or drift counts.
   - Listener pilot gate can now run the trend comparison inline against the previous parity artifact.
   - Listener signoff can now require a passing trend report before closeout.
+  - Listener field validation bundles can now stage capture files plus parity/trend artifacts and be checked by a readiness gate.
+  - Listener mock validation artifacts can now exercise the validation/readiness/signoff tooling without hardware and should be rejected for real signoff.
+  - Listener field gate can now initialize capture packs, run validation/readiness, and optionally generate signoff in one command.
 
 ---
 
