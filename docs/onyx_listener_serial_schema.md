@@ -574,11 +574,13 @@ previous inputs instead of deferring that detection to downstream gates:
   evidence files, missing staged metadata paths, missing staged checksum
   metadata, or a missing validation artifact directory.
 - `cutover_trend_report.json` fails if the current or previous cutover
-  decision points at missing validation, parity, parity-trend, or
-  validation-trend files.
+  decision or any nested validation/parity/trend evidence it references is
+  hollow, including checksum-mismatched copied parity files or
+  checksum-mismatched staged validation files.
 - `release_trend_report.json` fails if the current or previous release gate
-  points at missing validation, readiness, cutover, cutover-trend, signoff
-  markdown, or signoff report files.
+  or any nested readiness/cutover/signoff evidence it references is hollow,
+  including checksum-mismatched copied parity files or checksum-mismatched
+  staged validation files inside those nested chains.
 
 Readiness and signoff can also enforce validation-trend pass explicitly:
 - `--validation-trend-report-json <path>`

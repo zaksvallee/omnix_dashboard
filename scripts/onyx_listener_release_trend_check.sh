@@ -96,6 +96,7 @@ mkdir -p "$OUT_DIR"
 
 python3 - "$CURRENT_RELEASE_GATE_JSON" "$PREVIOUS_RELEASE_GATE_JSON" "$OUT_DIR" "$ALLOW_HOLD_REASON_INCREASE_COUNT" "$ALLOW_FAIL_REASON_INCREASE_COUNT" <<'PY'
 import json
+import hashlib
 import sys
 from pathlib import Path
 
@@ -115,6 +116,418 @@ def path_exists(raw_path):
     if not candidate:
         return True
     return Path(candidate).is_file()
+
+def sha256_file(path_str):
+    with open(path_str, "rb") as handle:
+        return hashlib.sha256(handle.read()).hexdigest()
+
+def validation_bundle_chain_regressions(path_str, label):
+    regressions = []
+    if not path_str:
+        return regressions
+    report_path = Path(path_str)
+    if not report_path.is_file():
+        regressions.append({
+            "code": f"{label}_missing_validation_report",
+            "kind": "validation_chain_missing_file",
+            "report_label": label,
+            "missing_field": "validation_report",
+            "missing_path": path_str,
+        })
+        return regressions
+    with report_path.open("r", encoding="utf-8") as handle:
+        report = json.load(handle)
+    files = report.get("files", {}) or {}
+    checksums = report.get("checksums", {}) or {}
+    pairs = (
+        ("serial_capture", "serial_capture_sha256"),
+        ("serial_parsed_json", "serial_parsed_json_sha256"),
+        ("bench_baseline_json", "bench_baseline_json_sha256"),
+        ("baseline_review_json", "baseline_review_json_sha256"),
+        ("baseline_health_json", "baseline_health_json_sha256"),
+        ("legacy_capture", "legacy_capture_sha256"),
+        ("field_notes", "field_notes_sha256"),
+        ("parity_report_json", "parity_report_json_sha256"),
+        ("parity_report_markdown", "parity_report_markdown_sha256"),
+        ("parity_readiness_report_json", "parity_readiness_report_json_sha256"),
+        ("parity_readiness_report_markdown", "parity_readiness_report_markdown_sha256"),
+        ("trend_report_json", "trend_report_json_sha256"),
+        ("trend_report_markdown", "trend_report_markdown_sha256"),
+        ("pilot_gate_report_json", "pilot_gate_report_json_sha256"),
+        ("pilot_gate_report_markdown", "pilot_gate_report_markdown_sha256"),
+        ("pilot_gate_output", "pilot_gate_output_sha256"),
+        ("markdown_report", "markdown_report_sha256"),
+    )
+    for file_key, checksum_key in pairs:
+        path_value = str(files.get(file_key, "")).strip()
+        checksum_value = str(checksums.get(checksum_key, "")).strip()
+        if path_value and not path_exists(path_value):
+            regressions.append({
+                "code": f"{label}_missing_{file_key}",
+                "kind": "validation_chain_missing_file",
+                "report_label": label,
+                "missing_field": file_key,
+                "missing_path": path_value,
+            })
+        elif path_value and not checksum_value:
+            regressions.append({
+                "code": f"{label}_missing_{file_key}_checksum",
+                "kind": "validation_chain_missing_checksum",
+                "report_label": label,
+                "missing_field": file_key,
+                "missing_checksum_field": checksum_key,
+            })
+        elif path_value and checksum_value and sha256_file(path_value) != checksum_value:
+            regressions.append({
+                "code": f"{label}_{file_key}_checksum_mismatch",
+                "kind": "validation_chain_checksum_mismatch",
+                "report_label": label,
+                "mismatch_field": file_key,
+                "path": path_value,
+            })
+        elif checksum_value and not path_value:
+            regressions.append({
+                "code": f"{label}_missing_{file_key}_path",
+                "kind": "validation_chain_missing_metadata",
+                "report_label": label,
+                "missing_field": file_key,
+                "missing_checksum_field": checksum_key,
+            })
+    artifact_dir = str(report.get("artifact_dir", "")).strip()
+    if artifact_dir and not Path(artifact_dir).is_dir():
+        regressions.append({
+            "code": f"{label}_missing_artifact_dir",
+            "kind": "validation_chain_missing_dir",
+            "report_label": label,
+            "missing_path": artifact_dir,
+        })
+    return regressions
+
+def parity_report_chain_regressions(path_str, label):
+    regressions = []
+    if not path_str:
+        return regressions
+    report_path = Path(path_str)
+    if not report_path.is_file():
+        regressions.append({
+            "code": f"{label}_missing_report",
+            "kind": "parity_chain_missing_file",
+            "report_label": label,
+            "missing_field": "report",
+            "missing_path": path_str,
+        })
+        return regressions
+    with report_path.open("r", encoding="utf-8") as handle:
+        report = json.load(handle)
+    files = report.get("files", {}) or {}
+    checksums = report.get("checksums", {}) or {}
+    for file_key, checksum_key in (
+        ("serial_input", "serial_input_sha256"),
+        ("legacy_input", "legacy_input_sha256"),
+        ("report_markdown", "report_markdown_sha256"),
+    ):
+        path_value = str(files.get(file_key, "")).strip()
+        checksum_value = str(checksums.get(checksum_key, "")).strip()
+        if path_value and not path_exists(path_value):
+            regressions.append({
+                "code": f"{label}_missing_{file_key}",
+                "kind": "parity_chain_missing_file",
+                "report_label": label,
+                "missing_field": file_key,
+                "missing_path": path_value,
+            })
+        elif path_value and not checksum_value:
+            regressions.append({
+                "code": f"{label}_missing_{file_key}_checksum",
+                "kind": "parity_chain_missing_checksum",
+                "report_label": label,
+                "missing_field": file_key,
+                "missing_checksum_field": checksum_key,
+            })
+        elif path_value and checksum_value and sha256_file(path_value) != checksum_value:
+            regressions.append({
+                "code": f"{label}_{file_key}_checksum_mismatch",
+                "kind": "parity_chain_checksum_mismatch",
+                "report_label": label,
+                "mismatch_field": file_key,
+                "path": path_value,
+            })
+    return regressions
+
+def parity_trend_chain_regressions(path_str, label):
+    regressions = []
+    if not path_str:
+        return regressions
+    report_path = Path(path_str)
+    if not report_path.is_file():
+        regressions.append({
+            "code": f"{label}_missing_report",
+            "kind": "parity_trend_missing_file",
+            "report_label": label,
+            "missing_field": "trend_report",
+            "missing_path": path_str,
+        })
+        return regressions
+    with report_path.open("r", encoding="utf-8") as handle:
+        report = json.load(handle)
+    current_report = str(report.get("current_report_json", "")).strip()
+    previous_report = str(report.get("previous_report_json", "")).strip()
+    if current_report and not path_exists(current_report):
+        regressions.append({
+            "code": f"{label}_missing_current_report",
+            "kind": "parity_trend_missing_file",
+            "report_label": label,
+            "missing_field": "current_report",
+            "missing_path": current_report,
+        })
+    else:
+        regressions.extend(parity_report_chain_regressions(current_report, f"{label}_current_report"))
+    if previous_report and not path_exists(previous_report):
+        regressions.append({
+            "code": f"{label}_missing_previous_report",
+            "kind": "parity_trend_missing_file",
+            "report_label": label,
+            "missing_field": "previous_report",
+            "missing_path": previous_report,
+        })
+    else:
+        regressions.extend(parity_report_chain_regressions(previous_report, f"{label}_previous_report"))
+    return regressions
+
+def validation_trend_chain_regressions(path_str, label):
+    regressions = []
+    if not path_str:
+        return regressions
+    report_path = Path(path_str)
+    if not report_path.is_file():
+        regressions.append({
+            "code": f"{label}_missing_report",
+            "kind": "validation_trend_missing_file",
+            "report_label": label,
+            "missing_field": "trend_report",
+            "missing_path": path_str,
+        })
+        return regressions
+    with report_path.open("r", encoding="utf-8") as handle:
+        report = json.load(handle)
+    current_report = str(report.get("current_report_json", "")).strip()
+    previous_report = str(report.get("previous_report_json", "")).strip()
+    if current_report and not path_exists(current_report):
+        regressions.append({
+            "code": f"{label}_missing_current_report",
+            "kind": "validation_trend_missing_file",
+            "report_label": label,
+            "missing_field": "current_report",
+            "missing_path": current_report,
+        })
+    else:
+        regressions.extend(validation_bundle_chain_regressions(current_report, f"{label}_current_report"))
+    if previous_report and not path_exists(previous_report):
+        regressions.append({
+            "code": f"{label}_missing_previous_report",
+            "kind": "validation_trend_missing_file",
+            "report_label": label,
+            "missing_field": "previous_report",
+            "missing_path": previous_report,
+        })
+    else:
+        regressions.extend(validation_bundle_chain_regressions(previous_report, f"{label}_previous_report"))
+    return regressions
+
+def cutover_decision_chain_regressions(path_str, label):
+    regressions = []
+    if not path_str:
+        return regressions
+    report_path = Path(path_str)
+    if not report_path.is_file():
+        regressions.append({
+            "code": f"{label}_missing_decision",
+            "kind": "cutover_chain_missing_file",
+            "report_label": label,
+            "missing_field": "decision",
+            "missing_path": path_str,
+        })
+        return regressions
+    with report_path.open("r", encoding="utf-8") as handle:
+        report = json.load(handle)
+    validation_report = str(report.get("validation_report_json", "")).strip()
+    parity_report = str(report.get("parity_report_json", "")).strip()
+    parity_trend = str(report.get("parity_trend_report_json", "")).strip()
+    validation_trend = str(report.get("validation_trend_report_json", "")).strip()
+    if validation_report and not path_exists(validation_report):
+        regressions.append({
+            "code": f"{label}_missing_validation_report",
+            "kind": "cutover_chain_missing_file",
+            "report_label": label,
+            "missing_field": "validation_report",
+            "missing_path": validation_report,
+        })
+    else:
+        regressions.extend(validation_bundle_chain_regressions(validation_report, f"{label}_validation"))
+    if parity_report and not path_exists(parity_report):
+        regressions.append({
+            "code": f"{label}_missing_parity_report",
+            "kind": "cutover_chain_missing_file",
+            "report_label": label,
+            "missing_field": "parity_report",
+            "missing_path": parity_report,
+        })
+    else:
+        regressions.extend(parity_report_chain_regressions(parity_report, f"{label}_parity"))
+    if parity_trend and not path_exists(parity_trend):
+        regressions.append({
+            "code": f"{label}_missing_parity_trend_report",
+            "kind": "cutover_chain_missing_file",
+            "report_label": label,
+            "missing_field": "parity_trend_report",
+            "missing_path": parity_trend,
+        })
+    else:
+        regressions.extend(parity_trend_chain_regressions(parity_trend, f"{label}_parity_trend"))
+    if validation_trend and not path_exists(validation_trend):
+        regressions.append({
+            "code": f"{label}_missing_validation_trend_report",
+            "kind": "cutover_chain_missing_file",
+            "report_label": label,
+            "missing_field": "validation_trend_report",
+            "missing_path": validation_trend,
+        })
+    else:
+        regressions.extend(validation_trend_chain_regressions(validation_trend, f"{label}_validation_trend"))
+    return regressions
+
+def signoff_report_chain_regressions(path_str, label):
+    regressions = []
+    if not path_str:
+        return regressions
+    report_path = Path(path_str)
+    if not report_path.is_file():
+        regressions.append({
+            "code": f"{label}_missing_report",
+            "kind": "signoff_chain_missing_file",
+            "report_label": label,
+            "missing_field": "signoff_report",
+            "missing_path": path_str,
+        })
+        return regressions
+    with report_path.open("r", encoding="utf-8") as handle:
+        report = json.load(handle)
+    signoff_file = str(report.get("signoff_file", "")).strip()
+    parity_report = str(report.get("report_json", "")).strip()
+    parity_trend = str(report.get("trend_report_json", "")).strip()
+    validation_report = str(report.get("validation_report_json", "")).strip()
+    validation_trend = str(report.get("validation_trend_report_json", "")).strip()
+    cutover_decision = str(report.get("cutover_decision_json", "")).strip()
+    cutover_trend = str(report.get("cutover_trend_report_json", "")).strip()
+    if signoff_file and not path_exists(signoff_file):
+        regressions.append({
+            "code": f"{label}_missing_signoff_file",
+            "kind": "signoff_chain_missing_file",
+            "report_label": label,
+            "missing_field": "signoff_file",
+            "missing_path": signoff_file,
+        })
+    if parity_report and not path_exists(parity_report):
+        regressions.append({
+            "code": f"{label}_missing_parity_report",
+            "kind": "signoff_chain_missing_file",
+            "report_label": label,
+            "missing_field": "parity_report",
+            "missing_path": parity_report,
+        })
+    else:
+        regressions.extend(parity_report_chain_regressions(parity_report, f"{label}_parity"))
+    if parity_trend and not path_exists(parity_trend):
+        regressions.append({
+            "code": f"{label}_missing_trend_report",
+            "kind": "signoff_chain_missing_file",
+            "report_label": label,
+            "missing_field": "trend_report",
+            "missing_path": parity_trend,
+        })
+    else:
+        regressions.extend(parity_trend_chain_regressions(parity_trend, f"{label}_trend"))
+    if validation_report and not path_exists(validation_report):
+        regressions.append({
+            "code": f"{label}_missing_validation_report",
+            "kind": "signoff_chain_missing_file",
+            "report_label": label,
+            "missing_field": "validation_report",
+            "missing_path": validation_report,
+        })
+    else:
+        regressions.extend(validation_bundle_chain_regressions(validation_report, f"{label}_validation"))
+    if validation_trend and not path_exists(validation_trend):
+        regressions.append({
+            "code": f"{label}_missing_validation_trend_report",
+            "kind": "signoff_chain_missing_file",
+            "report_label": label,
+            "missing_field": "validation_trend_report",
+            "missing_path": validation_trend,
+        })
+    else:
+        regressions.extend(validation_trend_chain_regressions(validation_trend, f"{label}_validation_trend"))
+    if cutover_decision and not path_exists(cutover_decision):
+        regressions.append({
+            "code": f"{label}_missing_cutover_decision_report",
+            "kind": "signoff_chain_missing_file",
+            "report_label": label,
+            "missing_field": "cutover_decision_report",
+            "missing_path": cutover_decision,
+        })
+    else:
+        regressions.extend(cutover_decision_chain_regressions(cutover_decision, f"{label}_cutover"))
+    if cutover_trend and not path_exists(cutover_trend):
+        regressions.append({
+            "code": f"{label}_missing_cutover_trend_report",
+            "kind": "signoff_chain_missing_file",
+            "report_label": label,
+            "missing_field": "cutover_trend_report",
+            "missing_path": cutover_trend,
+        })
+    else:
+        regressions.extend(cutover_trend_chain_regressions(cutover_trend, f"{label}_cutover_trend"))
+    return regressions
+
+def cutover_trend_chain_regressions(path_str, label):
+    regressions = []
+    if not path_str:
+        return regressions
+    report_path = Path(path_str)
+    if not report_path.is_file():
+        regressions.append({
+            "code": f"{label}_missing_report",
+            "kind": "cutover_trend_missing_file",
+            "report_label": label,
+            "missing_field": "trend_report",
+            "missing_path": path_str,
+        })
+        return regressions
+    with report_path.open("r", encoding="utf-8") as handle:
+        report = json.load(handle)
+    current_decision = str(report.get("current_decision_json", "")).strip()
+    previous_decision = str(report.get("previous_decision_json", "")).strip()
+    if current_decision and not path_exists(current_decision):
+        regressions.append({
+            "code": f"{label}_missing_current_decision",
+            "kind": "cutover_trend_missing_file",
+            "report_label": label,
+            "missing_field": "current_decision",
+            "missing_path": current_decision,
+        })
+    else:
+        regressions.extend(cutover_decision_chain_regressions(current_decision, f"{label}_current_decision"))
+    if previous_decision and not path_exists(previous_decision):
+        regressions.append({
+            "code": f"{label}_missing_previous_decision",
+            "kind": "cutover_trend_missing_file",
+            "report_label": label,
+            "missing_field": "previous_decision",
+            "missing_path": previous_decision,
+        })
+    else:
+        regressions.extend(cutover_decision_chain_regressions(previous_decision, f"{label}_previous_decision"))
+    return regressions
 
 def gate_chain_regressions(report, label):
     regressions = []
@@ -140,6 +553,24 @@ def gate_chain_regressions(report, label):
                 "missing_field": field_name,
                 "missing_path": value,
             })
+    regressions.extend(validation_bundle_chain_regressions(validation_report, f"{label}_gate_validation"))
+    if readiness_report and path_exists(readiness_report):
+        with Path(readiness_report).open("r", encoding="utf-8") as handle:
+            readiness = json.load(handle)
+        readiness_validation_report = str(readiness.get("validation_report_json", "")).strip()
+        if readiness_validation_report and not path_exists(readiness_validation_report):
+            regressions.append({
+                "code": f"{label}_gate_readiness_missing_validation_report",
+                "kind": "readiness_chain_missing_file",
+                "report_label": f"{label}_gate_readiness",
+                "missing_field": "validation_report",
+                "missing_path": readiness_validation_report,
+            })
+        else:
+            regressions.extend(validation_bundle_chain_regressions(readiness_validation_report, f"{label}_gate_readiness_validation"))
+    regressions.extend(cutover_decision_chain_regressions(cutover_decision, f"{label}_gate_cutover"))
+    regressions.extend(cutover_trend_chain_regressions(cutover_trend, f"{label}_gate_cutover_trend"))
+    regressions.extend(signoff_report_chain_regressions(signoff_report, f"{label}_gate_signoff"))
     return regressions
 
 result_rank = {"FAIL": 0, "HOLD": 1, "PASS": 2}
@@ -281,6 +712,46 @@ if regressions:
                 f"- `{item['code']}`: `{item['gate_label']}` gate missing "
                 f"`{item['missing_field']}` at `{item['missing_path']}`"
             )
+        elif item["kind"] in {
+            "validation_chain_missing_file",
+            "parity_chain_missing_file",
+            "parity_trend_missing_file",
+            "validation_trend_missing_file",
+            "cutover_chain_missing_file",
+            "cutover_trend_missing_file",
+            "signoff_chain_missing_file",
+            "readiness_chain_missing_file",
+        }:
+            lines.append(
+                f"- `{item['code']}`: `{item['report_label']}` missing "
+                f"`{item['missing_field']}` at `{item['missing_path']}`"
+            )
+        elif item["kind"] in {
+            "validation_chain_missing_checksum",
+            "parity_chain_missing_checksum",
+        }:
+            lines.append(
+                f"- `{item['code']}`: `{item['report_label']}` missing checksum "
+                f"`{item['missing_checksum_field']}` for `{item['missing_field']}`"
+            )
+        elif item["kind"] in {
+            "validation_chain_checksum_mismatch",
+            "parity_chain_checksum_mismatch",
+        }:
+            lines.append(
+                f"- `{item['code']}`: `{item['report_label']}` checksum mismatch "
+                f"for `{item['mismatch_field']}` at `{item['path']}`"
+            )
+        elif item["kind"] == "validation_chain_missing_metadata":
+            lines.append(
+                f"- `{item['code']}`: `{item['report_label']}` has checksum "
+                f"`{item['missing_checksum_field']}` without a `{item['missing_field']}` path"
+            )
+        elif item["kind"] == "validation_chain_missing_dir":
+            lines.append(
+                f"- `{item['code']}`: `{item['report_label']}` missing artifact dir "
+                f"`{item['missing_path']}`"
+            )
         else:
             lines.append(
                 f"- `{item['code']}`: `{item['previous']} -> {item['current']}` "
@@ -303,6 +774,46 @@ if regressions:
             print(
                 f"REGRESSION: {item['code']} {item['gate_label']} missing "
                 f"{item['missing_field']} at {item['missing_path']}"
+            )
+        elif item["kind"] in {
+            "validation_chain_missing_file",
+            "parity_chain_missing_file",
+            "parity_trend_missing_file",
+            "validation_trend_missing_file",
+            "cutover_chain_missing_file",
+            "cutover_trend_missing_file",
+            "signoff_chain_missing_file",
+            "readiness_chain_missing_file",
+        }:
+            print(
+                f"REGRESSION: {item['code']} {item['report_label']} missing "
+                f"{item['missing_field']} at {item['missing_path']}"
+            )
+        elif item["kind"] in {
+            "validation_chain_missing_checksum",
+            "parity_chain_missing_checksum",
+        }:
+            print(
+                f"REGRESSION: {item['code']} {item['report_label']} missing checksum "
+                f"{item['missing_checksum_field']} for {item['missing_field']}"
+            )
+        elif item["kind"] in {
+            "validation_chain_checksum_mismatch",
+            "parity_chain_checksum_mismatch",
+        }:
+            print(
+                f"REGRESSION: {item['code']} {item['report_label']} checksum mismatch "
+                f"for {item['mismatch_field']} at {item['path']}"
+            )
+        elif item["kind"] == "validation_chain_missing_metadata":
+            print(
+                f"REGRESSION: {item['code']} {item['report_label']} has checksum "
+                f"{item['missing_checksum_field']} without a {item['missing_field']} path"
+            )
+        elif item["kind"] == "validation_chain_missing_dir":
+            print(
+                f"REGRESSION: {item['code']} {item['report_label']} missing artifact dir "
+                f"{item['missing_path']}"
             )
         else:
             print(
