@@ -318,6 +318,7 @@ import hashlib
 import json
 import os
 import sys
+from pathlib import Path
 
 report_file = sys.argv[1]
 with open(report_file, "r", encoding="utf-8") as handle:
@@ -436,6 +437,7 @@ verify_pilot_gate_report() {
 import json
 import os
 import sys
+from pathlib import Path
 
 path = sys.argv[1]
 with open(path, "r", encoding="utf-8") as handle:
@@ -591,7 +593,6 @@ verify_cutover_decision_report() {
 import json
 import os
 import sys
-
 path = sys.argv[1]
 with open(path, "r", encoding="utf-8") as handle:
     data = json.load(handle)
@@ -729,6 +730,7 @@ verify_release_gate_report() {
 import json
 import os
 import sys
+from pathlib import Path
 
 path = sys.argv[1]
 with open(path, "r", encoding="utf-8") as handle:
@@ -739,6 +741,20 @@ def load_json(path_str):
         return None
     with open(path_str, "r", encoding="utf-8") as handle:
         return json.load(handle)
+
+def latest_matching_file(base_dir, pattern):
+    candidate_dir = str(base_dir or "").strip()
+    if not candidate_dir or not os.path.isdir(candidate_dir):
+        return ""
+    matches = sorted(
+        Path(candidate_dir).glob(pattern),
+        key=lambda item: item.stat().st_mtime,
+        reverse=True,
+    )
+    for match in matches:
+        if match.is_file():
+            return str(match)
+    return ""
 
 result = str(data.get("result", "")).upper()
 validation_report = str(data.get("validation_report_json", "")).strip()
@@ -782,6 +798,8 @@ if expected_cutover_decision and not os.path.isfile(expected_cutover_decision):
 expected_cutover_trend = f"{validation_artifact_dir}/cutover_trend_report.json" if validation_artifact_dir else ""
 if expected_cutover_trend and not os.path.isfile(expected_cutover_trend):
     expected_cutover_trend = ""
+expected_signoff_file = latest_matching_file(validation_artifact_dir, "*signoff*.md")
+expected_signoff_report = latest_matching_file(validation_artifact_dir, "*signoff*.json")
 
 statuses = data.get("statuses", {}) or {}
 fail_codes = [str(item) for item in (data.get("fail_codes", []) or [])]
@@ -808,6 +826,10 @@ if cutover_decision_report != expected_cutover_decision:
     raise SystemExit("cutover_decision_report_path_mismatch")
 if cutover_trend_report != expected_cutover_trend:
     raise SystemExit("cutover_trend_report_path_mismatch")
+if signoff_file != expected_signoff_file:
+    raise SystemExit("signoff_file_path_mismatch")
+if signoff_report != expected_signoff_report:
+    raise SystemExit("signoff_report_path_mismatch")
 
 if readiness_data is not None:
     actual_readiness_status = str(readiness_data.get("status", "")).upper()

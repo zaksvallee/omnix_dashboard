@@ -117,6 +117,20 @@ def path_exists(raw_path):
         return True
     return Path(candidate).is_file()
 
+def latest_matching_file(base_dir, pattern):
+    candidate_dir = str(base_dir or "").strip()
+    if not candidate_dir or not Path(candidate_dir).is_dir():
+        return ""
+    matches = sorted(
+        Path(candidate_dir).glob(pattern),
+        key=lambda item: item.stat().st_mtime,
+        reverse=True,
+    )
+    for match in matches:
+        if match.is_file():
+            return str(match)
+    return ""
+
 def load_json(path_str):
     candidate = str(path_str or "").strip()
     if not candidate or not Path(candidate).is_file():
@@ -1014,6 +1028,7 @@ def release_gate_consistency_regressions(report, label):
     readiness_report = str(report.get("readiness_report_json", "")).strip()
     cutover_decision = str(report.get("cutover_decision_json", "")).strip()
     cutover_trend = str(report.get("cutover_trend_report_json", "")).strip()
+    signoff_file = str(report.get("signoff_file", "")).strip()
     signoff_report = str(report.get("signoff_report_json", "")).strip()
 
     validation_data = load_json(validation_report)
@@ -1034,6 +1049,8 @@ def release_gate_consistency_regressions(report, label):
     expected_cutover_trend = f"{validation_artifact_dir}/cutover_trend_report.json" if validation_artifact_dir else ""
     if expected_cutover_trend and not path_exists(expected_cutover_trend):
         expected_cutover_trend = ""
+    expected_signoff_file = latest_matching_file(validation_artifact_dir, "*signoff*.md")
+    expected_signoff_report = latest_matching_file(validation_artifact_dir, "*signoff*.json")
     expected_validation_trend = str((validation_data or {}).get("artifact_dir", "")).strip()
     expected_validation_trend = f"{expected_validation_trend}/validation_trend_report.json" if expected_validation_trend else ""
     if expected_validation_trend and not path_exists(expected_validation_trend):
@@ -1069,6 +1086,10 @@ def release_gate_consistency_regressions(report, label):
         add("cutover_decision_report_path_mismatch", "release_gate_status_mismatch", expected_cutover_decision, cutover_decision)
     if cutover_trend != expected_cutover_trend:
         add("cutover_trend_report_path_mismatch", "release_gate_status_mismatch", expected_cutover_trend, cutover_trend)
+    if signoff_file != expected_signoff_file:
+        add("signoff_file_path_mismatch", "release_gate_status_mismatch", expected_signoff_file, signoff_file)
+    if signoff_report != expected_signoff_report:
+        add("signoff_report_path_mismatch", "release_gate_status_mismatch", expected_signoff_report, signoff_report)
 
     if readiness_data is not None:
         actual_readiness_status = str(readiness_data.get("status", "")).upper()

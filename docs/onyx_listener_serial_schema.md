@@ -386,6 +386,9 @@ The same release-side exact-alignment rule now also covers
 `onyx_listener_pilot_readiness_check.sh` now independently verifies those same
 release-gate alignments against nested readiness, cutover, and signoff
 artifacts instead of trusting the gate artifact's chosen references.
+That exact-alignment rule now also covers the top-level `signoff_file` and
+`signoff_report_json` fields in `release_gate.json`, so release posture cannot
+silently borrow equivalent signoff files from another directory.
 
 Cutover and release trend comparisons now prefer stable machine-readable
 `hold_codes`, `blocking_codes`, and `fail_codes` when present, falling back to
