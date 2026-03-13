@@ -93,6 +93,7 @@ Current scope:
     - now also rejects top-level signoff markdown/report paths that drift outside the active staged artifact dir
     - now also requires canonical staged filenames for `validation_report.json` and `readiness_report.json`
     - now also requires canonical staged filenames for `dvr_pilot_signoff.md` and `dvr_pilot_signoff.json`
+    - readiness and signoff now also require canonical staged filenames for `release_gate.json` and `release_trend_report.json` when those gates are enforced
   - `scripts/onyx_dvr_release_trend_check.sh`
     - emits `release_trend_report.json` and `release_trend_report.md` from the current and previous release-gate posture
     - surfaces signoff-to-release mismatches as direct regressions

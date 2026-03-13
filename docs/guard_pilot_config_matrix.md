@@ -178,6 +178,7 @@ DVR pilot commands:
 - release posture now also rejects top-level signoff markdown/report path swaps outside the staged artifact dir
 - release posture and release trend now also require canonical staged names for `validation_report.json` and `readiness_report.json`
 - release posture, readiness, and release trend now also require canonical staged names for `dvr_pilot_signoff.md` and `dvr_pilot_signoff.json`
+- readiness and signoff now also require canonical staged names for `release_gate.json` and `release_trend_report.json`
 
 CCTV pilot commands:
 - `./scripts/onyx_cctv_capture_pack_init.sh`

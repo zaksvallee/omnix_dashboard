@@ -274,6 +274,9 @@ if [[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]]; then
   if [[ -z "$RELEASE_GATE_JSON" || ! -f "$RELEASE_GATE_JSON" ]]; then
     fail "DVR readiness failed: release gate artifact was not found under --require-release-gate-pass." "release_gate_not_found"
   fi
+  if [[ "$RELEASE_GATE_JSON" != "$ARTIFACT_DIR/release_gate.json" ]]; then
+    fail "DVR readiness failed: release gate does not use the canonical staged filename." "release_gate_name_mismatch"
+  fi
   release_gate_validation_report="$(json_get "$RELEASE_GATE_JSON" "validation_report_json")"
   release_gate_signoff_file="$(json_get "$RELEASE_GATE_JSON" "signoff_file")"
   release_gate_signoff_report="$(json_get "$RELEASE_GATE_JSON" "signoff_report_json")"
@@ -324,6 +327,9 @@ fi
 if [[ "$REQUIRE_RELEASE_TREND_PASS" -eq 1 ]]; then
   if [[ -z "$RELEASE_TREND_REPORT_JSON" || ! -f "$RELEASE_TREND_REPORT_JSON" ]]; then
     fail "DVR readiness failed: release trend artifact was not found under --require-release-trend-pass." "release_trend_not_found"
+  fi
+  if [[ "$RELEASE_TREND_REPORT_JSON" != "$ARTIFACT_DIR/release_trend_report.json" ]]; then
+    fail "DVR readiness failed: release trend does not use the canonical staged filename." "release_trend_name_mismatch"
   fi
   release_trend_current_gate="$(json_get "$RELEASE_TREND_REPORT_JSON" "current_release_gate_json")"
   release_trend_status="$(json_get "$RELEASE_TREND_REPORT_JSON" "status" | tr '[:lower:]' '[:upper:]')"
