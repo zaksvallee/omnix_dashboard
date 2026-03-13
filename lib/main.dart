@@ -30,6 +30,7 @@ import 'application/runtime_config.dart';
 import 'application/telegram_admin_command_formatter.dart';
 import 'application/telegram_ai_assistant_service.dart';
 import 'application/telegram_bridge_service.dart';
+import 'application/video_bridge_runtime.dart';
 import 'application/wearable_bridge_service.dart';
 import 'domain/authority/operator_context.dart';
 import 'domain/events/decision_created.dart';
@@ -591,31 +592,36 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     bearerToken: _radioBearerTokenEnv,
     client: _radioBridgeHttpClient,
   );
-  late final CctvBridgeService _cctvBridgeService = createCctvBridgeService(
-    provider: _opsIntegrationProfile.cctv.provider,
-    eventsUri: _opsIntegrationProfile.cctv.eventsUrl,
-    bearerToken: _cctvBearerTokenEnv,
-    liveMonitoringEnabled: _opsIntegrationProfile.cctv.liveMonitoringEnabled,
-    facialRecognitionEnabled:
-        _opsIntegrationProfile.cctv.facialRecognitionEnabled,
-    licensePlateRecognitionEnabled:
-        _opsIntegrationProfile.cctv.licensePlateRecognitionEnabled,
-    falsePositivePolicy: _cctvFalsePositivePolicy,
-    client: _cctvBridgeHttpClient,
-  );
+  late final VideoBridgeService _videoBridgeService =
+      CctvBackedVideoBridgeService(
+        delegate: createCctvBridgeService(
+          provider: _opsIntegrationProfile.cctv.provider,
+          eventsUri: _opsIntegrationProfile.cctv.eventsUrl,
+          bearerToken: _cctvBearerTokenEnv,
+          liveMonitoringEnabled: _opsIntegrationProfile.cctv.liveMonitoringEnabled,
+          facialRecognitionEnabled:
+              _opsIntegrationProfile.cctv.facialRecognitionEnabled,
+          licensePlateRecognitionEnabled:
+              _opsIntegrationProfile.cctv.licensePlateRecognitionEnabled,
+          falsePositivePolicy: _cctvFalsePositivePolicy,
+          client: _cctvBridgeHttpClient,
+        ),
+      );
   late final CctvFalsePositivePolicy _cctvFalsePositivePolicy =
       CctvFalsePositivePolicy.fromJsonString(_cctvFalsePositiveRulesEnv);
-  late final HttpCctvEvidenceProbeService _cctvEvidenceProbeService =
-      HttpCctvEvidenceProbeService(
-        client: _cctvBridgeHttpClient,
-        maxQueueDepth: _positiveThreshold(
-          _cctvEvidenceProbeQueueDepthEnv,
-          fallback: 12,
-        ),
-        staleFrameThreshold: Duration(
-          seconds: _positiveThreshold(
-            _cctvEvidenceProbeStaleSecondsEnv,
-            fallback: 1800,
+  late final VideoEvidenceProbeService _videoEvidenceProbeService =
+      CctvBackedVideoEvidenceProbeService(
+        delegate: HttpCctvEvidenceProbeService(
+          client: _cctvBridgeHttpClient,
+          maxQueueDepth: _positiveThreshold(
+            _cctvEvidenceProbeQueueDepthEnv,
+            fallback: 12,
+          ),
+          staleFrameThreshold: Duration(
+            seconds: _positiveThreshold(
+              _cctvEvidenceProbeStaleSecondsEnv,
+              fallback: 1800,
+            ),
           ),
         ),
       );
@@ -914,8 +920,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   _OpsIntegrationHealth _cctvOpsHealth = const _OpsIntegrationHealth();
   _OpsIntegrationHealth _wearableOpsHealth = const _OpsIntegrationHealth();
   _OpsIntegrationHealth _newsOpsHealth = const _OpsIntegrationHealth();
-  CctvEvidenceProbeSnapshot _cctvEvidenceHealth =
-      const CctvEvidenceProbeSnapshot();
+  VideoEvidenceProbeSnapshot _cctvEvidenceHealth =
+      const VideoEvidenceProbeSnapshot();
   bool _opsIntegrationPollInFlight = false;
   DateTime? _lastGuardResumeSyncEventQueuedAtUtc;
   late final OutcomeLabelGovernancePolicy _outcomeGovernancePolicy;
@@ -1613,7 +1619,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         _cctvOpsHealth = _OpsIntegrationHealth.fromJson(cctvRaw);
       }
       if (cctvEvidenceRaw != null) {
-        _cctvEvidenceHealth = CctvEvidenceProbeSnapshot.fromJson(
+        _cctvEvidenceHealth = VideoEvidenceProbeSnapshot.fromJson(
           cctvEvidenceRaw,
         );
       }
@@ -1633,7 +1639,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         _cctvOpsHealth = _OpsIntegrationHealth.fromJson(cctvRaw);
       }
       if (cctvEvidenceRaw != null) {
-        _cctvEvidenceHealth = CctvEvidenceProbeSnapshot.fromJson(
+        _cctvEvidenceHealth = VideoEvidenceProbeSnapshot.fromJson(
           cctvEvidenceRaw,
         );
       }
@@ -5067,12 +5073,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       });
     }
     try {
-      final records = await _cctvBridgeService.fetchLatest(
+      final records = await _videoBridgeService.fetchLatest(
         clientId: _selectedClient,
         regionId: _selectedRegion,
         siteId: _selectedSite,
       );
-      final evidenceProbe = await _cctvEvidenceProbeService.probeBatch(records);
+      final evidenceProbe = await _videoEvidenceProbeService.probeBatch(records);
       if (mounted) {
         setState(() {
           _cctvEvidenceHealth = evidenceProbe.snapshot;
@@ -5523,7 +5529,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     required List<NormalizedIntelRecord> records,
     required int attempted,
     required int appended,
-    required CctvEvidenceProbeSnapshot evidence,
+    required VideoEvidenceProbeSnapshot evidence,
   }) {
     final providerLabel = provider.trim().isEmpty ? 'cctv' : provider.trim();
     final latest = records.isEmpty

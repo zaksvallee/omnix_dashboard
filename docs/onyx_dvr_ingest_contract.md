@@ -11,6 +11,10 @@ Shared contract:
   - common video analytics capability flags
   - common evidence-access model
   - common normalized event contract that emits `NormalizedIntelRecord`
+- `lib/application/video_bridge_runtime.dart`
+  - provider-neutral bridge fetch interface
+  - provider-neutral evidence probe snapshot used by runtime health
+  - CCTV adapters so `main.dart` now depends on a shared video bridge surface
 
 DVR scaffold:
 - `lib/application/dvr_ingest_contract.dart`
