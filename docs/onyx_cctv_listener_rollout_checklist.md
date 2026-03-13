@@ -110,6 +110,7 @@ Notes:
   - Listener mock validation artifacts can now exercise the validation/readiness/signoff tooling without hardware and should be rejected for real signoff.
   - Listener field gate can now initialize capture packs, run validation/readiness, and optionally generate signoff in one command.
   - Listener cutover decisions can now be emitted as explicit `GO|HOLD|BLOCK` artifacts from the latest validation, parity, and trend posture instead of relying on manual summary reading.
+  - Listener cutover posture can now be compared run-to-run so `GO|HOLD|BLOCK` regressions and increasing hold/block reason counts are surfaced explicitly.
 
 ---
 

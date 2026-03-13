@@ -26,6 +26,10 @@ ALLOW_TREND_DRIFT_COUNT_INCREASES=()
 COMPARE_PREVIOUS_VALIDATION=0
 PREVIOUS_VALIDATION_REPORT_JSON=""
 ALLOW_VALIDATION_BASELINE_AGE_INCREASE_DAYS=0
+COMPARE_PREVIOUS_CUTOVER=0
+PREVIOUS_CUTOVER_DECISION_JSON=""
+ALLOW_CUTOVER_HOLD_REASON_INCREASE_COUNT=0
+ALLOW_CUTOVER_BLOCKING_REASON_INCREASE_COUNT=0
 MAX_CAPTURE_SIGNATURES=""
 ALLOW_CAPTURE_SIGNATURES=()
 MAX_UNEXPECTED_SIGNATURES=""
@@ -43,7 +47,7 @@ MAX_BASELINE_AGE_DAYS=""
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/onyx_listener_field_gate.sh [--capture-dir <path>] [--site-id <site_id>] [--device-path <tty>] [--legacy-source <label>] [--client-id <id>] [--region-id <id>] [--artifact-dir <path>] [--bench-baseline-json <path>] [--max-report-age-hours <hours>] [--min-match-rate-percent 95] [--max-skew-seconds 90] [--max-observed-skew-seconds <n>] [--allow-drift-reason <reason>]... [--max-drift-reason-count <reason=count>]... [--compare-previous] [--previous-report-json <path>] [--allow-match-rate-drop-percent 0] [--allow-max-skew-increase-seconds 0] [--allow-trend-drift-count-increase <reason=count>]... [--compare-previous-validation] [--previous-validation-report-json <path>] [--allow-validation-baseline-age-increase-days 0] [--max-capture-signatures <count>] [--allow-capture-signature <signature>]... [--max-unexpected-signatures <count>] [--max-fallback-timestamp-count <count>] [--max-unknown-event-rate-percent <percent>] [--init-capture-pack] [--generate-signoff] [--signoff-out <path>] [--require-trend-pass] [--require-validation-trend-pass] [--require-baseline-history] [--max-baseline-age-days <days>] [--allow-mock-artifacts]
+  ./scripts/onyx_listener_field_gate.sh [--capture-dir <path>] [--site-id <site_id>] [--device-path <tty>] [--legacy-source <label>] [--client-id <id>] [--region-id <id>] [--artifact-dir <path>] [--bench-baseline-json <path>] [--max-report-age-hours <hours>] [--min-match-rate-percent 95] [--max-skew-seconds 90] [--max-observed-skew-seconds <n>] [--allow-drift-reason <reason>]... [--max-drift-reason-count <reason=count>]... [--compare-previous] [--previous-report-json <path>] [--allow-match-rate-drop-percent 0] [--allow-max-skew-increase-seconds 0] [--allow-trend-drift-count-increase <reason=count>]... [--compare-previous-validation] [--previous-validation-report-json <path>] [--allow-validation-baseline-age-increase-days 0] [--compare-previous-cutover] [--previous-cutover-decision-json <path>] [--allow-cutover-hold-reason-increase-count 0] [--allow-cutover-blocking-reason-increase-count 0] [--max-capture-signatures <count>] [--allow-capture-signature <signature>]... [--max-unexpected-signatures <count>] [--max-fallback-timestamp-count <count>] [--max-unknown-event-rate-percent <percent>] [--init-capture-pack] [--generate-signoff] [--signoff-out <path>] [--require-trend-pass] [--require-validation-trend-pass] [--require-baseline-history] [--max-baseline-age-days <days>] [--allow-mock-artifacts]
 
 Purpose:
   One-command listener field gate:
@@ -144,6 +148,22 @@ while [[ $# -gt 0 ]]; do
       ALLOW_VALIDATION_BASELINE_AGE_INCREASE_DAYS="${2:-0}"
       shift 2
       ;;
+    --compare-previous-cutover)
+      COMPARE_PREVIOUS_CUTOVER=1
+      shift
+      ;;
+    --previous-cutover-decision-json)
+      PREVIOUS_CUTOVER_DECISION_JSON="${2:-}"
+      shift 2
+      ;;
+    --allow-cutover-hold-reason-increase-count)
+      ALLOW_CUTOVER_HOLD_REASON_INCREASE_COUNT="${2:-0}"
+      shift 2
+      ;;
+    --allow-cutover-blocking-reason-increase-count)
+      ALLOW_CUTOVER_BLOCKING_REASON_INCREASE_COUNT="${2:-0}"
+      shift 2
+      ;;
     --max-capture-signatures)
       MAX_CAPTURE_SIGNATURES="${2:-}"
       shift 2
@@ -222,6 +242,14 @@ if ! [[ "$ALLOW_VALIDATION_BASELINE_AGE_INCREASE_DAYS" =~ ^[0-9]+([.][0-9]+)?$ ]
   echo "FAIL: --allow-validation-baseline-age-increase-days must be a non-negative number."
   exit 1
 fi
+if ! [[ "$ALLOW_CUTOVER_HOLD_REASON_INCREASE_COUNT" =~ ^[0-9]+$ ]]; then
+  echo "FAIL: --allow-cutover-hold-reason-increase-count must be a non-negative integer."
+  exit 1
+fi
+if ! [[ "$ALLOW_CUTOVER_BLOCKING_REASON_INCREASE_COUNT" =~ ^[0-9]+$ ]]; then
+  echo "FAIL: --allow-cutover-blocking-reason-increase-count must be a non-negative integer."
+  exit 1
+fi
 
 if [[ -z "$ARTIFACT_DIR" ]]; then
   ARTIFACT_DIR="tmp/listener_field_validation/pilot-$(date -u +%Y%m%dT%H%M%SZ)"
@@ -284,6 +312,12 @@ if [[ -n "$PREVIOUS_VALIDATION_REPORT_JSON" ]]; then
   echo "Previous validation override: $PREVIOUS_VALIDATION_REPORT_JSON"
 fi
 echo "Allowed validation baseline age increase: ${ALLOW_VALIDATION_BASELINE_AGE_INCREASE_DAYS}d"
+echo "Compare previous cutover run: $([[ "$COMPARE_PREVIOUS_CUTOVER" -eq 1 ]] && echo yes || echo no)"
+if [[ -n "$PREVIOUS_CUTOVER_DECISION_JSON" ]]; then
+  echo "Previous cutover override: $PREVIOUS_CUTOVER_DECISION_JSON"
+fi
+echo "Allowed cutover hold-reason increase: ${ALLOW_CUTOVER_HOLD_REASON_INCREASE_COUNT}"
+echo "Allowed cutover blocking-reason increase: ${ALLOW_CUTOVER_BLOCKING_REASON_INCREASE_COUNT}"
 echo "Require trend pass: $([[ "$REQUIRE_TREND_PASS" -eq 1 ]] && echo yes || echo no)"
 echo "Require validation trend pass: $([[ "$REQUIRE_VALIDATION_TREND_PASS" -eq 1 ]] && echo yes || echo no)"
 echo "Require baseline history: $([[ "$REQUIRE_BASELINE_HISTORY" -eq 1 ]] && echo yes || echo no)"
@@ -469,6 +503,31 @@ fi
 "${cutover_cmd[@]}"
 CUTOVER_DECISION_JSON="$ARTIFACT_DIR/cutover_decision.json"
 
+CUTOVER_TREND_JSON=""
+CUTOVER_TREND_SUMMARY=""
+if [[ "$COMPARE_PREVIOUS_CUTOVER" -eq 1 ]]; then
+  cutover_trend_cmd=(
+    ./scripts/onyx_listener_cutover_trend_check.sh
+    --current-decision-json "$CUTOVER_DECISION_JSON"
+    --out-dir "$ARTIFACT_DIR"
+    --allow-hold-reason-increase-count "$ALLOW_CUTOVER_HOLD_REASON_INCREASE_COUNT"
+    --allow-blocking-reason-increase-count "$ALLOW_CUTOVER_BLOCKING_REASON_INCREASE_COUNT"
+  )
+  if [[ -n "$PREVIOUS_CUTOVER_DECISION_JSON" ]]; then
+    cutover_trend_cmd+=(--previous-decision-json "$PREVIOUS_CUTOVER_DECISION_JSON")
+  elif [[ -n "$PREVIOUS_VALIDATION_REPORT_JSON" ]]; then
+    previous_validation_dir="$(dirname "$PREVIOUS_VALIDATION_REPORT_JSON")"
+    if [[ -f "$previous_validation_dir/cutover_decision.json" ]]; then
+      cutover_trend_cmd+=(--previous-decision-json "$previous_validation_dir/cutover_decision.json")
+    fi
+  fi
+  "${cutover_trend_cmd[@]}"
+  CUTOVER_TREND_JSON="$ARTIFACT_DIR/cutover_trend_report.json"
+  if [[ -f "$CUTOVER_TREND_JSON" ]]; then
+    CUTOVER_TREND_SUMMARY="$(json_get "$CUTOVER_TREND_JSON" "summary")"
+  fi
+fi
+
 VALIDATION_REPORT_JSON="$ARTIFACT_DIR/validation_report.json"
 BASELINE_REVIEW_STATUS="$(json_get "$VALIDATION_REPORT_JSON" "baseline_review.status" | tr '[:lower:]' '[:upper:]')"
 BASELINE_REVIEW_RECOMMENDATION="$(json_get "$VALIDATION_REPORT_JSON" "baseline_review.recommendation")"
@@ -484,6 +543,10 @@ fi
 CUTOVER_DECISION=""
 if [[ -f "$CUTOVER_DECISION_JSON" ]]; then
   CUTOVER_DECISION="$(json_get "$CUTOVER_DECISION_JSON" "decision")"
+fi
+CUTOVER_TREND_STATUS=""
+if [[ -f "$CUTOVER_TREND_JSON" ]]; then
+  CUTOVER_TREND_STATUS="$(json_get "$CUTOVER_TREND_JSON" "status" | tr '[:lower:]' '[:upper:]')"
 fi
 
 echo ""
@@ -506,6 +569,11 @@ fi
 if [[ -n "$CUTOVER_DECISION" ]]; then
   echo "Cutover decision: ${CUTOVER_DECISION}"
   echo "Cutover decision artifact: $ARTIFACT_DIR/cutover_decision.json"
+fi
+if [[ -n "$CUTOVER_TREND_STATUS" ]]; then
+  echo "Cutover trend: ${CUTOVER_TREND_STATUS}"
+  echo "Cutover trend summary: ${CUTOVER_TREND_SUMMARY:-n/a}"
+  echo "Cutover trend artifact: $ARTIFACT_DIR/cutover_trend_report.json"
 fi
 if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
   if [[ -n "$SIGNOFF_OUT" ]]; then

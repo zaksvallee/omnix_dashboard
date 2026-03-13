@@ -276,6 +276,18 @@ Decision policy:
 - `BLOCK`
   validation failed, hard gates regressed, investigation is required, or a supplied trend artifact failed
 
+To compare the latest cutover decision against the prior one:
+
+```bash
+./scripts/onyx_listener_cutover_trend_check.sh
+```
+
+This emits `cutover_trend_report.json` plus `cutover_trend_report.md` and
+fails when:
+- `decision` regresses from `GO -> HOLD` or `HOLD -> BLOCK`
+- hold-reason count increases beyond the allowed threshold
+- blocking-reason count increases beyond the allowed threshold
+
 To create a self-contained field-validation bundle from a real capture pack:
 
 ```bash
@@ -335,9 +347,11 @@ When `--compare-previous-validation` is enabled, the field gate also emits:
 - `validation_trend_report.md`
 - `cutover_decision.json`
 - `cutover_decision.md`
+- `cutover_trend_report.json`
+- `cutover_trend_report.md`
 
 The field-gate terminal summary now prints validation-trend status and summary
-alongside the baseline review, baseline health, and cutover decision result.
+alongside the baseline review, baseline health, cutover decision, and cutover trend result.
 
 Readiness and signoff can also enforce validation-trend pass explicitly:
 - `--validation-trend-report-json <path>`
