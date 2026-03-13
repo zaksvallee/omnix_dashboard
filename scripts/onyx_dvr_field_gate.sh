@@ -20,12 +20,40 @@ USE_MOCK_ARTIFACTS=0
 GENERATE_SIGNOFF=0
 SIGNOFF_OUT=""
 EFFECTIVE_SIGNOFF_OUT=""
+COMPARE_PREVIOUS_RELEASE=0
+PREVIOUS_RELEASE_GATE_JSON=""
+ALLOW_RELEASE_HOLD_REASON_INCREASE_COUNT=0
+ALLOW_RELEASE_FAIL_REASON_INCREASE_COUNT=0
 REQUIRE_RELEASE_GATE_PASS=0
+REQUIRE_RELEASE_TREND_PASS=0
+
+json_get() {
+  local report_file="$1"
+  local expression="$2"
+  python3 - "$report_file" "$expression" <<'PY'
+import json, sys
+path = sys.argv[1]
+expr = sys.argv[2].split(".")
+with open(path, "r", encoding="utf-8") as handle:
+    value = json.load(handle)
+for key in expr:
+    if not isinstance(value, dict):
+        value = ""
+        break
+    value = value.get(key, "")
+if isinstance(value, bool):
+    print("true" if value else "false")
+elif value is None:
+    print("")
+else:
+    print(value)
+PY
+}
 
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/onyx_dvr_field_gate.sh [--edge-url <url>] [--provider <id>] [--site-id <site_id>] [--event-id <event_id>] [--camera-id <camera_id>] [--zone <zone>] [--capture-dir <path>] [--artifact-dir <path>] [--max-report-age-hours <hours>] [--init-capture-pack] [--skip-edge] [--allow-mock-artifacts] [--use-mock-artifacts] [--generate-signoff] [--signoff-out <path>] [--require-release-gate-pass]
+  ./scripts/onyx_dvr_field_gate.sh [--edge-url <url>] [--provider <id>] [--site-id <site_id>] [--event-id <event_id>] [--camera-id <camera_id>] [--zone <zone>] [--capture-dir <path>] [--artifact-dir <path>] [--max-report-age-hours <hours>] [--init-capture-pack] [--skip-edge] [--allow-mock-artifacts] [--use-mock-artifacts] [--generate-signoff] [--signoff-out <path>] [--compare-previous-release] [--previous-release-gate-json <path>] [--allow-release-hold-reason-increase-count <count>] [--allow-release-fail-reason-increase-count <count>] [--require-release-gate-pass] [--require-release-trend-pass]
 
 Purpose:
   One-command DVR field gate:
@@ -53,7 +81,12 @@ while [[ $# -gt 0 ]]; do
     --use-mock-artifacts) USE_MOCK_ARTIFACTS=1; shift ;;
     --generate-signoff) GENERATE_SIGNOFF=1; shift ;;
     --signoff-out) SIGNOFF_OUT="${2:-}"; shift 2 ;;
+    --compare-previous-release) COMPARE_PREVIOUS_RELEASE=1; shift ;;
+    --previous-release-gate-json) PREVIOUS_RELEASE_GATE_JSON="${2:-}"; shift 2 ;;
+    --allow-release-hold-reason-increase-count) ALLOW_RELEASE_HOLD_REASON_INCREASE_COUNT="${2:-0}"; shift 2 ;;
+    --allow-release-fail-reason-increase-count) ALLOW_RELEASE_FAIL_REASON_INCREASE_COUNT="${2:-0}"; shift 2 ;;
     --require-release-gate-pass) REQUIRE_RELEASE_GATE_PASS=1; shift ;;
+    --require-release-trend-pass) REQUIRE_RELEASE_TREND_PASS=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "FAIL: Unknown argument: $1"; exit 1 ;;
   esac
@@ -61,6 +94,14 @@ done
 
 if ! [[ "$MAX_REPORT_AGE_HOURS" =~ ^[0-9]+$ ]]; then
   echo "FAIL: --max-report-age-hours must be a non-negative integer."
+  exit 1
+fi
+if ! [[ "$ALLOW_RELEASE_HOLD_REASON_INCREASE_COUNT" =~ ^[0-9]+$ ]]; then
+  echo "FAIL: --allow-release-hold-reason-increase-count must be a non-negative integer."
+  exit 1
+fi
+if ! [[ "$ALLOW_RELEASE_FAIL_REASON_INCREASE_COUNT" =~ ^[0-9]+$ ]]; then
+  echo "FAIL: --allow-release-fail-reason-increase-count must be a non-negative integer."
   exit 1
 fi
 
@@ -176,17 +217,56 @@ if [[ "$ALLOW_MOCK_ARTIFACTS" -ne 1 ]]; then
 fi
 "${release_cmd[@]}" >/dev/null
 
+RELEASE_TREND_STATUS=""
+RELEASE_TREND_PRIMARY_CODE=""
+RELEASE_TREND_SUMMARY=""
+if [[ "$COMPARE_PREVIOUS_RELEASE" -eq 1 ]]; then
+  release_trend_cmd=(
+    bash ./scripts/onyx_dvr_release_trend_check.sh
+    --current-release-gate-json "$ARTIFACT_DIR/release_gate.json"
+    --out-dir "$ARTIFACT_DIR"
+    --allow-hold-reason-increase-count "$ALLOW_RELEASE_HOLD_REASON_INCREASE_COUNT"
+    --allow-fail-reason-increase-count "$ALLOW_RELEASE_FAIL_REASON_INCREASE_COUNT"
+  )
+  if [[ -n "$PREVIOUS_RELEASE_GATE_JSON" ]]; then
+    release_trend_cmd+=(--previous-release-gate-json "$PREVIOUS_RELEASE_GATE_JSON")
+  fi
+  "${release_trend_cmd[@]}" >/dev/null
+  if [[ -f "$ARTIFACT_DIR/release_trend_report.json" ]]; then
+    RELEASE_TREND_STATUS="$(json_get "$ARTIFACT_DIR/release_trend_report.json" "status" | tr '[:lower:]' '[:upper:]')"
+    RELEASE_TREND_PRIMARY_CODE="$(json_get "$ARTIFACT_DIR/release_trend_report.json" "primary_regression_code")"
+    RELEASE_TREND_SUMMARY="$(json_get "$ARTIFACT_DIR/release_trend_report.json" "summary")"
+  fi
+fi
+
 if [[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]]; then
-  release_result="$(python3 - <<'PY' "$ARTIFACT_DIR/release_gate.json"
-import json, sys
-with open(sys.argv[1], 'r', encoding='utf-8') as handle:
-    print(json.load(handle).get('result', ''))
-PY
-)"
+  release_result="$(json_get "$ARTIFACT_DIR/release_gate.json" "result")"
   if [[ "$release_result" != "PASS" ]]; then
     echo "FAIL: DVR release gate is $release_result, expected PASS under --require-release-gate-pass."
     exit 1
   fi
+fi
+
+if [[ "$REQUIRE_RELEASE_TREND_PASS" -eq 1 ]]; then
+  if [[ -z "$RELEASE_TREND_STATUS" ]]; then
+    echo "FAIL: DVR release trend artifact was not generated under --require-release-trend-pass."
+    exit 1
+  fi
+  if [[ "$RELEASE_TREND_STATUS" != "PASS" ]]; then
+    echo "FAIL: DVR release trend is ${RELEASE_TREND_STATUS}, expected PASS under --require-release-trend-pass. Primary code: ${RELEASE_TREND_PRIMARY_CODE:-missing}."
+    exit 1
+  fi
+fi
+
+RELEASE_GATE_RESULT=""
+RELEASE_GATE_SUMMARY=""
+RELEASE_GATE_PRIMARY_FAIL_CODE=""
+RELEASE_GATE_PRIMARY_HOLD_CODE=""
+if [[ -f "$ARTIFACT_DIR/release_gate.json" ]]; then
+  RELEASE_GATE_RESULT="$(json_get "$ARTIFACT_DIR/release_gate.json" "result")"
+  RELEASE_GATE_SUMMARY="$(json_get "$ARTIFACT_DIR/release_gate.json" "summary")"
+  RELEASE_GATE_PRIMARY_FAIL_CODE="$(json_get "$ARTIFACT_DIR/release_gate.json" "primary_fail_code")"
+  RELEASE_GATE_PRIMARY_HOLD_CODE="$(json_get "$ARTIFACT_DIR/release_gate.json" "primary_hold_code")"
 fi
 
 echo
@@ -196,7 +276,23 @@ if [[ -f "$ARTIFACT_DIR/readiness_report.json" ]]; then
   echo "Readiness artifact: $ARTIFACT_DIR/readiness_report.json"
 fi
 if [[ -f "$ARTIFACT_DIR/release_gate.json" ]]; then
+  echo "Release gate: ${RELEASE_GATE_RESULT:-unknown}"
+  echo "Release gate summary: ${RELEASE_GATE_SUMMARY:-n/a}"
+  if [[ -n "$RELEASE_GATE_PRIMARY_FAIL_CODE" ]]; then
+    echo "Release gate primary fail code: ${RELEASE_GATE_PRIMARY_FAIL_CODE}"
+  fi
+  if [[ -n "$RELEASE_GATE_PRIMARY_HOLD_CODE" ]]; then
+    echo "Release gate primary hold code: ${RELEASE_GATE_PRIMARY_HOLD_CODE}"
+  fi
   echo "Release gate artifact: $ARTIFACT_DIR/release_gate.json"
+fi
+if [[ -f "$ARTIFACT_DIR/release_trend_report.json" ]]; then
+  echo "Release trend: ${RELEASE_TREND_STATUS:-unknown}"
+  echo "Release trend summary: ${RELEASE_TREND_SUMMARY:-n/a}"
+  if [[ -n "$RELEASE_TREND_PRIMARY_CODE" ]]; then
+    echo "Release trend primary regression code: ${RELEASE_TREND_PRIMARY_CODE}"
+  fi
+  echo "Release trend artifact: $ARTIFACT_DIR/release_trend_report.json"
 fi
 if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
   echo "Signoff note: $EFFECTIVE_SIGNOFF_OUT"
