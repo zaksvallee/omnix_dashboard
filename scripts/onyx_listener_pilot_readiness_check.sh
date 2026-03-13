@@ -1273,6 +1273,9 @@ if [[ "$REQUIRE_RELEASE_TREND_PASS" -eq 1 ]]; then
   release_trend_gate_paths="$(extract_release_trend_gate_paths "$RELEASE_TREND_REPORT_JSON")"
   current_release_gate="$(printf '%s\n' "$release_trend_gate_paths" | sed -n '1p')"
   previous_release_gate="$(printf '%s\n' "$release_trend_gate_paths" | sed -n '2p')"
+  if [[ "$current_release_gate" != "$RELEASE_GATE_JSON" ]]; then
+    fail release_trend_current_gate_path_mismatch "Listener readiness failed: release trend current gate does not match the staged release gate."
+  fi
   current_release_gate_status="$(verify_release_gate_report "$current_release_gate" 2>&1)" || {
     case "$current_release_gate_status" in
       missing_validation_report)

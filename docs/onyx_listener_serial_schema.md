@@ -389,6 +389,10 @@ artifacts instead of trusting the gate artifact's chosen references.
 That exact-alignment rule now also covers the top-level `signoff_file` and
 `signoff_report_json` fields in `release_gate.json`, so release posture cannot
 silently borrow equivalent signoff files from another directory.
+When readiness consumes `release_trend_report.json`, it also now requires the
+trend report's `current_release_gate_json` to be the same staged
+`release_gate.json` under evaluation instead of an equivalent copied gate from
+another directory.
 
 Cutover and release trend comparisons now prefer stable machine-readable
 `hold_codes`, `blocking_codes`, and `fail_codes` when present, falling back to
