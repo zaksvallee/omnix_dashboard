@@ -337,6 +337,12 @@ if [[ "$REQUIRE_RELEASE_TREND_PASS" -eq 1 ]]; then
   if [[ -n "$RELEASE_GATE_JSON" && -n "$release_trend_current_gate" && "$release_trend_current_gate" != "$RELEASE_GATE_JSON" ]]; then
     fail "DVR readiness failed: release trend current gate does not match the active release gate artifact." "release_trend_current_gate_mismatch"
   fi
+  if [[ -z "$release_trend_previous_gate" ]]; then
+    fail "DVR readiness failed: release trend is missing its previous release gate reference." "release_trend_previous_gate_missing"
+  fi
+  if [[ ! -f "$release_trend_previous_gate" ]]; then
+    fail "DVR readiness failed: release trend previous gate artifact was not found." "release_trend_previous_gate_not_found"
+  fi
   if [[ -n "$release_trend_previous_gate" && "$(basename "$release_trend_previous_gate")" != "release_gate.json" ]]; then
     fail "DVR readiness failed: release trend previous gate does not use the canonical staged filename." "release_trend_previous_gate_name_mismatch"
   fi
