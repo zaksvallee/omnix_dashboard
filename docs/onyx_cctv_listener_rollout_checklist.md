@@ -120,6 +120,7 @@ Notes:
   - Listener readiness now writes that artifact on both pass and fail once the validation bundle is resolved, so failed gate outcomes remain auditable.
   - Listener readiness failure artifacts now include a machine-readable `failure_code`, so downstream tooling does not need to parse prose summaries.
   - Listener release posture now carries `readiness_failure_code` forward when readiness fails, preserving the structured failure cause through the release gate.
+  - Listener signoff now emits a machine-readable `signoff_report.json`, and release posture consumes that structured signoff state instead of only checking markdown file presence.
 
 ---
 

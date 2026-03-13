@@ -306,6 +306,10 @@ When a readiness artifact is present, the release gate now also carries
 `statuses.readiness_failure_code` forward so downstream tooling can distinguish
 why readiness failed without parsing prose.
 
+Listener signoff generation now also emits a sibling `signoff_report.json`
+next to the markdown closeout, and the release gate consumes that structured
+signoff status when present.
+
 To compare release posture across listener runs:
 
 ```bash
@@ -395,6 +399,7 @@ When `--compare-previous-validation` is enabled, the field gate also emits:
 - `cutover_trend_report.md`
 - `readiness_report.json`
 - `readiness_report.md`
+- `signoff_report.json`
 - `release_gate.json`
 - `release_gate.md`
 - `release_trend_report.json`

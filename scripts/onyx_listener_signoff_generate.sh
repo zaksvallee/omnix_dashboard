@@ -3,6 +3,7 @@ set -euo pipefail
 
 REPORT_JSON=""
 OUT_FILE=""
+JSON_OUT_FILE=""
 TREND_REPORT_JSON=""
 REQUIRE_TREND_PASS=0
 VALIDATION_REPORT_JSON=""
@@ -17,7 +18,7 @@ ALLOW_MOCK_ARTIFACTS=0
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/onyx_listener_signoff_generate.sh [--report-json <path>] [--trend-report-json <path>] [--require-trend-pass] [--validation-report-json <path>] [--validation-trend-report-json <path>] [--require-validation-trend-pass] [--cutover-decision-json <path>] [--require-cutover-go] [--cutover-trend-report-json <path>] [--require-cutover-trend-pass] [--out <path>] [--allow-mock-artifacts]
+  ./scripts/onyx_listener_signoff_generate.sh [--report-json <path>] [--trend-report-json <path>] [--require-trend-pass] [--validation-report-json <path>] [--validation-trend-report-json <path>] [--require-validation-trend-pass] [--cutover-decision-json <path>] [--require-cutover-go] [--cutover-trend-report-json <path>] [--require-cutover-trend-pass] [--out <path>] [--json-out <path>] [--allow-mock-artifacts]
 
 Purpose:
   Generate a listener pilot signoff note from the parity report and field notes.
@@ -70,6 +71,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --out)
       OUT_FILE="${2:-}"
+      shift 2
+      ;;
+    --json-out)
+      JSON_OUT_FILE="${2:-}"
       shift 2
       ;;
     --allow-mock-artifacts)
@@ -314,8 +319,12 @@ if [[ -z "$OUT_FILE" ]]; then
   local_date="$(TZ=Africa/Johannesburg date +%Y-%m-%d)"
   OUT_FILE="docs/onyx_listener_pilot_signoff_${local_date}.md"
 fi
+if [[ -z "$JSON_OUT_FILE" ]]; then
+  JSON_OUT_FILE="${OUT_FILE%.md}.json"
+fi
 
 mkdir -p "$(dirname "$OUT_FILE")"
+mkdir -p "$(dirname "$JSON_OUT_FILE")"
 
 {
   echo "# ONYX Listener Pilot Signoff ($(TZ=Africa/Johannesburg date +%Y-%m-%d))"
@@ -409,4 +418,60 @@ mkdir -p "$(dirname "$OUT_FILE")"
   echo "- Remaining blockers: \`none\`"
 } >"$OUT_FILE"
 
+python3 - "$JSON_OUT_FILE" "$OUT_FILE" "$REPORT_JSON" "$TREND_REPORT_JSON" "$VALIDATION_REPORT_JSON" "$VALIDATION_TREND_REPORT_JSON" "$CUTOVER_DECISION_JSON" "$CUTOVER_TREND_REPORT_JSON" "${trend_status:-}" "${validation_trend_status:-}" "${cutover_decision:-}" "${cutover_trend_status:-}" "$REQUIRE_TREND_PASS" "$REQUIRE_VALIDATION_TREND_PASS" "$REQUIRE_CUTOVER_GO" "$REQUIRE_CUTOVER_TREND_PASS" "$ALLOW_MOCK_ARTIFACTS" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+json_out = Path(sys.argv[1])
+markdown_out = sys.argv[2]
+report_json = sys.argv[3]
+trend_report_json = sys.argv[4]
+validation_report_json = sys.argv[5]
+validation_trend_report_json = sys.argv[6]
+cutover_decision_json = sys.argv[7]
+cutover_trend_report_json = sys.argv[8]
+trend_status = sys.argv[9]
+validation_trend_status = sys.argv[10]
+cutover_decision = sys.argv[11]
+cutover_trend_status = sys.argv[12]
+
+def as_bool(raw: str) -> bool:
+    return raw == "1"
+
+require_trend_pass = as_bool(sys.argv[13])
+require_validation_trend_pass = as_bool(sys.argv[14])
+require_cutover_go = as_bool(sys.argv[15])
+require_cutover_trend_pass = as_bool(sys.argv[16])
+allow_mock_artifacts = as_bool(sys.argv[17])
+
+payload = {
+    "status": "PASS",
+    "summary": "Listener pilot signoff generated.",
+    "markdown_file": markdown_out,
+    "report_json": report_json,
+    "trend_report_json": trend_report_json,
+    "validation_report_json": validation_report_json,
+    "validation_trend_report_json": validation_trend_report_json,
+    "cutover_decision_json": cutover_decision_json,
+    "cutover_trend_report_json": cutover_trend_report_json,
+    "statuses": {
+        "trend_status": trend_status,
+        "validation_trend_status": validation_trend_status,
+        "cutover_decision": cutover_decision,
+        "cutover_trend_status": cutover_trend_status,
+    },
+    "requirements": {
+        "require_trend_pass": require_trend_pass,
+        "require_validation_trend_pass": require_validation_trend_pass,
+        "require_cutover_go": require_cutover_go,
+        "require_cutover_trend_pass": require_cutover_trend_pass,
+        "allow_mock_artifacts": allow_mock_artifacts,
+    },
+}
+
+json_out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+PY
+
 echo "PASS: Listener pilot signoff generated: $OUT_FILE"
+echo "Signoff JSON: $JSON_OUT_FILE"

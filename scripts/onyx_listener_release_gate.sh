@@ -6,13 +6,14 @@ READINESS_REPORT_JSON=""
 CUTOVER_DECISION_JSON=""
 CUTOVER_TREND_REPORT_JSON=""
 SIGNOFF_FILE=""
+SIGNOFF_REPORT_JSON=""
 OUT_DIR=""
 REQUIRE_REAL_ARTIFACTS=0
 
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/onyx_listener_release_gate.sh [--validation-report-json <path>] [--readiness-report-json <path>] [--cutover-decision-json <path>] [--cutover-trend-report-json <path>] [--signoff-file <path>] [--out-dir <path>] [--require-real-artifacts]
+  ./scripts/onyx_listener_release_gate.sh [--validation-report-json <path>] [--readiness-report-json <path>] [--cutover-decision-json <path>] [--cutover-trend-report-json <path>] [--signoff-file <path>] [--signoff-report-json <path>] [--out-dir <path>] [--require-real-artifacts]
 
 Purpose:
   Emit a final listener release-gate artifact that collapses validation,
@@ -40,6 +41,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --signoff-file)
       SIGNOFF_FILE="${2:-}"
+      shift 2
+      ;;
+    --signoff-report-json)
+      SIGNOFF_REPORT_JSON="${2:-}"
       shift 2
       ;;
     --out-dir)
@@ -95,13 +100,19 @@ if [[ -z "$SIGNOFF_FILE" ]]; then
     SIGNOFF_FILE="$latest_signoff"
   fi
 fi
+if [[ -z "$SIGNOFF_REPORT_JSON" && -n "$SIGNOFF_FILE" ]]; then
+  candidate_signoff_json="${SIGNOFF_FILE%.md}.json"
+  if [[ -f "$candidate_signoff_json" ]]; then
+    SIGNOFF_REPORT_JSON="$candidate_signoff_json"
+  fi
+fi
 
 if [[ -z "$OUT_DIR" ]]; then
   OUT_DIR="$artifact_dir"
 fi
 mkdir -p "$OUT_DIR"
 
-python3 - "$VALIDATION_REPORT_JSON" "$READINESS_REPORT_JSON" "$CUTOVER_DECISION_JSON" "$CUTOVER_TREND_REPORT_JSON" "$SIGNOFF_FILE" "$OUT_DIR" "$REQUIRE_REAL_ARTIFACTS" <<'PY'
+python3 - "$VALIDATION_REPORT_JSON" "$READINESS_REPORT_JSON" "$CUTOVER_DECISION_JSON" "$CUTOVER_TREND_REPORT_JSON" "$SIGNOFF_FILE" "$SIGNOFF_REPORT_JSON" "$OUT_DIR" "$REQUIRE_REAL_ARTIFACTS" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -111,8 +122,9 @@ readiness_path = Path(sys.argv[2]) if sys.argv[2] else None
 cutover_path = Path(sys.argv[3]) if sys.argv[3] else None
 cutover_trend_path = Path(sys.argv[4]) if sys.argv[4] else None
 signoff_path = Path(sys.argv[5]) if sys.argv[5] else None
-out_dir = Path(sys.argv[6])
-require_real = sys.argv[7] == "1"
+signoff_report_path = Path(sys.argv[6]) if sys.argv[6] else None
+out_dir = Path(sys.argv[7])
+require_real = sys.argv[8] == "1"
 
 with validation_path.open("r", encoding="utf-8") as handle:
     validation = json.load(handle)
@@ -128,6 +140,7 @@ def load_optional(path):
 readiness = load_optional(readiness_path)
 cutover = load_optional(cutover_path)
 cutover_trend = load_optional(cutover_trend_path)
+signoff_report = load_optional(signoff_report_path)
 
 result = "PASS"
 fail_reasons = []
@@ -176,6 +189,14 @@ else:
 if signoff_path is None or not signoff_path.is_file():
     hold_reasons.append("signoff file missing")
 
+signoff_status = ""
+if signoff_report is not None:
+    signoff_status = str(signoff_report.get("status", "")).upper()
+    if signoff_status != "PASS":
+        fail_reasons.append(f"signoff status is {signoff_status or 'missing'}")
+elif signoff_path is not None and signoff_path.is_file():
+    hold_reasons.append("signoff report artifact missing")
+
 if baseline_review and baseline_review != "hold_baseline":
     hold_reasons.append(f"baseline review recommendation is {baseline_review}")
 if baseline_health and baseline_health in {"stale", "missing_history", "invalid_timestamp", "missing_baseline"}:
@@ -198,12 +219,14 @@ payload = {
     "cutover_decision_json": str(cutover_path) if cutover_path else "",
     "cutover_trend_report_json": str(cutover_trend_path) if cutover_trend_path else "",
     "signoff_file": str(signoff_path) if signoff_path else "",
+    "signoff_report_json": str(signoff_report_path) if signoff_report_path else "",
     "statuses": {
         "validation_overall_status": overall_status,
         "readiness_status": readiness_status,
         "readiness_failure_code": readiness_failure_code,
         "cutover_decision": cutover_decision,
         "cutover_trend_status": cutover_trend_status,
+        "signoff_status": signoff_status,
         "baseline_review_recommendation": str(baseline_review),
         "baseline_health_category": str(baseline_health),
     },
@@ -231,6 +254,8 @@ if cutover_trend_path:
     lines.append(f"- Cutover trend report: `{cutover_trend_path}`")
 if signoff_path:
     lines.append(f"- Signoff file: `{signoff_path}`")
+if signoff_report_path:
+    lines.append(f"- Signoff report: `{signoff_report_path}`")
 lines.extend([
     "",
     "## Statuses",
@@ -239,6 +264,7 @@ lines.extend([
     f"- Readiness failure code: `{readiness_failure_code or 'missing'}`",
     f"- Cutover decision: `{cutover_decision or 'missing'}`",
     f"- Cutover trend status: `{cutover_trend_status or 'missing'}`",
+    f"- Signoff status: `{signoff_status or 'missing'}`",
     f"- Baseline review recommendation: `{baseline_review or 'missing'}`",
     f"- Baseline health category: `{baseline_health or 'missing'}`",
     "",
