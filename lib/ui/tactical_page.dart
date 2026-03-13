@@ -813,7 +813,7 @@ class TacticalPage extends StatelessWidget {
     var anomalyPreviousWindow = 0;
 
     for (final event in events.whereType<IntelligenceReceived>()) {
-      if (event.sourceType != 'hardware') {
+      if (event.sourceType != 'hardware' && event.sourceType != 'dvr') {
         continue;
       }
       if (providerFilter.isNotEmpty &&

@@ -1125,6 +1125,7 @@ class _ShellIntelTickerState extends State<_ShellIntelTicker> {
     'all',
     'news',
     'hardware',
+    'dvr',
     'radio',
     'wearable',
     'community',

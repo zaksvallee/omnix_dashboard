@@ -231,6 +231,53 @@ void main() {
     expect(find.text('Control room acknowledged all clear'), findsNothing);
   });
 
+  testWidgets('AppShell exposes a dedicated DVR source chip and filter', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AppShell(
+          currentRoute: OnyxRoute.dashboard,
+          onRouteChanged: (_) {},
+          intelTickerItems: [
+            OnyxIntelTickerItem(
+              id: 'INT-D-1',
+              sourceType: 'dvr',
+              provider: 'hikvision-dvr',
+              headline: 'Vehicle detected at loading bay',
+              occurredAtUtc: DateTime.utc(2026, 3, 11, 10, 16),
+            ),
+            OnyxIntelTickerItem(
+              id: 'INT-H-1',
+              sourceType: 'hardware',
+              provider: 'frigate',
+              headline: 'Perimeter line crossing CAM-22',
+              occurredAtUtc: DateTime.utc(2026, 3, 11, 10, 12),
+            ),
+          ],
+          child: const SizedBox.expand(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('DVR • 1'), findsOneWidget);
+    expect(find.text('CCTV • 1'), findsOneWidget);
+
+    await tester.tap(find.text('DVR • 1'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Vehicle detected at loading bay'), findsOneWidget);
+    expect(find.text('Perimeter line crossing CAM-22'), findsNothing);
+  });
+
   testWidgets('AppShell emits ticker tap callback with selected item', (
     tester,
   ) async {

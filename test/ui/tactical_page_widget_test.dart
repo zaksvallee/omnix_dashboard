@@ -170,4 +170,66 @@ void main() {
     expect(find.text('DVR Signal Counters (6h)'), findsOneWidget);
     expect(find.textContaining('DVR Recent: recent video intel 0 (6h)'), findsOneWidget);
   });
+
+  testWidgets('tactical page counts DVR telemetry counters from events', (
+    tester,
+  ) async {
+    final now = DateTime.now().toUtc();
+    final events = <IntelligenceReceived>[
+      IntelligenceReceived(
+        eventId: 'intel-dvr-1',
+        sequence: 1,
+        version: 1,
+        occurredAt: now.subtract(const Duration(minutes: 10)),
+        intelligenceId: 'INT-DVR-1',
+        provider: 'hikvision-dvr',
+        sourceType: 'dvr',
+        externalId: 'ext-dvr-1',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        headline: 'lpr_alert bay',
+        summary: 'lpr: unauthorized vehicle',
+        riskScore: 74,
+        clipUrl: 'https://dvr.example.com/api/events/ext-dvr-1/clip.mp4',
+        canonicalHash: 'hash-dvr-1',
+      ),
+      IntelligenceReceived(
+        eventId: 'intel-dvr-2',
+        sequence: 2,
+        version: 1,
+        occurredAt: now.subtract(const Duration(minutes: 8)),
+        intelligenceId: 'INT-DVR-2',
+        provider: 'hikvision-dvr',
+        sourceType: 'dvr',
+        externalId: 'ext-dvr-2',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        headline: 'fr_match entry',
+        summary: 'fr: person matched watchlist',
+        riskScore: 88,
+        snapshotUrl: 'https://dvr.example.com/api/events/ext-dvr-2/snapshot.jpg',
+        canonicalHash: 'hash-dvr-2',
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TacticalPage(
+          events: events,
+          videoOpsLabel: 'DVR',
+          cctvProvider: 'hikvision-dvr',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('DVR Signal Counters (6h)'), findsOneWidget);
+    expect(find.text('Signals • 2'), findsOneWidget);
+    expect(find.text('FR Matches • 1'), findsOneWidget);
+    expect(find.text('LPR Hits • 1'), findsOneWidget);
+    expect(find.text('Snapshots • 1'), findsOneWidget);
+    expect(find.text('Clips • 1'), findsOneWidget);
+  });
 }
