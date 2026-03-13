@@ -497,7 +497,7 @@ cutover_cmd=(
   --validation-report-json "$ARTIFACT_DIR/validation_report.json"
   --out-dir "$ARTIFACT_DIR"
 )
-if [[ -f "$ARTIFACT_DIR/pilot_artifact/report.json" ]]; then
+if [[ -f "$ARTIFACT_DIR/report.json" ]]; then
   cutover_cmd+=(--parity-report-json "$ARTIFACT_DIR/report.json")
 fi
 if [[ -f "$ARTIFACT_DIR/trend_report.json" ]]; then

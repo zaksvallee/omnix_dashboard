@@ -369,6 +369,9 @@ field-gate cutover uses the staged validation-bundle parity artifacts, and
 downstream cutover/release consumers reject cutover reports that cite a
 different parity or validation-trend chain than the validation bundle they
 summarize.
+The field-gate cutover producer now also keys that handoff off the staged
+artifact paths themselves, so cutover generation no longer depends on the
+presence of pilot-subdirectory copies when the staged bundle already exists.
 
 Cutover and release trend comparisons now prefer stable machine-readable
 `hold_codes`, `blocking_codes`, and `fail_codes` when present, falling back to

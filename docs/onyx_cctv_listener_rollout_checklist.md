@@ -144,6 +144,7 @@ Notes:
   - Mixed-bundle signoff rejection now also covers the resolved validation-trend artifact, preventing signoff from silently borrowing a different validation-trend report from another run.
   - Signoff/release artifact alignment is now exact rather than best-effort: if the release bundle does not have a given aligned artifact, signoff is not allowed to invent one from another run.
   - The same exact-alignment rule now applies to cutover parity and validation-trend evidence, and field-gate cutover now uses the staged validation-bundle parity artifacts instead of pilot-subdirectory copies.
+  - Field-gate cutover now also keys that handoff off the staged artifact paths themselves, so cutover generation no longer depends on pilot-subdirectory parity copies when the staged bundle already exists.
   - Listener signoff now emits a machine-readable `signoff_report.json`, and release posture consumes that structured signoff state instead of only checking markdown file presence.
   - Field-gate signoff now uses the staged parity report and staged parity trend from the validation bundle, preventing self-inflicted parity-path mismatches between signoff and release posture.
   - Listener release posture and release-trend artifacts now emit stable reason/regression codes, so downstream automation does not need to parse prose fail or hold summaries.
