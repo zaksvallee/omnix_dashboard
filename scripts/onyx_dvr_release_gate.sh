@@ -132,6 +132,8 @@ fail_items = []
 hold_items = []
 expected_validation_path = out_dir / validation_path.name
 expected_readiness_path = out_dir / readiness_path.name if readiness_path else None
+expected_signoff_path = out_dir / signoff_path.name if signoff_path else None
+expected_signoff_report_path = out_dir / signoff_report_path.name if signoff_report_path else None
 
 def add_reason(items, code, message):
     items.append({"code": code, "message": message})
@@ -177,6 +179,12 @@ if signoff_report is None:
     result = "HOLD" if result != "FAIL" else result
     add_reason(hold_items, "missing_signoff_report", "Signoff report is missing.")
 else:
+    if expected_signoff_path is not None and signoff_path != expected_signoff_path:
+        result = "FAIL"
+        add_reason(fail_items, "signoff_file_path_mismatch", "Signoff markdown note is not staged under the active release artifact dir.")
+    if expected_signoff_report_path is not None and signoff_report_path != expected_signoff_report_path:
+        result = "FAIL"
+        add_reason(fail_items, "signoff_report_path_mismatch", "Signoff report is not staged under the active release artifact dir.")
     signoff_status = str(signoff_report.get("status", "")).upper()
     signoff_failure_code = str(signoff_report.get("failure_code", "")).strip()
     signoff_validation_report = str(signoff_report.get("report_json", "")).strip()

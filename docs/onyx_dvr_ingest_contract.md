@@ -90,6 +90,7 @@ Current scope:
     - rejects contradictory or misaligned signoff audit JSON instead of trusting signoff presence alone
     - now also rejects contradictory or misaligned readiness audit JSON instead of trusting readiness presence alone
     - now also rejects top-level validation and readiness paths that drift outside the active staged artifact dir
+    - now also rejects top-level signoff markdown/report paths that drift outside the active staged artifact dir
   - `scripts/onyx_dvr_release_trend_check.sh`
     - emits `release_trend_report.json` and `release_trend_report.md` from the current and previous release-gate posture
     - surfaces signoff-to-release mismatches as direct regressions
