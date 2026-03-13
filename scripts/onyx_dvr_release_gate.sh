@@ -148,10 +148,22 @@ if readiness is None:
     add_reason(hold_items, "missing_readiness_report", "Readiness report is missing.")
 else:
     readiness_status = str(readiness.get("status", "")).upper()
+    readiness_failure_code = str(readiness.get("failure_code", "")).strip()
+    readiness_validation_report = str(readiness.get("report_json", "")).strip()
+    readiness_resolved_validation = str(((readiness.get("resolved_files", {}) or {}).get("validation_report_json", ""))).strip()
     if readiness_status != "PASS":
       result = "FAIL"
-      code = str(readiness.get("failure_code", "")).strip() or "readiness_not_pass"
+      code = readiness_failure_code or "readiness_not_pass"
       add_reason(fail_items, code, f"Readiness status is {readiness_status or 'unknown'}.")
+    if readiness_status == "PASS" and readiness_failure_code:
+      result = "FAIL"
+      add_reason(fail_items, "readiness_failure_code_present_on_pass", "Readiness report is PASS but still carries a failure_code.")
+    if readiness_validation_report and readiness_validation_report != str(validation_path):
+      result = "FAIL"
+      add_reason(fail_items, "readiness_validation_report_mismatch", "Readiness report points at a different validation bundle than the release gate.")
+    if readiness_resolved_validation and readiness_resolved_validation != str(validation_path):
+      result = "FAIL"
+      add_reason(fail_items, "readiness_resolved_validation_report_mismatch", "Readiness resolved validation bundle does not match the release gate validation bundle.")
 
 if signoff_report is None:
     result = "HOLD" if result != "FAIL" else result

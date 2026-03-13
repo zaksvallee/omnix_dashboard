@@ -198,7 +198,9 @@ release_cmd=(
 if [[ "$ALLOW_MOCK_ARTIFACTS" -ne 1 ]]; then
   release_cmd+=(--require-real-artifacts)
 fi
-"${release_cmd[@]}" >/dev/null
+if [[ "$GENERATE_SIGNOFF" -ne 1 ]]; then
+  "${release_cmd[@]}" >/dev/null
+fi
 
 RELEASE_TREND_STATUS=""
 RELEASE_TREND_PRIMARY_CODE=""
@@ -224,22 +226,32 @@ fi
 
 if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
   signoff_json_out="$(dirname "$EFFECTIVE_SIGNOFF_OUT")/$(basename "$EFFECTIVE_SIGNOFF_OUT" .md).json"
-  signoff_cmd=(
-    ./scripts/onyx_dvr_signoff_generate.sh
-    --report-json "$ARTIFACT_DIR/validation_report.json"
-    --provider "$PROVIDER"
-    --out "$EFFECTIVE_SIGNOFF_OUT"
-    --release-gate-json "$ARTIFACT_DIR/release_gate.json"
-  )
-  [[ -n "$CAMERA_ID" ]] && signoff_cmd+=(--expect-camera "$CAMERA_ID")
-  [[ -n "$ZONE" ]] && signoff_cmd+=(--expect-zone "$ZONE")
-  if [[ -f "$ARTIFACT_DIR/release_trend_report.json" ]]; then
-    signoff_cmd+=(--release-trend-report-json "$ARTIFACT_DIR/release_trend_report.json")
-  fi
-  if [[ "$ALLOW_MOCK_ARTIFACTS" -eq 1 ]]; then
-    signoff_cmd+=(--allow-mock-artifacts)
-  fi
-  "${signoff_cmd[@]}" >/dev/null
+  run_signoff() {
+    local include_release_gate_refs="${1:-0}"
+    local include_release_trend_refs="${2:-0}"
+    local signoff_cmd=(
+      ./scripts/onyx_dvr_signoff_generate.sh
+      --report-json "$ARTIFACT_DIR/validation_report.json"
+      --provider "$PROVIDER"
+      --out "$EFFECTIVE_SIGNOFF_OUT"
+    )
+    [[ -n "$CAMERA_ID" ]] && signoff_cmd+=(--expect-camera "$CAMERA_ID")
+    [[ -n "$ZONE" ]] && signoff_cmd+=(--expect-zone "$ZONE")
+    if [[ "$include_release_gate_refs" -eq 1 ]]; then
+      signoff_cmd+=(--release-gate-json "$ARTIFACT_DIR/release_gate.json")
+    fi
+    if [[ "$include_release_trend_refs" -eq 1 && -f "$ARTIFACT_DIR/release_trend_report.json" ]]; then
+      signoff_cmd+=(--release-trend-report-json "$ARTIFACT_DIR/release_trend_report.json")
+    fi
+    if [[ "$ALLOW_MOCK_ARTIFACTS" -eq 1 ]]; then
+      signoff_cmd+=(--allow-mock-artifacts)
+    fi
+    "${signoff_cmd[@]}" >/dev/null
+  }
+
+  # Seed signoff before the release gate exists so the first release pass can
+  # derive posture without inheriting a stale or provisional release result.
+  run_signoff 0 0
 
   final_release_cmd=(
     bash ./scripts/onyx_dvr_release_gate.sh
@@ -252,6 +264,12 @@ if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
   if [[ "$ALLOW_MOCK_ARTIFACTS" -ne 1 ]]; then
     final_release_cmd+=(--require-real-artifacts)
   fi
+  "${final_release_cmd[@]}" >/dev/null
+
+  # Refresh signoff against the settled release gate, then rerun the release
+  # gate once so its signoff consistency checks evaluate against the updated
+  # signoff JSON rather than the pre-release seed artifact.
+  run_signoff 1 0
   "${final_release_cmd[@]}" >/dev/null
 
   if [[ "$COMPARE_PREVIOUS_RELEASE" -eq 1 ]]; then
@@ -271,20 +289,9 @@ if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
       RELEASE_TREND_PRIMARY_CODE="$(json_get "$ARTIFACT_DIR/release_trend_report.json" "primary_regression_code")"
       RELEASE_TREND_SUMMARY="$(json_get "$ARTIFACT_DIR/release_trend_report.json" "summary")"
     fi
-    signoff_cmd=(
-      ./scripts/onyx_dvr_signoff_generate.sh
-      --report-json "$ARTIFACT_DIR/validation_report.json"
-      --provider "$PROVIDER"
-      --out "$EFFECTIVE_SIGNOFF_OUT"
-      --release-gate-json "$ARTIFACT_DIR/release_gate.json"
-      --release-trend-report-json "$ARTIFACT_DIR/release_trend_report.json"
-    )
-    [[ -n "$CAMERA_ID" ]] && signoff_cmd+=(--expect-camera "$CAMERA_ID")
-    [[ -n "$ZONE" ]] && signoff_cmd+=(--expect-zone "$ZONE")
-    if [[ "$ALLOW_MOCK_ARTIFACTS" -eq 1 ]]; then
-      signoff_cmd+=(--allow-mock-artifacts)
-    fi
-    "${signoff_cmd[@]}" >/dev/null
+    # Refresh signoff again so the saved audit JSON reflects the final trend
+    # posture when compare mode is enabled.
+    run_signoff 1 1
   fi
 fi
 

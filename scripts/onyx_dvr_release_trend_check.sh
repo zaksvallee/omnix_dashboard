@@ -162,8 +162,50 @@ def signoff_consistency_regressions(gate, gate_path, label):
         })
     return items
 
+def readiness_consistency_regressions(gate, gate_path, label):
+    items = []
+    readiness_report_path = str(gate.get("readiness_report_json", "")).strip()
+    readiness_report = load_json(readiness_report_path)
+    reported_status = str((gate.get("statuses", {}) or {}).get("readiness_status", "")).upper()
+    reported_failure_code = str((gate.get("statuses", {}) or {}).get("readiness_failure_code", "")).strip()
+    gate_validation_report = str(gate.get("validation_report_json", "")).strip()
+    if readiness_report is None:
+        return items
+    readiness_status = str(readiness_report.get("status", "")).upper()
+    readiness_failure_code = str(readiness_report.get("failure_code", "")).strip()
+    readiness_validation_report = str(readiness_report.get("report_json", "")).strip()
+    readiness_resolved_validation = str(((readiness_report.get("resolved_files", {}) or {}).get("validation_report_json", ""))).strip()
+    if reported_status and readiness_status and reported_status != readiness_status:
+        items.append({
+            "code": f"{label}_readiness_status_mismatch",
+            "message": f"{label} release gate readiness_status does not match the referenced readiness report status.",
+        })
+    if reported_failure_code != readiness_failure_code:
+        items.append({
+            "code": f"{label}_readiness_failure_code_mismatch",
+            "message": f"{label} release gate readiness_failure_code does not match the referenced readiness report failure_code.",
+        })
+    if readiness_status == "PASS" and readiness_failure_code:
+        items.append({
+            "code": f"{label}_readiness_failure_code_present_on_pass",
+            "message": f"{label} readiness report is PASS but still carries failure_code={readiness_failure_code}.",
+        })
+    if readiness_validation_report and gate_validation_report and readiness_validation_report != gate_validation_report:
+        items.append({
+            "code": f"{label}_readiness_validation_report_mismatch",
+            "message": f"{label} readiness report points at a different validation report than the release gate.",
+        })
+    if readiness_resolved_validation and gate_validation_report and readiness_resolved_validation != gate_validation_report:
+        items.append({
+            "code": f"{label}_readiness_resolved_validation_report_mismatch",
+            "message": f"{label} readiness resolved validation bundle does not match the release gate validation bundle.",
+        })
+    return items
+
 regressions.extend(signoff_consistency_regressions(current, current_path, "current_gate"))
 regressions.extend(signoff_consistency_regressions(previous, previous_path, "previous_gate"))
+regressions.extend(readiness_consistency_regressions(current, current_path, "current_gate"))
+regressions.extend(readiness_consistency_regressions(previous, previous_path, "previous_gate"))
 
 if rank.get(current_result, 99) > rank.get(previous_result, 99):
     regressions.append({
