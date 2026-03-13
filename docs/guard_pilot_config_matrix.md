@@ -158,6 +158,7 @@ DVR pilot commands:
 - `./scripts/onyx_dvr_capture_pack_init.sh`
 - `./scripts/onyx_dvr_field_validation.sh`
 - `./scripts/onyx_dvr_pilot_readiness_check.sh --require-real-artifacts`
+- readiness writes `readiness_report.json` and `readiness_report.md` into the DVR validation artifact dir
 - `./scripts/onyx_dvr_pilot_gate.sh`
 - `./scripts/onyx_dvr_field_gate.sh`
 - `./scripts/onyx_dvr_signoff_generate.sh`

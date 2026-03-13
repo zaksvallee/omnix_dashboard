@@ -161,6 +161,9 @@ fi
 echo
 echo "PASS: DVR field gate completed."
 echo "Validation artifact: $ARTIFACT_DIR/validation_report.json"
+if [[ -f "$ARTIFACT_DIR/readiness_report.json" ]]; then
+  echo "Readiness artifact: $ARTIFACT_DIR/readiness_report.json"
+fi
 if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
   echo "Signoff note: $EFFECTIVE_SIGNOFF_OUT"
 fi

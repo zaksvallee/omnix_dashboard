@@ -10,9 +10,80 @@ EXPECT_ZONE=""
 REPORT_JSON=""
 MAX_REPORT_AGE_HOURS="${ONYX_DVR_MAX_VALIDATION_REPORT_AGE_HOURS:-24}"
 REQUIRE_REAL_ARTIFACTS=0
+ARTIFACT_DIR=""
+READINESS_JSON_OUT=""
+READINESS_MD_OUT=""
+REPORT_AGE_HOURS_VALUE=""
 
 pass() { printf "PASS: %s\n" "$1"; }
-fail() { printf "FAIL: %s\n" "$1"; exit 1; }
+json_string() {
+  python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "${1:-}"
+}
+
+write_readiness_report() {
+  local status="$1"
+  local summary="$2"
+  local failure_code="${3:-}"
+  if [[ -z "$READINESS_JSON_OUT" || -z "$READINESS_MD_OUT" ]]; then
+    return 0
+  fi
+  mkdir -p "$(dirname "$READINESS_JSON_OUT")"
+  mkdir -p "$(dirname "$READINESS_MD_OUT")"
+  local generated_at
+  generated_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  cat >"$READINESS_JSON_OUT" <<EOF
+{
+  "generated_at_utc": $(json_string "$generated_at"),
+  "status": $(json_string "$status"),
+  "failure_code": $(json_string "$failure_code"),
+  "summary": $(json_string "$summary"),
+  "provider": $(json_string "$PROVIDER"),
+  "expected_camera": $(json_string "$EXPECT_CAMERA"),
+  "expected_zone": $(json_string "$EXPECT_ZONE"),
+  "report_json": $(json_string "$REPORT_JSON"),
+  "artifact_dir": $(json_string "$ARTIFACT_DIR"),
+  "max_report_age_hours": $(json_string "$MAX_REPORT_AGE_HOURS"),
+  "require_real_artifacts": $([[ "$REQUIRE_REAL_ARTIFACTS" -eq 1 ]] && echo true || echo false),
+  "report_age_hours": $(json_string "$REPORT_AGE_HOURS_VALUE"),
+  "resolved_files": {
+    "validation_report_json": $(json_string "$REPORT_JSON")
+  }
+}
+EOF
+  {
+    echo "# ONYX DVR Readiness Report"
+    echo
+    echo "- Generated: $generated_at"
+    echo "- Status: $status"
+    echo "- Failure code: ${failure_code:-none}"
+    echo "- Provider: ${PROVIDER:-}"
+    echo "- Expected camera: ${EXPECT_CAMERA:-}"
+    echo "- Expected zone: ${EXPECT_ZONE:-}"
+    echo "- Validation report: ${REPORT_JSON:-}"
+    echo "- Validation artifact dir: ${ARTIFACT_DIR:-}"
+    echo "- Max report age hours: ${MAX_REPORT_AGE_HOURS:-}"
+    echo "- Require real artifacts: $([[ "$REQUIRE_REAL_ARTIFACTS" -eq 1 ]] && echo yes || echo no)"
+    echo "- Report age hours: ${REPORT_AGE_HOURS_VALUE:-}"
+    echo
+    echo "## Summary"
+    echo "$summary"
+  } >"$READINESS_MD_OUT"
+}
+
+fail() {
+  local summary="$1"
+  local failure_code="${2:-readiness_failed}"
+  write_readiness_report "FAIL" "$summary" "$failure_code"
+  printf "FAIL: %s\n" "$summary"
+  exit 1
+}
+
+conclude_pass() {
+  local summary="$1"
+  write_readiness_report "PASS" "$summary" ""
+  printf "PASS: %s\n" "$summary"
+  exit 0
+}
 
 usage() {
   cat <<'USAGE'
@@ -112,19 +183,26 @@ if [[ -z "$REPORT_JSON" ]]; then
   REPORT_JSON="$(latest_validation_report_json || true)"
 fi
 if [[ -z "$REPORT_JSON" || ! -f "$REPORT_JSON" ]]; then
-  fail "DVR validation_report.json not found."
+  fail "DVR validation_report.json not found." "validation_report_not_found"
 fi
 
-report_age="$(report_age_hours "$REPORT_JSON")"
-if ! python3 - "$report_age" "$MAX_REPORT_AGE_HOURS" <<'PY'
+ARTIFACT_DIR="$(json_get "$REPORT_JSON" "artifact_dir")"
+if [[ -z "$ARTIFACT_DIR" ]]; then
+  ARTIFACT_DIR="$(cd "$(dirname "$REPORT_JSON")" && pwd)"
+fi
+READINESS_JSON_OUT="$ARTIFACT_DIR/readiness_report.json"
+READINESS_MD_OUT="$ARTIFACT_DIR/readiness_report.md"
+
+REPORT_AGE_HOURS_VALUE="$(report_age_hours "$REPORT_JSON")"
+if ! python3 - "$REPORT_AGE_HOURS_VALUE" "$MAX_REPORT_AGE_HOURS" <<'PY'
 import sys
 raise SystemExit(0 if float(sys.argv[1]) <= float(sys.argv[2]) else 1)
 PY
 then
-  fail "Latest DVR validation report is stale (${report_age}h old > ${MAX_REPORT_AGE_HOURS}h)."
+  fail "Latest DVR validation report is stale (${REPORT_AGE_HOURS_VALUE}h old > ${MAX_REPORT_AGE_HOURS}h)." "validation_report_stale"
 fi
 
-verify_result="$(verify_json_report_checksums "$REPORT_JSON")" || fail "DVR validation checksum verification failed: $verify_result"
+verify_result="$(verify_json_report_checksums "$REPORT_JSON")" || fail "DVR validation checksum verification failed: $verify_result" "validation_checksum_failed"
 pass "DVR validation checksums verified."
 
 overall_status="$(json_get "$REPORT_JSON" "overall_status" | tr '[:lower:]' '[:upper:]')"
@@ -135,31 +213,31 @@ report_camera="$(json_get "$REPORT_JSON" "expected_camera")"
 report_zone="$(json_get "$REPORT_JSON" "expected_zone")"
 
 if [[ "$REQUIRE_REAL_ARTIFACTS" -eq 1 && "$is_mock" == "true" ]]; then
-  fail "DVR readiness failed: mock artifacts are not allowed under --require-real-artifacts."
+  fail "DVR readiness failed: mock artifacts are not allowed under --require-real-artifacts." "mock_artifacts_not_allowed"
 fi
 if [[ "$REQUIRE_REAL_ARTIFACTS" -eq 1 ]]; then
   pass "Real-artifact gate passed ($artifact_dir)."
 fi
 
 if [[ -n "$PROVIDER" && -n "$report_provider" && "$report_provider" != "$PROVIDER" ]]; then
-  fail "DVR validation provider mismatch: report=$report_provider expected=$PROVIDER."
+  fail "DVR validation provider mismatch: report=$report_provider expected=$PROVIDER." "provider_mismatch"
 fi
 if [[ -n "$EXPECT_CAMERA" && -n "$report_camera" && "$report_camera" != "$EXPECT_CAMERA" ]]; then
-  fail "DVR validation camera mismatch: report=$report_camera expected=$EXPECT_CAMERA."
+  fail "DVR validation camera mismatch: report=$report_camera expected=$EXPECT_CAMERA." "camera_mismatch"
 fi
 if [[ -n "$EXPECT_ZONE" && -n "$report_zone" && "$report_zone" != "$EXPECT_ZONE" ]]; then
-  fail "DVR validation zone mismatch: report=$report_zone expected=$EXPECT_ZONE."
+  fail "DVR validation zone mismatch: report=$report_zone expected=$EXPECT_ZONE." "zone_mismatch"
 fi
 
 for gate in edge_validation snapshot_validation clip_validation bridges_validation pollops_validation timeline_validation camera_wired health_visible first_event_captured; do
   gate_value="$(json_get "$REPORT_JSON" "gates.$gate" | tr '[:upper:]' '[:lower:]')"
   if [[ "$gate_value" != "true" ]]; then
-    fail "DVR readiness failed: $gate gate is not true."
+    fail "DVR readiness failed: $gate gate is not true." "${gate}_false"
   fi
 done
 
 if [[ "$overall_status" != "PASS" ]]; then
-  fail "DVR readiness failed: latest report overall_status is not PASS ($REPORT_JSON)."
+  fail "DVR readiness failed: latest report overall_status is not PASS ($REPORT_JSON)." "overall_status_not_pass"
 fi
 
-pass "DVR readiness passed ($REPORT_JSON, age=${report_age}h)."
+conclude_pass "DVR readiness passed ($REPORT_JSON, age=${REPORT_AGE_HOURS_VALUE}h)."
