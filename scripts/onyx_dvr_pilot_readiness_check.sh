@@ -288,6 +288,12 @@ if [[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]]; then
   if [[ -n "$release_gate_signoff_report" && "$release_gate_signoff_report" != "$ARTIFACT_DIR/$(basename "$release_gate_signoff_report")" ]]; then
     fail "DVR readiness failed: release gate signoff report is not staged under the active artifact dir." "release_gate_signoff_report_path_mismatch"
   fi
+  if [[ -n "$release_gate_signoff_file" && "$release_gate_signoff_file" != "$ARTIFACT_DIR/dvr_pilot_signoff.md" ]]; then
+    fail "DVR readiness failed: release gate signoff markdown does not use the canonical staged filename." "release_gate_signoff_file_name_mismatch"
+  fi
+  if [[ -n "$release_gate_signoff_report" && "$release_gate_signoff_report" != "$ARTIFACT_DIR/dvr_pilot_signoff.json" ]]; then
+    fail "DVR readiness failed: release gate signoff report does not use the canonical staged filename." "release_gate_signoff_report_name_mismatch"
+  fi
   if [[ -n "$release_gate_signoff_report" && -f "$release_gate_signoff_report" ]]; then
     signoff_report_validation="$(json_get_optional "$release_gate_signoff_report" "report_json")"
     signoff_report_release_gate="$(json_get_optional "$release_gate_signoff_report" "release_gate_json")"

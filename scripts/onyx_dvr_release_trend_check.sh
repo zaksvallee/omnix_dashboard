@@ -116,6 +116,8 @@ def signoff_consistency_regressions(gate, gate_path, label):
     signoff_report_path = str(gate.get("signoff_report_json", "")).strip()
     signoff_file_path = str(gate.get("signoff_file", "")).strip()
     reported_signoff_status = str((gate.get("statuses", {}) or {}).get("signoff_status", "")).upper()
+    canonical_signoff_file = str(gate_dir / "dvr_pilot_signoff.md")
+    canonical_signoff_report = str(gate_dir / "dvr_pilot_signoff.json")
     if signoff_file_path and signoff_file_path != str(gate_dir / Path(signoff_file_path).name):
         items.append({
             "code": f"{label}_signoff_file_path_mismatch",
@@ -125,6 +127,16 @@ def signoff_consistency_regressions(gate, gate_path, label):
         items.append({
             "code": f"{label}_signoff_report_path_mismatch",
             "message": f"{label} release gate signoff report is not staged under its own artifact dir.",
+        })
+    if signoff_file_path and signoff_file_path != canonical_signoff_file:
+        items.append({
+            "code": f"{label}_signoff_file_name_mismatch",
+            "message": f"{label} release gate signoff markdown does not use the canonical staged filename dvr_pilot_signoff.md.",
+        })
+    if signoff_report_path and signoff_report_path != canonical_signoff_report:
+        items.append({
+            "code": f"{label}_signoff_report_name_mismatch",
+            "message": f"{label} release gate signoff report does not use the canonical staged filename dvr_pilot_signoff.json.",
         })
     signoff_report = load_json(signoff_report_path)
     if signoff_report is None:

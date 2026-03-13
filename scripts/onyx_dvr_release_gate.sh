@@ -136,6 +136,8 @@ expected_signoff_path = out_dir / signoff_path.name if signoff_path else None
 expected_signoff_report_path = out_dir / signoff_report_path.name if signoff_report_path else None
 canonical_validation_path = out_dir / "validation_report.json"
 canonical_readiness_path = out_dir / "readiness_report.json"
+canonical_signoff_path = out_dir / "dvr_pilot_signoff.md"
+canonical_signoff_report_path = out_dir / "dvr_pilot_signoff.json"
 
 def add_reason(items, code, message):
     items.append({"code": code, "message": message})
@@ -193,6 +195,12 @@ else:
     if expected_signoff_report_path is not None and signoff_report_path != expected_signoff_report_path:
         result = "FAIL"
         add_reason(fail_items, "signoff_report_path_mismatch", "Signoff report is not staged under the active release artifact dir.")
+    if signoff_path != canonical_signoff_path:
+        result = "FAIL"
+        add_reason(fail_items, "signoff_file_name_mismatch", "Signoff markdown does not use the canonical staged filename dvr_pilot_signoff.md.")
+    if signoff_report_path != canonical_signoff_report_path:
+        result = "FAIL"
+        add_reason(fail_items, "signoff_report_name_mismatch", "Signoff report does not use the canonical staged filename dvr_pilot_signoff.json.")
     signoff_status = str(signoff_report.get("status", "")).upper()
     signoff_failure_code = str(signoff_report.get("failure_code", "")).strip()
     signoff_validation_report = str(signoff_report.get("report_json", "")).strip()
