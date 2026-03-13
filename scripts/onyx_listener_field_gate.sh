@@ -537,6 +537,8 @@ readiness_cmd=(
   ./scripts/onyx_listener_pilot_readiness_check.sh
   --report-json "$ARTIFACT_DIR/validation_report.json"
   --max-report-age-hours "$MAX_REPORT_AGE_HOURS"
+  --json-out "$ARTIFACT_DIR/readiness_report.json"
+  --markdown-out "$ARTIFACT_DIR/readiness_report.md"
 )
 if [[ "$REQUIRE_TREND_PASS" -eq 1 ]]; then
   readiness_cmd+=(--require-trend-pass)
@@ -714,6 +716,9 @@ if [[ -n "$RELEASE_GATE_RESULT" ]]; then
   echo "Release gate: ${RELEASE_GATE_RESULT}"
   echo "Release gate summary: ${RELEASE_GATE_SUMMARY:-n/a}"
   echo "Release gate artifact: $ARTIFACT_DIR/release_gate.json"
+fi
+if [[ -f "$ARTIFACT_DIR/readiness_report.json" ]]; then
+  echo "Readiness artifact: $ARTIFACT_DIR/readiness_report.json"
 fi
 if [[ -n "$RELEASE_TREND_STATUS" ]]; then
   echo "Release trend: ${RELEASE_TREND_STATUS}"

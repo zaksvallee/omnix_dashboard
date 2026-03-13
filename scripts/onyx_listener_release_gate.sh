@@ -12,7 +12,7 @@ REQUIRE_REAL_ARTIFACTS=0
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/onyx_listener_release_gate.sh [--validation-report-json <path>] [--cutover-decision-json <path>] [--cutover-trend-report-json <path>] [--signoff-file <path>] [--out-dir <path>] [--require-real-artifacts]
+  ./scripts/onyx_listener_release_gate.sh [--validation-report-json <path>] [--readiness-report-json <path>] [--cutover-decision-json <path>] [--cutover-trend-report-json <path>] [--signoff-file <path>] [--out-dir <path>] [--require-real-artifacts]
 
 Purpose:
   Emit a final listener release-gate artifact that collapses validation,
@@ -86,6 +86,9 @@ fi
 if [[ -z "$CUTOVER_TREND_REPORT_JSON" && -f "$artifact_dir/cutover_trend_report.json" ]]; then
   CUTOVER_TREND_REPORT_JSON="$artifact_dir/cutover_trend_report.json"
 fi
+if [[ -z "$READINESS_REPORT_JSON" && -f "$artifact_dir/readiness_report.json" ]]; then
+  READINESS_REPORT_JSON="$artifact_dir/readiness_report.json"
+fi
 if [[ -z "$SIGNOFF_FILE" ]]; then
   latest_signoff="$(find "$artifact_dir" -maxdepth 1 -type f -name "*.md" -print0 2>/dev/null | xargs -0 ls -1t 2>/dev/null | head -n 1 || true)"
   if [[ -n "$latest_signoff" && "$latest_signoff" != *"/validation_report.md" && "$latest_signoff" != *"/cutover_decision.md" && "$latest_signoff" != *"/cutover_trend_report.md" ]]; then
@@ -98,17 +101,18 @@ if [[ -z "$OUT_DIR" ]]; then
 fi
 mkdir -p "$OUT_DIR"
 
-python3 - "$VALIDATION_REPORT_JSON" "$CUTOVER_DECISION_JSON" "$CUTOVER_TREND_REPORT_JSON" "$SIGNOFF_FILE" "$OUT_DIR" "$REQUIRE_REAL_ARTIFACTS" <<'PY'
+python3 - "$VALIDATION_REPORT_JSON" "$READINESS_REPORT_JSON" "$CUTOVER_DECISION_JSON" "$CUTOVER_TREND_REPORT_JSON" "$SIGNOFF_FILE" "$OUT_DIR" "$REQUIRE_REAL_ARTIFACTS" <<'PY'
 import json
 import sys
 from pathlib import Path
 
 validation_path = Path(sys.argv[1])
-cutover_path = Path(sys.argv[2]) if sys.argv[2] else None
-cutover_trend_path = Path(sys.argv[3]) if sys.argv[3] else None
-signoff_path = Path(sys.argv[4]) if sys.argv[4] else None
-out_dir = Path(sys.argv[5])
-require_real = sys.argv[6] == "1"
+readiness_path = Path(sys.argv[2]) if sys.argv[2] else None
+cutover_path = Path(sys.argv[3]) if sys.argv[3] else None
+cutover_trend_path = Path(sys.argv[4]) if sys.argv[4] else None
+signoff_path = Path(sys.argv[5]) if sys.argv[5] else None
+out_dir = Path(sys.argv[6])
+require_real = sys.argv[7] == "1"
 
 with validation_path.open("r", encoding="utf-8") as handle:
     validation = json.load(handle)
@@ -121,6 +125,7 @@ def load_optional(path):
     with path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
 
+readiness = load_optional(readiness_path)
 cutover = load_optional(cutover_path)
 cutover_trend = load_optional(cutover_trend_path)
 
@@ -136,6 +141,12 @@ baseline_health = (validation.get("baseline_health") or {}).get("category", "")
 
 if overall_status != "PASS":
     fail_reasons.append(f"validation overall_status is {overall_status or 'missing'}")
+
+readiness_status = ""
+if readiness is not None:
+    readiness_status = str(readiness.get("status", "")).upper()
+    if readiness_status != "PASS":
+        fail_reasons.append(f"readiness status is {readiness_status or 'missing'}")
 
 if require_real and (is_mock or "/mock-" in artifact_dir or artifact_dir.startswith("mock-")):
     fail_reasons.append("validation artifact is mock while real artifacts are required")
@@ -179,11 +190,13 @@ payload = {
         else "Listener release gate failed."
     ),
     "validation_report_json": str(validation_path),
+    "readiness_report_json": str(readiness_path) if readiness_path else "",
     "cutover_decision_json": str(cutover_path) if cutover_path else "",
     "cutover_trend_report_json": str(cutover_trend_path) if cutover_trend_path else "",
     "signoff_file": str(signoff_path) if signoff_path else "",
     "statuses": {
         "validation_overall_status": overall_status,
+        "readiness_status": readiness_status,
         "cutover_decision": cutover_decision,
         "cutover_trend_status": cutover_trend_status,
         "baseline_review_recommendation": str(baseline_review),
@@ -205,6 +218,8 @@ lines = [
     f"- Summary: `{payload['summary']}`",
     f"- Validation report: `{validation_path}`",
 ]
+if readiness_path:
+    lines.append(f"- Readiness report: `{readiness_path}`")
 if cutover_path:
     lines.append(f"- Cutover decision: `{cutover_path}`")
 if cutover_trend_path:
@@ -215,6 +230,7 @@ lines.extend([
     "",
     "## Statuses",
     f"- Validation overall status: `{overall_status or 'missing'}`",
+    f"- Readiness status: `{readiness_status or 'missing'}`",
     f"- Cutover decision: `{cutover_decision or 'missing'}`",
     f"- Cutover trend status: `{cutover_trend_status or 'missing'}`",
     f"- Baseline review recommendation: `{baseline_review or 'missing'}`",

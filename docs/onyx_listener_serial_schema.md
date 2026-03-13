@@ -300,7 +300,7 @@ This emits `release_gate.json` plus `release_gate.md` with:
 - `result = PASS|HOLD|FAIL`
 - `fail_reasons`
 - `hold_reasons`
-- resolved validation/cutover/signoff references
+- resolved validation/readiness/cutover/signoff references
 
 To compare release posture across listener runs:
 
@@ -335,6 +335,7 @@ To confirm the latest listener field-validation bundle is signoff-ready:
 
 ```bash
 ./scripts/onyx_listener_pilot_readiness_check.sh \
+  --json-out tmp/listener_field_validation/<timestamp>/readiness_report.json \
   --require-trend-pass \
   --require-validation-trend-pass \
   --require-cutover-go \
@@ -380,6 +381,8 @@ When `--compare-previous-validation` is enabled, the field gate also emits:
 - `cutover_decision.md`
 - `cutover_trend_report.json`
 - `cutover_trend_report.md`
+- `readiness_report.json`
+- `readiness_report.md`
 - `release_gate.json`
 - `release_gate.md`
 - `release_trend_report.json`
