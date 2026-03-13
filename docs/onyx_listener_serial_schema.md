@@ -530,6 +530,15 @@ aggregated artifacts instead of trusting only their top-level status:
 - `release_trend_report.json` must still point at current and previous
   release-gate artifacts whose own referenced evidence files still exist.
 
+Standalone release posture now enforces the same rule at artifact generation
+time for the evidence it consumes directly:
+- a staged `cutover_decision.json` cannot contribute to a clean release result
+  if its referenced validation, parity, parity-trend, or validation-trend
+  files are missing.
+- a staged `signoff_report.json` cannot contribute to a clean release result
+  if its referenced parity, trend, validation, validation-trend, cutover, or
+  cutover-trend files are missing.
+
 Readiness and signoff can also enforce validation-trend pass explicitly:
 - `--validation-trend-report-json <path>`
 - `--require-validation-trend-pass`

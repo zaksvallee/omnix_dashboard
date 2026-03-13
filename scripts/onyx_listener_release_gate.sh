@@ -174,6 +174,12 @@ hold_items = []
 def add_reason(items, code, message):
     items.append({"code": code, "message": message})
 
+def path_exists(raw_path):
+    candidate = str(raw_path or "").strip()
+    if not candidate:
+        return True
+    return Path(candidate).is_file()
+
 overall_status = str(validation.get("overall_status", "")).upper()
 is_mock = bool(validation.get("is_mock", False))
 artifact_dir = str(validation.get("artifact_dir", ""))
@@ -204,6 +210,13 @@ if readiness is not None:
                 f"readiness_failure_{readiness_failure_code}",
                 f"readiness failure_code is {readiness_failure_code}",
             )
+    readiness_validation_report = str(readiness.get("validation_report_json", "")).strip()
+    if readiness_validation_report and not path_exists(readiness_validation_report):
+        add_reason(
+            fail_items,
+            "readiness_missing_validation_report",
+            "readiness report references a missing validation report",
+        )
 
 if require_real and (is_mock or "/mock-" in artifact_dir or artifact_dir.startswith("mock-")):
     add_reason(
@@ -217,6 +230,34 @@ if cutover is None:
     add_reason(hold_items, "missing_cutover_decision", "cutover decision artifact missing")
 else:
     cutover_decision = str(cutover.get("decision", "")).upper()
+    cutover_validation_report = str(cutover.get("validation_report_json", "")).strip()
+    cutover_parity_report = str(cutover.get("parity_report_json", "")).strip()
+    cutover_parity_trend = str(cutover.get("parity_trend_report_json", "")).strip()
+    cutover_validation_trend = str(cutover.get("validation_trend_report_json", "")).strip()
+    if cutover_validation_report and not path_exists(cutover_validation_report):
+        add_reason(
+            fail_items,
+            "cutover_missing_validation_report",
+            "cutover decision references a missing validation report",
+        )
+    if cutover_parity_report and not path_exists(cutover_parity_report):
+        add_reason(
+            fail_items,
+            "cutover_missing_parity_report",
+            "cutover decision references a missing parity report",
+        )
+    if cutover_parity_trend and not path_exists(cutover_parity_trend):
+        add_reason(
+            fail_items,
+            "cutover_missing_parity_trend_report",
+            "cutover decision references a missing parity trend report",
+        )
+    if cutover_validation_trend and not path_exists(cutover_validation_trend):
+        add_reason(
+            fail_items,
+            "cutover_missing_validation_trend_report",
+            "cutover decision references a missing validation trend report",
+        )
     if cutover_decision == "BLOCK":
       add_reason(fail_items, "cutover_blocked", "cutover decision is BLOCK")
     elif cutover_decision != "GO":
@@ -231,6 +272,20 @@ if cutover_trend is None:
     add_reason(hold_items, "missing_cutover_trend", "cutover trend artifact missing")
 else:
     cutover_trend_status = str(cutover_trend.get("status", "")).upper()
+    current_cutover_decision = str(cutover_trend.get("current_decision_json", "")).strip()
+    previous_cutover_decision = str(cutover_trend.get("previous_decision_json", "")).strip()
+    if current_cutover_decision and not path_exists(current_cutover_decision):
+        add_reason(
+            fail_items,
+            "cutover_trend_missing_current_decision",
+            "cutover trend references a missing current cutover decision",
+        )
+    if previous_cutover_decision and not path_exists(previous_cutover_decision):
+        add_reason(
+            fail_items,
+            "cutover_trend_missing_previous_decision",
+            "cutover trend references a missing previous cutover decision",
+        )
     if cutover_trend_status != "PASS":
         add_reason(
             fail_items,
@@ -241,6 +296,48 @@ else:
 signoff_status = ""
 if signoff_report is not None:
     signoff_status = str(signoff_report.get("status", "")).upper()
+    signoff_parity_report = str(signoff_report.get("report_json", "")).strip()
+    signoff_trend_report = str(signoff_report.get("trend_report_json", "")).strip()
+    signoff_validation_report = str(signoff_report.get("validation_report_json", "")).strip()
+    signoff_validation_trend = str(signoff_report.get("validation_trend_report_json", "")).strip()
+    signoff_cutover_decision = str(signoff_report.get("cutover_decision_json", "")).strip()
+    signoff_cutover_trend = str(signoff_report.get("cutover_trend_report_json", "")).strip()
+    if signoff_parity_report and not path_exists(signoff_parity_report):
+        add_reason(
+            fail_items,
+            "signoff_missing_parity_report",
+            "signoff report references a missing parity report",
+        )
+    if signoff_trend_report and not path_exists(signoff_trend_report):
+        add_reason(
+            fail_items,
+            "signoff_missing_trend_report",
+            "signoff report references a missing trend report",
+        )
+    if signoff_validation_report and not path_exists(signoff_validation_report):
+        add_reason(
+            fail_items,
+            "signoff_missing_validation_report",
+            "signoff report references a missing validation report",
+        )
+    if signoff_validation_trend and not path_exists(signoff_validation_trend):
+        add_reason(
+            fail_items,
+            "signoff_missing_validation_trend_report",
+            "signoff report references a missing validation trend report",
+        )
+    if signoff_cutover_decision and not path_exists(signoff_cutover_decision):
+        add_reason(
+            fail_items,
+            "signoff_missing_cutover_decision_report",
+            "signoff report references a missing cutover decision report",
+        )
+    if signoff_cutover_trend and not path_exists(signoff_cutover_trend):
+        add_reason(
+            fail_items,
+            "signoff_missing_cutover_trend_report",
+            "signoff report references a missing cutover trend report",
+        )
     if signoff_status != "PASS":
         add_reason(
             fail_items,
