@@ -18,6 +18,7 @@ void main() {
     String? radioOpsQueueHealth,
     String? radioQueueIntentMix,
     String? radioAckRecentSummary,
+    String videoOpsLabel = 'CCTV',
     String? cctvCapabilitySummary,
     String? cctvRecentSignalSummary,
     bool radioQueueHasPending = false,
@@ -48,10 +49,11 @@ void main() {
         radioAckRecentSummary:
             radioAckRecentSummary ??
             'recent ack 0 (6h) • all_clear 0 • panic 0 • duress 0 • status 0',
+        videoOpsLabel: videoOpsLabel,
         cctvCapabilitySummary: cctvCapabilitySummary ?? 'caps none',
         cctvRecentSignalSummary:
             cctvRecentSignalSummary ??
-            'recent hardware intel 0 (6h) • intrusion 0 • line_crossing 0 • motion 0 • fr 0 • lpr 0',
+            'recent video intel 0 (6h) • intrusion 0 • line_crossing 0 • motion 0 • fr 0 • lpr 0',
         radioQueueHasPending: radioQueueHasPending,
         radioQueueFailureDetail:
             radioQueueFailureDetail ??
@@ -281,6 +283,31 @@ void main() {
     );
     expect(
       find.textContaining('recent hardware intel 8 (6h) • intrusion 3'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('dispatch page switches video labels for DVR ops', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      buildPage(
+        onGenerate: () {},
+        onIngestFeeds: () {},
+        videoOpsLabel: 'DVR',
+        cctvCapabilitySummary: 'caps LIVE AI MONITORING • FR • LPR',
+        cctvRecentSignalSummary:
+            'recent video intel 8 (6h) • intrusion 3 • line_crossing 2 • motion 1 • fr 2 • lpr 3',
+        onExecute: (_) {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ingest DVR Events'), findsOneWidget);
+    expect(find.text('DVR Capabilities'), findsOneWidget);
+    expect(find.text('DVR Signals Recent'), findsOneWidget);
+    expect(
+      find.textContaining('recent video intel 8 (6h) • intrusion 3'),
       findsOneWidget,
     );
   });

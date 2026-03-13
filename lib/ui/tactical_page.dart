@@ -101,6 +101,7 @@ class _CctvLensTelemetry {
 class TacticalPage extends StatelessWidget {
   final List<DispatchEvent> events;
   final String focusIncidentReference;
+  final String videoOpsLabel;
   final String cctvOpsReadiness;
   final String cctvOpsDetail;
   final String cctvProvider;
@@ -111,13 +112,14 @@ class TacticalPage extends StatelessWidget {
     super.key,
     required this.events,
     this.focusIncidentReference = '',
+    this.videoOpsLabel = 'CCTV',
     this.cctvOpsReadiness = 'UNCONFIGURED',
     this.cctvOpsDetail =
-        'Configure ONYX_CCTV_PROVIDER and ONYX_CCTV_EVENTS_URL.',
+        'Configure ONYX_CCTV_PROVIDER and ONYX_CCTV_EVENTS_URL, or ONYX_DVR_PROVIDER and ONYX_DVR_EVENTS_URL.',
     this.cctvProvider = '',
     this.cctvCapabilitySummary = 'caps none',
     this.cctvRecentSignalSummary =
-        'recent hardware intel 0 (6h) • intrusion 0 • line_crossing 0 • motion 0 • fr 0 • lpr 0',
+        'recent video intel 0 (6h) • intrusion 0 • line_crossing 0 • motion 0 • fr 0 • lpr 0',
   });
 
   static const List<_MapMarker> _markers = [
@@ -378,7 +380,7 @@ class TacticalPage extends StatelessWidget {
               ),
               _topChip('Mode', mode, const Color(0xFF8FD1FF)),
               _topChip(
-                'CCTV',
+                videoOpsLabel,
                 cctvReadiness,
                 cctvReadiness == 'ACTIVE'
                     ? const Color(0xFF86EFAC)
@@ -398,7 +400,7 @@ class TacticalPage extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'CCTV Caps: $cctvCapabilitySummary',
+            '$videoOpsLabel Caps: $cctvCapabilitySummary',
             style: GoogleFonts.inter(
               color: const Color(0xFF9AB1CF),
               fontSize: 11,
@@ -407,7 +409,7 @@ class TacticalPage extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'CCTV Recent: $cctvRecentSignalSummary',
+            '$videoOpsLabel Recent: $cctvRecentSignalSummary',
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA4C2),
               fontSize: 10,
@@ -679,7 +681,7 @@ class TacticalPage extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'CCTV Ops • $cctvOpsReadiness • $cctvOpsDetail',
+            '$videoOpsLabel Ops • $cctvOpsReadiness • $cctvOpsDetail',
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA4C2),
               fontSize: 10,
@@ -716,7 +718,7 @@ class TacticalPage extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            'CCTV Signal Counters (6h)',
+            '$videoOpsLabel Signal Counters (6h)',
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA4C2),
               fontSize: 11,

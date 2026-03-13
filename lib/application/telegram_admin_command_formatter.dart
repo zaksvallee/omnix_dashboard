@@ -6,12 +6,13 @@ class TelegramAdminCommandFormatter {
     required String radioHealth,
     required String cctvHealth,
     String? cctvContext,
+    String videoLabel = 'CCTV',
     required String wearableHealth,
     required String newsHealth,
     required String utcStamp,
   }) {
     final cctvContextLine = _optionalLine(
-      label: '<b>CCTV Context:</b>',
+      label: '<b>$videoLabel Context:</b>',
       value: cctvContext,
       separator: ' ',
     );
@@ -21,7 +22,7 @@ class TelegramAdminCommandFormatter {
         '---\n\n'
         '<b>Integrations</b>\n'
         '• <b>Radio:</b> $radioHealth\n'
-        '• <b>CCTV:</b> $cctvHealth\n'
+        '• <b>$videoLabel:</b> $cctvHealth\n'
         '$cctvContextLine'
         '• <b>Wearable:</b> $wearableHealth\n'
         '• <b>News:</b> $newsHealth\n'
@@ -37,24 +38,25 @@ class TelegramAdminCommandFormatter {
     required String cctvStatus,
     String? cctvHealth,
     String? cctvRecent,
+    String videoLabel = 'CCTV',
     required String wearableStatus,
     required String livePollingLabel,
     required String utcStamp,
   }) {
     final cctvHealthLine = _optionalLine(
-      label: 'CCTV Health:',
+      label: '$videoLabel Health:',
       value: cctvHealth,
       separator: ' ',
     );
     final cctvRecentLine = _optionalLine(
-      label: 'CCTV Recent:',
+      label: '$videoLabel Recent:',
       value: cctvRecent,
       separator: ' ',
     );
     return 'ONYX BRIDGES\n'
         'Telegram: $telegramStatus\n'
         'Radio: $radioStatus\n'
-        'CCTV: $cctvStatus\n'
+        '$videoLabel: $cctvStatus\n'
         '$cctvHealthLine'
         '$cctvRecentLine'
         'Wearable: $wearableStatus\n'

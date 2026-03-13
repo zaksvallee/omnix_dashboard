@@ -390,6 +390,7 @@ class AdministrationPage extends StatefulWidget {
   final String? radioOpsFailureDetail;
   final String? radioOpsFailureAuditDetail;
   final String? radioOpsManualActionDetail;
+  final String videoOpsLabel;
   final String? cctvOpsPollHealth;
   final String? cctvCapabilitySummary;
   final String? cctvRecentSignalSummary;
@@ -457,6 +458,7 @@ class AdministrationPage extends StatefulWidget {
     this.radioOpsFailureDetail,
     this.radioOpsFailureAuditDetail,
     this.radioOpsManualActionDetail,
+    this.videoOpsLabel = 'CCTV',
     this.cctvOpsPollHealth,
     this.cctvCapabilitySummary,
     this.cctvRecentSignalSummary,
@@ -3036,7 +3038,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           ),
           icon: const Icon(Icons.videocam_rounded, size: 16),
           label: Text(
-            'Poll CCTV',
+            'Poll ${widget.videoOpsLabel}',
             style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700),
           ),
         ),
@@ -3289,19 +3291,19 @@ class _AdministrationPageState extends State<AdministrationPage> {
       rows.add(('Radio Action', widget.radioOpsManualActionDetail!.trim()));
     }
     if ((widget.cctvOpsPollHealth ?? '').trim().isNotEmpty) {
-      rows.add(('CCTV', widget.cctvOpsPollHealth!.trim()));
+      rows.add((widget.videoOpsLabel, widget.cctvOpsPollHealth!.trim()));
     }
     if ((widget.cctvCapabilitySummary ?? '').trim().isNotEmpty) {
-      rows.add(('CCTV Caps', widget.cctvCapabilitySummary!.trim()));
+      rows.add(('${widget.videoOpsLabel} Caps', widget.cctvCapabilitySummary!.trim()));
     }
     if ((widget.cctvRecentSignalSummary ?? '').trim().isNotEmpty) {
-      rows.add(('CCTV Recent', widget.cctvRecentSignalSummary!.trim()));
+      rows.add(('${widget.videoOpsLabel} Recent', widget.cctvRecentSignalSummary!.trim()));
     }
     if ((widget.cctvEvidenceHealthSummary ?? '').trim().isNotEmpty) {
-      rows.add(('CCTV Evidence', widget.cctvEvidenceHealthSummary!.trim()));
+      rows.add(('${widget.videoOpsLabel} Evidence', widget.cctvEvidenceHealthSummary!.trim()));
     }
     if ((widget.cctvCameraHealthSummary ?? '').trim().isNotEmpty) {
-      rows.add(('CCTV Cameras', widget.cctvCameraHealthSummary!.trim()));
+      rows.add(('${widget.videoOpsLabel} Cameras', widget.cctvCameraHealthSummary!.trim()));
     }
     if ((widget.wearableOpsPollHealth ?? '').trim().isNotEmpty) {
       rows.add(('Wearable', widget.wearableOpsPollHealth!.trim()));

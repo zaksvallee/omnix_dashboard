@@ -5564,6 +5564,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   OnyxVideoIntegrationProfile get _activeVideoProfile =>
       _opsIntegrationProfile.activeVideo;
 
+  String get _activeVideoOpsLabel => _activeVideoProfile.isDvr ? 'DVR' : 'CCTV';
+
   VideoBridgeService _buildVideoBridgeService() {
     final profile = _activeVideoProfile;
     if (profile.isDvr) {
@@ -7614,7 +7616,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '\n---\n\n'
         '<b>Operations</b>\n'
         '• <code>/syncguards</code> - force guard sync + queue health\n'
-        '• <code>/pollops</code> - poll radio/CCTV/wearable/news now\n'
+        '• <code>/pollops</code> - poll radio/video/wearable/news now\n'
         '• <code>/guards</code> - guard telemetry and failures\n'
         '• <code>/bridges</code> - Telegram + integration bridge health\n'
         '• <code>/ops</code> - compact operations snapshot\n'
@@ -8064,6 +8066,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       cctvContext: _telegramHtmlEscape(
         _cctvPilotContextSummary(store.allEvents()),
       ),
+      videoLabel: _activeVideoOpsLabel,
       wearableHealth: _telegramHtmlEscape(
         _opsHealthSummary(_wearableOpsHealth),
       ),
@@ -10226,6 +10229,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       cctvRecent: _activeVideoProfile.configured
           ? _cctvRecentSignalSummary(store.allEvents())
           : null,
+      videoLabel: _activeVideoOpsLabel,
       wearableStatus: wearableConfigured ? 'configured' : 'disabled',
       livePollingLabel: pollLabel,
       utcStamp: DateTime.now().toUtc().toIso8601String(),
@@ -11772,6 +11776,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     if (normalized == 'CCTV') {
       normalized = 'HARDWARE';
+    } else if (normalized == 'DVR') {
+      normalized = 'DVR';
     }
     const allowed = <String>{
       'NEWS',
@@ -11900,6 +11906,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         return TacticalPage(
           events: events,
           focusIncidentReference: _operationsFocusIncidentReference,
+          videoOpsLabel: _activeVideoOpsLabel,
           cctvOpsReadiness: _activeVideoProfile.readinessLabel,
           cctvOpsDetail: _cctvOpsDetailLabel(),
           cctvProvider: _activeVideoProfile.provider,
@@ -12013,6 +12020,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           radioQueueManualActionDetail: _radioQueueManualActionSummary(),
           radioAiAutoAllClearEnabled:
               _opsIntegrationProfile.radio.aiAutoAllClearEnabled,
+          videoOpsLabel: _activeVideoOpsLabel,
           cctvOpsReadiness: _activeVideoProfile.readinessLabel,
           cctvOpsDetail: _cctvOpsDetailLabel(),
           cctvCapabilitySummary: _cctvCapabilitySummary(),
@@ -12199,6 +12207,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               : 'Last failure • ${_radioQueueLastFailureSnapshot.trim()}',
           radioOpsFailureAuditDetail: _radioQueueFailureAuditSummary(),
           radioOpsManualActionDetail: _radioQueueManualActionSummary(),
+          videoOpsLabel: _activeVideoOpsLabel,
           cctvOpsPollHealth: _opsHealthSummary(_cctvOpsHealth),
           cctvCapabilitySummary: _cctvCapabilitySummary(),
           cctvRecentSignalSummary: _cctvRecentSignalSummary(events),

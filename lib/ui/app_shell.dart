@@ -1428,6 +1428,7 @@ class _ShellIntelTickerState extends State<_ShellIntelTicker> {
     final source = _normalizeSource(sourceType);
     if (source == 'all') return 'ALL';
     if (source == 'hardware') return 'CCTV';
+    if (source == 'dvr') return 'DVR';
     return source.toUpperCase();
   }
 
@@ -1488,6 +1489,9 @@ class _ShellIntelTickerState extends State<_ShellIntelTicker> {
     }
     if (source == 'hardware') {
       return const Color(0xFFF59E0B);
+    }
+    if (source == 'dvr') {
+      return const Color(0xFFFB7185);
     }
     if (source == 'community') {
       return const Color(0xFF3B82F6);

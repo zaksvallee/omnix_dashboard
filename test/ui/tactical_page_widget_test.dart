@@ -151,4 +151,23 @@ void main() {
     expect(find.text('62%'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('tactical page switches video counters label for DVR', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: TacticalPage(
+          events: [],
+          videoOpsLabel: 'DVR',
+          cctvRecentSignalSummary:
+              'recent video intel 0 (6h) • intrusion 0 • line_crossing 0 • motion 0 • fr 0 • lpr 0',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('DVR Signal Counters (6h)'), findsOneWidget);
+    expect(find.textContaining('DVR Recent: recent video intel 0 (6h)'), findsOneWidget);
+  });
 }

@@ -258,6 +258,7 @@ void main() {
         home: AdministrationPage(
           events: const <DispatchEvent>[],
           supabaseReady: false,
+          videoOpsLabel: 'DVR',
           radioOpsPollHealth: 'ok 1 • fail 0 • skip 0 • last 10:05:00 UTC',
           radioOpsQueueHealth: 'pending 2 • due 1 • deferred 1 • max-attempt 2',
           radioOpsFailureDetail:
@@ -303,9 +304,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Poll Radio').first);
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Poll CCTV').first);
+    await tester.ensureVisible(find.text('Poll DVR').first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Poll CCTV').first);
+    await tester.tap(find.text('Poll DVR').first);
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Poll Wearable').first);
     await tester.pumpAndSettle();
@@ -391,4 +392,5 @@ void main() {
     expect(clearCalls, 0);
     expect(clearFailureSnapshotCalls, 0);
   });
+
 }

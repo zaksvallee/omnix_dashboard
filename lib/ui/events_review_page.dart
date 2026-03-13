@@ -1172,6 +1172,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     if (normalized == 'CCTV') {
       return 'HARDWARE';
     }
+    if (normalized == 'DVR') {
+      return 'DVR';
+    }
     return normalized;
   }
 

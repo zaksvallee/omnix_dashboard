@@ -112,6 +112,7 @@ class DispatchPage extends StatefulWidget {
   final String radioQueueFailureDetail;
   final String radioQueueManualActionDetail;
   final bool radioAiAutoAllClearEnabled;
+  final String videoOpsLabel;
   final String cctvOpsReadiness;
   final String cctvOpsDetail;
   final String cctvCapabilitySummary;
@@ -215,12 +216,13 @@ class DispatchPage extends StatefulWidget {
     this.radioQueueManualActionDetail =
         'No manual radio queue action in current session.',
     this.radioAiAutoAllClearEnabled = false,
+    this.videoOpsLabel = 'CCTV',
     this.cctvOpsReadiness = 'UNCONFIGURED',
     this.cctvOpsDetail =
-        'Configure ONYX_CCTV_PROVIDER and ONYX_CCTV_EVENTS_URL.',
+        'Configure ONYX_CCTV_PROVIDER and ONYX_CCTV_EVENTS_URL, or ONYX_DVR_PROVIDER and ONYX_DVR_EVENTS_URL.',
     this.cctvCapabilitySummary = 'caps none',
     this.cctvRecentSignalSummary =
-        'recent hardware intel 0 (6h) • intrusion 0 • line_crossing 0 • motion 0 • fr 0 • lpr 0',
+        'recent video intel 0 (6h) • intrusion 0 • line_crossing 0 • motion 0 • fr 0 • lpr 0',
     this.wearableOpsReadiness = 'UNCONFIGURED',
     this.wearableOpsDetail =
         'Configure ONYX_WEARABLE_PROVIDER and ONYX_WEARABLE_EVENTS_URL.',
@@ -581,7 +583,7 @@ class _DispatchPageState extends State<DispatchPage> {
                 onPressed: widget.onIngestRadioOps,
               ),
               _secondaryActionButton(
-                label: 'Ingest CCTV Events',
+                label: 'Ingest ${widget.videoOpsLabel} Events',
                 icon: Icons.videocam_rounded,
                 onPressed: widget.onIngestCctvEvents,
               ),
@@ -967,15 +969,15 @@ class _DispatchPageState extends State<DispatchPage> {
                 const SizedBox(height: 8),
                 _radioQueueActions(),
                 _BulletLine(
-                  title: 'CCTV Ops • ${widget.cctvOpsReadiness}',
+                  title: '${widget.videoOpsLabel} Ops • ${widget.cctvOpsReadiness}',
                   detail: widget.cctvOpsDetail,
                 ),
                 _BulletLine(
-                  title: 'CCTV Capabilities',
+                  title: '${widget.videoOpsLabel} Capabilities',
                   detail: widget.cctvCapabilitySummary,
                 ),
                 _BulletLine(
-                  title: 'CCTV Signals Recent',
+                  title: '${widget.videoOpsLabel} Signals Recent',
                   detail: widget.cctvRecentSignalSummary,
                 ),
                 _BulletLine(
