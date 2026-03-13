@@ -457,6 +457,10 @@ different certificate chain.
 It also treats the staged parity integrity certificate inside the validation
 bundle as audited release evidence, so a release gate now fails if that staged
 parity certificate is missing or no longer matches the staged parity report.
+The same staged parity certificate is now walked by the validation, cutover,
+and release trend checks, so checksum drift in the current or previous bundle
+surfaces as a first-class regression code instead of hiding behind a generic
+artifact failure.
 
 Standalone signoff generation now also auto-resolves:
 - `validation_report.json`
