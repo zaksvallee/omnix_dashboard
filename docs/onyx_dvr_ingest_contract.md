@@ -83,5 +83,7 @@ Current scope:
     - emits a sibling `*.json` signoff report on pass and fail once the validation bundle is resolved
   - `scripts/onyx_dvr_release_gate.sh`
     - emits `release_gate.json` and `release_gate.md` from validation, readiness, and signoff posture
+    - rejects contradictory or misaligned signoff audit JSON instead of trusting signoff presence alone
   - `scripts/onyx_dvr_release_trend_check.sh`
     - emits `release_trend_report.json` and `release_trend_report.md` from the current and previous release-gate posture
+    - surfaces signoff-to-release mismatches as direct regressions

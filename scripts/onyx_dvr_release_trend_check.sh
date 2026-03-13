@@ -93,6 +93,13 @@ with current_path.open("r", encoding="utf-8") as handle:
 with previous_path.open("r", encoding="utf-8") as handle:
     previous = json.load(handle)
 
+def load_json(path_str):
+    candidate = str(path_str or "").strip()
+    if not candidate or not Path(candidate).is_file():
+        return None
+    with Path(candidate).open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
 rank = {"PASS": 0, "HOLD": 1, "FAIL": 2}
 current_result = str(current.get("result", "")).upper()
 previous_result = str(previous.get("result", "")).upper()
@@ -102,6 +109,43 @@ current_fail_codes = [str(item) for item in (current.get("fail_codes", []) or []
 previous_fail_codes = [str(item) for item in (previous.get("fail_codes", []) or []) if str(item)]
 
 regressions = []
+
+def signoff_consistency_regressions(gate, gate_path, label):
+    items = []
+    signoff_report_path = str(gate.get("signoff_report_json", "")).strip()
+    signoff_report = load_json(signoff_report_path)
+    if signoff_report is None:
+        return items
+    signoff_status = str(signoff_report.get("status", "")).upper()
+    signoff_failure_code = str(signoff_report.get("failure_code", "")).strip()
+    if signoff_status == "PASS" and signoff_failure_code:
+        items.append({
+            "code": f"{label}_signoff_failure_code_present_on_pass",
+            "message": f"{label} signoff report is PASS but still carries failure_code={signoff_failure_code}.",
+        })
+    signoff_validation_report = str(signoff_report.get("report_json", "")).strip()
+    gate_validation_report = str(gate.get("validation_report_json", "")).strip()
+    if signoff_validation_report and gate_validation_report and signoff_validation_report != gate_validation_report:
+        items.append({
+            "code": f"{label}_signoff_validation_report_mismatch",
+            "message": f"{label} signoff report points at a different validation report than the release gate.",
+        })
+    signoff_release_gate_json = str(signoff_report.get("release_gate_json", "")).strip()
+    if signoff_release_gate_json and signoff_release_gate_json != str(gate_path):
+        items.append({
+            "code": f"{label}_signoff_release_gate_mismatch",
+            "message": f"{label} signoff report points at a different release gate artifact than the trend input.",
+        })
+    signoff_release_gate_result = str(signoff_report.get("release_gate_result", "")).upper()
+    if signoff_release_gate_result and signoff_release_gate_result != str(gate.get("result", "")).upper():
+        items.append({
+            "code": f"{label}_signoff_release_gate_result_mismatch",
+            "message": f"{label} signoff report release_gate_result does not match the referenced release gate result.",
+        })
+    return items
+
+regressions.extend(signoff_consistency_regressions(current, current_path, "current_gate"))
+regressions.extend(signoff_consistency_regressions(previous, previous_path, "previous_gate"))
 
 if rank.get(current_result, 99) > rank.get(previous_result, 99):
     regressions.append({

@@ -111,6 +111,7 @@ signoff_path = Path(sys.argv[3]) if sys.argv[3] else None
 signoff_report_path = Path(sys.argv[4]) if sys.argv[4] else None
 out_dir = Path(sys.argv[5])
 require_real = sys.argv[6] == "1"
+release_gate_path = out_dir / "release_gate.json"
 
 with validation_path.open("r", encoding="utf-8") as handle:
     validation = json.load(handle)
@@ -157,10 +158,26 @@ if signoff_report is None:
     add_reason(hold_items, "missing_signoff_report", "Signoff report is missing.")
 else:
     signoff_status = str(signoff_report.get("status", "")).upper()
+    signoff_failure_code = str(signoff_report.get("failure_code", "")).strip()
+    signoff_validation_report = str(signoff_report.get("report_json", "")).strip()
+    signoff_markdown = str(signoff_report.get("signoff_markdown", "")).strip()
+    signoff_release_gate_json = str(signoff_report.get("release_gate_json", "")).strip()
     if signoff_status != "PASS":
         result = "FAIL"
-        code = str(signoff_report.get("failure_code", "")).strip() or "signoff_not_pass"
+        code = signoff_failure_code or "signoff_not_pass"
         add_reason(fail_items, code, f"Signoff status is {signoff_status or 'unknown'}.")
+    if signoff_status == "PASS" and signoff_failure_code:
+        result = "FAIL"
+        add_reason(fail_items, "signoff_failure_code_present_on_pass", "Signoff report is PASS but still carries a failure_code.")
+    if signoff_validation_report and signoff_validation_report != str(validation_path):
+        result = "FAIL"
+        add_reason(fail_items, "signoff_validation_report_mismatch", "Signoff report points at a different validation bundle than the release gate.")
+    if signoff_path and signoff_markdown and signoff_markdown != str(signoff_path):
+        result = "FAIL"
+        add_reason(fail_items, "signoff_markdown_mismatch", "Signoff report markdown path does not match the release gate signoff markdown.")
+    if signoff_release_gate_json and signoff_release_gate_json != str(release_gate_path):
+        result = "FAIL"
+        add_reason(fail_items, "signoff_release_gate_mismatch", "Signoff report points at a different release gate artifact than the active release gate.")
 
 if signoff_path and not signoff_path.is_file():
     result = "HOLD" if result != "FAIL" else result
@@ -176,6 +193,21 @@ fail_codes = [item["code"] for item in fail_items]
 hold_codes = [item["code"] for item in hold_items]
 primary_fail_code = fail_codes[0] if fail_codes else ""
 primary_hold_code = hold_codes[0] if hold_codes else ""
+
+if signoff_report is not None:
+    signoff_release_gate_result = str(signoff_report.get("release_gate_result", "")).upper()
+    if signoff_release_gate_result and signoff_release_gate_result != result:
+        result = "FAIL"
+        add_reason(fail_items, "signoff_release_gate_result_mismatch", "Signoff report release_gate_result does not match the derived release result.")
+        fail_codes = [item["code"] for item in fail_items]
+        hold_codes = [item["code"] for item in hold_items]
+        primary_fail_code = fail_codes[0] if fail_codes else ""
+        primary_hold_code = hold_codes[0] if hold_codes else ""
+        summary = {
+            "PASS": "DVR release gate passed.",
+            "HOLD": "DVR release gate is holding for missing downstream artifacts.",
+            "FAIL": "DVR release gate failed because one or more required upstream artifacts are not acceptable.",
+        }[result]
 
 report = {
     "generated_at_utc": __import__("datetime").datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
