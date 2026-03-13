@@ -766,6 +766,22 @@ readiness_data = load_json(readiness_report)
 cutover_data = load_json(cutover_decision_report)
 cutover_trend_data = load_json(cutover_trend_report)
 signoff_data = load_json(signoff_report)
+validation_files = (validation_data or {}).get("files", {}) or {}
+validation_parity_report = str(validation_files.get("parity_report_json", "")).strip()
+validation_parity_trend = str(validation_files.get("trend_report_json", "")).strip()
+validation_artifact_dir = str((validation_data or {}).get("artifact_dir", "")).strip()
+expected_validation_trend = f"{validation_artifact_dir}/validation_trend_report.json" if validation_artifact_dir else ""
+if expected_validation_trend and not os.path.isfile(expected_validation_trend):
+    expected_validation_trend = ""
+expected_readiness_report = f"{validation_artifact_dir}/readiness_report.json" if validation_artifact_dir else ""
+if expected_readiness_report and not os.path.isfile(expected_readiness_report):
+    expected_readiness_report = ""
+expected_cutover_decision = f"{validation_artifact_dir}/cutover_decision.json" if validation_artifact_dir else ""
+if expected_cutover_decision and not os.path.isfile(expected_cutover_decision):
+    expected_cutover_decision = ""
+expected_cutover_trend = f"{validation_artifact_dir}/cutover_trend_report.json" if validation_artifact_dir else ""
+if expected_cutover_trend and not os.path.isfile(expected_cutover_trend):
+    expected_cutover_trend = ""
 
 statuses = data.get("statuses", {}) or {}
 fail_codes = [str(item) for item in (data.get("fail_codes", []) or [])]
@@ -786,6 +802,13 @@ if validation_data is not None:
     if str(statuses.get("baseline_health_category", "")).lower() != actual_health:
         raise SystemExit("baseline_health_category_mismatch")
 
+if readiness_report != expected_readiness_report:
+    raise SystemExit("readiness_report_path_mismatch")
+if cutover_decision_report != expected_cutover_decision:
+    raise SystemExit("cutover_decision_report_path_mismatch")
+if cutover_trend_report != expected_cutover_trend:
+    raise SystemExit("cutover_trend_report_path_mismatch")
+
 if readiness_data is not None:
     actual_readiness_status = str(readiness_data.get("status", "")).upper()
     if str(statuses.get("readiness_status", "")).upper() != actual_readiness_status:
@@ -793,11 +816,28 @@ if readiness_data is not None:
     actual_readiness_failure = str(readiness_data.get("failure_code", "")).strip()
     if str(statuses.get("readiness_failure_code", "")).strip() != actual_readiness_failure:
         raise SystemExit("readiness_failure_code_mismatch")
+    readiness_resolved_files = (readiness_data.get("resolved_files") or {})
+    if str(readiness_data.get("validation_report_json", "")).strip() != validation_report:
+        raise SystemExit("readiness_validation_report_mismatch")
+    if str(readiness_resolved_files.get("cutover_decision_json", "")).strip() != cutover_decision_report:
+        raise SystemExit("readiness_cutover_decision_report_mismatch")
+    if str(readiness_resolved_files.get("cutover_trend_report_json", "")).strip() != cutover_trend_report:
+        raise SystemExit("readiness_cutover_trend_report_mismatch")
+    if str(readiness_resolved_files.get("validation_trend_report_json", "")).strip() != expected_validation_trend:
+        raise SystemExit("readiness_validation_trend_report_mismatch")
 
 if cutover_data is not None:
     actual_cutover_decision = str(cutover_data.get("decision", "")).upper()
     if str(statuses.get("cutover_decision", "")).upper() != actual_cutover_decision:
         raise SystemExit("cutover_decision_mismatch")
+    if str(cutover_data.get("validation_report_json", "")).strip() != validation_report:
+        raise SystemExit("cutover_validation_report_mismatch")
+    if str(cutover_data.get("parity_report_json", "")).strip() != validation_parity_report:
+        raise SystemExit("cutover_parity_report_mismatch")
+    if str(cutover_data.get("parity_trend_report_json", "")).strip() != validation_parity_trend:
+        raise SystemExit("cutover_parity_trend_report_mismatch")
+    if str(cutover_data.get("validation_trend_report_json", "")).strip() != expected_validation_trend:
+        raise SystemExit("cutover_validation_trend_report_mismatch")
 
 if cutover_trend_data is not None:
     actual_cutover_trend_status = str(cutover_trend_data.get("status", "")).upper()
@@ -808,6 +848,20 @@ if signoff_data is not None:
     actual_signoff_status = str(signoff_data.get("status", "")).upper()
     if str(statuses.get("signoff_status", "")).upper() != actual_signoff_status:
         raise SystemExit("signoff_status_mismatch")
+    if str(signoff_data.get("validation_report_json", "")).strip() != validation_report:
+        raise SystemExit("signoff_validation_report_mismatch")
+    if str(signoff_data.get("readiness_report_json", "")).strip() != readiness_report:
+        raise SystemExit("signoff_readiness_report_mismatch")
+    if str(signoff_data.get("report_json", "")).strip() != validation_parity_report:
+        raise SystemExit("signoff_parity_report_mismatch")
+    if str(signoff_data.get("trend_report_json", "")).strip() != validation_parity_trend:
+        raise SystemExit("signoff_parity_trend_report_mismatch")
+    if str(signoff_data.get("validation_trend_report_json", "")).strip() != expected_validation_trend:
+        raise SystemExit("signoff_validation_trend_report_mismatch")
+    if str(signoff_data.get("cutover_decision_json", "")).strip() != cutover_decision_report:
+        raise SystemExit("signoff_cutover_decision_report_mismatch")
+    if str(signoff_data.get("cutover_trend_report_json", "")).strip() != cutover_trend_report:
+        raise SystemExit("signoff_cutover_trend_report_mismatch")
 
 expected_primary_fail_code = fail_codes[0] if fail_codes else ""
 expected_primary_hold_code = hold_codes[0] if hold_codes else ""

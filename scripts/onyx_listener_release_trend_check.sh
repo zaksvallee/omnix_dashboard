@@ -1024,6 +1024,16 @@ def release_gate_consistency_regressions(report, label):
     validation_files = (validation_data or {}).get("files", {}) or {}
     validation_parity_report = str(validation_files.get("parity_report_json", "")).strip()
     validation_parity_trend = str(validation_files.get("trend_report_json", "")).strip()
+    validation_artifact_dir = str((validation_data or {}).get("artifact_dir", "")).strip()
+    expected_readiness_report = f"{validation_artifact_dir}/readiness_report.json" if validation_artifact_dir else ""
+    if expected_readiness_report and not path_exists(expected_readiness_report):
+        expected_readiness_report = ""
+    expected_cutover_decision = f"{validation_artifact_dir}/cutover_decision.json" if validation_artifact_dir else ""
+    if expected_cutover_decision and not path_exists(expected_cutover_decision):
+        expected_cutover_decision = ""
+    expected_cutover_trend = f"{validation_artifact_dir}/cutover_trend_report.json" if validation_artifact_dir else ""
+    if expected_cutover_trend and not path_exists(expected_cutover_trend):
+        expected_cutover_trend = ""
     expected_validation_trend = str((validation_data or {}).get("artifact_dir", "")).strip()
     expected_validation_trend = f"{expected_validation_trend}/validation_trend_report.json" if expected_validation_trend else ""
     if expected_validation_trend and not path_exists(expected_validation_trend):
@@ -1053,6 +1063,12 @@ def release_gate_consistency_regressions(report, label):
         actual_health = str(((validation_data.get("baseline_health") or {}).get("category", ""))).lower()
         if str(statuses.get("baseline_health_category", "")).lower() != actual_health:
             add("baseline_health_category_mismatch", "release_gate_status_mismatch", actual_health, str(statuses.get("baseline_health_category", "")).lower())
+    if readiness_report != expected_readiness_report:
+        add("readiness_report_path_mismatch", "release_gate_status_mismatch", expected_readiness_report, readiness_report)
+    if cutover_decision != expected_cutover_decision:
+        add("cutover_decision_report_path_mismatch", "release_gate_status_mismatch", expected_cutover_decision, cutover_decision)
+    if cutover_trend != expected_cutover_trend:
+        add("cutover_trend_report_path_mismatch", "release_gate_status_mismatch", expected_cutover_trend, cutover_trend)
 
     if readiness_data is not None:
         actual_readiness_status = str(readiness_data.get("status", "")).upper()

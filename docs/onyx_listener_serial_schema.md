@@ -383,6 +383,9 @@ to match the same staged validation bundle, so cutover cannot quietly point at
 another validation run while copying compatible status fields.
 The same release-side exact-alignment rule now also covers
 `cutover_decision.json.validation_trend_report_json`.
+`onyx_listener_pilot_readiness_check.sh` now independently verifies those same
+release-gate alignments against nested readiness, cutover, and signoff
+artifacts instead of trusting the gate artifact's chosen references.
 
 Cutover and release trend comparisons now prefer stable machine-readable
 `hold_codes`, `blocking_codes`, and `fail_codes` when present, falling back to
