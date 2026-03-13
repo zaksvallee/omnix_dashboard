@@ -14,6 +14,10 @@ class ClientLedgerService {
 
   ClientLedgerService(this.repository);
 
+  static String intelligenceLedgerDispatchId(String intelligenceId) {
+    return 'INTEL-$intelligenceId';
+  }
+
   Future<void> _sealCanonical({
     required String clientId,
     required String recordId,
@@ -76,7 +80,7 @@ class ClientLedgerService {
       final certificate = EvidenceProvenanceCertificate.fromIntelligence(event);
       await _sealCanonical(
         clientId: event.clientId,
-        recordId: 'INTEL-${event.intelligenceId}',
+        recordId: intelligenceLedgerDispatchId(event.intelligenceId),
         canonicalPayload: {
           'type': 'intelligence_evidence_provenance',
           ...certificate.toJson(),

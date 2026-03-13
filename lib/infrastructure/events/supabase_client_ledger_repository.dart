@@ -26,6 +26,36 @@ class SupabaseClientLedgerRepository implements ClientLedgerRepository {
   }
 
   @override
+  Future<ClientLedgerRow?> fetchLedgerRow({
+    required String clientId,
+    required String dispatchId,
+  }) async {
+    try {
+      final response = await client
+          .from('client_evidence_ledger')
+          .select('client_id, dispatch_id, canonical_json, hash, previous_hash')
+          .eq('client_id', clientId)
+          .eq('dispatch_id', dispatchId)
+          .limit(1)
+          .maybeSingle();
+
+      if (response == null) {
+        return null;
+      }
+
+      return ClientLedgerRow(
+        clientId: (response['client_id'] ?? '').toString(),
+        dispatchId: (response['dispatch_id'] ?? '').toString(),
+        canonicalJson: (response['canonical_json'] ?? '').toString(),
+        hash: (response['hash'] ?? '').toString(),
+        previousHash: response['previous_hash'] as String?,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
   Future<void> insertLedgerRow({
     required String clientId,
     required String dispatchId,

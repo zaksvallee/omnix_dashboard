@@ -9,6 +9,7 @@ Purpose:
 Current repo scope:
 - intelligence ingestion now records deterministic provenance hashes for video evidence
 - new video intelligence provenance rows are now sealed into the existing client evidence ledger
+- ledger-backed integrity certificate export is now available for `IntelligenceReceived` evidence
 - each ingested `IntelligenceReceived` event can now carry:
   - `snapshotReferenceHash`
   - `clipReferenceHash`
@@ -29,6 +30,9 @@ Certificate model:
 - `lib/domain/evidence/evidence_provenance.dart`
   - `EvidenceProvenanceCertificate`
   - `EvidenceLocatorProvenance`
+- `lib/application/evidence_certificate_export_service.dart`
+  - `EvidenceCertificateExportService`
+  - joins an intelligence provenance certificate with its sealed client-ledger row
 - current certificate JSON includes:
   - intelligence id
   - provider/source identity

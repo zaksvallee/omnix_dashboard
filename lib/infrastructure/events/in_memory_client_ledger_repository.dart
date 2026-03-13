@@ -25,6 +25,29 @@ class InMemoryClientLedgerRepository implements ClientLedgerRepository {
   }
 
   @override
+  Future<ClientLedgerRow?> fetchLedgerRow({
+    required String clientId,
+    required String dispatchId,
+  }) async {
+    final rows = _rowsByClient[clientId];
+    if (rows == null) {
+      return null;
+    }
+    for (final row in rows) {
+      if (row.dispatchId == dispatchId) {
+        return ClientLedgerRow(
+          clientId: clientId,
+          dispatchId: row.dispatchId,
+          canonicalJson: row.canonicalJson,
+          hash: row.hash,
+          previousHash: row.previousHash,
+        );
+      }
+    }
+    return null;
+  }
+
+  @override
   Future<void> insertLedgerRow({
     required String clientId,
     required String dispatchId,
