@@ -302,6 +302,18 @@ This emits `release_gate.json` plus `release_gate.md` with:
 - `hold_reasons`
 - resolved validation/cutover/signoff references
 
+To compare release posture across listener runs:
+
+```bash
+./scripts/onyx_listener_release_trend_check.sh
+```
+
+This emits `release_trend_report.json` plus `release_trend_report.md` and
+fails when:
+- release `result` regresses from `PASS -> HOLD` or `HOLD -> FAIL`
+- hold-reason count increases beyond the allowed threshold
+- fail-reason count increases beyond the allowed threshold
+
 To create a self-contained field-validation bundle from a real capture pack:
 
 ```bash
@@ -345,6 +357,7 @@ To drive the full listener field flow in one command:
   --max-unknown-event-rate-percent 5 \
   --compare-previous \
   --compare-previous-validation \
+  --compare-previous-release \
   --allow-validation-baseline-age-increase-days 7 \
   --require-release-gate-pass \
   --generate-signoff
@@ -368,9 +381,11 @@ When `--compare-previous-validation` is enabled, the field gate also emits:
 - `cutover_trend_report.md`
 - `release_gate.json`
 - `release_gate.md`
+- `release_trend_report.json`
+- `release_trend_report.md`
 
 The field-gate terminal summary now prints validation-trend status and summary
-alongside the baseline review, baseline health, cutover decision, cutover trend, and release-gate result.
+alongside the baseline review, baseline health, cutover decision, cutover trend, release-gate result, and release-trend status.
 
 When `--require-release-gate-pass` is enabled, the field gate will fail unless
 `release_gate.json` resolves to `result = PASS`. A `HOLD` release posture is

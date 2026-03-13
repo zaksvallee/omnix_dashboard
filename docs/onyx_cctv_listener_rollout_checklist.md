@@ -111,6 +111,9 @@ Notes:
   - Listener field gate can now initialize capture packs, run validation/readiness, and optionally generate signoff in one command.
   - Listener cutover decisions can now be emitted as explicit `GO|HOLD|BLOCK` artifacts from the latest validation, parity, and trend posture instead of relying on manual summary reading.
   - Listener cutover posture can now be compared run-to-run so `GO|HOLD|BLOCK` regressions and increasing hold/block reason counts are surfaced explicitly.
+  - Listener release posture can now be emitted as explicit `PASS|HOLD|FAIL` artifacts that collapse validation, cutover posture, and signoff presence into one final release gate.
+  - Listener field gate can now enforce `--require-release-gate-pass`, treating a `HOLD` release posture as a blocking outcome for that invocation.
+  - Listener release posture can now be compared run-to-run so `PASS|HOLD|FAIL` regressions and increasing hold/fail reason counts are surfaced explicitly.
 
 ---
 
