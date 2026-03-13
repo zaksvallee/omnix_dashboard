@@ -1,0 +1,27 @@
+{
+  "EventNotificationAlert": {
+    "UUID": "DVR-EVT-1001",
+    "eventType": "linedetection",
+    "eventState": "active",
+    "dateTime": "2026-03-13T10:15:22Z",
+    "channelID": "3",
+    "deviceID": "DVR-001",
+    "eventDescription": "Perimeter crossing at loading bay",
+    "detectionRegionList": {
+      "detectionRegionEntry": [
+        {
+          "regionType": "zone",
+          "regionID": "loading_bay"
+        }
+      ]
+    },
+    "ANPR": {
+      "licensePlate": "CA123456",
+      "confidence": 96.4
+    },
+    "Faces": {
+      "matchId": "PERSON-44",
+      "confidence": 91.2
+    }
+  }
+}

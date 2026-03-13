@@ -1,0 +1,10 @@
+{
+  "id": "GEN-DVR-7",
+  "type": "motion",
+  "camera_id": "GEN-CAM-7",
+  "channel": "7",
+  "zone": "parking_north",
+  "label": "vehicle",
+  "confidence": 87.5,
+  "timestamp": "2026-03-13T10:25:00Z"
+}
