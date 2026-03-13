@@ -122,6 +122,8 @@ void main() {
               'verified 2 • fail 0 • dropped 0 • queue 2/12 • last 10:05:01 UTC',
           cctvCameraHealthSummary:
               'front-gate:healthy • zone north_gate • stale 1m | yard:stale • zone driveway • stale 42m',
+          incidentSpoolHealthSummary:
+              'buffering • 3 pending • retry 1 • queued 2026-03-13T10:05:30.000Z',
           wearableOpsPollHealth: 'ok 1 • fail 0 • skip 0 • last 10:05:02 UTC',
           newsOpsPollHealth: 'ok 4 • fail 0 • skip 0 • last 10:05:03 UTC',
         ),
@@ -173,6 +175,7 @@ void main() {
       find.textContaining('front-gate:healthy • zone north_gate'),
       findsOneWidget,
     );
+    expect(find.textContaining('buffering • 3 pending • retry 1'), findsOneWidget);
     expect(find.textContaining('ok 1 • fail 0'), findsOneWidget);
     expect(find.textContaining('ok 4 • fail 0'), findsOneWidget);
   });

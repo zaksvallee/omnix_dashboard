@@ -396,6 +396,7 @@ class AdministrationPage extends StatefulWidget {
   final String? cctvRecentSignalSummary;
   final String? cctvEvidenceHealthSummary;
   final String? cctvCameraHealthSummary;
+  final String? incidentSpoolHealthSummary;
   final String? videoIntegrityCertificateStatus;
   final String? videoIntegrityCertificateSummary;
   final String? videoIntegrityCertificateJsonPreview;
@@ -468,6 +469,7 @@ class AdministrationPage extends StatefulWidget {
     this.cctvRecentSignalSummary,
     this.cctvEvidenceHealthSummary,
     this.cctvCameraHealthSummary,
+    this.incidentSpoolHealthSummary,
     this.videoIntegrityCertificateStatus,
     this.videoIntegrityCertificateSummary,
     this.videoIntegrityCertificateJsonPreview,
@@ -3548,6 +3550,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
     }
     if ((widget.cctvCameraHealthSummary ?? '').trim().isNotEmpty) {
       rows.add(('${widget.videoOpsLabel} Cameras', widget.cctvCameraHealthSummary!.trim()));
+    }
+    if ((widget.incidentSpoolHealthSummary ?? '').trim().isNotEmpty) {
+      rows.add(('Incident Spool', widget.incidentSpoolHealthSummary!.trim()));
     }
     if ((widget.wearableOpsPollHealth ?? '').trim().isNotEmpty) {
       rows.add(('Wearable', widget.wearableOpsPollHealth!.trim()));

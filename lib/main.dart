@@ -814,6 +814,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   int _guardOpsPendingMedia = 0;
   int _guardOpsFailedEvents = 0;
   int _guardOpsFailedMedia = 0;
+  String _offlineIncidentSpoolStatusLabel = 'idle';
+  int _offlineIncidentSpoolPendingCount = 0;
+  int _offlineIncidentSpoolRetryCount = 0;
+  DateTime? _offlineIncidentSpoolLastQueuedAtUtc;
+  DateTime? _offlineIncidentSpoolLastSyncedAtUtc;
+  String? _offlineIncidentSpoolFailureReason;
+  List<String> _offlineIncidentSpoolHistory = const [];
   int _guardOutcomePolicyDeniedCount = 0;
   String? _guardOutcomePolicyDeniedLastReason;
   List<DateTime> _guardOutcomePolicyDeniedHistoryUtc = const [];
@@ -1175,6 +1182,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _hydrateTelegramAdminRuntimeState();
     _hydrateGuardSyncState();
     _hydrateGuardOpsState();
+    _hydrateOfflineIncidentSpoolState();
     _hydrateGuardOutcomeGovernanceTelemetry();
     _hydrateGuardCoachingPromptSnoozes();
     _hydrateGuardCoachingTelemetry();
@@ -2296,6 +2304,61 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _guardOpsActiveShiftSequenceWatermark = shiftSequenceWatermark;
     });
     await _maybeAutoGenerateMorningSovereignReport();
+  }
+
+  Future<void> _hydrateOfflineIncidentSpoolState() async {
+    final persistence = await _persistenceServiceFuture;
+    final state = await persistence.readOfflineIncidentSpoolSyncState();
+    if (!mounted) return;
+    setState(() {
+      _offlineIncidentSpoolStatusLabel = state.statusLabel.trim().isEmpty
+          ? 'idle'
+          : state.statusLabel.trim();
+      _offlineIncidentSpoolPendingCount =
+          state.pendingCount < 0 ? 0 : state.pendingCount;
+      _offlineIncidentSpoolRetryCount =
+          state.retryCount < 0 ? 0 : state.retryCount;
+      _offlineIncidentSpoolLastQueuedAtUtc = state.lastQueuedAtUtc;
+      _offlineIncidentSpoolLastSyncedAtUtc = state.lastSyncedAtUtc;
+      final failureReason = state.failureReason?.trim() ?? '';
+      _offlineIncidentSpoolFailureReason = failureReason.isEmpty
+          ? null
+          : failureReason;
+      _offlineIncidentSpoolHistory = state.history;
+    });
+  }
+
+  String _offlineIncidentSpoolSummary() {
+    final parts = <String>[
+      _offlineIncidentSpoolStatusLabel.trim().isEmpty
+          ? 'idle'
+          : _offlineIncidentSpoolStatusLabel.trim(),
+      _offlineIncidentSpoolPendingCount == 1
+          ? '1 pending'
+          : '$_offlineIncidentSpoolPendingCount pending',
+      'retry $_offlineIncidentSpoolRetryCount',
+    ];
+    if (_offlineIncidentSpoolLastQueuedAtUtc != null) {
+      parts.add(
+        'queued ${_offlineIncidentSpoolLastQueuedAtUtc!.toIso8601String()}',
+      );
+    }
+    if (_offlineIncidentSpoolLastSyncedAtUtc != null) {
+      parts.add(
+        'synced ${_offlineIncidentSpoolLastSyncedAtUtc!.toIso8601String()}',
+      );
+    }
+    final failure = (_offlineIncidentSpoolFailureReason ?? '').trim();
+    if (failure.isNotEmpty) {
+      parts.add('fail $failure');
+    }
+    if (_offlineIncidentSpoolHistory.isNotEmpty) {
+      final lastHistory = _offlineIncidentSpoolHistory.last.trim();
+      if (lastHistory.isNotEmpty) {
+        parts.add(lastHistory);
+      }
+    }
+    return parts.join(' • ');
   }
 
   void _startGuardOpsSyncLoop() {
@@ -12313,6 +12376,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           cctvRecentSignalSummary: _cctvRecentSignalSummary(events),
           cctvEvidenceHealthSummary: _cctvEvidenceSummary(),
           cctvCameraHealthSummary: _cctvCameraHealthSummary(),
+          incidentSpoolHealthSummary: _offlineIncidentSpoolSummary(),
           videoIntegrityCertificateStatus: _videoIntegrityCertificateStatus(
             events,
           ),
