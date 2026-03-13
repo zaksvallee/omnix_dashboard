@@ -75,6 +75,7 @@ Current scope:
   - `scripts/onyx_dvr_field_validation.sh`
   - `scripts/onyx_dvr_pilot_readiness_check.sh`
     - emits `readiness_report.json` and `readiness_report.md` in the validation artifact dir
+    - can require `release_gate.json` and `release_trend_report.json` to pass when those artifacts are part of the DVR pilot decision path
   - `scripts/onyx_dvr_mock_validation_artifacts.sh`
   - `scripts/onyx_dvr_pilot_gate.sh`
   - `scripts/onyx_dvr_field_gate.sh`

@@ -239,6 +239,13 @@ if [[ "$COMPARE_PREVIOUS_RELEASE" -eq 1 ]]; then
   fi
 fi
 
+readiness_status=""
+readiness_failure_code=""
+if [[ -f "$ARTIFACT_DIR/readiness_report.json" ]]; then
+  readiness_status="$(json_get "$ARTIFACT_DIR/readiness_report.json" "status" | tr '[:lower:]' '[:upper:]')"
+  readiness_failure_code="$(json_get "$ARTIFACT_DIR/readiness_report.json" "failure_code")"
+fi
+
 if [[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]]; then
   release_result="$(json_get "$ARTIFACT_DIR/release_gate.json" "result")"
   if [[ "$release_result" != "PASS" ]]; then
@@ -248,6 +255,22 @@ if [[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]]; then
 fi
 
 if [[ "$REQUIRE_RELEASE_TREND_PASS" -eq 1 ]]; then
+  readiness_cmd=(
+    ./scripts/onyx_dvr_pilot_readiness_check.sh
+    --provider "$PROVIDER"
+    --report-json "$ARTIFACT_DIR/validation_report.json"
+    --release-gate-json "$ARTIFACT_DIR/release_gate.json"
+    --release-trend-report-json "$ARTIFACT_DIR/release_trend_report.json"
+    --max-report-age-hours "$MAX_REPORT_AGE_HOURS"
+    --require-release-gate-pass
+    --require-release-trend-pass
+  )
+  [[ -n "$CAMERA_ID" ]] && readiness_cmd+=(--expect-camera "$CAMERA_ID")
+  [[ -n "$ZONE" ]] && readiness_cmd+=(--expect-zone "$ZONE")
+  [[ "$ALLOW_MOCK_ARTIFACTS" -ne 1 ]] && readiness_cmd+=(--require-real-artifacts)
+  "${readiness_cmd[@]}" >/dev/null
+  readiness_status="$(json_get "$ARTIFACT_DIR/readiness_report.json" "status" | tr '[:lower:]' '[:upper:]')"
+  readiness_failure_code="$(json_get "$ARTIFACT_DIR/readiness_report.json" "failure_code")"
   if [[ -z "$RELEASE_TREND_STATUS" ]]; then
     echo "FAIL: DVR release trend artifact was not generated under --require-release-trend-pass."
     exit 1
@@ -273,6 +296,12 @@ echo
 echo "PASS: DVR field gate completed."
 echo "Validation artifact: $ARTIFACT_DIR/validation_report.json"
 if [[ -f "$ARTIFACT_DIR/readiness_report.json" ]]; then
+  if [[ -n "$readiness_status" ]]; then
+    echo "Readiness status: ${readiness_status}"
+  fi
+  if [[ -n "$readiness_failure_code" ]]; then
+    echo "Readiness failure code: ${readiness_failure_code}"
+  fi
   echo "Readiness artifact: $ARTIFACT_DIR/readiness_report.json"
 fi
 if [[ -f "$ARTIFACT_DIR/release_gate.json" ]]; then

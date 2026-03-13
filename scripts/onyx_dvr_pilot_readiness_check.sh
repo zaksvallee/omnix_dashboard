@@ -14,6 +14,10 @@ ARTIFACT_DIR=""
 READINESS_JSON_OUT=""
 READINESS_MD_OUT=""
 REPORT_AGE_HOURS_VALUE=""
+RELEASE_GATE_JSON=""
+RELEASE_TREND_REPORT_JSON=""
+REQUIRE_RELEASE_GATE_PASS=0
+REQUIRE_RELEASE_TREND_PASS=0
 
 pass() { printf "PASS: %s\n" "$1"; }
 json_string() {
@@ -46,7 +50,9 @@ write_readiness_report() {
   "require_real_artifacts": $([[ "$REQUIRE_REAL_ARTIFACTS" -eq 1 ]] && echo true || echo false),
   "report_age_hours": $(json_string "$REPORT_AGE_HOURS_VALUE"),
   "resolved_files": {
-    "validation_report_json": $(json_string "$REPORT_JSON")
+    "validation_report_json": $(json_string "$REPORT_JSON"),
+    "release_gate_json": $(json_string "$RELEASE_GATE_JSON"),
+    "release_trend_report_json": $(json_string "$RELEASE_TREND_REPORT_JSON")
   }
 }
 EOF
@@ -60,9 +66,13 @@ EOF
     echo "- Expected camera: ${EXPECT_CAMERA:-}"
     echo "- Expected zone: ${EXPECT_ZONE:-}"
     echo "- Validation report: ${REPORT_JSON:-}"
+    echo "- Release gate report: ${RELEASE_GATE_JSON:-}"
+    echo "- Release trend report: ${RELEASE_TREND_REPORT_JSON:-}"
     echo "- Validation artifact dir: ${ARTIFACT_DIR:-}"
     echo "- Max report age hours: ${MAX_REPORT_AGE_HOURS:-}"
     echo "- Require real artifacts: $([[ "$REQUIRE_REAL_ARTIFACTS" -eq 1 ]] && echo yes || echo no)"
+    echo "- Require release gate pass: $([[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]] && echo yes || echo no)"
+    echo "- Require release trend pass: $([[ "$REQUIRE_RELEASE_TREND_PASS" -eq 1 ]] && echo yes || echo no)"
     echo "- Report age hours: ${REPORT_AGE_HOURS_VALUE:-}"
     echo
     echo "## Summary"
@@ -88,7 +98,7 @@ conclude_pass() {
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/onyx_dvr_pilot_readiness_check.sh [--provider <id>] [--expect-camera <camera_id>] [--expect-zone <zone>] [--report-json <path>] [--max-report-age-hours <hours>] [--require-real-artifacts]
+  ./scripts/onyx_dvr_pilot_readiness_check.sh [--provider <id>] [--expect-camera <camera_id>] [--expect-zone <zone>] [--report-json <path>] [--release-gate-json <path>] [--release-trend-report-json <path>] [--max-report-age-hours <hours>] [--require-real-artifacts] [--require-release-gate-pass] [--require-release-trend-pass]
 USAGE
 }
 
@@ -98,8 +108,12 @@ while [[ $# -gt 0 ]]; do
     --expect-camera) EXPECT_CAMERA="${2:-}"; shift 2 ;;
     --expect-zone) EXPECT_ZONE="${2:-}"; shift 2 ;;
     --report-json) REPORT_JSON="${2:-}"; shift 2 ;;
+    --release-gate-json) RELEASE_GATE_JSON="${2:-}"; shift 2 ;;
+    --release-trend-report-json) RELEASE_TREND_REPORT_JSON="${2:-}"; shift 2 ;;
     --max-report-age-hours) MAX_REPORT_AGE_HOURS="${2:-}"; shift 2 ;;
     --require-real-artifacts) REQUIRE_REAL_ARTIFACTS=1; shift ;;
+    --require-release-gate-pass) REQUIRE_RELEASE_GATE_PASS=1; shift ;;
+    --require-release-trend-pass) REQUIRE_RELEASE_TREND_PASS=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) fail "Unknown argument: $1" ;;
   esac
@@ -192,6 +206,12 @@ if [[ -z "$ARTIFACT_DIR" ]]; then
 fi
 READINESS_JSON_OUT="$ARTIFACT_DIR/readiness_report.json"
 READINESS_MD_OUT="$ARTIFACT_DIR/readiness_report.md"
+if [[ -z "$RELEASE_GATE_JSON" && -f "$ARTIFACT_DIR/release_gate.json" ]]; then
+  RELEASE_GATE_JSON="$ARTIFACT_DIR/release_gate.json"
+fi
+if [[ -z "$RELEASE_TREND_REPORT_JSON" && -f "$ARTIFACT_DIR/release_trend_report.json" ]]; then
+  RELEASE_TREND_REPORT_JSON="$ARTIFACT_DIR/release_trend_report.json"
+fi
 
 REPORT_AGE_HOURS_VALUE="$(report_age_hours "$REPORT_JSON")"
 if ! python3 - "$REPORT_AGE_HOURS_VALUE" "$MAX_REPORT_AGE_HOURS" <<'PY'
@@ -238,6 +258,39 @@ done
 
 if [[ "$overall_status" != "PASS" ]]; then
   fail "DVR readiness failed: latest report overall_status is not PASS ($REPORT_JSON)." "overall_status_not_pass"
+fi
+
+if [[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]]; then
+  if [[ -z "$RELEASE_GATE_JSON" || ! -f "$RELEASE_GATE_JSON" ]]; then
+    fail "DVR readiness failed: release gate artifact was not found under --require-release-gate-pass." "release_gate_not_found"
+  fi
+  release_gate_validation_report="$(json_get "$RELEASE_GATE_JSON" "validation_report_json")"
+  release_gate_result="$(json_get "$RELEASE_GATE_JSON" "result" | tr '[:lower:]' '[:upper:]')"
+  if [[ -n "$release_gate_validation_report" && "$release_gate_validation_report" != "$REPORT_JSON" ]]; then
+    fail "DVR readiness failed: release gate validation report does not match the active validation bundle." "release_gate_validation_report_mismatch"
+  fi
+  if [[ "$release_gate_result" != "PASS" ]]; then
+    release_gate_primary_code="$(json_get "$RELEASE_GATE_JSON" "primary_fail_code")"
+    if [[ -z "$release_gate_primary_code" ]]; then
+      release_gate_primary_code="$(json_get "$RELEASE_GATE_JSON" "primary_hold_code")"
+    fi
+    fail "DVR readiness failed: release gate is ${release_gate_result:-UNKNOWN}, expected PASS." "${release_gate_primary_code:-release_gate_not_pass}"
+  fi
+fi
+
+if [[ "$REQUIRE_RELEASE_TREND_PASS" -eq 1 ]]; then
+  if [[ -z "$RELEASE_TREND_REPORT_JSON" || ! -f "$RELEASE_TREND_REPORT_JSON" ]]; then
+    fail "DVR readiness failed: release trend artifact was not found under --require-release-trend-pass." "release_trend_not_found"
+  fi
+  release_trend_current_gate="$(json_get "$RELEASE_TREND_REPORT_JSON" "current_release_gate_json")"
+  release_trend_status="$(json_get "$RELEASE_TREND_REPORT_JSON" "status" | tr '[:lower:]' '[:upper:]')"
+  if [[ -n "$RELEASE_GATE_JSON" && -n "$release_trend_current_gate" && "$release_trend_current_gate" != "$RELEASE_GATE_JSON" ]]; then
+    fail "DVR readiness failed: release trend current gate does not match the active release gate artifact." "release_trend_current_gate_mismatch"
+  fi
+  if [[ "$release_trend_status" != "PASS" ]]; then
+    release_trend_primary_code="$(json_get "$RELEASE_TREND_REPORT_JSON" "primary_regression_code")"
+    fail "DVR readiness failed: release trend is ${release_trend_status:-UNKNOWN}, expected PASS." "${release_trend_primary_code:-release_trend_not_pass}"
+  fi
 fi
 
 conclude_pass "DVR readiness passed ($REPORT_JSON, age=${REPORT_AGE_HOURS_VALUE}h)."
