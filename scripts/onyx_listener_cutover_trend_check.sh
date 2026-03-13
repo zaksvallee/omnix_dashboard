@@ -535,21 +535,31 @@ def cutover_decision_consistency_regressions(report, label):
     decision = str(report.get("decision", "")).upper()
 
     validation_report = str(report.get("validation_report_json", "")).strip()
+    integrity_certificate_json = str(report.get("integrity_certificate_json", "")).strip()
+    integrity_certificate_markdown = str(report.get("integrity_certificate_markdown", "")).strip()
     parity_report = str(report.get("parity_report_json", "")).strip()
     parity_trend_report = str(report.get("parity_trend_report_json", "")).strip()
     validation_trend_report = str(report.get("validation_trend_report_json", "")).strip()
 
     validation_data = load_json(validation_report)
+    integrity_certificate_data = load_json(integrity_certificate_json)
     parity_data = load_json(parity_report)
     parity_trend_data = load_json(parity_trend_report)
     validation_trend_data = load_json(validation_trend_report)
     validation_files = (validation_data or {}).get("files", {}) or {}
     validation_parity_report = str(validation_files.get("parity_report_json", "")).strip()
     validation_parity_trend = str(validation_files.get("trend_report_json", "")).strip()
-    expected_validation_trend = str((validation_data or {}).get("artifact_dir", "")).strip()
+    validation_artifact_dir = str((validation_data or {}).get("artifact_dir", "")).strip()
+    expected_validation_trend = validation_artifact_dir
     expected_validation_trend = f"{expected_validation_trend}/validation_trend_report.json" if expected_validation_trend else ""
     if expected_validation_trend and not path_exists(expected_validation_trend):
         expected_validation_trend = ""
+    expected_integrity_certificate_json = f"{validation_artifact_dir}/integrity_certificate.json" if validation_artifact_dir else ""
+    if expected_integrity_certificate_json and not path_exists(expected_integrity_certificate_json):
+        expected_integrity_certificate_json = ""
+    expected_integrity_certificate_markdown = f"{validation_artifact_dir}/integrity_certificate.md" if validation_artifact_dir else ""
+    if expected_integrity_certificate_markdown and not path_exists(expected_integrity_certificate_markdown):
+        expected_integrity_certificate_markdown = ""
 
     def add(code_suffix, kind, expected, actual):
         regressions.append({
@@ -589,6 +599,10 @@ def cutover_decision_consistency_regressions(report, label):
             add("parity_trend_report_mismatch", "decision_summary_mismatch", validation_parity_trend, parity_trend_report)
         if validation_trend_report != expected_validation_trend:
             add("validation_trend_report_mismatch", "decision_summary_mismatch", expected_validation_trend, validation_trend_report)
+        if integrity_certificate_json != expected_integrity_certificate_json:
+            add("integrity_certificate_path_mismatch", "decision_summary_mismatch", expected_integrity_certificate_json, integrity_certificate_json)
+        if integrity_certificate_markdown != expected_integrity_certificate_markdown:
+            add("integrity_certificate_markdown_path_mismatch", "decision_summary_mismatch", expected_integrity_certificate_markdown, integrity_certificate_markdown)
 
     if parity_data is not None:
         actual_parity_summary = str(parity_data.get("summary", "")).strip()
@@ -604,6 +618,15 @@ def cutover_decision_consistency_regressions(report, label):
         actual_validation_trend_status = str(validation_trend_data.get("status", "")).upper()
         if str(statuses.get("validation_trend_status", "")).upper() != actual_validation_trend_status:
             add("validation_trend_status_mismatch", "decision_summary_mismatch", actual_validation_trend_status, str(statuses.get("validation_trend_status", "")).upper())
+    if integrity_certificate_data is not None:
+        actual_integrity_status = str(integrity_certificate_data.get("status", "")).upper()
+        actual_integrity_report = str(integrity_certificate_data.get("report_json", "")).strip()
+        if str(statuses.get("integrity_certificate_status", "")).upper() != actual_integrity_status:
+            add("integrity_certificate_status_mismatch", "decision_summary_mismatch", actual_integrity_status, str(statuses.get("integrity_certificate_status", "")).upper())
+        if actual_integrity_status != "PASS":
+            add("integrity_certificate_not_pass", "decision_summary_mismatch", "PASS", actual_integrity_status)
+        if actual_integrity_report != validation_report:
+            add("integrity_certificate_validation_report_mismatch", "decision_summary_mismatch", validation_report, actual_integrity_report)
 
     expected_primary_blocking = blocking_codes[0] if blocking_codes else ""
     expected_primary_hold = hold_codes[0] if hold_codes else ""
@@ -624,11 +647,15 @@ def cutover_decision_consistency_regressions(report, label):
 def decision_chain_regressions(report, label):
     regressions = []
     validation_report = str(report.get("validation_report_json", "")).strip()
+    integrity_certificate_json = str(report.get("integrity_certificate_json", "")).strip()
+    integrity_certificate_markdown = str(report.get("integrity_certificate_markdown", "")).strip()
     parity_report = str(report.get("parity_report_json", "")).strip()
     parity_trend_report = str(report.get("parity_trend_report_json", "")).strip()
     validation_trend_report = str(report.get("validation_trend_report_json", "")).strip()
     for field_name, value in (
         ("validation_report", validation_report),
+        ("integrity_certificate", integrity_certificate_json),
+        ("integrity_certificate_markdown", integrity_certificate_markdown),
         ("parity_report", parity_report),
         ("parity_trend_report", parity_trend_report),
         ("validation_trend_report", validation_trend_report),

@@ -290,6 +290,7 @@ This emits `cutover_decision.json` plus `cutover_decision.md` with:
 - `blocking_reasons`
 - `hold_reasons`
 - resolved validation/parity/trend artifact references
+- staged validation-bundle integrity certificate refs and status
 
 When parity or trend paths are not passed explicitly, standalone cutover
 decision generation now auto-resolves:
@@ -322,6 +323,10 @@ fails when:
 The cutover-trend artifact also carries `primary_regression_code` plus
 `regression_codes`, so downstream gates can classify cutover regressions
 without parsing prose summaries.
+Cutover and cutover-trend now also treat the staged validation-bundle
+integrity certificate as first-class evidence, so a cutover decision cannot
+quietly point at a different certificate chain than the validation bundle it
+claims to summarize.
 
 Cutover decision consumers now also verify that the decision artifact's copied
 `statuses.*`, `gates.*`, `parity_summary`, and primary code fields still match

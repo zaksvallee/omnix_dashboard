@@ -695,6 +695,9 @@ else:
     cutover_parity_report = str(cutover.get("parity_report_json", "")).strip()
     cutover_parity_trend = str(cutover.get("parity_trend_report_json", "")).strip()
     cutover_validation_trend = str(cutover.get("validation_trend_report_json", "")).strip()
+    cutover_integrity_certificate_json = str(cutover.get("integrity_certificate_json", "")).strip()
+    cutover_integrity_certificate_markdown = str(cutover.get("integrity_certificate_markdown", "")).strip()
+    cutover_integrity_certificate_status = str(((cutover.get("statuses") or {}).get("integrity_certificate_status", ""))).upper()
     if cutover_validation_report != str(validation_path or ""):
         add_reason(
             fail_items,
@@ -706,6 +709,24 @@ else:
             fail_items,
             "cutover_validation_trend_report_mismatch",
             "cutover decision validation trend does not match release gate validation trend report",
+        )
+    if cutover_integrity_certificate_json != str(integrity_certificate_json or ""):
+        add_reason(
+            fail_items,
+            "cutover_integrity_certificate_mismatch",
+            "cutover decision integrity certificate does not match release gate integrity certificate",
+        )
+    if cutover_integrity_certificate_markdown != str(integrity_certificate_markdown or ""):
+        add_reason(
+            fail_items,
+            "cutover_integrity_certificate_markdown_mismatch",
+            "cutover decision integrity certificate markdown does not match release gate integrity certificate markdown",
+        )
+    if cutover_integrity_certificate_status != str((integrity_certificate or {}).get("status", "")).upper():
+        add_reason(
+            fail_items,
+            "cutover_integrity_certificate_status_mismatch",
+            "cutover decision integrity certificate status does not match release gate integrity certificate status",
         )
     if not resolved_validation_trend_path and cutover_validation_trend:
         resolved_validation_trend_path = cutover_validation_trend
@@ -732,6 +753,18 @@ else:
             fail_items,
             "cutover_missing_validation_trend_report",
             "cutover decision references a missing validation trend report",
+        )
+    if cutover_integrity_certificate_json and not path_exists(cutover_integrity_certificate_json):
+        add_reason(
+            fail_items,
+            "cutover_missing_integrity_certificate",
+            "cutover decision references a missing integrity certificate",
+        )
+    if cutover_integrity_certificate_markdown and not path_exists(cutover_integrity_certificate_markdown):
+        add_reason(
+            fail_items,
+            "cutover_missing_integrity_certificate_markdown",
+            "cutover decision references a missing integrity certificate markdown",
         )
     for code, message in cutover_decision_consistency_issues(cutover):
         add_reason(fail_items, code, message)

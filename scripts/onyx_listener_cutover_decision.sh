@@ -337,6 +337,10 @@ def parity_report_chain_issues(path_str, label):
 parity = load_optional(parity_path)
 parity_trend = load_optional(parity_trend_path)
 validation_trend = load_optional(validation_trend_path)
+validation_artifact_dir = str((validation.get("artifact_dir") or "")).strip()
+integrity_certificate_path = Path(validation_artifact_dir) / "integrity_certificate.json" if validation_artifact_dir else None
+integrity_certificate_markdown_path = Path(validation_artifact_dir) / "integrity_certificate.md" if validation_artifact_dir else None
+integrity_certificate = load_optional(integrity_certificate_path) if integrity_certificate_path and integrity_certificate_path.is_file() else None
 
 decision = "GO"
 blocking_items = []
@@ -524,6 +528,33 @@ else:
     validation_trend_status = ""
     add_reason(hold_items, "missing_validation_trend", "validation trend artifact missing")
 
+integrity_certificate_status = str((integrity_certificate or {}).get("status", "")).upper()
+if not integrity_certificate_path or not integrity_certificate_path.is_file():
+    add_reason(
+        blocking_items,
+        "missing_integrity_certificate",
+        "validation bundle integrity certificate missing",
+    )
+elif integrity_certificate_status != "PASS":
+    add_reason(
+        blocking_items,
+        "integrity_certificate_not_pass",
+        f"validation bundle integrity certificate status is {integrity_certificate_status or 'missing'}",
+    )
+elif str((integrity_certificate or {}).get("report_json", "")).strip() != str(validation_path):
+    add_reason(
+        blocking_items,
+        "integrity_certificate_validation_report_mismatch",
+        "validation bundle integrity certificate does not match validation report",
+    )
+
+if not integrity_certificate_markdown_path or not integrity_certificate_markdown_path.is_file():
+    add_reason(
+        blocking_items,
+        "missing_integrity_certificate_markdown",
+        "validation bundle integrity certificate markdown missing",
+    )
+
 blocking_reasons = [item["message"] for item in blocking_items]
 hold_reasons = [item["message"] for item in hold_items]
 blocking_codes = [item["code"] for item in blocking_items]
@@ -543,6 +574,8 @@ result = {
         else "Cutover is blocked by failed hard gates or regressed artifacts."
     ),
     "validation_report_json": str(validation_path),
+    "integrity_certificate_json": str(integrity_certificate_path) if integrity_certificate_path and integrity_certificate_path.is_file() else "",
+    "integrity_certificate_markdown": str(integrity_certificate_markdown_path) if integrity_certificate_markdown_path and integrity_certificate_markdown_path.is_file() else "",
     "parity_report_json": str(parity_path) if parity_path else "",
     "parity_trend_report_json": str(parity_trend_path) if parity_trend_path else "",
     "validation_trend_report_json": str(validation_trend_path) if validation_trend_path else "",
@@ -550,6 +583,7 @@ result = {
     "is_mock_validation_bundle": is_mock,
     "statuses": {
         "validation_overall_status": overall_status,
+        "integrity_certificate_status": integrity_certificate_status,
         "baseline_review_recommendation": baseline_recommendation,
         "baseline_health_status": baseline_health_status,
         "baseline_health_category": baseline_health_category,
@@ -585,10 +619,15 @@ if parity_trend_path:
     lines.append(f"- Parity trend report: `{parity_trend_path}`")
 if validation_trend_path:
     lines.append(f"- Validation trend report: `{validation_trend_path}`")
+if integrity_certificate_path and integrity_certificate_path.is_file():
+    lines.append(f"- Integrity certificate JSON: `{integrity_certificate_path}`")
+if integrity_certificate_markdown_path and integrity_certificate_markdown_path.is_file():
+    lines.append(f"- Integrity certificate markdown: `{integrity_certificate_markdown_path}`")
 lines.extend([
     "",
     "## Statuses",
     f"- Validation overall status: `{overall_status or 'missing'}`",
+    f"- Integrity certificate status: `{integrity_certificate_status or 'missing'}`",
     f"- Baseline review recommendation: `{baseline_recommendation or 'missing'}`",
     f"- Baseline health: `{baseline_health_status or 'missing'} / {baseline_health_category or 'missing'}`",
     f"- Parity trend status: `{parity_trend_status or 'missing'}`",
