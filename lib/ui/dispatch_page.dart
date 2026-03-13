@@ -29,6 +29,7 @@ class _DispatchItem {
   final String dispatchTime;
   final String? eta;
   final String? distance;
+  final bool isSeededPlaceholder;
 
   const _DispatchItem({
     required this.id,
@@ -40,6 +41,7 @@ class _DispatchItem {
     required this.dispatchTime,
     this.eta,
     this.distance,
+    this.isSeededPlaceholder = false,
   });
 
   _DispatchItem copyWith({
@@ -52,6 +54,7 @@ class _DispatchItem {
     String? dispatchTime,
     String? eta,
     String? distance,
+    bool? isSeededPlaceholder,
   }) {
     return _DispatchItem(
       id: id ?? this.id,
@@ -63,6 +66,7 @@ class _DispatchItem {
       dispatchTime: dispatchTime ?? this.dispatchTime,
       eta: eta ?? this.eta,
       distance: distance ?? this.distance,
+      isSeededPlaceholder: isSeededPlaceholder ?? this.isSeededPlaceholder,
     );
   }
 }
@@ -163,6 +167,7 @@ class DispatchPage extends StatefulWidget {
   final IntakeTelemetry? intakeTelemetry;
   final List<DispatchEvent> events;
   final void Function(String dispatchId) onExecute;
+  final String focusIncidentReference;
 
   const DispatchPage({
     super.key,
@@ -257,6 +262,7 @@ class DispatchPage extends StatefulWidget {
     this.intakeTelemetry,
     required this.events,
     required this.onExecute,
+    this.focusIncidentReference = '',
   });
 
   @override
@@ -266,22 +272,21 @@ class DispatchPage extends StatefulWidget {
 class _DispatchPageState extends State<DispatchPage> {
   late List<_DispatchItem> _dispatches;
   String? _selectedDispatchId;
+  bool _focusReferenceLinkedToLive = false;
 
   @override
   void initState() {
     super.initState();
-    _dispatches = _seedDispatches(widget.events);
-    _selectedDispatchId = _dispatches.isEmpty ? null : _dispatches.first.id;
+    _projectDispatches(fromInit: true);
   }
 
   @override
   void didUpdateWidget(covariant DispatchPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.events != widget.events) {
-      _dispatches = _seedDispatches(widget.events);
-      if (_dispatches.every((item) => item.id != _selectedDispatchId)) {
-        _selectedDispatchId = _dispatches.isEmpty ? null : _dispatches.first.id;
-      }
+    if (oldWidget.events != widget.events ||
+        oldWidget.focusIncidentReference.trim() !=
+            widget.focusIncidentReference.trim()) {
+      _projectDispatches();
     }
   }
 
@@ -291,12 +296,17 @@ class _DispatchPageState extends State<DispatchPage> {
     final activeDispatches = _dispatches
         .where(
           (dispatch) =>
-              dispatch.status == _DispatchStatus.enRoute ||
-              dispatch.status == _DispatchStatus.onSite,
+              !dispatch.isSeededPlaceholder &&
+              (dispatch.status == _DispatchStatus.enRoute ||
+                  dispatch.status == _DispatchStatus.onSite),
         )
         .length;
     final pendingDispatches = _dispatches
-        .where((dispatch) => dispatch.status == _DispatchStatus.pending)
+        .where(
+          (dispatch) =>
+              !dispatch.isSeededPlaceholder &&
+              dispatch.status == _DispatchStatus.pending,
+        )
         .length;
 
     return OnyxPageScaffold(
@@ -379,7 +389,32 @@ class _DispatchPageState extends State<DispatchPage> {
               fontWeight: FontWeight.w600,
             ),
           ),
+          if (widget.focusIncidentReference.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _focusPill(widget.focusIncidentReference.trim()),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _focusPill(String focusReference) {
+    final linked = _focusReferenceLinkedToLive;
+    final color = linked ? const Color(0xFF22D3EE) : const Color(0xFFFACC15);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.45)),
+      ),
+      child: Text(
+        'Focus ${linked ? 'Linked' : 'Seeded'}: $focusReference',
+        style: GoogleFonts.inter(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+        ),
       ),
     );
   }
@@ -750,6 +785,15 @@ class _DispatchPageState extends State<DispatchPage> {
                           fontWeight: FontWeight.w800,
                         ),
                       ),
+                      if (dispatch.isSeededPlaceholder)
+                        Text(
+                          'SEEDED',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFFACC15),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 6),
@@ -1208,6 +1252,12 @@ class _DispatchPageState extends State<DispatchPage> {
   }
 
   void _handleDispatchAction(_DispatchItem dispatch) {
+    if (dispatch.isSeededPlaceholder) {
+      _showSignalSnack(
+        'Seeded focus reference is awaiting live dispatch ingest',
+      );
+      return;
+    }
     widget.onExecute(dispatch.id);
     setState(() {
       _dispatches = _dispatches
@@ -1235,6 +1285,61 @@ class _DispatchPageState extends State<DispatchPage> {
           .toList(growable: false);
       _selectedDispatchId = dispatch.id;
     });
+  }
+
+  void _projectDispatches({bool fromInit = false}) {
+    final focusReference = widget.focusIncidentReference.trim();
+    final liveDispatches = _seedDispatches(widget.events);
+    final focusMatchedInLive =
+        focusReference.isNotEmpty &&
+        liveDispatches.any((dispatch) => dispatch.id == focusReference);
+    final projected = _injectFocusedDispatchFallback(
+      dispatches: liveDispatches,
+      focusReference: focusReference,
+      hasLiveMatch: focusMatchedInLive,
+    );
+
+    void apply() {
+      _dispatches = projected;
+      _focusReferenceLinkedToLive = focusMatchedInLive;
+      if (_dispatches.isEmpty) {
+        _selectedDispatchId = null;
+      } else if (focusReference.isNotEmpty &&
+          _dispatches.any((dispatch) => dispatch.id == focusReference)) {
+        _selectedDispatchId = focusReference;
+      } else if (_dispatches.every((item) => item.id != _selectedDispatchId)) {
+        _selectedDispatchId = _dispatches.first.id;
+      }
+    }
+
+    if (fromInit) {
+      apply();
+    } else {
+      setState(apply);
+    }
+  }
+
+  List<_DispatchItem> _injectFocusedDispatchFallback({
+    required List<_DispatchItem> dispatches,
+    required String focusReference,
+    required bool hasLiveMatch,
+  }) {
+    if (focusReference.isEmpty || hasLiveMatch) {
+      return dispatches;
+    }
+    return [
+      _DispatchItem(
+        id: focusReference,
+        site: 'Seeded Demo Incident',
+        type: 'Awaiting dispatch ingest',
+        priority: _DispatchPriority.p2High,
+        status: _DispatchStatus.pending,
+        officer: 'Awaiting assignment',
+        dispatchTime: _clockLabel(DateTime.now().toLocal()),
+        isSeededPlaceholder: true,
+      ),
+      ...dispatches,
+    ];
   }
 
   _DispatchStatusStyle _statusStyle(_DispatchStatus status) {

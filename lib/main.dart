@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'application/client_conversation_repository.dart';
+import 'application/client_messaging_bridge_repository.dart';
 import 'application/cctv_bridge_service.dart';
 import 'application/dispatch_persistence_service.dart';
 import 'application/dispatch_snapshot_file_service.dart';
@@ -23,6 +25,8 @@ import 'application/morning_sovereign_report_service.dart';
 import 'application/ops_integration_profile.dart';
 import 'application/radio_bridge_service.dart';
 import 'application/runtime_config.dart';
+import 'application/telegram_ai_assistant_service.dart';
+import 'application/telegram_bridge_service.dart';
 import 'application/wearable_bridge_service.dart';
 import 'domain/authority/operator_context.dart';
 import 'domain/events/decision_created.dart';
@@ -197,6 +201,135 @@ class _RadioPendingRetryState {
   }
 }
 
+class _TelegramBridgeTarget {
+  final String chatId;
+  final int? threadId;
+  final String label;
+
+  const _TelegramBridgeTarget({
+    required this.chatId,
+    this.threadId,
+    required this.label,
+  });
+}
+
+class _TelegramAdminCommandParseResult {
+  final String command;
+  final String arguments;
+
+  const _TelegramAdminCommandParseResult({
+    required this.command,
+    this.arguments = '',
+  });
+}
+
+class _TelegramDemoReadinessReport {
+  final String clientId;
+  final String siteId;
+  final String currentChatLabel;
+  final List<String> checks;
+  final List<String> actions;
+
+  const _TelegramDemoReadinessReport({
+    required this.clientId,
+    required this.siteId,
+    required this.currentChatLabel,
+    required this.checks,
+    required this.actions,
+  });
+
+  bool get ready => checks.every((entry) => !entry.contains('FAIL'));
+}
+
+class _TelegramInboundClientTarget {
+  final String endpointId;
+  final String clientId;
+  final String? siteId;
+  final String displayLabel;
+
+  const _TelegramInboundClientTarget({
+    required this.endpointId,
+    required this.clientId,
+    this.siteId,
+    required this.displayLabel,
+  });
+}
+
+class _TelegramAiPendingDraft {
+  final int inboundUpdateId;
+  final String chatId;
+  final int? messageThreadId;
+  final String audience;
+  final String clientId;
+  final String siteId;
+  final String sourceText;
+  final String draftText;
+  final String providerLabel;
+  final DateTime createdAtUtc;
+
+  const _TelegramAiPendingDraft({
+    required this.inboundUpdateId,
+    required this.chatId,
+    this.messageThreadId,
+    required this.audience,
+    required this.clientId,
+    required this.siteId,
+    required this.sourceText,
+    required this.draftText,
+    required this.providerLabel,
+    required this.createdAtUtc,
+  });
+
+  Map<String, Object?> toJson() {
+    return {
+      'inbound_update_id': inboundUpdateId,
+      'chat_id': chatId,
+      'message_thread_id': messageThreadId,
+      'audience': audience,
+      'client_id': clientId,
+      'site_id': siteId,
+      'source_text': sourceText,
+      'draft_text': draftText,
+      'provider_label': providerLabel,
+      'created_at_utc': createdAtUtc.toIso8601String(),
+    };
+  }
+
+  factory _TelegramAiPendingDraft.fromJson(Map<String, Object?> json) {
+    final updateRaw = json['inbound_update_id'];
+    final updateId = switch (updateRaw) {
+      int value => value,
+      num value => value.round(),
+      String value => int.tryParse(value.trim()) ?? 0,
+      _ => 0,
+    };
+    final threadRaw = json['message_thread_id'];
+    final threadId = switch (threadRaw) {
+      int value => value,
+      num value => value.round(),
+      String value => int.tryParse(value.trim()),
+      _ => null,
+    };
+    final createdRaw = (json['created_at_utc'] ?? '').toString().trim();
+    return _TelegramAiPendingDraft(
+      inboundUpdateId: updateId < 0 ? 0 : updateId,
+      chatId: (json['chat_id'] ?? '').toString().trim(),
+      messageThreadId: threadId,
+      audience: (json['audience'] ?? '').toString().trim().isEmpty
+          ? 'client'
+          : (json['audience'] ?? '').toString().trim(),
+      clientId: (json['client_id'] ?? '').toString().trim(),
+      siteId: (json['site_id'] ?? '').toString().trim(),
+      sourceText: (json['source_text'] ?? '').toString().trim(),
+      draftText: (json['draft_text'] ?? '').toString().trim(),
+      providerLabel: (json['provider_label'] ?? '').toString().trim(),
+      createdAtUtc: createdRaw.isEmpty
+          ? DateTime.now().toUtc()
+          : DateTime.tryParse(createdRaw)?.toUtc() ?? DateTime.now().toUtc(),
+    );
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   const allowFontRuntimeFetching = bool.fromEnvironment(
@@ -332,7 +465,73 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     'ONYX_CLIENT_APP_LOCALE',
     defaultValue: 'en',
   );
+  static const _clientPushDeliveryProviderEnv = String.fromEnvironment(
+    'ONYX_CLIENT_PUSH_DELIVERY_PROVIDER',
+    defaultValue: 'in_app',
+  );
+  static const _telegramBridgeEnabledEnv = bool.fromEnvironment(
+    'ONYX_TELEGRAM_BRIDGE_ENABLED',
+    defaultValue: false,
+  );
+  static const _telegramBotTokenEnv = String.fromEnvironment(
+    'ONYX_TELEGRAM_BOT_TOKEN',
+  );
+  static const _telegramChatIdEnv = String.fromEnvironment(
+    'ONYX_TELEGRAM_CHAT_ID',
+  );
+  static const _telegramMessageThreadIdEnv = String.fromEnvironment(
+    'ONYX_TELEGRAM_MESSAGE_THREAD_ID',
+  );
+  static const _telegramAdminControlEnabledEnv = bool.fromEnvironment(
+    'ONYX_TELEGRAM_ADMIN_CONTROL_ENABLED',
+    defaultValue: false,
+  );
+  static const _telegramAdminChatIdEnv = String.fromEnvironment(
+    'ONYX_TELEGRAM_ADMIN_CHAT_ID',
+  );
+  static const _telegramAdminThreadIdEnv = String.fromEnvironment(
+    'ONYX_TELEGRAM_ADMIN_THREAD_ID',
+  );
+  static const _telegramAdminPollIntervalSecondsEnv = int.fromEnvironment(
+    'ONYX_TELEGRAM_ADMIN_POLL_INTERVAL_SECONDS',
+    defaultValue: 8,
+  );
+  static const _telegramAdminCriticalPushEnabledEnv = bool.fromEnvironment(
+    'ONYX_TELEGRAM_ADMIN_CRITICAL_PUSH_ENABLED',
+    defaultValue: true,
+  );
+  static const _telegramAdminCriticalReminderSecondsEnv = int.fromEnvironment(
+    'ONYX_TELEGRAM_ADMIN_CRITICAL_REMINDER_SECONDS',
+    defaultValue: 300,
+  );
+  static const _telegramAdminAllowedUserIdsEnv = String.fromEnvironment(
+    'ONYX_TELEGRAM_ADMIN_ALLOWED_USER_IDS',
+  );
+  static const _telegramAdminExecutionEnabledEnv = bool.fromEnvironment(
+    'ONYX_TELEGRAM_ADMIN_EXECUTION_ENABLED',
+    defaultValue: true,
+  );
+  static const _telegramAiAssistantEnabledEnv = bool.fromEnvironment(
+    'ONYX_TELEGRAM_AI_ASSISTANT_ENABLED',
+    defaultValue: false,
+  );
+  static const _telegramAiApprovalRequiredEnv = bool.fromEnvironment(
+    'ONYX_TELEGRAM_AI_APPROVAL_REQUIRED',
+    defaultValue: false,
+  );
+  static const _telegramAiOpenAiApiKeyEnv = String.fromEnvironment(
+    'ONYX_TELEGRAM_AI_OPENAI_API_KEY',
+  );
+  static const _telegramAiModelEnv = String.fromEnvironment(
+    'ONYX_TELEGRAM_AI_OPENAI_MODEL',
+    defaultValue: 'gpt-4.1-mini',
+  );
+  static const _telegramAiEndpointEnv = String.fromEnvironment(
+    'ONYX_TELEGRAM_AI_OPENAI_ENDPOINT',
+  );
   late final OnyxAppMode _appMode = _resolveAppMode();
+  late final ClientPushDeliveryProvider _clientPushDeliveryProvider =
+      ClientPushDeliveryProviderParser.fromCode(_clientPushDeliveryProviderEnv);
   final GuardTelemetryIngestionAdapter _guardTelemetryAdapter =
       createGuardTelemetryIngestionAdapter(
         wearableHeartbeatUrl: _wearableTelemetryAdapterUrl,
@@ -352,6 +551,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   final http.Client _radioBridgeHttpClient = http.Client();
   final http.Client _cctvBridgeHttpClient = http.Client();
   final http.Client _wearableBridgeHttpClient = http.Client();
+  final http.Client _telegramBridgeHttpClient = http.Client();
+  final http.Client _telegramAiHttpClient = http.Client();
+  late final TelegramBridgeService _telegramBridge = _buildTelegramBridge();
+  late final TelegramAiAssistantService _telegramAiAssistant =
+      _buildTelegramAiAssistant();
   late final OnyxOpsIntegrationProfile _opsIntegrationProfile =
       OnyxOpsIntegrationProfile.fromEnvironment(
         radioProvider: _radioProviderEnv,
@@ -456,11 +660,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     'ONYX_OPS_INTEGRATION_POLL_INTERVAL_SECONDS',
     defaultValue: 45,
   );
+  static const _telegramAdminMaxMessageChars = 3500;
   late final ClientAppLocale _clientAppLocale = ClientAppLocaleParser.fromCode(
     _clientAppLocaleEnv,
   );
   final store = InMemoryEventStore();
   late final DispatchApplicationService service;
+  late final ClientLedgerRepository _clientLedgerRepository;
   late final IntakeStressService stressService;
   late final Future<DispatchPersistenceService> _persistenceServiceFuture;
   late final Future<ClientConversationRepository>
@@ -473,6 +679,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   String _eventsSourceFilter = '';
   String _eventsProviderFilter = '';
   String _eventsSelectedEventId = '';
+  String _operationsFocusIncidentReference = '';
 
   final String _selectedClient = 'CLIENT-001';
   final String _selectedRegion = 'REGION-GAUTENG';
@@ -527,12 +734,44 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   String? _clientAppPushSyncFailureReason;
   int _clientAppPushSyncRetryCount = 0;
   List<ClientPushSyncAttempt> _clientAppPushSyncHistory = const [];
+  bool _telegramBridgeFallbackToInApp = false;
+  String _telegramBridgeHealthLabel = 'disabled';
+  String? _telegramBridgeHealthDetail;
+  DateTime? _telegramBridgeHealthUpdatedAtUtc;
+  int? _telegramAdminLastUpdateId;
+  bool _telegramAdminPollInFlight = false;
+  bool _telegramAdminOffsetBootstrapped = false;
+  DateTime? _telegramAdminOffsetBootstrappedAtUtc;
+  DateTime? _telegramAdminLastCommandAtUtc;
+  String? _telegramAdminLastCommandSummary;
+  List<String> _telegramAdminCommandAudit = const [];
+  int? _telegramAdminPollIntervalSecondsOverride;
+  int? _telegramAdminCriticalReminderSecondsOverride;
+  bool? _telegramAdminExecutionEnabledOverride;
+  List<int>? _telegramAdminAllowedUserIdsOverride;
+  String? _telegramAdminTargetClientIdOverride;
+  String? _telegramAdminTargetSiteIdOverride;
+  String _telegramAdminCriticalAlertFingerprint = '';
+  DateTime? _telegramAdminLastCriticalAlertAtUtc;
+  String? _telegramAdminLastCriticalAlertSummary;
+  DateTime? _telegramAdminLastCriticalPushAttemptAtUtc;
+  bool _telegramAdminCriticalPushInFlight = false;
+  DateTime? _telegramAdminCriticalSnoozedUntilUtc;
+  String _telegramAdminCriticalAckFingerprint = '';
+  DateTime? _telegramAdminCriticalAckAtUtc;
+  bool? _telegramAiAssistantEnabledOverride;
+  bool? _telegramAiApprovalRequiredOverride;
+  List<_TelegramAiPendingDraft> _telegramAiPendingDrafts = const [];
+  DateTime? _telegramAiLastHandledAtUtc;
+  String? _telegramAiLastHandledSummary;
   String _clientAppBackendProbeStatusLabel = 'idle';
   DateTime? _clientAppBackendProbeLastRunAtUtc;
   String? _clientAppBackendProbeFailureReason;
   List<ClientBackendProbeAttempt> _clientAppBackendProbeHistory = const [];
   List<NewsSourceDiagnostic> _newsSourceDiagnostics = const [];
   String _radioIntentPhrasesJsonOverride = '';
+  String _demoRouteCueOverridesJson = '';
+  Map<String, String> _demoRouteCueOverrides = const {};
   List<String> _livePollingHistory = const [];
   List<GuardSyncOperation> _guardQueuedOperations = const [];
   GuardSyncHistoryFilter _guardSyncHistoryFilter =
@@ -606,6 +845,30 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   Timer? _livePollTimer;
   Timer? _opsIntegrationPollTimer;
   Timer? _guardOpsSyncTimer;
+  Timer? _telegramAdminPollTimer;
+  Timer? _demoAutopilotRouteTimer;
+  Timer? _demoAutopilotCountdownTimer;
+  Timer? _telegramDemoScriptTimer;
+  bool _telegramDemoScriptRunning = false;
+  int _telegramDemoScriptStep = 0;
+  int _telegramDemoScriptTotal = 0;
+  int _telegramDemoScriptIntervalSeconds = 20;
+  String _telegramDemoScriptScopeLabel = '';
+  String _telegramDemoScriptRunId = '';
+  DateTime? _telegramDemoScriptStartedAtUtc;
+  DateTime? _telegramDemoScriptNextStepAtUtc;
+  List<ClientAppPushDeliveryItem> _telegramDemoScriptPendingItems = const [];
+  bool _demoAutopilotRunning = false;
+  bool _demoAutopilotPaused = false;
+  int _demoAutopilotCurrentStep = 0;
+  int _demoAutopilotTotalSteps = 0;
+  String _demoAutopilotFlowLabel = '';
+  int _demoAutopilotNextHopSeconds = 0;
+  String _demoAutopilotNextRouteLabel = '';
+  List<OnyxRoute> _demoAutopilotSequence = const [];
+  int _demoAutopilotStepIntervalSeconds = 0;
+  String _demoAutopilotIncidentReference = '';
+  String _demoAutopilotCompletionLabel = '';
   List<RadioAutomatedResponse> _pendingRadioAutomatedResponses = const [];
   Map<String, _RadioPendingRetryState> _pendingRadioRetryByKey = const {};
   String _radioQueueLastManualActionDetail =
@@ -634,10 +897,164 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return raw > 0 ? raw : fallback;
   }
 
+  int get _normalizedTelegramAdminPollIntervalSeconds {
+    final raw =
+        _telegramAdminPollIntervalSecondsOverride ??
+        _telegramAdminPollIntervalSecondsEnv;
+    if (raw < 3) {
+      return 3;
+    }
+    if (raw > 60) {
+      return 60;
+    }
+    return raw;
+  }
+
+  int get _normalizedTelegramAdminCriticalReminderSeconds {
+    final raw =
+        _telegramAdminCriticalReminderSecondsOverride ??
+        _telegramAdminCriticalReminderSecondsEnv;
+    if (raw < 60) {
+      return 60;
+    }
+    if (raw > 3600) {
+      return 3600;
+    }
+    return raw;
+  }
+
+  String _resolvedTelegramAdminChatId() {
+    final explicit = _telegramAdminChatIdEnv.trim();
+    if (explicit.isNotEmpty) return explicit;
+    return _telegramChatIdEnv.trim();
+  }
+
+  int? _resolvedTelegramAdminThreadId() {
+    final raw = _telegramAdminThreadIdEnv.trim();
+    if (raw.isEmpty) return null;
+    return int.tryParse(raw);
+  }
+
+  bool get _telegramAdminControlEnabled {
+    if (!_telegramAdminControlEnabledEnv) {
+      return false;
+    }
+    if (!_telegramBridge.isConfigured) {
+      return false;
+    }
+    return _resolvedTelegramAdminChatId().isNotEmpty;
+  }
+
+  bool get _telegramAdminCriticalPushEnabled {
+    if (!_telegramAdminCriticalPushEnabledEnv) {
+      return false;
+    }
+    return _telegramAdminControlEnabled;
+  }
+
+  bool get _telegramAdminExecutionEnabled {
+    return _telegramAdminExecutionEnabledOverride ??
+        _telegramAdminExecutionEnabledEnv;
+  }
+
+  bool get _telegramAiAssistantEnabled {
+    final enabled =
+        _telegramAiAssistantEnabledOverride ?? _telegramAiAssistantEnabledEnv;
+    if (!enabled) {
+      return false;
+    }
+    return _telegramBridge.isConfigured;
+  }
+
+  bool get _telegramAiApprovalRequired {
+    return _telegramAiApprovalRequiredOverride ??
+        _telegramAiApprovalRequiredEnv;
+  }
+
+  bool get _telegramInboundRouterEnabled {
+    return _telegramAdminControlEnabled || _telegramAiAssistantEnabled;
+  }
+
+  bool get _keepTelegramPollingWhenBackgrounded {
+    return kIsWeb || _appMode == OnyxAppMode.controller;
+  }
+
+  String get _telegramAdminTargetClientId {
+    final override = (_telegramAdminTargetClientIdOverride ?? '').trim();
+    if (override.isNotEmpty) {
+      return override;
+    }
+    return _selectedClient;
+  }
+
+  String get _telegramAdminTargetSiteId {
+    final override = (_telegramAdminTargetSiteIdOverride ?? '').trim();
+    if (override.isNotEmpty) {
+      return override;
+    }
+    return _selectedSite;
+  }
+
+  Set<int> get _telegramAdminAllowedUserIdsFromEnv {
+    final raw = _telegramAdminAllowedUserIdsEnv.trim();
+    if (raw.isEmpty) {
+      return const <int>{};
+    }
+    return raw
+        .split(',')
+        .map((value) => int.tryParse(value.trim()))
+        .whereType<int>()
+        .where((value) => value > 0)
+        .toSet();
+  }
+
+  Set<int> get _telegramAdminAllowedUserIds {
+    final override = _telegramAdminAllowedUserIdsOverride;
+    if (override == null) {
+      return _telegramAdminAllowedUserIdsFromEnv;
+    }
+    return override.where((value) => value > 0).toSet();
+  }
+
+  TelegramBridgeService _buildTelegramBridge() {
+    if (!_telegramBridgeEnabledEnv) {
+      return const UnconfiguredTelegramBridgeService();
+    }
+    final botToken = _telegramBotTokenEnv.trim();
+    if (botToken.isEmpty) {
+      return const UnconfiguredTelegramBridgeService();
+    }
+    return HttpTelegramBridgeService(
+      client: _telegramBridgeHttpClient,
+      botToken: botToken,
+    );
+  }
+
+  TelegramAiAssistantService _buildTelegramAiAssistant() {
+    final apiKey = _telegramAiOpenAiApiKeyEnv.trim();
+    final model = _telegramAiModelEnv.trim();
+    if (apiKey.isEmpty || model.isEmpty) {
+      return const UnconfiguredTelegramAiAssistantService();
+    }
+    final endpoint = _telegramAiEndpointEnv.trim();
+    return OpenAiTelegramAiAssistantService(
+      client: _telegramAiHttpClient,
+      apiKey: apiKey,
+      model: model,
+      endpoint: endpoint.isEmpty ? null : Uri.tryParse(endpoint),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _telegramBridgeHealthLabel = _telegramBridge.isConfigured
+        ? 'configured'
+        : 'disabled';
+    _telegramBridgeHealthDetail = _telegramBridge.isConfigured
+        ? 'Bridge token configured. Awaiting delivery attempts.'
+        : 'Telegram bridge disabled or missing bot token.';
     _outcomeGovernancePolicy = OutcomeLabelGovernancePolicy.fromJsonString(
       _guardOutcomeGovernanceJson,
       fallback: OutcomeLabelGovernancePolicy.defaultPolicy(),
@@ -692,7 +1109,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       return SharedPrefsGuardOpsRepository.create(remote: remote);
     });
 
-    final ClientLedgerRepository repository = widget.supabaseReady
+    _clientLedgerRepository = widget.supabaseReady
         ? SupabaseClientLedgerRepository(Supabase.instance.client)
         : InMemoryClientLedgerRepository();
 
@@ -706,7 +1123,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       store: store,
       engine: ExecutionEngine(),
       policy: RiskPolicy(escalationThreshold: 70),
-      ledgerService: ClientLedgerService(repository),
+      ledgerService: ClientLedgerService(_clientLedgerRepository),
       operator: operator,
     );
     stressService = IntakeStressService(store: store, service: service);
@@ -723,6 +1140,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _hydrateOpsIntegrationHealthSnapshot();
     _hydrateStressProfile();
     _hydrateClientAppDraft();
+    _hydrateTelegramAdminRuntimeState();
     _hydrateGuardSyncState();
     _hydrateGuardOpsState();
     _hydrateGuardOutcomeGovernanceTelemetry();
@@ -736,6 +1154,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _refreshGuardTelemetryAdapterStatus();
     _startGuardOpsSyncLoop();
     _startOpsIntegrationPollingLoop();
+    _startTelegramAdminControlLoop();
   }
 
   // ignore: unused_element
@@ -760,9 +1179,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _livePollTimer?.cancel();
     _opsIntegrationPollTimer?.cancel();
     _guardOpsSyncTimer?.cancel();
+    _telegramAdminPollTimer?.cancel();
+    _telegramDemoScriptTimer?.cancel();
+    _cancelDemoAutopilot();
     _radioBridgeHttpClient.close();
     _cctvBridgeHttpClient.close();
     _wearableBridgeHttpClient.close();
+    _telegramBridgeHttpClient.close();
+    _telegramAiHttpClient.close();
     super.dispose();
   }
 
@@ -774,10 +1198,15 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           state == AppLifecycleState.detached) {
         _opsIntegrationPollTimer?.cancel();
         _opsIntegrationPollTimer = null;
+        if (!_keepTelegramPollingWhenBackgrounded) {
+          _telegramAdminPollTimer?.cancel();
+          _telegramAdminPollTimer = null;
+        }
       }
       return;
     }
     _startOpsIntegrationPollingLoop();
+    _startTelegramAdminControlLoop();
     unawaited(_maybeAutoGenerateMorningSovereignReport());
     if (!widget.supabaseReady || _guardOpsSyncInFlight) return;
     if (mounted) {
@@ -948,6 +1377,48 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _radioIntentPhrasesJsonOverride = '';
       _lastIntakeStatus = 'Radio intent phrase dictionary reset to defaults.';
     });
+  }
+
+  Future<void> _saveDemoRouteCueOverridesConfig(String rawJson) async {
+    final trimmed = rawJson.trim();
+    if (trimmed.isEmpty) {
+      await _clearDemoRouteCueOverridesConfig();
+      return;
+    }
+    final parsed = _parseDemoRouteCueOverridesJson(trimmed);
+    if (!mounted) return;
+    setState(() {
+      _demoRouteCueOverridesJson = trimmed;
+      _demoRouteCueOverrides = parsed;
+      _lastIntakeStatus = 'Demo route narration cues updated.';
+    });
+  }
+
+  Future<void> _clearDemoRouteCueOverridesConfig() async {
+    if (!mounted) return;
+    setState(() {
+      _demoRouteCueOverridesJson = '';
+      _demoRouteCueOverrides = const {};
+      _lastIntakeStatus = 'Demo route narration cues reset to defaults.';
+    });
+  }
+
+  Map<String, String> _parseDemoRouteCueOverridesJson(String rawJson) {
+    final decoded = jsonDecode(rawJson);
+    if (decoded is! Map) {
+      throw const FormatException(
+        'Invalid demo cue JSON. Expected an object of route keys to cue text.',
+      );
+    }
+    final output = <String, String>{};
+    decoded.forEach((key, value) {
+      final routeKey = key.toString().trim().toLowerCase();
+      if (routeKey.isEmpty) return;
+      final cue = value?.toString().trim() ?? '';
+      if (cue.isEmpty) return;
+      output[routeKey] = cue;
+    });
+    return output;
   }
 
   Future<void> _hydratePendingRadioAutomatedResponses() async {
@@ -1197,6 +1668,48 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     if (storedAcknowledgements.isEmpty && restoredAcknowledgements.isNotEmpty) {
       unawaited(conversation.saveAcknowledgements(restoredAcknowledgements));
     }
+    ClientPushSyncAttempt? latestTelegramAttempt;
+    for (final attempt in storedPushSyncState.history) {
+      if (attempt.status.startsWith('telegram-')) {
+        latestTelegramAttempt = attempt;
+        break;
+      }
+    }
+    var restoredBridgeLabel = _telegramBridge.isConfigured
+        ? 'configured'
+        : 'disabled';
+    String? restoredBridgeDetail = _telegramBridge.isConfigured
+        ? 'Bridge token configured. Awaiting delivery attempts.'
+        : 'Telegram bridge disabled or missing bot token.';
+    var restoredFallbackActive = false;
+    DateTime? restoredBridgeUpdatedAtUtc;
+    if (latestTelegramAttempt != null) {
+      restoredBridgeUpdatedAtUtc = latestTelegramAttempt.occurredAt.toUtc();
+      switch (latestTelegramAttempt.status) {
+        case 'telegram-ok':
+          restoredBridgeLabel = 'ok';
+          restoredBridgeDetail = 'Last Telegram delivery succeeded.';
+          restoredFallbackActive = false;
+          break;
+        case 'telegram-blocked':
+          restoredBridgeLabel = 'blocked';
+          restoredBridgeDetail = latestTelegramAttempt.failureReason;
+          restoredFallbackActive = true;
+          break;
+        case 'telegram-skipped':
+          restoredBridgeLabel = 'no-target';
+          restoredBridgeDetail = latestTelegramAttempt.failureReason;
+          restoredFallbackActive = true;
+          break;
+        case 'telegram-failed':
+          restoredBridgeLabel = 'degraded';
+          restoredBridgeDetail = latestTelegramAttempt.failureReason;
+          restoredFallbackActive = false;
+          break;
+        default:
+          break;
+      }
+    }
     setState(() {
       if (draft != null) {
         _clientAppViewerRole = draft.viewerRole;
@@ -1235,6 +1748,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _clientAppPushSyncFailureReason = storedPushSyncState.failureReason;
       _clientAppPushSyncRetryCount = storedPushSyncState.retryCount;
       _clientAppPushSyncHistory = storedPushSyncState.history;
+      _telegramBridgeFallbackToInApp = restoredFallbackActive;
+      _telegramBridgeHealthLabel = restoredBridgeLabel;
+      _telegramBridgeHealthDetail = restoredBridgeDetail;
+      _telegramBridgeHealthUpdatedAtUtc = restoredBridgeUpdatedAtUtc;
       _clientAppBackendProbeStatusLabel =
           storedPushSyncState.backendProbeStatusLabel;
       _clientAppBackendProbeLastRunAtUtc =
@@ -1243,6 +1760,179 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           storedPushSyncState.backendProbeFailureReason;
       _clientAppBackendProbeHistory = storedPushSyncState.backendProbeHistory;
     });
+  }
+
+  Future<void> _hydrateTelegramAdminRuntimeState() async {
+    final persistence = await _persistenceServiceFuture;
+    final state = await persistence.readTelegramAdminRuntimeState();
+    if (state.isEmpty) {
+      return;
+    }
+    final pollOverride = _summaryInt(state['poll_interval_override_seconds']);
+    final reminderOverride = _summaryInt(
+      state['critical_reminder_override_seconds'],
+    );
+    final executionEnabledOverride = _summaryBool(
+      state['execution_enabled_override'],
+    );
+    final allowedUserIdsOverrideRaw = state['allowed_user_ids_override'];
+    final allowedUserIdsOverride = allowedUserIdsOverrideRaw is List
+        ? allowedUserIdsOverrideRaw
+              .map((entry) => int.tryParse((entry ?? '').toString().trim()))
+              .whereType<int>()
+              .where((value) => value > 0)
+              .toSet()
+              .toList(growable: false)
+        : null;
+    final targetClientOverride = _summaryString(
+      state['target_client_override'],
+    );
+    final targetSiteOverride = _summaryString(state['target_site_override']);
+    final criticalSnoozedUntil = _summaryDate(
+      state['critical_snoozed_until_utc'],
+    );
+    final criticalAckFingerprint =
+        _summaryString(state['critical_ack_fingerprint']) ?? '';
+    final criticalAckAt = _summaryDate(state['critical_ack_at_utc']);
+    final criticalAlertFingerprint =
+        _summaryString(state['critical_alert_fingerprint']) ?? '';
+    final lastCriticalAlertAt = _summaryDate(
+      state['last_critical_alert_at_utc'],
+    );
+    final lastCriticalAlertSummary = _summaryString(
+      state['last_critical_alert_summary'],
+    );
+    final lastCommandAt = _summaryDate(state['last_command_at_utc']);
+    final lastCommandSummary = _summaryString(state['last_command_summary']);
+    final commandAuditRaw = state['command_audit'];
+    final commandAudit = <String>[
+      if (commandAuditRaw is List)
+        for (final entry in commandAuditRaw) (entry ?? '').toString().trim(),
+    ].where((entry) => entry.isNotEmpty).take(40).toList(growable: false);
+    final aiAssistantEnabledOverride = _summaryBool(
+      state['ai_assistant_enabled_override'],
+    );
+    final aiApprovalRequiredOverride = _summaryBool(
+      state['ai_approval_required_override'],
+    );
+    final aiPendingDraftsRaw = state['ai_pending_drafts'];
+    final aiPendingDrafts =
+        <_TelegramAiPendingDraft>[
+              if (aiPendingDraftsRaw is List)
+                for (final entry in aiPendingDraftsRaw)
+                  if (entry is Map)
+                    _TelegramAiPendingDraft.fromJson(
+                      entry.cast<Object?, Object?>().map(
+                        (key, value) => MapEntry(key.toString(), value),
+                      ),
+                    ),
+            ]
+            .where(
+              (entry) =>
+                  entry.inboundUpdateId > 0 &&
+                  entry.chatId.trim().isNotEmpty &&
+                  entry.draftText.trim().isNotEmpty,
+            )
+            .take(100)
+            .toList(growable: false);
+    if (!mounted) {
+      _telegramAdminPollIntervalSecondsOverride = pollOverride;
+      _telegramAdminCriticalReminderSecondsOverride = reminderOverride;
+      _telegramAdminExecutionEnabledOverride = executionEnabledOverride;
+      _telegramAdminAllowedUserIdsOverride = allowedUserIdsOverride;
+      _telegramAdminTargetClientIdOverride = targetClientOverride;
+      _telegramAdminTargetSiteIdOverride = targetSiteOverride;
+      _telegramAdminCriticalSnoozedUntilUtc = criticalSnoozedUntil;
+      _telegramAdminCriticalAckFingerprint = criticalAckFingerprint;
+      _telegramAdminCriticalAckAtUtc = criticalAckAt;
+      _telegramAdminCriticalAlertFingerprint = criticalAlertFingerprint;
+      _telegramAdminLastCriticalAlertAtUtc = lastCriticalAlertAt;
+      _telegramAdminLastCriticalAlertSummary = lastCriticalAlertSummary;
+      _telegramAdminLastCommandAtUtc = lastCommandAt;
+      _telegramAdminLastCommandSummary = lastCommandSummary;
+      _telegramAdminCommandAudit = commandAudit;
+      _telegramAiAssistantEnabledOverride = aiAssistantEnabledOverride;
+      _telegramAiApprovalRequiredOverride = aiApprovalRequiredOverride;
+      _telegramAiPendingDrafts = aiPendingDrafts;
+      return;
+    }
+    setState(() {
+      _telegramAdminPollIntervalSecondsOverride = pollOverride;
+      _telegramAdminCriticalReminderSecondsOverride = reminderOverride;
+      _telegramAdminExecutionEnabledOverride = executionEnabledOverride;
+      _telegramAdminAllowedUserIdsOverride = allowedUserIdsOverride;
+      _telegramAdminTargetClientIdOverride = targetClientOverride;
+      _telegramAdminTargetSiteIdOverride = targetSiteOverride;
+      _telegramAdminCriticalSnoozedUntilUtc = criticalSnoozedUntil;
+      _telegramAdminCriticalAckFingerprint = criticalAckFingerprint;
+      _telegramAdminCriticalAckAtUtc = criticalAckAt;
+      _telegramAdminCriticalAlertFingerprint = criticalAlertFingerprint;
+      _telegramAdminLastCriticalAlertAtUtc = lastCriticalAlertAt;
+      _telegramAdminLastCriticalAlertSummary = lastCriticalAlertSummary;
+      _telegramAdminLastCommandAtUtc = lastCommandAt;
+      _telegramAdminLastCommandSummary = lastCommandSummary;
+      _telegramAdminCommandAudit = commandAudit;
+      _telegramAiAssistantEnabledOverride = aiAssistantEnabledOverride;
+      _telegramAiApprovalRequiredOverride = aiApprovalRequiredOverride;
+      _telegramAiPendingDrafts = aiPendingDrafts;
+    });
+  }
+
+  Future<void> _persistTelegramAdminRuntimeState() async {
+    final persistence = await _persistenceServiceFuture;
+    final state = <String, Object?>{
+      if (_telegramAdminPollIntervalSecondsOverride != null)
+        'poll_interval_override_seconds':
+            _telegramAdminPollIntervalSecondsOverride,
+      if (_telegramAdminCriticalReminderSecondsOverride != null)
+        'critical_reminder_override_seconds':
+            _telegramAdminCriticalReminderSecondsOverride,
+      if (_telegramAdminExecutionEnabledOverride != null)
+        'execution_enabled_override': _telegramAdminExecutionEnabledOverride,
+      if (_telegramAdminAllowedUserIdsOverride != null)
+        'allowed_user_ids_override': _telegramAdminAllowedUserIdsOverride,
+      if ((_telegramAdminTargetClientIdOverride ?? '').trim().isNotEmpty)
+        'target_client_override': _telegramAdminTargetClientIdOverride!.trim(),
+      if ((_telegramAdminTargetSiteIdOverride ?? '').trim().isNotEmpty)
+        'target_site_override': _telegramAdminTargetSiteIdOverride!.trim(),
+      if (_telegramAdminCriticalSnoozedUntilUtc != null)
+        'critical_snoozed_until_utc': _telegramAdminCriticalSnoozedUntilUtc!
+            .toIso8601String(),
+      if (_telegramAdminCriticalAckFingerprint.trim().isNotEmpty)
+        'critical_ack_fingerprint': _telegramAdminCriticalAckFingerprint.trim(),
+      if (_telegramAdminCriticalAckAtUtc != null)
+        'critical_ack_at_utc': _telegramAdminCriticalAckAtUtc!
+            .toIso8601String(),
+      if (_telegramAdminCriticalAlertFingerprint.trim().isNotEmpty)
+        'critical_alert_fingerprint': _telegramAdminCriticalAlertFingerprint
+            .trim(),
+      if (_telegramAdminLastCriticalAlertAtUtc != null)
+        'last_critical_alert_at_utc': _telegramAdminLastCriticalAlertAtUtc!
+            .toIso8601String(),
+      if ((_telegramAdminLastCriticalAlertSummary ?? '').trim().isNotEmpty)
+        'last_critical_alert_summary': _telegramAdminLastCriticalAlertSummary!
+            .trim(),
+      if (_telegramAdminLastCommandAtUtc != null)
+        'last_command_at_utc': _telegramAdminLastCommandAtUtc!
+            .toIso8601String(),
+      if ((_telegramAdminLastCommandSummary ?? '').trim().isNotEmpty)
+        'last_command_summary': _telegramAdminLastCommandSummary!.trim(),
+      if (_telegramAdminCommandAudit.isNotEmpty)
+        'command_audit': _telegramAdminCommandAudit,
+      if (_telegramAiAssistantEnabledOverride != null)
+        'ai_assistant_enabled_override': _telegramAiAssistantEnabledOverride,
+      if (_telegramAiApprovalRequiredOverride != null)
+        'ai_approval_required_override': _telegramAiApprovalRequiredOverride,
+      if (_telegramAiPendingDrafts.isNotEmpty)
+        'ai_pending_drafts': _telegramAiPendingDrafts
+            .map((entry) => entry.toJson())
+            .toList(growable: false),
+    };
+    if (state.isEmpty) {
+      await persistence.clearTelegramAdminRuntimeState();
+      return;
+    }
+    await persistence.saveTelegramAdminRuntimeState(state);
   }
 
   Future<void> _hydrateGuardSyncState() async {
@@ -3572,9 +4262,18 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }
 
   Future<void> _persistClientAppPushQueue(
-    List<ClientAppPushDeliveryItem> pushQueue,
-  ) async {
+    List<ClientAppPushDeliveryItem> pushQueue, {
+    bool forceTelegramResend = false,
+  }) async {
+    final previousQueue = List<ClientAppPushDeliveryItem>.from(
+      _clientAppPushQueue,
+    );
     _clientAppPushQueue = List<ClientAppPushDeliveryItem>.from(pushQueue);
+    final telegramCandidates = _newTelegramBridgeCandidates(
+      previousQueue: previousQueue,
+      currentQueue: _clientAppPushQueue,
+      forceResend: forceTelegramResend,
+    );
     if (mounted) {
       setState(() {
         _clientAppPushSyncStatusLabel = 'syncing';
@@ -3602,6 +4301,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             .toList(growable: false);
       });
       await _persistClientPushSyncState();
+      unawaited(_forwardPushQueueToTelegram(telegramCandidates));
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -3642,8 +4342,279 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     );
   }
 
+  String _pushDeliveryBridgeKey(ClientAppPushDeliveryItem item) {
+    return '${item.messageKey}:${item.deliveryProvider.code}';
+  }
+
+  List<ClientAppPushDeliveryItem> _newTelegramBridgeCandidates({
+    required List<ClientAppPushDeliveryItem> previousQueue,
+    required List<ClientAppPushDeliveryItem> currentQueue,
+    bool forceResend = false,
+  }) {
+    if (!_telegramBridge.isConfigured) {
+      return const [];
+    }
+    if (_telegramBridgeFallbackToInApp && !forceResend) {
+      return const [];
+    }
+    final telegramQueue = currentQueue
+        .where(
+          (item) =>
+              item.status == ClientPushDeliveryStatus.queued &&
+              (item.deliveryProvider == ClientPushDeliveryProvider.telegram ||
+                  item.deliveryProvider == ClientPushDeliveryProvider.inApp),
+        )
+        .toList(growable: false);
+    if (forceResend) {
+      return telegramQueue;
+    }
+    final previousKeys = previousQueue.map(_pushDeliveryBridgeKey).toSet();
+    return telegramQueue
+        .where((item) => !previousKeys.contains(_pushDeliveryBridgeKey(item)))
+        .toList(growable: false);
+  }
+
+  String _telegramMessageBodyFor(ClientAppPushDeliveryItem item) {
+    final targetClientId = (item.clientId ?? '').trim().isNotEmpty
+        ? item.clientId!.trim()
+        : _selectedClient;
+    final targetSiteId = (item.siteId ?? '').trim().isNotEmpty
+        ? item.siteId!.trim()
+        : _selectedSite;
+    final priorityLabel = item.priority ? 'PRIORITY' : 'UPDATE';
+    return 'ONYX $priorityLabel\n'
+        'Client: $targetClientId\n'
+        'Site: $targetSiteId\n'
+        'Target: ${item.targetChannel.displayLabel}\n'
+        'Title: ${item.title}\n'
+        '${item.body}\n'
+        'Event time: ${item.occurredAt.toUtc().toIso8601String()}\n'
+        'Message key: ${item.messageKey}';
+  }
+
+  _TelegramBridgeTarget? _telegramFallbackTarget() {
+    final fallbackChatId = _telegramChatIdEnv.trim();
+    if (fallbackChatId.isEmpty) {
+      return null;
+    }
+    final fallbackThreadRaw = _telegramMessageThreadIdEnv.trim();
+    final fallbackThreadId = fallbackThreadRaw.isEmpty
+        ? null
+        : int.tryParse(fallbackThreadRaw);
+    return _TelegramBridgeTarget(
+      chatId: fallbackChatId,
+      threadId: fallbackThreadId,
+      label: 'env-fallback',
+    );
+  }
+
+  Future<List<_TelegramBridgeTarget>> _resolveTelegramBridgeTargets({
+    String? clientId,
+    String? siteId,
+  }) async {
+    final resolvedClientId = (clientId ?? '').trim().isNotEmpty
+        ? clientId!.trim()
+        : _selectedClient;
+    final resolvedSiteId = (siteId ?? '').trim().isNotEmpty
+        ? siteId!.trim()
+        : _selectedSite;
+    final fallbackTarget = _telegramFallbackTarget();
+    if (!widget.supabaseReady) {
+      return fallbackTarget == null
+          ? const <_TelegramBridgeTarget>[]
+          : <_TelegramBridgeTarget>[fallbackTarget];
+    }
+    try {
+      final repository = SupabaseClientMessagingBridgeRepository(
+        Supabase.instance.client,
+      );
+      final endpoints = await repository.readActiveTelegramTargets(
+        clientId: resolvedClientId,
+        siteId: resolvedSiteId,
+      );
+      if (endpoints.isNotEmpty) {
+        return endpoints
+            .map(
+              (endpoint) => _TelegramBridgeTarget(
+                chatId: endpoint.chatId,
+                threadId: endpoint.threadId,
+                label: endpoint.displayLabel,
+              ),
+            )
+            .toList(growable: false);
+      }
+    } catch (_) {
+      // Fall back to environment-level target if directory lookup fails.
+    }
+    return fallbackTarget == null
+        ? const <_TelegramBridgeTarget>[]
+        : <_TelegramBridgeTarget>[fallbackTarget];
+  }
+
+  Future<void> _forwardPushQueueToTelegram(
+    List<ClientAppPushDeliveryItem> candidates,
+  ) async {
+    if (!_telegramBridge.isConfigured) {
+      if (mounted) {
+        setState(() {
+          _telegramBridgeHealthLabel = 'disabled';
+          _telegramBridgeHealthDetail =
+              'Telegram bridge disabled or missing bot token.';
+          _telegramBridgeHealthUpdatedAtUtc = DateTime.now().toUtc();
+        });
+      }
+      return;
+    }
+    if (candidates.isEmpty) {
+      return;
+    }
+    final targetCache = <String, List<_TelegramBridgeTarget>>{};
+    final skippedNoTargetContexts = <String>{};
+    final outbound = <TelegramBridgeMessage>[];
+    for (final item in candidates) {
+      final targetClientId = (item.clientId ?? '').trim().isNotEmpty
+          ? item.clientId!.trim()
+          : _selectedClient;
+      final targetSiteId = (item.siteId ?? '').trim().isNotEmpty
+          ? item.siteId!.trim()
+          : _selectedSite;
+      final cacheKey = '$targetClientId|$targetSiteId';
+      final targets = targetCache.containsKey(cacheKey)
+          ? targetCache[cacheKey]!
+          : await _resolveTelegramBridgeTargets(
+              clientId: targetClientId,
+              siteId: targetSiteId,
+            );
+      targetCache[cacheKey] = targets;
+      if (targets.isEmpty) {
+        skippedNoTargetContexts.add('$targetClientId/$targetSiteId');
+        continue;
+      }
+      for (final target in targets) {
+        outbound.add(
+          TelegramBridgeMessage(
+            messageKey:
+                '${_pushDeliveryBridgeKey(item)}:${target.chatId}:${target.threadId ?? ''}',
+            chatId: target.chatId,
+            messageThreadId: target.threadId,
+            text: '${_telegramMessageBodyFor(item)}\nEndpoint: ${target.label}',
+          ),
+        );
+      }
+    }
+    if (outbound.isEmpty) {
+      if (!mounted) return;
+      final noTargetLabel = skippedNoTargetContexts.isEmpty
+          ? 'No active Telegram endpoint for $_selectedClient / $_selectedSite.'
+          : 'No active Telegram endpoint for ${skippedNoTargetContexts.join(', ')}.';
+      setState(() {
+        final now = DateTime.now().toUtc();
+        _telegramBridgeFallbackToInApp = true;
+        _telegramBridgeHealthLabel = 'no-target';
+        _telegramBridgeHealthDetail = noTargetLabel;
+        _telegramBridgeHealthUpdatedAtUtc = now;
+        _clientAppPushSyncFailureReason = _telegramBridgeHealthDetail;
+        _clientAppPushSyncHistory = <ClientPushSyncAttempt>[
+          ClientPushSyncAttempt(
+            occurredAt: now,
+            status: 'telegram-skipped',
+            failureReason: noTargetLabel,
+            queueSize: candidates.length,
+          ),
+          ..._clientAppPushSyncHistory,
+        ].take(20).toList(growable: false);
+      });
+      await _persistClientPushSyncState();
+      return;
+    }
+    final sentAt = DateTime.now().toUtc();
+    TelegramBridgeSendResult result;
+    try {
+      result = await _telegramBridge.sendMessages(messages: outbound);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _telegramBridgeHealthLabel = 'degraded';
+        _telegramBridgeHealthDetail = error.toString();
+        _telegramBridgeHealthUpdatedAtUtc = sentAt;
+        _clientAppPushSyncFailureReason = error.toString();
+        _clientAppPushSyncHistory = <ClientPushSyncAttempt>[
+          ClientPushSyncAttempt(
+            occurredAt: sentAt,
+            status: 'telegram-failed',
+            failureReason: error.toString(),
+            queueSize: outbound.length,
+          ),
+          ..._clientAppPushSyncHistory,
+        ].take(20).toList(growable: false);
+      });
+      await _persistClientPushSyncState();
+      return;
+    }
+    if (!mounted) return;
+    if (result.failedCount == 0) {
+      setState(() {
+        _telegramBridgeFallbackToInApp = false;
+        _telegramBridgeHealthLabel = 'ok';
+        _telegramBridgeHealthDetail = 'Last Telegram delivery succeeded.';
+        _telegramBridgeHealthUpdatedAtUtc = sentAt;
+        _clientAppPushSyncFailureReason = null;
+        _clientAppPushSyncHistory = <ClientPushSyncAttempt>[
+          ClientPushSyncAttempt(
+            occurredAt: sentAt,
+            status: 'telegram-ok',
+            queueSize: outbound.length,
+          ),
+          ..._clientAppPushSyncHistory,
+        ].take(20).toList(growable: false);
+      });
+      await _persistClientPushSyncState();
+      return;
+    }
+    final reasonValues = result.failureReasonsByMessageKey.values
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    final blocked = reasonValues.any(_isTelegramBlockedReason);
+    final reasonSuffix = reasonValues.isEmpty
+        ? ''
+        : ' Reasons: ${reasonValues.take(2).join(' | ')}';
+    final failureLabel =
+        'Telegram bridge failed for ${result.failedCount}/${outbound.length} message(s).$reasonSuffix';
+    setState(() {
+      _telegramBridgeFallbackToInApp = blocked;
+      _telegramBridgeHealthLabel = blocked ? 'blocked' : 'degraded';
+      _telegramBridgeHealthDetail = failureLabel;
+      _telegramBridgeHealthUpdatedAtUtc = sentAt;
+      _clientAppPushSyncFailureReason = failureLabel;
+      _clientAppPushSyncHistory = <ClientPushSyncAttempt>[
+        ClientPushSyncAttempt(
+          occurredAt: sentAt,
+          status: blocked ? 'telegram-blocked' : 'telegram-failed',
+          failureReason: failureLabel,
+          queueSize: outbound.length,
+        ),
+        ..._clientAppPushSyncHistory,
+      ].take(20).toList(growable: false);
+    });
+    await _persistClientPushSyncState();
+  }
+
+  bool _isTelegramBlockedReason(String raw) {
+    final value = raw.trim().toUpperCase();
+    if (value.isEmpty) return false;
+    return value.contains('FROZEN_METHOD_INVALID') ||
+        value.contains('ACCOUNT IS FROZEN') ||
+        value.contains('BLOCKED') ||
+        value.contains('PEER_ID_INVALID');
+  }
+
   Future<void> _retryClientAppPushSync() async {
-    await _persistClientAppPushQueue(_clientAppPushQueue);
+    await _persistClientAppPushQueue(
+      _clientAppPushQueue,
+      forceTelegramResend: true,
+    );
   }
 
   Future<void> _runClientAppBackendProbe() async {
@@ -4768,6 +5739,4276 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
   }
 
+  void _startTelegramAdminControlLoop() {
+    if (!_telegramInboundRouterEnabled || _telegramAdminPollTimer != null) {
+      return;
+    }
+    debugPrint(
+      'ONYX Telegram admin loop start: '
+      'router=${_telegramInboundRouterEnabled ? 'on' : 'off'} '
+      'admin=${_telegramAdminControlEnabled ? 'on' : 'off'} '
+      'ai=${_telegramAiAssistantEnabled ? 'on' : 'off'} '
+      'chat=${_resolvedTelegramAdminChatId().isEmpty ? 'unset' : _resolvedTelegramAdminChatId()} '
+      'bridge=${_telegramBridge.isConfigured ? 'configured' : 'disabled'}',
+    );
+    _scheduleNextTelegramAdminPoll(1);
+  }
+
+  void _scheduleNextTelegramAdminPoll(int delaySeconds) {
+    _telegramAdminPollTimer?.cancel();
+    if (!_telegramInboundRouterEnabled) {
+      _telegramAdminPollTimer = null;
+      return;
+    }
+    _telegramAdminPollTimer = Timer(Duration(seconds: delaySeconds), () {
+      unawaited(_pollTelegramAdminCommandsOnce());
+    });
+  }
+
+  List<String> _splitTelegramAdminResponse(String text) {
+    final content = text.trim().isEmpty ? '(no output)' : text.trim();
+    if (content.length <= _telegramAdminMaxMessageChars) {
+      return <String>[content];
+    }
+    final chunks = <String>[];
+    var cursor = 0;
+    while (cursor < content.length) {
+      final remaining = content.length - cursor;
+      if (remaining <= _telegramAdminMaxMessageChars) {
+        chunks.add(content.substring(cursor));
+        break;
+      }
+      final windowEnd = cursor + _telegramAdminMaxMessageChars;
+      final slice = content.substring(cursor, windowEnd);
+      var cut = slice.lastIndexOf('\n');
+      if (cut < _telegramAdminMaxMessageChars ~/ 2) {
+        cut = slice.lastIndexOf(' ');
+      }
+      if (cut <= 0) {
+        cut = _telegramAdminMaxMessageChars;
+      }
+      chunks.add(content.substring(cursor, cursor + cut).trimRight());
+      cursor += cut;
+      while (cursor < content.length && content[cursor] == ' ') {
+        cursor += 1;
+      }
+    }
+    return chunks
+        .where((entry) => entry.trim().isNotEmpty)
+        .toList(growable: false);
+  }
+
+  Future<bool> _sendTelegramMessageWithChunks({
+    required String messageKeyPrefix,
+    required String chatId,
+    required int? messageThreadId,
+    required String responseText,
+    String? failureContext,
+    Map<String, Object?>? replyMarkup,
+    String? parseMode,
+  }) async {
+    final chunks = _splitTelegramAdminResponse(responseText);
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    final messages = <TelegramBridgeMessage>[
+      for (var index = 0; index < chunks.length; index += 1)
+        TelegramBridgeMessage(
+          messageKey: '$messageKeyPrefix-$index-$stamp',
+          chatId: chatId,
+          messageThreadId: messageThreadId,
+          text: chunks[index],
+          replyMarkup: index == 0 ? replyMarkup : null,
+          parseMode: parseMode,
+        ),
+    ];
+    final result = await _telegramBridge.sendMessages(messages: messages);
+    if (result.failedCount <= 0) {
+      return true;
+    }
+    final reasons = result.failureReasonsByMessageKey.values
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .take(2)
+        .join(' | ');
+    if (mounted) {
+      setState(() {
+        _telegramBridgeHealthLabel = 'degraded';
+        _telegramBridgeHealthDetail = reasons.isEmpty
+            ? '${failureContext ?? 'Telegram response'} delivery failed.'
+            : '${failureContext ?? 'Telegram response'} delivery failed: $reasons';
+        _telegramBridgeHealthUpdatedAtUtc = DateTime.now().toUtc();
+      });
+    }
+    return false;
+  }
+
+  String _telegramAdminSignalHeader() {
+    final events = store.allEvents();
+    final activeIncidents = _activeIncidentCount(events);
+    final guardsOnline = _guardsOnlineCount(events);
+    final critical = _telegramAdminCriticalAlerts();
+    final criticalCount = critical.length;
+    final telemetryGate = _guardTelemetryLiveReadyGateViolated
+        ? 'VIOLATION'
+        : 'OK';
+    final hasWarningSignal =
+        _telegramBridgeHealthLabel.toLowerCase() == 'degraded' ||
+        _telegramBridgeHealthLabel.toLowerCase() == 'blocked' ||
+        _clientAppPushSyncStatusLabel.trim().toLowerCase() == 'failed' ||
+        _pendingAiActionCount(events) > 0;
+    final posture = criticalCount > 0
+        ? 'RED'
+        : (hasWarningSignal ? 'AMBER' : 'GREEN');
+    return '[$posture] ONYX SIGNAL'
+        ' | critical=$criticalCount'
+        ' | inc=$activeIncidents'
+        ' | guards=$guardsOnline'
+        ' | telemetry=${_guardTelemetryReadiness.name}/$telemetryGate'
+        ' | tg=${_telegramBridgeHealthLabel.toUpperCase()}'
+        ' | utc=${DateTime.now().toUtc().toIso8601String()}';
+  }
+
+  Future<bool> _sendTelegramAdminResponse({
+    required int updateId,
+    required String chatId,
+    required int? messageThreadId,
+    required String responseText,
+    bool includeSignalHeader = false,
+    bool includeQuickActions = true,
+    bool richText = false,
+  }) async {
+    final payload = includeSignalHeader
+        ? '${_telegramAdminSignalHeader()}\n$responseText'
+        : responseText;
+    return _sendTelegramMessageWithChunks(
+      messageKeyPrefix: 'tg-admin-$updateId',
+      chatId: chatId,
+      messageThreadId: messageThreadId,
+      responseText: payload,
+      failureContext: 'Admin response',
+      replyMarkup: includeQuickActions
+          ? _telegramAdminQuickReplyMarkup()
+          : null,
+      parseMode: richText ? 'HTML' : null,
+    );
+  }
+
+  Map<String, Object?> _telegramAdminQuickReplyMarkup() {
+    return const <String, Object?>{
+      'keyboard': <List<Map<String, String>>>[
+        <Map<String, String>>[
+          <String, String>{'text': 'Brief'},
+          <String, String>{'text': 'Critical risks'},
+        ],
+        <Map<String, String>>[
+          <String, String>{'text': 'Next 5'},
+          <String, String>{'text': 'Status'},
+        ],
+        <Map<String, String>>[
+          <String, String>{'text': 'Ack critical'},
+          <String, String>{'text': 'Status full'},
+        ],
+      ],
+      'resize_keyboard': true,
+      'one_time_keyboard': false,
+      'is_persistent': true,
+      'input_field_placeholder': 'Ask ONYX: what should I do next?',
+    };
+  }
+
+  Future<void> _pollTelegramAdminCommandsOnce() async {
+    if (!_telegramInboundRouterEnabled || _telegramAdminPollInFlight) {
+      return;
+    }
+    _telegramAdminPollInFlight = true;
+    try {
+      if (!_telegramAdminOffsetBootstrapped) {
+        await _bootstrapTelegramAdminOffset();
+      }
+      final updates = await _telegramBridge.fetchUpdates(
+        offset: _telegramAdminLastUpdateId == null
+            ? null
+            : _telegramAdminLastUpdateId! + 1,
+        limit: 40,
+      );
+      if (updates.isEmpty) {
+        return;
+      }
+      final adminChatId = _resolvedTelegramAdminChatId();
+      final adminThreadId = _resolvedTelegramAdminThreadId();
+      for (final update in updates) {
+        _telegramAdminLastUpdateId = update.updateId;
+        if (update.fromIsBot) {
+          continue;
+        }
+        final handledAdmin = await _handleTelegramAdminInboundUpdate(
+          update,
+          adminChatId: adminChatId,
+          adminThreadId: adminThreadId,
+        );
+        var handled = handledAdmin;
+        if (handledAdmin) {
+          if (mounted) {
+            setState(() {});
+          }
+          continue;
+        }
+        final handledAi = await _handleTelegramAiInboundUpdate(
+          update,
+          adminChatId: adminChatId,
+          adminThreadId: adminThreadId,
+        );
+        handled = handled || handledAi;
+        if (handled && mounted) {
+          setState(() {});
+        }
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _telegramBridgeHealthLabel = 'degraded';
+          _telegramBridgeHealthDetail = 'Admin command poll failed: $error';
+          _telegramBridgeHealthUpdatedAtUtc = DateTime.now().toUtc();
+        });
+      }
+    } finally {
+      _telegramAdminPollInFlight = false;
+      unawaited(
+        _maybeSendTelegramAdminCriticalDigest(source: 'admin-control-loop'),
+      );
+      _scheduleNextTelegramAdminPoll(
+        _normalizedTelegramAdminPollIntervalSeconds,
+      );
+    }
+  }
+
+  Future<bool> _handleTelegramAdminInboundUpdate(
+    TelegramBridgeInboundMessage update, {
+    required String adminChatId,
+    required int? adminThreadId,
+  }) async {
+    final inAdminChat =
+        update.chatId.trim() == adminChatId &&
+        (adminThreadId == null || update.messageThreadId == adminThreadId);
+    if (!inAdminChat) {
+      return false;
+    }
+    final parsed = _telegramAdminCommand(update.text);
+    if (!_isTelegramAdminSenderAllowed(update)) {
+      final senderIdLabel = update.fromUserId?.toString() ?? 'unknown';
+      final aclLabel = _telegramAdminAllowedUserIds.isEmpty
+          ? 'none'
+          : _telegramAdminAllowedUserIds.join(',');
+      if (parsed?.command == 'whoami') {
+        await _sendTelegramAdminResponse(
+          updateId: update.updateId,
+          chatId: adminChatId,
+          messageThreadId: adminThreadId,
+          responseText:
+              '${_telegramAdminWhoAmISnapshot(update)}\n'
+              'ACL status: denied for command scope.\n'
+              'Current allow list: $aclLabel\n'
+              'Ask an authorized admin to run /acl add $senderIdLabel.',
+          includeSignalHeader: false,
+        );
+      } else {
+        await _sendTelegramAdminResponse(
+          updateId: update.updateId,
+          chatId: adminChatId,
+          messageThreadId: adminThreadId,
+          responseText:
+              'ONYX ADMIN ACL DENY\n'
+              'sender_user_id=$senderIdLabel is not allowed.\n'
+              'Allowed user ids: $aclLabel\n'
+              'Ask an authorized admin to run /acl add $senderIdLabel.\n'
+              'Then retry your command.',
+          includeSignalHeader: false,
+        );
+      }
+      return true;
+    }
+    if (parsed != null) {
+      final allowReadOnlyWhileControlDisabled =
+          !_telegramAdminControlEnabled &&
+          _telegramAdminReadOnlyCommand(parsed.command);
+      if (_telegramAdminControlEnabled || allowReadOnlyWhileControlDisabled) {
+        final response = await _telegramAdminResponseFor(
+          parsed.command,
+          update,
+          arguments: parsed.arguments,
+        );
+        final richText = _telegramAdminUseRichTextForCommand(
+          parsed.command,
+          arguments: parsed.arguments,
+        );
+        final renderedResponse = richText
+            ? _telegramAdminRenderCommandCard(parsed.command, response)
+            : response;
+        await _sendTelegramAdminResponse(
+          updateId: update.updateId,
+          chatId: adminChatId,
+          messageThreadId: adminThreadId,
+          responseText: renderedResponse,
+          richText: richText,
+        );
+        _telegramAdminLastCommandAtUtc = DateTime.now().toUtc();
+        final origin = update.fromUsername?.trim().isNotEmpty == true
+            ? '@${update.fromUsername!.trim()}'
+            : (update.fromUserId?.toString() ?? 'unknown');
+        _telegramAdminLastCommandSummary = '/${parsed.command} by $origin';
+        final auditEntry =
+            '/${parsed.command}${parsed.arguments.isEmpty ? '' : ' ${parsed.arguments}'} by $origin (${update.chatId}${update.messageThreadId == null ? '' : '#${update.messageThreadId}'}) @ ${_telegramAdminLastCommandAtUtc!.toIso8601String()}';
+        _telegramAdminCommandAudit = <String>[
+          auditEntry,
+          ..._telegramAdminCommandAudit,
+        ].take(40).toList(growable: false);
+        unawaited(_persistTelegramAdminRuntimeState());
+        return true;
+      }
+      await _sendTelegramAdminResponse(
+        updateId: update.updateId,
+        chatId: adminChatId,
+        messageThreadId: adminThreadId,
+        responseText:
+            'ONYX ADMIN CONTROL DISABLED\n'
+            'Command "/${parsed.command}" is blocked by runtime config.\n'
+            'Allowed while disabled: status, brief, next, critical, ops, incidents, whoami, help.\n'
+            'Set ONYX_TELEGRAM_ADMIN_CONTROL_ENABLED=true to unlock full command set.',
+        includeSignalHeader: false,
+      );
+      return true;
+    }
+    if (!_telegramAiAssistantEnabled) {
+      return true;
+    }
+    final aiDraft = _telegramAiAssistant.isConfigured
+        ? await _telegramAiAssistant.draftReply(
+            audience: TelegramAiAudience.admin,
+            messageText: update.text,
+            clientId: _telegramAdminTargetClientId,
+            siteId: _telegramAdminTargetSiteId,
+          )
+        : TelegramAiDraftReply(
+            text: _telegramAdminConversationalFallback(update.text),
+            usedFallback: true,
+            providerLabel: 'local-router',
+          );
+    final delivered = await _sendTelegramAdminResponse(
+      updateId: update.updateId,
+      chatId: adminChatId,
+      messageThreadId: adminThreadId,
+      responseText: aiDraft.text,
+    );
+    _telegramAdminLastCommandAtUtc = DateTime.now().toUtc();
+    _telegramAdminLastCommandSummary =
+        'free-text by ${_telegramInboundAuthor(update)}';
+    _telegramAiLastHandledAtUtc = DateTime.now().toUtc();
+    _telegramAiLastHandledSummary =
+        'admin/${delivered ? 'sent' : 'failed'} • ${aiDraft.providerLabel}';
+    await _appendTelegramAiLedger(
+      clientId: _telegramAdminTargetClientId,
+      siteId: _telegramAdminTargetSiteId,
+      lane: 'admin',
+      action: delivered ? 'sent' : 'send_failed',
+      inboundText: update.text,
+      outboundText: aiDraft.text,
+      providerLabel: aiDraft.providerLabel,
+      update: update,
+    );
+    return true;
+  }
+
+  Future<bool> _handleTelegramAiInboundUpdate(
+    TelegramBridgeInboundMessage update, {
+    required String adminChatId,
+    required int? adminThreadId,
+  }) async {
+    if (!_telegramAiAssistantEnabled) {
+      return false;
+    }
+    final trimmed = update.text.trim();
+    if (trimmed.isEmpty || trimmed.startsWith('/')) {
+      return false;
+    }
+    final target = await _resolveInboundClientTarget(
+      chatId: update.chatId,
+      messageThreadId: update.messageThreadId,
+    );
+    if (target == null) {
+      return false;
+    }
+    final siteId = (target.siteId ?? '').trim().isEmpty
+        ? 'default'
+        : target.siteId!.trim();
+    await _appendTelegramConversationMessage(
+      clientId: target.clientId,
+      siteId: siteId,
+      author: _telegramInboundAuthor(update),
+      body: trimmed,
+      occurredAtUtc: update.sentAtUtc ?? DateTime.now().toUtc(),
+      roomKey: 'Residents',
+      viewerRole: ClientAppViewerRole.client.name,
+      incidentStatusLabel: 'Telegram Inbound',
+      messageSource: 'telegram',
+      messageProvider: 'telegram',
+    );
+    final canNotifyAdmin = adminChatId.trim().isNotEmpty;
+    if (_isHighRiskTelegramMessage(trimmed)) {
+      const escalationText =
+          'ONYX ALERT RECEIVED: your message is marked high-priority and has been escalated to the control room.';
+      await _sendTelegramMessageWithChunks(
+        messageKeyPrefix: 'tg-client-escalated-${update.updateId}',
+        chatId: update.chatId,
+        messageThreadId: update.messageThreadId,
+        responseText: escalationText,
+        failureContext: 'Client escalation acknowledgement',
+      );
+      await _appendTelegramConversationMessage(
+        clientId: target.clientId,
+        siteId: siteId,
+        author: 'ONYX AI',
+        body: escalationText,
+        occurredAtUtc: DateTime.now().toUtc(),
+        roomKey: 'Residents',
+        viewerRole: ClientAppViewerRole.client.name,
+        incidentStatusLabel: 'Escalated',
+        messageSource: 'telegram',
+        messageProvider: 'ai_policy',
+      );
+      if (canNotifyAdmin) {
+        await _sendTelegramMessageWithChunks(
+          messageKeyPrefix: 'tg-admin-escalated-${update.updateId}',
+          chatId: adminChatId,
+          messageThreadId: adminThreadId,
+          responseText:
+              'ONYX AI escalation\n'
+              'scope=${target.clientId}/$siteId\n'
+              'chat=${update.chatId}${update.messageThreadId == null ? '' : '#${update.messageThreadId}'}\n'
+              'from=${update.fromUsername?.trim().isNotEmpty == true ? '@${update.fromUsername!.trim()}' : (update.fromUserId?.toString() ?? 'unknown')}\n'
+              'message=${_singleLine(trimmed)}',
+          failureContext: 'Admin escalation relay',
+        );
+      }
+      _telegramAiLastHandledAtUtc = DateTime.now().toUtc();
+      _telegramAiLastHandledSummary = '${target.clientId}/$siteId • escalated';
+      await _appendTelegramAiLedger(
+        clientId: target.clientId,
+        siteId: siteId,
+        lane: 'client',
+        action: 'escalated',
+        inboundText: update.text,
+        outboundText: escalationText,
+        providerLabel: 'policy:high-risk',
+        update: update,
+      );
+      return true;
+    }
+    final aiDraft = await _telegramAiAssistant.draftReply(
+      audience: TelegramAiAudience.client,
+      messageText: update.text,
+      clientId: target.clientId,
+      siteId: siteId,
+    );
+    if (_telegramAiApprovalRequired && canNotifyAdmin) {
+      final pending = _TelegramAiPendingDraft(
+        inboundUpdateId: update.updateId,
+        chatId: update.chatId,
+        messageThreadId: update.messageThreadId,
+        audience: 'client',
+        clientId: target.clientId,
+        siteId: siteId,
+        sourceText: update.text.trim(),
+        draftText: aiDraft.text,
+        providerLabel: aiDraft.providerLabel,
+        createdAtUtc: DateTime.now().toUtc(),
+      );
+      _telegramAiPendingDrafts = <_TelegramAiPendingDraft>[
+        pending,
+        ..._telegramAiPendingDrafts.where(
+          (entry) => entry.inboundUpdateId != pending.inboundUpdateId,
+        ),
+      ].take(100).toList(growable: false);
+      _telegramAiLastHandledAtUtc = pending.createdAtUtc;
+      _telegramAiLastHandledSummary = '${target.clientId}/$siteId • pending';
+      await _appendTelegramConversationMessage(
+        clientId: target.clientId,
+        siteId: siteId,
+        author: 'ONYX AI',
+        body: 'Pending approval reply draft: ${aiDraft.text}',
+        occurredAtUtc: pending.createdAtUtc,
+        roomKey: 'Security Desk',
+        viewerRole: ClientAppViewerRole.control.name,
+        incidentStatusLabel: 'Pending Approval',
+        messageSource: 'telegram',
+        messageProvider: aiDraft.providerLabel,
+      );
+      await _sendTelegramMessageWithChunks(
+        messageKeyPrefix: 'tg-admin-draft-${update.updateId}',
+        chatId: adminChatId,
+        messageThreadId: adminThreadId,
+        responseText:
+            'ONYX AI draft pending approval\n'
+            'update_id=${pending.inboundUpdateId}\n'
+            'scope=${pending.clientId}/${pending.siteId}\n'
+            'chat=${pending.chatId}${pending.messageThreadId == null ? '' : '#${pending.messageThreadId}'}\n'
+            'source=${_singleLine(pending.sourceText)}\n'
+            'draft=${_singleLine(pending.draftText)}\n'
+            'approve=/aiapprove ${pending.inboundUpdateId} • reject=/aireject ${pending.inboundUpdateId}',
+        failureContext: 'Admin draft relay',
+      );
+      await _appendTelegramAiLedger(
+        clientId: target.clientId,
+        siteId: siteId,
+        lane: 'client',
+        action: 'draft_pending',
+        inboundText: update.text,
+        outboundText: aiDraft.text,
+        providerLabel: aiDraft.providerLabel,
+        update: update,
+      );
+      unawaited(_persistTelegramAdminRuntimeState());
+      return true;
+    }
+    final delivered = await _sendTelegramMessageWithChunks(
+      messageKeyPrefix: 'tg-client-ai-${update.updateId}',
+      chatId: update.chatId,
+      messageThreadId: update.messageThreadId,
+      responseText: aiDraft.text,
+      failureContext: 'Client AI response',
+    );
+    _telegramAiLastHandledAtUtc = DateTime.now().toUtc();
+    _telegramAiLastHandledSummary =
+        '${target.clientId}/$siteId • ${delivered ? 'sent' : 'failed'}';
+    await _appendTelegramConversationMessage(
+      clientId: target.clientId,
+      siteId: siteId,
+      author: 'ONYX AI',
+      body: aiDraft.text,
+      occurredAtUtc: DateTime.now().toUtc(),
+      roomKey: delivered ? 'Residents' : 'Security Desk',
+      viewerRole: delivered
+          ? ClientAppViewerRole.client.name
+          : ClientAppViewerRole.control.name,
+      incidentStatusLabel: delivered ? 'Reply Sent' : 'Reply Failed',
+      messageSource: 'telegram',
+      messageProvider: aiDraft.providerLabel,
+    );
+    await _appendTelegramAiLedger(
+      clientId: target.clientId,
+      siteId: siteId,
+      lane: 'client',
+      action: delivered ? 'sent' : 'send_failed',
+      inboundText: update.text,
+      outboundText: aiDraft.text,
+      providerLabel: aiDraft.providerLabel,
+      update: update,
+    );
+    return true;
+  }
+
+  Future<void> _bootstrapTelegramAdminOffset() async {
+    try {
+      final seed = await _telegramBridge.fetchUpdates(offset: -1, limit: 1);
+      if (seed.isNotEmpty) {
+        _telegramAdminLastUpdateId = seed.last.updateId;
+      }
+      _telegramAdminOffsetBootstrapped = true;
+      _telegramAdminOffsetBootstrappedAtUtc = DateTime.now().toUtc();
+    } catch (_) {
+      // Fall back to normal polling path if bootstrap probe fails.
+      _telegramAdminOffsetBootstrapped = true;
+      _telegramAdminOffsetBootstrappedAtUtc = DateTime.now().toUtc();
+    }
+  }
+
+  Future<_TelegramInboundClientTarget?> _resolveInboundClientTarget({
+    required String chatId,
+    required int? messageThreadId,
+  }) async {
+    if (!widget.supabaseReady) {
+      return null;
+    }
+    final normalizedChatId = chatId.trim();
+    if (normalizedChatId.isEmpty) {
+      return null;
+    }
+    try {
+      final rowsRaw = await Supabase.instance.client
+          .from('client_messaging_endpoints')
+          .select('id, client_id, site_id, display_label, telegram_thread_id')
+          .eq('provider', 'telegram')
+          .eq('is_active', true)
+          .eq('telegram_chat_id', normalizedChatId)
+          .order('verified_at', ascending: false)
+          .order('created_at', ascending: false);
+      final rows = List<Map<String, dynamic>>.from(rowsRaw);
+      if (rows.isEmpty) {
+        return null;
+      }
+      Map<String, dynamic>? pick;
+      int? rowThread(Map<String, dynamic> row) {
+        final raw = (row['telegram_thread_id'] ?? '').toString().trim();
+        if (raw.isEmpty) return null;
+        return int.tryParse(raw);
+      }
+
+      if (messageThreadId != null) {
+        pick = rows.cast<Map<String, dynamic>?>().firstWhere(
+          (row) => row != null && rowThread(row) == messageThreadId,
+          orElse: () => null,
+        );
+      }
+      pick ??= rows.cast<Map<String, dynamic>?>().firstWhere(
+        (row) => row != null && rowThread(row) == null,
+        orElse: () => null,
+      );
+      pick ??= rows.first;
+      final endpointId = (pick['id'] ?? '').toString().trim();
+      final clientId = (pick['client_id'] ?? '').toString().trim();
+      if (endpointId.isEmpty || clientId.isEmpty) {
+        return null;
+      }
+      return _TelegramInboundClientTarget(
+        endpointId: endpointId,
+        clientId: clientId,
+        siteId: (pick['site_id'] ?? '').toString().trim().isEmpty
+            ? null
+            : (pick['site_id'] ?? '').toString().trim(),
+        displayLabel: (pick['display_label'] ?? '').toString().trim().isEmpty
+            ? 'Telegram'
+            : (pick['display_label'] ?? '').toString().trim(),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  bool _isHighRiskTelegramMessage(String text) {
+    final normalized = text.trim().toLowerCase();
+    if (normalized.isEmpty) {
+      return false;
+    }
+    const highRiskKeywords = <String>[
+      'panic',
+      'duress',
+      'armed',
+      'gun',
+      'weapon',
+      'intruder',
+      'break in',
+      'breach',
+      'fire',
+      'medical',
+      'ambulance',
+      'police',
+      'hostage',
+      'bomb',
+    ];
+    return highRiskKeywords.any(normalized.contains);
+  }
+
+  String _singleLine(String text, {int maxLength = 220}) {
+    final normalized = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (normalized.length <= maxLength) {
+      return normalized;
+    }
+    return '${normalized.substring(0, maxLength - 3)}...';
+  }
+
+  String _telegramHtmlEscape(String text) {
+    return text
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;');
+  }
+
+  String _telegramUtcStamp([DateTime? instant]) {
+    final utc = (instant ?? DateTime.now()).toUtc();
+    String two(int value) => value.toString().padLeft(2, '0');
+    return '${utc.year.toString().padLeft(4, '0')}-${two(utc.month)}-${two(utc.day)}T${two(utc.hour)}:${two(utc.minute)}:${two(utc.second)}Z';
+  }
+
+  bool _telegramAdminUseRichTextForCommand(
+    String command, {
+    String arguments = '',
+  }) {
+    return true;
+  }
+
+  bool _telegramLooksLikeSectionTitle(String line) {
+    final trimmed = line.trim();
+    if (trimmed.isEmpty || trimmed.length > 32) {
+      return false;
+    }
+    if (trimmed.contains(':') || trimmed.startsWith('/')) {
+      return false;
+    }
+    return RegExp(r'^[A-Z][A-Z0-9 _/&-]+$').hasMatch(trimmed);
+  }
+
+  String _telegramRenderCardLine(String line) {
+    final trimmed = line.trim();
+    if (trimmed.isEmpty) {
+      return '';
+    }
+    if (trimmed == '---') {
+      return '---';
+    }
+    if (trimmed.toUpperCase().startsWith('UTC:')) {
+      final raw = trimmed.substring(4).trim();
+      final parsed = DateTime.tryParse(raw);
+      return 'UTC: ${_telegramUtcStamp(parsed ?? DateTime.now().toUtc())}';
+    }
+    if (_telegramLooksLikeSectionTitle(trimmed)) {
+      return '<b>${_telegramHtmlEscape(trimmed)}</b>';
+    }
+    if (trimmed.startsWith('- ')) {
+      return '• ${_telegramHtmlEscape(trimmed.substring(2).trim())}';
+    }
+    if (trimmed.startsWith('• ')) {
+      return '• ${_telegramHtmlEscape(trimmed.substring(2).trim())}';
+    }
+    final colonIndex = trimmed.indexOf(':');
+    if (colonIndex > 0 && colonIndex < 40) {
+      final key = trimmed.substring(0, colonIndex).trim();
+      final value = trimmed.substring(colonIndex + 1).trim();
+      if (key.isNotEmpty && value.isNotEmpty) {
+        return '• <b>${_telegramHtmlEscape(key)}:</b> ${_telegramHtmlEscape(value)}';
+      }
+    }
+    return '• ${_telegramHtmlEscape(trimmed)}';
+  }
+
+  String _telegramNormalizeUtcLines(String text) {
+    final isoRegex = RegExp(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z');
+
+    String normalizeIsoFragments(String line) {
+      return line.replaceAllMapped(isoRegex, (match) {
+        final raw = match.group(0) ?? '';
+        final parsed = DateTime.tryParse(raw);
+        if (parsed == null) {
+          return raw;
+        }
+        return _telegramUtcStamp(parsed);
+      });
+    }
+
+    final lines = text.split('\n');
+    final normalized = lines.map((line) {
+      final leftPadding = line.length - line.trimLeft().length;
+      final trimmed = line.trimLeft();
+      if (!trimmed.toUpperCase().startsWith('UTC:')) {
+        return normalizeIsoFragments(line);
+      }
+      final raw = trimmed.substring(4).trim();
+      final parsed = DateTime.tryParse(raw);
+      final utcLine =
+          '${' ' * leftPadding}UTC: ${_telegramUtcStamp(parsed ?? DateTime.now().toUtc())}';
+      return normalizeIsoFragments(utcLine);
+    });
+    return normalized.join('\n');
+  }
+
+  String _telegramAdminRenderCommandCard(String command, String responseText) {
+    final raw = responseText.trim();
+    if (raw.isEmpty) {
+      return raw;
+    }
+    if (raw.contains('<b>') || raw.contains('</b>')) {
+      return _telegramNormalizeUtcLines(raw);
+    }
+    final lines = raw
+        .split('\n')
+        .map((entry) => entry.trimRight())
+        .where((entry) => entry.trim().isNotEmpty)
+        .toList(growable: false);
+    if (lines.isEmpty) {
+      return raw;
+    }
+    var title = lines.first.trim();
+    var bodyLines = lines.skip(1).toList(growable: false);
+    if (bodyLines.isEmpty && title.contains('•')) {
+      final parts = title.split('•').map((entry) => entry.trim()).toList();
+      if (parts.isNotEmpty) {
+        title = parts.first;
+        bodyLines = parts.skip(1).where((entry) => entry.isNotEmpty).toList();
+      }
+    }
+    final renderedBody = bodyLines
+        .map(_telegramRenderCardLine)
+        .where((entry) => entry.trim().isNotEmpty)
+        .join('\n');
+    final normalizedTitle = title.isEmpty
+        ? 'ONYX ${command.toUpperCase()}'
+        : title;
+    if (renderedBody.isEmpty) {
+      return _telegramNormalizeUtcLines(
+        '<b>${_telegramHtmlEscape(normalizedTitle)}</b>',
+      );
+    }
+    return _telegramNormalizeUtcLines(
+      '<b>${_telegramHtmlEscape(normalizedTitle)}</b>\n\n$renderedBody',
+    );
+  }
+
+  String _telegramInboundAuthor(TelegramBridgeInboundMessage update) {
+    final username = update.fromUsername?.trim() ?? '';
+    if (username.isNotEmpty) {
+      return '@$username';
+    }
+    final userId = update.fromUserId;
+    if (userId != null) {
+      return 'Telegram User $userId';
+    }
+    return 'Telegram Client';
+  }
+
+  Future<void> _appendTelegramConversationMessage({
+    required String clientId,
+    required String siteId,
+    required String author,
+    required String body,
+    required DateTime occurredAtUtc,
+    required String roomKey,
+    required String viewerRole,
+    required String incidentStatusLabel,
+    String messageSource = 'in_app',
+    String messageProvider = 'in_app',
+  }) async {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    final normalizedBody = body.trim();
+    if (normalizedClientId.isEmpty ||
+        normalizedSiteId.isEmpty ||
+        normalizedBody.isEmpty) {
+      return;
+    }
+    final message = ClientAppMessage(
+      author: author.trim().isEmpty ? 'ONYX' : author.trim(),
+      body: normalizedBody,
+      occurredAt: occurredAtUtc.toUtc(),
+      roomKey: roomKey.trim().isEmpty ? 'Residents' : roomKey.trim(),
+      viewerRole: viewerRole.trim().isEmpty ? 'client' : viewerRole.trim(),
+      incidentStatusLabel: incidentStatusLabel.trim().isEmpty
+          ? 'Update'
+          : incidentStatusLabel.trim(),
+      messageSource: messageSource.trim().isEmpty
+          ? 'in_app'
+          : messageSource.trim(),
+      messageProvider: messageProvider.trim().isEmpty
+          ? 'in_app'
+          : messageProvider.trim(),
+    );
+    final activeScope =
+        normalizedClientId == _selectedClient &&
+        normalizedSiteId == _selectedSite;
+    if (activeScope) {
+      final nextMessages = <ClientAppMessage>[message, ..._clientAppMessages]
+        ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+      _clientAppMessages = nextMessages;
+      if (mounted) {
+        setState(() {});
+      }
+      try {
+        final conversation = await _clientConversationRepositoryFuture;
+        await conversation.saveMessages(nextMessages);
+      } catch (_) {
+        // Best-effort only; routing must continue even if sync fails.
+      }
+      return;
+    }
+    if (!widget.supabaseReady) {
+      return;
+    }
+    try {
+      await Supabase.instance.client
+          .from('client_conversation_messages')
+          .insert({
+            'client_id': normalizedClientId,
+            'site_id': normalizedSiteId,
+            'author': message.author,
+            'body': message.body,
+            'room_key': message.roomKey,
+            'viewer_role': message.viewerRole,
+            'incident_status_label': message.incidentStatusLabel,
+            'message_source': message.messageSource,
+            'message_provider': message.messageProvider,
+            'occurred_at': message.occurredAt.toIso8601String(),
+          });
+    } catch (_) {
+      try {
+        await Supabase.instance.client
+            .from('client_conversation_messages')
+            .insert({
+              'client_id': normalizedClientId,
+              'site_id': normalizedSiteId,
+              'author': message.author,
+              'body': message.body,
+              'room_key': message.roomKey,
+              'viewer_role': message.viewerRole,
+              'incident_status_label': message.incidentStatusLabel,
+              'occurred_at': message.occurredAt.toIso8601String(),
+            });
+      } catch (_) {
+        // Best-effort only; routing must continue even if sync fails.
+      }
+    }
+  }
+
+  Future<void> _appendTelegramAiLedger({
+    required String clientId,
+    required String siteId,
+    required String lane,
+    required String action,
+    required String inboundText,
+    String? outboundText,
+    String? providerLabel,
+    required TelegramBridgeInboundMessage update,
+  }) async {
+    final normalizedClientId = clientId.trim();
+    if (normalizedClientId.isEmpty) {
+      return;
+    }
+    try {
+      final canonicalJson = jsonEncode({
+        'type': 'telegram_ai',
+        'lane': lane.trim(),
+        'action': action.trim(),
+        'site_id': siteId.trim(),
+        'chat_id': update.chatId.trim(),
+        'message_thread_id': update.messageThreadId,
+        'from_user_id': update.fromUserId,
+        'from_username': update.fromUsername,
+        'update_id': update.updateId,
+        'inbound_text': inboundText.trim(),
+        if ((outboundText ?? '').trim().isNotEmpty)
+          'outbound_text': outboundText!.trim(),
+        if ((providerLabel ?? '').trim().isNotEmpty)
+          'provider_label': providerLabel!.trim(),
+        'occurred_at_utc': DateTime.now().toUtc().toIso8601String(),
+      });
+      final previousHash = await _clientLedgerRepository.fetchPreviousHash(
+        normalizedClientId,
+      );
+      final combined = previousHash == null
+          ? canonicalJson
+          : canonicalJson + previousHash;
+      final hash = sha256.convert(utf8.encode(combined)).toString();
+      await _clientLedgerRepository.insertLedgerRow(
+        clientId: normalizedClientId,
+        dispatchId:
+            'TG-AI-${DateTime.now().toUtc().millisecondsSinceEpoch}-${update.updateId}',
+        canonicalJson: canonicalJson,
+        hash: hash,
+        previousHash: previousHash,
+      );
+    } catch (_) {
+      // AI chat routing must not break operations when ledger insert fails.
+    }
+  }
+
+  _TelegramAdminCommandParseResult? _telegramAdminCommand(String text) {
+    final trimmed = text.trim();
+    if (!trimmed.startsWith('/')) {
+      return _telegramAdminNaturalCommand(trimmed);
+    }
+    final parts = trimmed.split(RegExp(r'\s+'));
+    if (parts.isEmpty) {
+      return null;
+    }
+    final token = parts.first.toLowerCase();
+    final arguments = parts.length > 1 ? parts.sublist(1).join(' ').trim() : '';
+    final command = token.split('@').first;
+    switch (command) {
+      case '/start':
+      case '/help':
+        return _TelegramAdminCommandParseResult(
+          command: 'help',
+          arguments: arguments,
+        );
+      case '/status':
+        return _TelegramAdminCommandParseResult(
+          command: 'status',
+          arguments: arguments,
+        );
+      case '/ops':
+        return _TelegramAdminCommandParseResult(
+          command: 'ops',
+          arguments: arguments,
+        );
+      case '/incidents':
+        return _TelegramAdminCommandParseResult(
+          command: 'incidents',
+          arguments: arguments,
+        );
+      case '/incident':
+        return _TelegramAdminCommandParseResult(
+          command: 'incident',
+          arguments: arguments,
+        );
+      case '/critical':
+        return _TelegramAdminCommandParseResult(
+          command: 'critical',
+          arguments: arguments,
+        );
+      case '/syncguards':
+        return _TelegramAdminCommandParseResult(
+          command: 'syncguards',
+          arguments: arguments,
+        );
+      case '/pollops':
+        return _TelegramAdminCommandParseResult(
+          command: 'pollops',
+          arguments: arguments,
+        );
+      case '/history':
+        return _TelegramAdminCommandParseResult(
+          command: 'history',
+          arguments: arguments,
+        );
+      case '/adminconfig':
+        return _TelegramAdminCommandParseResult(
+          command: 'adminconfig',
+          arguments: arguments,
+        );
+      case '/pushcritical':
+        return _TelegramAdminCommandParseResult(
+          command: 'pushcritical',
+          arguments: arguments,
+        );
+      case '/setpoll':
+        return _TelegramAdminCommandParseResult(
+          command: 'setpoll',
+          arguments: arguments,
+        );
+      case '/setreminder':
+        return _TelegramAdminCommandParseResult(
+          command: 'setreminder',
+          arguments: arguments,
+        );
+      case '/target':
+        return _TelegramAdminCommandParseResult(
+          command: 'target',
+          arguments: arguments,
+        );
+      case '/settarget':
+        return _TelegramAdminCommandParseResult(
+          command: 'settarget',
+          arguments: arguments,
+        );
+      case '/acl':
+        return _TelegramAdminCommandParseResult(
+          command: 'acl',
+          arguments: arguments,
+        );
+      case '/exec':
+        return _TelegramAdminCommandParseResult(
+          command: 'exec',
+          arguments: arguments,
+        );
+      case '/notifytest':
+        return _TelegramAdminCommandParseResult(
+          command: 'notifytest',
+          arguments: arguments,
+        );
+      case '/bindchat':
+        return _TelegramAdminCommandParseResult(
+          command: 'bindchat',
+          arguments: arguments,
+        );
+      case '/linkchat':
+        return _TelegramAdminCommandParseResult(
+          command: 'linkchat',
+          arguments: arguments,
+        );
+      case '/unlinkchat':
+        return _TelegramAdminCommandParseResult(
+          command: 'unlinkchat',
+          arguments: arguments,
+        );
+      case '/unlinkall':
+        return _TelegramAdminCommandParseResult(
+          command: 'unlinkall',
+          arguments: arguments,
+        );
+      case '/chatcheck':
+        return _TelegramAdminCommandParseResult(
+          command: 'chatcheck',
+          arguments: arguments,
+        );
+      case '/demoprep':
+        return _TelegramAdminCommandParseResult(
+          command: 'demoprep',
+          arguments: arguments,
+        );
+      case '/demoflow':
+        return _TelegramAdminCommandParseResult(
+          command: 'demoflow',
+          arguments: arguments,
+        );
+      case '/autodemo':
+        return _TelegramAdminCommandParseResult(
+          command: 'autodemo',
+          arguments: arguments,
+        );
+      case '/demoscript':
+        return _TelegramAdminCommandParseResult(
+          command: 'demoscript',
+          arguments: arguments,
+        );
+      case '/democlean':
+        return _TelegramAdminCommandParseResult(
+          command: 'democlean',
+          arguments: arguments,
+        );
+      case '/demolaunch':
+        return _TelegramAdminCommandParseResult(
+          command: 'demolaunch',
+          arguments: arguments,
+        );
+      case '/demoplay':
+        return _TelegramAdminCommandParseResult(
+          command: 'demoplay',
+          arguments: arguments,
+        );
+      case '/demoplaystop':
+        return _TelegramAdminCommandParseResult(
+          command: 'demoplaystop',
+          arguments: arguments,
+        );
+      case '/demoplaystatus':
+        return _TelegramAdminCommandParseResult(
+          command: 'demoplaystatus',
+          arguments: arguments,
+        );
+      case '/targets':
+        return _TelegramAdminCommandParseResult(
+          command: 'targets',
+          arguments: arguments,
+        );
+      case '/demostart':
+        return _TelegramAdminCommandParseResult(
+          command: 'demostart',
+          arguments: arguments,
+        );
+      case '/demofull':
+        return _TelegramAdminCommandParseResult(
+          command: 'demofull',
+          arguments: arguments,
+        );
+      case '/demostop':
+        return _TelegramAdminCommandParseResult(
+          command: 'demostop',
+          arguments: arguments,
+        );
+      case '/demostatus':
+        return _TelegramAdminCommandParseResult(
+          command: 'demostatus',
+          arguments: arguments,
+        );
+      case '/snoozecritical':
+        return _TelegramAdminCommandParseResult(
+          command: 'snoozecritical',
+          arguments: arguments,
+        );
+      case '/unsnoozecritical':
+        return _TelegramAdminCommandParseResult(
+          command: 'unsnoozecritical',
+          arguments: arguments,
+        );
+      case '/ackcritical':
+        return _TelegramAdminCommandParseResult(
+          command: 'ackcritical',
+          arguments: arguments,
+        );
+      case '/unackcritical':
+        return _TelegramAdminCommandParseResult(
+          command: 'unackcritical',
+          arguments: arguments,
+        );
+      case '/guards':
+        return _TelegramAdminCommandParseResult(
+          command: 'guards',
+          arguments: arguments,
+        );
+      case '/bridges':
+        return _TelegramAdminCommandParseResult(
+          command: 'bridges',
+          arguments: arguments,
+        );
+      case '/brief':
+        return _TelegramAdminCommandParseResult(
+          command: 'brief',
+          arguments: arguments,
+        );
+      case '/next':
+        return _TelegramAdminCommandParseResult(
+          command: 'next',
+          arguments: arguments,
+        );
+      case '/ping':
+        return _TelegramAdminCommandParseResult(
+          command: 'ping',
+          arguments: arguments,
+        );
+      case '/aiassist':
+        return _TelegramAdminCommandParseResult(
+          command: 'aiassist',
+          arguments: arguments,
+        );
+      case '/aiapproval':
+        return _TelegramAdminCommandParseResult(
+          command: 'aiapproval',
+          arguments: arguments,
+        );
+      case '/aidrafts':
+        return _TelegramAdminCommandParseResult(
+          command: 'aidrafts',
+          arguments: arguments,
+        );
+      case '/aiapprove':
+        return _TelegramAdminCommandParseResult(
+          command: 'aiapprove',
+          arguments: arguments,
+        );
+      case '/aireject':
+        return _TelegramAdminCommandParseResult(
+          command: 'aireject',
+          arguments: arguments,
+        );
+      case '/aiconv':
+        return _TelegramAdminCommandParseResult(
+          command: 'aiconv',
+          arguments: arguments,
+        );
+      case '/ask':
+        return _TelegramAdminCommandParseResult(
+          command: 'ask',
+          arguments: arguments,
+        );
+      case '/whoami':
+        return _TelegramAdminCommandParseResult(
+          command: 'whoami',
+          arguments: arguments,
+        );
+      default:
+        return null;
+    }
+  }
+
+  _TelegramAdminCommandParseResult? _telegramAdminNaturalCommand(String text) {
+    final normalized = text.trim().toLowerCase();
+    if (normalized.isEmpty) {
+      return null;
+    }
+
+    final tokens = normalized
+        .split(RegExp(r'\s+'))
+        .where((entry) => entry.isNotEmpty)
+        .toList(growable: false);
+    if (tokens.isNotEmpty) {
+      final first = tokens.first;
+      final args = tokens.length > 1 ? tokens.sublist(1).join(' ').trim() : '';
+      const exactWordCommands = <String>{
+        'status',
+        'brief',
+        'next',
+        'critical',
+        'pollops',
+        'syncguards',
+        'ops',
+        'incidents',
+        'incident',
+        'history',
+        'adminconfig',
+        'pushcritical',
+        'setpoll',
+        'setreminder',
+        'target',
+        'settarget',
+        'acl',
+        'exec',
+        'notifytest',
+        'bindchat',
+        'linkchat',
+        'unlinkchat',
+        'unlinkall',
+        'chatcheck',
+        'demoprep',
+        'demoflow',
+        'autodemo',
+        'demoscript',
+        'democlean',
+        'demolaunch',
+        'demoplay',
+        'demoplaystop',
+        'demoplaystatus',
+        'targets',
+        'demostart',
+        'demofull',
+        'demostop',
+        'demostatus',
+        'snoozecritical',
+        'unsnoozecritical',
+        'ackcritical',
+        'unackcritical',
+        'guards',
+        'bridges',
+        'aiassist',
+        'aiapproval',
+        'aidrafts',
+        'aiapprove',
+        'aireject',
+        'aiconv',
+        'ask',
+        'whoami',
+        'ping',
+        'help',
+      };
+      if (exactWordCommands.contains(first)) {
+        return _TelegramAdminCommandParseResult(
+          command: first,
+          arguments: args,
+        );
+      }
+    }
+
+    bool hasAny(List<String> phrases) {
+      return phrases.any(normalized.contains);
+    }
+
+    if (hasAny(const [
+      'whoami',
+      'who am i',
+      'my user id',
+      'user id',
+      'my id',
+    ])) {
+      return const _TelegramAdminCommandParseResult(command: 'whoami');
+    }
+    if (hasAny(const ['help', 'commands', 'what can you do'])) {
+      return const _TelegramAdminCommandParseResult(command: 'help');
+    }
+    if (hasAny(const [
+      'what next',
+      'next step',
+      'next steps',
+      'next 5',
+      'next five',
+      'what should i do',
+      'what do i do',
+      'do now',
+      'actions now',
+      'action now',
+      'what now',
+      'immediate actions',
+    ])) {
+      return const _TelegramAdminCommandParseResult(command: 'next');
+    }
+    if (hasAny(const [
+      'ack critical',
+      'acknowledge critical',
+      'ack the critical',
+      'acknowledge the critical',
+    ])) {
+      return const _TelegramAdminCommandParseResult(command: 'ackcritical');
+    }
+    if (hasAny(const ['critical short', 'short critical', 'critical brief'])) {
+      return const _TelegramAdminCommandParseResult(
+        command: 'critical',
+        arguments: 'short',
+      );
+    }
+    if (hasAny(const ['critical', 'risk', 'alert', 'urgent'])) {
+      return const _TelegramAdminCommandParseResult(command: 'critical');
+    }
+    if (hasAny(const ['brief', 'summary', 'quick update', 'quick summary'])) {
+      return const _TelegramAdminCommandParseResult(command: 'brief');
+    }
+    final mentionsStatus = hasAny(const ['status', 'posture', 'health']);
+    final wantsFullStatus =
+        hasAny(const [
+          'full status',
+          'status full',
+          'detailed status',
+          'status detailed',
+          'verbose status',
+          'status verbose',
+        ]) ||
+        (mentionsStatus &&
+            hasAny(const ['full', 'detailed', 'verbose', 'long', 'detail']));
+    if (wantsFullStatus) {
+      return const _TelegramAdminCommandParseResult(
+        command: 'status',
+        arguments: 'full',
+      );
+    }
+    if (mentionsStatus) {
+      return const _TelegramAdminCommandParseResult(command: 'status');
+    }
+    if (hasAny(const ['ops', 'operations'])) {
+      return const _TelegramAdminCommandParseResult(command: 'ops');
+    }
+    if (hasAny(const ['incident', 'incidents'])) {
+      return const _TelegramAdminCommandParseResult(command: 'incidents');
+    }
+    if (hasAny(const ['bridge', 'bridges'])) {
+      return const _TelegramAdminCommandParseResult(command: 'bridges');
+    }
+    if (hasAny(const ['guard', 'guards'])) {
+      return const _TelegramAdminCommandParseResult(command: 'guards');
+    }
+    if (hasAny(const ['target scope', 'target'])) {
+      return const _TelegramAdminCommandParseResult(command: 'target');
+    }
+
+    final questionLike =
+        text.contains('?') ||
+        normalized.startsWith('what ') ||
+        normalized.startsWith('how ') ||
+        normalized.startsWith('why ') ||
+        normalized.startsWith('when ') ||
+        normalized.startsWith('where ') ||
+        normalized.startsWith('can you ') ||
+        normalized.startsWith('please ');
+    if (questionLike) {
+      return _TelegramAdminCommandParseResult(
+        command: 'ask',
+        arguments: text.trim(),
+      );
+    }
+    return null;
+  }
+
+  bool _isTelegramAdminSenderAllowed(TelegramBridgeInboundMessage update) {
+    final allowList = _telegramAdminAllowedUserIds;
+    if (allowList.isEmpty) {
+      return true;
+    }
+    final senderId = update.fromUserId;
+    if (senderId == null) {
+      return false;
+    }
+    return allowList.contains(senderId);
+  }
+
+  bool _telegramAdminRequiresExecutionMode(String command) {
+    switch (command) {
+      case 'syncguards':
+      case 'pollops':
+      case 'pushcritical':
+      case 'demostart':
+      case 'demofull':
+      case 'demostop':
+      case 'notifytest':
+      case 'bindchat':
+      case 'linkchat':
+      case 'unlinkchat':
+      case 'unlinkall':
+      case 'demoflow':
+      case 'autodemo':
+      case 'demoscript':
+      case 'democlean':
+      case 'demolaunch':
+      case 'demoplay':
+      case 'demoplaystop':
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  bool _telegramAdminReadOnlyCommand(String command) {
+    switch (command) {
+      case 'help':
+      case 'status':
+      case 'brief':
+      case 'ops':
+      case 'incidents':
+      case 'incident':
+      case 'critical':
+      case 'history':
+      case 'adminconfig':
+      case 'target':
+      case 'guards':
+      case 'bridges':
+      case 'aidrafts':
+      case 'aiconv':
+      case 'whoami':
+      case 'ping':
+      case 'next':
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  Future<String> _telegramAdminResponseFor(
+    String command,
+    TelegramBridgeInboundMessage update, {
+    String arguments = '',
+  }) async {
+    if (_telegramAdminRequiresExecutionMode(command) &&
+        !_telegramAdminExecutionEnabled) {
+      return 'ONYX EXECUTION MODE\nExecution commands are currently disabled.\nUse /exec on to enable operational actions.';
+    }
+    switch (command) {
+      case 'status':
+        return _telegramAdminStatusCommand(arguments);
+      case 'ops':
+        return _telegramAdminOpsSnapshot();
+      case 'incidents':
+        return _telegramAdminIncidentsSnapshot();
+      case 'incident':
+        return _telegramAdminIncidentSnapshotCommand(arguments);
+      case 'critical':
+        return _telegramAdminCriticalCommand(arguments);
+      case 'syncguards':
+        return _telegramAdminSyncGuardsCommand();
+      case 'pollops':
+        return _telegramAdminPollOpsCommand();
+      case 'history':
+        return _telegramAdminHistorySnapshot();
+      case 'adminconfig':
+        return _telegramAdminConfigSnapshot();
+      case 'pushcritical':
+        return _telegramAdminPushCriticalCommand();
+      case 'setpoll':
+        return _telegramAdminSetPollCommand(arguments);
+      case 'setreminder':
+        return _telegramAdminSetReminderCommand(arguments);
+      case 'target':
+        return _telegramAdminTargetSnapshot();
+      case 'settarget':
+        return _telegramAdminSetTargetCommand(arguments);
+      case 'acl':
+        return _telegramAdminAclCommand(arguments, update);
+      case 'exec':
+        return _telegramAdminExecCommand(arguments);
+      case 'notifytest':
+        return _telegramAdminNotifyTestCommand(arguments);
+      case 'bindchat':
+        return _telegramAdminBindChatCommand(arguments, update);
+      case 'linkchat':
+        return _telegramAdminLinkChatCommand(arguments, update);
+      case 'unlinkchat':
+        return _telegramAdminUnlinkChatCommand(arguments, update);
+      case 'unlinkall':
+        return _telegramAdminUnlinkAllCommand(arguments);
+      case 'chatcheck':
+        return _telegramAdminChatCheckCommand(arguments, update);
+      case 'demoprep':
+        return _telegramAdminDemoPrepCommand(arguments, update);
+      case 'demoflow':
+        return _telegramAdminDemoFlowCommand(arguments, update);
+      case 'autodemo':
+        return _telegramAdminAutoDemoCommand(arguments, update);
+      case 'demoscript':
+        return _telegramAdminDemoScriptCommand(arguments);
+      case 'democlean':
+        return _telegramAdminDemoCleanCommand(arguments);
+      case 'demolaunch':
+        return _telegramAdminDemoLaunchCommand(arguments, update);
+      case 'demoplay':
+        return _telegramAdminDemoPlayCommand(arguments);
+      case 'demoplaystop':
+        return _telegramAdminDemoPlayStopCommand();
+      case 'demoplaystatus':
+        return _telegramAdminDemoPlayStatusCommand();
+      case 'targets':
+        return _telegramAdminTargetsCommand(arguments);
+      case 'demostart':
+        return _telegramAdminDemoStartCommand(arguments, full: false);
+      case 'demofull':
+        return _telegramAdminDemoStartCommand(arguments, full: true);
+      case 'demostop':
+        return _telegramAdminDemoStopCommand();
+      case 'demostatus':
+        return _telegramAdminDemoStatusCommand();
+      case 'snoozecritical':
+        return _telegramAdminSnoozeCriticalCommand(arguments);
+      case 'unsnoozecritical':
+        return _telegramAdminUnsnoozeCriticalCommand();
+      case 'ackcritical':
+        return _telegramAdminAckCriticalCommand();
+      case 'unackcritical':
+        return _telegramAdminUnackCriticalCommand();
+      case 'guards':
+        return _telegramAdminGuardSnapshot();
+      case 'bridges':
+        return _telegramAdminBridgeSnapshot();
+      case 'brief':
+        return _telegramAdminBriefSnapshot();
+      case 'next':
+        return _telegramAdminNextActionsSnapshot();
+      case 'aiassist':
+        return _telegramAdminAiAssistCommand(arguments);
+      case 'aiapproval':
+        return _telegramAdminAiApprovalCommand(arguments);
+      case 'aidrafts':
+        return _telegramAdminAiDraftsCommand();
+      case 'aiapprove':
+        return _telegramAdminAiApproveCommand(arguments);
+      case 'aireject':
+        return _telegramAdminAiRejectCommand(arguments);
+      case 'aiconv':
+        return _telegramAdminAiConversationCommand(arguments);
+      case 'ask':
+        return _telegramAdminAskCommand(arguments);
+      case 'ping':
+        return 'ONYX admin bridge alive • ${DateTime.now().toUtc().toIso8601String()}';
+      case 'whoami':
+        return _telegramAdminWhoAmISnapshot(update);
+      case 'help':
+      default:
+        return _telegramAdminHelpText();
+    }
+  }
+
+  String _telegramAdminStatusCommand(String arguments) {
+    final mode = arguments.trim().toLowerCase();
+    if (mode.isEmpty ||
+        mode == 'short' ||
+        mode == 'compact' ||
+        mode == 'exec') {
+      return _telegramAdminStatusExecutiveSnapshot();
+    }
+    if (_telegramAdminStatusArgumentsSelectFull(mode)) {
+      return _telegramAdminStatusSnapshot();
+    }
+    return 'ONYX STATUS\n'
+        'Usage: /status [full]\n'
+        'Default: executive snapshot\n'
+        'Use /status full for detailed diagnostics.\n'
+        'UTC: ${DateTime.now().toUtc().toIso8601String()}';
+  }
+
+  bool _telegramAdminStatusArgumentsSelectFull(String arguments) {
+    final mode = arguments.trim().toLowerCase();
+    return mode == 'full' ||
+        mode == 'detail' ||
+        mode == 'detailed' ||
+        mode == 'verbose' ||
+        mode == 'long';
+  }
+
+  String _telegramAdminHelpText() {
+    return '🧭 <b>ONYX COMMANDS</b>\n\n'
+        '<b>Core</b>\n'
+        '• <code>/brief</code> - executive one-screen posture\n'
+        '• <code>/status</code> - live executive card\n'
+        '• <code>/status full</code> - full diagnostics\n'
+        '• <code>/critical [short]</code> - active critical risks\n'
+        '• <code>/next</code> - next 5-minute action ladder\n'
+        '• <code>/incidents</code> | <code>/incident &lt;dispatch_id&gt;</code>\n'
+        '\n---\n\n'
+        '<b>Operations</b>\n'
+        '• <code>/syncguards</code> - force guard sync + queue health\n'
+        '• <code>/pollops</code> - poll radio/CCTV/wearable/news now\n'
+        '• <code>/guards</code> - guard telemetry and failures\n'
+        '• <code>/bridges</code> - Telegram + integration bridge health\n'
+        '• <code>/ops</code> - compact operations snapshot\n'
+        '\n---\n\n'
+        '<b>Critical Control</b>\n'
+        '• <code>/ackcritical</code> | <code>/unackcritical</code>\n'
+        '• <code>/snoozecritical [minutes]</code> | <code>/unsnoozecritical</code>\n'
+        '• <code>/pushcritical</code> - force critical digest now\n'
+        '\n---\n\n'
+        '<b>AI + Messaging</b>\n'
+        '• <code>/ask &lt;question&gt;</code> - contextual operational answer\n'
+        '• <code>/aiassist [on|off|status|default]</code>\n'
+        '• <code>/aiapproval [on|off|status|default]</code>\n'
+        '• <code>/aidrafts</code> | <code>/aiapprove &lt;id&gt;</code> | <code>/aireject &lt;id&gt;</code>\n'
+        '• <code>/aiconv [client_id site_id]</code>\n'
+        '\n---\n\n'
+        '<b>Admin</b>\n'
+        '• <code>/exec [on|off|status|default]</code>\n'
+        '• <code>/setpoll [seconds|default]</code>\n'
+        '• <code>/setreminder [seconds|default]</code>\n'
+        '• <code>/target</code> | <code>/settarget [client_id site_id|default]</code>\n'
+        '• <code>/acl [status|list|me|add &lt;id&gt;|remove &lt;id&gt;|open|default]</code>\n'
+        '• <code>/history</code> | <code>/adminconfig</code> | <code>/whoami</code> | <code>/ping</code>\n'
+        '\n---\n\n'
+        '<b>Natural prompts (no /)</b>\n'
+        'status, brief, critical risks, what next, who am I, help, plus question-form prompts.\n'
+        '\n---\n\n'
+        '<b>Critical Push:</b> ${_telegramAdminCriticalPushEnabled ? 'ON' : 'OFF'} (${_normalizedTelegramAdminCriticalReminderSeconds}s reminder)\n'
+        'UTC: ${_telegramUtcStamp()}';
+  }
+
+  String _telegramAdminBriefSnapshot() {
+    final events = store.allEvents();
+    final activeIncidents = _activeIncidentCount(events);
+    final pendingActions = _pendingAiActionCount(events);
+    final guardsOnline = _guardsOnlineCount(events);
+    final critical = _telegramAdminCriticalAlerts();
+    final criticalCount = critical.length;
+    final topAlert = criticalCount > 0 ? _singleLine(critical.first) : 'none';
+    final hasWarningSignal =
+        _telegramBridgeHealthLabel.toLowerCase() == 'degraded' ||
+        _telegramBridgeHealthLabel.toLowerCase() == 'blocked' ||
+        _clientAppPushSyncStatusLabel.trim().toLowerCase() == 'failed' ||
+        pendingActions > 0;
+    final posture = criticalCount > 0
+        ? 'RED'
+        : (hasWarningSignal ? 'AMBER' : 'GREEN');
+    final postureEmoji = switch (posture) {
+      'RED' => '🔴',
+      'AMBER' => '🟠',
+      _ => '🟢',
+    };
+    final queueThreshold = _positiveThreshold(
+      _guardQueuePressureAlertThresholdEnv,
+      fallback: 25,
+    );
+    final slaCue = _telegramAdminSlaCue(
+      criticalCount: criticalCount,
+      pendingActions: pendingActions,
+      queueThreshold: queueThreshold,
+    );
+    final actionHint = _telegramAdminPrimaryActionHint(
+      criticalCount: criticalCount,
+      pendingActions: pendingActions,
+      queueThreshold: queueThreshold,
+    );
+    final nextAction = criticalCount > 0
+        ? '/critical | /ackcritical | /snoozecritical 30'
+        : '/ops | /incidents | /ask <question>';
+    return '🚦 <b>ONYX BRIEF</b>\n\n'
+        '<b>Posture:</b> $postureEmoji <b>${_telegramHtmlEscape(posture)}</b>\n'
+        '<b>Active Critical Alerts:</b> <b>$criticalCount</b>\n\n'
+        '---\n\n'
+        '<b>Top Risk</b>\n'
+        '${_telegramHtmlEscape(topAlert)}\n\n'
+        '---\n\n'
+        '<b>Operations Status</b>\n\n'
+        '• <b>Guards Online:</b> $guardsOnline\n'
+        '• <b>Incidents:</b> $activeIncidents\n'
+        '• <b>Pending Replies:</b> $pendingActions\n'
+        '• <b>SLA cue:</b> ${_telegramHtmlEscape(slaCue)}\n\n'
+        '---\n\n'
+        '<b>Recommended Action</b>\n'
+        '${_telegramHtmlEscape(actionHint)}\n\n'
+        '---\n\n'
+        '<b>Target</b>\n\n'
+        '<b>Client:</b> ${_telegramHtmlEscape(_telegramAdminTargetClientId)}\n'
+        '<b>Site:</b> ${_telegramHtmlEscape(_telegramAdminTargetSiteId)}\n'
+        '<b>Next:</b> ${_telegramHtmlEscape(nextAction)}\n'
+        '<b>Tip:</b> /status full for diagnostics\n\n'
+        'UTC: ${_telegramUtcStamp()}';
+  }
+
+  String _telegramAdminSlaCue({
+    required int criticalCount,
+    required int pendingActions,
+    required int queueThreshold,
+  }) {
+    if (criticalCount > 0) {
+      return 'at-risk (active critical alerts)';
+    }
+    if (_guardSyncQueueDepth >= queueThreshold) {
+      return 'at-risk (guard sync queue pressure)';
+    }
+    if (_guardOpsFailedEvents > 0 || _guardOpsFailedMedia > 0) {
+      return 'watch (guard ops failures present)';
+    }
+    if (pendingActions >= 5) {
+      return 'watch (response backlog building)';
+    }
+    return 'on-track';
+  }
+
+  String _telegramAdminStatusExecutiveSnapshot() {
+    final events = store.allEvents();
+    final activeIncidents = _activeIncidentCount(events);
+    final pendingActions = _pendingAiActionCount(events);
+    final guardsOnline = _guardsOnlineCount(events);
+    final queueThreshold = _positiveThreshold(
+      _guardQueuePressureAlertThresholdEnv,
+      fallback: 25,
+    );
+    final bridgeLabel = _telegramBridgeHealthLabel.toUpperCase();
+    final critical = _telegramAdminCriticalAlerts();
+    final criticalCount = critical.length;
+    final topAlert = criticalCount > 0 ? _singleLine(critical.first) : 'none';
+    final telemetryGate = _guardTelemetryLiveReadyGateViolated
+        ? 'VIOLATION'
+        : 'OK';
+    final hasWarningSignal =
+        _telegramBridgeHealthLabel.toLowerCase() == 'degraded' ||
+        _telegramBridgeHealthLabel.toLowerCase() == 'blocked' ||
+        _clientAppPushSyncStatusLabel.trim().toLowerCase() == 'failed' ||
+        pendingActions > 0;
+    final posture = criticalCount > 0
+        ? 'RED'
+        : (hasWarningSignal ? 'AMBER' : 'GREEN');
+    final nextAction = criticalCount > 0
+        ? '/critical | /ackcritical | /snoozecritical 30'
+        : '/ops | /incidents | /ask <question>';
+    final actionHint = _telegramAdminPrimaryActionHint(
+      criticalCount: criticalCount,
+      pendingActions: pendingActions,
+      queueThreshold: queueThreshold,
+    );
+    final postureEmoji = switch (posture) {
+      'RED' => '🔴',
+      'AMBER' => '🟠',
+      _ => '🟢',
+    };
+    return '📊 <b>ONYX STATUS</b>\n\n'
+        '<b>Posture:</b> $postureEmoji <b>${_telegramHtmlEscape(posture)}</b>\n'
+        '<b>Active Critical Alerts:</b> <b>$criticalCount</b>\n\n'
+        '---\n\n'
+        '<b>Top Risk</b>\n'
+        '${_telegramHtmlEscape(topAlert)}\n\n'
+        '---\n\n'
+        '<b>Operations Status</b>\n\n'
+        '• <b>Guards Online:</b> $guardsOnline\n'
+        '• <b>Incidents:</b> $activeIncidents\n'
+        '• <b>Pending Replies:</b> $pendingActions\n'
+        '• <b>Guard Queue:</b> $_guardSyncQueueDepth/$queueThreshold\n'
+        '• <b>Telemetry:</b> ${_telegramHtmlEscape(_guardTelemetryReadiness.name)} | gate=$telemetryGate\n'
+        '• <b>Bridge:</b> telegram=${_telegramHtmlEscape(bridgeLabel)}\n\n'
+        '---\n\n'
+        '<b>Recommended Action</b>\n'
+        '${_telegramHtmlEscape(actionHint)}\n\n'
+        '---\n\n'
+        '<b>Target</b>\n\n'
+        '<b>Client:</b> ${_telegramHtmlEscape(_telegramAdminTargetClientId)}\n'
+        '<b>Site:</b> ${_telegramHtmlEscape(_telegramAdminTargetSiteId)}\n'
+        '<b>Next:</b> ${_telegramHtmlEscape(nextAction)}\n'
+        '<b>Tip:</b> /status full for detailed diagnostics\n\n'
+        'UTC: ${_telegramUtcStamp()}';
+  }
+
+  String _telegramAdminPrimaryActionHint({
+    required int criticalCount,
+    required int pendingActions,
+    required int queueThreshold,
+  }) {
+    final bridgeState = _telegramBridgeHealthLabel.toLowerCase();
+    if (criticalCount > 0) {
+      if (_guardTelemetryLiveReadyGateViolated) {
+        return 'run /syncguards and verify telemetry adapter readiness';
+      }
+      if (bridgeState == 'blocked' || bridgeState == 'degraded') {
+        return 'run /bridges then /pollops to restore bridge health';
+      }
+      return 'open /critical and execute the top listed action';
+    }
+    if (_guardSyncQueueDepth >= queueThreshold) {
+      return 'run /syncguards to reduce queue pressure';
+    }
+    if (pendingActions > 0) {
+      return 'review pending replies in AI Queue and close backlog';
+    }
+    if (_guardOpsFailedEvents > 0 || _guardOpsFailedMedia > 0) {
+      return 'check /guards and clear failed guard ops';
+    }
+    return 'no immediate risk; monitor with brief updates';
+  }
+
+  String _telegramAdminNextActionsSnapshot() {
+    final critical = _telegramAdminCriticalAlerts();
+    final criticalCount = critical.length;
+    final events = store.allEvents();
+    final pendingActions = _pendingAiActionCount(events);
+    final activeIncidents = _activeIncidentCount(events);
+    final queueThreshold = _positiveThreshold(
+      _guardQueuePressureAlertThresholdEnv,
+      fallback: 25,
+    );
+    final actions = <String>[];
+    if (criticalCount > 0) {
+      actions.add('Run /critical and execute the first listed action now.');
+    }
+    if (_guardTelemetryLiveReadyGateViolated) {
+      actions.add(
+        'Run /syncguards and verify guard telemetry adapter readiness.',
+      );
+    }
+    final bridgeState = _telegramBridgeHealthLabel.toLowerCase();
+    if (bridgeState == 'blocked' || bridgeState == 'degraded') {
+      actions.add('Run /bridges then /pollops to verify integration health.');
+    }
+    if (_guardSyncQueueDepth >= queueThreshold) {
+      actions.add(
+        'Clear queue pressure with /syncguards (queue=$_guardSyncQueueDepth/$queueThreshold).',
+      );
+    }
+    if (pendingActions > 0) {
+      actions.add(
+        'Review pending replies in AI Queue (pending=$pendingActions).',
+      );
+    }
+    if (activeIncidents > 0) {
+      actions.add('Review /incidents and confirm ownership + ETA updates.');
+    }
+    if (actions.isEmpty) {
+      actions.add(
+        'No immediate intervention required; keep monitoring with /brief.',
+      );
+      actions.add('Run /ops in 5 minutes to confirm posture remains stable.');
+    }
+    final topAlert = criticalCount > 0 ? _singleLine(critical.first) : 'none';
+    final actionLines = <String>[
+      for (var index = 0; index < actions.length; index += 1)
+        '${index + 1}. ${actions[index]}',
+    ].join('\n');
+    final posture = criticalCount > 0 ? 'RED' : 'GREEN/AMBER';
+    final postureEmoji = criticalCount > 0 ? '🔴' : '🟢';
+    return '🧭 <b>ONYX NEXT 5 MIN</b>\n\n'
+        '<b>Posture:</b> $postureEmoji <b>${_telegramHtmlEscape(posture)}</b>\n'
+        '<b>Active Critical Alerts:</b> <b>$criticalCount</b>\n\n'
+        '---\n\n'
+        '<b>Top Risk</b>\n'
+        '${_telegramHtmlEscape(topAlert)}\n\n'
+        '---\n\n'
+        '<b>Recommended Actions</b>\n'
+        '${_telegramHtmlEscape(actionLines)}\n\n'
+        '---\n\n'
+        '<b>Target</b>\n\n'
+        '<b>Client:</b> ${_telegramHtmlEscape(_telegramAdminTargetClientId)}\n'
+        '<b>Site:</b> ${_telegramHtmlEscape(_telegramAdminTargetSiteId)}\n\n'
+        'UTC: ${_telegramUtcStamp()}';
+  }
+
+  String _telegramAdminStatusSnapshot() {
+    final events = store.allEvents();
+    final activeIncidents = _activeIncidentCount(events);
+    final pendingActions = _pendingAiActionCount(events);
+    final guardsOnline = _guardsOnlineCount(events);
+    final complianceIssues = _complianceIssuesCount();
+    final queueThreshold = _positiveThreshold(
+      _guardQueuePressureAlertThresholdEnv,
+      fallback: 25,
+    );
+    final failedThreshold = _positiveThreshold(
+      _guardFailureAlertThresholdEnv,
+      fallback: 1,
+    );
+    final lastCommandLabel = _telegramAdminLastCommandSummary == null
+        ? 'none'
+        : '$_telegramAdminLastCommandSummary @ ${_telegramAdminLastCommandAtUtc?.toIso8601String() ?? 'n/a'}';
+    final lastCriticalPushLabel = _telegramAdminLastCriticalAlertAtUtc == null
+        ? 'none'
+        : '${_telegramAdminLastCriticalAlertSummary ?? 'sent'} @ ${_telegramAdminLastCriticalAlertAtUtc!.toIso8601String()}';
+    final criticalAckLabel = _telegramAdminCriticalAckAtUtc == null
+        ? 'OFF'
+        : 'ACKED @ ${_telegramAdminCriticalAckAtUtc!.toIso8601String()}';
+    final criticalSnoozeLabel = _telegramAdminCriticalSnoozedUntilUtc == null
+        ? 'OFF'
+        : 'UNTIL ${_telegramAdminCriticalSnoozedUntilUtc!.toIso8601String()}';
+    final offsetLabel = _telegramAdminOffsetBootstrapped
+        ? (_telegramAdminOffsetBootstrappedAtUtc?.toIso8601String() ?? 'yes')
+        : 'pending';
+    final allowList = _telegramAdminAllowedUserIds;
+    final aclSource = _telegramAdminAllowedUserIdsOverride == null
+        ? 'env'
+        : (_telegramAdminAllowedUserIdsOverride!.isEmpty
+              ? 'override-open'
+              : 'override');
+    final allowListLabel = allowList.isEmpty
+        ? 'chat scoped (no explicit user ACL)'
+        : 'locked (${allowList.length} user id${allowList.length == 1 ? '' : 's'})';
+    final executionSource = _telegramAdminExecutionEnabledOverride == null
+        ? 'env'
+        : 'override';
+    final pollSource = _telegramAdminPollIntervalSecondsOverride == null
+        ? 'env'
+        : 'override';
+    final reminderSource = _telegramAdminCriticalReminderSecondsOverride == null
+        ? 'env'
+        : 'override';
+    final aiAssistSource = _telegramAiAssistantEnabledOverride == null
+        ? 'env'
+        : 'override';
+    final aiApprovalSource = _telegramAiApprovalRequiredOverride == null
+        ? 'env'
+        : 'override';
+    final demoPlayLabel = _telegramDemoScriptRunning
+        ? 'running $_telegramDemoScriptStep/$_telegramDemoScriptTotal @ $_telegramDemoScriptScopeLabel'
+        : 'idle';
+    final lastAiLabel = _telegramAiLastHandledAtUtc == null
+        ? 'none'
+        : '${_telegramAiLastHandledSummary ?? 'handled'} @ ${_telegramAiLastHandledAtUtc!.toIso8601String()}';
+    final critical = _telegramAdminCriticalAlerts();
+    final criticalCount = critical.length;
+    final criticalSummary = criticalCount <= 0
+        ? 'none'
+        : critical.take(2).join(' | ');
+    return '🧾 <b>ONYX STATUS (FULL)</b>\n\n'
+        '<b>CORE</b>\n'
+        '• <b>Incidents:</b> active=$activeIncidents | pending replies=$pendingActions\n'
+        '• <b>Guards:</b> online=$guardsOnline | queue=$_guardSyncQueueDepth/$queueThreshold | failed_ops=$_guardOpsFailedEvents/$failedThreshold\n'
+        '• <b>Push:</b> ${_telegramHtmlEscape(_clientAppPushSyncStatusLabel.toUpperCase())} | queue=${_clientAppPushQueue.length}\n'
+        '• <b>Telemetry:</b> ${_telegramHtmlEscape(_guardTelemetryReadiness.name)} | gate=${_guardTelemetryLiveReadyGateViolated ? 'VIOLATION' : 'OK'}\n'
+        '\n---\n\n'
+        '<b>BRIDGE</b>\n'
+        '• <b>Telegram:</b> ${_telegramHtmlEscape(_telegramBridgeHealthLabel.toUpperCase())} | fallback=${_telegramBridgeFallbackToInApp ? 'ON' : 'OFF'}\n'
+        '\n---\n\n'
+        '<b>AI</b>\n'
+        '• <b>Inbound:</b> ${_telegramAiAssistantEnabled ? 'ON' : 'OFF'} (${_telegramHtmlEscape(aiAssistSource)})\n'
+        '• <b>Approval:</b> ${_telegramAiApprovalRequired ? 'ON' : 'OFF'} (${_telegramHtmlEscape(aiApprovalSource)}) | drafts=${_telegramAiPendingDrafts.length}\n'
+        '• <b>Last AI:</b> ${_telegramHtmlEscape(lastAiLabel)}\n'
+        '\n---\n\n'
+        '<b>ADMIN</b>\n'
+        '• <b>ACL:</b> ${_telegramHtmlEscape(allowListLabel)} (${_telegramHtmlEscape(aclSource)})\n'
+        '• <b>Target:</b> ${_telegramHtmlEscape(_telegramAdminTargetClientId)}/${_telegramHtmlEscape(_telegramAdminTargetSiteId)}\n'
+        '• <b>Execution:</b> ${_telegramAdminExecutionEnabled ? 'ON' : 'OFF'} (${_telegramHtmlEscape(executionSource)})\n'
+        '• <b>Poll:</b> ${_normalizedTelegramAdminPollIntervalSeconds}s(${_telegramHtmlEscape(pollSource)}) | Reminder: ${_normalizedTelegramAdminCriticalReminderSeconds}s(${_telegramHtmlEscape(reminderSource)})\n'
+        '• <b>Bootstrap:</b> ${_telegramHtmlEscape(offsetLabel)}\n'
+        '\n---\n\n'
+        '<b>CRITICAL</b>\n'
+        '• <b>Active alerts:</b> $criticalCount\n'
+        '• <b>Summary:</b> ${_telegramHtmlEscape(criticalSummary)}\n'
+        '• <b>Snooze:</b> ${_telegramHtmlEscape(criticalSnoozeLabel)}\n'
+        '• <b>Ack:</b> ${_telegramHtmlEscape(criticalAckLabel)}\n'
+        '• <b>Push:</b> ${_telegramAdminCriticalPushEnabled ? 'ON' : 'OFF'} | last=${_telegramHtmlEscape(lastCriticalPushLabel)}\n'
+        '\n---\n\n'
+        '<b>AUDIT</b>\n'
+        '• <b>Compliance issues:</b> $complianceIssues\n'
+        '• <b>Demo play:</b> ${_telegramHtmlEscape(demoPlayLabel)}\n'
+        '• <b>Last command:</b> ${_telegramHtmlEscape(lastCommandLabel)}\n'
+        'UTC: ${_telegramUtcStamp()}';
+  }
+
+  String _telegramAdminOpsSnapshot() {
+    final events = store.allEvents();
+    final activeIncidents = _activeIncidentCount(events);
+    final pendingActions = _pendingAiActionCount(events);
+    final guardsOnline = _guardsOnlineCount(events);
+    final criticalCount = _telegramAdminCriticalAlerts().length;
+    final bridgeLabel = _telegramBridgeHealthLabel.toUpperCase();
+    final queueThreshold = _positiveThreshold(
+      _guardQueuePressureAlertThresholdEnv,
+      fallback: 25,
+    );
+    final actionHint = _telegramAdminPrimaryActionHint(
+      criticalCount: criticalCount,
+      pendingActions: pendingActions,
+      queueThreshold: queueThreshold,
+    );
+    final posture = criticalCount > 0
+        ? 'RED'
+        : (pendingActions > 0 ? 'AMBER' : 'GREEN');
+    final postureEmoji = switch (posture) {
+      'RED' => '🔴',
+      'AMBER' => '🟠',
+      _ => '🟢',
+    };
+    return '⚙️ <b>ONYX OPS</b>\n\n'
+        '<b>Posture:</b> $postureEmoji <b>${_telegramHtmlEscape(posture)}</b>\n'
+        '<b>Critical:</b> $criticalCount\n\n'
+        '---\n\n'
+        '<b>Operations Status</b>\n'
+        '• <b>Incidents:</b> $activeIncidents\n'
+        '• <b>Pending AI:</b> $pendingActions\n'
+        '• <b>Guards Online:</b> $guardsOnline\n'
+        '• <b>Guard Queue:</b> $_guardSyncQueueDepth/$queueThreshold\n'
+        '• <b>Telegram Bridge:</b> ${_telegramHtmlEscape(bridgeLabel)}\n'
+        '• <b>Push:</b> ${_telegramHtmlEscape(_clientAppPushSyncStatusLabel.toUpperCase())}\n'
+        '• <b>Telemetry:</b> ${_telegramHtmlEscape(_guardTelemetryReadiness.name)}\n'
+        '\n---\n\n'
+        '<b>Recommended Action</b>\n'
+        '${_telegramHtmlEscape(actionHint)}\n\n'
+        'UTC: ${_telegramUtcStamp()}';
+  }
+
+  Future<String> _telegramAdminSyncGuardsCommand() async {
+    if (_guardOpsSyncInFlight) {
+      return '👮 <b>ONYX SYNCGUARDS</b>\n\n'
+          '<b>Status:</b> sync already in progress.\n'
+          'UTC: ${_telegramUtcStamp()}';
+    }
+    await _syncGuardOpsNow(background: true);
+    final queueThreshold = _positiveThreshold(
+      _guardQueuePressureAlertThresholdEnv,
+      fallback: 25,
+    );
+    final result = (_guardOpsLastSyncLabel ?? 'completed').trim();
+    final failureFlag = _guardOpsFailedEvents > 0 || _guardOpsFailedMedia > 0;
+    return '👮 <b>ONYX SYNCGUARDS</b>\n\n'
+        '<b>Result:</b> ${_telegramHtmlEscape(result)}\n\n'
+        '---\n\n'
+        '<b>Queue</b>\n'
+        '• <b>Depth:</b> $_guardSyncQueueDepth/$queueThreshold\n'
+        '• <b>Pending:</b> events=$_guardOpsPendingEvents | media=$_guardOpsPendingMedia\n'
+        '• <b>Failed:</b> events=$_guardOpsFailedEvents | media=$_guardOpsFailedMedia\n'
+        '\n---\n\n'
+        '<b>Telemetry</b>\n'
+        '• <b>State:</b> ${_telegramHtmlEscape(_guardTelemetryReadiness.name)}\n'
+        '• <b>Gate:</b> ${_guardTelemetryLiveReadyGateViolated ? 'VIOLATION' : 'OK'}\n'
+        '${failureFlag ? '• <b>Action:</b> verify adapter health, then retry <code>/syncguards</code>\n' : ''}'
+        '\nUTC: ${_telegramUtcStamp()}';
+  }
+
+  Future<String> _telegramAdminPollOpsCommand() async {
+    await _pollOpsIntegrationOnce();
+    return '📡 <b>ONYX POLLOPS</b>\n\n'
+        '<b>Poll Result</b>\n'
+        '${_telegramHtmlEscape((_lastIntakeStatus ?? 'no status').trim())}\n\n'
+        '---\n\n'
+        '<b>Integrations</b>\n'
+        '• <b>Radio:</b> ${_telegramHtmlEscape(_opsHealthSummary(_radioOpsHealth))}\n'
+        '• <b>CCTV:</b> ${_telegramHtmlEscape(_opsHealthSummary(_cctvOpsHealth))}\n'
+        '• <b>Wearable:</b> ${_telegramHtmlEscape(_opsHealthSummary(_wearableOpsHealth))}\n'
+        '• <b>News:</b> ${_telegramHtmlEscape(_opsHealthSummary(_newsOpsHealth))}\n'
+        '\n---\n\n'
+        '<b>Next</b>\n'
+        '• If any source is failing, run <code>/bridges</code> for deeper diagnostics.\n'
+        '\nUTC: ${_telegramUtcStamp()}';
+  }
+
+  String _telegramAdminHistorySnapshot() {
+    final history = _telegramAdminCommandAudit;
+    if (history.isEmpty) {
+      return 'ONYX ADMIN HISTORY\nNo admin command executions recorded yet.\nUTC: ${DateTime.now().toUtc().toIso8601String()}';
+    }
+    final rows = history.take(10).join('\n- ');
+    return 'ONYX ADMIN HISTORY\n- $rows\nUTC: ${DateTime.now().toUtc().toIso8601String()}';
+  }
+
+  Future<String> _telegramAdminPushCriticalCommand() async {
+    await _maybeSendTelegramAdminCriticalDigest(
+      source: 'manual-command',
+      force: true,
+    );
+    final critical = _telegramAdminCriticalAlerts();
+    final summary = critical.isEmpty
+        ? 'No active critical alerts.'
+        : '${critical.length} active critical alert(s).';
+    return 'ONYX PUSHCRITICAL\n$summary\nForced digest dispatch requested.\nUTC: ${DateTime.now().toUtc().toIso8601String()}';
+  }
+
+  String _telegramAdminConfigSnapshot() {
+    final executionSource = _telegramAdminExecutionEnabledOverride == null
+        ? 'env'
+        : 'override';
+    final pollSource = _telegramAdminPollIntervalSecondsOverride == null
+        ? 'env'
+        : 'override';
+    final reminderSource = _telegramAdminCriticalReminderSecondsOverride == null
+        ? 'env'
+        : 'override';
+    final aiAssistSource = _telegramAiAssistantEnabledOverride == null
+        ? 'env'
+        : 'override';
+    final aiApprovalSource = _telegramAiApprovalRequiredOverride == null
+        ? 'env'
+        : 'override';
+    final allowList = _telegramAdminAllowedUserIds;
+    final aclSource = _telegramAdminAllowedUserIdsOverride == null
+        ? 'env'
+        : (_telegramAdminAllowedUserIdsOverride!.isEmpty
+              ? 'override-open'
+              : 'override');
+    final allowListLabel = allowList.isEmpty ? 'none' : allowList.join(',');
+    final targetSource =
+        ((_telegramAdminTargetClientIdOverride ?? '').trim().isNotEmpty &&
+            (_telegramAdminTargetSiteIdOverride ?? '').trim().isNotEmpty)
+        ? 'override'
+        : 'default';
+    return 'ONYX ADMIN CONFIG\n'
+        'execution_mode=${_telegramAdminExecutionEnabled ? 'on' : 'off'} ($executionSource)\n'
+        'poll_seconds=$_normalizedTelegramAdminPollIntervalSeconds ($pollSource)\n'
+        'critical_reminder_seconds=$_normalizedTelegramAdminCriticalReminderSeconds ($reminderSource)\n'
+        'critical_push=${_telegramAdminCriticalPushEnabled ? 'on' : 'off'}\n'
+        'ai_assist=${_telegramAiAssistantEnabled ? 'on' : 'off'} ($aiAssistSource)\n'
+        'ai_client_approval_required=${_telegramAiApprovalRequired ? 'on' : 'off'} ($aiApprovalSource)\n'
+        'ai_pending_drafts=${_telegramAiPendingDrafts.length}\n'
+        'target_client_id=$_telegramAdminTargetClientId\n'
+        'target_site_id=$_telegramAdminTargetSiteId\n'
+        'target_source=$targetSource\n'
+        'allowed_user_ids_source=$aclSource\n'
+        'snoozed_until=${_telegramAdminCriticalSnoozedUntilUtc?.toIso8601String() ?? 'none'}\n'
+        'acked_at=${_telegramAdminCriticalAckAtUtc?.toIso8601String() ?? 'none'}\n'
+        'allowed_user_ids=$allowListLabel\n'
+        'UTC: ${DateTime.now().toUtc().toIso8601String()}';
+  }
+
+  String _telegramAdminSetPollCommand(String arguments) {
+    final raw = arguments.trim().toLowerCase();
+    if (raw.isEmpty) {
+      return 'ONYX SETPOLL\nUsage: /setpoll <seconds>\nRange: 3..60, or use /setpoll default';
+    }
+    if (raw == 'default' || raw == 'env') {
+      _telegramAdminPollIntervalSecondsOverride = null;
+      return 'ONYX SETPOLL\nReset to env value: ${_normalizedTelegramAdminPollIntervalSeconds}s';
+    }
+    final parsed = int.tryParse(raw);
+    if (parsed == null || parsed < 3 || parsed > 60) {
+      return 'ONYX SETPOLL\nInvalid value "$arguments". Range is 3..60 seconds.';
+    }
+    _telegramAdminPollIntervalSecondsOverride = parsed;
+    return 'ONYX SETPOLL\nAdmin poll interval set to ${_normalizedTelegramAdminPollIntervalSeconds}s (override).';
+  }
+
+  String _telegramAdminSetReminderCommand(String arguments) {
+    final raw = arguments.trim().toLowerCase();
+    if (raw.isEmpty) {
+      return 'ONYX SETREMINDER\nUsage: /setreminder <seconds>\nRange: 60..3600, or use /setreminder default';
+    }
+    if (raw == 'default' || raw == 'env') {
+      _telegramAdminCriticalReminderSecondsOverride = null;
+      return 'ONYX SETREMINDER\nReset to env value: ${_normalizedTelegramAdminCriticalReminderSeconds}s';
+    }
+    final parsed = int.tryParse(raw);
+    if (parsed == null || parsed < 60 || parsed > 3600) {
+      return 'ONYX SETREMINDER\nInvalid value "$arguments". Range is 60..3600 seconds.';
+    }
+    _telegramAdminCriticalReminderSecondsOverride = parsed;
+    return 'ONYX SETREMINDER\nCritical reminder interval set to ${_normalizedTelegramAdminCriticalReminderSeconds}s (override).';
+  }
+
+  String _telegramAdminAiAssistCommand(String arguments) {
+    final raw = arguments.trim().toLowerCase();
+    if (raw.isEmpty || raw == 'status') {
+      final source = _telegramAiAssistantEnabledOverride == null
+          ? 'env'
+          : 'override';
+      final provider = _telegramAiAssistant.isConfigured
+          ? 'openai'
+          : 'fallback';
+      return 'ONYX AI ASSIST\n'
+          'enabled=${_telegramAiAssistantEnabled ? 'on' : 'off'} ($source)\n'
+          'provider=$provider\n'
+          'model=${_telegramAiModelEnv.trim().isEmpty ? 'unset' : _telegramAiModelEnv.trim()}';
+    }
+    if (raw == 'default' || raw == 'env') {
+      _telegramAiAssistantEnabledOverride = null;
+      return 'ONYX AI ASSIST\nReset to env value: ${_telegramAiAssistantEnabled ? 'on' : 'off'}.';
+    }
+    if (raw == 'on') {
+      _telegramAiAssistantEnabledOverride = true;
+      return 'ONYX AI ASSIST\nInbound AI assistant enabled (override).';
+    }
+    if (raw == 'off') {
+      _telegramAiAssistantEnabledOverride = false;
+      return 'ONYX AI ASSIST\nInbound AI assistant disabled (override).';
+    }
+    return 'ONYX AI ASSIST\nUsage: /aiassist [on|off|status|default]';
+  }
+
+  String _telegramAdminAiApprovalCommand(String arguments) {
+    final raw = arguments.trim().toLowerCase();
+    if (raw.isEmpty || raw == 'status') {
+      final source = _telegramAiApprovalRequiredOverride == null
+          ? 'env'
+          : 'override';
+      return 'ONYX AI APPROVAL\n'
+          'required=${_telegramAiApprovalRequired ? 'on' : 'off'} ($source)\n'
+          'pending_drafts=${_telegramAiPendingDrafts.length}';
+    }
+    if (raw == 'default' || raw == 'env') {
+      _telegramAiApprovalRequiredOverride = null;
+      return 'ONYX AI APPROVAL\nReset to env value: ${_telegramAiApprovalRequired ? 'on' : 'off'}.';
+    }
+    if (raw == 'on') {
+      _telegramAiApprovalRequiredOverride = true;
+      return 'ONYX AI APPROVAL\nManual approval enabled for client AI replies.';
+    }
+    if (raw == 'off') {
+      _telegramAiApprovalRequiredOverride = false;
+      return 'ONYX AI APPROVAL\nManual approval disabled (client AI auto-send enabled).';
+    }
+    return 'ONYX AI APPROVAL\nUsage: /aiapproval [on|off|status|default]';
+  }
+
+  String _telegramAdminAiDraftsCommand() {
+    if (_telegramAiPendingDrafts.isEmpty) {
+      return 'ONYX AI DRAFTS\nNo pending drafts.';
+    }
+    final rows = _telegramAiPendingDrafts
+        .take(10)
+        .map(
+          (draft) =>
+              '- ${draft.inboundUpdateId} • ${draft.clientId}/${draft.siteId} • ${draft.chatId}${draft.messageThreadId == null ? '' : '#${draft.messageThreadId}'} • ${draft.createdAtUtc.toIso8601String()}',
+        )
+        .join('\n');
+    return 'ONYX AI DRAFTS (${_telegramAiPendingDrafts.length})\n$rows';
+  }
+
+  Future<String> _telegramAdminAiConversationCommand(String arguments) async {
+    final raw = arguments.trim();
+    final tokens = raw.isEmpty
+        ? const <String>[]
+        : raw
+              .split(RegExp(r'\s+'))
+              .where((token) => token.isNotEmpty)
+              .toList(growable: false);
+    if (tokens.length == 1 || tokens.length > 2) {
+      return 'ONYX AI CONV\nUsage: /aiconv [client_id site_id]';
+    }
+    final clientId = tokens.isEmpty ? _telegramAdminTargetClientId : tokens[0];
+    final siteId = tokens.isEmpty ? _telegramAdminTargetSiteId : tokens[1];
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    if (normalizedClientId.isEmpty || normalizedSiteId.isEmpty) {
+      return 'ONYX AI CONV\nInvalid scope. Use /settarget <client_id site_id> first.';
+    }
+    final offScope =
+        normalizedClientId != _selectedClient ||
+        normalizedSiteId != _selectedSite;
+    if (offScope && !widget.supabaseReady) {
+      return 'ONYX AI CONV\nSupabase not available for off-scope lookup.';
+    }
+    final messages = await _readConversationMessagesForScope(
+      clientId: normalizedClientId,
+      siteId: normalizedSiteId,
+      limit: 30,
+    );
+    if (messages.isEmpty) {
+      return 'ONYX AI CONV\nscope=$normalizedClientId/$normalizedSiteId\nNo conversation rows found.';
+    }
+    final rows = messages
+        .take(10)
+        .map(
+          (entry) =>
+              '- ${entry.occurredAt.toIso8601String()} • ${entry.messageSource}/${entry.messageProvider} • ${entry.author}: ${_singleLine(entry.body, maxLength: 120)}',
+        )
+        .join('\n');
+    return 'ONYX AI CONV\n'
+        'scope=$normalizedClientId/$normalizedSiteId\n'
+        'rows=${messages.length}\n'
+        '$rows';
+  }
+
+  Future<List<ClientAppMessage>> _readConversationMessagesForScope({
+    required String clientId,
+    required String siteId,
+    int limit = 30,
+  }) async {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    final safeLimit = limit.clamp(1, 100);
+    if (normalizedClientId.isEmpty || normalizedSiteId.isEmpty) {
+      return const <ClientAppMessage>[];
+    }
+    if (normalizedClientId == _selectedClient &&
+        normalizedSiteId == _selectedSite) {
+      final messages = List<ClientAppMessage>.from(_clientAppMessages)
+        ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+      return messages
+          .where((entry) => entry.body.trim().isNotEmpty)
+          .take(safeLimit)
+          .toList(growable: false);
+    }
+    if (!widget.supabaseReady) {
+      return const <ClientAppMessage>[];
+    }
+    Future<List<ClientAppMessage>> parseQueryResult(
+      Future<dynamic> queryFuture,
+    ) async {
+      final rowsRaw = await queryFuture;
+      final rows = List<Map<String, dynamic>>.from(rowsRaw);
+      return rows
+          .map(
+            (row) => ClientAppMessage(
+              author: (row['author'] ?? '').toString().trim(),
+              body: (row['body'] ?? '').toString().trim(),
+              roomKey: (row['room_key'] ?? '').toString().trim(),
+              viewerRole: (row['viewer_role'] ?? '').toString().trim(),
+              incidentStatusLabel: (row['incident_status_label'] ?? '')
+                  .toString()
+                  .trim(),
+              messageSource: (row['message_source'] ?? '').toString().trim(),
+              messageProvider: (row['message_provider'] ?? '')
+                  .toString()
+                  .trim(),
+              occurredAt:
+                  DateTime.tryParse(
+                    (row['occurred_at'] ?? '').toString(),
+                  )?.toUtc() ??
+                  DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+            ),
+          )
+          .where((entry) => entry.body.isNotEmpty)
+          .toList(growable: false);
+    }
+
+    try {
+      return await parseQueryResult(
+        Supabase.instance.client
+            .from('client_conversation_messages')
+            .select(
+              'author, body, room_key, viewer_role, incident_status_label, message_source, message_provider, occurred_at',
+            )
+            .eq('client_id', normalizedClientId)
+            .eq('site_id', normalizedSiteId)
+            .order('occurred_at', ascending: false)
+            .limit(safeLimit),
+      );
+    } catch (_) {
+      return parseQueryResult(
+        Supabase.instance.client
+            .from('client_conversation_messages')
+            .select(
+              'author, body, room_key, viewer_role, incident_status_label, occurred_at',
+            )
+            .eq('client_id', normalizedClientId)
+            .eq('site_id', normalizedSiteId)
+            .order('occurred_at', ascending: false)
+            .limit(safeLimit),
+      );
+    }
+  }
+
+  String _telegramConversationContextSnippet(
+    List<ClientAppMessage> messages, {
+    int maxRows = 6,
+  }) {
+    if (messages.isEmpty) {
+      return 'none';
+    }
+    return messages
+        .take(maxRows)
+        .map(
+          (entry) =>
+              '${entry.occurredAt.toIso8601String()} • ${entry.messageSource.isEmpty ? 'unknown' : entry.messageSource}/${entry.messageProvider.isEmpty ? 'unknown' : entry.messageProvider} • ${entry.author}: ${_singleLine(entry.body, maxLength: 110)}',
+        )
+        .join('\n');
+  }
+
+  String _telegramAdminConversationalFallback(String messageText) {
+    final normalized = messageText.trim().toLowerCase();
+    if (normalized.isEmpty) {
+      return 'ONYX ADMIN\nSend a request like "status", "critical risks", or "what should I do next?".';
+    }
+    if (normalized.contains('critical') ||
+        normalized.contains('risk') ||
+        normalized.contains('alert')) {
+      return _telegramAdminCriticalSnapshot();
+    }
+    if (normalized.contains('next') ||
+        normalized.contains('what now') ||
+        normalized.contains('action') ||
+        normalized.contains('5 min')) {
+      return _telegramAdminNextActionsSnapshot();
+    }
+    if (normalized.contains('status') ||
+        normalized.contains('posture') ||
+        normalized.contains('health')) {
+      return _telegramAdminStatusExecutiveSnapshot();
+    }
+    if (normalized.contains('incident')) {
+      return _telegramAdminIncidentsSnapshot();
+    }
+    if (normalized.contains('bridge')) {
+      return _telegramAdminBridgeSnapshot();
+    }
+    if (normalized.contains('guard')) {
+      return _telegramAdminGuardSnapshot();
+    }
+    if (normalized.contains('summary') || normalized.contains('brief')) {
+      return _telegramAdminBriefSnapshot();
+    }
+    return 'ONYX ADMIN\n'
+        'I can respond directly without slash commands.\n'
+        'Try: "brief", "status full", "critical risks", or "what should I do next?".';
+  }
+
+  Future<String> _telegramAdminAskCommand(String arguments) async {
+    final question = arguments.trim();
+    if (question.isEmpty) {
+      return 'ONYX ASK\nUsage: /ask <question>';
+    }
+    if (!_telegramAiAssistantEnabled) {
+      return 'ONYX ASK\nAI assistant is disabled.\nUse /aiassist on to enable.';
+    }
+    if (!_telegramAiAssistant.isConfigured) {
+      return _telegramAdminConversationalFallback(question);
+    }
+    final critical = _telegramAdminCriticalAlerts();
+    final criticalSummary = critical.isEmpty
+        ? 'none'
+        : critical.take(3).join(' | ');
+    final contextMessages = await _readConversationMessagesForScope(
+      clientId: _telegramAdminTargetClientId,
+      siteId: _telegramAdminTargetSiteId,
+      limit: 12,
+    );
+    final conversationContext = _telegramConversationContextSnippet(
+      contextMessages,
+      maxRows: 5,
+    );
+    final groundedPrompt =
+        'Admin question: $question\n\n'
+        'Operational context snapshot:\n'
+        '${_telegramAdminOpsSnapshot()}\n'
+        'Target scope: $_telegramAdminTargetClientId/$_telegramAdminTargetSiteId\n'
+        'Critical alerts: $criticalSummary\n'
+        'Recent target conversation context:\n'
+        '$conversationContext';
+    final aiDraft = await _telegramAiAssistant.draftReply(
+      audience: TelegramAiAudience.admin,
+      messageText: groundedPrompt,
+      clientId: _telegramAdminTargetClientId,
+      siteId: _telegramAdminTargetSiteId,
+    );
+    _telegramAiLastHandledAtUtc = DateTime.now().toUtc();
+    _telegramAiLastHandledSummary = 'admin/ask • ${aiDraft.providerLabel}';
+    await _appendTelegramAiLedger(
+      clientId: _telegramAdminTargetClientId,
+      siteId: _telegramAdminTargetSiteId,
+      lane: 'admin',
+      action: 'ask_reply',
+      inboundText: question,
+      outboundText: aiDraft.text,
+      providerLabel: aiDraft.providerLabel,
+      update: const TelegramBridgeInboundMessage(
+        updateId: 0,
+        chatId: 'admin-command',
+        chatType: 'private',
+        text: '/ask',
+      ),
+    );
+    return 'ONYX ASK\n${aiDraft.text}';
+  }
+
+  Future<String> _telegramAdminAiApproveCommand(String arguments) async {
+    final raw = arguments.trim();
+    final updateId = int.tryParse(raw);
+    if (updateId == null || updateId <= 0) {
+      return 'ONYX AI APPROVE\nUsage: /aiapprove <update_id>';
+    }
+    final pending = _telegramAiPendingDrafts
+        .cast<_TelegramAiPendingDraft?>()
+        .firstWhere(
+          (entry) => entry?.inboundUpdateId == updateId,
+          orElse: () => null,
+        );
+    if (pending == null) {
+      return 'ONYX AI APPROVE\nNo pending draft found for update_id=$updateId.';
+    }
+    final sent = await _sendTelegramMessageWithChunks(
+      messageKeyPrefix: 'tg-ai-approved-$updateId',
+      chatId: pending.chatId,
+      messageThreadId: pending.messageThreadId,
+      responseText: pending.draftText,
+      failureContext: 'AI approved send',
+    );
+    _telegramAiPendingDrafts = _telegramAiPendingDrafts
+        .where((entry) => entry.inboundUpdateId != updateId)
+        .toList(growable: false);
+    _telegramAiLastHandledAtUtc = DateTime.now().toUtc();
+    _telegramAiLastHandledSummary =
+        '${pending.clientId}/${pending.siteId} • ${sent ? 'approved' : 'approval-send-failed'}';
+    await _appendTelegramConversationMessage(
+      clientId: pending.clientId,
+      siteId: pending.siteId,
+      author: 'ONYX AI',
+      body: pending.draftText,
+      occurredAtUtc: DateTime.now().toUtc(),
+      roomKey: sent ? 'Residents' : 'Security Desk',
+      viewerRole: sent
+          ? ClientAppViewerRole.client.name
+          : ClientAppViewerRole.control.name,
+      incidentStatusLabel: sent
+          ? 'Approved Reply Sent'
+          : 'Approval Send Failed',
+      messageSource: 'telegram',
+      messageProvider: pending.providerLabel,
+    );
+    await _appendTelegramAiLedger(
+      clientId: pending.clientId,
+      siteId: pending.siteId,
+      lane: pending.audience,
+      action: sent ? 'approved_sent' : 'approved_send_failed',
+      inboundText: pending.sourceText,
+      outboundText: pending.draftText,
+      providerLabel: pending.providerLabel,
+      update: TelegramBridgeInboundMessage(
+        updateId: pending.inboundUpdateId,
+        chatId: pending.chatId,
+        chatType: 'unknown',
+        messageThreadId: pending.messageThreadId,
+        text: pending.sourceText,
+      ),
+    );
+    unawaited(_persistTelegramAdminRuntimeState());
+    return 'ONYX AI APPROVE\n'
+        'update_id=$updateId\n'
+        'scope=${pending.clientId}/${pending.siteId}\n'
+        'result=${sent ? 'sent' : 'send_failed'}';
+  }
+
+  String _telegramAdminAiRejectCommand(String arguments) {
+    final raw = arguments.trim();
+    final updateId = int.tryParse(raw);
+    if (updateId == null || updateId <= 0) {
+      return 'ONYX AI REJECT\nUsage: /aireject <update_id>';
+    }
+    final before = _telegramAiPendingDrafts.length;
+    _telegramAiPendingDrafts = _telegramAiPendingDrafts
+        .where((entry) => entry.inboundUpdateId != updateId)
+        .toList(growable: false);
+    if (_telegramAiPendingDrafts.length == before) {
+      return 'ONYX AI REJECT\nNo pending draft found for update_id=$updateId.';
+    }
+    unawaited(_persistTelegramAdminRuntimeState());
+    return 'ONYX AI REJECT\nRejected pending draft update_id=$updateId.';
+  }
+
+  String _telegramAdminTargetSnapshot() {
+    final source =
+        ((_telegramAdminTargetClientIdOverride ?? '').trim().isNotEmpty &&
+            (_telegramAdminTargetSiteIdOverride ?? '').trim().isNotEmpty)
+        ? 'override'
+        : 'default';
+    return 'ONYX TARGET\n'
+        'client_id=$_telegramAdminTargetClientId\n'
+        'site_id=$_telegramAdminTargetSiteId\n'
+        'source=$source';
+  }
+
+  String _telegramAdminSetTargetCommand(String arguments) {
+    final raw = arguments.trim();
+    if (raw.isEmpty) {
+      return 'ONYX SETTARGET\nUsage: /settarget <client_id> <site_id>\nOr: /settarget default';
+    }
+    final normalized = raw.toLowerCase();
+    if (normalized == 'default' || normalized == 'env') {
+      _telegramAdminTargetClientIdOverride = null;
+      _telegramAdminTargetSiteIdOverride = null;
+      return 'ONYX SETTARGET\nReset to default target: $_telegramAdminTargetClientId/$_telegramAdminTargetSiteId';
+    }
+    final parts = raw
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (parts.length != 2) {
+      return 'ONYX SETTARGET\nUsage: /settarget <client_id> <site_id>\nOr: /settarget default';
+    }
+    _telegramAdminTargetClientIdOverride = parts[0];
+    _telegramAdminTargetSiteIdOverride = parts[1];
+    return 'ONYX SETTARGET\nDefault target set to $_telegramAdminTargetClientId/$_telegramAdminTargetSiteId';
+  }
+
+  String _telegramAdminAclCommand(
+    String arguments,
+    TelegramBridgeInboundMessage update,
+  ) {
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    final action = tokens.isEmpty ? 'status' : tokens.first.toLowerCase();
+    if (action == 'status' || action == 'list') {
+      final allowList = _telegramAdminAllowedUserIds.toList(growable: false)
+        ..sort();
+      final source = _telegramAdminAllowedUserIdsOverride == null
+          ? 'env'
+          : (_telegramAdminAllowedUserIdsOverride!.isEmpty
+                ? 'override-open'
+                : 'override');
+      return 'ONYX ACL\n'
+          'source=$source\n'
+          'mode=${allowList.isEmpty ? 'chat-scoped' : 'locked'}\n'
+          'allowed_user_ids=${allowList.isEmpty ? 'none' : allowList.join(',')}\n'
+          'hint=/acl me | /acl add <id> | /acl remove <id> | /acl open | /acl default';
+    }
+    if (action == 'default' || action == 'env') {
+      _telegramAdminAllowedUserIdsOverride = null;
+      unawaited(_persistTelegramAdminRuntimeState());
+      return 'ONYX ACL\nReset to env allow list.';
+    }
+    if (action == 'open') {
+      _telegramAdminAllowedUserIdsOverride = const <int>[];
+      unawaited(_persistTelegramAdminRuntimeState());
+      return 'ONYX ACL\nSet to open chat-scoped mode (no explicit user IDs).';
+    }
+    if (action == 'me') {
+      final senderId = update.fromUserId;
+      if (senderId == null || senderId <= 0) {
+        return 'ONYX ACL\nCannot resolve sender user ID. Use /whoami and /acl add <id>.';
+      }
+      _telegramAdminAllowedUserIdsOverride = <int>[senderId];
+      unawaited(_persistTelegramAdminRuntimeState());
+      return 'ONYX ACL\nLocked to your user ID: $senderId';
+    }
+    if (action == 'add' || action == 'remove') {
+      if (tokens.length != 2) {
+        return 'ONYX ACL\nUsage: /acl $action <user_id>';
+      }
+      final userId = int.tryParse(tokens[1]);
+      if (userId == null || userId <= 0) {
+        return 'ONYX ACL\nInvalid user_id "${tokens[1]}".';
+      }
+      final next = _telegramAdminAllowedUserIds.toSet();
+      if (action == 'add') {
+        next.add(userId);
+      } else {
+        next.remove(userId);
+      }
+      final sorted = next.toList(growable: false)..sort();
+      _telegramAdminAllowedUserIdsOverride = sorted;
+      unawaited(_persistTelegramAdminRuntimeState());
+      return 'ONYX ACL\n'
+          '${action == 'add' ? 'Added' : 'Removed'} $userId.\n'
+          'allowed_user_ids=${sorted.isEmpty ? 'none' : sorted.join(',')}';
+    }
+    return 'ONYX ACL\nUsage: /acl [status|list|me|add <id>|remove <id>|open|default]';
+  }
+
+  String _telegramAdminExecCommand(String arguments) {
+    final raw = arguments.trim().toLowerCase();
+    if (raw.isEmpty || raw == 'status') {
+      final source = _telegramAdminExecutionEnabledOverride == null
+          ? 'env'
+          : 'override';
+      return 'ONYX EXECUTION MODE\n'
+          'state=${_telegramAdminExecutionEnabled ? 'ON' : 'OFF'}\n'
+          'source=$source';
+    }
+    if (raw == 'default' || raw == 'env') {
+      _telegramAdminExecutionEnabledOverride = null;
+      return 'ONYX EXECUTION MODE\nReset to env state: ${_telegramAdminExecutionEnabled ? 'ON' : 'OFF'}.';
+    }
+    if (raw == 'on') {
+      _telegramAdminExecutionEnabledOverride = true;
+      return 'ONYX EXECUTION MODE\nExecution commands enabled (override).';
+    }
+    if (raw == 'off') {
+      _telegramAdminExecutionEnabledOverride = false;
+      return 'ONYX EXECUTION MODE\nExecution commands disabled (override).';
+    }
+    return 'ONYX EXECUTION MODE\nUsage: /exec <on|off|status|default>';
+  }
+
+  Future<String> _telegramAdminNotifyTestCommand(String arguments) async {
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    var index = 0;
+    var targetChannel = ClientAppAcknowledgementChannel.client;
+    if (tokens.isNotEmpty) {
+      final maybeChannel = tokens.first.toLowerCase();
+      if (maybeChannel == 'client' || maybeChannel == 'control') {
+        targetChannel = maybeChannel == 'control'
+            ? ClientAppAcknowledgementChannel.control
+            : ClientAppAcknowledgementChannel.client;
+        index = 1;
+      }
+    }
+    final targetTokens = tokens.sublist(index);
+    if (targetTokens.isNotEmpty && targetTokens.length != 2) {
+      return 'ONYX NOTIFYTEST\nUsage: /notifytest [client|control] [client_id site_id]';
+    }
+    final targetClientId = targetTokens.isEmpty
+        ? _telegramAdminTargetClientId
+        : targetTokens.first;
+    final targetSiteId = targetTokens.isEmpty
+        ? _telegramAdminTargetSiteId
+        : targetTokens[1];
+    if (targetClientId.trim().isEmpty || targetSiteId.trim().isEmpty) {
+      return 'ONYX NOTIFYTEST\nUsage: /notifytest [client|control] [client_id site_id]';
+    }
+    final resolvedClientId = targetClientId.trim();
+    final resolvedSiteId = targetSiteId.trim();
+    final nowUtc = DateTime.now().toUtc();
+    final messageKey = 'tg-admin-test-${nowUtc.microsecondsSinceEpoch}';
+    final queue = <ClientAppPushDeliveryItem>[
+      ClientAppPushDeliveryItem(
+        messageKey: messageKey,
+        title: 'ONYX Bridge Test',
+        body:
+            'Admin-triggered client notification path test from Telegram command lane.',
+        occurredAt: nowUtc,
+        clientId: resolvedClientId,
+        siteId: resolvedSiteId,
+        targetChannel: targetChannel,
+        deliveryProvider: _clientPushDeliveryProvider,
+        priority: true,
+        status: ClientPushDeliveryStatus.queued,
+      ),
+      ..._clientAppPushQueue,
+    ];
+    await _persistClientAppPushQueue(queue, forceTelegramResend: true);
+    final syncStatus = _clientAppPushSyncStatusLabel.toUpperCase();
+    final failureReason = (_clientAppPushSyncFailureReason ?? '').trim();
+    return 'ONYX NOTIFYTEST\n'
+        'queued_message_key=$messageKey\n'
+        'target_channel=${targetChannel.name}\n'
+        'target_context=$resolvedClientId/$resolvedSiteId\n'
+        'delivery_provider=${_clientPushDeliveryProvider.code}\n'
+        'queue_size=${_clientAppPushQueue.length}\n'
+        'sync_status=$syncStatus${failureReason.isEmpty ? '' : ' • $failureReason'}\n'
+        'UTC: ${nowUtc.toIso8601String()}';
+  }
+
+  Future<String> _telegramAdminBindChatCommand(
+    String arguments,
+    TelegramBridgeInboundMessage update,
+  ) async {
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (tokens.length < 2) {
+      return 'ONYX BINDCHAT\nUsage: /bindchat <client_id> <site_id> [label]';
+    }
+    final clientId = tokens[0].trim();
+    final siteId = tokens[1].trim();
+    if (clientId.isEmpty || siteId.isEmpty) {
+      return 'ONYX BINDCHAT\nUsage: /bindchat <client_id> <site_id> [label]';
+    }
+    _telegramAdminTargetClientIdOverride = clientId;
+    _telegramAdminTargetSiteIdOverride = siteId;
+    await _persistTelegramAdminRuntimeState();
+    final label = tokens.length > 2 ? tokens.sublist(2).join(' ') : '';
+    final linkArgs = label.trim().isEmpty
+        ? '$clientId $siteId'
+        : '$clientId $siteId $label';
+    final linkResult = await _telegramAdminLinkChatCommand(linkArgs, update);
+    return 'ONYX BINDCHAT\n'
+        'default_target=$clientId/$siteId\n'
+        '${linkResult.replaceFirst('ONYX LINKCHAT\n', '')}';
+  }
+
+  Future<String> _telegramAdminLinkChatCommand(
+    String arguments,
+    TelegramBridgeInboundMessage update,
+  ) async {
+    if (!widget.supabaseReady) {
+      return 'ONYX LINKCHAT\nSupabase is required to persist messaging endpoints.';
+    }
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    String clientId = _telegramAdminTargetClientId;
+    String siteId = _telegramAdminTargetSiteId;
+    String customLabel = '';
+    if (tokens.length >= 2) {
+      clientId = tokens[0].trim();
+      siteId = tokens[1].trim();
+      customLabel = tokens.length > 2 ? tokens.sublist(2).join(' ').trim() : '';
+    } else if (tokens.length == 1) {
+      customLabel = tokens.first.trim();
+    }
+    if (clientId.isEmpty || siteId.isEmpty) {
+      return 'ONYX LINKCHAT\nUsage: /linkchat [client_id site_id] [label]';
+    }
+    final chatTitle = update.chatTitle?.trim() ?? '';
+    final endpointLabel = customLabel.isNotEmpty
+        ? customLabel
+        : (chatTitle.isNotEmpty ? chatTitle : 'Telegram Bridge');
+    final contactName = update.fromUsername?.trim().isNotEmpty == true
+        ? '@${update.fromUsername!.trim()}'
+        : (update.fromUserId == null
+              ? 'Telegram Contact'
+              : 'Telegram User ${update.fromUserId}');
+    try {
+      final repository = SupabaseClientMessagingBridgeRepository(
+        Supabase.instance.client,
+      );
+      await repository.upsertOnboardingSetup(
+        ClientMessagingOnboardingSetup(
+          clientId: clientId,
+          siteId: siteId,
+          contactName: contactName,
+          contactRole: 'sovereign_contact',
+          contactConsentConfirmed: false,
+          provider: 'telegram',
+          endpointLabel: endpointLabel,
+          telegramChatId: update.chatId,
+          telegramThreadId: update.messageThreadId?.toString(),
+        ),
+      );
+      final targets = await repository.readActiveTelegramTargets(
+        clientId: clientId,
+        siteId: siteId,
+      );
+      return 'ONYX LINKCHAT\n'
+          'bound_chat=${update.chatId}${update.messageThreadId == null ? '' : '#${update.messageThreadId}'}\n'
+          'scope=$clientId/$siteId\n'
+          'label=$endpointLabel\n'
+          'active_targets=${targets.length}\n'
+          'UTC: ${_telegramUtcStamp()}';
+    } catch (error) {
+      return 'ONYX LINKCHAT\nFailed to save endpoint: $error';
+    }
+  }
+
+  Future<String> _telegramAdminUnlinkChatCommand(
+    String arguments,
+    TelegramBridgeInboundMessage update,
+  ) async {
+    if (!widget.supabaseReady) {
+      return 'ONYX UNLINKCHAT\nSupabase is required to update messaging endpoints.';
+    }
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (tokens.length == 1 || tokens.length > 2) {
+      return 'ONYX UNLINKCHAT\nUsage: /unlinkchat [client_id site_id]';
+    }
+    final clientId = tokens.isEmpty ? _telegramAdminTargetClientId : tokens[0];
+    final siteId = tokens.isEmpty ? _telegramAdminTargetSiteId : tokens[1];
+    if (clientId.isEmpty || siteId.isEmpty) {
+      return 'ONYX UNLINKCHAT\nUsage: /unlinkchat [client_id site_id]';
+    }
+    try {
+      final repository = SupabaseClientMessagingBridgeRepository(
+        Supabase.instance.client,
+      );
+      final deactivated = await repository.deactivateTelegramEndpointsByChat(
+        clientId: clientId,
+        siteId: siteId,
+        chatId: update.chatId,
+        threadId: update.messageThreadId,
+      );
+      final remaining = await repository.readActiveTelegramTargets(
+        clientId: clientId,
+        siteId: siteId,
+      );
+      return 'ONYX UNLINKCHAT\n'
+          'scope=$clientId/$siteId\n'
+          'chat=${update.chatId}${update.messageThreadId == null ? '' : '#${update.messageThreadId}'}\n'
+          'deactivated=$deactivated\n'
+          'remaining_targets=${remaining.length}\n'
+          'UTC: ${DateTime.now().toUtc().toIso8601String()}';
+    } catch (error) {
+      return 'ONYX UNLINKCHAT\nFailed to disable endpoint: $error';
+    }
+  }
+
+  Future<String> _telegramAdminUnlinkAllCommand(String arguments) async {
+    if (!widget.supabaseReady) {
+      return 'ONYX UNLINKALL\nSupabase is required to update messaging endpoints.';
+    }
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (tokens.length == 1 || tokens.length > 2) {
+      return 'ONYX UNLINKALL\nUsage: /unlinkall [client_id site_id]';
+    }
+    final clientId = tokens.isEmpty ? _telegramAdminTargetClientId : tokens[0];
+    final siteId = tokens.isEmpty ? _telegramAdminTargetSiteId : tokens[1];
+    if (clientId.isEmpty || siteId.isEmpty) {
+      return 'ONYX UNLINKALL\nUsage: /unlinkall [client_id site_id]';
+    }
+    try {
+      final repository = SupabaseClientMessagingBridgeRepository(
+        Supabase.instance.client,
+      );
+      final deactivated = await repository.deactivateTelegramEndpointsForScope(
+        clientId: clientId,
+        siteId: siteId,
+      );
+      final remaining = await repository.readActiveTelegramTargets(
+        clientId: clientId,
+        siteId: siteId,
+      );
+      return 'ONYX UNLINKALL\n'
+          'scope=$clientId/$siteId\n'
+          'deactivated=$deactivated\n'
+          'remaining_targets=${remaining.length}\n'
+          'UTC: ${DateTime.now().toUtc().toIso8601String()}';
+    } catch (error) {
+      return 'ONYX UNLINKALL\nFailed to disable endpoints: $error';
+    }
+  }
+
+  Future<String> _telegramAdminChatCheckCommand(
+    String arguments,
+    TelegramBridgeInboundMessage update,
+  ) async {
+    if (!widget.supabaseReady) {
+      return 'ONYX CHATCHECK\nSupabase is required to verify messaging endpoints.';
+    }
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (tokens.length == 1 || tokens.length > 2) {
+      return 'ONYX CHATCHECK\nUsage: /chatcheck [client_id site_id]';
+    }
+    final clientId = tokens.isEmpty ? _telegramAdminTargetClientId : tokens[0];
+    final siteId = tokens.isEmpty ? _telegramAdminTargetSiteId : tokens[1];
+    if (clientId.isEmpty || siteId.isEmpty) {
+      return 'ONYX CHATCHECK\nUsage: /chatcheck [client_id site_id]';
+    }
+    try {
+      final repository = SupabaseClientMessagingBridgeRepository(
+        Supabase.instance.client,
+      );
+      final targets = await repository.readActiveTelegramTargets(
+        clientId: clientId,
+        siteId: siteId,
+      );
+      final matching = targets
+          .where(
+            (target) =>
+                target.chatId.trim() == update.chatId.trim() &&
+                target.threadId == update.messageThreadId,
+          )
+          .toList(growable: false);
+      final linked = matching.isNotEmpty;
+      final rows = targets
+          .take(6)
+          .map((target) {
+            final threadLabel = target.threadId == null
+                ? 'none'
+                : target.threadId.toString();
+            final marker =
+                target.chatId.trim() == update.chatId.trim() &&
+                    target.threadId == update.messageThreadId
+                ? ' [current]'
+                : '';
+            return '- ${target.displayLabel} | chat=${target.chatId} | thread=$threadLabel$marker';
+          })
+          .join('\n');
+      return 'ONYX CHATCHECK\n'
+          'scope=$clientId/$siteId\n'
+          'current_chat=${update.chatId}${update.messageThreadId == null ? '' : '#${update.messageThreadId}'}\n'
+          'linked=${linked ? 'yes' : 'no'}\n'
+          'matching_endpoints=${matching.length}\n'
+          'active_endpoints=${targets.length}'
+          '${rows.isEmpty ? '\n(no active targets configured)' : '\n$rows'}';
+    } catch (error) {
+      return 'ONYX CHATCHECK\nFailed to verify endpoint: $error';
+    }
+  }
+
+  Future<_TelegramDemoReadinessReport> _telegramAdminBuildDemoReadinessReport({
+    required String clientId,
+    required String siteId,
+    required TelegramBridgeInboundMessage update,
+  }) async {
+    final checks = <String>[];
+    final actions = <String>[];
+    final bridgeConfigured = _telegramBridge.isConfigured;
+    checks.add('bridge_configured=${bridgeConfigured ? 'PASS' : 'FAIL'}');
+    if (!bridgeConfigured) {
+      actions.add('Set ONYX_TELEGRAM_BRIDGE_ENABLED=true and valid bot token.');
+    }
+    final executionEnabled = _telegramAdminExecutionEnabled;
+    checks.add('execution_mode=${executionEnabled ? 'PASS' : 'FAIL'}');
+    if (!executionEnabled) {
+      actions.add('Run /exec on');
+    }
+    final hasTarget = clientId.trim().isNotEmpty && siteId.trim().isNotEmpty;
+    checks.add(
+      'target_scope=${hasTarget ? 'PASS' : 'FAIL'} ($clientId/$siteId)',
+    );
+    if (!hasTarget) {
+      actions.add('Run /settarget <client_id> <site_id>');
+    }
+    if (widget.supabaseReady) {
+      try {
+        final repository = SupabaseClientMessagingBridgeRepository(
+          Supabase.instance.client,
+        );
+        final targets = await repository.readActiveTelegramTargets(
+          clientId: clientId,
+          siteId: siteId,
+        );
+        final linked = targets.any(
+          (target) =>
+              target.chatId.trim() == update.chatId.trim() &&
+              target.threadId == update.messageThreadId,
+        );
+        checks.add(
+          'chat_linked=${linked ? 'PASS' : 'FAIL'} (${targets.length} active)',
+        );
+        if (!linked) {
+          actions.add('Run /bindchat $clientId $siteId');
+        }
+      } catch (error) {
+        checks.add('chat_linked=UNKNOWN (lookup failed)');
+        actions.add('Check Supabase connectivity: $error');
+      }
+    } else {
+      checks.add('chat_linked=SKIPPED (supabase not ready)');
+      actions.add('Enable Supabase for managed endpoint checks.');
+    }
+    final blockedBridge = _telegramBridgeHealthLabel.toLowerCase() == 'blocked';
+    checks.add('bridge_blocked=${blockedBridge ? 'FAIL' : 'PASS'}');
+    if (blockedBridge) {
+      actions.add('Investigate Telegram block and rotate bot/chat if needed.');
+    }
+    return _TelegramDemoReadinessReport(
+      clientId: clientId,
+      siteId: siteId,
+      currentChatLabel:
+          '${update.chatId}${update.messageThreadId == null ? '' : '#${update.messageThreadId}'}',
+      checks: checks,
+      actions: actions,
+    );
+  }
+
+  Future<String> _telegramAdminDemoPrepCommand(
+    String arguments,
+    TelegramBridgeInboundMessage update,
+  ) async {
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (tokens.length == 1 || tokens.length > 2) {
+      return 'ONYX DEMOPREP\nUsage: /demoprep [client_id site_id]';
+    }
+    final clientId = tokens.isEmpty ? _telegramAdminTargetClientId : tokens[0];
+    final siteId = tokens.isEmpty ? _telegramAdminTargetSiteId : tokens[1];
+    if (clientId.isEmpty || siteId.isEmpty) {
+      return 'ONYX DEMOPREP\nUsage: /demoprep [client_id site_id]';
+    }
+    final report = await _telegramAdminBuildDemoReadinessReport(
+      clientId: clientId,
+      siteId: siteId,
+      update: update,
+    );
+    final checksRows = report.checks.map((entry) => '- $entry').join('\n');
+    final actionRows = report.actions.isEmpty
+        ? '- none'
+        : report.actions.map((entry) => '- $entry').join('\n');
+    return 'ONYX DEMOPREP\n'
+        'scope=${report.clientId}/${report.siteId}\n'
+        'chat=${report.currentChatLabel}\n'
+        'ready=${report.ready ? 'YES' : 'NO'}\n'
+        'checks:\n$checksRows\n'
+        'next_actions:\n$actionRows\n'
+        'UTC: ${_telegramUtcStamp()}';
+  }
+
+  Future<String> _telegramAdminDemoFlowCommand(
+    String arguments,
+    TelegramBridgeInboundMessage update,
+  ) async {
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (tokens.length == 1 || tokens.length > 2) {
+      return 'ONYX DEMOFLOW\nUsage: /demoflow [client_id site_id]';
+    }
+    final clientId = tokens.isEmpty ? _telegramAdminTargetClientId : tokens[0];
+    final siteId = tokens.isEmpty ? _telegramAdminTargetSiteId : tokens[1];
+    if (clientId.isEmpty || siteId.isEmpty) {
+      return 'ONYX DEMOFLOW\nUsage: /demoflow [client_id site_id]';
+    }
+    final report = await _telegramAdminBuildDemoReadinessReport(
+      clientId: clientId,
+      siteId: siteId,
+      update: update,
+    );
+    if (!report.ready) {
+      final actionRows = report.actions.isEmpty
+          ? '- none'
+          : report.actions.map((entry) => '- $entry').join('\n');
+      return 'ONYX DEMOFLOW\n'
+          'scope=${report.clientId}/${report.siteId}\n'
+          'ready=NO\n'
+          'action=aborted\n'
+          'next_actions:\n$actionRows';
+    }
+    final notifyResult = await _telegramAdminNotifyTestCommand(
+      'client ${report.clientId} ${report.siteId}',
+    );
+    return 'ONYX DEMOFLOW\n'
+        'scope=${report.clientId}/${report.siteId}\n'
+        'ready=YES\n'
+        'action=notifytest(client)\n'
+        '${notifyResult.replaceFirst('ONYX NOTIFYTEST\n', '')}';
+  }
+
+  Future<String> _telegramAdminAutoDemoCommand(
+    String arguments,
+    TelegramBridgeInboundMessage update,
+  ) async {
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (tokens.length < 2) {
+      return 'ONYX AUTODEMO\nUsage: /autodemo <client_id> <site_id> [label]';
+    }
+    final clientId = tokens[0].trim();
+    final siteId = tokens[1].trim();
+    if (clientId.isEmpty || siteId.isEmpty) {
+      return 'ONYX AUTODEMO\nUsage: /autodemo <client_id> <site_id> [label]';
+    }
+    final label = tokens.length > 2 ? tokens.sublist(2).join(' ').trim() : '';
+    _telegramAdminTargetClientIdOverride = clientId;
+    _telegramAdminTargetSiteIdOverride = siteId;
+    await _persistTelegramAdminRuntimeState();
+    final linkArgs = label.isEmpty
+        ? '$clientId $siteId'
+        : '$clientId $siteId $label';
+    final linkResult = await _telegramAdminLinkChatCommand(linkArgs, update);
+    if (linkResult.startsWith('ONYX LINKCHAT\nFailed')) {
+      return 'ONYX AUTODEMO\n'
+          'scope=$clientId/$siteId\n'
+          'target_set=YES\n'
+          'link_result=FAILED\n'
+          '${linkResult.replaceFirst('ONYX LINKCHAT\n', '')}';
+    }
+    final flowResult = await _telegramAdminDemoFlowCommand(
+      '$clientId $siteId',
+      update,
+    );
+    return 'ONYX AUTODEMO\n'
+        'scope=$clientId/$siteId\n'
+        'target_set=YES\n'
+        '${linkResult.replaceFirst('ONYX LINKCHAT\n', 'linkchat:\n')}\n'
+        '${flowResult.replaceFirst('ONYX DEMOFLOW\n', 'demoflow:\n')}';
+  }
+
+  List<ClientAppPushDeliveryItem> _buildTelegramDemoScriptItems({
+    required String clientId,
+    required String siteId,
+    required String runId,
+    required DateTime baseAtUtc,
+    required int secondStepOffsetSeconds,
+    required int thirdStepOffsetSeconds,
+  }) {
+    return <ClientAppPushDeliveryItem>[
+      ClientAppPushDeliveryItem(
+        messageKey: '$runId-1',
+        title: 'ONYX Signal Detected',
+        body:
+            'Perimeter alert detected at $siteId. Controller verification in progress.',
+        occurredAt: baseAtUtc,
+        clientId: clientId,
+        siteId: siteId,
+        targetChannel: ClientAppAcknowledgementChannel.client,
+        deliveryProvider: _clientPushDeliveryProvider,
+        priority: true,
+        status: ClientPushDeliveryStatus.queued,
+      ),
+      ClientAppPushDeliveryItem(
+        messageKey: '$runId-2',
+        title: 'ONYX Unit Dispatched',
+        body:
+            'Nearest response unit has been dispatched with access protocol and ETA.',
+        occurredAt: baseAtUtc.add(Duration(seconds: secondStepOffsetSeconds)),
+        clientId: clientId,
+        siteId: siteId,
+        targetChannel: ClientAppAcknowledgementChannel.client,
+        deliveryProvider: _clientPushDeliveryProvider,
+        priority: true,
+        status: ClientPushDeliveryStatus.queued,
+      ),
+      ClientAppPushDeliveryItem(
+        messageKey: '$runId-3',
+        title: 'ONYX Site Secured',
+        body:
+            'Officer reported site secure. Evidence package will appear in the client ledger.',
+        occurredAt: baseAtUtc.add(Duration(seconds: thirdStepOffsetSeconds)),
+        clientId: clientId,
+        siteId: siteId,
+        targetChannel: ClientAppAcknowledgementChannel.client,
+        deliveryProvider: _clientPushDeliveryProvider,
+        priority: false,
+        status: ClientPushDeliveryStatus.queued,
+      ),
+    ];
+  }
+
+  void _resetTelegramDemoScriptRun() {
+    _telegramDemoScriptTimer?.cancel();
+    _telegramDemoScriptTimer = null;
+    _telegramDemoScriptRunning = false;
+    _telegramDemoScriptStep = 0;
+    _telegramDemoScriptTotal = 0;
+    _telegramDemoScriptIntervalSeconds = 20;
+    _telegramDemoScriptScopeLabel = '';
+    _telegramDemoScriptRunId = '';
+    _telegramDemoScriptStartedAtUtc = null;
+    _telegramDemoScriptNextStepAtUtc = null;
+    _telegramDemoScriptPendingItems = const [];
+  }
+
+  Future<void> _runTelegramDemoScriptStep() async {
+    if (!_telegramDemoScriptRunning) {
+      return;
+    }
+    final pending = _telegramDemoScriptPendingItems;
+    if (pending.isEmpty) {
+      _resetTelegramDemoScriptRun();
+      if (mounted) {
+        setState(() {});
+      }
+      return;
+    }
+    final current = pending.first;
+    _telegramDemoScriptPendingItems = pending.sublist(1);
+    _telegramDemoScriptStep += 1;
+    _telegramDemoScriptNextStepAtUtc = null;
+    if (mounted) {
+      setState(() {});
+    }
+    await _persistClientAppPushQueue(<ClientAppPushDeliveryItem>[
+      current,
+      ..._clientAppPushQueue,
+    ], forceTelegramResend: true);
+    if (!_telegramDemoScriptRunning) {
+      return;
+    }
+    if (_telegramDemoScriptPendingItems.isEmpty) {
+      _resetTelegramDemoScriptRun();
+      if (mounted) {
+        setState(() {});
+      }
+      return;
+    }
+    _telegramDemoScriptTimer?.cancel();
+    _telegramDemoScriptNextStepAtUtc = DateTime.now().toUtc().add(
+      Duration(seconds: _telegramDemoScriptIntervalSeconds),
+    );
+    _telegramDemoScriptTimer = Timer(
+      Duration(seconds: _telegramDemoScriptIntervalSeconds),
+      () {
+        unawaited(_runTelegramDemoScriptStep());
+      },
+    );
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<String> _telegramAdminDemoPlayCommand(String arguments) async {
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (tokens.length == 1 || tokens.length > 3) {
+      return 'ONYX DEMOPLAY\nUsage: /demoplay [client_id site_id [interval_seconds]]';
+    }
+    final clientId = tokens.isEmpty ? _telegramAdminTargetClientId : tokens[0];
+    final siteId = tokens.isEmpty ? _telegramAdminTargetSiteId : tokens[1];
+    if (clientId.isEmpty || siteId.isEmpty) {
+      return 'ONYX DEMOPLAY\nUsage: /demoplay [client_id site_id [interval_seconds]]';
+    }
+    final intervalSeconds = tokens.length < 3
+        ? 20
+        : int.tryParse(tokens[2]) ?? -1;
+    if (intervalSeconds < 5 || intervalSeconds > 300) {
+      return 'ONYX DEMOPLAY\nInvalid interval "${tokens.length < 3 ? '' : tokens[2]}". Range is 5..300 seconds.';
+    }
+    if (_telegramDemoScriptRunning) {
+      return _telegramAdminDemoPlayStatusCommand();
+    }
+    final baseAtUtc = DateTime.now().toUtc();
+    final runId = 'tg-demo-live-${baseAtUtc.microsecondsSinceEpoch}';
+    final items = _buildTelegramDemoScriptItems(
+      clientId: clientId,
+      siteId: siteId,
+      runId: runId,
+      baseAtUtc: baseAtUtc,
+      secondStepOffsetSeconds: intervalSeconds,
+      thirdStepOffsetSeconds: intervalSeconds * 2,
+    );
+    _telegramDemoScriptRunning = true;
+    _telegramDemoScriptStep = 0;
+    _telegramDemoScriptTotal = items.length;
+    _telegramDemoScriptIntervalSeconds = intervalSeconds;
+    _telegramDemoScriptScopeLabel = '$clientId/$siteId';
+    _telegramDemoScriptRunId = runId;
+    _telegramDemoScriptStartedAtUtc = baseAtUtc;
+    _telegramDemoScriptNextStepAtUtc = null;
+    _telegramDemoScriptPendingItems = items;
+    if (mounted) {
+      setState(() {});
+    }
+    await _runTelegramDemoScriptStep();
+    return 'ONYX DEMOPLAY\n'
+        'run_id=$runId\n'
+        'scope=$clientId/$siteId\n'
+        'interval_seconds=$intervalSeconds\n'
+        'steps=${items.length}\n'
+        'status=${_telegramDemoScriptRunning ? 'running' : 'completed'}';
+  }
+
+  String _telegramAdminDemoPlayStopCommand() {
+    if (!_telegramDemoScriptRunning) {
+      return 'ONYX DEMOPLAY\nNo active timed demo sequence.';
+    }
+    final scopeLabel = _telegramDemoScriptScopeLabel;
+    final progress = '$_telegramDemoScriptStep/$_telegramDemoScriptTotal';
+    _resetTelegramDemoScriptRun();
+    if (mounted) {
+      setState(() {});
+    }
+    return 'ONYX DEMOPLAY\nStopped timed demo sequence.\nScope: $scopeLabel\nProgress: $progress';
+  }
+
+  String _telegramAdminDemoPlayStatusCommand() {
+    if (!_telegramDemoScriptRunning) {
+      return 'ONYX DEMOPLAY\nStatus: idle';
+    }
+    final nextAt = _telegramDemoScriptNextStepAtUtc;
+    final nextInSeconds = nextAt == null
+        ? 0
+        : nextAt.difference(DateTime.now().toUtc()).inSeconds;
+    return 'ONYX DEMOPLAY\n'
+        'Status: running\n'
+        'Run: ${_telegramDemoScriptRunId.isEmpty ? 'n/a' : _telegramDemoScriptRunId}\n'
+        'Scope: ${_telegramDemoScriptScopeLabel.isEmpty ? 'n/a' : _telegramDemoScriptScopeLabel}\n'
+        'Started: ${_telegramDemoScriptStartedAtUtc?.toIso8601String() ?? 'n/a'}\n'
+        'Step: $_telegramDemoScriptStep/$_telegramDemoScriptTotal\n'
+        'Interval seconds: $_telegramDemoScriptIntervalSeconds\n'
+        'Pending: ${_telegramDemoScriptPendingItems.length}\n'
+        'Next in: ${nextInSeconds > 0 ? nextInSeconds : 0}s';
+  }
+
+  Future<String> _telegramAdminDemoScriptCommand(String arguments) async {
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (tokens.length == 1 || tokens.length > 2) {
+      return 'ONYX DEMOSCRIPT\nUsage: /demoscript [client_id site_id]';
+    }
+    final clientId = tokens.isEmpty ? _telegramAdminTargetClientId : tokens[0];
+    final siteId = tokens.isEmpty ? _telegramAdminTargetSiteId : tokens[1];
+    if (clientId.isEmpty || siteId.isEmpty) {
+      return 'ONYX DEMOSCRIPT\nUsage: /demoscript [client_id site_id]';
+    }
+    final nowUtc = DateTime.now().toUtc();
+    final runId = 'tg-demo-${nowUtc.microsecondsSinceEpoch}';
+    final scriptedItems = _buildTelegramDemoScriptItems(
+      clientId: clientId,
+      siteId: siteId,
+      runId: runId,
+      baseAtUtc: nowUtc,
+      secondStepOffsetSeconds: 25,
+      thirdStepOffsetSeconds: 90,
+    );
+    final queue = <ClientAppPushDeliveryItem>[
+      ...scriptedItems,
+      ..._clientAppPushQueue,
+    ];
+    await _persistClientAppPushQueue(queue, forceTelegramResend: true);
+    final syncStatus = _clientAppPushSyncStatusLabel.toUpperCase();
+    final failureReason = (_clientAppPushSyncFailureReason ?? '').trim();
+    return 'ONYX DEMOSCRIPT\n'
+        'scope=$clientId/$siteId\n'
+        'queued_script_messages=${scriptedItems.length}\n'
+        'delivery_provider=${_clientPushDeliveryProvider.code}\n'
+        'queue_size=${_clientAppPushQueue.length}\n'
+        'sync_status=$syncStatus${failureReason.isEmpty ? '' : ' • $failureReason'}\n'
+        'UTC: ${nowUtc.toIso8601String()}';
+  }
+
+  Future<String> _telegramAdminDemoCleanCommand(String arguments) async {
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (tokens.length == 1 || tokens.length > 2) {
+      return 'ONYX DEMOCLEAN\nUsage: /democlean [client_id site_id]';
+    }
+    final clientId = tokens.isEmpty ? _telegramAdminTargetClientId : tokens[0];
+    final siteId = tokens.isEmpty ? _telegramAdminTargetSiteId : tokens[1];
+    if (clientId.isEmpty || siteId.isEmpty) {
+      return 'ONYX DEMOCLEAN\nUsage: /democlean [client_id site_id]';
+    }
+    bool isDemoKey(String key) {
+      final normalized = key.trim().toLowerCase();
+      return normalized.startsWith('tg-demo-') ||
+          normalized.startsWith('tg-admin-test-');
+    }
+
+    bool matchesScope(ClientAppPushDeliveryItem item) {
+      final itemClientId = (item.clientId ?? _selectedClient).trim();
+      final itemSiteId = (item.siteId ?? _selectedSite).trim();
+      return itemClientId == clientId && itemSiteId == siteId;
+    }
+
+    final before = _clientAppPushQueue.length;
+    final filtered = _clientAppPushQueue
+        .where((item) => !(matchesScope(item) && isDemoKey(item.messageKey)))
+        .toList(growable: false);
+    final removed = before - filtered.length;
+    if (removed <= 0) {
+      return 'ONYX DEMOCLEAN\nscope=$clientId/$siteId\nremoved=0\nNo queued demo/test alerts found.';
+    }
+    await _persistClientAppPushQueue(filtered, forceTelegramResend: false);
+    final syncStatus = _clientAppPushSyncStatusLabel.toUpperCase();
+    final failureReason = (_clientAppPushSyncFailureReason ?? '').trim();
+    return 'ONYX DEMOCLEAN\n'
+        'scope=$clientId/$siteId\n'
+        'removed=$removed\n'
+        'queue_size=${_clientAppPushQueue.length}\n'
+        'sync_status=$syncStatus${failureReason.isEmpty ? '' : ' • $failureReason'}\n'
+        'UTC: ${DateTime.now().toUtc().toIso8601String()}';
+  }
+
+  Future<String> _telegramAdminDemoLaunchCommand(
+    String arguments,
+    TelegramBridgeInboundMessage update,
+  ) async {
+    if (_telegramDemoScriptRunning) {
+      _resetTelegramDemoScriptRun();
+      if (mounted) {
+        setState(() {});
+      }
+    }
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (tokens.length < 2) {
+      return 'ONYX DEMOLAUNCH\nUsage: /demolaunch <client_id> <site_id> [label]';
+    }
+    final clientId = tokens[0].trim();
+    final siteId = tokens[1].trim();
+    if (clientId.isEmpty || siteId.isEmpty) {
+      return 'ONYX DEMOLAUNCH\nUsage: /demolaunch <client_id> <site_id> [label]';
+    }
+    final label = tokens.length > 2 ? tokens.sublist(2).join(' ').trim() : '';
+    _telegramAdminTargetClientIdOverride = clientId;
+    _telegramAdminTargetSiteIdOverride = siteId;
+    await _persistTelegramAdminRuntimeState();
+
+    final linkArgs = label.isEmpty
+        ? '$clientId $siteId'
+        : '$clientId $siteId $label';
+    final linkResult = await _telegramAdminLinkChatCommand(linkArgs, update);
+    if (linkResult.startsWith('ONYX LINKCHAT\nFailed')) {
+      return 'ONYX DEMOLAUNCH\n'
+          'scope=$clientId/$siteId\n'
+          'stage=linkchat\n'
+          'result=FAILED\n'
+          '${linkResult.replaceFirst('ONYX LINKCHAT\n', '')}';
+    }
+
+    final readiness = await _telegramAdminBuildDemoReadinessReport(
+      clientId: clientId,
+      siteId: siteId,
+      update: update,
+    );
+    if (!readiness.ready) {
+      final actions = readiness.actions.isEmpty
+          ? '- none'
+          : readiness.actions.map((entry) => '- $entry').join('\n');
+      return 'ONYX DEMOLAUNCH\n'
+          'scope=$clientId/$siteId\n'
+          'stage=readiness\n'
+          'result=BLOCKED\n'
+          'next_actions:\n$actions';
+    }
+
+    final cleanResult = await _telegramAdminDemoCleanCommand(
+      '$clientId $siteId',
+    );
+    final scriptResult = await _telegramAdminDemoScriptCommand(
+      '$clientId $siteId',
+    );
+    return 'ONYX DEMOLAUNCH\n'
+        'scope=$clientId/$siteId\n'
+        'result=OK\n'
+        '${linkResult.replaceFirst('ONYX LINKCHAT\n', 'linkchat:\n')}\n'
+        '${cleanResult.replaceFirst('ONYX DEMOCLEAN\n', 'democlean:\n')}\n'
+        '${scriptResult.replaceFirst('ONYX DEMOSCRIPT\n', 'demoscript:\n')}';
+  }
+
+  Future<String> _telegramAdminTargetsCommand(String arguments) async {
+    if (!widget.supabaseReady) {
+      return 'ONYX TARGETS\nSupabase is required to read messaging endpoints.';
+    }
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (tokens.length == 1 || tokens.length > 2) {
+      return 'ONYX TARGETS\nUsage: /targets [client_id site_id]';
+    }
+    final clientId = tokens.isEmpty ? _telegramAdminTargetClientId : tokens[0];
+    final siteId = tokens.isEmpty ? _telegramAdminTargetSiteId : tokens[1];
+    try {
+      final repository = SupabaseClientMessagingBridgeRepository(
+        Supabase.instance.client,
+      );
+      final targets = await repository.readActiveTelegramTargets(
+        clientId: clientId,
+        siteId: siteId,
+      );
+      if (targets.isEmpty) {
+        return 'ONYX TARGETS\nscope=$clientId/$siteId\nNo active Telegram endpoints.';
+      }
+      final rows = targets
+          .take(8)
+          .map((target) {
+            final threadLabel = target.threadId == null
+                ? 'none'
+                : target.threadId.toString();
+            final scopeLabel = (target.siteId ?? '').trim().isEmpty
+                ? 'global'
+                : target.siteId!.trim();
+            return '- ${target.displayLabel} | chat=${target.chatId} | thread=$threadLabel | scope=$scopeLabel';
+          })
+          .join('\n');
+      return 'ONYX TARGETS\n'
+          'scope=$clientId/$siteId\n'
+          'active_endpoints=${targets.length}\n'
+          '$rows';
+    } catch (error) {
+      return 'ONYX TARGETS\nFailed to read endpoints: $error';
+    }
+  }
+
+  Future<String> _telegramAdminDemoStartCommand(
+    String arguments, {
+    required bool full,
+  }) async {
+    final requestedRef = arguments.trim();
+    final incidentRef = requestedRef.isNotEmpty
+        ? requestedRef
+        : _firstActiveIncidentReference();
+    if (incidentRef == null || incidentRef.isEmpty) {
+      return 'ONYX DEMO\nNo active incident found.\nUsage: ${full ? '/demofull' : '/demostart'} <incident_ref>';
+    }
+    if (_demoAutopilotRunning) {
+      return 'ONYX DEMO\nAutopilot already running: step $_demoAutopilotCurrentStep/$_demoAutopilotTotalSteps • $_demoAutopilotFlowLabel';
+    }
+    if (full) {
+      _startFullDemoAutopilotFromAdminIncident(incidentRef);
+    } else {
+      _startDemoAutopilotFromAdminIncident(incidentRef);
+    }
+    return 'ONYX DEMO\nStarted ${full ? 'full' : 'quick'} autopilot for $incidentRef.\nRoute now: ${_autopilotRouteLabel(_route)}';
+  }
+
+  Future<String> _telegramAdminDemoStopCommand() async {
+    if (!_demoAutopilotRunning) {
+      return 'ONYX DEMO\nAutopilot is not running.';
+    }
+    _stopDemoAutopilotFromShell();
+    return 'ONYX DEMO\nAutopilot stopped.\nUTC: ${DateTime.now().toUtc().toIso8601String()}';
+  }
+
+  Future<String> _telegramAdminDemoStatusCommand() async {
+    if (!_demoAutopilotRunning) {
+      return 'ONYX DEMO\nStatus: idle\nRoute: ${_autopilotRouteLabel(_route)}\nUTC: ${DateTime.now().toUtc().toIso8601String()}';
+    }
+    return 'ONYX DEMO\n'
+        'Status: ${_demoAutopilotPaused ? 'paused' : 'running'}\n'
+        'Flow: $_demoAutopilotFlowLabel\n'
+        'Step: $_demoAutopilotCurrentStep/$_demoAutopilotTotalSteps\n'
+        'Current route: ${_autopilotRouteLabel(_route)}\n'
+        'Next route: ${_demoAutopilotNextRouteLabel.isEmpty ? 'n/a' : _demoAutopilotNextRouteLabel}\n'
+        'Next hop seconds: ${_demoAutopilotNextHopSeconds > 0 ? _demoAutopilotNextHopSeconds : 0}\n'
+        'Incident: ${_demoAutopilotIncidentReference.isEmpty ? 'n/a' : _demoAutopilotIncidentReference}\n'
+        'UTC: ${DateTime.now().toUtc().toIso8601String()}';
+  }
+
+  String? _firstActiveIncidentReference() {
+    final active = _activeIncidentDispatchesByOpenedAt();
+    if (active.isEmpty) {
+      return null;
+    }
+    return active.first.key;
+  }
+
+  String _telegramAdminSnoozeCriticalCommand(String arguments) {
+    const defaultMinutes = 30;
+    const maxMinutes = 240;
+    var minutes = defaultMinutes;
+    final raw = arguments.trim();
+    if (raw.isNotEmpty) {
+      final parsed = int.tryParse(raw);
+      if (parsed == null || parsed < 1) {
+        return 'ONYX SNOOZECRITICAL\nInvalid minutes "$raw". Use /snoozecritical 30';
+      }
+      minutes = parsed > maxMinutes ? maxMinutes : parsed;
+    }
+    final until = DateTime.now().toUtc().add(Duration(minutes: minutes));
+    _telegramAdminCriticalSnoozedUntilUtc = until;
+    return '<b>ONYX SNOOZECRITICAL</b>\n'
+        '⏸️ <b>Critical reminders paused</b> for $minutes minute(s).\n'
+        'Until: ${until.toIso8601String()}';
+  }
+
+  String _telegramAdminUnsnoozeCriticalCommand() {
+    _telegramAdminCriticalSnoozedUntilUtc = null;
+    return '<b>ONYX UNSNOOZECRITICAL</b>\n'
+        '▶️ <b>Critical reminders resumed.</b>\n'
+        'UTC: ${DateTime.now().toUtc().toIso8601String()}';
+  }
+
+  String _telegramAdminAckCriticalCommand() {
+    final critical = _telegramAdminCriticalAlerts();
+    if (critical.isEmpty) {
+      _telegramAdminCriticalAckFingerprint = '';
+      _telegramAdminCriticalAckAtUtc = null;
+      return 'ONYX ACKCRITICAL\nNo active critical alerts to acknowledge.\nUTC: ${DateTime.now().toUtc().toIso8601String()}';
+    }
+    _telegramAdminCriticalAckFingerprint = _telegramAdminCriticalFingerprint(
+      critical,
+    );
+    _telegramAdminCriticalAckAtUtc = DateTime.now().toUtc();
+    return '<b>ONYX ACKCRITICAL</b>\n'
+        '✅ <b>Current critical state acknowledged.</b>\n'
+        'Auto critical pushes paused until /unackcritical (or critical clears).\n'
+        'Acked at: ${_telegramAdminCriticalAckAtUtc!.toIso8601String()}';
+  }
+
+  String _telegramAdminUnackCriticalCommand() {
+    _telegramAdminCriticalAckFingerprint = '';
+    _telegramAdminCriticalAckAtUtc = null;
+    return '<b>ONYX UNACKCRITICAL</b>\n'
+        '🔔 <b>Critical acknowledgement cleared.</b>\n'
+        'UTC: ${DateTime.now().toUtc().toIso8601String()}';
+  }
+
+  String _telegramAdminIncidentsSnapshot() {
+    final active = _activeIncidentDispatchesByOpenedAt();
+    if (active.isEmpty) {
+      return 'ONYX INCIDENTS\nNo active incidents.\nUTC: ${DateTime.now().toUtc().toIso8601String()}';
+    }
+    final nowUtc = DateTime.now().toUtc();
+    final lines = active
+        .take(8)
+        .map((entry) {
+          final ageMinutes = nowUtc.difference(entry.value).inMinutes;
+          final ageLabel = ageMinutes < 1 ? '<1m' : '${ageMinutes}m';
+          return '${entry.key} • age $ageLabel';
+        })
+        .join('\n- ');
+    final extra = active.length > 8 ? '\n... +${active.length - 8} more' : '';
+    return 'ONYX INCIDENTS\n- $lines$extra\nUTC: ${nowUtc.toIso8601String()}';
+  }
+
+  String _telegramAdminIncidentSnapshotCommand(String arguments) {
+    final query = arguments.trim();
+    final nowUtc = DateTime.now().toUtc();
+    if (query.isEmpty) {
+      final active = _activeIncidentDispatchesByOpenedAt();
+      final sample = active
+          .take(5)
+          .map((entry) => entry.key)
+          .toList(growable: false);
+      final sampleLabel = sample.isEmpty ? 'none' : sample.join(', ');
+      return 'ONYX INCIDENT\nUsage: /incident <dispatch_id>\nActive samples: $sampleLabel';
+    }
+    final queryUpper = query.toUpperCase();
+    bool matches(String dispatchId) {
+      return dispatchId.trim().toUpperCase() == queryUpper;
+    }
+
+    String? dispatchId;
+    DateTime? openedAtUtc;
+    DateTime? arrivedAtUtc;
+    DateTime? closedAtUtc;
+    String? closeType;
+    DateTime? executionCompletedAtUtc;
+    DateTime? executionDeniedAtUtc;
+
+    for (final event in store.allEvents()) {
+      if (event is DecisionCreated) {
+        if (!matches(event.dispatchId)) continue;
+        dispatchId ??= event.dispatchId.trim();
+        final occurred = event.occurredAt.toUtc();
+        if (openedAtUtc == null || occurred.isBefore(openedAtUtc)) {
+          openedAtUtc = occurred;
+        }
+      } else if (event is ResponseArrived) {
+        if (!matches(event.dispatchId)) continue;
+        dispatchId ??= event.dispatchId.trim();
+        final occurred = event.occurredAt.toUtc();
+        if (arrivedAtUtc == null || occurred.isBefore(arrivedAtUtc)) {
+          arrivedAtUtc = occurred;
+        }
+      } else if (event is IncidentClosed) {
+        if (!matches(event.dispatchId)) continue;
+        dispatchId ??= event.dispatchId.trim();
+        final occurred = event.occurredAt.toUtc();
+        if (closedAtUtc == null || occurred.isBefore(closedAtUtc)) {
+          closedAtUtc = occurred;
+          closeType = event.resolutionType.trim();
+        }
+      } else if (event is ExecutionCompleted) {
+        if (!matches(event.dispatchId)) continue;
+        dispatchId ??= event.dispatchId.trim();
+        final occurred = event.occurredAt.toUtc();
+        if (executionCompletedAtUtc == null ||
+            occurred.isAfter(executionCompletedAtUtc)) {
+          executionCompletedAtUtc = occurred;
+        }
+      } else if (event is ExecutionDenied) {
+        if (!matches(event.dispatchId)) continue;
+        dispatchId ??= event.dispatchId.trim();
+        final occurred = event.occurredAt.toUtc();
+        if (executionDeniedAtUtc == null ||
+            occurred.isAfter(executionDeniedAtUtc)) {
+          executionDeniedAtUtc = occurred;
+        }
+      }
+    }
+
+    if (dispatchId == null) {
+      return 'ONYX INCIDENT\nDispatch not found: $query';
+    }
+
+    String incidentStatus;
+    if (closedAtUtc != null) {
+      incidentStatus = 'closed';
+    } else if (arrivedAtUtc != null) {
+      incidentStatus = 'on_site';
+    } else if (openedAtUtc != null) {
+      incidentStatus = 'open';
+    } else {
+      incidentStatus = 'unknown';
+    }
+
+    String executionStatus;
+    if (executionCompletedAtUtc != null) {
+      executionStatus = 'completed';
+    } else if (executionDeniedAtUtc != null) {
+      executionStatus = 'denied';
+    } else {
+      executionStatus = 'pending';
+    }
+
+    final ageLabel = openedAtUtc == null
+        ? 'n/a'
+        : '${nowUtc.difference(openedAtUtc).inMinutes}m';
+    return 'ONYX INCIDENT\n'
+        'Dispatch: $dispatchId\n'
+        'Status: $incidentStatus\n'
+        'Execution: $executionStatus\n'
+        'Age: $ageLabel\n'
+        'Opened: ${openedAtUtc?.toIso8601String() ?? 'n/a'}\n'
+        'Arrived: ${arrivedAtUtc?.toIso8601String() ?? 'n/a'}\n'
+        'Closed: ${closedAtUtc?.toIso8601String() ?? 'n/a'}\n'
+        'Resolution: ${(closeType == null || closeType.isEmpty) ? 'n/a' : closeType}\n'
+        'UTC: ${nowUtc.toIso8601String()}';
+  }
+
+  List<MapEntry<String, DateTime>> _activeIncidentDispatchesByOpenedAt() {
+    final events = store.allEvents();
+    final decisionByDispatch = <String, DateTime>{};
+    final closedDispatchIds = <String>{};
+    for (final event in events) {
+      if (event is DecisionCreated) {
+        final dispatchId = event.dispatchId.trim();
+        if (dispatchId.isEmpty) continue;
+        final occurredAt = event.occurredAt.toUtc();
+        final existing = decisionByDispatch[dispatchId];
+        if (existing == null || occurredAt.isBefore(existing)) {
+          decisionByDispatch[dispatchId] = occurredAt;
+        }
+      } else if (event is IncidentClosed) {
+        final dispatchId = event.dispatchId.trim();
+        if (dispatchId.isNotEmpty) {
+          closedDispatchIds.add(dispatchId);
+        }
+      }
+    }
+    final active =
+        decisionByDispatch.entries
+            .where((entry) => !closedDispatchIds.contains(entry.key))
+            .toList(growable: false)
+          ..sort((a, b) => a.value.compareTo(b.value));
+    return active;
+  }
+
+  String _telegramAdminWhoAmISnapshot(TelegramBridgeInboundMessage update) {
+    final userIdLabel = update.fromUserId?.toString() ?? 'unknown';
+    final usernameLabel = update.fromUsername?.trim().isNotEmpty == true
+        ? '@${update.fromUsername!.trim()}'
+        : 'unknown';
+    final threadLabel = update.messageThreadId?.toString() ?? 'none';
+    return 'ONYX WHOAMI\n'
+        'user_id: $userIdLabel\n'
+        'username: $usernameLabel\n'
+        'chat_id: ${update.chatId}\n'
+        'thread_id: $threadLabel\n'
+        'Set ONYX_TELEGRAM_ADMIN_ALLOWED_USER_IDS=$userIdLabel to lock admin commands to this user.';
+  }
+
+  List<String> _telegramAdminCriticalAlerts() {
+    final critical = <String>[];
+    final queueThreshold = _positiveThreshold(
+      _guardQueuePressureAlertThresholdEnv,
+      fallback: 25,
+    );
+    final failedThreshold = _positiveThreshold(
+      _guardFailureAlertThresholdEnv,
+      fallback: 1,
+    );
+    if (_telegramBridgeHealthLabel.toLowerCase() == 'blocked') {
+      critical.add('Telegram bridge blocked.');
+    }
+    if (_telegramBridgeHealthLabel.toLowerCase() == 'degraded') {
+      critical.add('Telegram bridge degraded.');
+    }
+    if (_guardTelemetryLiveReadyGateViolated) {
+      critical.add(
+        'Guard telemetry live-ready gate violation: $_guardTelemetryLiveReadyGateReason.',
+      );
+    }
+    if (_guardSyncQueueDepth >= queueThreshold) {
+      critical.add(
+        'Guard sync queue pressure high: $_guardSyncQueueDepth >= $queueThreshold.',
+      );
+    }
+    if (_guardOpsFailedEvents >= failedThreshold ||
+        _guardOpsFailedMedia >= failedThreshold) {
+      critical.add(
+        'Guard ops failures high: events=$_guardOpsFailedEvents media=$_guardOpsFailedMedia.',
+      );
+    }
+    if (_clientAppPushSyncStatusLabel.trim().toLowerCase() == 'failed') {
+      critical.add(
+        'Client push sync failed: ${(_clientAppPushSyncFailureReason ?? 'unknown reason').trim()}',
+      );
+    }
+    return critical;
+  }
+
+  String _telegramAdminCriticalSnapshot() {
+    final critical = _telegramAdminCriticalAlerts();
+    final events = store.allEvents();
+    final activeIncidents = _activeIncidentCount(events);
+    final pendingActions = _pendingAiActionCount(events);
+    final guardsOnline = _guardsOnlineCount(events);
+    final queueThreshold = _positiveThreshold(
+      _guardQueuePressureAlertThresholdEnv,
+      fallback: 25,
+    );
+    final bridgeWarning =
+        _telegramBridgeHealthLabel.toLowerCase() == 'degraded' ||
+        _telegramBridgeHealthLabel.toLowerCase() == 'blocked';
+    final hasWarningSignal =
+        bridgeWarning ||
+        _clientAppPushSyncStatusLabel.trim().toLowerCase() == 'failed' ||
+        pendingActions > 0;
+    final posture = critical.isNotEmpty
+        ? 'RED'
+        : (hasWarningSignal ? 'AMBER' : 'GREEN');
+    final postureEmoji = switch (posture) {
+      'RED' => '🔴',
+      'AMBER' => '🟠',
+      _ => '🟢',
+    };
+    final actionHint = _telegramAdminPrimaryActionHint(
+      criticalCount: critical.length,
+      pendingActions: pendingActions,
+      queueThreshold: queueThreshold,
+    );
+    if (critical.isEmpty) {
+      return '🛡️ <b>ONYX CRITICAL</b>\n\n'
+          '<b>Posture:</b> $postureEmoji <b>${_telegramHtmlEscape(posture)}</b>\n'
+          '<b>Active Critical Alerts:</b> <b>0</b>\n\n'
+          '---\n\n'
+          '<b>Top Risk</b>\n'
+          'None\n\n'
+          '---\n\n'
+          '<b>Operations Status</b>\n\n'
+          '• <b>Guards Online:</b> $guardsOnline\n'
+          '• <b>Incidents:</b> $activeIncidents\n'
+          '• <b>Pending Replies:</b> $pendingActions\n\n'
+          '---\n\n'
+          '<b>Recommended Action</b>\n'
+          'Run: <b>/ops</b>\n\n'
+          '---\n\n'
+          '<b>Target</b>\n\n'
+          '<b>Client:</b> ${_telegramHtmlEscape(_telegramAdminTargetClientId)}\n'
+          '<b>Site:</b> ${_telegramHtmlEscape(_telegramAdminTargetSiteId)}\n\n'
+          'UTC: ${_telegramUtcStamp()}';
+    }
+    final topRisk = _telegramHtmlEscape(_singleLine(critical.first));
+    return '🚨 <b>ONYX CRITICAL</b>\n\n'
+        '<b>Posture:</b> $postureEmoji <b>${_telegramHtmlEscape(posture)}</b>\n'
+        '<b>Active Critical Alerts:</b> <b>${critical.length}</b>\n\n'
+        '---\n\n'
+        '<b>Top Risk</b>\n'
+        '$topRisk\n\n'
+        '---\n\n'
+        '<b>Operations Status</b>\n\n'
+        '• <b>Guards Online:</b> $guardsOnline\n'
+        '• <b>Incidents:</b> $activeIncidents\n'
+        '• <b>Pending Replies:</b> $pendingActions\n\n'
+        '---\n\n'
+        '<b>Recommended Action</b>\n'
+        'Run: <b>${_telegramHtmlEscape(_telegramAdminRecommendedCommand(actionHint))}</b>\n\n'
+        '---\n\n'
+        '<b>Target</b>\n\n'
+        '<b>Client:</b> ${_telegramHtmlEscape(_telegramAdminTargetClientId)}\n'
+        '<b>Site:</b> ${_telegramHtmlEscape(_telegramAdminTargetSiteId)}\n\n'
+        'UTC: ${_telegramUtcStamp()}';
+  }
+
+  String _telegramAdminRecommendedCommand(String actionHint) {
+    final lower = actionHint.toLowerCase();
+    if (lower.contains('/syncguards')) return '/syncguards';
+    if (lower.contains('/pollops')) return '/pollops';
+    if (lower.contains('/bridges')) return '/bridges';
+    if (lower.contains('/critical')) return '/critical short';
+    if (lower.contains('/guards')) return '/guards';
+    if (lower.contains('/ops')) return '/ops';
+    return '/next';
+  }
+
+  String _telegramAdminCriticalCommand(String arguments) {
+    final mode = arguments.trim().toLowerCase();
+    if (mode == 'short' || mode == 'brief' || mode == 'compact') {
+      return _telegramAdminCriticalShortSnapshot();
+    }
+    return _telegramAdminCriticalSnapshot();
+  }
+
+  String _telegramAdminCriticalShortSnapshot() {
+    final critical = _telegramAdminCriticalAlerts();
+    if (critical.isEmpty) {
+      return '<b>ONYX CRITICAL (SHORT)</b>\n'
+          '🟢 <b>Critical:</b> none\n'
+          '• <b>Next:</b> monitor with brief/status.\n'
+          'UTC: ${DateTime.now().toUtc().toIso8601String()}';
+    }
+    final top = _singleLine(critical.first, maxLength: 140);
+    return '<b>ONYX CRITICAL (SHORT)</b>\n'
+        '🔴 <b>Critical:</b> ${critical.length} active\n'
+        '• <b>Top:</b> ${_telegramHtmlEscape(top)}\n'
+        '• <b>Next:</b> /ackcritical | /snoozecritical 30 | /next\n'
+        'UTC: ${DateTime.now().toUtc().toIso8601String()}';
+  }
+
+  String _telegramAdminCriticalFingerprint(List<String> critical) {
+    if (critical.isEmpty) {
+      return '';
+    }
+    String normalize(String value) {
+      final normalized = value.trim().toLowerCase();
+      if (normalized.startsWith('guard ops failures high:')) {
+        return 'guard_ops_failures_high';
+      }
+      if (normalized.startsWith('guard sync queue pressure high:')) {
+        return 'guard_sync_queue_pressure_high';
+      }
+      if (normalized.startsWith('guard telemetry live-ready gate violation:')) {
+        return normalized.replaceAll(RegExp(r'\s+'), ' ');
+      }
+      if (normalized.startsWith('client push sync failed:')) {
+        return 'client_push_sync_failed';
+      }
+      if (normalized == 'telegram bridge degraded.') {
+        return 'telegram_bridge_degraded';
+      }
+      if (normalized == 'telegram bridge blocked.') {
+        return 'telegram_bridge_blocked';
+      }
+      return normalized.replaceAll(RegExp(r'\d+'), '#');
+    }
+
+    final tokens =
+        critical
+            .map(normalize)
+            .where((entry) => entry.isNotEmpty)
+            .toSet()
+            .toList(growable: false)
+          ..sort();
+    return tokens.join('|');
+  }
+
+  Future<void> _maybeSendTelegramAdminCriticalDigest({
+    required String source,
+    bool force = false,
+  }) async {
+    if (!_telegramAdminCriticalPushEnabled ||
+        _telegramAdminCriticalPushInFlight) {
+      return;
+    }
+    final adminChatId = _resolvedTelegramAdminChatId();
+    if (adminChatId.isEmpty) {
+      return;
+    }
+    final now = DateTime.now().toUtc();
+    const quietAfterCommandSeconds = 45;
+    final lastCommandAt = _telegramAdminLastCommandAtUtc;
+    if (!force &&
+        lastCommandAt != null &&
+        now.difference(lastCommandAt).inSeconds < quietAfterCommandSeconds) {
+      return;
+    }
+    final lastAttemptAt = _telegramAdminLastCriticalPushAttemptAtUtc;
+    if (!force &&
+        lastAttemptAt != null &&
+        now.difference(lastAttemptAt).inSeconds < 10) {
+      return;
+    }
+    final critical = _telegramAdminCriticalAlerts();
+    final fingerprint = _telegramAdminCriticalFingerprint(critical);
+    final hasCritical = critical.isNotEmpty;
+    if (!hasCritical &&
+        _telegramAdminCriticalAckAtUtc != null &&
+        !force &&
+        _telegramAdminCriticalAckFingerprint.isNotEmpty) {
+      _telegramAdminCriticalAckFingerprint = '';
+      _telegramAdminCriticalAckAtUtc = null;
+      unawaited(_persistTelegramAdminRuntimeState());
+    }
+    final criticalAckSticky =
+        hasCritical && !force && _telegramAdminCriticalAckAtUtc != null;
+    final criticalAcked =
+        hasCritical &&
+        !force &&
+        _telegramAdminCriticalAckFingerprint.isNotEmpty &&
+        _telegramAdminCriticalAckFingerprint == fingerprint;
+    if (criticalAckSticky || criticalAcked) {
+      return;
+    }
+    final snoozedUntil = _telegramAdminCriticalSnoozedUntilUtc;
+    final reminderSnoozed =
+        hasCritical &&
+        !force &&
+        snoozedUntil != null &&
+        now.isBefore(snoozedUntil);
+    if (reminderSnoozed) {
+      return;
+    }
+    final hadCritical = _telegramAdminCriticalAlertFingerprint.isNotEmpty;
+    final stateChanged = fingerprint != _telegramAdminCriticalAlertFingerprint;
+    final reminderDue =
+        hasCritical &&
+        _telegramAdminLastCriticalAlertAtUtc != null &&
+        now.difference(_telegramAdminLastCriticalAlertAtUtc!).inSeconds >=
+            _normalizedTelegramAdminCriticalReminderSeconds;
+    if (!force && !stateChanged && !reminderDue) {
+      return;
+    }
+    if (!force && !hasCritical && !hadCritical) {
+      return;
+    }
+    final summary = hasCritical
+        ? 'active(${critical.length}) via $source'
+        : 'cleared via $source';
+    final signalHeader = _telegramAdminSignalHeader();
+    final topCritical = hasCritical
+        ? _singleLine(critical.first, maxLength: 140)
+        : 'none';
+    final moreCount = hasCritical && critical.length > 1
+        ? critical.length - 1
+        : 0;
+    final text = hasCritical
+        ? '<b>${_telegramHtmlEscape(signalHeader)}</b>\n'
+              '<b>ONYX CRITICAL ALERT</b> [${_telegramHtmlEscape(source)}]\n'
+              '🔴 <b>Critical:</b> ${critical.length} active\n'
+              '• <b>Top:</b> ${_telegramHtmlEscape(topCritical)}\n'
+              '${moreCount > 0 ? '• <b>Also:</b> +$moreCount more active critical(s)\n' : ''}'
+              '• <b>Actions:</b> /critical short | Ack critical | Next 5\n'
+              'UTC: ${now.toIso8601String()}'
+        : '<b>${_telegramHtmlEscape(signalHeader)}</b>\n'
+              '<b>ONYX CRITICAL CLEARED</b> [${_telegramHtmlEscape(source)}]\n'
+              '🟢 No active critical alerts.\n'
+              'UTC: ${now.toIso8601String()}';
+    _telegramAdminCriticalPushInFlight = true;
+    _telegramAdminLastCriticalPushAttemptAtUtc = now;
+    final adminThreadId = _resolvedTelegramAdminThreadId();
+    try {
+      final result = await _telegramBridge.sendMessages(
+        messages: <TelegramBridgeMessage>[
+          TelegramBridgeMessage(
+            messageKey:
+                'tg-admin-critical-${now.microsecondsSinceEpoch}-${critical.length}',
+            chatId: adminChatId,
+            messageThreadId: adminThreadId,
+            text: text,
+            replyMarkup: _telegramAdminQuickReplyMarkup(),
+            parseMode: 'HTML',
+          ),
+        ],
+      );
+      if (result.failedCount > 0) {
+        final reason = result.failureReasonsByMessageKey.values
+            .map((value) => value.trim())
+            .where((value) => value.isNotEmpty)
+            .take(2)
+            .join(' | ');
+        final detail = reason.isEmpty
+            ? 'Admin critical alert delivery failed.'
+            : 'Admin critical alert delivery failed: $reason';
+        if (mounted) {
+          setState(() {
+            _telegramBridgeHealthLabel = 'degraded';
+            _telegramBridgeHealthDetail = detail;
+            _telegramBridgeHealthUpdatedAtUtc = now;
+          });
+        }
+        unawaited(_persistTelegramAdminRuntimeState());
+        return;
+      }
+      _telegramAdminCriticalAlertFingerprint = fingerprint;
+      _telegramAdminLastCriticalAlertAtUtc = now;
+      _telegramAdminLastCriticalAlertSummary = summary;
+      unawaited(_persistTelegramAdminRuntimeState());
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _telegramBridgeHealthLabel = 'degraded';
+          _telegramBridgeHealthDetail =
+              'Admin critical alert delivery failed: $error';
+          _telegramBridgeHealthUpdatedAtUtc = now;
+        });
+      }
+      unawaited(_persistTelegramAdminRuntimeState());
+    } finally {
+      _telegramAdminCriticalPushInFlight = false;
+    }
+  }
+
+  String _telegramAdminGuardSnapshot() {
+    final events = store.allEvents();
+    final guardsOnline = _guardsOnlineCount(events);
+    final queueThreshold = _positiveThreshold(
+      _guardQueuePressureAlertThresholdEnv,
+      fallback: 25,
+    );
+    final failedWarn = _positiveThreshold(
+      _guardFailedOpsWarnThresholdEnv,
+      fallback: 1,
+    );
+    final syncStatus = (_guardOpsLastSyncLabel ?? 'pending').trim();
+    return 'ONYX GUARDS\n'
+        'Online: $guardsOnline\n'
+        'Sync backend: ${_guardSyncUsingBackend ? 'supabase+fallback' : 'local-only'}\n'
+        'Queue depth: $_guardSyncQueueDepth/$queueThreshold\n'
+        'Pending ops: events=$_guardOpsPendingEvents media=$_guardOpsPendingMedia\n'
+        'Failed ops: events=$_guardOpsFailedEvents media=$_guardOpsFailedMedia (warn=$failedWarn)\n'
+        'Telemetry: ${_guardTelemetryReadiness.name} • gate=${_guardTelemetryLiveReadyGateViolated ? 'VIOLATION' : 'OK'}\n'
+        'Last sync: $syncStatus\n'
+        'UTC: ${DateTime.now().toUtc().toIso8601String()}';
+  }
+
+  String _telegramAdminBridgeSnapshot() {
+    final radioConfigured = _opsIntegrationProfile.radio.configured;
+    final cctvConfigured = _opsIntegrationProfile.cctv.configured;
+    final wearableConfigured =
+        _wearableProviderEnv.trim().isNotEmpty && _wearableBridgeUri != null;
+    final pollLabel = _livePollingLabel ?? 'disabled';
+    return 'ONYX BRIDGES\n'
+        'Telegram: ${_telegramBridgeHealthLabel.toUpperCase()}${_telegramBridgeHealthDetail == null ? '' : ' • $_telegramBridgeHealthDetail'}\n'
+        'Radio: ${radioConfigured ? 'configured' : 'disabled'} • ${_radioQueueHealthSummary()}\n'
+        'CCTV: ${cctvConfigured ? 'configured' : 'disabled'} • ${_cctvCapabilitySummary()}\n'
+        'Wearable: ${wearableConfigured ? 'configured' : 'disabled'}\n'
+        'Live polling: $pollLabel\n'
+        'UTC: ${DateTime.now().toUtc().toIso8601String()}';
+  }
+
   String _composeOpsIntegrationPollSummary(
     List<_OpsIntegrationIngestResult> results,
   ) {
@@ -5505,6 +10746,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       OnyxAppMode.controller => AppShell(
         currentRoute: _route,
         onRouteChanged: (r) => setState(() {
+          _cancelDemoAutopilot();
           _route = r;
           _eventsSourceFilter = '';
           _eventsProviderFilter = '';
@@ -5517,6 +10759,19 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         complianceIssuesCount: _complianceIssuesCount(),
         tacticalSosAlerts: _tacticalSosAlerts(),
         intelTickerItems: _intelTickerItems(events),
+        demoAutopilotStatusLabel: _demoAutopilotRunning
+            ? 'Demo $_demoAutopilotCurrentStep/$_demoAutopilotTotalSteps • $_demoAutopilotFlowLabel${_demoAutopilotPaused ? ' • paused' : ''}${_demoAutopilotNextHopSeconds > 0 && _demoAutopilotNextRouteLabel.isNotEmpty && !_demoAutopilotPaused ? ' • next: $_demoAutopilotNextRouteLabel in $_demoAutopilotNextHopSeconds s' : ''}'
+            : '',
+        onStopDemoAutopilot: _demoAutopilotRunning
+            ? _stopDemoAutopilotFromShell
+            : null,
+        onSkipDemoAutopilot: _demoAutopilotRunning
+            ? _skipDemoAutopilotFromShell
+            : null,
+        onToggleDemoAutopilotPause: _demoAutopilotRunning
+            ? _toggleDemoAutopilotPauseFromShell
+            : null,
+        demoAutopilotPaused: _demoAutopilotPaused,
         child: _buildPage(events),
       ),
       OnyxAppMode.guard => _buildGuardPage(),
@@ -5650,6 +10905,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }
 
   void _focusEventsFromTickerItem(OnyxIntelTickerItem item) {
+    _cancelDemoAutopilot();
     final source = _normalizeIntelSourceFilter(item.sourceType);
     final provider = _normalizeIntelProviderFilter(item.provider);
     final selectedEventId = _resolveTickerEventId(item);
@@ -5659,6 +10915,631 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _eventsProviderFilter = provider;
       _eventsSelectedEventId = selectedEventId ?? '';
     });
+  }
+
+  void _openOperationsFromAdminIncident(String incidentReference) {
+    final ref = incidentReference.trim();
+    if (ref.isEmpty) return;
+    _cancelDemoAutopilot();
+    setState(() {
+      _operationsFocusIncidentReference = ref;
+      _route = OnyxRoute.dashboard;
+    });
+  }
+
+  void _openTacticalFromAdminIncident(String incidentReference) {
+    final ref = incidentReference.trim();
+    if (ref.isEmpty) return;
+    _cancelDemoAutopilot();
+    setState(() {
+      _operationsFocusIncidentReference = ref;
+      _route = OnyxRoute.tactical;
+    });
+  }
+
+  void _openEventsFromAdminIncident(String incidentReference) {
+    final ref = incidentReference.trim();
+    if (ref.isEmpty) return;
+    _cancelDemoAutopilot();
+    setState(() {
+      _eventsSourceFilter = '';
+      _eventsProviderFilter = '';
+      _eventsSelectedEventId = ref;
+      _route = OnyxRoute.events;
+    });
+  }
+
+  void _openLedgerFromAdminIncident(String incidentReference) {
+    final ref = incidentReference.trim();
+    if (ref.isEmpty) return;
+    _cancelDemoAutopilot();
+    setState(() {
+      _operationsFocusIncidentReference = ref;
+      _route = OnyxRoute.ledger;
+    });
+  }
+
+  void _openGovernanceFromAdmin() {
+    _cancelDemoAutopilot();
+    setState(() {
+      _route = OnyxRoute.governance;
+    });
+  }
+
+  void _openDispatchesFromAdmin() {
+    _cancelDemoAutopilot();
+    setState(() {
+      _route = OnyxRoute.dispatches;
+    });
+  }
+
+  void _openDispatchesFromAdminIncident(String incidentReference) {
+    final ref = incidentReference.trim();
+    if (ref.isEmpty) {
+      _openDispatchesFromAdmin();
+      return;
+    }
+    _cancelDemoAutopilot();
+    setState(() {
+      _operationsFocusIncidentReference = ref;
+      _route = OnyxRoute.dispatches;
+    });
+  }
+
+  void _startDemoAutopilotFromAdminIncident(String incidentReference) {
+    final ref = incidentReference.trim();
+    if (ref.isEmpty) return;
+    _startDemoAutopilot(
+      incidentReference: ref,
+      sequence: const [
+        OnyxRoute.dashboard,
+        OnyxRoute.tactical,
+        OnyxRoute.dispatches,
+      ],
+      stepIntervalSeconds: 6,
+      flowLabel: 'Quick Tour',
+      title: 'Operations -> Tactical -> Dispatches',
+      completionLabel: 'Dispatches focused on',
+    );
+  }
+
+  void _startFullDemoAutopilotFromAdminIncident(String incidentReference) {
+    final ref = incidentReference.trim();
+    if (ref.isEmpty) return;
+    _startDemoAutopilot(
+      incidentReference: ref,
+      sequence: const [
+        OnyxRoute.dashboard,
+        OnyxRoute.tactical,
+        OnyxRoute.dispatches,
+        OnyxRoute.events,
+        OnyxRoute.ledger,
+        OnyxRoute.governance,
+        OnyxRoute.clients,
+        OnyxRoute.reports,
+      ],
+      stepIntervalSeconds: 5,
+      flowLabel: 'Full Tour',
+      title:
+          'Operations -> Tactical -> Dispatches -> Events -> Ledger -> Governance -> Clients -> Reports',
+      completionLabel: 'Reports reached for',
+    );
+  }
+
+  void _startDemoAutopilot({
+    required String incidentReference,
+    required List<OnyxRoute> sequence,
+    required int stepIntervalSeconds,
+    required String flowLabel,
+    required String title,
+    required String completionLabel,
+  }) {
+    if (sequence.isEmpty) return;
+    final ref = incidentReference.trim();
+    if (ref.isEmpty) return;
+    _cancelDemoAutopilot();
+    final firstRoute = sequence.first;
+    setState(() {
+      _demoAutopilotSequence = List<OnyxRoute>.of(sequence);
+      _demoAutopilotStepIntervalSeconds = stepIntervalSeconds;
+      _demoAutopilotIncidentReference = ref;
+      _demoAutopilotCompletionLabel = completionLabel;
+      _operationsFocusIncidentReference = ref;
+      _route = firstRoute;
+      _eventsSourceFilter = '';
+      _eventsProviderFilter = '';
+      _eventsSelectedEventId = firstRoute == OnyxRoute.events ? ref : '';
+      _demoAutopilotRunning = true;
+      _demoAutopilotPaused = false;
+      _demoAutopilotCurrentStep = 1;
+      _demoAutopilotTotalSteps = sequence.length;
+      _demoAutopilotFlowLabel = flowLabel;
+      _demoAutopilotNextHopSeconds = sequence.length > 1
+          ? stepIntervalSeconds
+          : 0;
+      _demoAutopilotNextRouteLabel = sequence.length > 1
+          ? _autopilotRouteLabel(sequence[1])
+          : '';
+    });
+    if (sequence.length > 1) {
+      _restartDemoAutopilotCountdownTicker();
+      _scheduleDemoAutopilotRouteHop(delaySeconds: stepIntervalSeconds);
+    }
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    messenger?.hideCurrentSnackBar();
+    messenger?.showSnackBar(
+      SnackBar(
+        backgroundColor: const Color(0xFF0F1419),
+        behavior: SnackBarBehavior.floating,
+        content: Text(
+          'Demo Autopilot started: $title ($ref)',
+          style: GoogleFonts.inter(
+            color: const Color(0xFFEAF4FF),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _cancelDemoAutopilot() {
+    _demoAutopilotRouteTimer?.cancel();
+    _demoAutopilotRouteTimer = null;
+    _demoAutopilotCountdownTimer?.cancel();
+    _demoAutopilotCountdownTimer = null;
+    _demoAutopilotRunning = false;
+    _demoAutopilotPaused = false;
+    _demoAutopilotCurrentStep = 0;
+    _demoAutopilotTotalSteps = 0;
+    _demoAutopilotFlowLabel = '';
+    _demoAutopilotNextHopSeconds = 0;
+    _demoAutopilotNextRouteLabel = '';
+    _demoAutopilotSequence = const [];
+    _demoAutopilotStepIntervalSeconds = 0;
+    _demoAutopilotIncidentReference = '';
+    _demoAutopilotCompletionLabel = '';
+  }
+
+  void _scheduleDemoAutopilotRouteHop({required int delaySeconds}) {
+    _demoAutopilotRouteTimer?.cancel();
+    _demoAutopilotRouteTimer = null;
+    if (!_demoAutopilotRunning || _demoAutopilotPaused || delaySeconds <= 0) {
+      return;
+    }
+    _demoAutopilotRouteTimer = Timer(Duration(seconds: delaySeconds), () {
+      _demoAutopilotRouteTimer = null;
+      _advanceDemoAutopilotStep();
+    });
+  }
+
+  void _advanceDemoAutopilotStep({bool showStepSnack = true}) {
+    if (!mounted || !_demoAutopilotRunning || _demoAutopilotPaused) return;
+    final nextIndex = _demoAutopilotCurrentStep;
+    if (nextIndex < 0 || nextIndex >= _demoAutopilotSequence.length) {
+      return;
+    }
+    final nextRoute = _demoAutopilotSequence[nextIndex];
+    final isLast = nextIndex == _demoAutopilotSequence.length - 1;
+    setState(() {
+      _route = nextRoute;
+      if (nextRoute == OnyxRoute.events) {
+        _eventsSourceFilter = '';
+        _eventsProviderFilter = '';
+        _eventsSelectedEventId = _demoAutopilotIncidentReference;
+      }
+      _demoAutopilotCurrentStep = nextIndex + 1;
+      if (!isLast) {
+        _demoAutopilotNextHopSeconds = _demoAutopilotStepIntervalSeconds;
+        _demoAutopilotNextRouteLabel = _autopilotRouteLabel(
+          _demoAutopilotSequence[nextIndex + 1],
+        );
+      }
+    });
+    if (!isLast && showStepSnack) {
+      _showDemoAutopilotStepSnack(
+        step: _demoAutopilotCurrentStep,
+        total: _demoAutopilotTotalSteps,
+        route: nextRoute,
+      );
+    }
+    if (isLast) {
+      final completionLabel = _demoAutopilotCompletionLabel;
+      final ref = _demoAutopilotIncidentReference;
+      setState(() {
+        _cancelDemoAutopilot();
+      });
+      final doneMessenger = ScaffoldMessenger.maybeOf(context);
+      doneMessenger?.hideCurrentSnackBar();
+      doneMessenger?.showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFF0F1419),
+          behavior: SnackBarBehavior.floating,
+          content: Text(
+            'Demo Autopilot complete: $completionLabel $ref',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF4FF),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+    _restartDemoAutopilotCountdownTicker();
+    _scheduleDemoAutopilotRouteHop(
+      delaySeconds: _demoAutopilotStepIntervalSeconds,
+    );
+  }
+
+  void _restartDemoAutopilotCountdownTicker() {
+    _demoAutopilotCountdownTimer?.cancel();
+    _demoAutopilotCountdownTimer = null;
+    if (_demoAutopilotPaused ||
+        !_demoAutopilotRunning ||
+        _demoAutopilotNextHopSeconds <= 0) {
+      return;
+    }
+    _demoAutopilotCountdownTimer = Timer.periodic(const Duration(seconds: 1), (
+      timer,
+    ) {
+      if (!mounted || !_demoAutopilotRunning) {
+        timer.cancel();
+        _demoAutopilotCountdownTimer = null;
+        return;
+      }
+      if (_demoAutopilotNextHopSeconds <= 1) {
+        setState(() {
+          _demoAutopilotNextHopSeconds = 0;
+        });
+        timer.cancel();
+        _demoAutopilotCountdownTimer = null;
+        return;
+      }
+      setState(() {
+        _demoAutopilotNextHopSeconds -= 1;
+      });
+    });
+  }
+
+  String _autopilotRouteLabel(OnyxRoute route) {
+    return switch (route) {
+      OnyxRoute.dashboard => 'Operations',
+      OnyxRoute.aiQueue => 'AI Queue',
+      OnyxRoute.tactical => 'Tactical',
+      OnyxRoute.governance => 'Governance',
+      OnyxRoute.clients => 'Clients',
+      OnyxRoute.sites => 'Sites',
+      OnyxRoute.guards => 'Guards',
+      OnyxRoute.dispatches => 'Dispatches',
+      OnyxRoute.events => 'Events',
+      OnyxRoute.ledger => 'Ledger',
+      OnyxRoute.reports => 'Reports',
+      OnyxRoute.admin => 'Admin',
+    };
+  }
+
+  String _autopilotRouteKey(OnyxRoute route) {
+    return route.name.toLowerCase();
+  }
+
+  String _autopilotRouteNarration(OnyxRoute route) {
+    final override = _demoRouteCueOverrides[_autopilotRouteKey(route)];
+    if (override != null && override.trim().isNotEmpty) {
+      return override.trim();
+    }
+    return switch (route) {
+      OnyxRoute.dashboard => 'Action ladder and decision speed.',
+      OnyxRoute.aiQueue => 'AI triage and intent ordering.',
+      OnyxRoute.tactical => 'Verify units, geofence, and site posture.',
+      OnyxRoute.governance => 'Show compliance and readiness controls.',
+      OnyxRoute.clients => 'Client-facing confidence and communication lane.',
+      OnyxRoute.sites => 'Deployment footprint and zone definitions.',
+      OnyxRoute.guards => 'Field force state and sync health.',
+      OnyxRoute.dispatches => 'Execute with focused dispatch context.',
+      OnyxRoute.events => 'Replay immutable incident timeline.',
+      OnyxRoute.ledger => 'Confirm evidence chain integrity.',
+      OnyxRoute.reports => 'Demonstrate export and report proof.',
+      OnyxRoute.admin => 'Demo seeding and runtime controls.',
+    };
+  }
+
+  void _showDemoAutopilotStepSnack({
+    required int step,
+    required int total,
+    required OnyxRoute route,
+  }) {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return;
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        backgroundColor: const Color(0xFF0F1419),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+        content: Text(
+          'Step $step/$total • ${_autopilotRouteLabel(route)}: ${_autopilotRouteNarration(route)}',
+          style: GoogleFonts.inter(
+            color: const Color(0xFFEAF4FF),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _toggleDemoAutopilotPauseFromShell() {
+    if (!_demoAutopilotRunning) return;
+    setState(() {
+      _demoAutopilotPaused = !_demoAutopilotPaused;
+      if (_demoAutopilotPaused) {
+        _demoAutopilotRouteTimer?.cancel();
+        _demoAutopilotRouteTimer = null;
+        _demoAutopilotCountdownTimer?.cancel();
+        _demoAutopilotCountdownTimer = null;
+      } else {
+        if (_demoAutopilotNextHopSeconds <= 0) {
+          _demoAutopilotNextHopSeconds = _demoAutopilotStepIntervalSeconds;
+        }
+        _restartDemoAutopilotCountdownTicker();
+        _scheduleDemoAutopilotRouteHop(
+          delaySeconds: _demoAutopilotNextHopSeconds,
+        );
+      }
+    });
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    messenger?.hideCurrentSnackBar();
+    messenger?.showSnackBar(
+      SnackBar(
+        backgroundColor: const Color(0xFF0F1419),
+        behavior: SnackBarBehavior.floating,
+        content: Text(
+          _demoAutopilotPaused
+              ? 'Demo Autopilot paused.'
+              : 'Demo Autopilot resumed.',
+          style: GoogleFonts.inter(
+            color: const Color(0xFFEAF4FF),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _skipDemoAutopilotFromShell() {
+    if (!_demoAutopilotRunning) return;
+    final nextIndex = _demoAutopilotCurrentStep;
+    if (nextIndex < 0 || nextIndex >= _demoAutopilotSequence.length) return;
+    final targetLabel = _autopilotRouteLabel(_demoAutopilotSequence[nextIndex]);
+    _demoAutopilotRouteTimer?.cancel();
+    _demoAutopilotRouteTimer = null;
+    _demoAutopilotCountdownTimer?.cancel();
+    _demoAutopilotCountdownTimer = null;
+    setState(() {
+      _demoAutopilotPaused = false;
+    });
+    _advanceDemoAutopilotStep(showStepSnack: false);
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    messenger?.hideCurrentSnackBar();
+    messenger?.showSnackBar(
+      SnackBar(
+        backgroundColor: const Color(0xFF0F1419),
+        behavior: SnackBarBehavior.floating,
+        content: Text(
+          'Demo Autopilot skipped ahead to $targetLabel.',
+          style: GoogleFonts.inter(
+            color: const Color(0xFFEAF4FF),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _stopDemoAutopilotFromShell() {
+    if (!_demoAutopilotRunning) return;
+    setState(() {
+      _cancelDemoAutopilot();
+    });
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    messenger?.hideCurrentSnackBar();
+    messenger?.showSnackBar(
+      SnackBar(
+        backgroundColor: const Color(0xFF0F1419),
+        behavior: SnackBarBehavior.floating,
+        content: Text(
+          'Demo Autopilot stopped.',
+          style: GoogleFonts.inter(
+            color: const Color(0xFFEAF4FF),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openClientViewFromAdmin() {
+    _cancelDemoAutopilot();
+    setState(() {
+      _route = OnyxRoute.clients;
+    });
+  }
+
+  void _openReportsFromAdmin() {
+    _cancelDemoAutopilot();
+    setState(() {
+      _route = OnyxRoute.reports;
+    });
+  }
+
+  List<TelegramAiPendingDraftView> _telegramAiPendingDraftViews() {
+    return _telegramAiPendingDrafts
+        .map(
+          (draft) => TelegramAiPendingDraftView(
+            updateId: draft.inboundUpdateId,
+            audience: draft.audience,
+            clientId: draft.clientId,
+            siteId: draft.siteId,
+            chatId: draft.chatId,
+            messageThreadId: draft.messageThreadId,
+            sourceText: draft.sourceText,
+            draftText: draft.draftText,
+            providerLabel: draft.providerLabel,
+            createdAtUtc: draft.createdAtUtc,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Future<void> _setTelegramAiAssistantEnabledFromAdmin(bool enabled) async {
+    if (_telegramAiAssistantEnabledOverride == enabled) {
+      return;
+    }
+    if (mounted) {
+      setState(() {
+        _telegramAiAssistantEnabledOverride = enabled;
+      });
+    } else {
+      _telegramAiAssistantEnabledOverride = enabled;
+    }
+    await _persistTelegramAdminRuntimeState();
+    _startTelegramAdminControlLoop();
+  }
+
+  Future<void> _setTelegramAiApprovalRequiredFromAdmin(bool required) async {
+    if (_telegramAiApprovalRequiredOverride == required) {
+      return;
+    }
+    if (mounted) {
+      setState(() {
+        _telegramAiApprovalRequiredOverride = required;
+      });
+    } else {
+      _telegramAiApprovalRequiredOverride = required;
+    }
+    await _persistTelegramAdminRuntimeState();
+  }
+
+  Future<String> _approveTelegramAiDraftFromAdmin(int updateId) async {
+    final result = await _telegramAdminAiApproveCommand('$updateId');
+    if (mounted) {
+      setState(() {});
+    }
+    return result;
+  }
+
+  Future<String> _rejectTelegramAiDraftFromAdmin(int updateId) async {
+    final result = _telegramAdminAiRejectCommand('$updateId');
+    if (mounted) {
+      setState(() {});
+    }
+    return result;
+  }
+
+  Future<String> _runAdminSiteTelegramChatcheck({
+    required String clientId,
+    String? siteId,
+    required String chatId,
+    int? threadId,
+    required String endpointLabel,
+  }) async {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId?.trim() ?? '';
+    final normalizedChatId = chatId.trim();
+    final normalizedLabel = endpointLabel.trim().isEmpty
+        ? 'Primary Site Telegram'
+        : endpointLabel.trim();
+    if (normalizedClientId.isEmpty || normalizedChatId.isEmpty) {
+      return 'FAIL (missing client/chat scope)';
+    }
+    if (!widget.supabaseReady) {
+      return 'SKIP (Supabase disabled)';
+    }
+    if (!_telegramBridge.isConfigured) {
+      return 'SKIP (Telegram bridge not configured)';
+    }
+    try {
+      final repository = SupabaseClientMessagingBridgeRepository(
+        Supabase.instance.client,
+      );
+      final targets = await repository.readActiveTelegramTargets(
+        clientId: normalizedClientId,
+        siteId: normalizedSiteId.isEmpty ? null : normalizedSiteId,
+      );
+      final linked = targets.any(
+        (target) =>
+            target.chatId.trim() == normalizedChatId &&
+            target.threadId == threadId,
+      );
+      final matchedEndpointIds = targets
+          .where(
+            (target) =>
+                target.chatId.trim() == normalizedChatId &&
+                target.threadId == threadId,
+          )
+          .map((target) => target.endpointId.trim())
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList(growable: false);
+
+      Future<void> persistEndpointChatcheck({
+        required String status,
+        String? error,
+      }) async {
+        if (matchedEndpointIds.isEmpty) return;
+        final payload = <String, Object?>{
+          'last_delivery_status': status,
+          'last_error': (error ?? '').trim().isEmpty ? null : error!.trim(),
+          'verified_at': DateTime.now().toUtc().toIso8601String(),
+        };
+        for (final endpointId in matchedEndpointIds) {
+          await Supabase.instance.client
+              .from('client_messaging_endpoints')
+              .update(payload)
+              .eq('client_id', normalizedClientId)
+              .eq('id', endpointId);
+        }
+      }
+
+      final message = TelegramBridgeMessage(
+        messageKey:
+            'admin-site-chatcheck-${DateTime.now().toUtc().millisecondsSinceEpoch}',
+        chatId: normalizedChatId,
+        messageThreadId: threadId,
+        text:
+            'ONYX chatcheck PASS probe • '
+            '${normalizedSiteId.isEmpty ? '$normalizedClientId/default' : '$normalizedClientId/$normalizedSiteId'}'
+            ' • $normalizedLabel',
+      );
+      final result = await _telegramBridge.sendMessages(messages: [message]);
+      final deliveryOk = result.failedCount == 0;
+      final reason =
+          (result.failureReasonsByMessageKey[message.messageKey] ?? '').trim();
+      if (deliveryOk) {
+        if (linked) {
+          await persistEndpointChatcheck(status: 'chatcheck_pass');
+        }
+        return linked
+            ? 'PASS (linked + delivered)'
+            : 'FAIL (delivered but endpoint not linked in scope)';
+      }
+      final blocked = _isTelegramBlockedReason(reason);
+      final reasonSuffix = reason.isEmpty ? '' : ' • $reason';
+      if (blocked) {
+        if (linked) {
+          await persistEndpointChatcheck(
+            status: 'chatcheck_blocked',
+            error: reason,
+          );
+        }
+        return 'FAIL (delivery blocked$reasonSuffix)';
+      }
+      if (linked) {
+        await persistEndpointChatcheck(status: 'chatcheck_fail', error: reason);
+      }
+      return 'FAIL (delivery error$reasonSuffix)';
+    } catch (error) {
+      return 'FAIL ($error)';
+    }
   }
 
   String _normalizeIntelSourceFilter(String sourceType) {
@@ -5784,7 +11665,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   Widget _buildPage(List<DispatchEvent> events) {
     switch (_route) {
       case OnyxRoute.dashboard:
-        return LiveOperationsPage(events: events);
+        return LiveOperationsPage(
+          events: events,
+          focusIncidentReference: _operationsFocusIncidentReference,
+        );
 
       case OnyxRoute.aiQueue:
         return AIQueuePage(events: events);
@@ -5792,6 +11676,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case OnyxRoute.tactical:
         return TacticalPage(
           events: events,
+          focusIncidentReference: _operationsFocusIncidentReference,
           cctvOpsReadiness: _opsIntegrationProfile.cctv.readinessLabel,
           cctvOpsDetail: _opsIntegrationProfile.cctv.detailLabel,
           cctvProvider: _opsIntegrationProfile.cctv.provider,
@@ -5831,6 +11716,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           clientId: _selectedClient,
           regionId: _selectedRegion,
           siteId: _selectedSite,
+          focusIncidentReference: _operationsFocusIncidentReference,
           onGenerate: () {
             setState(() {
               service.processIntelligenceDemo(
@@ -6007,7 +11893,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         );
 
       case OnyxRoute.ledger:
-        return SovereignLedgerPage(clientId: _selectedClient, events: events);
+        return SovereignLedgerPage(
+          clientId: _selectedClient,
+          events: events,
+          initialFocusReference: _operationsFocusIncidentReference,
+        );
 
       case OnyxRoute.reports:
         return ClientIntelligenceReportsPage(
@@ -6019,9 +11909,25 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case OnyxRoute.admin:
         return AdministrationPage(
           events: events,
+          supabaseReady: widget.supabaseReady,
+          onOpenOperationsForIncident: _openOperationsFromAdminIncident,
+          onOpenTacticalForIncident: _openTacticalFromAdminIncident,
+          onOpenEventsForIncident: _openEventsFromAdminIncident,
+          onOpenLedgerForIncident: _openLedgerFromAdminIncident,
+          onOpenDispatchesForIncident: _openDispatchesFromAdminIncident,
+          onRunDemoAutopilotForIncident: _startDemoAutopilotFromAdminIncident,
+          onRunFullDemoAutopilotForIncident:
+              _startFullDemoAutopilotFromAdminIncident,
+          onOpenGovernance: _openGovernanceFromAdmin,
+          onOpenDispatches: _openDispatchesFromAdmin,
+          onOpenClientView: _openClientViewFromAdmin,
+          onOpenReports: _openReportsFromAdmin,
           initialRadioIntentPhrasesJson: _radioIntentPhrasesJsonOverride,
+          initialDemoRouteCuesJson: _demoRouteCueOverridesJson,
           onSaveRadioIntentPhrasesJson: _saveRadioIntentPhraseConfig,
           onResetRadioIntentPhrasesJson: _clearRadioIntentPhraseConfig,
+          onSaveDemoRouteCuesJson: _saveDemoRouteCueOverridesConfig,
+          onResetDemoRouteCuesJson: _clearDemoRouteCueOverridesConfig,
           onRunOpsIntegrationPoll: _opsIntegrationPollingAvailable
               ? _pollOpsIntegrationOnce
               : null,
@@ -6073,6 +11979,22 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           cctvRecentSignalSummary: _cctvRecentSignalSummary(events),
           wearableOpsPollHealth: _opsHealthSummary(_wearableOpsHealth),
           newsOpsPollHealth: _opsHealthSummary(_newsOpsHealth),
+          telegramBridgeHealthLabel: _telegramBridgeHealthLabel,
+          telegramBridgeHealthDetail: _telegramBridgeHealthDetail,
+          telegramBridgeFallbackActive: _telegramBridgeFallbackToInApp,
+          telegramBridgeHealthUpdatedAtUtc: _telegramBridgeHealthUpdatedAtUtc,
+          telegramAiAssistantEnabled: _telegramAiAssistantEnabled,
+          telegramAiApprovalRequired: _telegramAiApprovalRequired,
+          telegramAiLastHandledAtUtc: _telegramAiLastHandledAtUtc,
+          telegramAiLastHandledSummary: _telegramAiLastHandledSummary,
+          telegramAiPendingDrafts: _telegramAiPendingDraftViews(),
+          onSetTelegramAiAssistantEnabled:
+              _setTelegramAiAssistantEnabledFromAdmin,
+          onSetTelegramAiApprovalRequired:
+              _setTelegramAiApprovalRequiredFromAdmin,
+          onApproveTelegramAiDraft: _approveTelegramAiDraftFromAdmin,
+          onRejectTelegramAiDraft: _rejectTelegramAiDraftFromAdmin,
+          onRunSiteTelegramChatcheck: _runAdminSiteTelegramChatcheck,
         );
     }
   }
@@ -6100,6 +12022,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       initialManualMessages: _clientAppMessages,
       initialAcknowledgements: _clientAppAcknowledgements,
       initialPushQueue: _clientAppPushQueue,
+      pushDeliveryProvider:
+          (_telegramBridge.isConfigured && !_telegramBridgeFallbackToInApp)
+          ? ClientPushDeliveryProvider.telegram
+          : (_clientPushDeliveryProvider == ClientPushDeliveryProvider.telegram
+                ? ClientPushDeliveryProvider.inApp
+                : _clientPushDeliveryProvider),
       pushSyncStatusLabel: _clientAppPushSyncStatusLabel,
       pushSyncLastSyncedAtUtc: _clientAppPushLastSyncedAtUtc,
       pushSyncFailureReason: _clientAppPushSyncFailureReason,
@@ -6478,6 +12406,25 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     if (value is int) return value;
     if (value is num) return value.toInt();
     if (value is String) return int.tryParse(value);
+    return null;
+  }
+
+  bool? _summaryBool(Object? value) {
+    if (value is bool) return value;
+    if (value is num) {
+      if (value == 1) return true;
+      if (value == 0) return false;
+      return null;
+    }
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      if (normalized == 'true' || normalized == '1' || normalized == 'on') {
+        return true;
+      }
+      if (normalized == 'false' || normalized == '0' || normalized == 'off') {
+        return false;
+      }
+    }
     return null;
   }
 

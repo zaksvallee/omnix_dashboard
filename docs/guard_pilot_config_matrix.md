@@ -87,6 +87,98 @@ Guard telemetry adapter keys:
 - `ONYX_DEVICE_HEALTH_URL` (HTTP fallback endpoint)
 - `ONYX_GUARD_TELEMETRY_BEARER_TOKEN`
 - `ONYX_CLIENT_APP_LOCALE` (`en`, `zu`, `af`; default `en`)
+- `ONYX_CLIENT_PUSH_DELIVERY_PROVIDER` (`in_app` or `telegram`; default `in_app`)
+- `ONYX_TELEGRAM_BRIDGE_ENABLED` (`true` or `false`; default `false`)
+- `ONYX_TELEGRAM_BOT_TOKEN` (required when Telegram bridge is enabled)
+- `ONYX_TELEGRAM_CHAT_ID` (required when Telegram bridge is enabled)
+- `ONYX_TELEGRAM_MESSAGE_THREAD_ID` (optional forum topic thread ID)
+- `ONYX_TELEGRAM_ADMIN_CONTROL_ENABLED` (`true` enables admin command polling via Telegram Bot API)
+- `ONYX_TELEGRAM_ADMIN_CHAT_ID` (optional explicit admin chat ID; defaults to `ONYX_TELEGRAM_CHAT_ID`)
+- `ONYX_TELEGRAM_ADMIN_THREAD_ID` (optional admin forum topic thread ID filter)
+- `ONYX_TELEGRAM_ADMIN_POLL_INTERVAL_SECONDS` (poll interval for admin command fetch; default `8`, clamped `3..60`)
+- `ONYX_TELEGRAM_ADMIN_EXECUTION_ENABLED` (`true` allows execution commands such as `/syncguards`, `/pollops`, `/notifytest`, `/bindchat`, `/linkchat`, `/unlinkchat`, `/unlinkall`, `/demoflow`, `/autodemo`, `/demoscript`, `/democlean`, `/demolaunch`, `/demoplay`, `/demoplaystop`, demo controls; default `true`)
+- `ONYX_TELEGRAM_ADMIN_CRITICAL_PUSH_ENABLED` (`true` sends automatic critical state alerts to admin chat; default `true`)
+- `ONYX_TELEGRAM_ADMIN_CRITICAL_REMINDER_SECONDS` (repeat active critical alerts after this interval; default `300`, clamped `60..3600`)
+- `ONYX_TELEGRAM_ADMIN_ALLOWED_USER_IDS` (optional comma-separated Telegram user IDs allowed to run admin commands)
+- `ONYX_TELEGRAM_AI_ASSISTANT_ENABLED` (`true` enables inbound Telegram AI assistant routing)
+- `ONYX_TELEGRAM_AI_APPROVAL_REQUIRED` (`true` requires manual approval before client AI replies are sent)
+- `ONYX_TELEGRAM_AI_OPENAI_API_KEY` (optional OpenAI API key for model-backed drafts; fallback templates are used when unset)
+- `ONYX_TELEGRAM_AI_OPENAI_MODEL` (default `gpt-4.1-mini`)
+- `ONYX_TELEGRAM_AI_OPENAI_ENDPOINT` (optional override for the OpenAI Responses API endpoint)
+
+Telegram admin commands (when admin control is enabled):
+- `/status [full]`
+- `/next`
+- `/ops`
+- `/incidents`
+- `/incident`
+- `/critical [short]`
+- `/syncguards`
+- `/pollops`
+- `/history`
+- `/adminconfig`
+- `/exec`
+- `/pushcritical`
+- `/setpoll`
+- `/setreminder`
+- `/target`
+- `/settarget [client_id site_id|default]`
+- `/acl [status|list|me|add <id>|remove <id>|open|default]`
+- `/notifytest [client|control] [client_id site_id]`
+- `/bindchat <client_id site_id> [label]`
+- `/linkchat [client_id site_id] [label]`
+- `/unlinkchat [client_id site_id]`
+- `/unlinkall [client_id site_id]`
+- `/chatcheck [client_id site_id]`
+- `/demoprep [client_id site_id]`
+- `/demoflow [client_id site_id]`
+- `/autodemo <client_id site_id> [label]`
+- `/demoscript [client_id site_id]`
+- `/democlean [client_id site_id]`
+- `/demolaunch <client_id site_id> [label]`
+- `/demoplay [client_id site_id [interval_seconds]]`
+- `/demoplaystop`
+- `/demoplaystatus`
+- `/targets [client_id site_id]`
+- `/demostart`
+- `/demofull`
+- `/demostop`
+- `/demostatus`
+- `/snoozecritical`
+- `/unsnoozecritical`
+- `/ackcritical`
+- `/unackcritical`
+- `/guards`
+- `/bridges`
+- `/brief`
+- `/aiassist [on|off|status|default]`
+- `/aiapproval [on|off|status|default]`
+- `/aidrafts`
+- `/aiapprove <update_id>`
+- `/aireject <update_id>`
+- `/aiconv [client_id site_id]`
+- `/ask <question>`
+- `/ping`
+- `/help`
+- `/whoami`
+
+Telegram admin runtime behavior:
+- Runtime admin controls (poll override, reminder override, ACL override, default target override, critical snooze/ack, admin command history) are persisted locally and restored on restart.
+- Runtime AI controls (assistant on/off, client approval on/off, pending draft queue) are persisted locally and restored on restart.
+- Long admin command responses are chunked automatically for Telegram delivery safety.
+- Plain-language admin prompts (without `/`) now auto-route for common intents such as status, brief/summary, critical risks, next actions, whoami, help, and question-form prompts.
+- Telegram admin replies attach a persistent quick-action keyboard (`Brief`, `Critical risks`, `Next 5`, `Status`, `Ack critical`, `Status full`) to reduce manual command typing.
+- Core admin snapshots (`brief`, `status`, `critical`, `next`) use rich Telegram formatting (bold headings, bullet points, and posture emojis) for one-glance readability.
+- Site onboarding in Admin now supports an optional dedicated site-level Telegram lane (`endpoint label`, `chat_id`, optional `thread_id`) that persists into messaging bridge records.
+- Client/site onboarding plus manual chat-lane binding now run an immediate Telegram chatcheck probe after Telegram lane save and surface `PASS/FAIL` feedback.
+- Admin Clients and Sites cards now show a `CHATCHECK` status badge (PASS/FAIL/SKIP) with tooltip detail from the latest verification run; status is re-hydrated from endpoint `last_delivery_status`/`last_error` on reload and restart.
+- Inbound AI routing handles non-command messages from linked client Telegram lanes; high-risk keywords are escalated to admin and logged to ledger instead of auto-resolved.
+- Admin System tab now includes a Telegram AI assistant panel with live draft queue and one-click `Approve` / `Reject` actions.
+- Use `/adminconfig` after restart to confirm active runtime values.
+
+Admin command bootstrap behavior:
+- On app startup, ONYX performs a one-time Telegram update offset bootstrap to avoid replaying stale historical commands from backlog.
+- `/status` now includes `Admin offset bootstrap` so you can verify bootstrap completion time.
 
 Readiness behavior:
 - `--enforce-live-telemetry` validates both native and required provider IDs.

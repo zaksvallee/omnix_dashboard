@@ -35,6 +35,8 @@ class DispatchPersistenceService {
   static const clientAppAcknowledgementsKey = 'onyx_client_app_acks_v1';
   static const clientAppPushQueueKey = 'onyx_client_app_push_queue_v1';
   static const clientAppPushSyncStateKey = 'onyx_client_app_push_sync_state_v1';
+  static const telegramAdminRuntimeStateKey =
+      'onyx_telegram_admin_runtime_state_v1';
   static const guardAssignmentsKey = 'onyx_guard_assignments_v1';
   static const guardSyncOperationsKey = 'onyx_guard_sync_operations_v1';
   static const guardSyncHistoryFilterKey = 'onyx_guard_sync_history_filter_v1';
@@ -519,6 +521,31 @@ class DispatchPersistenceService {
 
   Future<void> clearClientAppPushSyncState() async {
     await prefs.remove(clientAppPushSyncStateKey);
+  }
+
+  Future<Map<String, Object?>> readTelegramAdminRuntimeState() async {
+    final raw = prefs.getString(telegramAdminRuntimeStateKey);
+    if (raw == null || raw.isEmpty) return const {};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return const {};
+      return decoded.map(
+        (key, value) => MapEntry(key.toString(), value as Object?),
+      );
+    } catch (_) {
+      await clearTelegramAdminRuntimeState();
+      return const {};
+    }
+  }
+
+  Future<void> saveTelegramAdminRuntimeState(
+    Map<String, Object?> state,
+  ) async {
+    await prefs.setString(telegramAdminRuntimeStateKey, jsonEncode(state));
+  }
+
+  Future<void> clearTelegramAdminRuntimeState() async {
+    await prefs.remove(telegramAdminRuntimeStateKey);
   }
 
   Future<List<GuardAssignment>> readGuardAssignments() async {

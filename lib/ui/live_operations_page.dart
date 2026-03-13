@@ -117,8 +117,13 @@ class _GuardVigilance {
 
 class LiveOperationsPage extends StatefulWidget {
   final List<DispatchEvent> events;
+  final String focusIncidentReference;
 
-  const LiveOperationsPage({super.key, required this.events});
+  const LiveOperationsPage({
+    super.key,
+    required this.events,
+    this.focusIncidentReference = '',
+  });
 
   @override
   State<LiveOperationsPage> createState() => _LiveOperationsPageState();
@@ -139,6 +144,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   final List<_LedgerEntry> _manualLedger = [];
   final Map<String, _IncidentStatus> _statusOverrides = {};
   String? _activeIncidentId;
+  bool _focusReferenceLinkedToLive = false;
   _ContextTab _activeTab = _ContextTab.details;
 
   @override
@@ -150,7 +156,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   @override
   void didUpdateWidget(covariant LiveOperationsPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.events.length != widget.events.length) {
+    if (oldWidget.events.length != widget.events.length ||
+        oldWidget.focusIncidentReference.trim() !=
+            widget.focusIncidentReference.trim()) {
       _projectFromEvents();
     }
   }
@@ -232,6 +240,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final now = DateTime.now();
     final hh = now.hour.toString().padLeft(2, '0');
     final mm = now.minute.toString().padLeft(2, '0');
+    final focusReference = widget.focusIncidentReference.trim();
+    final hasFocusReference = focusReference.isNotEmpty;
+    final focusMatched = hasFocusReference && _focusReferenceLinkedToLive;
     final activeCount = _incidents
         .where((incident) => incident.status != _IncidentStatus.resolved)
         .length;
@@ -301,6 +312,20 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   background: const Color(0x3310B981),
                   border: const Color(0x6610B981),
                 ),
+                if (hasFocusReference)
+                  _chip(
+                    label:
+                        'Focus ${focusMatched ? 'Linked' : 'Seeded'}: $focusReference',
+                    foreground: focusMatched
+                        ? const Color(0xFF34D399)
+                        : const Color(0xFFF59E0B),
+                    background: focusMatched
+                        ? const Color(0x3334D399)
+                        : const Color(0x33F59E0B),
+                    border: focusMatched
+                        ? const Color(0x6634D399)
+                        : const Color(0x66F59E0B),
+                  ),
               ],
             ),
           ],
@@ -365,6 +390,22 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             background: const Color(0x3310B981),
             border: const Color(0x6610B981),
           ),
+          if (hasFocusReference) ...[
+            const SizedBox(width: 8),
+            _chip(
+              label:
+                  'Focus ${focusMatched ? 'Linked' : 'Seeded'}: $focusReference',
+              foreground: focusMatched
+                  ? const Color(0xFF34D399)
+                  : const Color(0xFFF59E0B),
+              background: focusMatched
+                  ? const Color(0x3334D399)
+                  : const Color(0x33F59E0B),
+              border: focusMatched
+                  ? const Color(0x6634D399)
+                  : const Color(0x66F59E0B),
+            ),
+          ],
         ],
       ),
     );
@@ -1879,21 +1920,55 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   }
 
   void _projectFromEvents() {
-    final projectedIncidents = _deriveIncidents(widget.events);
+    final focusReference = widget.focusIncidentReference.trim();
+    final liveProjectedIncidents = _deriveIncidents(widget.events);
+    final focusMatchedInLiveStream =
+        focusReference.isNotEmpty &&
+        liveProjectedIncidents.any((incident) => incident.id == focusReference);
+    final projectedIncidents = _injectFocusedIncidentFallback(
+      incidents: liveProjectedIncidents,
+      focusReference: focusReference,
+      hasLiveMatch: focusMatchedInLiveStream,
+    );
     final projectedLedger = _deriveLedger(widget.events);
     final projectedVigilance = _deriveVigilance(widget.events);
     setState(() {
       _incidents = projectedIncidents;
       _projectedLedger = projectedLedger;
       _vigilance = projectedVigilance;
+      _focusReferenceLinkedToLive = focusMatchedInLiveStream;
       if (_incidents.isEmpty) {
         _activeIncidentId = null;
+      } else if (focusReference.isNotEmpty &&
+          _incidents.any((incident) => incident.id == focusReference)) {
+        _activeIncidentId = focusReference;
       } else if (!_incidents.any(
         (incident) => incident.id == _activeIncidentId,
       )) {
         _activeIncidentId = _incidents.first.id;
       }
     });
+  }
+
+  List<_IncidentRecord> _injectFocusedIncidentFallback({
+    required List<_IncidentRecord> incidents,
+    required String focusReference,
+    required bool hasLiveMatch,
+  }) {
+    if (focusReference.isEmpty || hasLiveMatch) {
+      return incidents;
+    }
+    return [
+      _IncidentRecord(
+        id: focusReference,
+        priority: _IncidentPriority.p2High,
+        type: 'Seeded Breach Playback',
+        site: 'Demo Operations Lane',
+        timestamp: _hhmm(DateTime.now().toLocal()),
+        status: _statusOverrides[focusReference] ?? _IncidentStatus.dispatched,
+      ),
+      ...incidents,
+    ];
   }
 
   List<_IncidentRecord> _deriveIncidents(List<DispatchEvent> events) {

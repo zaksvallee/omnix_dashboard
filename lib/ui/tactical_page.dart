@@ -96,6 +96,7 @@ class _CctvLensTelemetry {
 
 class TacticalPage extends StatelessWidget {
   final List<DispatchEvent> events;
+  final String focusIncidentReference;
   final String cctvOpsReadiness;
   final String cctvOpsDetail;
   final String cctvProvider;
@@ -105,6 +106,7 @@ class TacticalPage extends StatelessWidget {
   const TacticalPage({
     super.key,
     required this.events,
+    this.focusIncidentReference = '',
     this.cctvOpsReadiness = 'UNCONFIGURED',
     this.cctvOpsDetail =
         'Configure ONYX_CCTV_PROVIDER and ONYX_CCTV_EVENTS_URL.',
@@ -221,6 +223,18 @@ class TacticalPage extends StatelessWidget {
     final now = DateTime.now();
     final isCombatWindow = now.hour >= 22 || now.hour < 6;
     final normMode = isCombatWindow ? 'night' : 'day';
+    final focusReference = focusIncidentReference.trim();
+    final focusLinked =
+        focusReference.isNotEmpty &&
+        _markers.any(
+          (marker) =>
+              marker.type == _MarkerType.incident &&
+              marker.id == focusReference,
+        );
+    final markers = _resolvedMarkers(
+      focusReference: focusReference,
+      linkedToLive: focusLinked,
+    );
     final geofenceAlerts = _geofences
         .where(
           (fence) =>
@@ -251,6 +265,8 @@ class TacticalPage extends StatelessWidget {
                   geofenceAlerts: geofenceAlerts,
                   sosAlerts: sosAlerts,
                   mode: isCombatWindow ? 'Combat Window' : 'Day Window',
+                  focusReference: focusReference,
+                  focusLinked: focusLinked,
                   cctvReadiness: cctvOpsReadiness,
                   cctvCapabilitySummary: cctvCapabilitySummary,
                   cctvRecentSignalSummary: cctvRecentSignalSummary,
@@ -263,6 +279,9 @@ class TacticalPage extends StatelessWidget {
                           Expanded(
                             flex: 8,
                             child: _mapPanel(
+                              markers: markers,
+                              focusReference: focusReference,
+                              focusLinked: focusLinked,
                               geofenceAlerts: geofenceAlerts,
                               sosAlerts: sosAlerts,
                             ),
@@ -281,6 +300,9 @@ class TacticalPage extends StatelessWidget {
                     : Column(
                         children: [
                           _mapPanel(
+                            markers: markers,
+                            focusReference: focusReference,
+                            focusLinked: focusLinked,
                             geofenceAlerts: geofenceAlerts,
                             sosAlerts: sosAlerts,
                           ),
@@ -304,6 +326,8 @@ class TacticalPage extends StatelessWidget {
     required int geofenceAlerts,
     required int sosAlerts,
     required String mode,
+    required String focusReference,
+    required bool focusLinked,
     required String cctvReadiness,
     required String cctvCapabilitySummary,
     required String cctvRecentSignalSummary,
@@ -358,6 +382,14 @@ class TacticalPage extends StatelessWidget {
                     ? const Color(0xFFFDE68A)
                     : const Color(0xFF9AB1CF),
               ),
+              if (focusReference.isNotEmpty)
+                _topChip(
+                  'Focus',
+                  '${focusLinked ? 'Linked' : 'Seeded'} $focusReference',
+                  focusLinked
+                      ? const Color(0xFF86EFAC)
+                      : const Color(0xFFFACC15),
+                ),
             ],
           ),
           const SizedBox(height: 8),
@@ -383,7 +415,13 @@ class TacticalPage extends StatelessWidget {
     );
   }
 
-  Widget _mapPanel({required int geofenceAlerts, required int sosAlerts}) {
+  Widget _mapPanel({
+    required List<_MapMarker> markers,
+    required String focusReference,
+    required bool focusLinked,
+    required int geofenceAlerts,
+    required int sosAlerts,
+  }) {
     final triggerSos = _geofences
         .where((fence) {
           return fence.status == _FenceStatus.breach ||
@@ -460,11 +498,43 @@ class TacticalPage extends StatelessWidget {
                           width: width,
                           height: height,
                         ),
-                      for (final marker in _markers)
+                      for (final marker in markers)
                         _markerOverlay(
                           marker: marker,
                           width: width,
                           height: height,
+                        ),
+                      if (focusReference.isNotEmpty)
+                        Positioned(
+                          right: 10,
+                          top: triggerSos.isNotEmpty ? 52 : 10,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: focusLinked
+                                  ? const Color(0x2234D399)
+                                  : const Color(0x33F59E0B),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: focusLinked
+                                    ? const Color(0x6634D399)
+                                    : const Color(0x66F59E0B),
+                              ),
+                            ),
+                            child: Text(
+                              'FOCUS ${focusLinked ? 'LINKED' : 'SEEDED'} • $focusReference',
+                              style: GoogleFonts.inter(
+                                color: focusLinked
+                                    ? const Color(0xFFCCFFE8)
+                                    : const Color(0xFFFDE68A),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
                         ),
                       if (triggerSos.isNotEmpty)
                         Positioned(
@@ -539,6 +609,27 @@ class TacticalPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  List<_MapMarker> _resolvedMarkers({
+    required String focusReference,
+    required bool linkedToLive,
+  }) {
+    if (focusReference.isEmpty || linkedToLive) {
+      return _markers;
+    }
+    return [
+      _MapMarker(
+        id: focusReference,
+        type: _MarkerType.incident,
+        x: 0.67,
+        y: 0.49,
+        label: focusReference,
+        status: _MarkerStatus.sos,
+        priority: 'P2-SEEDED',
+      ),
+      ..._markers,
+    ];
   }
 
   Widget _verificationPanel({

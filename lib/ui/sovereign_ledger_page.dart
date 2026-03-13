@@ -20,11 +20,13 @@ import 'ui_action_logger.dart';
 class SovereignLedgerPage extends StatefulWidget {
   final String clientId;
   final List<DispatchEvent> events;
+  final String initialFocusReference;
 
   const SovereignLedgerPage({
     super.key,
     required this.clientId,
     required this.events,
+    this.initialFocusReference = '',
   });
 
   @override
@@ -38,7 +40,32 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
   @override
   Widget build(BuildContext context) {
     final entries = _buildLedgerEntries(widget.events);
-    final list = entries.isEmpty ? _fallbackEntries : entries;
+    var list = entries.isEmpty ? _fallbackEntries : entries;
+    final focusReference = widget.initialFocusReference.trim();
+    final hasFocusReference = focusReference.isNotEmpty;
+    var focusLinked = false;
+    if (hasFocusReference) {
+      final existingFocusId = _resolveFocusEntryId(
+        entries: list,
+        focusReference: focusReference,
+      );
+      if (existingFocusId != null) {
+        _selectedEntryId = existingFocusId;
+        focusLinked = true;
+      } else {
+        list = _injectFocusedLedgerEntry(
+          entries: list,
+          focusReference: focusReference,
+        );
+        final seededFocusId = _resolveFocusEntryId(
+          entries: list,
+          focusReference: focusReference,
+        );
+        if (seededFocusId != null) {
+          _selectedEntryId = seededFocusId;
+        }
+      }
+    }
 
     _selectedEntryId ??= list.first.id;
     final selected = list.firstWhere(
@@ -117,6 +144,35 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                   },
                 ),
                 const SizedBox(height: 8),
+                if (hasFocusReference) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: focusLinked
+                          ? const Color(0x2234D399)
+                          : const Color(0x333C79BB),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: focusLinked
+                            ? const Color(0x6634D399)
+                            : const Color(0x665FAAFF),
+                      ),
+                    ),
+                    child: Text(
+                      'Focus ${focusLinked ? 'LINKED' : 'SEEDED'} • $focusReference',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFEAF1FB),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 _chainControls(list),
                 const SizedBox(height: 8),
                 LayoutBuilder(
@@ -156,6 +212,71 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
         ),
       ),
     );
+  }
+
+  String? _resolveFocusEntryId({
+    required List<_LedgerEntryView> entries,
+    required String focusReference,
+  }) {
+    for (final entry in entries) {
+      final payloadEventId = (entry.payload['eventId'] ?? '').toString().trim();
+      final payloadDispatchId = (entry.payload['dispatchId'] ?? '')
+          .toString()
+          .trim();
+      if (entry.id == focusReference ||
+          (entry.dispatchId ?? '').trim() == focusReference ||
+          payloadEventId == focusReference ||
+          payloadDispatchId == focusReference) {
+        return entry.id;
+      }
+    }
+    return null;
+  }
+
+  List<_LedgerEntryView> _injectFocusedLedgerEntry({
+    required List<_LedgerEntryView> entries,
+    required String focusReference,
+  }) {
+    if (entries.isEmpty) return entries;
+    var maxSequence = 0;
+    for (final entry in entries) {
+      if (entry.sequence > maxSequence) {
+        maxSequence = entry.sequence;
+      }
+    }
+    final previousHash = entries.first.hash;
+    final timestamp = DateTime.now().toUtc();
+    final payload = <String, dynamic>{
+      'eventId': focusReference,
+      'sequence': maxSequence + 1,
+      'version': 2,
+      'type': 'SEEDED_LEDGER_FOCUS',
+      'clientId': widget.clientId,
+      'regionId': 'REGION-GAUTENG',
+      'siteId': 'DEMO-SITE',
+      'occurredAt': timestamp.toIso8601String(),
+      'summary': 'Seeded focus reference awaiting live ledger ingest.',
+      'dispatchId': null,
+      'demoSeed': true,
+    };
+    final hash = sha256
+        .convert(utf8.encode('${jsonEncode(payload)}|$previousHash'))
+        .toString();
+    final seeded = _LedgerEntryView(
+      id: 'LED-SEED-$focusReference',
+      sequence: maxSequence + 1,
+      type: 'INCIDENT',
+      title: 'Seeded focus reference awaiting live ledger ingest.',
+      site: 'DEMO-SITE',
+      dispatchId: null,
+      timestamp: timestamp,
+      hash: hash,
+      previousHash: previousHash,
+      verified: true,
+      typeColor: _typeColor('INCIDENT'),
+      payload: payload,
+    );
+    return [seeded, ...entries];
   }
 
   Widget _summaryCard({

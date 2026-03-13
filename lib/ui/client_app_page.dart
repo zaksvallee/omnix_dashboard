@@ -22,6 +22,25 @@ extension ClientAppLocaleParser on ClientAppLocale {
   }
 }
 
+enum ClientPushDeliveryProvider { inApp, telegram }
+
+extension ClientPushDeliveryProviderParser on ClientPushDeliveryProvider {
+  static ClientPushDeliveryProvider fromCode(String raw) {
+    final normalized = raw.trim().toLowerCase().replaceAll('-', '_');
+    return switch (normalized) {
+      'telegram' => ClientPushDeliveryProvider.telegram,
+      _ => ClientPushDeliveryProvider.inApp,
+    };
+  }
+
+  String get code {
+    return switch (this) {
+      ClientPushDeliveryProvider.inApp => 'in_app',
+      ClientPushDeliveryProvider.telegram => 'telegram',
+    };
+  }
+}
+
 class ClientAppPage extends StatefulWidget {
   final String clientId;
   final String siteId;
@@ -42,6 +61,7 @@ class ClientAppPage extends StatefulWidget {
   final List<ClientAppMessage> initialManualMessages;
   final List<ClientAppAcknowledgement> initialAcknowledgements;
   final List<ClientAppPushDeliveryItem> initialPushQueue;
+  final ClientPushDeliveryProvider pushDeliveryProvider;
   final String pushSyncStatusLabel;
   final DateTime? pushSyncLastSyncedAtUtc;
   final String? pushSyncFailureReason;
@@ -90,6 +110,7 @@ class ClientAppPage extends StatefulWidget {
     this.initialManualMessages = const [],
     this.initialAcknowledgements = const [],
     this.initialPushQueue = const [],
+    this.pushDeliveryProvider = ClientPushDeliveryProvider.inApp,
     this.pushSyncStatusLabel = 'Push sync idle',
     this.pushSyncLastSyncedAtUtc,
     this.pushSyncFailureReason,
@@ -142,6 +163,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
   late Map<String, String> _expandedIncidentReferenceByRole;
   late Map<String, bool> _hasTouchedIncidentExpansionByRole;
   late Map<String, String> _focusedIncidentReferenceByRole;
+  late final Map<String, String> _chatSourceFilterByRole;
+  late final Map<String, String> _chatProviderFilterByRole;
   bool get _phoneLayout => isHandsetLayout(context);
   bool get _desktopEmbeddedScroll => allowEmbeddedPanelScroll(context);
 
@@ -174,6 +197,12 @@ class _ClientAppPageState extends State<ClientAppPage> {
     };
     _focusedIncidentReferenceByRole = {
       ...widget.initialFocusedIncidentReferenceByRole,
+    };
+    _chatSourceFilterByRole = {
+      for (final role in ClientAppViewerRole.values) role.name: 'all',
+    };
+    _chatProviderFilterByRole = {
+      for (final role in ClientAppViewerRole.values) role.name: 'all',
     };
     if (widget.initialExpandedIncidentReference != null) {
       _expandedIncidentReferenceByRole.putIfAbsent(
@@ -1101,7 +1130,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      '$_localizedTargetPrefix: ${item.targetChannel.displayLabel} • ${item.timeLabel}',
+                      '$_localizedTargetPrefix: ${item.targetChannel.displayLabel} • $_localizedBridgePrefix: ${_localizedDeliveryProviderLabel(item.deliveryProvider)} • ${item.timeLabel}',
                       style: GoogleFonts.inter(
                         color: const Color(0xFF7FA2C9),
                         fontSize: 11,
@@ -1730,10 +1759,45 @@ class _ClientAppPageState extends State<ClientAppPage> {
   }
 
   Widget _chatPanel(List<_ClientChatMessage> messages) {
-    final visibleMessages = messages.take(_maxChatRows).toList(growable: false);
+    final selectedSource = _chatSourceFilterFor(_viewerRole);
+    final sourceOptions = <String>{
+      'all',
+      ...messages
+          .map((message) => message.messageSource.trim())
+          .where((value) => value.isNotEmpty),
+    }.toList(growable: false)..sort();
+    final providerOptions = <String>{
+      'all',
+      ...messages
+          .where(
+            (message) =>
+                selectedSource == 'all' ||
+                message.messageSource.trim() == selectedSource,
+          )
+          .map((message) => message.messageProvider.trim())
+          .where((value) => value.isNotEmpty),
+    }.toList(growable: false)..sort();
+    final selectedProvider =
+        providerOptions.contains(_chatProviderFilterFor(_viewerRole))
+        ? _chatProviderFilterFor(_viewerRole)
+        : 'all';
+    final filtered = messages
+        .where(
+          (message) =>
+              (selectedSource == 'all' ||
+                  message.messageSource.trim() == selectedSource) &&
+              (selectedProvider == 'all' ||
+                  message.messageProvider.trim() == selectedProvider),
+        )
+        .toList(growable: false);
+    final visibleMessages = filtered.take(_maxChatRows).toList(growable: false);
     final embeddedThreadScroll = _desktopEmbeddedScroll;
     final threadList = visibleMessages.isEmpty
-        ? _emptyBox(_viewerRole.chatEmptyLabel)
+        ? _emptyBox(
+            messages.isEmpty
+                ? _viewerRole.chatEmptyLabel
+                : 'No messages match the selected source/provider filters.',
+          )
         : ListView.separated(
             itemCount: visibleMessages.length,
             shrinkWrap: !embeddedThreadScroll,
@@ -1840,6 +1904,80 @@ class _ClientAppPageState extends State<ClientAppPage> {
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: sourceOptions
+                .map(
+                  (source) => ChoiceChip(
+                    label: Text(
+                      _messageSourceLabel(source),
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    selected: selectedSource == source,
+                    onSelected: (_) => _setChatSourceFilter(source),
+                    selectedColor: const Color(0xFF11243A),
+                    side: BorderSide(
+                      color: selectedSource == source
+                          ? const Color(0xFF5D91C6)
+                          : const Color(0xFF223244),
+                    ),
+                    labelStyle: GoogleFonts.inter(
+                      color: selectedSource == source
+                          ? const Color(0xFFB9E2FF)
+                          : const Color(0xFF9AB4D8),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    backgroundColor: const Color(0xFF0E1A2B),
+                  ),
+                )
+                .toList(growable: false),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: providerOptions
+                .map(
+                  (provider) => ChoiceChip(
+                    label: Text(
+                      _messageProviderLabel(provider),
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    selected: selectedProvider == provider,
+                    onSelected: (_) => _setChatProviderFilter(provider),
+                    selectedColor: const Color(0xFF102737),
+                    side: BorderSide(
+                      color: selectedProvider == provider
+                          ? const Color(0xFF4FAAD9)
+                          : const Color(0xFF223244),
+                    ),
+                    labelStyle: GoogleFonts.inter(
+                      color: selectedProvider == provider
+                          ? const Color(0xFFB8E7FF)
+                          : const Color(0xFF9AB4D8),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    backgroundColor: const Color(0xFF0E1A2B),
+                  ),
+                )
+                .toList(growable: false),
           ),
         ),
         if (_threadLandingMessageKey != null) ...[
@@ -2605,7 +2743,10 @@ class _ClientAppPageState extends State<ClientAppPage> {
   Future<void> _showIncidentFeedDetail(_ClientIncidentFeedGroup group) {
     logUiAction(
       'client_app.reopen_selected_incident',
-      context: {'reference_label': group.referenceLabel, 'role': _viewerRole.name},
+      context: {
+        'reference_label': group.referenceLabel,
+        'role': _viewerRole.name,
+      },
     );
     return showDialog<void>(
       context: context,
@@ -3453,6 +3594,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 body: notification.body,
                 occurredAt: notification.occurredAt,
                 targetChannel: targetChannel,
+                deliveryProvider: widget.pushDeliveryProvider,
                 priority: notification.priority,
                 status: delivered
                     ? ClientPushDeliveryStatus.acknowledged
@@ -3479,6 +3621,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 body: item.body,
                 occurredAt: item.occurredAt,
                 targetChannel: item.targetChannel,
+                deliveryProvider: item.deliveryProvider,
                 priority: item.priority,
                 status: acknowledged
                     ? ClientPushDeliveryStatus.acknowledged
@@ -3708,6 +3851,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
             occurredAt: item.occurredAt,
             systemType: item.systemType,
             acknowledgements: item.acknowledgements,
+            messageSource: 'system',
+            messageProvider: 'eventstore',
           ),
         )
         .toList(growable: false);
@@ -3728,6 +3873,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
             roomKey: message.roomKey,
             systemType: null,
             acknowledgements: const [],
+            messageSource: message.messageSource,
+            messageProvider: message.messageProvider,
           ),
         )
         .toList(growable: false);
@@ -3743,6 +3890,54 @@ class _ClientAppPageState extends State<ClientAppPage> {
       return '${message.author} • ${message.timeLabel}';
     }
     return '${message.author} • ${_roomDisplayNameForKey(message.roomKey!)} • ${message.timeLabel}';
+  }
+
+  String _chatSourceFilterFor(ClientAppViewerRole role) {
+    return _chatSourceFilterByRole[role.name] ?? 'all';
+  }
+
+  String _chatProviderFilterFor(ClientAppViewerRole role) {
+    return _chatProviderFilterByRole[role.name] ?? 'all';
+  }
+
+  String _messageSourceLabel(String source) {
+    return switch (source.trim().toLowerCase()) {
+      'all' => 'All Sources',
+      'in_app' => 'In-App',
+      'telegram' => 'Telegram',
+      'system' => 'System',
+      _ => source.trim().isEmpty ? 'Unknown Source' : source.trim(),
+    };
+  }
+
+  String _messageProviderLabel(String provider) {
+    final normalized = provider.trim().toLowerCase();
+    return switch (normalized) {
+      'all' => 'All Providers',
+      'in_app' => 'In-App',
+      'telegram' => 'Telegram Bot',
+      'eventstore' => 'EventStore',
+      'openai' => 'OpenAI',
+      _ => normalized.isEmpty ? 'Unknown Provider' : provider.trim(),
+    };
+  }
+
+  void _setChatSourceFilter(String source) {
+    if (_chatSourceFilterFor(_viewerRole) == source) {
+      return;
+    }
+    setState(() {
+      _chatSourceFilterByRole[_viewerRole.name] = source;
+    });
+  }
+
+  void _setChatProviderFilter(String provider) {
+    if (_chatProviderFilterFor(_viewerRole) == provider) {
+      return;
+    }
+    setState(() {
+      _chatProviderFilterByRole[_viewerRole.name] = provider;
+    });
   }
 
   String _roomDisplayNameForKey(String roomKey) {
@@ -3856,6 +4051,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
       _selectedRoomByRole.putIfAbsent(role.name, () => 'Residents');
       _showAllRoomItemsByRole.putIfAbsent(role.name, () => false);
       _hasTouchedIncidentExpansionByRole.putIfAbsent(role.name, () => false);
+      _chatSourceFilterByRole.putIfAbsent(role.name, () => 'all');
+      _chatProviderFilterByRole.putIfAbsent(role.name, () => 'all');
       _restoreSelectedIncidentForRole(role);
       _restoreFocusedIncidentForRole(role);
     });
@@ -3985,6 +4182,37 @@ class _ClientAppPageState extends State<ClientAppPage> {
       key: 'targetCurrentLanePrefix',
       fallback: 'Target (current lane)',
     );
+  }
+
+  String get _localizedBridgePrefix {
+    return ClientAppLocaleText.generalText(
+      locale: widget.locale,
+      key: 'bridgePrefix',
+      fallback: 'Bridge',
+    );
+  }
+
+  String get _localizedBridgeInAppLabel {
+    return ClientAppLocaleText.generalText(
+      locale: widget.locale,
+      key: 'bridgeInApp',
+      fallback: 'In-app',
+    );
+  }
+
+  String get _localizedBridgeTelegramLabel {
+    return ClientAppLocaleText.generalText(
+      locale: widget.locale,
+      key: 'bridgeTelegram',
+      fallback: 'Telegram',
+    );
+  }
+
+  String _localizedDeliveryProviderLabel(ClientPushDeliveryProvider provider) {
+    return switch (provider) {
+      ClientPushDeliveryProvider.inApp => _localizedBridgeInAppLabel,
+      ClientPushDeliveryProvider.telegram => _localizedBridgeTelegramLabel,
+    };
   }
 
   String _localizedFilterScopeAllNotifications(String roomDisplayName) {
@@ -4463,6 +4691,8 @@ class _ClientChatMessage {
   final DateTime occurredAt;
   final String? roomKey;
   final _ClientSystemMessageType? systemType;
+  final String messageSource;
+  final String messageProvider;
   final List<ClientAppAcknowledgement> acknowledgements;
 
   const _ClientChatMessage({
@@ -4472,6 +4702,8 @@ class _ClientChatMessage {
     required this.occurredAt,
     this.roomKey,
     required this.systemType,
+    this.messageSource = 'in_app',
+    this.messageProvider = 'in_app',
     this.acknowledgements = const [],
   });
 
@@ -4520,7 +4752,10 @@ class ClientAppPushDeliveryItem {
   final String title;
   final String body;
   final DateTime occurredAt;
+  final String? clientId;
+  final String? siteId;
   final ClientAppAcknowledgementChannel targetChannel;
+  final ClientPushDeliveryProvider deliveryProvider;
   final bool priority;
   final ClientPushDeliveryStatus status;
 
@@ -4529,7 +4764,10 @@ class ClientAppPushDeliveryItem {
     required this.title,
     required this.body,
     required this.occurredAt,
+    this.clientId,
+    this.siteId,
     required this.targetChannel,
+    this.deliveryProvider = ClientPushDeliveryProvider.inApp,
     required this.priority,
     required this.status,
   });
@@ -4545,9 +4783,30 @@ class ClientAppPushDeliveryItem {
       occurredAt:
           DateTime.tryParse(occurredAtValue ?? '')?.toUtc() ??
           DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      clientId:
+          (json['clientId'] ?? json['target_client_id'])
+                  ?.toString()
+                  .trim()
+                  .isEmpty ??
+              true
+          ? null
+          : (json['clientId'] ?? json['target_client_id'])!.toString().trim(),
+      siteId:
+          (json['siteId'] ?? json['target_site_id'])
+                  ?.toString()
+                  .trim()
+                  .isEmpty ??
+              true
+          ? null
+          : (json['siteId'] ?? json['target_site_id'])!.toString().trim(),
       targetChannel: ClientAppAcknowledgementChannel.values.firstWhere(
         (value) => value.name == json['targetChannel']?.toString(),
         orElse: () => ClientAppAcknowledgementChannel.client,
+      ),
+      deliveryProvider: ClientPushDeliveryProviderParser.fromCode(
+        json['deliveryProvider']?.toString() ??
+            json['delivery_provider']?.toString() ??
+            'in_app',
       ),
       priority: json['priority'] == true,
       status: ClientPushDeliveryStatus.values.firstWhere(
@@ -4563,7 +4822,10 @@ class ClientAppPushDeliveryItem {
       'title': title,
       'body': body,
       'occurredAt': occurredAt.toUtc().toIso8601String(),
+      if ((clientId ?? '').trim().isNotEmpty) 'clientId': clientId!.trim(),
+      if ((siteId ?? '').trim().isNotEmpty) 'siteId': siteId!.trim(),
       'targetChannel': targetChannel.name,
+      'deliveryProvider': deliveryProvider.code,
       'priority': priority,
       'status': status.name,
     };
@@ -5590,6 +5852,9 @@ class ClientAppLocaleText {
       'showAll': 'Khombisa konke',
       'targetPrefix': 'Okuqondiwe',
       'targetCurrentLanePrefix': 'Okuqondiwe (umzila wamanje)',
+      'bridgePrefix': 'Ibhuloho',
+      'bridgeInApp': 'Ngaphakathi kohlelo',
+      'bridgeTelegram': 'Telegram',
       'filterScopeAllNotifications':
           'Kuboniswa zonke izaziso • umzila wamanje: {room}',
       'filterScopePending': 'Kuboniswa okulindile: {room}',
@@ -5754,6 +6019,9 @@ class ClientAppLocaleText {
       'showAll': 'Wys alles',
       'targetPrefix': 'Teiken',
       'targetCurrentLanePrefix': 'Teiken (huidige baan)',
+      'bridgePrefix': 'Brug',
+      'bridgeInApp': 'In-toep',
+      'bridgeTelegram': 'Telegram',
       'filterScopeAllNotifications':
           'Wys alle kennisgewings • huidige baan: {room}',
       'filterScopePending': 'Wys hangend: {room}',
@@ -6121,6 +6389,8 @@ class ClientAppMessage {
   final String roomKey;
   final String viewerRole;
   final String incidentStatusLabel;
+  final String messageSource;
+  final String messageProvider;
 
   ClientAppMessage({
     required this.author,
@@ -6129,6 +6399,8 @@ class ClientAppMessage {
     this.roomKey = 'Residents',
     this.viewerRole = 'client',
     this.incidentStatusLabel = 'Update',
+    this.messageSource = 'in_app',
+    this.messageProvider = 'in_app',
   });
 
   factory ClientAppMessage.fromJson(Map<String, Object?> json) {
@@ -6139,6 +6411,8 @@ class ClientAppMessage {
       roomKey: json['roomKey']?.toString() ?? 'Residents',
       viewerRole: json['viewerRole']?.toString() ?? 'client',
       incidentStatusLabel: json['incidentStatusLabel']?.toString() ?? 'Update',
+      messageSource: json['messageSource']?.toString() ?? 'in_app',
+      messageProvider: json['messageProvider']?.toString() ?? 'in_app',
       occurredAt:
           DateTime.tryParse(occurredAtValue ?? '')?.toUtc() ??
           DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
@@ -6152,6 +6426,8 @@ class ClientAppMessage {
       'roomKey': roomKey,
       'viewerRole': viewerRole,
       'incidentStatusLabel': incidentStatusLabel,
+      'messageSource': messageSource,
+      'messageProvider': messageProvider,
       'occurredAt': occurredAt.toUtc().toIso8601String(),
     };
   }

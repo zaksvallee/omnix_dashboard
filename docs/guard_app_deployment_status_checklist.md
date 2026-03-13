@@ -177,6 +177,10 @@ Last updated: 2026-03-11 (Africa/Johannesburg)
   (including client-app incident-open equivalents) with runbook + checker support:
   [ui_action_telemetry_runbook.md](/Users/zaks/omnix_dashboard/docs/ui_action_telemetry_runbook.md),
   [ui_action_telemetry_signoff_2026-03-11.md](/Users/zaks/omnix_dashboard/docs/ui_action_telemetry_signoff_2026-03-11.md).
+- [x] Guard event-flow gate matrix added in repository tests to validate
+  enqueue -> pending -> sync -> idempotent replay behavior across the full
+  `GuardOpsEventType` set:
+  [guard_ops_repository_test.dart](/Users/zaks/omnix_dashboard/test/application/guard_ops_repository_test.dart).
 - [x] Chrome runtime preflight with local config passed:
   `flutter run -d chrome --dart-define-from-file=config/onyx.local.json`
   launched successfully with Supabase init and no immediate runtime layout

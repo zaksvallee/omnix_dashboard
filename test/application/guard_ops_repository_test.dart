@@ -59,6 +59,86 @@ void main() {
     );
 
     test(
+      'critical event flow gate covers enqueue, sync, and idempotency across event matrix',
+      () async {
+        final gateway = _FakeGuardOpsRemoteGateway();
+        final repository = await SharedPrefsGuardOpsRepository.create(
+          remote: gateway,
+        );
+
+        const shiftId = 'SHIFT-FLOW-GATE-1';
+        final recordedEvents = <GuardOpsEvent>[];
+        final matrixTypes = GuardOpsEventType.values;
+
+        for (var i = 0; i < matrixTypes.length; i += 1) {
+          final type = matrixTypes[i];
+          final event = await repository.enqueueEvent(
+            guardId: 'GUARD-001',
+            siteId: 'SITE-SANDTON',
+            shiftId: shiftId,
+            eventType: type,
+            deviceId: 'DEVICE-1',
+            appVersion: '1.0.0',
+            payload: {
+              'flow_gate': true,
+              'event_type': type.name,
+              'matrix_index': i + 1,
+            },
+          );
+          recordedEvents.add(event);
+          expect(event.sequence, i + 1);
+          expect(event.eventType, type);
+        }
+
+        final pendingBeforeSync = await repository.pendingEvents();
+        expect(pendingBeforeSync, hasLength(matrixTypes.length));
+        for (var i = 0; i < matrixTypes.length; i += 1) {
+          expect(pendingBeforeSync[i].eventType, matrixTypes[i]);
+          expect(pendingBeforeSync[i].sequence, i + 1);
+          expect(pendingBeforeSync[i].payload['flow_gate'], isTrue);
+        }
+        expect(
+          await repository.shiftSequenceWatermark(shiftId),
+          matrixTypes.length,
+        );
+
+        var totalSynced = 0;
+        GuardOpsSyncResult lastResult = const GuardOpsSyncResult(
+          syncedCount: 0,
+          failedCount: 0,
+          pendingCount: 0,
+        );
+        for (var i = 0; i < 8; i += 1) {
+          lastResult = await repository.syncPendingEvents(batchSize: 7);
+          totalSynced += lastResult.syncedCount;
+          if (lastResult.pendingCount == 0) {
+            break;
+          }
+        }
+
+        expect(totalSynced, matrixTypes.length);
+        expect(lastResult.failedCount, 0);
+        expect(lastResult.pendingCount, 0);
+        expect(await repository.pendingEvents(), isEmpty);
+
+        expect(gateway.syncedEvents, hasLength(matrixTypes.length));
+        final syncedIds = gateway.syncedEvents
+            .map((event) => event.eventId)
+            .toSet();
+        expect(syncedIds, hasLength(matrixTypes.length));
+        expect(
+          syncedIds,
+          equals(recordedEvents.map((event) => event.eventId).toSet()),
+        );
+
+        final idempotent = await repository.syncPendingEvents();
+        expect(idempotent.syncedCount, 0);
+        expect(idempotent.failedCount, 0);
+        expect(idempotent.pendingCount, 0);
+      },
+    );
+
+    test(
       'syncPendingEvents marks events synced when remote succeeds',
       () async {
         final gateway = _FakeGuardOpsRemoteGateway();

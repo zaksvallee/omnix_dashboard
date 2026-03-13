@@ -34,6 +34,38 @@ class EventsReviewPage extends StatefulWidget {
   State<EventsReviewPage> createState() => _EventsReviewPageState();
 }
 
+class _SeededDispatchEvent extends DispatchEvent {
+  final String summary;
+  final String clientId;
+  final String regionId;
+  final String siteId;
+
+  const _SeededDispatchEvent({
+    required super.eventId,
+    required super.sequence,
+    required super.version,
+    required super.occurredAt,
+    required this.summary,
+    required this.clientId,
+    required this.regionId,
+    required this.siteId,
+  });
+
+  @override
+  DispatchEvent copyWithSequence(int sequence) {
+    return _SeededDispatchEvent(
+      eventId: eventId,
+      sequence: sequence,
+      version: version,
+      occurredAt: occurredAt,
+      summary: summary,
+      clientId: clientId,
+      regionId: regionId,
+      siteId: siteId,
+    );
+  }
+}
+
 class _EventsReviewPageState extends State<EventsReviewPage> {
   static const String _filterAll = 'ALL';
   static const String _sourceFilterAll = 'ALL SOURCES';
@@ -95,7 +127,15 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
 
   @override
   Widget build(BuildContext context) {
-    final timeline = [...widget.events]
+    final requestedSelectedId = (widget.initialSelectedEventId ?? '').trim();
+    final hasFocusedFallback =
+        requestedSelectedId.isNotEmpty &&
+        !widget.events.any((event) => event.eventId == requestedSelectedId);
+    final timelineSource = _timelineWithFocusedFallback(
+      baseEvents: widget.events,
+      focusedEventId: requestedSelectedId,
+    );
+    final timeline = [...timelineSource]
       ..sort((a, b) => b.sequence.compareTo(a.sequence));
     final filteredByType = _activeFilter == _filterAll
         ? timeline
@@ -120,7 +160,6 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     _activeProviderFilter;
               })
               .toList(growable: false);
-    final requestedSelectedId = (widget.initialSelectedEventId ?? '').trim();
     DispatchEvent? requestedSelectedEvent;
     if (requestedSelectedId.isNotEmpty) {
       for (final event in providerFiltered) {
@@ -131,6 +170,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       }
     }
     final requestedSelectionFound = requestedSelectedEvent != null;
+    final requestedSelectionMissing =
+        requestedSelectedId.isNotEmpty && !requestedSelectionFound;
 
     final selected = providerFiltered.isEmpty
         ? null
@@ -207,6 +248,52 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 ),
                 const SizedBox(height: 8),
                 _filterStrip(),
+                if (hasFocusedFallback) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0x223C79BB),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0x665FAAFF)),
+                    ),
+                    child: Text(
+                      'Seeded placeholder loaded for $requestedSelectedId. This row will be replaced automatically once live ingest publishes the same event ID.',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFEAF1FB),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+                if (requestedSelectionMissing) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0x221F3A5A),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0x6635506F)),
+                    ),
+                    child: Text(
+                      'Focused reference $requestedSelectedId is not in the current event stream yet. Keep this tab open and ingest/poll to auto-link when it arrives.',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFEAF1FB),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 8),
                 LayoutBuilder(
                   builder: (context, constraints) {
@@ -254,6 +341,35 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         ),
       ),
     );
+  }
+
+  List<DispatchEvent> _timelineWithFocusedFallback({
+    required List<DispatchEvent> baseEvents,
+    required String focusedEventId,
+  }) {
+    if (focusedEventId.trim().isEmpty ||
+        baseEvents.any((event) => event.eventId == focusedEventId)) {
+      return baseEvents;
+    }
+    var maxSequence = 0;
+    for (final event in baseEvents) {
+      if (event.sequence > maxSequence) {
+        maxSequence = event.sequence;
+      }
+    }
+    return [
+      _SeededDispatchEvent(
+        eventId: focusedEventId,
+        sequence: maxSequence + 1,
+        version: 2,
+        occurredAt: DateTime.now().toUtc(),
+        summary: 'Seeded demo incident reference awaiting live ingest.',
+        clientId: 'DEMO-CLT',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'DEMO-SITE',
+      ),
+      ...baseEvents,
+    ];
   }
 
   Widget _metricCard({
@@ -1083,6 +1199,7 @@ Map<String, dynamic> _eventPayload(DispatchEvent event) {
 }
 
 String _eventTypeLabel(DispatchEvent event) {
+  if (event is _SeededDispatchEvent) return 'INCIDENT CREATED';
   if (event is IntelligenceReceived) return 'AI DECISION';
   if (event is DecisionCreated) return 'INCIDENT CREATED';
   if (event is ResponseArrived) return 'OFFICER ARRIVED';
@@ -1095,6 +1212,7 @@ String _eventTypeLabel(DispatchEvent event) {
 }
 
 String _eventSummary(DispatchEvent event) {
+  if (event is _SeededDispatchEvent) return event.summary;
   if (event is IntelligenceReceived) return event.headline;
   if (event is DecisionCreated) {
     return '${event.clientId}/${event.siteId} dispatch ${event.dispatchId} created';
@@ -1132,6 +1250,7 @@ String _eventMetaLine(DispatchEvent event) {
 }
 
 Color _eventColor(DispatchEvent event) {
+  if (event is _SeededDispatchEvent) return const Color(0xFF5FAAFF);
   if (event is DecisionCreated) return const Color(0xFFEF4444);
   if (event is ExecutionCompleted) return const Color(0xFF10B981);
   if (event is ResponseArrived) return const Color(0xFF22D3EE);
@@ -1150,6 +1269,7 @@ String _guardLabel(DispatchEvent event) {
 }
 
 String _eventSiteId(DispatchEvent event) {
+  if (event is _SeededDispatchEvent) return event.siteId;
   if (event is DecisionCreated) return event.siteId;
   if (event is ResponseArrived) return event.siteId;
   if (event is GuardCheckedIn) return event.siteId;
@@ -1162,6 +1282,7 @@ String _eventSiteId(DispatchEvent event) {
 }
 
 String _eventClientId(DispatchEvent event) {
+  if (event is _SeededDispatchEvent) return event.clientId;
   if (event is DecisionCreated) return event.clientId;
   if (event is ResponseArrived) return event.clientId;
   if (event is GuardCheckedIn) return event.clientId;
@@ -1174,6 +1295,7 @@ String _eventClientId(DispatchEvent event) {
 }
 
 String _eventRegionId(DispatchEvent event) {
+  if (event is _SeededDispatchEvent) return event.regionId;
   if (event is DecisionCreated) return event.regionId;
   if (event is ResponseArrived) return event.regionId;
   if (event is GuardCheckedIn) return event.regionId;

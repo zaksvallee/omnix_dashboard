@@ -49,6 +49,11 @@ class AppShell extends StatefulWidget {
   final int complianceIssuesCount;
   final int tacticalSosAlerts;
   final List<OnyxIntelTickerItem> intelTickerItems;
+  final String demoAutopilotStatusLabel;
+  final VoidCallback? onStopDemoAutopilot;
+  final VoidCallback? onSkipDemoAutopilot;
+  final VoidCallback? onToggleDemoAutopilotPause;
+  final bool demoAutopilotPaused;
 
   const AppShell({
     super.key,
@@ -62,6 +67,11 @@ class AppShell extends StatefulWidget {
     this.complianceIssuesCount = 0,
     this.tacticalSosAlerts = 0,
     this.intelTickerItems = const [],
+    this.demoAutopilotStatusLabel = '',
+    this.onStopDemoAutopilot,
+    this.onSkipDemoAutopilot,
+    this.onToggleDemoAutopilotPause,
+    this.demoAutopilotPaused = false,
   });
 
   @override
@@ -105,6 +115,22 @@ class _AppShellState extends State<AppShell> {
                   decoration: const BoxDecoration(color: Color(0xFF0C1220)),
                   child: widget.child,
                 ),
+                if (widget.demoAutopilotStatusLabel.trim().isNotEmpty)
+                  SafeArea(
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(50, 4, 8, 0),
+                        child: _MobileAutopilotOverlay(
+                          label: widget.demoAutopilotStatusLabel,
+                          paused: widget.demoAutopilotPaused,
+                          onStop: widget.onStopDemoAutopilot,
+                          onSkip: widget.onSkipDemoAutopilot,
+                          onTogglePause: widget.onToggleDemoAutopilotPause,
+                        ),
+                      ),
+                    ),
+                  ),
                 SafeArea(
                   child: Padding(
                     padding: const EdgeInsets.only(left: 6, top: 4),
@@ -170,6 +196,13 @@ class _AppShellState extends State<AppShell> {
                         activeIncidentCount: widget.activeIncidentCount,
                         aiActionCount: widget.aiActionCount,
                         guardsOnlineCount: widget.guardsOnlineCount,
+                        demoAutopilotStatusLabel:
+                            widget.demoAutopilotStatusLabel,
+                        onStopDemoAutopilot: widget.onStopDemoAutopilot,
+                        onSkipDemoAutopilot: widget.onSkipDemoAutopilot,
+                        onToggleDemoAutopilotPause:
+                            widget.onToggleDemoAutopilotPause,
+                        demoAutopilotPaused: widget.demoAutopilotPaused,
                         sidebarOpen: _sidebarOpen,
                         onToggleSidebar: () {
                           setState(() {
@@ -200,6 +233,11 @@ class _ShellTopBar extends StatelessWidget {
   final int activeIncidentCount;
   final int aiActionCount;
   final int guardsOnlineCount;
+  final String demoAutopilotStatusLabel;
+  final VoidCallback? onStopDemoAutopilot;
+  final VoidCallback? onSkipDemoAutopilot;
+  final VoidCallback? onToggleDemoAutopilotPause;
+  final bool demoAutopilotPaused;
   final bool sidebarOpen;
   final VoidCallback onToggleSidebar;
 
@@ -208,6 +246,11 @@ class _ShellTopBar extends StatelessWidget {
     required this.activeIncidentCount,
     required this.aiActionCount,
     required this.guardsOnlineCount,
+    this.demoAutopilotStatusLabel = '',
+    this.onStopDemoAutopilot,
+    this.onSkipDemoAutopilot,
+    this.onToggleDemoAutopilotPause,
+    this.demoAutopilotPaused = false,
     required this.sidebarOpen,
     required this.onToggleSidebar,
   });
@@ -253,8 +296,19 @@ class _ShellTopBar extends StatelessWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final showAiChip = constraints.maxWidth >= 1080;
-          final showGuardChip = constraints.maxWidth >= 1240;
+          final showAutopilot = demoAutopilotStatusLabel.trim().isNotEmpty;
+          final showAiChip =
+              constraints.maxWidth >= (showAutopilot ? 1180 : 1080);
+          final showGuardChip =
+              constraints.maxWidth >= (showAutopilot ? 1460 : 1240);
+          final showExtendedAutopilotControls = constraints.maxWidth >= 1460;
+          final showCompactAutopilotControls =
+              showAutopilot && !showExtendedAutopilotControls;
+          final autopilotChipWidth = showExtendedAutopilotControls
+              ? 320.0
+              : constraints.maxWidth >= 1280
+              ? 240.0
+              : 180.0;
 
           return Row(
             children: [
@@ -316,6 +370,96 @@ class _ShellTopBar extends StatelessWidget {
                   ),
                 ),
               ),
+              if (showAutopilot) ...[
+                SizedBox(
+                  width: autopilotChipWidth,
+                  child: _AutopilotChip(label: demoAutopilotStatusLabel),
+                ),
+                if (onStopDemoAutopilot != null) ...[
+                  const SizedBox(width: 6),
+                  if (showCompactAutopilotControls)
+                    _TopBarActionIcon(
+                      onPressed: onStopDemoAutopilot!,
+                      icon: Icons.stop_circle_outlined,
+                      foregroundColor: const Color(0xFFFCA5A5),
+                      borderColor: const Color(0xFF7F1D1D),
+                    )
+                  else
+                    OutlinedButton(
+                      onPressed: onStopDemoAutopilot,
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(56, 32),
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        foregroundColor: const Color(0xFFFCA5A5),
+                        side: const BorderSide(color: Color(0xFF7F1D1D)),
+                        textStyle: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      child: const Text('Stop'),
+                    ),
+                ],
+                if (showExtendedAutopilotControls &&
+                    onToggleDemoAutopilotPause != null) ...[
+                  const SizedBox(width: 6),
+                  OutlinedButton(
+                    onPressed: onToggleDemoAutopilotPause,
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(66, 32),
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      foregroundColor: const Color(0xFFBFDBFE),
+                      side: const BorderSide(color: Color(0xFF35506F)),
+                      textStyle: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    child: Text(demoAutopilotPaused ? 'Resume' : 'Pause'),
+                  ),
+                ],
+                if (showExtendedAutopilotControls &&
+                    onSkipDemoAutopilot != null) ...[
+                  const SizedBox(width: 6),
+                  OutlinedButton(
+                    onPressed: onSkipDemoAutopilot,
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(56, 32),
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      foregroundColor: const Color(0xFF93C5FD),
+                      side: const BorderSide(color: Color(0xFF35506F)),
+                      textStyle: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    child: const Text('Next'),
+                  ),
+                ],
+                if (showCompactAutopilotControls &&
+                    onToggleDemoAutopilotPause != null) ...[
+                  const SizedBox(width: 6),
+                  _TopBarActionIcon(
+                    onPressed: onToggleDemoAutopilotPause!,
+                    icon: demoAutopilotPaused
+                        ? Icons.play_arrow_rounded
+                        : Icons.pause_rounded,
+                    foregroundColor: const Color(0xFFBFDBFE),
+                    borderColor: const Color(0xFF35506F),
+                  ),
+                ],
+                if (showCompactAutopilotControls &&
+                    onSkipDemoAutopilot != null) ...[
+                  const SizedBox(width: 6),
+                  _TopBarActionIcon(
+                    onPressed: onSkipDemoAutopilot!,
+                    icon: Icons.skip_next_rounded,
+                    foregroundColor: const Color(0xFF93C5FD),
+                    borderColor: const Color(0xFF35506F),
+                  ),
+                ],
+                const SizedBox(width: 8),
+              ],
               _TopChip(
                 label: '$activeIncidentCount Active Incidents',
                 foreground: const Color(0xFFF87171),
@@ -796,6 +940,166 @@ class _TopChip extends StatelessWidget {
           color: foreground,
           fontSize: 11,
           fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _TopBarActionIcon extends StatelessWidget {
+  final VoidCallback onPressed;
+  final IconData icon;
+  final Color foregroundColor;
+  final Color borderColor;
+
+  const _TopBarActionIcon({
+    required this.onPressed,
+    required this.icon,
+    required this.foregroundColor,
+    required this.borderColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(34, 32),
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        foregroundColor: foregroundColor,
+        side: BorderSide(color: borderColor),
+      ),
+      child: Icon(icon, size: 15),
+    );
+  }
+}
+
+class _AutopilotChip extends StatelessWidget {
+  final String label;
+
+  const _AutopilotChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0x332563EB),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0x664C6FFF)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.auto_mode_rounded,
+            size: 13,
+            color: Color(0xFF93C5FD),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFBFDBFE),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MobileAutopilotOverlay extends StatelessWidget {
+  final String label;
+  final bool paused;
+  final VoidCallback? onStop;
+  final VoidCallback? onSkip;
+  final VoidCallback? onTogglePause;
+
+  const _MobileAutopilotOverlay({
+    required this.label,
+    this.paused = false,
+    this.onStop,
+    this.onSkip,
+    this.onTogglePause,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final stopAction = onStop;
+    final skipAction = onSkip;
+    final togglePauseAction = onTogglePause;
+    return Material(
+      color: const Color(0xE60A0D14),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0x334C6FFF)),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.auto_mode_rounded,
+              size: 14,
+              color: Color(0xFF93C5FD),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFBFDBFE),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            if (togglePauseAction != null)
+              _mobileActionIcon(
+                onTap: togglePauseAction,
+                icon: paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                color: const Color(0xFFBFDBFE),
+              ),
+            if (skipAction != null)
+              _mobileActionIcon(
+                onTap: skipAction,
+                icon: Icons.skip_next_rounded,
+                color: const Color(0xFF93C5FD),
+              ),
+            if (stopAction != null)
+              _mobileActionIcon(
+                onTap: stopAction,
+                icon: Icons.stop_circle_outlined,
+                color: const Color(0xFFFCA5A5),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _mobileActionIcon({
+    required VoidCallback onTap,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(7),
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: Icon(icon, size: 16, color: color),
         ),
       ),
     );

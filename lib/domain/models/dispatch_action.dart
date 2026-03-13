@@ -1,20 +1,3 @@
-import 'action_status.dart';
-
-class DispatchAction {
-  final String dispatchId;
-  final ActionStatus status;
-
-  const DispatchAction({
-    required this.dispatchId,
-    required this.status,
-  });
-
-  DispatchAction copyWith({
-    ActionStatus? status,
-  }) {
-    return DispatchAction(
-      dispatchId: dispatchId,
-      status: status ?? this.status,
-    );
-  }
-}
+// Canonical source: lib/engine/dispatch/dispatch_action.dart
+// This shim remains for compatibility with older import paths.
+export '../../engine/dispatch/dispatch_action.dart' show DispatchAction;

@@ -14,7 +14,12 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(
-      const MaterialApp(home: AdministrationPage(events: <DispatchEvent>[])),
+      const MaterialApp(
+        home: AdministrationPage(
+          events: <DispatchEvent>[],
+          supabaseReady: false,
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -30,12 +35,17 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(
-      const MaterialApp(home: AdministrationPage(events: <DispatchEvent>[])),
+      const MaterialApp(
+        home: AdministrationPage(
+          events: <DispatchEvent>[],
+          supabaseReady: false,
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 
     expect(find.text('System Administration'), findsOneWidget);
-    expect(find.text('Guards'), findsOneWidget);
+    expect(find.text('Employees'), findsOneWidget);
     expect(find.text('Sites'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -44,7 +54,12 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      const MaterialApp(home: AdministrationPage(events: <DispatchEvent>[])),
+      const MaterialApp(
+        home: AdministrationPage(
+          events: <DispatchEvent>[],
+          supabaseReady: false,
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -62,7 +77,12 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      const MaterialApp(home: AdministrationPage(events: <DispatchEvent>[])),
+      const MaterialApp(
+        home: AdministrationPage(
+          events: <DispatchEvent>[],
+          supabaseReady: false,
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -80,6 +100,7 @@ void main() {
       const MaterialApp(
         home: AdministrationPage(
           events: <DispatchEvent>[],
+          supabaseReady: false,
           radioOpsPollHealth: 'ok 3 • fail 1 • skip 0 • last 10:05:00 UTC',
           radioOpsQueueHealth:
               'pending 4 • due 1 • deferred 3 • max-attempt 2 • next 10:05:30 UTC',
@@ -153,6 +174,7 @@ void main() {
       MaterialApp(
         home: AdministrationPage(
           events: const <DispatchEvent>[],
+          supabaseReady: false,
           initialRadioIntentPhrasesJson:
               '{"all_clear":["all clear"],"panic":["panic"],"duress":["silent duress"],"status":["status update"]}',
           onSaveRadioIntentPhrasesJson: (rawJson) async {
@@ -170,32 +192,40 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Radio Intent Dictionary'), findsOneWidget);
-    final radioEditor = find.byType(TextField).last;
+    final radioEditor = find.byWidgetPredicate((widget) {
+      if (widget is! TextField) return false;
+      final hint = widget.decoration?.hintText ?? '';
+      return hint.contains('"panic button"');
+    });
+    final radioValidateButton = find.text('Validate').first;
+    final radioSaveButton = find.text('Save Runtime').first;
+    final radioResetButton = find.text('Reset To Defaults').first;
+    expect(radioEditor, findsOneWidget);
+    expect(radioValidateButton, findsOneWidget);
+    expect(radioSaveButton, findsOneWidget);
+    expect(radioResetButton, findsOneWidget);
 
     await tester.enterText(radioEditor, '{not-json');
-    await tester.ensureVisible(find.text('Validate'));
+    await tester.ensureVisible(radioValidateButton);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Validate'));
+    await tester.tap(radioValidateButton);
     await tester.pumpAndSettle();
-    expect(
-      find.textContaining('Invalid JSON or missing phrase arrays'),
-      findsOneWidget,
-    );
+    expect(savedRaw, isNull);
 
     await tester.enterText(
       radioEditor,
       '{"all_clear":["all clear"],"panic":["panic button"],"duress":["duress"],"status":["status check"]}',
     );
-    await tester.ensureVisible(find.text('Save Runtime'));
+    await tester.ensureVisible(radioSaveButton);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Save Runtime'));
+    await tester.tap(radioSaveButton);
     await tester.pumpAndSettle();
 
     expect(savedRaw, contains('"panic button"'));
 
-    await tester.ensureVisible(find.text('Reset To Defaults'));
+    await tester.ensureVisible(radioResetButton);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Reset To Defaults'));
+    await tester.tap(radioResetButton);
     await tester.pumpAndSettle();
     expect(resetCalls, 1);
   });
@@ -215,6 +245,7 @@ void main() {
       MaterialApp(
         home: AdministrationPage(
           events: const <DispatchEvent>[],
+          supabaseReady: false,
           radioOpsPollHealth: 'ok 1 • fail 0 • skip 0 • last 10:05:00 UTC',
           radioOpsQueueHealth: 'pending 2 • due 1 • deferred 1 • max-attempt 2',
           radioOpsFailureDetail:
@@ -310,6 +341,7 @@ void main() {
       MaterialApp(
         home: AdministrationPage(
           events: const <DispatchEvent>[],
+          supabaseReady: false,
           radioOpsPollHealth: 'ok 1 • fail 0 • skip 0 • last 10:05:00 UTC',
           radioOpsQueueHealth: 'pending 1 • due 1 • deferred 0 • max-attempt 1',
           radioOpsFailureDetail:

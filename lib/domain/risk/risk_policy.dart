@@ -1,13 +1,3 @@
-import '../intelligence/news_item.dart';
-
-class RiskPolicy {
-  final int escalationThreshold;
-
-  const RiskPolicy({
-    required this.escalationThreshold,
-  });
-
-  bool shouldEscalate(NewsItem item) {
-    return item.riskScore >= escalationThreshold;
-  }
-}
+// Canonical source: lib/domain/intelligence/risk_policy.dart
+// This shim remains for compatibility with older import paths.
+export '../intelligence/risk_policy.dart' show RiskPolicy;

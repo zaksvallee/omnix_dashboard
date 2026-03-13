@@ -205,14 +205,49 @@ class SupabaseClientConversationRepository
 
   @override
   Future<List<ClientAppMessage>> readMessages() async {
-    final response = await client
+    try {
+      final response = await client
+          .from('client_conversation_messages')
+          .select(
+            'author, body, room_key, viewer_role, incident_status_label, message_source, message_provider, occurred_at',
+          )
+          .eq('client_id', clientId)
+          .eq('site_id', siteId)
+          .order('occurred_at', ascending: false);
+      return _mapMessageRows(response);
+    } catch (_) {
+      final response = await client
+          .from('client_conversation_messages')
+          .select(
+            'author, body, room_key, viewer_role, incident_status_label, occurred_at',
+          )
+          .eq('client_id', clientId)
+          .eq('site_id', siteId)
+          .order('occurred_at', ascending: false);
+      return _mapMessageRows(response);
+    }
+  }
+
+  @override
+  Future<void> saveMessages(List<ClientAppMessage> messages) async {
+    await client
         .from('client_conversation_messages')
-        .select(
-          'author, body, room_key, viewer_role, incident_status_label, occurred_at',
-        )
+        .delete()
         .eq('client_id', clientId)
-        .eq('site_id', siteId)
-        .order('occurred_at', ascending: false);
+        .eq('site_id', siteId);
+    if (messages.isEmpty) return;
+    try {
+      await client
+          .from('client_conversation_messages')
+          .insert(_messageRows(messages, includeSourceProvider: true));
+    } catch (_) {
+      await client
+          .from('client_conversation_messages')
+          .insert(_messageRows(messages, includeSourceProvider: false));
+    }
+  }
+
+  List<ClientAppMessage> _mapMessageRows(dynamic response) {
     return response
         .whereType<Map>()
         .map(
@@ -223,6 +258,8 @@ class SupabaseClientConversationRepository
             viewerRole: row['viewer_role']?.toString() ?? 'client',
             incidentStatusLabel:
                 row['incident_status_label']?.toString() ?? 'Update',
+            messageSource: row['message_source']?.toString() ?? 'in_app',
+            messageProvider: row['message_provider']?.toString() ?? 'in_app',
             occurredAt:
                 DateTime.tryParse(
                   row['occurred_at']?.toString() ?? '',
@@ -234,32 +271,29 @@ class SupabaseClientConversationRepository
         .toList(growable: false);
   }
 
-  @override
-  Future<void> saveMessages(List<ClientAppMessage> messages) async {
-    await client
-        .from('client_conversation_messages')
-        .delete()
-        .eq('client_id', clientId)
-        .eq('site_id', siteId);
-    if (messages.isEmpty) return;
-    await client
-        .from('client_conversation_messages')
-        .insert(
-          messages
-              .map(
-                (message) => {
-                  'client_id': clientId,
-                  'site_id': siteId,
-                  'author': message.author,
-                  'body': message.body,
-                  'room_key': message.roomKey,
-                  'viewer_role': message.viewerRole,
-                  'incident_status_label': message.incidentStatusLabel,
-                  'occurred_at': message.occurredAt.toUtc().toIso8601String(),
-                },
-              )
-              .toList(growable: false),
-        );
+  List<Map<String, Object?>> _messageRows(
+    List<ClientAppMessage> messages, {
+    required bool includeSourceProvider,
+  }) {
+    return messages
+        .map((message) {
+          final row = <String, Object?>{
+            'client_id': clientId,
+            'site_id': siteId,
+            'author': message.author,
+            'body': message.body,
+            'room_key': message.roomKey,
+            'viewer_role': message.viewerRole,
+            'incident_status_label': message.incidentStatusLabel,
+            'occurred_at': message.occurredAt.toUtc().toIso8601String(),
+          };
+          if (includeSourceProvider) {
+            row['message_source'] = message.messageSource;
+            row['message_provider'] = message.messageProvider;
+          }
+          return row;
+        })
+        .toList(growable: false);
   }
 
   @override
@@ -325,14 +359,49 @@ class SupabaseClientConversationRepository
 
   @override
   Future<List<ClientAppPushDeliveryItem>> readPushQueue() async {
-    final response = await client
+    try {
+      final response = await client
+          .from('client_conversation_push_queue')
+          .select(
+            'message_key, title, body, occurred_at, target_channel, delivery_provider, priority, status',
+          )
+          .eq('client_id', clientId)
+          .eq('site_id', siteId)
+          .order('occurred_at', ascending: false);
+      return _mapPushQueueRows(response);
+    } catch (_) {
+      final response = await client
+          .from('client_conversation_push_queue')
+          .select(
+            'message_key, title, body, occurred_at, target_channel, priority, status',
+          )
+          .eq('client_id', clientId)
+          .eq('site_id', siteId)
+          .order('occurred_at', ascending: false);
+      return _mapPushQueueRows(response);
+    }
+  }
+
+  @override
+  Future<void> savePushQueue(List<ClientAppPushDeliveryItem> pushQueue) async {
+    await client
         .from('client_conversation_push_queue')
-        .select(
-          'message_key, title, body, occurred_at, target_channel, priority, status',
-        )
+        .delete()
         .eq('client_id', clientId)
-        .eq('site_id', siteId)
-        .order('occurred_at', ascending: false);
+        .eq('site_id', siteId);
+    if (pushQueue.isEmpty) return;
+    try {
+      await client
+          .from('client_conversation_push_queue')
+          .insert(_pushQueueRows(pushQueue, includeDeliveryProvider: true));
+    } catch (_) {
+      await client
+          .from('client_conversation_push_queue')
+          .insert(_pushQueueRows(pushQueue, includeDeliveryProvider: false));
+    }
+  }
+
+  List<ClientAppPushDeliveryItem> _mapPushQueueRows(dynamic response) {
     return response
         .whereType<Map>()
         .map(
@@ -349,6 +418,9 @@ class SupabaseClientConversationRepository
               (value) => value.name == row['target_channel']?.toString(),
               orElse: () => ClientAppAcknowledgementChannel.client,
             ),
+            deliveryProvider: ClientPushDeliveryProviderParser.fromCode(
+              row['delivery_provider']?.toString() ?? 'in_app',
+            ),
             priority: row['priority'] == true,
             status: ClientPushDeliveryStatus.values.firstWhere(
               (value) => value.name == row['status']?.toString(),
@@ -360,33 +432,29 @@ class SupabaseClientConversationRepository
         .toList(growable: false);
   }
 
-  @override
-  Future<void> savePushQueue(List<ClientAppPushDeliveryItem> pushQueue) async {
-    await client
-        .from('client_conversation_push_queue')
-        .delete()
-        .eq('client_id', clientId)
-        .eq('site_id', siteId);
-    if (pushQueue.isEmpty) return;
-    await client
-        .from('client_conversation_push_queue')
-        .insert(
-          pushQueue
-              .map(
-                (item) => {
-                  'client_id': clientId,
-                  'site_id': siteId,
-                  'message_key': item.messageKey,
-                  'title': item.title,
-                  'body': item.body,
-                  'occurred_at': item.occurredAt.toUtc().toIso8601String(),
-                  'target_channel': item.targetChannel.name,
-                  'priority': item.priority,
-                  'status': item.status.name,
-                },
-              )
-              .toList(growable: false),
-        );
+  List<Map<String, Object?>> _pushQueueRows(
+    List<ClientAppPushDeliveryItem> pushQueue, {
+    required bool includeDeliveryProvider,
+  }) {
+    return pushQueue
+        .map((item) {
+          final row = <String, Object?>{
+            'client_id': clientId,
+            'site_id': siteId,
+            'message_key': item.messageKey,
+            'title': item.title,
+            'body': item.body,
+            'occurred_at': item.occurredAt.toUtc().toIso8601String(),
+            'target_channel': item.targetChannel.name,
+            'priority': item.priority,
+            'status': item.status.name,
+          };
+          if (includeDeliveryProvider) {
+            row['delivery_provider'] = item.deliveryProvider.code;
+          }
+          return row;
+        })
+        .toList(growable: false);
   }
 
   @override

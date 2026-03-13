@@ -1,11 +1,3 @@
-import '../events/dispatch_event.dart';
-
-class EventLog {
-  final List<DispatchEvent> _events = [];
-
-  void append(DispatchEvent event) {
-    _events.add(event);
-  }
-
-  List<DispatchEvent> get events => List.unmodifiable(_events);
-}
+// Backward-compatibility shim.
+// Canonical EventLog now lives in domain/logging/event_log.dart.
+export '../logging/event_log.dart';

@@ -22,6 +22,8 @@ void main() {
           roomKey: 'Residents',
           viewerRole: 'resident',
           incidentStatusLabel: 'Advisory',
+          messageSource: 'telegram',
+          messageProvider: 'openai',
         ),
       ];
       final acknowledgements = [

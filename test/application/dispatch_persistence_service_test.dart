@@ -375,6 +375,8 @@ void main() {
           roomKey: 'Security Desk',
           viewerRole: 'control',
           incidentStatusLabel: 'Opened',
+          messageSource: 'telegram',
+          messageProvider: 'openai',
         ),
       ];
       final acknowledgements = [
@@ -456,6 +458,35 @@ void main() {
       final restored = await service.readClientAppPushSyncState();
 
       expect(restored.toJson(), state.toJson());
+    });
+
+    test('saves, restores, and clears telegram admin runtime state', () async {
+      final service = await DispatchPersistenceService.create();
+      final state = <String, Object?>{
+        'execution_enabled_override': false,
+        'poll_interval_override_seconds': 5,
+        'critical_reminder_override_seconds': 180,
+        'critical_snoozed_until_utc': '2026-03-12T15:30:00.000Z',
+        'critical_ack_fingerprint': 'a|b|c',
+        'critical_ack_at_utc': '2026-03-12T15:00:00.000Z',
+        'critical_alert_fingerprint': 'x|y|z',
+        'last_critical_alert_at_utc': '2026-03-12T14:58:00.000Z',
+        'last_critical_alert_summary': 'active(2) via admin-control-loop',
+        'last_command_at_utc': '2026-03-12T15:01:00.000Z',
+        'last_command_summary': '/status by @owner',
+        'command_audit': <String>[
+          '/status by @owner (-5247743742) @ 2026-03-12T15:01:00.000Z',
+        ],
+      };
+
+      await service.saveTelegramAdminRuntimeState(state);
+      final restored = await service.readTelegramAdminRuntimeState();
+
+      expect(restored, state);
+
+      await service.clearTelegramAdminRuntimeState();
+      final cleared = await service.readTelegramAdminRuntimeState();
+      expect(cleared, isEmpty);
     });
 
     test('saves and restores guard assignments and sync operations', () async {

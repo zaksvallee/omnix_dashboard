@@ -286,8 +286,14 @@ void main() {
     expect(find.text('Unread Alerts'), findsOneWidget);
     expect(find.text('Direct Chat'), findsOneWidget);
     expect(find.text('Client Acks Pending'), findsOneWidget);
-    expect(find.text('Target: Client Ack • 10:20 UTC'), findsOneWidget);
-    expect(find.text('Target: Resident Seen • 10:15 UTC'), findsOneWidget);
+    expect(
+      find.textContaining('Target: Client Ack • Bridge: In-app • 10:20 UTC'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Target: Resident Seen • Bridge: In-app • 10:15 UTC'),
+      findsOneWidget,
+    );
     expect(find.text('Queued'), findsWidgets);
     expect(find.text('Target: Residents'), findsWidgets);
     expect(find.text('Confirm receipt for Residents'), findsOneWidget);
@@ -592,6 +598,64 @@ void main() {
     );
   });
 
+  testWidgets('chat source filters isolate telegram messages', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1600, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ClientAppPage(
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          events: const [],
+          initialManualMessages: [
+            ClientAppMessage(
+              author: 'Client',
+              body: 'Internal update from client lane.',
+              occurredAt: DateTime.utc(2026, 3, 4, 10, 25),
+              roomKey: 'Residents',
+              viewerRole: 'client',
+              messageSource: 'in_app',
+              messageProvider: 'in_app',
+            ),
+            ClientAppMessage(
+              author: 'ONYX AI',
+              body: 'Telegram response generated for client.',
+              occurredAt: DateTime.utc(2026, 3, 4, 10, 26),
+              roomKey: 'Residents',
+              viewerRole: 'client',
+              messageSource: 'telegram',
+              messageProvider: 'openai',
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('All Sources'), findsOneWidget);
+    expect(find.text('In-App'), findsWidgets);
+    expect(find.text('Telegram'), findsOneWidget);
+    expect(find.text('Internal update from client lane.'), findsWidgets);
+    expect(find.text('Client • Residents • 10:25 UTC'), findsOneWidget);
+    expect(find.text('Telegram response generated for client.'), findsWidgets);
+    expect(find.text('ONYX AI • Residents • 10:26 UTC'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Telegram'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Client • Residents • 10:25 UTC'), findsNothing);
+    expect(find.text('Internal update from client lane.'), findsNothing);
+    expect(find.text('ONYX AI • Residents • 10:26 UTC'), findsOneWidget);
+    expect(find.text('OpenAI'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'All Sources'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Client • Residents • 10:25 UTC'), findsOneWidget);
+    expect(find.text('ONYX AI • Residents • 10:26 UTC'), findsOneWidget);
+  });
+
   testWidgets('client app acknowledges ONYX updates and emits state', (
     tester,
   ) async {
@@ -636,7 +700,10 @@ void main() {
     );
 
     expect(find.text('Client Ack'), findsNWidgets(2));
-    expect(find.text('Target: Client Ack • 10:20 UTC'), findsOneWidget);
+    expect(
+      find.textContaining('Target: Client Ack • Bridge: In-app • 10:20 UTC'),
+      findsOneWidget,
+    );
     expect(find.text('Queued'), findsWidgets);
     expect(find.text('Control Ack'), findsNothing);
     expect(find.text('Resident Seen'), findsNothing);
