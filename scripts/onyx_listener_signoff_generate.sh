@@ -145,6 +145,24 @@ else:
 PY
 }
 
+resolve_optional_report_path() {
+  local existing_path="$1"
+  local validation_dir="$2"
+  local fallback_name="$3"
+
+  if [[ -n "$existing_path" ]]; then
+    printf '%s\n' "$existing_path"
+    return 0
+  fi
+
+  if [[ -n "$validation_dir" && -f "$validation_dir/$fallback_name" ]]; then
+    printf '%s\n' "$validation_dir/$fallback_name"
+    return 0
+  fi
+
+  printf '\n'
+}
+
 write_signoff_json_report() {
   local signoff_status="$1"
   local signoff_summary="$2"
@@ -241,30 +259,23 @@ fi
 if [[ -z "$VALIDATION_REPORT_JSON" ]]; then
   report_artifact_dir="$(json_get "$REPORT_JSON" "artifact_dir")"
   if [[ -n "$report_artifact_dir" ]]; then
-    validation_candidate="$(dirname "$report_artifact_dir")/validation_report.json"
-    if [[ -f "$validation_candidate" ]]; then
-      VALIDATION_REPORT_JSON="$validation_candidate"
+    if [[ -f "$report_artifact_dir/validation_report.json" ]]; then
+      VALIDATION_REPORT_JSON="$report_artifact_dir/validation_report.json"
+    else
+      validation_candidate="$(dirname "$report_artifact_dir")/validation_report.json"
+      if [[ -f "$validation_candidate" ]]; then
+        VALIDATION_REPORT_JSON="$validation_candidate"
+      fi
     fi
   fi
 fi
-if [[ "$REQUIRE_VALIDATION_TREND_PASS" -eq 1 && -z "$VALIDATION_TREND_REPORT_JSON" && -n "$VALIDATION_REPORT_JSON" ]]; then
+validation_artifact_dir=""
+if [[ -n "$VALIDATION_REPORT_JSON" ]]; then
   validation_artifact_dir="$(dirname "$VALIDATION_REPORT_JSON")"
-  if [[ -f "$validation_artifact_dir/validation_trend_report.json" ]]; then
-    VALIDATION_TREND_REPORT_JSON="$validation_artifact_dir/validation_trend_report.json"
-  fi
 fi
-if [[ "$REQUIRE_CUTOVER_GO" -eq 1 && -z "$CUTOVER_DECISION_JSON" && -n "$VALIDATION_REPORT_JSON" ]]; then
-  validation_artifact_dir="$(dirname "$VALIDATION_REPORT_JSON")"
-  if [[ -f "$validation_artifact_dir/cutover_decision.json" ]]; then
-    CUTOVER_DECISION_JSON="$validation_artifact_dir/cutover_decision.json"
-  fi
-fi
-if [[ "$REQUIRE_CUTOVER_TREND_PASS" -eq 1 && -z "$CUTOVER_TREND_REPORT_JSON" && -n "$VALIDATION_REPORT_JSON" ]]; then
-  validation_artifact_dir="$(dirname "$VALIDATION_REPORT_JSON")"
-  if [[ -f "$validation_artifact_dir/cutover_trend_report.json" ]]; then
-    CUTOVER_TREND_REPORT_JSON="$validation_artifact_dir/cutover_trend_report.json"
-  fi
-fi
+VALIDATION_TREND_REPORT_JSON="$(resolve_optional_report_path "$VALIDATION_TREND_REPORT_JSON" "$validation_artifact_dir" "validation_trend_report.json")"
+CUTOVER_DECISION_JSON="$(resolve_optional_report_path "$CUTOVER_DECISION_JSON" "$validation_artifact_dir" "cutover_decision.json")"
+CUTOVER_TREND_REPORT_JSON="$(resolve_optional_report_path "$CUTOVER_TREND_REPORT_JSON" "$validation_artifact_dir" "cutover_trend_report.json")"
 if [[ -n "$VALIDATION_REPORT_JSON" && ! -f "$VALIDATION_REPORT_JSON" ]]; then
   fail_signoff "missing_validation_report" "validation report not found: $VALIDATION_REPORT_JSON"
 fi

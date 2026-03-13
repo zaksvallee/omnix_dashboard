@@ -134,6 +134,7 @@ Notes:
   - Listener field-gate signoff now defaults into the field artifact directory and is passed to the release gate explicitly, so a generated signoff cannot be silently ignored by release posture when `--signoff-out` is omitted.
   - Standalone listener release-gate auto-discovery now only accepts filenames containing `signoff`, preventing `readiness_report.md` or other audited artifacts from being misclassified as signoff evidence.
   - Standalone listener cutover decision now auto-resolves staged parity and trend artifacts from the validation bundle, so one-command cutover evaluation no longer reports missing parity evidence when that evidence is already staged in the field-validation artifact.
+  - Standalone listener signoff now auto-resolves validation and cutover artifacts from a staged field-validation bundle when parity artifacts are colocated there, so one-command closeout no longer assumes the older parent-directory layout.
 
 ---
 

@@ -354,6 +354,16 @@ signoff status when present. The signoff report now persists on both pass and
 fail and carries `failure_code`, so downstream tooling does not need to parse
 terminal output when signoff generation is blocked.
 
+Standalone signoff generation now also auto-resolves:
+- `validation_report.json`
+- `validation_trend_report.json`
+- `cutover_decision.json`
+- `cutover_trend_report.json`
+
+from the parity artifact directory when those files are colocated in a staged
+field-validation bundle, before falling back to the older parent-directory
+layout.
+
 To compare release posture across listener runs:
 
 ```bash
