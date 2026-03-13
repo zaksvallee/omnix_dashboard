@@ -164,11 +164,22 @@ def signoff_consistency_regressions(gate, gate_path, label):
 
 def readiness_consistency_regressions(gate, gate_path, label):
     items = []
+    gate_dir = gate_path.parent
+    gate_validation_report = str(gate.get("validation_report_json", "")).strip()
     readiness_report_path = str(gate.get("readiness_report_json", "")).strip()
+    if gate_validation_report and gate_validation_report != str(gate_dir / Path(gate_validation_report).name):
+        items.append({
+            "code": f"{label}_validation_report_path_mismatch",
+            "message": f"{label} release gate validation report is not staged under its own artifact dir.",
+        })
+    if readiness_report_path and readiness_report_path != str(gate_dir / Path(readiness_report_path).name):
+        items.append({
+            "code": f"{label}_readiness_report_path_mismatch",
+            "message": f"{label} release gate readiness report is not staged under its own artifact dir.",
+        })
     readiness_report = load_json(readiness_report_path)
     reported_status = str((gate.get("statuses", {}) or {}).get("readiness_status", "")).upper()
     reported_failure_code = str((gate.get("statuses", {}) or {}).get("readiness_failure_code", "")).strip()
-    gate_validation_report = str(gate.get("validation_report_json", "")).strip()
     if readiness_report is None:
         return items
     readiness_status = str(readiness_report.get("status", "")).upper()

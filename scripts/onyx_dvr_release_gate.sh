@@ -130,6 +130,8 @@ signoff_report = load_optional(signoff_report_path)
 result = "PASS"
 fail_items = []
 hold_items = []
+expected_validation_path = out_dir / validation_path.name
+expected_readiness_path = out_dir / readiness_path.name if readiness_path else None
 
 def add_reason(items, code, message):
     items.append({"code": code, "message": message})
@@ -137,6 +139,9 @@ def add_reason(items, code, message):
 if str(validation.get("overall_status", "")).upper() != "PASS":
     result = "FAIL"
     add_reason(fail_items, "validation_not_pass", "Validation overall_status is not PASS.")
+if validation_path != expected_validation_path:
+    result = "FAIL"
+    add_reason(fail_items, "validation_report_path_mismatch", "Validation report is not staged under the active release artifact dir.")
 
 is_mock = bool(validation.get("is_mock", False))
 if require_real and is_mock:
@@ -147,6 +152,9 @@ if readiness is None:
     result = "HOLD" if result != "FAIL" else result
     add_reason(hold_items, "missing_readiness_report", "Readiness report is missing.")
 else:
+    if expected_readiness_path is not None and readiness_path != expected_readiness_path:
+      result = "FAIL"
+      add_reason(fail_items, "readiness_report_path_mismatch", "Readiness report is not staged under the active release artifact dir.")
     readiness_status = str(readiness.get("status", "")).upper()
     readiness_failure_code = str(readiness.get("failure_code", "")).strip()
     readiness_validation_report = str(readiness.get("report_json", "")).strip()

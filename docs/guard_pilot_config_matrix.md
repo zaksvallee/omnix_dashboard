@@ -174,6 +174,7 @@ DVR pilot commands:
 - release trend now also fails if a current or previous release gate points signoff artifacts outside its own artifact dir
 - readiness and release trend now also reject top-level `signoff_status` summaries that drift from the referenced signoff report
 - release posture and release trend now also reject contradictory readiness JSON and readiness summary drift
+- release posture and release trend now also reject top-level validation/readiness path swaps outside the staged artifact dir
 
 CCTV pilot commands:
 - `./scripts/onyx_cctv_capture_pack_init.sh`
