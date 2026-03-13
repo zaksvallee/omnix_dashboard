@@ -20,17 +20,19 @@ USE_MOCK_ARTIFACTS=0
 GENERATE_SIGNOFF=0
 SIGNOFF_OUT=""
 EFFECTIVE_SIGNOFF_OUT=""
+REQUIRE_RELEASE_GATE_PASS=0
 
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/onyx_dvr_field_gate.sh [--edge-url <url>] [--provider <id>] [--site-id <site_id>] [--event-id <event_id>] [--camera-id <camera_id>] [--zone <zone>] [--capture-dir <path>] [--artifact-dir <path>] [--max-report-age-hours <hours>] [--init-capture-pack] [--skip-edge] [--allow-mock-artifacts] [--use-mock-artifacts] [--generate-signoff] [--signoff-out <path>]
+  ./scripts/onyx_dvr_field_gate.sh [--edge-url <url>] [--provider <id>] [--site-id <site_id>] [--event-id <event_id>] [--camera-id <camera_id>] [--zone <zone>] [--capture-dir <path>] [--artifact-dir <path>] [--max-report-age-hours <hours>] [--init-capture-pack] [--skip-edge] [--allow-mock-artifacts] [--use-mock-artifacts] [--generate-signoff] [--signoff-out <path>] [--require-release-gate-pass]
 
 Purpose:
   One-command DVR field gate:
   1) optionally initialize the capture pack
   2) run the DVR pilot gate or generate mock validation artifacts
   3) optionally generate the DVR signoff note
+  4) emit the DVR release-gate artifact
 USAGE
 }
 
@@ -51,6 +53,7 @@ while [[ $# -gt 0 ]]; do
     --use-mock-artifacts) USE_MOCK_ARTIFACTS=1; shift ;;
     --generate-signoff) GENERATE_SIGNOFF=1; shift ;;
     --signoff-out) SIGNOFF_OUT="${2:-}"; shift 2 ;;
+    --require-release-gate-pass) REQUIRE_RELEASE_GATE_PASS=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "FAIL: Unknown argument: $1"; exit 1 ;;
   esac
@@ -158,11 +161,42 @@ if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
   "${signoff_cmd[@]}"
 fi
 
+release_cmd=(
+  bash ./scripts/onyx_dvr_release_gate.sh
+  --validation-report-json "$ARTIFACT_DIR/validation_report.json"
+  --readiness-report-json "$ARTIFACT_DIR/readiness_report.json"
+  --out-dir "$ARTIFACT_DIR"
+)
+if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
+  release_cmd+=(--signoff-file "$EFFECTIVE_SIGNOFF_OUT")
+  release_cmd+=(--signoff-report-json "$(dirname "$EFFECTIVE_SIGNOFF_OUT")/$(basename "$EFFECTIVE_SIGNOFF_OUT" .md).json")
+fi
+if [[ "$ALLOW_MOCK_ARTIFACTS" -ne 1 ]]; then
+  release_cmd+=(--require-real-artifacts)
+fi
+"${release_cmd[@]}" >/dev/null
+
+if [[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]]; then
+  release_result="$(python3 - <<'PY' "$ARTIFACT_DIR/release_gate.json"
+import json, sys
+with open(sys.argv[1], 'r', encoding='utf-8') as handle:
+    print(json.load(handle).get('result', ''))
+PY
+)"
+  if [[ "$release_result" != "PASS" ]]; then
+    echo "FAIL: DVR release gate is $release_result, expected PASS under --require-release-gate-pass."
+    exit 1
+  fi
+fi
+
 echo
 echo "PASS: DVR field gate completed."
 echo "Validation artifact: $ARTIFACT_DIR/validation_report.json"
 if [[ -f "$ARTIFACT_DIR/readiness_report.json" ]]; then
   echo "Readiness artifact: $ARTIFACT_DIR/readiness_report.json"
+fi
+if [[ -f "$ARTIFACT_DIR/release_gate.json" ]]; then
+  echo "Release gate artifact: $ARTIFACT_DIR/release_gate.json"
 fi
 if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
   echo "Signoff note: $EFFECTIVE_SIGNOFF_OUT"

@@ -163,6 +163,7 @@ DVR pilot commands:
 - `./scripts/onyx_dvr_field_gate.sh`
 - `./scripts/onyx_dvr_signoff_generate.sh`
 - signoff now writes both markdown and sibling JSON audit output in the target directory
+- `./scripts/onyx_dvr_release_gate.sh`
 
 CCTV pilot commands:
 - `./scripts/onyx_cctv_capture_pack_init.sh`
