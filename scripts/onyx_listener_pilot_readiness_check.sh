@@ -734,6 +734,12 @@ path = sys.argv[1]
 with open(path, "r", encoding="utf-8") as handle:
     data = json.load(handle)
 
+def load_json(path_str):
+    if not path_str or not os.path.isfile(path_str):
+        return None
+    with open(path_str, "r", encoding="utf-8") as handle:
+        return json.load(handle)
+
 result = str(data.get("result", "")).upper()
 validation_report = str(data.get("validation_report_json", "")).strip()
 readiness_report = str(data.get("readiness_report_json", "")).strip()
@@ -754,6 +760,68 @@ if signoff_file and not os.path.isfile(signoff_file):
     raise SystemExit("missing_signoff_file")
 if signoff_report and not os.path.isfile(signoff_report):
     raise SystemExit("missing_signoff_report")
+
+validation_data = load_json(validation_report)
+readiness_data = load_json(readiness_report)
+cutover_data = load_json(cutover_decision_report)
+cutover_trend_data = load_json(cutover_trend_report)
+signoff_data = load_json(signoff_report)
+
+statuses = data.get("statuses", {}) or {}
+fail_codes = [str(item) for item in (data.get("fail_codes", []) or [])]
+hold_codes = [str(item) for item in (data.get("hold_codes", []) or [])]
+primary_fail_code = str(data.get("primary_fail_code", "")).strip()
+primary_hold_code = str(data.get("primary_hold_code", "")).strip()
+
+if validation_data is not None:
+    actual_validation_status = str(validation_data.get("overall_status", "")).upper()
+    if str(statuses.get("validation_overall_status", "")).upper() != actual_validation_status:
+        raise SystemExit("validation_status_mismatch")
+
+    actual_review = str(((validation_data.get("baseline_review") or {}).get("recommendation", ""))).lower()
+    if str(statuses.get("baseline_review_recommendation", "")).lower() != actual_review:
+        raise SystemExit("baseline_review_recommendation_mismatch")
+
+    actual_health = str(((validation_data.get("baseline_health") or {}).get("category", ""))).lower()
+    if str(statuses.get("baseline_health_category", "")).lower() != actual_health:
+        raise SystemExit("baseline_health_category_mismatch")
+
+if readiness_data is not None:
+    actual_readiness_status = str(readiness_data.get("status", "")).upper()
+    if str(statuses.get("readiness_status", "")).upper() != actual_readiness_status:
+        raise SystemExit("readiness_status_mismatch")
+    actual_readiness_failure = str(readiness_data.get("failure_code", "")).strip()
+    if str(statuses.get("readiness_failure_code", "")).strip() != actual_readiness_failure:
+        raise SystemExit("readiness_failure_code_mismatch")
+
+if cutover_data is not None:
+    actual_cutover_decision = str(cutover_data.get("decision", "")).upper()
+    if str(statuses.get("cutover_decision", "")).upper() != actual_cutover_decision:
+        raise SystemExit("cutover_decision_mismatch")
+
+if cutover_trend_data is not None:
+    actual_cutover_trend_status = str(cutover_trend_data.get("status", "")).upper()
+    if str(statuses.get("cutover_trend_status", "")).upper() != actual_cutover_trend_status:
+        raise SystemExit("cutover_trend_status_mismatch")
+
+if signoff_data is not None:
+    actual_signoff_status = str(signoff_data.get("status", "")).upper()
+    if str(statuses.get("signoff_status", "")).upper() != actual_signoff_status:
+        raise SystemExit("signoff_status_mismatch")
+
+expected_primary_fail_code = fail_codes[0] if fail_codes else ""
+expected_primary_hold_code = hold_codes[0] if hold_codes else ""
+if primary_fail_code != expected_primary_fail_code:
+    raise SystemExit("primary_fail_code_mismatch")
+if primary_hold_code != expected_primary_hold_code:
+    raise SystemExit("primary_hold_code_mismatch")
+
+if result == "FAIL" and not fail_codes:
+    raise SystemExit("result_fail_without_fail_codes")
+if result == "HOLD" and (fail_codes or not hold_codes):
+    raise SystemExit("result_hold_code_mismatch")
+if result == "PASS" and (fail_codes or hold_codes):
+    raise SystemExit("result_pass_with_reason_codes")
 
 print(result)
 PY
@@ -1103,7 +1171,7 @@ if [[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]]; then
         fail release_gate_missing_signoff_report "Listener readiness failed: release gate references a missing signoff report."
         ;;
       *)
-        fail release_gate_verification_failed "Listener readiness failed: release gate verification failed: ${release_gate_status:-unknown}."
+        fail "${release_gate_status:-release_gate_verification_failed}" "Listener readiness failed: release gate verification failed: ${release_gate_status:-unknown}."
         ;;
     esac
   }
@@ -1150,7 +1218,7 @@ if [[ "$REQUIRE_RELEASE_TREND_PASS" -eq 1 ]]; then
         fail release_trend_current_missing_signoff_report "Listener readiness failed: release trend current gate references a missing signoff report."
         ;;
       *)
-        fail release_trend_current_gate_verification_failed "Listener readiness failed: release trend current gate verification failed: ${current_release_gate_status:-unknown}."
+        fail "${current_release_gate_status:-release_trend_current_gate_verification_failed}" "Listener readiness failed: release trend current gate verification failed: ${current_release_gate_status:-unknown}."
         ;;
     esac
   }
@@ -1175,7 +1243,7 @@ if [[ "$REQUIRE_RELEASE_TREND_PASS" -eq 1 ]]; then
         fail release_trend_previous_missing_signoff_report "Listener readiness failed: release trend previous gate references a missing signoff report."
         ;;
       *)
-        fail release_trend_previous_gate_verification_failed "Listener readiness failed: release trend previous gate verification failed: ${previous_release_gate_status:-unknown}."
+        fail "${previous_release_gate_status:-release_trend_previous_gate_verification_failed}" "Listener readiness failed: release trend previous gate verification failed: ${previous_release_gate_status:-unknown}."
         ;;
     esac
   }

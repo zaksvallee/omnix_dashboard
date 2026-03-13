@@ -846,6 +846,88 @@ def cutover_trend_chain_regressions(path_str, label):
         regressions.extend(cutover_decision_chain_regressions(previous_decision, f"{label}_previous_decision"))
     return regressions
 
+def release_gate_consistency_regressions(report, label):
+    regressions = []
+    statuses = report.get("statuses", {}) or {}
+    fail_codes = [str(item) for item in (report.get("fail_codes", []) or [])]
+    hold_codes = [str(item) for item in (report.get("hold_codes", []) or [])]
+    primary_fail_code = str(report.get("primary_fail_code", "")).strip()
+    primary_hold_code = str(report.get("primary_hold_code", "")).strip()
+    result = str(report.get("result", "")).upper()
+
+    validation_report = str(report.get("validation_report_json", "")).strip()
+    readiness_report = str(report.get("readiness_report_json", "")).strip()
+    cutover_decision = str(report.get("cutover_decision_json", "")).strip()
+    cutover_trend = str(report.get("cutover_trend_report_json", "")).strip()
+    signoff_report = str(report.get("signoff_report_json", "")).strip()
+
+    validation_data = load_json(validation_report)
+    readiness_data = load_json(readiness_report)
+    cutover_data = load_json(cutover_decision)
+    cutover_trend_data = load_json(cutover_trend)
+    signoff_data = load_json(signoff_report)
+
+    def add(code_suffix, kind, expected, actual):
+        regressions.append({
+            "code": f"{label}_{code_suffix}",
+            "kind": kind,
+            "report_label": label,
+            "expected": expected,
+            "actual": actual,
+        })
+
+    if validation_data is not None:
+        actual_validation_status = str(validation_data.get("overall_status", "")).upper()
+        if str(statuses.get("validation_overall_status", "")).upper() != actual_validation_status:
+            add("validation_status_mismatch", "release_gate_status_mismatch", actual_validation_status, str(statuses.get("validation_overall_status", "")).upper())
+
+        actual_review = str(((validation_data.get("baseline_review") or {}).get("recommendation", ""))).lower()
+        if str(statuses.get("baseline_review_recommendation", "")).lower() != actual_review:
+            add("baseline_review_recommendation_mismatch", "release_gate_status_mismatch", actual_review, str(statuses.get("baseline_review_recommendation", "")).lower())
+
+        actual_health = str(((validation_data.get("baseline_health") or {}).get("category", ""))).lower()
+        if str(statuses.get("baseline_health_category", "")).lower() != actual_health:
+            add("baseline_health_category_mismatch", "release_gate_status_mismatch", actual_health, str(statuses.get("baseline_health_category", "")).lower())
+
+    if readiness_data is not None:
+        actual_readiness_status = str(readiness_data.get("status", "")).upper()
+        if str(statuses.get("readiness_status", "")).upper() != actual_readiness_status:
+            add("readiness_status_mismatch", "release_gate_status_mismatch", actual_readiness_status, str(statuses.get("readiness_status", "")).upper())
+        actual_readiness_failure = str(readiness_data.get("failure_code", "")).strip()
+        if str(statuses.get("readiness_failure_code", "")).strip() != actual_readiness_failure:
+            add("readiness_failure_code_mismatch", "release_gate_status_mismatch", actual_readiness_failure, str(statuses.get("readiness_failure_code", "")).strip())
+
+    if cutover_data is not None:
+        actual_cutover_decision = str(cutover_data.get("decision", "")).upper()
+        if str(statuses.get("cutover_decision", "")).upper() != actual_cutover_decision:
+            add("cutover_decision_mismatch", "release_gate_status_mismatch", actual_cutover_decision, str(statuses.get("cutover_decision", "")).upper())
+
+    if cutover_trend_data is not None:
+        actual_cutover_trend_status = str(cutover_trend_data.get("status", "")).upper()
+        if str(statuses.get("cutover_trend_status", "")).upper() != actual_cutover_trend_status:
+            add("cutover_trend_status_mismatch", "release_gate_status_mismatch", actual_cutover_trend_status, str(statuses.get("cutover_trend_status", "")).upper())
+
+    if signoff_data is not None:
+        actual_signoff_status = str(signoff_data.get("status", "")).upper()
+        if str(statuses.get("signoff_status", "")).upper() != actual_signoff_status:
+            add("signoff_status_mismatch", "release_gate_status_mismatch", actual_signoff_status, str(statuses.get("signoff_status", "")).upper())
+
+    expected_primary_fail = fail_codes[0] if fail_codes else ""
+    expected_primary_hold = hold_codes[0] if hold_codes else ""
+    if primary_fail_code != expected_primary_fail:
+        add("primary_fail_code_mismatch", "release_gate_primary_code_mismatch", expected_primary_fail, primary_fail_code)
+    if primary_hold_code != expected_primary_hold:
+        add("primary_hold_code_mismatch", "release_gate_primary_code_mismatch", expected_primary_hold, primary_hold_code)
+
+    if result == "FAIL" and not fail_codes:
+        add("result_fail_without_fail_codes", "release_gate_result_code_mismatch", "fail_codes_present", "fail_codes_missing")
+    if result == "HOLD" and (fail_codes or not hold_codes):
+        add("result_hold_code_mismatch", "release_gate_result_code_mismatch", "hold_only_codes", f"fail={bool(fail_codes)} hold={bool(hold_codes)}")
+    if result == "PASS" and (fail_codes or hold_codes):
+        add("result_pass_with_reason_codes", "release_gate_result_code_mismatch", "no_reason_codes", f"fail={bool(fail_codes)} hold={bool(hold_codes)}")
+
+    return regressions
+
 def gate_chain_regressions(report, label):
     regressions = []
     validation_report = str(report.get("validation_report_json", "")).strip()
@@ -889,6 +971,7 @@ def gate_chain_regressions(report, label):
     regressions.extend(cutover_decision_chain_regressions(cutover_decision, f"{label}_gate_cutover"))
     regressions.extend(cutover_trend_chain_regressions(cutover_trend, f"{label}_gate_cutover_trend"))
     regressions.extend(signoff_report_chain_regressions(signoff_report, f"{label}_gate_signoff"))
+    regressions.extend(release_gate_consistency_regressions(report, f"{label}_gate"))
     return regressions
 
 result_rank = {"FAIL": 0, "HOLD": 1, "PASS": 2}
@@ -1094,6 +1177,15 @@ if regressions:
                 f"`{item['expected'] or 'missing'}` but saw `{item['actual'] or 'missing'}`"
             )
         elif item["kind"] in {
+            "release_gate_status_mismatch",
+            "release_gate_primary_code_mismatch",
+            "release_gate_result_code_mismatch",
+        }:
+            lines.append(
+                f"- `{item['code']}`: `{item['report_label']}` expected "
+                f"`{item['expected'] or 'missing'}` but saw `{item['actual'] or 'missing'}`"
+            )
+        elif item["kind"] in {
             "cutover_chain_status_mismatch",
             "cutover_chain_gate_mismatch",
             "cutover_chain_primary_code_mismatch",
@@ -1197,6 +1289,15 @@ if regressions:
                 f"{item['requirement']} but underlying status is {item['actual'] or 'missing'}"
             )
         elif item["kind"] == "signoff_chain_status_mismatch":
+            print(
+                f"REGRESSION: {item['code']} {item['report_label']} expected "
+                f"{item['expected'] or 'missing'} but saw {item['actual'] or 'missing'}"
+            )
+        elif item["kind"] in {
+            "release_gate_status_mismatch",
+            "release_gate_primary_code_mismatch",
+            "release_gate_result_code_mismatch",
+        }:
             print(
                 f"REGRESSION: {item['code']} {item['report_label']} expected "
                 f"{item['expected'] or 'missing'} but saw {item['actual'] or 'missing'}"

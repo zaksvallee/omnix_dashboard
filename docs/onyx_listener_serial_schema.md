@@ -329,6 +329,13 @@ the validation/parity/trend artifacts it references. That prevents a stale or
 hand-edited `cutover_decision.json` from satisfying readiness, cutover-trend,
 or release checks on path integrity alone.
 
+Release-gate consumers now do the same for `release_gate.json`: copied
+`statuses.*`, `primary_*_code`, and result/code-shape fields must still match
+the validation, readiness, cutover, cutover-trend, and signoff artifacts they
+reference. That prevents a stale or hand-edited `release_gate.json` from
+satisfying readiness or release-trend checks on referenced-path integrity
+alone.
+
 Cutover and release trend comparisons now prefer stable machine-readable
 `hold_codes`, `blocking_codes`, and `fail_codes` when present, falling back to
 the older prose reason arrays only for legacy artifacts. That prevents
