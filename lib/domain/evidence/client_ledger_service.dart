@@ -39,6 +39,18 @@ class ClientLedgerService {
     );
   }
 
+  Future<void> sealCanonicalRecord({
+    required String clientId,
+    required String recordId,
+    required Map<String, Object?> canonicalPayload,
+  }) async {
+    await _sealCanonical(
+      clientId: clientId,
+      recordId: recordId,
+      canonicalPayload: canonicalPayload,
+    );
+  }
+
   Future<void> sealDispatch({
     required String clientId,
     required String dispatchId,

@@ -3,6 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:omnix_dashboard/application/dispatch_persistence_service.dart';
 import 'package:omnix_dashboard/application/offline_incident_spool_service.dart';
+import 'package:omnix_dashboard/domain/evidence/client_ledger_service.dart';
+import 'package:omnix_dashboard/infrastructure/events/in_memory_client_ledger_repository.dart';
 
 void main() {
   group('OfflineIncidentSpoolService', () {
@@ -130,6 +132,39 @@ void main() {
       final pending = await service.readPendingEntries();
       expect(pending.single.status, OfflineIncidentSpoolEntryStatus.queued);
       expect(pending.single.retryCount, greaterThanOrEqualTo(2));
+    });
+
+    test('ledger-backed gateway seals synced spool entries into the client ledger', () async {
+      final persistence = await DispatchPersistenceService.create();
+      final ledgerRepository = InMemoryClientLedgerRepository();
+      final service = OfflineIncidentSpoolService(
+        persistence: persistence,
+        remote: LedgerBackedOfflineIncidentSpoolRemoteGateway(
+          ledgerService: ClientLedgerService(ledgerRepository),
+        ),
+      );
+
+      final entry = await service.enqueue(
+        incidentReference: 'INC-005',
+        sourceType: 'dvr',
+        provider: 'hikvision_dvr',
+        clientId: 'CLIENT-LEDGER',
+        siteId: 'SITE-LEDGER',
+        summary: 'Ledger sync',
+        payload: const {'event_id': 'dvr-5'},
+      );
+
+      final result = await service.syncPendingEntries();
+
+      expect(result.syncedCount, 1);
+      final row = await ledgerRepository.fetchLedgerRow(
+        clientId: 'CLIENT-LEDGER',
+        dispatchId: LedgerBackedOfflineIncidentSpoolRemoteGateway
+            .ledgerDispatchIdFor(entry.entryId),
+      );
+      expect(row, isNotNull);
+      expect(row!.canonicalJson, contains('offline_incident_spool_entry'));
+      expect(row.canonicalJson, contains('INC-005'));
     });
   });
 }

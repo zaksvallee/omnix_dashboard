@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import '../domain/evidence/client_ledger_service.dart';
 import 'dispatch_persistence_service.dart';
 
 enum OfflineIncidentSpoolEntryStatus { queued, syncing, synced, failed }
@@ -230,6 +231,40 @@ class NoopOfflineIncidentSpoolRemoteGateway
   @override
   Future<void> flushEntries(List<OfflineIncidentSpoolEntry> entries) async {
     throw StateError('Offline incident spool remote sync is not configured.');
+  }
+}
+
+class LedgerBackedOfflineIncidentSpoolRemoteGateway
+    implements OfflineIncidentSpoolRemoteGateway {
+  final ClientLedgerService ledgerService;
+
+  const LedgerBackedOfflineIncidentSpoolRemoteGateway({
+    required this.ledgerService,
+  });
+
+  static String ledgerDispatchIdFor(String entryId) {
+    return 'SPOOL-$entryId';
+  }
+
+  @override
+  Future<void> flushEntries(List<OfflineIncidentSpoolEntry> entries) async {
+    final ordered = [...entries]
+      ..sort((a, b) {
+        final ts = a.createdAtUtc.compareTo(b.createdAtUtc);
+        if (ts != 0) return ts;
+        return a.entryId.compareTo(b.entryId);
+      });
+
+    for (final entry in ordered) {
+      await ledgerService.sealCanonicalRecord(
+        clientId: entry.clientId,
+        recordId: ledgerDispatchIdFor(entry.entryId),
+        canonicalPayload: {
+          'type': 'offline_incident_spool_entry',
+          ...entry.toJson(),
+        },
+      );
+    }
   }
 }
 

@@ -678,6 +678,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   static const _maxConsecutiveLivePollFailures = 3;
   static const _guardTelemetryPayloadAlertThrottleSeconds = 300;
   static const _guardOpsBaseSyncIntervalSeconds = 45;
+  static const _offlineIncidentSpoolBaseSyncIntervalSeconds = 60;
   static const _guardResumeSyncEventThrottleSecondsEnv = int.fromEnvironment(
     'ONYX_GUARD_RESUME_SYNC_EVENT_THROTTLE_SECONDS',
     defaultValue: 20,
@@ -824,6 +825,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   DateTime? _offlineIncidentSpoolLastSyncedAtUtc;
   String? _offlineIncidentSpoolFailureReason;
   List<String> _offlineIncidentSpoolHistory = const [];
+  bool _offlineIncidentSpoolSyncInFlight = false;
+  int _offlineIncidentSpoolSyncFailures = 0;
   int _guardOutcomePolicyDeniedCount = 0;
   String? _guardOutcomePolicyDeniedLastReason;
   List<DateTime> _guardOutcomePolicyDeniedHistoryUtc = const [];
@@ -885,6 +888,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   Timer? _livePollTimer;
   Timer? _opsIntegrationPollTimer;
   Timer? _guardOpsSyncTimer;
+  Timer? _offlineIncidentSpoolSyncTimer;
   Timer? _telegramAdminPollTimer;
   Timer? _demoAutopilotRouteTimer;
   Timer? _demoAutopilotCountdownTimer;
@@ -1150,16 +1154,22 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           : const NoopGuardOpsRemoteGateway();
       return SharedPrefsGuardOpsRepository.create(remote: remote);
     });
-    _offlineIncidentSpoolServiceFuture = _persistenceServiceFuture.then(
-      (persistence) => OfflineIncidentSpoolService(
-        persistence: persistence,
-        remote: const NoopOfflineIncidentSpoolRemoteGateway(),
-      ),
-    );
-
     _clientLedgerRepository = widget.supabaseReady
         ? SupabaseClientLedgerRepository(Supabase.instance.client)
         : InMemoryClientLedgerRepository();
+    _offlineIncidentSpoolServiceFuture = _persistenceServiceFuture.then((
+      persistence,
+    ) {
+      final remote = widget.supabaseReady
+          ? LedgerBackedOfflineIncidentSpoolRemoteGateway(
+              ledgerService: ClientLedgerService(_clientLedgerRepository),
+            )
+          : const NoopOfflineIncidentSpoolRemoteGateway();
+      return OfflineIncidentSpoolService(
+        persistence: persistence,
+        remote: remote,
+      );
+    });
 
     final operator = OperatorContext(
       operatorId: 'OPERATOR-01',
@@ -1202,6 +1212,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _hydrateMorningSovereignReport();
     _refreshGuardTelemetryAdapterStatus();
     _startGuardOpsSyncLoop();
+    _startOfflineIncidentSpoolSyncLoop();
     _startOpsIntegrationPollingLoop();
     _startTelegramAdminControlLoop();
   }
@@ -1228,6 +1239,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _livePollTimer?.cancel();
     _opsIntegrationPollTimer?.cancel();
     _guardOpsSyncTimer?.cancel();
+    _offlineIncidentSpoolSyncTimer?.cancel();
     _telegramAdminPollTimer?.cancel();
     _telegramDemoScriptTimer?.cancel();
     _cancelDemoAutopilot();
@@ -2376,11 +2388,29 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _scheduleGuardOpsSync(delaySeconds: _guardOpsBaseSyncIntervalSeconds);
   }
 
+  void _startOfflineIncidentSpoolSyncLoop() {
+    _offlineIncidentSpoolSyncTimer?.cancel();
+    if (!widget.supabaseReady) return;
+    _scheduleOfflineIncidentSpoolSync(
+      delaySeconds: _offlineIncidentSpoolBaseSyncIntervalSeconds,
+    );
+  }
+
   void _scheduleGuardOpsSync({required int delaySeconds}) {
     _guardOpsSyncTimer?.cancel();
     _guardOpsSyncTimer = Timer(Duration(seconds: delaySeconds), () async {
       await _syncGuardOpsNow(background: true);
     });
+  }
+
+  void _scheduleOfflineIncidentSpoolSync({required int delaySeconds}) {
+    _offlineIncidentSpoolSyncTimer?.cancel();
+    _offlineIncidentSpoolSyncTimer = Timer(
+      Duration(seconds: delaySeconds),
+      () async {
+        await _syncOfflineIncidentSpoolNow(background: true);
+      },
+    );
   }
 
   int _guardOpsBackoffDelaySeconds(int failures) {
@@ -2390,6 +2420,44 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       return 300;
     }
     return delayed;
+  }
+
+  int _offlineIncidentSpoolBackoffDelaySeconds(int failures) {
+    final multiplier = 1 << failures.clamp(0, 3);
+    final delayed = _offlineIncidentSpoolBaseSyncIntervalSeconds * multiplier;
+    return math.min(delayed, 300);
+  }
+
+  Future<void> _syncOfflineIncidentSpoolNow({bool background = false}) async {
+    if (!widget.supabaseReady || _offlineIncidentSpoolSyncInFlight) {
+      return;
+    }
+    _offlineIncidentSpoolSyncInFlight = true;
+    try {
+      final service = await _offlineIncidentSpoolServiceFuture;
+      final result = await service.syncPendingEntries(batchSize: 25);
+      await _hydrateOfflineIncidentSpoolState();
+      if (result.failureReason == null) {
+        _offlineIncidentSpoolSyncFailures = 0;
+      } else {
+        _offlineIncidentSpoolSyncFailures += 1;
+      }
+    } catch (_) {
+      _offlineIncidentSpoolSyncFailures += 1;
+      await _hydrateOfflineIncidentSpoolState();
+    } finally {
+      _offlineIncidentSpoolSyncInFlight = false;
+      if (widget.supabaseReady) {
+        _scheduleOfflineIncidentSpoolSync(
+          delaySeconds: _offlineIncidentSpoolBackoffDelaySeconds(
+            _offlineIncidentSpoolSyncFailures,
+          ),
+        );
+      }
+      if (!background) {
+        await _hydrateOfflineIncidentSpoolState();
+      }
+    }
   }
 
   String get _activeGuardShiftId {
