@@ -322,7 +322,9 @@ why readiness failed without parsing prose.
 
 Listener signoff generation now also emits a sibling `signoff_report.json`
 next to the markdown closeout, and the release gate consumes that structured
-signoff status when present.
+signoff status when present. The signoff report now persists on both pass and
+fail and carries `failure_code`, so downstream tooling does not need to parse
+terminal output when signoff generation is blocked.
 
 To compare release posture across listener runs:
 

@@ -92,6 +92,14 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if [[ -z "$OUT_FILE" ]]; then
+  local_date="$(TZ=Africa/Johannesburg date +%Y-%m-%d)"
+  OUT_FILE="docs/onyx_listener_pilot_signoff_${local_date}.md"
+fi
+if [[ -z "$JSON_OUT_FILE" ]]; then
+  JSON_OUT_FILE="${OUT_FILE%.md}.json"
+fi
+
 latest_report_json() {
   local base_dir="tmp/listener_parity"
   if [[ ! -d "$base_dir" ]]; then
@@ -137,12 +145,85 @@ else:
 PY
 }
 
+write_signoff_json_report() {
+  local signoff_status="$1"
+  local signoff_summary="$2"
+  local signoff_failure_code="${3:-}"
+  mkdir -p "$(dirname "$JSON_OUT_FILE")"
+  python3 - "$JSON_OUT_FILE" "$OUT_FILE" "$REPORT_JSON" "$TREND_REPORT_JSON" "$VALIDATION_REPORT_JSON" "$VALIDATION_TREND_REPORT_JSON" "$CUTOVER_DECISION_JSON" "$CUTOVER_TREND_REPORT_JSON" "${trend_status:-}" "${validation_trend_status:-}" "${cutover_decision:-}" "${cutover_trend_status:-}" "$REQUIRE_TREND_PASS" "$REQUIRE_VALIDATION_TREND_PASS" "$REQUIRE_CUTOVER_GO" "$REQUIRE_CUTOVER_TREND_PASS" "$ALLOW_MOCK_ARTIFACTS" "$signoff_status" "$signoff_summary" "$signoff_failure_code" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+json_out = Path(sys.argv[1])
+markdown_out = sys.argv[2]
+report_json = sys.argv[3]
+trend_report_json = sys.argv[4]
+validation_report_json = sys.argv[5]
+validation_trend_report_json = sys.argv[6]
+cutover_decision_json = sys.argv[7]
+cutover_trend_report_json = sys.argv[8]
+trend_status = sys.argv[9]
+validation_trend_status = sys.argv[10]
+cutover_decision = sys.argv[11]
+cutover_trend_status = sys.argv[12]
+
+def as_bool(raw: str) -> bool:
+    return raw == "1"
+
+require_trend_pass = as_bool(sys.argv[13])
+require_validation_trend_pass = as_bool(sys.argv[14])
+require_cutover_go = as_bool(sys.argv[15])
+require_cutover_trend_pass = as_bool(sys.argv[16])
+allow_mock_artifacts = as_bool(sys.argv[17])
+signoff_status = sys.argv[18]
+signoff_summary = sys.argv[19]
+signoff_failure_code = sys.argv[20]
+
+payload = {
+    "status": signoff_status,
+    "summary": signoff_summary,
+    "failure_code": signoff_failure_code,
+    "markdown_file": markdown_out,
+    "report_json": report_json,
+    "trend_report_json": trend_report_json,
+    "validation_report_json": validation_report_json,
+    "validation_trend_report_json": validation_trend_report_json,
+    "cutover_decision_json": cutover_decision_json,
+    "cutover_trend_report_json": cutover_trend_report_json,
+    "statuses": {
+        "trend_status": trend_status,
+        "validation_trend_status": validation_trend_status,
+        "cutover_decision": cutover_decision,
+        "cutover_trend_status": cutover_trend_status,
+    },
+    "requirements": {
+        "require_trend_pass": require_trend_pass,
+        "require_validation_trend_pass": require_validation_trend_pass,
+        "require_cutover_go": require_cutover_go,
+        "require_cutover_trend_pass": require_cutover_trend_pass,
+        "allow_mock_artifacts": allow_mock_artifacts,
+    },
+}
+
+json_out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+PY
+}
+
+fail_signoff() {
+  local failure_code="$1"
+  local failure_summary="$2"
+  write_signoff_json_report "FAIL" "$failure_summary" "$failure_code"
+  echo "FAIL: $failure_summary"
+  echo "Signoff JSON: $JSON_OUT_FILE"
+  exit 1
+}
+
 if [[ -z "$REPORT_JSON" ]]; then
   REPORT_JSON="$(latest_report_json || true)"
 fi
 if [[ -z "$REPORT_JSON" || ! -f "$REPORT_JSON" ]]; then
-  echo "FAIL: listener parity report not found."
-  exit 1
+  fail_signoff "missing_parity_report" "listener parity report not found."
 fi
 
 if [[ "$REQUIRE_TREND_PASS" -eq 1 && -z "$TREND_REPORT_JSON" ]]; then
@@ -154,8 +235,7 @@ if [[ "$REQUIRE_TREND_PASS" -eq 1 && -z "$TREND_REPORT_JSON" ]]; then
   fi
 fi
 if [[ -n "$TREND_REPORT_JSON" && ! -f "$TREND_REPORT_JSON" ]]; then
-  echo "FAIL: trend report not found: $TREND_REPORT_JSON"
-  exit 1
+  fail_signoff "missing_trend_report" "trend report not found: $TREND_REPORT_JSON"
 fi
 
 if [[ -z "$VALIDATION_REPORT_JSON" ]]; then
@@ -186,20 +266,16 @@ if [[ "$REQUIRE_CUTOVER_TREND_PASS" -eq 1 && -z "$CUTOVER_TREND_REPORT_JSON" && 
   fi
 fi
 if [[ -n "$VALIDATION_REPORT_JSON" && ! -f "$VALIDATION_REPORT_JSON" ]]; then
-  echo "FAIL: validation report not found: $VALIDATION_REPORT_JSON"
-  exit 1
+  fail_signoff "missing_validation_report" "validation report not found: $VALIDATION_REPORT_JSON"
 fi
 if [[ -n "$VALIDATION_TREND_REPORT_JSON" && ! -f "$VALIDATION_TREND_REPORT_JSON" ]]; then
-  echo "FAIL: validation trend report not found: $VALIDATION_TREND_REPORT_JSON"
-  exit 1
+  fail_signoff "missing_validation_trend_report" "validation trend report not found: $VALIDATION_TREND_REPORT_JSON"
 fi
 if [[ -n "$CUTOVER_DECISION_JSON" && ! -f "$CUTOVER_DECISION_JSON" ]]; then
-  echo "FAIL: cutover decision report not found: $CUTOVER_DECISION_JSON"
-  exit 1
+  fail_signoff "missing_cutover_decision_report" "cutover decision report not found: $CUTOVER_DECISION_JSON"
 fi
 if [[ -n "$CUTOVER_TREND_REPORT_JSON" && ! -f "$CUTOVER_TREND_REPORT_JSON" ]]; then
-  echo "FAIL: cutover trend report not found: $CUTOVER_TREND_REPORT_JSON"
-  exit 1
+  fail_signoff "missing_cutover_trend_report" "cutover trend report not found: $CUTOVER_TREND_REPORT_JSON"
 fi
 
 if [[ -n "$VALIDATION_REPORT_JSON" || "$REQUIRE_VALIDATION_TREND_PASS" -eq 1 ]]; then
@@ -231,7 +307,9 @@ fi
 if [[ "$ALLOW_MOCK_ARTIFACTS" -ne 1 ]]; then
   readiness_cmd+=(--require-real-artifacts)
 fi
-"${readiness_cmd[@]}" >/dev/null
+if ! "${readiness_cmd[@]}" >/dev/null; then
+  fail_signoff "readiness_not_pass" "listener readiness did not pass for signoff generation."
+fi
 
 trend_status=""
 trend_markdown=""
@@ -241,12 +319,10 @@ if [[ -n "$TREND_REPORT_JSON" ]]; then
 fi
 if [[ "$REQUIRE_TREND_PASS" -eq 1 ]]; then
   if [[ -z "$TREND_REPORT_JSON" ]]; then
-    echo "FAIL: --require-trend-pass was set but no trend report was found."
-    exit 1
+    fail_signoff "missing_trend_report" "--require-trend-pass was set but no trend report was found."
   fi
   if [[ "$trend_status" != "PASS" ]]; then
-    echo "FAIL: listener trend report is not PASS (${trend_status:-missing})."
-    exit 1
+    fail_signoff "trend_not_pass" "listener trend report is not PASS (${trend_status:-missing})."
   fi
 fi
 
@@ -258,12 +334,10 @@ if [[ -n "$VALIDATION_TREND_REPORT_JSON" ]]; then
 fi
 if [[ "$REQUIRE_VALIDATION_TREND_PASS" -eq 1 ]]; then
   if [[ -z "$VALIDATION_TREND_REPORT_JSON" ]]; then
-    echo "FAIL: --require-validation-trend-pass was set but no validation trend report was found."
-    exit 1
+    fail_signoff "missing_validation_trend_report" "--require-validation-trend-pass was set but no validation trend report was found."
   fi
   if [[ "$validation_trend_status" != "PASS" ]]; then
-    echo "FAIL: listener validation trend report is not PASS (${validation_trend_status:-missing})."
-    exit 1
+    fail_signoff "validation_trend_not_pass" "listener validation trend report is not PASS (${validation_trend_status:-missing})."
   fi
 fi
 
@@ -273,12 +347,10 @@ if [[ -n "$CUTOVER_DECISION_JSON" ]]; then
 fi
 if [[ "$REQUIRE_CUTOVER_GO" -eq 1 ]]; then
   if [[ -z "$CUTOVER_DECISION_JSON" ]]; then
-    echo "FAIL: --require-cutover-go was set but no cutover decision report was found."
-    exit 1
+    fail_signoff "missing_cutover_decision_report" "--require-cutover-go was set but no cutover decision report was found."
   fi
   if [[ "$cutover_decision" != "GO" ]]; then
-    echo "FAIL: listener cutover decision is not GO (${cutover_decision:-missing})."
-    exit 1
+    fail_signoff "cutover_decision_not_go" "listener cutover decision is not GO (${cutover_decision:-missing})."
   fi
 fi
 
@@ -290,12 +362,10 @@ if [[ -n "$CUTOVER_TREND_REPORT_JSON" ]]; then
 fi
 if [[ "$REQUIRE_CUTOVER_TREND_PASS" -eq 1 ]]; then
   if [[ -z "$CUTOVER_TREND_REPORT_JSON" ]]; then
-    echo "FAIL: --require-cutover-trend-pass was set but no cutover trend report was found."
-    exit 1
+    fail_signoff "missing_cutover_trend_report" "--require-cutover-trend-pass was set but no cutover trend report was found."
   fi
   if [[ "$cutover_trend_status" != "PASS" ]]; then
-    echo "FAIL: listener cutover trend report is not PASS (${cutover_trend_status:-missing})."
-    exit 1
+    fail_signoff "cutover_trend_not_pass" "listener cutover trend report is not PASS (${cutover_trend_status:-missing})."
   fi
 fi
 
@@ -313,14 +383,6 @@ report_markdown="$(json_get "$REPORT_JSON" "files.report_markdown")"
 field_notes_file=""
 if [[ -f "$capture_dir/field_notes.md" ]]; then
   field_notes_file="$capture_dir/field_notes.md"
-fi
-
-if [[ -z "$OUT_FILE" ]]; then
-  local_date="$(TZ=Africa/Johannesburg date +%Y-%m-%d)"
-  OUT_FILE="docs/onyx_listener_pilot_signoff_${local_date}.md"
-fi
-if [[ -z "$JSON_OUT_FILE" ]]; then
-  JSON_OUT_FILE="${OUT_FILE%.md}.json"
 fi
 
 mkdir -p "$(dirname "$OUT_FILE")"
@@ -418,60 +480,7 @@ mkdir -p "$(dirname "$JSON_OUT_FILE")"
   echo "- Remaining blockers: \`none\`"
 } >"$OUT_FILE"
 
-python3 - "$JSON_OUT_FILE" "$OUT_FILE" "$REPORT_JSON" "$TREND_REPORT_JSON" "$VALIDATION_REPORT_JSON" "$VALIDATION_TREND_REPORT_JSON" "$CUTOVER_DECISION_JSON" "$CUTOVER_TREND_REPORT_JSON" "${trend_status:-}" "${validation_trend_status:-}" "${cutover_decision:-}" "${cutover_trend_status:-}" "$REQUIRE_TREND_PASS" "$REQUIRE_VALIDATION_TREND_PASS" "$REQUIRE_CUTOVER_GO" "$REQUIRE_CUTOVER_TREND_PASS" "$ALLOW_MOCK_ARTIFACTS" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-json_out = Path(sys.argv[1])
-markdown_out = sys.argv[2]
-report_json = sys.argv[3]
-trend_report_json = sys.argv[4]
-validation_report_json = sys.argv[5]
-validation_trend_report_json = sys.argv[6]
-cutover_decision_json = sys.argv[7]
-cutover_trend_report_json = sys.argv[8]
-trend_status = sys.argv[9]
-validation_trend_status = sys.argv[10]
-cutover_decision = sys.argv[11]
-cutover_trend_status = sys.argv[12]
-
-def as_bool(raw: str) -> bool:
-    return raw == "1"
-
-require_trend_pass = as_bool(sys.argv[13])
-require_validation_trend_pass = as_bool(sys.argv[14])
-require_cutover_go = as_bool(sys.argv[15])
-require_cutover_trend_pass = as_bool(sys.argv[16])
-allow_mock_artifacts = as_bool(sys.argv[17])
-
-payload = {
-    "status": "PASS",
-    "summary": "Listener pilot signoff generated.",
-    "markdown_file": markdown_out,
-    "report_json": report_json,
-    "trend_report_json": trend_report_json,
-    "validation_report_json": validation_report_json,
-    "validation_trend_report_json": validation_trend_report_json,
-    "cutover_decision_json": cutover_decision_json,
-    "cutover_trend_report_json": cutover_trend_report_json,
-    "statuses": {
-        "trend_status": trend_status,
-        "validation_trend_status": validation_trend_status,
-        "cutover_decision": cutover_decision,
-        "cutover_trend_status": cutover_trend_status,
-    },
-    "requirements": {
-        "require_trend_pass": require_trend_pass,
-        "require_validation_trend_pass": require_validation_trend_pass,
-        "require_cutover_go": require_cutover_go,
-        "require_cutover_trend_pass": require_cutover_trend_pass,
-        "allow_mock_artifacts": allow_mock_artifacts,
-    },
-}
-
-json_out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-PY
+write_signoff_json_report "PASS" "Listener pilot signoff generated." ""
 
 echo "PASS: Listener pilot signoff generated: $OUT_FILE"
 echo "Signoff JSON: $JSON_OUT_FILE"
