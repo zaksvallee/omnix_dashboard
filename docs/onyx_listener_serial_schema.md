@@ -535,6 +535,10 @@ aggregated artifacts instead of trusting only their top-level status:
   cutover-decision artifacts whose own referenced evidence files still exist.
 - `release_trend_report.json` must still point at current and previous
   release-gate artifacts whose own referenced evidence files still exist.
+- the staged `pilot_gate_report.json` must still point at the staged serial,
+  parity, parity-readiness, and optional parity-trend artifacts it summarizes,
+  and its recorded status/code fields must still match those underlying
+  artifacts.
 
 Standalone release posture now enforces the same rule at artifact generation
 time for the evidence it consumes directly:
@@ -573,6 +577,9 @@ previous inputs instead of deferring that detection to downstream gates:
   bundle points at missing staged evidence files, checksum-mismatched staged
   evidence files, missing staged metadata paths, missing staged checksum
   metadata, or a missing validation artifact directory.
+- `validation_trend_report.json` also fails if the current or previous staged
+  `pilot_gate_report.json` no longer matches the staged serial/parity/parity-
+  readiness/parity-trend artifacts it summarizes.
 - `cutover_trend_report.json` fails if the current or previous cutover
   decision or any nested validation/parity/trend evidence it references is
   hollow, including checksum-mismatched copied parity files or

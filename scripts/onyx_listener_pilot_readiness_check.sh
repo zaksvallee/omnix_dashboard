@@ -365,6 +365,94 @@ print("ok")
 PY
 }
 
+verify_pilot_gate_report() {
+  local report_file="$1"
+  python3 - "$report_file" <<'PY'
+import json
+import os
+import sys
+
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+
+files = data.get("files", {}) or {}
+statuses = data.get("statuses", {}) or {}
+compare_previous = bool(data.get("compare_previous", False))
+
+def read_json(path_value):
+    with open(path_value, "r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+required_files = [
+    "serial_parsed_json",
+    "parity_report_json",
+    "parity_report_markdown",
+    "parity_readiness_report_json",
+    "parity_readiness_report_markdown",
+]
+if compare_previous:
+    required_files.extend(["trend_report_json", "trend_report_markdown"])
+
+for file_key in required_files:
+    file_path = str(files.get(file_key, "")).strip()
+    if not file_path:
+        raise SystemExit(f"missing_{file_key}")
+    if not os.path.isfile(file_path):
+        raise SystemExit(f"missing_{file_key}")
+
+serial_path = str(files.get("serial_parsed_json", "")).strip()
+if serial_path:
+    serial_data = read_json(serial_path)
+    expected_status = str((serial_data.get("anomaly_gate") or {}).get("status", "")).upper()
+    expected_code = str((((serial_data.get("anomaly_gate") or {}).get("failures") or [{}])[0]).get("type", "") or "").strip()
+    actual_status = str(statuses.get("bench_anomaly_status", "")).upper()
+    actual_code = str(statuses.get("bench_primary_failure_code", "")).strip()
+    if actual_status != expected_status:
+        raise SystemExit("bench_anomaly_status_mismatch")
+    if actual_code != expected_code:
+        raise SystemExit("bench_primary_failure_code_mismatch")
+
+parity_path = str(files.get("parity_report_json", "")).strip()
+if parity_path:
+    parity_data = read_json(parity_path)
+    expected_status = str(parity_data.get("status", "")).upper()
+    expected_code = str(parity_data.get("primary_issue_code", "")).strip()
+    actual_status = str(statuses.get("parity_status", "")).upper()
+    actual_code = str(statuses.get("parity_primary_issue_code", "")).strip()
+    if actual_status != expected_status:
+        raise SystemExit("parity_status_mismatch")
+    if actual_code != expected_code:
+        raise SystemExit("parity_primary_issue_code_mismatch")
+
+parity_readiness_path = str(files.get("parity_readiness_report_json", "")).strip()
+if parity_readiness_path:
+    readiness_data = read_json(parity_readiness_path)
+    expected_status = str(readiness_data.get("status", "")).upper()
+    expected_code = str(readiness_data.get("failure_code", "")).strip()
+    actual_status = str(statuses.get("parity_readiness_status", "")).upper()
+    actual_code = str(statuses.get("parity_readiness_failure_code", "")).strip()
+    if actual_status != expected_status:
+        raise SystemExit("parity_readiness_status_mismatch")
+    if actual_code != expected_code:
+        raise SystemExit("parity_readiness_failure_code_mismatch")
+
+trend_path = str(files.get("trend_report_json", "")).strip()
+if compare_previous and trend_path:
+    trend_data = read_json(trend_path)
+    expected_status = str(trend_data.get("status", "")).upper()
+    expected_code = str(trend_data.get("primary_regression_code", "")).strip()
+    actual_status = str(statuses.get("parity_trend_status", "")).upper()
+    actual_code = str(statuses.get("parity_trend_primary_regression_code", "")).strip()
+    if actual_status != expected_status:
+        raise SystemExit("parity_trend_status_mismatch")
+    if actual_code != expected_code:
+        raise SystemExit("parity_trend_primary_regression_code_mismatch")
+
+print("ok")
+PY
+}
+
 verify_baseline_history() {
   local baseline_file="$1"
   local max_age_days="${2:-}"
@@ -648,6 +736,62 @@ REPORT_JSON="$latest_report_json"
 REPORT_AGE_HOURS="$report_age"
 verify_result="$(verify_json_report_checksums "$latest_report_json")" || fail validation_checksum_failed "Listener validation checksum verification failed: $verify_result"
 pass "Listener validation checksums verified."
+pilot_gate_report_json="$(json_get "$latest_report_json" "files.pilot_gate_report_json")"
+if [[ -n "$pilot_gate_report_json" ]]; then
+  pilot_gate_verify_result="$(verify_pilot_gate_report "$pilot_gate_report_json" 2>&1)" || {
+    case "$pilot_gate_verify_result" in
+      missing_serial_parsed_json)
+        fail pilot_gate_missing_serial_parsed_json "Listener readiness failed: pilot gate report references a missing serial bench artifact."
+        ;;
+      missing_parity_report_json)
+        fail pilot_gate_missing_parity_report_json "Listener readiness failed: pilot gate report references a missing parity report JSON."
+        ;;
+      missing_parity_report_markdown)
+        fail pilot_gate_missing_parity_report_markdown "Listener readiness failed: pilot gate report references a missing parity report markdown."
+        ;;
+      missing_parity_readiness_report_json)
+        fail pilot_gate_missing_parity_readiness_report_json "Listener readiness failed: pilot gate report references a missing parity readiness report JSON."
+        ;;
+      missing_parity_readiness_report_markdown)
+        fail pilot_gate_missing_parity_readiness_report_markdown "Listener readiness failed: pilot gate report references a missing parity readiness report markdown."
+        ;;
+      missing_trend_report_json)
+        fail pilot_gate_missing_trend_report_json "Listener readiness failed: pilot gate report references a missing parity trend report JSON."
+        ;;
+      missing_trend_report_markdown)
+        fail pilot_gate_missing_trend_report_markdown "Listener readiness failed: pilot gate report references a missing parity trend report markdown."
+        ;;
+      bench_anomaly_status_mismatch)
+        fail pilot_gate_bench_anomaly_status_mismatch "Listener readiness failed: pilot gate bench anomaly status does not match serial bench output."
+        ;;
+      bench_primary_failure_code_mismatch)
+        fail pilot_gate_bench_primary_failure_code_mismatch "Listener readiness failed: pilot gate bench primary failure code does not match serial bench output."
+        ;;
+      parity_status_mismatch)
+        fail pilot_gate_parity_status_mismatch "Listener readiness failed: pilot gate parity status does not match parity report."
+        ;;
+      parity_primary_issue_code_mismatch)
+        fail pilot_gate_parity_primary_issue_code_mismatch "Listener readiness failed: pilot gate parity primary issue code does not match parity report."
+        ;;
+      parity_readiness_status_mismatch)
+        fail pilot_gate_parity_readiness_status_mismatch "Listener readiness failed: pilot gate parity readiness status does not match parity readiness report."
+        ;;
+      parity_readiness_failure_code_mismatch)
+        fail pilot_gate_parity_readiness_failure_code_mismatch "Listener readiness failed: pilot gate parity readiness failure code does not match parity readiness report."
+        ;;
+      parity_trend_status_mismatch)
+        fail pilot_gate_parity_trend_status_mismatch "Listener readiness failed: pilot gate parity trend status does not match parity trend report."
+        ;;
+      parity_trend_primary_regression_code_mismatch)
+        fail pilot_gate_parity_trend_primary_regression_code_mismatch "Listener readiness failed: pilot gate parity trend primary regression code does not match parity trend report."
+        ;;
+      *)
+        fail pilot_gate_verification_failed "Listener readiness failed: pilot gate verification failed: ${pilot_gate_verify_result:-unknown}."
+        ;;
+    esac
+  }
+  pass "Pilot gate artifact chain verified."
+fi
 
 if [[ "$REQUIRE_REAL_ARTIFACTS" -eq 1 ]]; then
   if [[ "$is_mock" == "true" || "$ARTIFACT_DIR" == *"/mock-"* || "$ARTIFACT_DIR" == mock-* || "$ARTIFACT_DIR" == *"/mock-pass"* || "$ARTIFACT_DIR" == mock-pass* ]]; then
