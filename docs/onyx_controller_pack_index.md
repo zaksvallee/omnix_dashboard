@@ -21,6 +21,10 @@ Use this index to onboard, assess, and run controller operations consistently.
 - Need real-time shift operations checklist (day): use **Daily Shift Checklist**
 - Need tighter after-hours cadence and escalation: use **Night Shift Checklist**
 
+## Related Planning Docs
+- Future feature backlog and strategic build ordering:
+  [ONYX Future Feature Backlog](/Users/zaks/omnix_dashboard/docs/onyx_future_feature_backlog.md)
+
 ## Versioning Practice (Recommended)
 - Keep this index stable.
 - Update linked docs when routes/buttons change.
