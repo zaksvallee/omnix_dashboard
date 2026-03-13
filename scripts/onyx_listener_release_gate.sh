@@ -460,12 +460,14 @@ def signoff_report_consistency_issues(report):
     requirements = report.get("requirements", {}) or {}
     readiness_report = str(report.get("readiness_report_json", "")).strip()
     trend_report = str(report.get("trend_report_json", "")).strip()
+    validation_report = str(report.get("validation_report_json", "")).strip()
     validation_trend = str(report.get("validation_trend_report_json", "")).strip()
     cutover_decision = str(report.get("cutover_decision_json", "")).strip()
     cutover_trend = str(report.get("cutover_trend_report_json", "")).strip()
 
     readiness_data = load_json(readiness_report)
     trend_data = load_json(trend_report)
+    validation_data = load_json(validation_report)
     validation_trend_data = load_json(validation_trend)
     cutover_data = load_json(cutover_decision)
     cutover_trend_data = load_json(cutover_trend)
@@ -508,6 +510,9 @@ def signoff_report_consistency_issues(report):
     require_validation_trend_pass = bool(requirements.get("require_validation_trend_pass", False))
     require_cutover_go = bool(requirements.get("require_cutover_go", False))
     require_cutover_trend_pass = bool(requirements.get("require_cutover_trend_pass", False))
+    allow_mock_artifacts = bool(requirements.get("allow_mock_artifacts", False))
+    validation_is_mock = bool((validation_data or {}).get("is_mock", False))
+    validation_artifact_dir = str((validation_data or {}).get("artifact_dir", ""))
 
     if require_trend_pass and actual_trend_status != "PASS":
         issues.append(("signoff_required_trend_not_pass", f"signoff report requires trend PASS but referenced trend status is {actual_trend_status or 'missing'}"))
@@ -517,6 +522,12 @@ def signoff_report_consistency_issues(report):
         issues.append(("signoff_required_cutover_not_go", f"signoff report requires cutover GO but referenced cutover decision is {actual_cutover_decision or 'missing'}"))
     if require_cutover_trend_pass and actual_cutover_trend_status != "PASS":
         issues.append(("signoff_required_cutover_trend_not_pass", f"signoff report requires cutover trend PASS but referenced cutover trend status is {actual_cutover_trend_status or 'missing'}"))
+    if (
+        validation_data is not None
+        and not allow_mock_artifacts
+        and (validation_is_mock or "/mock-" in validation_artifact_dir or validation_artifact_dir.startswith("mock-"))
+    ):
+        issues.append(("signoff_mock_artifacts_not_allowed", "signoff report disallows mock artifacts but referenced validation bundle is mock"))
     return issues
 
 overall_status = str(validation.get("overall_status", "")).upper()

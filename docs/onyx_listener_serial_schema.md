@@ -349,6 +349,9 @@ trend and cutover fields.
 Release posture and release-trend also reject contradictory top-level signoff
 state, such as `status = PASS` with a non-empty `failure_code` or
 `status = FAIL` without one.
+They also verify the signoff mock-artifact policy against the referenced
+validation bundle, so a tampered signoff report cannot claim mock artifacts
+were disallowed while still pointing at a mock field bundle.
 
 Cutover and release trend comparisons now prefer stable machine-readable
 `hold_codes`, `blocking_codes`, and `fail_codes` when present, falling back to

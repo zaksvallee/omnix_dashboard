@@ -841,6 +841,7 @@ def signoff_report_chain_regressions(path_str, label):
     requirements = report.get("requirements", {}) or {}
     readiness_data = load_json(readiness_report)
     trend_data = load_json(parity_trend)
+    validation_data = load_json(validation_report)
     validation_trend_data = load_json(validation_trend)
     cutover_data = load_json(cutover_decision)
     cutover_trend_data = load_json(cutover_trend)
@@ -910,6 +911,9 @@ def signoff_report_chain_regressions(path_str, label):
     require_validation_trend_pass = bool(requirements.get("require_validation_trend_pass", False))
     require_cutover_go = bool(requirements.get("require_cutover_go", False))
     require_cutover_trend_pass = bool(requirements.get("require_cutover_trend_pass", False))
+    allow_mock_artifacts = bool(requirements.get("allow_mock_artifacts", False))
+    validation_is_mock = bool((validation_data or {}).get("is_mock", False))
+    validation_artifact_dir = str((validation_data or {}).get("artifact_dir", ""))
 
     if require_trend_pass and actual_trend_status != "PASS":
         regressions.append({
@@ -942,6 +946,18 @@ def signoff_report_chain_regressions(path_str, label):
             "report_label": label,
             "requirement": "require_cutover_trend_pass",
             "actual": actual_cutover_trend_status,
+        })
+    if (
+        validation_data is not None
+        and not allow_mock_artifacts
+        and (validation_is_mock or "/mock-" in validation_artifact_dir or validation_artifact_dir.startswith("mock-"))
+    ):
+        regressions.append({
+            "code": f"{label}_mock_artifacts_not_allowed",
+            "kind": "signoff_chain_requirement_mismatch",
+            "report_label": label,
+            "requirement": "allow_mock_artifacts",
+            "actual": "false",
         })
     return regressions
 
