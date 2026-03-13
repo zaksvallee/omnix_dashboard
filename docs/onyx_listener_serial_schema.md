@@ -548,13 +548,15 @@ time for the evidence it consumes directly:
 Standalone cutover and signoff generation now enforce the same parity-side
 evidence-chain integrity:
 - `cutover_decision.json` cannot resolve to `GO` if the staged parity report
-  points at missing copied serial/legacy inputs or a missing parity markdown
-  summary, or if the staged parity trend points at missing current/previous
-  parity reports or at current/previous parity reports whose own copied inputs
-  or markdown summaries are missing.
+  points at missing copied serial/legacy inputs, missing parity markdown,
+  checksum-mismatched copied parity files, or if the staged parity trend
+  points at missing current/previous parity reports or at current/previous
+  parity reports whose own copied inputs or markdown summaries are missing or
+  checksum-mismatched.
 - `signoff_report.json` cannot resolve to `PASS` if the supplied parity report
-  or parity trend points at missing copied inputs or missing markdown
-  summaries, even when validation/readiness posture is otherwise passing.
+  or parity trend points at missing copied inputs, missing markdown
+  summaries, or checksum-mismatched copied parity files, even when
+  validation/readiness posture is otherwise passing.
 
 Standalone release posture now also walks one level deeper through staged
 cutover-trend evidence:
@@ -565,7 +567,8 @@ cutover-trend evidence:
 The trend generators themselves now also fail early on hollow current or
 previous inputs instead of deferring that detection to downstream gates:
 - `trend_report.json` fails if the current or previous parity report points at
-  missing copied serial/legacy inputs or a missing parity markdown summary.
+  missing copied serial/legacy inputs, missing parity markdown, or checksum
+  mismatches between those copied files and the parity report metadata.
 - `validation_trend_report.json` fails if the current or previous validation
   bundle points at missing staged evidence files, missing staged metadata
   paths, or a missing validation artifact directory.

@@ -168,6 +168,7 @@ verify_parity_report_chain() {
   python3 - "$report_file" <<'PY'
 import json
 import os
+import hashlib
 import sys
 
 path = sys.argv[1]
@@ -175,16 +176,36 @@ with open(path, "r", encoding="utf-8") as handle:
     data = json.load(handle)
 
 files = data.get("files", {}) or {}
+checksums = data.get("checksums", {}) or {}
 serial_input = str(files.get("serial_input", "")).strip()
 legacy_input = str(files.get("legacy_input", "")).strip()
 report_markdown = str(files.get("report_markdown", "")).strip()
+serial_input_sha = str(checksums.get("serial_input_sha256", "")).strip()
+legacy_input_sha = str(checksums.get("legacy_input_sha256", "")).strip()
+report_markdown_sha = str(checksums.get("report_markdown_sha256", "")).strip()
+
+def sha256_file(path_str):
+    with open(path_str, "rb") as handle:
+        return hashlib.sha256(handle.read()).hexdigest()
 
 if serial_input and not os.path.isfile(serial_input):
     raise SystemExit("missing_serial_input")
+if serial_input and not serial_input_sha:
+    raise SystemExit("missing_serial_input_checksum")
+if serial_input and sha256_file(serial_input) != serial_input_sha:
+    raise SystemExit("serial_input_checksum_mismatch")
 if legacy_input and not os.path.isfile(legacy_input):
     raise SystemExit("missing_legacy_input")
+if legacy_input and not legacy_input_sha:
+    raise SystemExit("missing_legacy_input_checksum")
+if legacy_input and sha256_file(legacy_input) != legacy_input_sha:
+    raise SystemExit("legacy_input_checksum_mismatch")
 if report_markdown and not os.path.isfile(report_markdown):
     raise SystemExit("missing_report_markdown")
+if report_markdown and not report_markdown_sha:
+    raise SystemExit("missing_report_markdown_checksum")
+if report_markdown and sha256_file(report_markdown) != report_markdown_sha:
+    raise SystemExit("report_markdown_checksum_mismatch")
 
 print("ok")
 PY
@@ -195,6 +216,7 @@ verify_parity_trend_report_chain() {
   python3 - "$report_file" <<'PY'
 import json
 import os
+import hashlib
 import sys
 
 def verify_parity_report(path_str, label):
@@ -205,15 +227,34 @@ def verify_parity_report(path_str, label):
     with open(path_str, "r", encoding="utf-8") as handle:
         report = json.load(handle)
     files = report.get("files", {}) or {}
+    checksums = report.get("checksums", {}) or {}
     serial_input = str(files.get("serial_input", "")).strip()
     legacy_input = str(files.get("legacy_input", "")).strip()
     report_markdown = str(files.get("report_markdown", "")).strip()
+    serial_input_sha = str(checksums.get("serial_input_sha256", "")).strip()
+    legacy_input_sha = str(checksums.get("legacy_input_sha256", "")).strip()
+    report_markdown_sha = str(checksums.get("report_markdown_sha256", "")).strip()
+    def sha256_file(file_path):
+        with open(file_path, "rb") as handle:
+            return hashlib.sha256(handle.read()).hexdigest()
     if serial_input and not os.path.isfile(serial_input):
         raise SystemExit(f"missing_{label}_serial_input")
+    if serial_input and not serial_input_sha:
+        raise SystemExit(f"missing_{label}_serial_input_checksum")
+    if serial_input and sha256_file(serial_input) != serial_input_sha:
+        raise SystemExit(f"{label}_serial_input_checksum_mismatch")
     if legacy_input and not os.path.isfile(legacy_input):
         raise SystemExit(f"missing_{label}_legacy_input")
+    if legacy_input and not legacy_input_sha:
+        raise SystemExit(f"missing_{label}_legacy_input_checksum")
+    if legacy_input and sha256_file(legacy_input) != legacy_input_sha:
+        raise SystemExit(f"{label}_legacy_input_checksum_mismatch")
     if report_markdown and not os.path.isfile(report_markdown):
         raise SystemExit(f"missing_{label}_report_markdown")
+    if report_markdown and not report_markdown_sha:
+        raise SystemExit(f"missing_{label}_report_markdown_checksum")
+    if report_markdown and sha256_file(report_markdown) != report_markdown_sha:
+        raise SystemExit(f"{label}_report_markdown_checksum_mismatch")
 
 path = sys.argv[1]
 with open(path, "r", encoding="utf-8") as handle:
@@ -312,11 +353,29 @@ parity_chain_status="$(verify_parity_report_chain "$REPORT_JSON" 2>&1)" || {
     missing_serial_input)
       fail_signoff "parity_missing_serial_input" "listener parity report references a missing serial input."
       ;;
+    missing_serial_input_checksum)
+      fail_signoff "parity_missing_serial_input_checksum" "listener parity report is missing serial input checksum metadata."
+      ;;
+    serial_input_checksum_mismatch)
+      fail_signoff "parity_serial_input_checksum_mismatch" "listener parity report serial input checksum does not match."
+      ;;
     missing_legacy_input)
       fail_signoff "parity_missing_legacy_input" "listener parity report references a missing legacy input."
       ;;
+    missing_legacy_input_checksum)
+      fail_signoff "parity_missing_legacy_input_checksum" "listener parity report is missing legacy input checksum metadata."
+      ;;
+    legacy_input_checksum_mismatch)
+      fail_signoff "parity_legacy_input_checksum_mismatch" "listener parity report legacy input checksum does not match."
+      ;;
     missing_report_markdown)
       fail_signoff "parity_missing_report_markdown" "listener parity report references a missing markdown summary."
+      ;;
+    missing_report_markdown_checksum)
+      fail_signoff "parity_missing_report_markdown_checksum" "listener parity report is missing markdown checksum metadata."
+      ;;
+    report_markdown_checksum_mismatch)
+      fail_signoff "parity_report_markdown_checksum_mismatch" "listener parity report markdown checksum does not match."
       ;;
     *)
       fail_signoff "parity_report_chain_verification_failed" "listener parity report chain verification failed: ${parity_chain_status:-unknown}."
@@ -347,20 +406,56 @@ if [[ -n "$TREND_REPORT_JSON" ]]; then
       missing_current_serial_input)
         fail_signoff "trend_current_missing_serial_input" "listener trend report current parity report references a missing serial input."
         ;;
+      missing_current_serial_input_checksum)
+        fail_signoff "trend_current_missing_serial_input_checksum" "listener trend report current parity report is missing serial input checksum metadata."
+        ;;
+      current_serial_input_checksum_mismatch)
+        fail_signoff "trend_current_serial_input_checksum_mismatch" "listener trend report current parity report serial input checksum does not match."
+        ;;
       missing_current_legacy_input)
         fail_signoff "trend_current_missing_legacy_input" "listener trend report current parity report references a missing legacy input."
+        ;;
+      missing_current_legacy_input_checksum)
+        fail_signoff "trend_current_missing_legacy_input_checksum" "listener trend report current parity report is missing legacy input checksum metadata."
+        ;;
+      current_legacy_input_checksum_mismatch)
+        fail_signoff "trend_current_legacy_input_checksum_mismatch" "listener trend report current parity report legacy input checksum does not match."
         ;;
       missing_current_report_markdown)
         fail_signoff "trend_current_missing_report_markdown" "listener trend report current parity report references a missing markdown summary."
         ;;
+      missing_current_report_markdown_checksum)
+        fail_signoff "trend_current_missing_report_markdown_checksum" "listener trend report current parity report is missing markdown checksum metadata."
+        ;;
+      current_report_markdown_checksum_mismatch)
+        fail_signoff "trend_current_report_markdown_checksum_mismatch" "listener trend report current parity report markdown checksum does not match."
+        ;;
       missing_previous_serial_input)
         fail_signoff "trend_previous_missing_serial_input" "listener trend report previous parity report references a missing serial input."
+        ;;
+      missing_previous_serial_input_checksum)
+        fail_signoff "trend_previous_missing_serial_input_checksum" "listener trend report previous parity report is missing serial input checksum metadata."
+        ;;
+      previous_serial_input_checksum_mismatch)
+        fail_signoff "trend_previous_serial_input_checksum_mismatch" "listener trend report previous parity report serial input checksum does not match."
         ;;
       missing_previous_legacy_input)
         fail_signoff "trend_previous_missing_legacy_input" "listener trend report previous parity report references a missing legacy input."
         ;;
+      missing_previous_legacy_input_checksum)
+        fail_signoff "trend_previous_missing_legacy_input_checksum" "listener trend report previous parity report is missing legacy input checksum metadata."
+        ;;
+      previous_legacy_input_checksum_mismatch)
+        fail_signoff "trend_previous_legacy_input_checksum_mismatch" "listener trend report previous parity report legacy input checksum does not match."
+        ;;
       missing_previous_report_markdown)
         fail_signoff "trend_previous_missing_report_markdown" "listener trend report previous parity report references a missing markdown summary."
+        ;;
+      missing_previous_report_markdown_checksum)
+        fail_signoff "trend_previous_missing_report_markdown_checksum" "listener trend report previous parity report is missing markdown checksum metadata."
+        ;;
+      previous_report_markdown_checksum_mismatch)
+        fail_signoff "trend_previous_report_markdown_checksum_mismatch" "listener trend report previous parity report markdown checksum does not match."
         ;;
       *)
         fail_signoff "trend_report_chain_verification_failed" "listener trend report chain verification failed: ${parity_trend_chain_status:-unknown}."

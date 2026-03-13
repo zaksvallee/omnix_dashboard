@@ -138,6 +138,7 @@ mkdir -p "$OUT_DIR"
 
 python3 - "$VALIDATION_REPORT_JSON" "$PARITY_REPORT_JSON" "$PARITY_TREND_REPORT_JSON" "$VALIDATION_TREND_REPORT_JSON" "$OUT_DIR" "$REQUIRE_REAL_ARTIFACTS" <<'PY'
 import json
+import hashlib
 import sys
 from pathlib import Path
 
@@ -165,6 +166,10 @@ def path_exists(raw_path):
         return True
     return Path(candidate).is_file()
 
+def sha256_file(path_str):
+    with open(path_str, "rb") as handle:
+        return hashlib.sha256(handle.read()).hexdigest()
+
 def parity_report_chain_issues(path_str, label):
     issues = []
     if not path_str:
@@ -176,15 +181,31 @@ def parity_report_chain_issues(path_str, label):
     with report_path.open("r", encoding="utf-8") as handle:
         report = json.load(handle)
     files = report.get("files", {}) or {}
+    checksums = report.get("checksums", {}) or {}
     serial_input = str(files.get("serial_input", "")).strip()
     legacy_input = str(files.get("legacy_input", "")).strip()
     report_markdown = str(files.get("report_markdown", "")).strip()
+    serial_input_sha = str(checksums.get("serial_input_sha256", "")).strip()
+    legacy_input_sha = str(checksums.get("legacy_input_sha256", "")).strip()
+    report_markdown_sha = str(checksums.get("report_markdown_sha256", "")).strip()
     if serial_input and not path_exists(serial_input):
         issues.append((f"parity_trend_{label}_missing_serial_input", f"parity trend {label} parity report references a missing serial input"))
+    elif serial_input and not serial_input_sha:
+        issues.append((f"parity_trend_{label}_missing_serial_input_checksum", f"parity trend {label} parity report is missing serial input checksum metadata"))
+    elif serial_input and sha256_file(serial_input) != serial_input_sha:
+        issues.append((f"parity_trend_{label}_serial_input_checksum_mismatch", f"parity trend {label} parity report serial input checksum does not match"))
     if legacy_input and not path_exists(legacy_input):
         issues.append((f"parity_trend_{label}_missing_legacy_input", f"parity trend {label} parity report references a missing legacy input"))
+    elif legacy_input and not legacy_input_sha:
+        issues.append((f"parity_trend_{label}_missing_legacy_input_checksum", f"parity trend {label} parity report is missing legacy input checksum metadata"))
+    elif legacy_input and sha256_file(legacy_input) != legacy_input_sha:
+        issues.append((f"parity_trend_{label}_legacy_input_checksum_mismatch", f"parity trend {label} parity report legacy input checksum does not match"))
     if report_markdown and not path_exists(report_markdown):
         issues.append((f"parity_trend_{label}_missing_report_markdown", f"parity trend {label} parity report references a missing markdown summary"))
+    elif report_markdown and not report_markdown_sha:
+        issues.append((f"parity_trend_{label}_missing_report_markdown_checksum", f"parity trend {label} parity report is missing markdown checksum metadata"))
+    elif report_markdown and sha256_file(report_markdown) != report_markdown_sha:
+        issues.append((f"parity_trend_{label}_report_markdown_checksum_mismatch", f"parity trend {label} parity report markdown checksum does not match"))
     return issues
 
 parity = load_optional(parity_path)
@@ -267,14 +288,30 @@ elif not baseline_health_category:
 if parity is not None:
     parity_summary = str(parity.get("summary", "")).strip()
     parity_files = parity.get("files", {}) or {}
+    parity_checksums = parity.get("checksums", {}) or {}
     parity_serial_input = str(parity_files.get("serial_input", "")).strip()
     parity_legacy_input = str(parity_files.get("legacy_input", "")).strip()
     parity_report_markdown = str(parity_files.get("report_markdown", "")).strip()
+    parity_serial_input_sha = str(parity_checksums.get("serial_input_sha256", "")).strip()
+    parity_legacy_input_sha = str(parity_checksums.get("legacy_input_sha256", "")).strip()
+    parity_report_markdown_sha = str(parity_checksums.get("report_markdown_sha256", "")).strip()
     if parity_serial_input and not path_exists(parity_serial_input):
         add_reason(
             blocking_items,
             "parity_missing_serial_input",
             "parity report references a missing serial input",
+        )
+    elif parity_serial_input and not parity_serial_input_sha:
+        add_reason(
+            blocking_items,
+            "parity_missing_serial_input_checksum",
+            "parity report is missing serial input checksum metadata",
+        )
+    elif parity_serial_input and sha256_file(parity_serial_input) != parity_serial_input_sha:
+        add_reason(
+            blocking_items,
+            "parity_serial_input_checksum_mismatch",
+            "parity report serial input checksum does not match",
         )
     if parity_legacy_input and not path_exists(parity_legacy_input):
         add_reason(
@@ -282,11 +319,35 @@ if parity is not None:
             "parity_missing_legacy_input",
             "parity report references a missing legacy input",
         )
+    elif parity_legacy_input and not parity_legacy_input_sha:
+        add_reason(
+            blocking_items,
+            "parity_missing_legacy_input_checksum",
+            "parity report is missing legacy input checksum metadata",
+        )
+    elif parity_legacy_input and sha256_file(parity_legacy_input) != parity_legacy_input_sha:
+        add_reason(
+            blocking_items,
+            "parity_legacy_input_checksum_mismatch",
+            "parity report legacy input checksum does not match",
+        )
     if parity_report_markdown and not path_exists(parity_report_markdown):
         add_reason(
             blocking_items,
             "parity_missing_report_markdown",
             "parity report references a missing markdown summary",
+        )
+    elif parity_report_markdown and not parity_report_markdown_sha:
+        add_reason(
+            blocking_items,
+            "parity_missing_report_markdown_checksum",
+            "parity report is missing markdown checksum metadata",
+        )
+    elif parity_report_markdown and sha256_file(parity_report_markdown) != parity_report_markdown_sha:
+        add_reason(
+            blocking_items,
+            "parity_report_markdown_checksum_mismatch",
+            "parity report markdown checksum does not match",
         )
 else:
     parity_summary = ""

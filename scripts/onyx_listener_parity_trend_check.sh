@@ -109,6 +109,7 @@ mkdir -p "$OUT_DIR"
 
 python3 - "$CURRENT_REPORT_JSON" "$PREVIOUS_REPORT_JSON" "$OUT_DIR" "$ALLOW_MATCH_RATE_DROP_PERCENT" "$ALLOW_MAX_SKEW_INCREASE_SECONDS" "${ALLOW_DRIFT_COUNT_INCREASES[@]-}" <<'PY'
 import json
+import hashlib
 import sys
 from pathlib import Path
 
@@ -135,12 +136,20 @@ def path_exists(raw_path):
         return True
     return Path(candidate).is_file()
 
+def sha256_file(path_str):
+    with open(path_str, "rb") as handle:
+        return hashlib.sha256(handle.read()).hexdigest()
+
 def report_chain_regressions(report, label):
     regressions = []
     files = report.get("files", {}) or {}
+    checksums = report.get("checksums", {}) or {}
     serial_input = str(files.get("serial_input", "")).strip()
     legacy_input = str(files.get("legacy_input", "")).strip()
     report_markdown = str(files.get("report_markdown", "")).strip()
+    serial_input_sha = str(checksums.get("serial_input_sha256", "")).strip()
+    legacy_input_sha = str(checksums.get("legacy_input_sha256", "")).strip()
+    report_markdown_sha = str(checksums.get("report_markdown_sha256", "")).strip()
     if serial_input and not path_exists(serial_input):
         regressions.append({
             "code": f"{label}_report_missing_serial_input",
@@ -148,6 +157,21 @@ def report_chain_regressions(report, label):
             "report_label": label,
             "missing_field": "serial_input",
             "missing_path": serial_input,
+        })
+    elif serial_input and not serial_input_sha:
+        regressions.append({
+            "code": f"{label}_report_missing_serial_input_checksum",
+            "kind": "report_chain_missing_checksum",
+            "report_label": label,
+            "missing_field": "serial_input",
+        })
+    elif serial_input and sha256_file(serial_input) != serial_input_sha:
+        regressions.append({
+            "code": f"{label}_report_serial_input_checksum_mismatch",
+            "kind": "report_chain_checksum_mismatch",
+            "report_label": label,
+            "mismatch_field": "serial_input",
+            "path": serial_input,
         })
     if legacy_input and not path_exists(legacy_input):
         regressions.append({
@@ -157,6 +181,21 @@ def report_chain_regressions(report, label):
             "missing_field": "legacy_input",
             "missing_path": legacy_input,
         })
+    elif legacy_input and not legacy_input_sha:
+        regressions.append({
+            "code": f"{label}_report_missing_legacy_input_checksum",
+            "kind": "report_chain_missing_checksum",
+            "report_label": label,
+            "missing_field": "legacy_input",
+        })
+    elif legacy_input and sha256_file(legacy_input) != legacy_input_sha:
+        regressions.append({
+            "code": f"{label}_report_legacy_input_checksum_mismatch",
+            "kind": "report_chain_checksum_mismatch",
+            "report_label": label,
+            "mismatch_field": "legacy_input",
+            "path": legacy_input,
+        })
     if report_markdown and not path_exists(report_markdown):
         regressions.append({
             "code": f"{label}_report_missing_report_markdown",
@@ -164,6 +203,21 @@ def report_chain_regressions(report, label):
             "report_label": label,
             "missing_field": "report_markdown",
             "missing_path": report_markdown,
+        })
+    elif report_markdown and not report_markdown_sha:
+        regressions.append({
+            "code": f"{label}_report_missing_report_markdown_checksum",
+            "kind": "report_chain_missing_checksum",
+            "report_label": label,
+            "missing_field": "report_markdown",
+        })
+    elif report_markdown and sha256_file(report_markdown) != report_markdown_sha:
+        regressions.append({
+            "code": f"{label}_report_report_markdown_checksum_mismatch",
+            "kind": "report_chain_checksum_mismatch",
+            "report_label": label,
+            "mismatch_field": "report_markdown",
+            "path": report_markdown,
         })
     return regressions
 
@@ -303,6 +357,16 @@ if regressions:
                 f"- `{item['code']}`: `{item['report_label']}` report missing "
                 f"`{item['missing_field']}` at `{item['missing_path']}`"
             )
+        elif item["kind"] == "report_chain_missing_checksum":
+            lines.append(
+                f"- `{item['code']}`: `{item['report_label']}` report missing "
+                f"checksum metadata for `{item['missing_field']}`"
+            )
+        elif item["kind"] == "report_chain_checksum_mismatch":
+            lines.append(
+                f"- `{item['code']}`: `{item['report_label']}` report "
+                f"`{item['mismatch_field']}` checksum mismatch at `{item['path']}`"
+            )
         else:
             lines.append(
                 f"- `{item['code']}`: `{item['previous']} -> {item['current']}` "
@@ -333,6 +397,18 @@ if regressions:
                 f" {item['code']}"
                 f" ({item['report_label']} missing {item['missing_field']}:"
                 f" {item['missing_path']})"
+            )
+        elif item["kind"] == "report_chain_missing_checksum":
+            print(
+                "Regression:"
+                f" {item['code']} ({item['report_label']} missing checksum for "
+                f"{item['missing_field']})"
+            )
+        elif item["kind"] == "report_chain_checksum_mismatch":
+            print(
+                "Regression:"
+                f" {item['code']} ({item['report_label']} checksum mismatch for "
+                f"{item['mismatch_field']} at {item['path']})"
             )
         else:
             print(
