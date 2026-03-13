@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:omnix_dashboard/domain/evidence/evidence_provenance.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/domain/intelligence/intel_ingestion.dart';
 import 'package:omnix_dashboard/domain/store/in_memory_event_store.dart';
@@ -44,6 +45,19 @@ void main() {
         ingested.clipUrl,
         'https://edge.example.com/api/events/evt-1/clip.mp4',
       );
+      expect(
+        ingested.snapshotReferenceHash,
+        evidenceLocatorHash(
+          'https://edge.example.com/api/events/evt-1/snapshot.jpg',
+        ),
+      );
+      expect(
+        ingested.clipReferenceHash,
+        evidenceLocatorHash(
+          'https://edge.example.com/api/events/evt-1/clip.mp4',
+        ),
+      );
+      expect(ingested.evidenceRecordHash, isNotEmpty);
     },
   );
 }

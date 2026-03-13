@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 
+import '../evidence/evidence_provenance.dart';
 import '../events/intelligence_received.dart';
 import '../store/event_store.dart';
 
@@ -88,6 +89,20 @@ class DeterministicIntelligenceIngestionService {
           )
           .toString();
       final intelligenceId = 'INT-${canonicalHash.substring(0, 20)}';
+      final snapshotReferenceHash = evidenceLocatorHash(record.snapshotUrl);
+      final clipReferenceHash = evidenceLocatorHash(record.clipUrl);
+      final evidenceRecordHash = buildEvidenceRecordHash(
+        canonicalHash: canonicalHash,
+        provider: record.provider,
+        sourceType: record.sourceType,
+        externalId: record.externalId,
+        clientId: record.clientId,
+        regionId: record.regionId,
+        siteId: record.siteId,
+        occurredAtUtc: record.occurredAtUtc,
+        snapshotReferenceHash: snapshotReferenceHash,
+        clipReferenceHash: clipReferenceHash,
+      );
 
       if (knownIntelIds.contains(intelligenceId)) {
         skipped++;
@@ -117,6 +132,11 @@ class DeterministicIntelligenceIngestionService {
           snapshotUrl: record.snapshotUrl,
           clipUrl: record.clipUrl,
           canonicalHash: canonicalHash,
+          snapshotReferenceHash: snapshotReferenceHash.isEmpty
+              ? null
+              : snapshotReferenceHash,
+          clipReferenceHash: clipReferenceHash.isEmpty ? null : clipReferenceHash,
+          evidenceRecordHash: evidenceRecordHash,
         ),
       );
       knownIntelIds.add(intelligenceId);

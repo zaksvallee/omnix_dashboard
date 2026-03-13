@@ -159,4 +159,5 @@ void main() {
     expect(find.text('Selected Event'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
 }

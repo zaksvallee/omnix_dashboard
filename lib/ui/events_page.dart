@@ -1023,6 +1023,12 @@ class _EventsPageState extends State<EventsPage> {
           ("snapshotUrl", event.snapshotUrl!.trim()),
         if ((event.clipUrl ?? '').trim().isNotEmpty)
           ("clipUrl", event.clipUrl!.trim()),
+        if ((event.snapshotReferenceHash ?? '').trim().isNotEmpty)
+          ("snapshotReferenceHash", event.snapshotReferenceHash!.trim()),
+        if ((event.clipReferenceHash ?? '').trim().isNotEmpty)
+          ("clipReferenceHash", event.clipReferenceHash!.trim()),
+        if ((event.evidenceRecordHash ?? '').trim().isNotEmpty)
+          ("evidenceRecordHash", event.evidenceRecordHash!.trim()),
         ("canonicalHash", event.canonicalHash),
       ];
     }

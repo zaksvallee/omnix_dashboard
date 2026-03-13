@@ -18,6 +18,9 @@ class IntelligenceReceived extends DispatchEvent {
   final String? snapshotUrl;
   final String? clipUrl;
   final String canonicalHash;
+  final String? snapshotReferenceHash;
+  final String? clipReferenceHash;
+  final String? evidenceRecordHash;
 
   const IntelligenceReceived({
     required super.eventId,
@@ -41,6 +44,9 @@ class IntelligenceReceived extends DispatchEvent {
     this.snapshotUrl,
     this.clipUrl,
     required this.canonicalHash,
+    this.snapshotReferenceHash,
+    this.clipReferenceHash,
+    this.evidenceRecordHash,
   });
 
   @override
@@ -67,6 +73,9 @@ class IntelligenceReceived extends DispatchEvent {
       snapshotUrl: snapshotUrl,
       clipUrl: clipUrl,
       canonicalHash: canonicalHash,
+      snapshotReferenceHash: snapshotReferenceHash,
+      clipReferenceHash: clipReferenceHash,
+      evidenceRecordHash: evidenceRecordHash,
     );
   }
 }
