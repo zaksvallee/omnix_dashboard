@@ -151,6 +151,7 @@ Notes:
   - Release posture now also requires `cutover_decision.json.validation_trend_report_json` to match the staged validation-trend artifact when one exists.
   - Listener readiness now independently re-verifies the same release-gate alignment rules against nested readiness, cutover, and signoff artifacts instead of trusting the release gate's chosen references.
   - Listener readiness and release-trend now also require `release_gate.json.signoff_file` and `signoff_report_json` to point at the staged signoff artifacts under the same validation bundle instead of equivalent copied files elsewhere.
+  - Listener readiness and release-trend now also require `release_gate.json.validation_report_json` to point at the sibling staged `validation_report.json` under the same artifact directory instead of an equivalent copied validation bundle elsewhere.
   - Listener readiness now also requires `release_trend_report.json.current_release_gate_json` to equal the staged release gate it is evaluating, preventing release trend from silently borrowing an equivalent current gate from another directory.
   - Listener signoff now emits a machine-readable `signoff_report.json`, and release posture consumes that structured signoff state instead of only checking markdown file presence.
   - Field-gate signoff now uses the staged parity report and staged parity trend from the validation bundle, preventing self-inflicted parity-path mismatches between signoff and release posture.

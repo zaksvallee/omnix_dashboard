@@ -1015,7 +1015,7 @@ def cutover_trend_chain_regressions(path_str, label):
         regressions.extend(cutover_decision_chain_regressions(previous_decision, f"{label}_previous_decision"))
     return regressions
 
-def release_gate_consistency_regressions(report, label):
+def release_gate_consistency_regressions(report, label, report_path=""):
     regressions = []
     statuses = report.get("statuses", {}) or {}
     fail_codes = [str(item) for item in (report.get("fail_codes", []) or [])]
@@ -1040,6 +1040,9 @@ def release_gate_consistency_regressions(report, label):
     validation_parity_report = str(validation_files.get("parity_report_json", "")).strip()
     validation_parity_trend = str(validation_files.get("trend_report_json", "")).strip()
     validation_artifact_dir = str((validation_data or {}).get("artifact_dir", "")).strip()
+    expected_validation_report = str(Path(report_path).parent / "validation_report.json") if report_path else ""
+    if expected_validation_report and not path_exists(expected_validation_report):
+        expected_validation_report = ""
     expected_readiness_report = f"{validation_artifact_dir}/readiness_report.json" if validation_artifact_dir else ""
     if expected_readiness_report and not path_exists(expected_readiness_report):
         expected_readiness_report = ""
@@ -1080,6 +1083,8 @@ def release_gate_consistency_regressions(report, label):
         actual_health = str(((validation_data.get("baseline_health") or {}).get("category", ""))).lower()
         if str(statuses.get("baseline_health_category", "")).lower() != actual_health:
             add("baseline_health_category_mismatch", "release_gate_status_mismatch", actual_health, str(statuses.get("baseline_health_category", "")).lower())
+    if validation_report != expected_validation_report:
+        add("validation_report_path_mismatch", "release_gate_status_mismatch", expected_validation_report, validation_report)
     if readiness_report != expected_readiness_report:
         add("readiness_report_path_mismatch", "release_gate_status_mismatch", expected_readiness_report, readiness_report)
     if cutover_decision != expected_cutover_decision:
@@ -1170,7 +1175,7 @@ def release_gate_consistency_regressions(report, label):
 
     return regressions
 
-def gate_chain_regressions(report, label):
+def gate_chain_regressions(report, label, report_path=""):
     regressions = []
     validation_report = str(report.get("validation_report_json", "")).strip()
     readiness_report = str(report.get("readiness_report_json", "")).strip()
@@ -1213,7 +1218,7 @@ def gate_chain_regressions(report, label):
     regressions.extend(cutover_decision_chain_regressions(cutover_decision, f"{label}_gate_cutover"))
     regressions.extend(cutover_trend_chain_regressions(cutover_trend, f"{label}_gate_cutover_trend"))
     regressions.extend(signoff_report_chain_regressions(signoff_report, f"{label}_gate_signoff"))
-    regressions.extend(release_gate_consistency_regressions(report, f"{label}_gate"))
+    regressions.extend(release_gate_consistency_regressions(report, f"{label}_gate", report_path))
     return regressions
 
 result_rank = {"FAIL": 0, "HOLD": 1, "PASS": 2}
@@ -1227,8 +1232,8 @@ current_fail_codes = list(current.get("fail_codes", []) or current.get("fail_rea
 previous_fail_codes = list(previous.get("fail_codes", []) or previous.get("fail_reasons", []) or [])
 
 regressions = []
-regressions.extend(gate_chain_regressions(current, "current"))
-regressions.extend(gate_chain_regressions(previous, "previous"))
+regressions.extend(gate_chain_regressions(current, "current", str(current_path)))
+regressions.extend(gate_chain_regressions(previous, "previous", str(previous_path)))
 if result_rank.get(current_result, -1) < result_rank.get(previous_result, -1):
     regressions.append(
         {

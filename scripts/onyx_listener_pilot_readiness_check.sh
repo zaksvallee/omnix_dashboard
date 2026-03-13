@@ -596,6 +596,7 @@ import sys
 path = sys.argv[1]
 with open(path, "r", encoding="utf-8") as handle:
     data = json.load(handle)
+report_dir = os.path.dirname(path)
 
 def load_json(path_str):
     if not path_str or not os.path.isfile(path_str):
@@ -735,6 +736,7 @@ from pathlib import Path
 path = sys.argv[1]
 with open(path, "r", encoding="utf-8") as handle:
     data = json.load(handle)
+report_dir = os.path.dirname(path)
 
 def load_json(path_str):
     if not path_str or not os.path.isfile(path_str):
@@ -776,6 +778,9 @@ if signoff_file and not os.path.isfile(signoff_file):
     raise SystemExit("missing_signoff_file")
 if signoff_report and not os.path.isfile(signoff_report):
     raise SystemExit("missing_signoff_report")
+expected_validation_report = os.path.join(report_dir, "validation_report.json") if report_dir else ""
+if expected_validation_report and not os.path.isfile(expected_validation_report):
+    expected_validation_report = ""
 
 validation_data = load_json(validation_report)
 readiness_data = load_json(readiness_report)
@@ -819,6 +824,9 @@ if validation_data is not None:
     actual_health = str(((validation_data.get("baseline_health") or {}).get("category", ""))).lower()
     if str(statuses.get("baseline_health_category", "")).lower() != actual_health:
         raise SystemExit("baseline_health_category_mismatch")
+
+if validation_report != expected_validation_report:
+    raise SystemExit("validation_report_path_mismatch")
 
 if readiness_report != expected_readiness_report:
     raise SystemExit("readiness_report_path_mismatch")
