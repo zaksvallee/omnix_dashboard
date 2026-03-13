@@ -31,6 +31,7 @@ class IntelligenceIngestionOutcome {
   final int advisoryCount;
   final int watchCount;
   final int dispatchCandidateCount;
+  final List<IntelligenceReceived> appendedEvents;
 
   const IntelligenceIngestionOutcome({
     required this.attemptedIntelligence,
@@ -40,6 +41,7 @@ class IntelligenceIngestionOutcome {
     required this.advisoryCount,
     required this.watchCount,
     required this.dispatchCandidateCount,
+    this.appendedEvents = const <IntelligenceReceived>[],
   });
 }
 
@@ -156,6 +158,7 @@ class DispatchApplicationService {
       advisoryCount: triage.advisoryCount,
       watchCount: triage.watchCount,
       dispatchCandidateCount: triage.dispatchCandidateCount,
+      appendedEvents: ingestResult.appendedEvents,
     );
   }
 

@@ -27,6 +27,7 @@ import 'application/guard_telemetry_ingestion_adapter.dart';
 import 'application/guard_telemetry_replay_fixture_service.dart';
 import 'application/intake_stress_service.dart';
 import 'application/morning_sovereign_report_service.dart';
+import 'application/offline_incident_spool_service.dart';
 import 'application/ops_integration_profile.dart';
 import 'application/radio_bridge_service.dart';
 import 'application/runtime_config.dart';
@@ -704,6 +705,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   late final Future<GuardOpsRepository> _guardOpsRepositoryFuture;
   late final Future<GuardSyncRepository> _guardSyncRepositoryFuture;
   late final Future<GuardMobileOpsService> _guardMobileOpsServiceFuture;
+  late final Future<OfflineIncidentSpoolService>
+  _offlineIncidentSpoolServiceFuture;
 
   OnyxRoute _route = OnyxRoute.dashboard;
   String _eventsSourceFilter = '';
@@ -1147,6 +1150,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           : const NoopGuardOpsRemoteGateway();
       return SharedPrefsGuardOpsRepository.create(remote: remote);
     });
+    _offlineIncidentSpoolServiceFuture = _persistenceServiceFuture.then(
+      (persistence) => OfflineIncidentSpoolService(
+        persistence: persistence,
+        remote: const NoopOfflineIncidentSpoolRemoteGateway(),
+      ),
+    );
 
     _clientLedgerRepository = widget.supabaseReady
         ? SupabaseClientLedgerRepository(Supabase.instance.client)
@@ -5156,6 +5165,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         ),
         updateStatus: updateStatus,
       );
+      unawaited(_bufferOfflineVideoIncidents(outcome.appendedEvents));
       return _recordOpsIntegrationHealth(
         _OpsIntegrationIngestResult(
           source: 'cctv',
@@ -10653,6 +10663,42 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     });
     _persistTelemetry();
     return outcome;
+  }
+
+  Future<void> _bufferOfflineVideoIncidents(
+    List<IntelligenceReceived> appendedEvents,
+  ) async {
+    if (widget.supabaseReady || appendedEvents.isEmpty) {
+      return;
+    }
+    final service = await _offlineIncidentSpoolServiceFuture;
+    var queued = 0;
+    for (final event in appendedEvents) {
+      if (!_matchesActiveVideoProviderEvent(event)) {
+        continue;
+      }
+      await service.enqueue(
+        incidentReference: event.intelligenceId,
+        sourceType: event.sourceType,
+        provider: event.provider,
+        clientId: event.clientId,
+        siteId: event.siteId,
+        summary: event.headline,
+        occurredAtUtc: event.occurredAt,
+        payload: <String, Object?>{
+          'external_id': event.externalId,
+          'risk_score': event.riskScore,
+          'canonical_hash': event.canonicalHash,
+          'evidence_record_hash': event.evidenceRecordHash,
+          'snapshot_reference_hash': event.snapshotReferenceHash,
+          'clip_reference_hash': event.clipReferenceHash,
+        },
+      );
+      queued += 1;
+    }
+    if (queued > 0) {
+      await _hydrateOfflineIncidentSpoolState();
+    }
   }
 
   LiveFeedBatch _buildDemoLiveFeedBatch(DateTime now) {

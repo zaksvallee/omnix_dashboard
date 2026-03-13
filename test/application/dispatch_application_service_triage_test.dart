@@ -65,6 +65,7 @@ void main() {
     expect(outcome.advisoryCount, 0);
     expect(outcome.watchCount, 1);
     expect(outcome.dispatchCandidateCount, 1);
+    expect(outcome.appendedEvents, hasLength(2));
     expect(
       service.store.allEvents().whereType<DecisionCreated>(),
       hasLength(1),
@@ -96,6 +97,7 @@ void main() {
     expect(outcome.advisoryCount, 0);
     expect(outcome.watchCount, 1);
     expect(outcome.dispatchCandidateCount, 0);
+    expect(outcome.appendedEvents, hasLength(1));
     expect(service.store.allEvents().whereType<DecisionCreated>(), isEmpty);
   });
 
