@@ -560,6 +560,8 @@ PARITY_REPORT_JSON="$PILOT_ARTIFACT_DIR/report.json"
 PARITY_REPORT_MD="$PILOT_ARTIFACT_DIR/report.md"
 PARITY_READINESS_REPORT_JSON="$PILOT_ARTIFACT_DIR/parity_readiness_report.json"
 PARITY_READINESS_REPORT_MD="$PILOT_ARTIFACT_DIR/parity_readiness_report.md"
+PARITY_INTEGRITY_CERTIFICATE_JSON="$PILOT_ARTIFACT_DIR/integrity_certificate.json"
+PARITY_INTEGRITY_CERTIFICATE_MD="$PILOT_ARTIFACT_DIR/integrity_certificate.md"
 TREND_REPORT_JSON="$PILOT_ARTIFACT_DIR/trend_report.json"
 TREND_REPORT_MD="$PILOT_ARTIFACT_DIR/trend_report.md"
 SERIAL_PARSED_JSON="$PILOT_ARTIFACT_DIR/serial_parsed.json"
@@ -622,6 +624,8 @@ STAGED_PARITY_REPORT_JSON="$(stage_optional_file "$PARITY_REPORT_JSON" "report.j
 STAGED_PARITY_REPORT_MD="$(stage_optional_file "$PARITY_REPORT_MD" "report.md" || true)"
 STAGED_PARITY_READINESS_REPORT_JSON="$(stage_optional_file "$PARITY_READINESS_REPORT_JSON" "parity_readiness_report.json" || true)"
 STAGED_PARITY_READINESS_REPORT_MD="$(stage_optional_file "$PARITY_READINESS_REPORT_MD" "parity_readiness_report.md" || true)"
+STAGED_PARITY_INTEGRITY_CERTIFICATE_JSON="$(stage_optional_file "$PARITY_INTEGRITY_CERTIFICATE_JSON" "parity_integrity_certificate.json" || true)"
+STAGED_PARITY_INTEGRITY_CERTIFICATE_MD="$(stage_optional_file "$PARITY_INTEGRITY_CERTIFICATE_MD" "parity_integrity_certificate.md" || true)"
 STAGED_TREND_REPORT_JSON="$(stage_optional_file "$TREND_REPORT_JSON" "trend_report.json" || true)"
 STAGED_TREND_REPORT_MD="$(stage_optional_file "$TREND_REPORT_MD" "trend_report.md" || true)"
 STAGED_PILOT_GATE_REPORT_JSON="$(stage_optional_file "$PILOT_ARTIFACT_DIR/pilot_gate_report.json" "pilot_gate_report.json" || true)"
@@ -764,6 +768,8 @@ VALIDATION_REPORT_MD="$ARTIFACT_DIR/validation_report.md"
   [[ -n "$STAGED_PARITY_REPORT_MD" ]] && echo "- Parity report markdown: \`${STAGED_PARITY_REPORT_MD}\`"
   [[ -n "$STAGED_PARITY_READINESS_REPORT_JSON" ]] && echo "- Parity readiness JSON: \`${STAGED_PARITY_READINESS_REPORT_JSON}\`"
   [[ -n "$STAGED_PARITY_READINESS_REPORT_MD" ]] && echo "- Parity readiness markdown: \`${STAGED_PARITY_READINESS_REPORT_MD}\`"
+  [[ -n "$STAGED_PARITY_INTEGRITY_CERTIFICATE_JSON" ]] && echo "- Parity integrity certificate JSON: \`${STAGED_PARITY_INTEGRITY_CERTIFICATE_JSON}\`"
+  [[ -n "$STAGED_PARITY_INTEGRITY_CERTIFICATE_MD" ]] && echo "- Parity integrity certificate markdown: \`${STAGED_PARITY_INTEGRITY_CERTIFICATE_MD}\`"
   [[ -n "$STAGED_TREND_REPORT_JSON" ]] && echo "- Trend report JSON: \`${STAGED_TREND_REPORT_JSON}\`"
   [[ -n "$STAGED_TREND_REPORT_MD" ]] && echo "- Trend report markdown: \`${STAGED_TREND_REPORT_MD}\`"
   [[ -n "$STAGED_PILOT_GATE_REPORT_JSON" ]] && echo "- Pilot gate report JSON: \`${STAGED_PILOT_GATE_REPORT_JSON}\`"
@@ -783,6 +789,8 @@ STAGED_PARITY_REPORT_JSON_SHA="$(sha256_file "$STAGED_PARITY_REPORT_JSON")"
 STAGED_PARITY_REPORT_MD_SHA="$(sha256_file "$STAGED_PARITY_REPORT_MD")"
 STAGED_PARITY_READINESS_REPORT_JSON_SHA="$(sha256_file "$STAGED_PARITY_READINESS_REPORT_JSON")"
 STAGED_PARITY_READINESS_REPORT_MD_SHA="$(sha256_file "$STAGED_PARITY_READINESS_REPORT_MD")"
+STAGED_PARITY_INTEGRITY_CERTIFICATE_JSON_SHA="$(sha256_file "$STAGED_PARITY_INTEGRITY_CERTIFICATE_JSON")"
+STAGED_PARITY_INTEGRITY_CERTIFICATE_MD_SHA="$(sha256_file "$STAGED_PARITY_INTEGRITY_CERTIFICATE_MD")"
 STAGED_TREND_REPORT_JSON_SHA="$(sha256_file "$STAGED_TREND_REPORT_JSON")"
 STAGED_TREND_REPORT_MD_SHA="$(sha256_file "$STAGED_TREND_REPORT_MD")"
 STAGED_PILOT_GATE_REPORT_JSON_SHA="$(sha256_file "$STAGED_PILOT_GATE_REPORT_JSON")"
@@ -845,6 +853,8 @@ cat >"$JSON_OUT_FILE" <<EOF
     "parity_report_markdown": $(printf '%s' "$STAGED_PARITY_REPORT_MD" | json_escape),
     "parity_readiness_report_json": $(printf '%s' "$STAGED_PARITY_READINESS_REPORT_JSON" | json_escape),
     "parity_readiness_report_markdown": $(printf '%s' "$STAGED_PARITY_READINESS_REPORT_MD" | json_escape),
+    "parity_integrity_certificate_json": $(printf '%s' "$STAGED_PARITY_INTEGRITY_CERTIFICATE_JSON" | json_escape),
+    "parity_integrity_certificate_markdown": $(printf '%s' "$STAGED_PARITY_INTEGRITY_CERTIFICATE_MD" | json_escape),
     "trend_report_json": $(printf '%s' "$STAGED_TREND_REPORT_JSON" | json_escape),
     "trend_report_markdown": $(printf '%s' "$STAGED_TREND_REPORT_MD" | json_escape),
     "pilot_gate_report_json": $(printf '%s' "$STAGED_PILOT_GATE_REPORT_JSON" | json_escape),
@@ -864,6 +874,8 @@ cat >"$JSON_OUT_FILE" <<EOF
     "parity_report_markdown_sha256": $(printf '%s' "$STAGED_PARITY_REPORT_MD_SHA" | json_escape),
     "parity_readiness_report_json_sha256": $(printf '%s' "$STAGED_PARITY_READINESS_REPORT_JSON_SHA" | json_escape),
     "parity_readiness_report_markdown_sha256": $(printf '%s' "$STAGED_PARITY_READINESS_REPORT_MD_SHA" | json_escape),
+    "parity_integrity_certificate_json_sha256": $(printf '%s' "$STAGED_PARITY_INTEGRITY_CERTIFICATE_JSON_SHA" | json_escape),
+    "parity_integrity_certificate_markdown_sha256": $(printf '%s' "$STAGED_PARITY_INTEGRITY_CERTIFICATE_MD_SHA" | json_escape),
     "trend_report_json_sha256": $(printf '%s' "$STAGED_TREND_REPORT_JSON_SHA" | json_escape),
     "trend_report_markdown_sha256": $(printf '%s' "$STAGED_TREND_REPORT_MD_SHA" | json_escape),
     "pilot_gate_report_json_sha256": $(printf '%s' "$STAGED_PILOT_GATE_REPORT_JSON_SHA" | json_escape),

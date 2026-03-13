@@ -543,6 +543,9 @@ It now also stages `parity_readiness_report.json` plus
 `parity_readiness_report.md` from the standalone pilot artifact when present,
 so the field-validation bundle preserves the full parity-readiness evidence
 chain instead of only the top-level validation gate result.
+It also stages the standalone parity `integrity_certificate.json` plus
+`integrity_certificate.md`, and listener readiness verifies those staged
+certificate artifacts alongside the rest of the validation-bundle checksums.
 
 To drive the full listener field flow in one command:
 

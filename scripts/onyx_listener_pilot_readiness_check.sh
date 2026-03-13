@@ -355,6 +355,8 @@ pairs = [
     ("parity_report_markdown", "parity_report_markdown_sha256"),
     ("parity_readiness_report_json", "parity_readiness_report_json_sha256"),
     ("parity_readiness_report_markdown", "parity_readiness_report_markdown_sha256"),
+    ("parity_integrity_certificate_json", "parity_integrity_certificate_json_sha256"),
+    ("parity_integrity_certificate_markdown", "parity_integrity_certificate_markdown_sha256"),
     ("trend_report_json", "trend_report_json_sha256"),
     ("trend_report_markdown", "trend_report_markdown_sha256"),
     ("pilot_gate_report_json", "pilot_gate_report_json_sha256"),
@@ -1086,7 +1088,25 @@ parity_gate_passed="$(json_get "$latest_report_json" "gates.parity_gate_passed" 
 trend_gate_passed="$(json_get "$latest_report_json" "gates.trend_gate_passed" | tr '[:upper:]' '[:lower:]')"
 REPORT_JSON="$latest_report_json"
 REPORT_AGE_HOURS="$report_age"
-verify_result="$(verify_json_report_checksums "$latest_report_json")" || fail validation_checksum_failed "Listener validation checksum verification failed: $verify_result"
+verify_result="$(verify_json_report_checksums "$latest_report_json" 2>&1)" || {
+  case "$verify_result" in
+    missing:parity_integrity_certificate_json:*)
+      fail parity_integrity_certificate_json_missing "Listener readiness failed: validation bundle references a missing staged parity integrity certificate JSON."
+      ;;
+    missing:parity_integrity_certificate_markdown:*)
+      fail parity_integrity_certificate_markdown_missing "Listener readiness failed: validation bundle references a missing staged parity integrity certificate markdown."
+      ;;
+    checksum:parity_integrity_certificate_json:*)
+      fail parity_integrity_certificate_json_checksum_failed "Listener readiness failed: staged parity integrity certificate JSON checksum verification failed."
+      ;;
+    checksum:parity_integrity_certificate_markdown:*)
+      fail parity_integrity_certificate_markdown_checksum_failed "Listener readiness failed: staged parity integrity certificate markdown checksum verification failed."
+      ;;
+    *)
+      fail validation_checksum_failed "Listener validation checksum verification failed: $verify_result"
+      ;;
+  esac
+}
 pass "Listener validation checksums verified."
 cert_verify_result="$(verify_integrity_certificate "$latest_report_json" "$ARTIFACT_DIR/integrity_certificate.json" "$ARTIFACT_DIR/integrity_certificate.md")" || fail integrity_certificate_failed "Listener integrity certificate verification failed: $cert_verify_result"
 INTEGRITY_CERTIFICATE_JSON="$ARTIFACT_DIR/integrity_certificate.json"
@@ -1152,6 +1172,12 @@ if [[ -n "$pilot_gate_report_json" ]]; then
         ;;
       missing_parity_readiness_report_markdown)
         fail pilot_gate_missing_parity_readiness_report_markdown "Listener readiness failed: pilot gate report references a missing parity readiness report markdown."
+        ;;
+      missing_parity_integrity_certificate_json)
+        fail pilot_gate_missing_parity_integrity_certificate_json "Listener readiness failed: validation bundle references a missing staged parity integrity certificate JSON."
+        ;;
+      missing_parity_integrity_certificate_markdown)
+        fail pilot_gate_missing_parity_integrity_certificate_markdown "Listener readiness failed: validation bundle references a missing staged parity integrity certificate markdown."
         ;;
       missing_trend_report_json)
         fail pilot_gate_missing_trend_report_json "Listener readiness failed: pilot gate report references a missing parity trend report JSON."
