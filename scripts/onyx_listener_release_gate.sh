@@ -187,6 +187,43 @@ def load_json(path_str):
     with Path(candidate).open("r", encoding="utf-8") as handle:
         return json.load(handle)
 
+def readiness_report_consistency_issues(report):
+    issues = []
+    statuses = report.get("statuses", {}) or {}
+    requirements = report.get("requirements", {}) or {}
+    resolved_files = report.get("resolved_files", {}) or {}
+
+    validation_report = str(report.get("validation_report_json", "")).strip()
+    validation_data = load_json(validation_report)
+    validation_trend = str(resolved_files.get("validation_trend_report_json", "")).strip()
+    cutover_decision = str(resolved_files.get("cutover_decision_json", "")).strip()
+    cutover_trend = str(resolved_files.get("cutover_trend_report_json", "")).strip()
+
+    validation_trend_data = load_json(validation_trend)
+    cutover_data = load_json(cutover_decision)
+    cutover_trend_data = load_json(cutover_trend)
+
+    actual_validation_status = str((validation_data or {}).get("overall_status", "")).upper()
+    reported_validation_status = str(statuses.get("validation_overall_status", "")).upper()
+    if validation_data is not None and reported_validation_status != actual_validation_status:
+        issues.append(("readiness_validation_status_mismatch", f"readiness report validation status does not match referenced validation report ({reported_validation_status or 'missing'} vs {actual_validation_status or 'missing'})"))
+
+    require_validation_trend_pass = bool(requirements.get("require_validation_trend_pass", False))
+    require_cutover_go = bool(requirements.get("require_cutover_go", False))
+    require_cutover_trend_pass = bool(requirements.get("require_cutover_trend_pass", False))
+
+    actual_validation_trend_status = str((validation_trend_data or {}).get("status", "")).upper()
+    actual_cutover_decision = str((cutover_data or {}).get("decision", "")).upper()
+    actual_cutover_trend_status = str((cutover_trend_data or {}).get("status", "")).upper()
+
+    if require_validation_trend_pass and actual_validation_trend_status != "PASS":
+        issues.append(("readiness_required_validation_trend_not_pass", f"readiness report requires validation trend PASS but referenced validation trend status is {actual_validation_trend_status or 'missing'}"))
+    if require_cutover_go and actual_cutover_decision != "GO":
+        issues.append(("readiness_required_cutover_not_go", f"readiness report requires cutover GO but referenced cutover decision is {actual_cutover_decision or 'missing'}"))
+    if require_cutover_trend_pass and actual_cutover_trend_status != "PASS":
+        issues.append(("readiness_required_cutover_trend_not_pass", f"readiness report requires cutover trend PASS but referenced cutover trend status is {actual_cutover_trend_status or 'missing'}"))
+    return issues
+
 def cutover_decision_chain_issues(path_str, label):
     issues = []
     if not path_str:
@@ -296,6 +333,8 @@ if readiness is not None:
             "readiness_missing_validation_report",
             "readiness report references a missing validation report",
         )
+    for code, message in readiness_report_consistency_issues(readiness):
+        add_reason(fail_items, code, message)
 
 if require_real and (is_mock or "/mock-" in artifact_dir or artifact_dir.startswith("mock-")):
     add_reason(

@@ -124,6 +124,67 @@ def load_json(path_str):
     with Path(candidate).open("r", encoding="utf-8") as handle:
         return json.load(handle)
 
+def readiness_report_consistency_regressions(path_str, label):
+    regressions = []
+    report = load_json(path_str)
+    if report is None:
+        return regressions
+    statuses = report.get("statuses", {}) or {}
+    requirements = report.get("requirements", {}) or {}
+    resolved_files = report.get("resolved_files", {}) or {}
+    validation_report = str(report.get("validation_report_json", "")).strip()
+    validation_data = load_json(validation_report)
+    validation_trend = str(resolved_files.get("validation_trend_report_json", "")).strip()
+    cutover_decision = str(resolved_files.get("cutover_decision_json", "")).strip()
+    cutover_trend = str(resolved_files.get("cutover_trend_report_json", "")).strip()
+    validation_trend_data = load_json(validation_trend)
+    cutover_data = load_json(cutover_decision)
+    cutover_trend_data = load_json(cutover_trend)
+
+    actual_validation_status = str((validation_data or {}).get("overall_status", "")).upper()
+    reported_validation_status = str(statuses.get("validation_overall_status", "")).upper()
+    if validation_data is not None and reported_validation_status != actual_validation_status:
+        regressions.append({
+            "code": f"{label}_validation_status_mismatch",
+            "kind": "readiness_chain_status_mismatch",
+            "report_label": label,
+            "expected": actual_validation_status,
+            "actual": reported_validation_status,
+        })
+
+    require_validation_trend_pass = bool(requirements.get("require_validation_trend_pass", False))
+    require_cutover_go = bool(requirements.get("require_cutover_go", False))
+    require_cutover_trend_pass = bool(requirements.get("require_cutover_trend_pass", False))
+    actual_validation_trend_status = str((validation_trend_data or {}).get("status", "")).upper()
+    actual_cutover_decision = str((cutover_data or {}).get("decision", "")).upper()
+    actual_cutover_trend_status = str((cutover_trend_data or {}).get("status", "")).upper()
+
+    if require_validation_trend_pass and actual_validation_trend_status != "PASS":
+        regressions.append({
+            "code": f"{label}_required_validation_trend_not_pass",
+            "kind": "readiness_chain_requirement_mismatch",
+            "report_label": label,
+            "requirement": "require_validation_trend_pass",
+            "actual": actual_validation_trend_status,
+        })
+    if require_cutover_go and actual_cutover_decision != "GO":
+        regressions.append({
+            "code": f"{label}_required_cutover_not_go",
+            "kind": "readiness_chain_requirement_mismatch",
+            "report_label": label,
+            "requirement": "require_cutover_go",
+            "actual": actual_cutover_decision,
+        })
+    if require_cutover_trend_pass and actual_cutover_trend_status != "PASS":
+        regressions.append({
+            "code": f"{label}_required_cutover_trend_not_pass",
+            "kind": "readiness_chain_requirement_mismatch",
+            "report_label": label,
+            "requirement": "require_cutover_trend_pass",
+            "actual": actual_cutover_trend_status,
+        })
+    return regressions
+
 def sha256_file(path_str):
     with open(path_str, "rb") as handle:
         return hashlib.sha256(handle.read()).hexdigest()
@@ -648,6 +709,7 @@ def gate_chain_regressions(report, label):
             })
         else:
             regressions.extend(validation_bundle_chain_regressions(readiness_validation_report, f"{label}_gate_readiness_validation"))
+    regressions.extend(readiness_report_consistency_regressions(readiness_report, f"{label}_gate_readiness"))
     regressions.extend(cutover_decision_chain_regressions(cutover_decision, f"{label}_gate_cutover"))
     regressions.extend(cutover_trend_chain_regressions(cutover_trend, f"{label}_gate_cutover_trend"))
     regressions.extend(signoff_report_chain_regressions(signoff_report, f"{label}_gate_signoff"))
@@ -822,6 +884,16 @@ if regressions:
                 f"- `{item['code']}`: `{item['report_label']}` checksum mismatch "
                 f"for `{item['mismatch_field']}` at `{item['path']}`"
             )
+        elif item["kind"] == "readiness_chain_status_mismatch":
+            lines.append(
+                f"- `{item['code']}`: `{item['report_label']}` expected "
+                f"`{item['expected'] or 'missing'}` but saw `{item['actual'] or 'missing'}`"
+            )
+        elif item["kind"] == "readiness_chain_requirement_mismatch":
+            lines.append(
+                f"- `{item['code']}`: `{item['report_label']}` requires "
+                f"`{item['requirement']}` but underlying status is `{item['actual'] or 'missing'}`"
+            )
         elif item["kind"] == "signoff_chain_status_mismatch":
             lines.append(
                 f"- `{item['code']}`: `{item['report_label']}` expected "
@@ -894,6 +966,16 @@ if regressions:
             print(
                 f"REGRESSION: {item['code']} {item['report_label']} checksum mismatch "
                 f"for {item['mismatch_field']} at {item['path']}"
+            )
+        elif item["kind"] == "readiness_chain_status_mismatch":
+            print(
+                f"REGRESSION: {item['code']} {item['report_label']} expected "
+                f"{item['expected'] or 'missing'} but saw {item['actual'] or 'missing'}"
+            )
+        elif item["kind"] == "readiness_chain_requirement_mismatch":
+            print(
+                f"REGRESSION: {item['code']} {item['report_label']} requires "
+                f"{item['requirement']} but underlying status is {item['actual'] or 'missing'}"
             )
         elif item["kind"] == "signoff_chain_status_mismatch":
             print(

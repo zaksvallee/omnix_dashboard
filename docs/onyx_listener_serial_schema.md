@@ -539,6 +539,9 @@ aggregated artifacts instead of trusting only their top-level status:
   parity, parity-readiness, and optional parity-trend artifacts it summarizes,
   and its recorded status/code fields must still match those underlying
   artifacts.
+- later release consumers also verify that `readiness_report.json` still
+  matches the validation/trend/cutover artifacts and requirement flags it
+  resolved when the readiness report was written.
 
 Standalone release posture now enforces the same rule at artifact generation
 time for the evidence it consumes directly:
