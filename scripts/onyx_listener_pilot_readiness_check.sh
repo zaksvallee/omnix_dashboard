@@ -485,6 +485,21 @@ print(status)
 PY
 }
 
+extract_cutover_trend_gate_paths() {
+  local report_file="$1"
+  python3 - "$report_file" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+
+print(str(data.get("current_decision_json", "")).strip())
+print(str(data.get("previous_decision_json", "")).strip())
+PY
+}
+
 verify_release_gate_report() {
   local report_file="$1"
   python3 - "$report_file" <<'PY'
@@ -542,6 +557,21 @@ if not previous_gate or not os.path.isfile(previous_gate):
     raise SystemExit("missing_previous_release_gate")
 
 print(status)
+PY
+}
+
+extract_release_trend_gate_paths() {
+  local report_file="$1"
+  python3 - "$report_file" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+
+print(str(data.get("current_release_gate_json", "")).strip())
+print(str(data.get("previous_release_gate_json", "")).strip())
 PY
 }
 
@@ -685,6 +715,47 @@ if [[ "$REQUIRE_CUTOVER_TREND_PASS" -eq 1 ]]; then
         ;;
     esac
   }
+  cutover_trend_gate_paths="$(extract_cutover_trend_gate_paths "$CUTOVER_TREND_REPORT_JSON")"
+  current_cutover_gate="$(printf '%s\n' "$cutover_trend_gate_paths" | sed -n '1p')"
+  previous_cutover_gate="$(printf '%s\n' "$cutover_trend_gate_paths" | sed -n '2p')"
+  current_cutover_gate_status="$(verify_cutover_decision_report "$current_cutover_gate" 2>&1)" || {
+    case "$current_cutover_gate_status" in
+      missing_validation_report)
+        fail cutover_trend_current_missing_validation_report "Listener readiness failed: cutover trend current decision references a missing validation report."
+        ;;
+      missing_parity_report)
+        fail cutover_trend_current_missing_parity_report "Listener readiness failed: cutover trend current decision references a missing parity report."
+        ;;
+      missing_parity_trend_report)
+        fail cutover_trend_current_missing_parity_trend_report "Listener readiness failed: cutover trend current decision references a missing parity trend report."
+        ;;
+      missing_validation_trend_report)
+        fail cutover_trend_current_missing_validation_trend_report "Listener readiness failed: cutover trend current decision references a missing validation trend report."
+        ;;
+      *)
+        fail cutover_trend_current_decision_verification_failed "Listener readiness failed: cutover trend current decision verification failed: ${current_cutover_gate_status:-unknown}."
+        ;;
+    esac
+  }
+  previous_cutover_gate_status="$(verify_cutover_decision_report "$previous_cutover_gate" 2>&1)" || {
+    case "$previous_cutover_gate_status" in
+      missing_validation_report)
+        fail cutover_trend_previous_missing_validation_report "Listener readiness failed: cutover trend previous decision references a missing validation report."
+        ;;
+      missing_parity_report)
+        fail cutover_trend_previous_missing_parity_report "Listener readiness failed: cutover trend previous decision references a missing parity report."
+        ;;
+      missing_parity_trend_report)
+        fail cutover_trend_previous_missing_parity_trend_report "Listener readiness failed: cutover trend previous decision references a missing parity trend report."
+        ;;
+      missing_validation_trend_report)
+        fail cutover_trend_previous_missing_validation_trend_report "Listener readiness failed: cutover trend previous decision references a missing validation trend report."
+        ;;
+      *)
+        fail cutover_trend_previous_decision_verification_failed "Listener readiness failed: cutover trend previous decision verification failed: ${previous_cutover_gate_status:-unknown}."
+        ;;
+    esac
+  }
   [[ "$cutover_trend_status" == "PASS" ]] || fail cutover_trend_not_pass "Listener readiness failed: cutover trend report is not PASS (${cutover_trend_status:-missing})."
   pass "Cutover trend gate passed ($CUTOVER_TREND_REPORT_JSON)."
 fi
@@ -732,6 +803,59 @@ if [[ "$REQUIRE_RELEASE_TREND_PASS" -eq 1 ]]; then
         ;;
       *)
         fail release_trend_verification_failed "Listener readiness failed: release trend verification failed: ${release_trend_status:-unknown}."
+        ;;
+    esac
+  }
+  release_trend_gate_paths="$(extract_release_trend_gate_paths "$RELEASE_TREND_REPORT_JSON")"
+  current_release_gate="$(printf '%s\n' "$release_trend_gate_paths" | sed -n '1p')"
+  previous_release_gate="$(printf '%s\n' "$release_trend_gate_paths" | sed -n '2p')"
+  current_release_gate_status="$(verify_release_gate_report "$current_release_gate" 2>&1)" || {
+    case "$current_release_gate_status" in
+      missing_validation_report)
+        fail release_trend_current_missing_validation_report "Listener readiness failed: release trend current gate references a missing validation report."
+        ;;
+      missing_readiness_report)
+        fail release_trend_current_missing_readiness_report "Listener readiness failed: release trend current gate references a missing readiness report."
+        ;;
+      missing_cutover_decision_report)
+        fail release_trend_current_missing_cutover_decision_report "Listener readiness failed: release trend current gate references a missing cutover decision report."
+        ;;
+      missing_cutover_trend_report)
+        fail release_trend_current_missing_cutover_trend_report "Listener readiness failed: release trend current gate references a missing cutover trend report."
+        ;;
+      missing_signoff_file)
+        fail release_trend_current_missing_signoff_file "Listener readiness failed: release trend current gate references a missing signoff file."
+        ;;
+      missing_signoff_report)
+        fail release_trend_current_missing_signoff_report "Listener readiness failed: release trend current gate references a missing signoff report."
+        ;;
+      *)
+        fail release_trend_current_gate_verification_failed "Listener readiness failed: release trend current gate verification failed: ${current_release_gate_status:-unknown}."
+        ;;
+    esac
+  }
+  previous_release_gate_status="$(verify_release_gate_report "$previous_release_gate" 2>&1)" || {
+    case "$previous_release_gate_status" in
+      missing_validation_report)
+        fail release_trend_previous_missing_validation_report "Listener readiness failed: release trend previous gate references a missing validation report."
+        ;;
+      missing_readiness_report)
+        fail release_trend_previous_missing_readiness_report "Listener readiness failed: release trend previous gate references a missing readiness report."
+        ;;
+      missing_cutover_decision_report)
+        fail release_trend_previous_missing_cutover_decision_report "Listener readiness failed: release trend previous gate references a missing cutover decision report."
+        ;;
+      missing_cutover_trend_report)
+        fail release_trend_previous_missing_cutover_trend_report "Listener readiness failed: release trend previous gate references a missing cutover trend report."
+        ;;
+      missing_signoff_file)
+        fail release_trend_previous_missing_signoff_file "Listener readiness failed: release trend previous gate references a missing signoff file."
+        ;;
+      missing_signoff_report)
+        fail release_trend_previous_missing_signoff_report "Listener readiness failed: release trend previous gate references a missing signoff report."
+        ;;
+      *)
+        fail release_trend_previous_gate_verification_failed "Listener readiness failed: release trend previous gate verification failed: ${previous_release_gate_status:-unknown}."
         ;;
     esac
   }

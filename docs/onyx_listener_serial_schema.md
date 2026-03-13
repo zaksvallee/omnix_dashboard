@@ -525,6 +525,10 @@ aggregated artifacts instead of trusting only their top-level status:
 - `release_gate.json` must still point at existing staged validation,
   readiness, cutover, cutover-trend, signoff markdown, and signoff report
   files when those paths are set.
+- `cutover_trend_report.json` must still point at current and previous
+  cutover-decision artifacts whose own referenced evidence files still exist.
+- `release_trend_report.json` must still point at current and previous
+  release-gate artifacts whose own referenced evidence files still exist.
 
 Readiness and signoff can also enforce validation-trend pass explicitly:
 - `--validation-trend-report-json <path>`
