@@ -512,6 +512,9 @@ without relying on terminal output alone.
 
 On failure, `readiness_report.json` now also includes a machine-readable
 `failure_code` so downstream gates do not need to parse the human summary.
+It also records the staged validation-bundle integrity certificate refs plus
+`statuses.integrity_certificate_status`, so downstream release posture can
+audit readiness against the same certificate chain it is supposed to trust.
 
 The parity readiness gate follows the same pattern and emits
 `parity_readiness_report.json` plus `parity_readiness_report.md` on both pass

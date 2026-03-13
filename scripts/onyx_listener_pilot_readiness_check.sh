@@ -27,6 +27,9 @@ RELEASE_TREND_REPORT_JSON=""
 REQUIRE_RELEASE_TREND_PASS=0
 REQUIRE_BASELINE_HISTORY=0
 MAX_BASELINE_AGE_DAYS=""
+INTEGRITY_CERTIFICATE_JSON=""
+INTEGRITY_CERTIFICATE_MD=""
+INTEGRITY_CERTIFICATE_STATUS=""
 
 pass() { printf "PASS: %s\n" "$1"; }
 
@@ -37,7 +40,7 @@ write_readiness_report() {
   mkdir -p "$(dirname "$JSON_OUT")"
   mkdir -p "$(dirname "$MARKDOWN_OUT")"
 
-  python3 - "$JSON_OUT" "$MARKDOWN_OUT" "${READINESS_STATUS:-FAIL}" "${READINESS_SUMMARY:-Listener readiness failed.}" "${READINESS_FAILURE_CODE:-}" "${REPORT_JSON:-}" "${ARTIFACT_DIR:-}" "${REPORT_AGE_HOURS:-}" "${OVERALL_STATUS:-}" "$REQUIRE_REAL_ARTIFACTS" "$REQUIRE_TREND_PASS" "$REQUIRE_VALIDATION_TREND_PASS" "$REQUIRE_CUTOVER_GO" "$REQUIRE_CUTOVER_TREND_PASS" "$REQUIRE_RELEASE_GATE_PASS" "$REQUIRE_RELEASE_TREND_PASS" "$REQUIRE_BASELINE_HISTORY" "${MAX_BASELINE_AGE_DAYS:-}" "${VALIDATION_TREND_REPORT_JSON:-}" "${CUTOVER_DECISION_JSON:-}" "${CUTOVER_TREND_REPORT_JSON:-}" "${RELEASE_GATE_JSON:-}" "${RELEASE_TREND_REPORT_JSON:-}" "${BENCH_BASELINE_JSON:-}" <<'PY'
+  python3 - "$JSON_OUT" "$MARKDOWN_OUT" "${READINESS_STATUS:-FAIL}" "${READINESS_SUMMARY:-Listener readiness failed.}" "${READINESS_FAILURE_CODE:-}" "${REPORT_JSON:-}" "${ARTIFACT_DIR:-}" "${REPORT_AGE_HOURS:-}" "${OVERALL_STATUS:-}" "$REQUIRE_REAL_ARTIFACTS" "$REQUIRE_TREND_PASS" "$REQUIRE_VALIDATION_TREND_PASS" "$REQUIRE_CUTOVER_GO" "$REQUIRE_CUTOVER_TREND_PASS" "$REQUIRE_RELEASE_GATE_PASS" "$REQUIRE_RELEASE_TREND_PASS" "$REQUIRE_BASELINE_HISTORY" "${MAX_BASELINE_AGE_DAYS:-}" "${VALIDATION_TREND_REPORT_JSON:-}" "${CUTOVER_DECISION_JSON:-}" "${CUTOVER_TREND_REPORT_JSON:-}" "${RELEASE_GATE_JSON:-}" "${RELEASE_TREND_REPORT_JSON:-}" "${BENCH_BASELINE_JSON:-}" "${INTEGRITY_CERTIFICATE_JSON:-}" "${INTEGRITY_CERTIFICATE_MD:-}" "${INTEGRITY_CERTIFICATE_STATUS:-}" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -70,6 +73,9 @@ cutover_trend_report_json = sys.argv[21]
 release_gate_json = sys.argv[22]
 release_trend_report_json = sys.argv[23]
 bench_baseline_json = sys.argv[24]
+integrity_certificate_json = sys.argv[25]
+integrity_certificate_markdown = sys.argv[26]
+integrity_certificate_status = sys.argv[27]
 
 report_age_hours = None
 if report_age_hours_raw:
@@ -87,6 +93,7 @@ payload = {
     "report_age_hours": report_age_hours,
     "statuses": {
         "validation_overall_status": overall_status,
+        "integrity_certificate_status": integrity_certificate_status,
     },
     "requirements": {
         "require_real_artifacts": require_real_artifacts,
@@ -106,6 +113,8 @@ payload = {
         "release_gate_json": release_gate_json,
         "release_trend_report_json": release_trend_report_json,
         "bench_baseline_json": bench_baseline_json,
+        "integrity_certificate_json": integrity_certificate_json,
+        "integrity_certificate_markdown": integrity_certificate_markdown,
     },
 }
 
@@ -140,6 +149,12 @@ lines = [
     f"- Release gate JSON: `{release_gate_json or 'n/a'}`",
     f"- Release trend report JSON: `{release_trend_report_json or 'n/a'}`",
     f"- Bench baseline JSON: `{bench_baseline_json or 'n/a'}`",
+    f"- Integrity certificate JSON: `{integrity_certificate_json or 'n/a'}`",
+    f"- Integrity certificate markdown: `{integrity_certificate_markdown or 'n/a'}`",
+    "",
+    "## Statuses",
+    f"- Validation overall status: `{overall_status or 'n/a'}`",
+    f"- Integrity certificate status: `{integrity_certificate_status or 'n/a'}`",
 ]
 md_out.write_text("\n".join(lines) + "\n", encoding="utf-8")
 PY
@@ -1074,6 +1089,9 @@ REPORT_AGE_HOURS="$report_age"
 verify_result="$(verify_json_report_checksums "$latest_report_json")" || fail validation_checksum_failed "Listener validation checksum verification failed: $verify_result"
 pass "Listener validation checksums verified."
 cert_verify_result="$(verify_integrity_certificate "$latest_report_json" "$ARTIFACT_DIR/integrity_certificate.json" "$ARTIFACT_DIR/integrity_certificate.md")" || fail integrity_certificate_failed "Listener integrity certificate verification failed: $cert_verify_result"
+INTEGRITY_CERTIFICATE_JSON="$ARTIFACT_DIR/integrity_certificate.json"
+INTEGRITY_CERTIFICATE_MD="$ARTIFACT_DIR/integrity_certificate.md"
+INTEGRITY_CERTIFICATE_STATUS="PASS"
 pass "Listener integrity certificate verified."
 validation_consistency_result="$(verify_validation_report_consistency "$latest_report_json" 2>&1)" || {
   case "$validation_consistency_result" in

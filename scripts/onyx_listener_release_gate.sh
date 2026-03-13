@@ -317,15 +317,25 @@ def readiness_report_consistency_issues(report):
     validation_trend = str(resolved_files.get("validation_trend_report_json", "")).strip()
     cutover_decision = str(resolved_files.get("cutover_decision_json", "")).strip()
     cutover_trend = str(resolved_files.get("cutover_trend_report_json", "")).strip()
+    integrity_certificate_json = str(resolved_files.get("integrity_certificate_json", "")).strip()
+    integrity_certificate_markdown = str(resolved_files.get("integrity_certificate_markdown", "")).strip()
 
     validation_trend_data = load_json(validation_trend)
     cutover_data = load_json(cutover_decision)
     cutover_trend_data = load_json(cutover_trend)
+    integrity_certificate_data = load_json(integrity_certificate_json)
 
     actual_validation_status = str((validation_data or {}).get("overall_status", "")).upper()
     reported_validation_status = str(statuses.get("validation_overall_status", "")).upper()
     if validation_data is not None and reported_validation_status != actual_validation_status:
         issues.append(("readiness_validation_status_mismatch", f"readiness report validation status does not match referenced validation report ({reported_validation_status or 'missing'} vs {actual_validation_status or 'missing'})"))
+    actual_integrity_status = str((integrity_certificate_data or {}).get("status", "")).upper()
+    reported_integrity_status = str(statuses.get("integrity_certificate_status", "")).upper()
+    if integrity_certificate_data is not None and reported_integrity_status != actual_integrity_status:
+        issues.append(("readiness_integrity_certificate_status_mismatch", f"readiness report integrity certificate status does not match referenced integrity certificate ({reported_integrity_status or 'missing'} vs {actual_integrity_status or 'missing'})"))
+    actual_integrity_report = str((integrity_certificate_data or {}).get("report_json", "")).strip()
+    if integrity_certificate_data is not None and actual_integrity_report != validation_report:
+        issues.append(("readiness_integrity_certificate_validation_report_mismatch", "readiness report integrity certificate does not match referenced validation report"))
 
     require_validation_trend_pass = bool(requirements.get("require_validation_trend_pass", False))
     require_cutover_go = bool(requirements.get("require_cutover_go", False))
@@ -341,6 +351,22 @@ def readiness_report_consistency_issues(report):
         issues.append(("readiness_required_cutover_not_go", f"readiness report requires cutover GO but referenced cutover decision is {actual_cutover_decision or 'missing'}"))
     if require_cutover_trend_pass and actual_cutover_trend_status != "PASS":
         issues.append(("readiness_required_cutover_trend_not_pass", f"readiness report requires cutover trend PASS but referenced cutover trend status is {actual_cutover_trend_status or 'missing'}"))
+    if not integrity_certificate_json:
+        issues.append(("readiness_missing_integrity_certificate", "readiness report is missing integrity certificate JSON"))
+    elif integrity_certificate_data is None:
+        issues.append(("readiness_missing_integrity_certificate", "readiness report references a missing integrity certificate JSON"))
+    if not integrity_certificate_markdown:
+        issues.append(("readiness_missing_integrity_certificate_markdown", "readiness report is missing integrity certificate markdown"))
+    elif not path_exists(integrity_certificate_markdown):
+        issues.append(("readiness_missing_integrity_certificate_markdown", "readiness report references a missing integrity certificate markdown"))
+    if validation_data is not None:
+        validation_artifact_dir = str((validation_data.get("artifact_dir") or "")).strip()
+        expected_integrity_certificate_json = f"{validation_artifact_dir}/integrity_certificate.json" if validation_artifact_dir else ""
+        expected_integrity_certificate_markdown = f"{validation_artifact_dir}/integrity_certificate.md" if validation_artifact_dir else ""
+        if expected_integrity_certificate_json and integrity_certificate_json != expected_integrity_certificate_json:
+            issues.append(("readiness_integrity_certificate_path_mismatch", "readiness report integrity certificate path does not match referenced validation bundle"))
+        if expected_integrity_certificate_markdown and integrity_certificate_markdown != expected_integrity_certificate_markdown:
+            issues.append(("readiness_integrity_certificate_markdown_path_mismatch", "readiness report integrity certificate markdown path does not match referenced validation bundle"))
     return issues
 
 def cutover_decision_consistency_issues(report):
