@@ -179,6 +179,12 @@ else:
     signoff_integrity_certificate_json = str(signoff_report.get("integrity_certificate_json", "")).strip()
     signoff_integrity_certificate_markdown = str(signoff_report.get("integrity_certificate_markdown", "")).strip()
     signoff_integrity_certificate_status = str(signoff_report.get("integrity_certificate_status", "")).upper()
+    signoff_release_gate_json = str(signoff_report.get("release_gate_json", "")).strip()
+    signoff_release_gate_result = str(signoff_report.get("release_gate_result", "")).upper()
+    signoff_release_trend_report_json = str(signoff_report.get("release_trend_report_json", "")).strip()
+    signoff_release_trend_status = str(signoff_report.get("release_trend_status", "")).upper()
+    signoff_require_release_gate_pass = bool(signoff_report.get("require_release_gate_pass", False))
+    signoff_require_release_trend_pass = bool(signoff_report.get("require_release_trend_pass", False))
 
     if signoff_status != "PASS":
         result = "FAIL"
@@ -201,6 +207,38 @@ else:
     if signoff_integrity_certificate_status and integrity_certificate is not None and signoff_integrity_certificate_status != str(integrity_certificate.get("status", "")).upper():
         result = "FAIL"
         add_reason(fail_items, "signoff_integrity_certificate_status_mismatch", "Signoff report integrity_certificate_status does not match the active integrity certificate status.")
+    if signoff_release_gate_json and signoff_release_gate_json != str(release_gate_path):
+        result = "FAIL"
+        add_reason(fail_items, "signoff_release_gate_mismatch", "Signoff report points at a different release gate artifact than the active release bundle.")
+    if signoff_release_gate_result and signoff_release_gate_result != result:
+        result = "FAIL"
+        add_reason(fail_items, "signoff_release_gate_result_mismatch", "Signoff report release_gate_result does not match the active release gate result.")
+    if signoff_require_release_gate_pass and result != "PASS":
+        result = "FAIL"
+        add_reason(fail_items, "signoff_required_release_gate_not_pass", "Signoff requires a PASS release gate, but the active release gate is not PASS.")
+    if signoff_release_trend_report_json:
+        if signoff_release_trend_report_json != str(out_dir / "release_trend_report.json"):
+            result = "FAIL"
+            add_reason(fail_items, "signoff_release_trend_report_mismatch", "Signoff report points at a different release trend artifact than the active release bundle.")
+        elif not (out_dir / "release_trend_report.json").is_file():
+            result = "FAIL"
+            add_reason(fail_items, "signoff_release_trend_report_not_found", "Signoff report points at a release trend artifact that was not found.")
+        else:
+            release_trend_report = load_optional(out_dir / "release_trend_report.json")
+            actual_release_trend_status = str((release_trend_report or {}).get("status", "")).upper()
+            actual_release_trend_current_gate = str((release_trend_report or {}).get("current_release_gate_json", "")).strip()
+            if actual_release_trend_current_gate and actual_release_trend_current_gate != str(release_gate_path):
+                result = "FAIL"
+                add_reason(fail_items, "signoff_release_trend_current_gate_mismatch", "Signoff release trend points at a different current release gate than the active release bundle.")
+            if signoff_release_trend_status and signoff_release_trend_status != actual_release_trend_status:
+                result = "FAIL"
+                add_reason(fail_items, "signoff_release_trend_status_mismatch", "Signoff report release_trend_status does not match the referenced release trend status.")
+    elif signoff_require_release_trend_pass:
+        result = "FAIL"
+        add_reason(fail_items, "signoff_release_trend_required_missing", "Signoff requires a release trend artifact, but none was recorded.")
+    if signoff_require_release_trend_pass and signoff_release_trend_status and signoff_release_trend_status != "PASS":
+        result = "FAIL"
+        add_reason(fail_items, "signoff_release_trend_not_pass", "Signoff requires a PASS release trend, but the recorded release trend status is not PASS.")
 
 statuses = {
     "validation_overall_status": str(validation.get("overall_status", "")).upper(),

@@ -228,6 +228,65 @@ def gate_consistency_regressions(gate, gate_path, label):
             "code": f"{label}_signoff_integrity_certificate_status_mismatch",
             "message": f"{label} signoff report integrity status does not match the release gate integrity status.",
         })
+    signoff_release_gate_json = str(signoff_data.get("release_gate_json", "")).strip()
+    signoff_release_gate_result = str(signoff_data.get("release_gate_result", "")).upper()
+    signoff_release_trend_report = str(signoff_data.get("release_trend_report_json", "")).strip()
+    signoff_release_trend_status = str(signoff_data.get("release_trend_status", "")).upper()
+    signoff_require_release_gate_pass = bool(signoff_data.get("require_release_gate_pass", False))
+    signoff_require_release_trend_pass = bool(signoff_data.get("require_release_trend_pass", False))
+    gate_result = str(gate.get("result", "")).upper()
+    if signoff_release_gate_json and signoff_release_gate_json != str(gate_path):
+        items.append({
+            "code": f"{label}_signoff_release_gate_mismatch",
+            "message": f"{label} signoff report points at a different release gate artifact than the release gate bundle.",
+        })
+    if signoff_release_gate_result and signoff_release_gate_result != gate_result:
+        items.append({
+            "code": f"{label}_signoff_release_gate_result_mismatch",
+            "message": f"{label} signoff report release_gate_result does not match the release gate result.",
+        })
+    if signoff_require_release_gate_pass and gate_result != "PASS":
+        items.append({
+            "code": f"{label}_signoff_required_release_gate_not_pass",
+            "message": f"{label} signoff requires a PASS release gate, but the release gate is not PASS.",
+        })
+    if signoff_release_trend_report:
+        canonical_release_trend = str(gate_dir / "release_trend_report.json")
+        if signoff_release_trend_report != canonical_release_trend:
+            items.append({
+                "code": f"{label}_signoff_release_trend_report_mismatch",
+                "message": f"{label} signoff report points at a different release trend artifact than the release gate bundle.",
+            })
+        else:
+            release_trend_report = load_json(signoff_release_trend_report)
+            if release_trend_report is None:
+                items.append({
+                    "code": f"{label}_signoff_release_trend_report_not_found",
+                    "message": f"{label} signoff report points at a release trend artifact that was not found.",
+                })
+            else:
+                actual_release_trend_current_gate = str(release_trend_report.get("current_release_gate_json", "")).strip()
+                actual_release_trend_status = str(release_trend_report.get("status", "")).upper()
+                if actual_release_trend_current_gate and actual_release_trend_current_gate != str(gate_path):
+                    items.append({
+                        "code": f"{label}_signoff_release_trend_current_gate_mismatch",
+                        "message": f"{label} signoff release trend points at a different current release gate than the release gate bundle.",
+                    })
+                if signoff_release_trend_status and signoff_release_trend_status != actual_release_trend_status:
+                    items.append({
+                        "code": f"{label}_signoff_release_trend_status_mismatch",
+                        "message": f"{label} signoff report release_trend_status does not match the referenced release trend status.",
+                    })
+    elif signoff_require_release_trend_pass:
+        items.append({
+            "code": f"{label}_signoff_release_trend_required_missing",
+            "message": f"{label} signoff requires a release trend artifact, but none was recorded.",
+        })
+    if signoff_require_release_trend_pass and signoff_release_trend_status and signoff_release_trend_status != "PASS":
+        items.append({
+            "code": f"{label}_signoff_release_trend_not_pass",
+            "message": f"{label} signoff requires a PASS release trend, but the recorded release trend status is not PASS.",
+        })
     return items
 
 regressions.extend(gate_consistency_regressions(current, current_path, "current"))
