@@ -43,13 +43,14 @@ REQUIRE_TREND_PASS=0
 REQUIRE_VALIDATION_TREND_PASS=0
 REQUIRE_CUTOVER_GO=0
 REQUIRE_CUTOVER_TREND_PASS=0
+REQUIRE_RELEASE_GATE_PASS=0
 REQUIRE_BASELINE_HISTORY=0
 MAX_BASELINE_AGE_DAYS=""
 
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/onyx_listener_field_gate.sh [--capture-dir <path>] [--site-id <site_id>] [--device-path <tty>] [--legacy-source <label>] [--client-id <id>] [--region-id <id>] [--artifact-dir <path>] [--bench-baseline-json <path>] [--max-report-age-hours <hours>] [--min-match-rate-percent 95] [--max-skew-seconds 90] [--max-observed-skew-seconds <n>] [--allow-drift-reason <reason>]... [--max-drift-reason-count <reason=count>]... [--compare-previous] [--previous-report-json <path>] [--allow-match-rate-drop-percent 0] [--allow-max-skew-increase-seconds 0] [--allow-trend-drift-count-increase <reason=count>]... [--compare-previous-validation] [--previous-validation-report-json <path>] [--allow-validation-baseline-age-increase-days 0] [--compare-previous-cutover] [--previous-cutover-decision-json <path>] [--allow-cutover-hold-reason-increase-count 0] [--allow-cutover-blocking-reason-increase-count 0] [--max-capture-signatures <count>] [--allow-capture-signature <signature>]... [--max-unexpected-signatures <count>] [--max-fallback-timestamp-count <count>] [--max-unknown-event-rate-percent <percent>] [--init-capture-pack] [--generate-signoff] [--signoff-out <path>] [--require-trend-pass] [--require-validation-trend-pass] [--require-cutover-go] [--require-cutover-trend-pass] [--require-baseline-history] [--max-baseline-age-days <days>] [--allow-mock-artifacts]
+  ./scripts/onyx_listener_field_gate.sh [--capture-dir <path>] [--site-id <site_id>] [--device-path <tty>] [--legacy-source <label>] [--client-id <id>] [--region-id <id>] [--artifact-dir <path>] [--bench-baseline-json <path>] [--max-report-age-hours <hours>] [--min-match-rate-percent 95] [--max-skew-seconds 90] [--max-observed-skew-seconds <n>] [--allow-drift-reason <reason>]... [--max-drift-reason-count <reason=count>]... [--compare-previous] [--previous-report-json <path>] [--allow-match-rate-drop-percent 0] [--allow-max-skew-increase-seconds 0] [--allow-trend-drift-count-increase <reason=count>]... [--compare-previous-validation] [--previous-validation-report-json <path>] [--allow-validation-baseline-age-increase-days 0] [--compare-previous-cutover] [--previous-cutover-decision-json <path>] [--allow-cutover-hold-reason-increase-count 0] [--allow-cutover-blocking-reason-increase-count 0] [--max-capture-signatures <count>] [--allow-capture-signature <signature>]... [--max-unexpected-signatures <count>] [--max-fallback-timestamp-count <count>] [--max-unknown-event-rate-percent <percent>] [--init-capture-pack] [--generate-signoff] [--signoff-out <path>] [--require-trend-pass] [--require-validation-trend-pass] [--require-cutover-go] [--require-cutover-trend-pass] [--require-release-gate-pass] [--require-baseline-history] [--max-baseline-age-days <days>] [--allow-mock-artifacts]
 
 Purpose:
   One-command listener field gate:
@@ -214,6 +215,10 @@ while [[ $# -gt 0 ]]; do
       REQUIRE_CUTOVER_TREND_PASS=1
       shift
       ;;
+    --require-release-gate-pass)
+      REQUIRE_RELEASE_GATE_PASS=1
+      shift
+      ;;
     --require-baseline-history)
       REQUIRE_BASELINE_HISTORY=1
       shift
@@ -332,6 +337,7 @@ echo "Require trend pass: $([[ "$REQUIRE_TREND_PASS" -eq 1 ]] && echo yes || ech
 echo "Require validation trend pass: $([[ "$REQUIRE_VALIDATION_TREND_PASS" -eq 1 ]] && echo yes || echo no)"
 echo "Require cutover GO: $([[ "$REQUIRE_CUTOVER_GO" -eq 1 ]] && echo yes || echo no)"
 echo "Require cutover trend pass: $([[ "$REQUIRE_CUTOVER_TREND_PASS" -eq 1 ]] && echo yes || echo no)"
+echo "Require release gate pass: $([[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]] && echo yes || echo no)"
 echo "Require baseline history: $([[ "$REQUIRE_BASELINE_HISTORY" -eq 1 ]] && echo yes || echo no)"
 echo "Max baseline age: ${MAX_BASELINE_AGE_DAYS:-<disabled>}d"
 echo "Generate signoff: $([[ "$GENERATE_SIGNOFF" -eq 1 ]] && echo yes || echo no)"
@@ -564,6 +570,27 @@ if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
   "${signoff_cmd[@]}"
 fi
 
+RELEASE_GATE_JSON=""
+release_gate_cmd=(
+  ./scripts/onyx_listener_release_gate.sh
+  --validation-report-json "$ARTIFACT_DIR/validation_report.json"
+  --out-dir "$ARTIFACT_DIR"
+)
+if [[ -f "$ARTIFACT_DIR/cutover_decision.json" ]]; then
+  release_gate_cmd+=(--cutover-decision-json "$ARTIFACT_DIR/cutover_decision.json")
+fi
+if [[ -f "$ARTIFACT_DIR/cutover_trend_report.json" ]]; then
+  release_gate_cmd+=(--cutover-trend-report-json "$ARTIFACT_DIR/cutover_trend_report.json")
+fi
+if [[ -n "$SIGNOFF_OUT" && -f "$SIGNOFF_OUT" ]]; then
+  release_gate_cmd+=(--signoff-file "$SIGNOFF_OUT")
+fi
+if [[ "$ALLOW_MOCK_ARTIFACTS" -ne 1 ]]; then
+  release_gate_cmd+=(--require-real-artifacts)
+fi
+"${release_gate_cmd[@]}"
+RELEASE_GATE_JSON="$ARTIFACT_DIR/release_gate.json"
+
 VALIDATION_REPORT_JSON="$ARTIFACT_DIR/validation_report.json"
 BASELINE_REVIEW_STATUS="$(json_get "$VALIDATION_REPORT_JSON" "baseline_review.status" | tr '[:lower:]' '[:upper:]')"
 BASELINE_REVIEW_RECOMMENDATION="$(json_get "$VALIDATION_REPORT_JSON" "baseline_review.recommendation")"
@@ -583,6 +610,10 @@ fi
 CUTOVER_TREND_STATUS=""
 if [[ -f "$CUTOVER_TREND_JSON" ]]; then
   CUTOVER_TREND_STATUS="$(json_get "$CUTOVER_TREND_JSON" "status" | tr '[:lower:]' '[:upper:]')"
+fi
+RELEASE_GATE_RESULT=""
+if [[ -f "$RELEASE_GATE_JSON" ]]; then
+  RELEASE_GATE_RESULT="$(json_get "$RELEASE_GATE_JSON" "result")"
 fi
 
 echo ""
@@ -610,6 +641,10 @@ if [[ -n "$CUTOVER_TREND_STATUS" ]]; then
   echo "Cutover trend: ${CUTOVER_TREND_STATUS}"
   echo "Cutover trend summary: ${CUTOVER_TREND_SUMMARY:-n/a}"
   echo "Cutover trend artifact: $ARTIFACT_DIR/cutover_trend_report.json"
+fi
+if [[ -n "$RELEASE_GATE_RESULT" ]]; then
+  echo "Release gate: ${RELEASE_GATE_RESULT}"
+  echo "Release gate artifact: $ARTIFACT_DIR/release_gate.json"
 fi
 if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
   if [[ -n "$SIGNOFF_OUT" ]]; then

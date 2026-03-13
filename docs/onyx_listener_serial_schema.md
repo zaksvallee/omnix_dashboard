@@ -288,6 +288,20 @@ fails when:
 - hold-reason count increases beyond the allowed threshold
 - blocking-reason count increases beyond the allowed threshold
 
+To collapse validation, cutover posture, and signoff presence into one final
+release gate:
+
+```bash
+./scripts/onyx_listener_release_gate.sh \
+  --require-real-artifacts
+```
+
+This emits `release_gate.json` plus `release_gate.md` with:
+- `result = PASS|HOLD|FAIL`
+- `fail_reasons`
+- `hold_reasons`
+- resolved validation/cutover/signoff references
+
 To create a self-contained field-validation bundle from a real capture pack:
 
 ```bash
@@ -351,9 +365,11 @@ When `--compare-previous-validation` is enabled, the field gate also emits:
 - `cutover_decision.md`
 - `cutover_trend_report.json`
 - `cutover_trend_report.md`
+- `release_gate.json`
+- `release_gate.md`
 
 The field-gate terminal summary now prints validation-trend status and summary
-alongside the baseline review, baseline health, cutover decision, and cutover trend result.
+alongside the baseline review, baseline health, cutover decision, cutover trend, and release-gate result.
 
 Readiness and signoff can also enforce validation-trend pass explicitly:
 - `--validation-trend-report-json <path>`
