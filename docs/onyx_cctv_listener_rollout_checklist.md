@@ -84,13 +84,22 @@ Status: **TBC** (not current priority; start only after hardware arrives).
   - Connect GND + RX only (no TX control path initially).
   - No VCC pin link.
 - [ ] Validate actual wire protocol from panel/Falcon output.
-- [ ] Define ONYX serial ingestor schema (normalized event envelope).
+- [x] Define ONYX serial ingestor schema (normalized event envelope).
 - [ ] Run dual-path pilot (existing path + serial path) for parity checks.
 - [ ] Decide cutover only after parity/latency pass criteria are met.
 
 Notes:
 - Contract/commercial exposure from bypassing third-party listener remains **TBC**.
 - Production rollout decision for listener bypass remains **TBC**.
+- Schema scaffold refs:
+  - `lib/application/listener_serial_ingestor.dart`
+  - `docs/onyx_listener_serial_schema.md`
+  - `scripts/onyx_listener_serial_bench.sh`
+  - `lib/application/listener_parity_service.dart`
+  - `scripts/onyx_listener_parity_report.sh`
+  - `scripts/onyx_listener_capture_pack_init.sh`
+  - `scripts/onyx_listener_pilot_gate.sh`
+  - `scripts/onyx_listener_signoff_generate.sh`
 
 ---
 
