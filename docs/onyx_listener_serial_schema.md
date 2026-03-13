@@ -323,6 +323,12 @@ The cutover-trend artifact also carries `primary_regression_code` plus
 `regression_codes`, so downstream gates can classify cutover regressions
 without parsing prose summaries.
 
+Cutover decision consumers now also verify that the decision artifact's copied
+`statuses.*`, `gates.*`, `parity_summary`, and primary code fields still match
+the validation/parity/trend artifacts it references. That prevents a stale or
+hand-edited `cutover_decision.json` from satisfying readiness, cutover-trend,
+or release checks on path integrity alone.
+
 Cutover and release trend comparisons now prefer stable machine-readable
 `hold_codes`, `blocking_codes`, and `fail_codes` when present, falling back to
 the older prose reason arrays only for legacy artifacts. That prevents

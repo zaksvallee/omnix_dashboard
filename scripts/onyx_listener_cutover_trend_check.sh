@@ -117,6 +117,13 @@ def path_exists(raw_path):
         return True
     return Path(candidate).is_file()
 
+def load_json(path_str):
+    candidate = str(path_str or "").strip()
+    if not candidate or not Path(candidate).is_file():
+        return None
+    with Path(candidate).open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
 def sha256_file(path_str):
     with open(path_str, "rb") as handle:
         return hashlib.sha256(handle.read()).hexdigest()
@@ -425,6 +432,90 @@ def validation_trend_chain_regressions(path_str, label):
         regressions.extend(validation_bundle_chain_regressions(previous_report, f"{label}_previous_report"))
     return regressions
 
+def cutover_decision_consistency_regressions(report, label):
+    regressions = []
+    statuses = report.get("statuses", {}) or {}
+    gates = report.get("gates", {}) or {}
+    blocking_codes = [str(item) for item in (report.get("blocking_codes", []) or [])]
+    hold_codes = [str(item) for item in (report.get("hold_codes", []) or [])]
+    primary_blocking_code = str(report.get("primary_blocking_code", "")).strip()
+    primary_hold_code = str(report.get("primary_hold_code", "")).strip()
+    decision = str(report.get("decision", "")).upper()
+
+    validation_report = str(report.get("validation_report_json", "")).strip()
+    parity_report = str(report.get("parity_report_json", "")).strip()
+    parity_trend_report = str(report.get("parity_trend_report_json", "")).strip()
+    validation_trend_report = str(report.get("validation_trend_report_json", "")).strip()
+
+    validation_data = load_json(validation_report)
+    parity_data = load_json(parity_report)
+    parity_trend_data = load_json(parity_trend_report)
+    validation_trend_data = load_json(validation_trend_report)
+
+    def add(code_suffix, kind, expected, actual):
+        regressions.append({
+            "code": f"{label}_{code_suffix}",
+            "kind": kind,
+            "decision_label": label,
+            "expected": expected,
+            "actual": actual,
+        })
+
+    if validation_data is not None:
+        actual_validation_status = str(validation_data.get("overall_status", "")).upper()
+        if str(statuses.get("validation_overall_status", "")).upper() != actual_validation_status:
+            add("validation_status_mismatch", "decision_summary_mismatch", actual_validation_status, str(statuses.get("validation_overall_status", "")).upper())
+
+        actual_review = str(((validation_data.get("baseline_review") or {}).get("recommendation", ""))).lower()
+        if str(statuses.get("baseline_review_recommendation", "")).lower() != actual_review:
+            add("baseline_review_recommendation_mismatch", "decision_summary_mismatch", actual_review, str(statuses.get("baseline_review_recommendation", "")).lower())
+
+        actual_health_status = str(((validation_data.get("baseline_health") or {}).get("status", ""))).upper()
+        if str(statuses.get("baseline_health_status", "")).upper() != actual_health_status:
+            add("baseline_health_status_mismatch", "decision_summary_mismatch", actual_health_status, str(statuses.get("baseline_health_status", "")).upper())
+
+        actual_health_category = str(((validation_data.get("baseline_health") or {}).get("category", ""))).lower()
+        if str(statuses.get("baseline_health_category", "")).lower() != actual_health_category:
+            add("baseline_health_category_mismatch", "decision_summary_mismatch", actual_health_category, str(statuses.get("baseline_health_category", "")).lower())
+
+        actual_gates = validation_data.get("gates", {}) or {}
+        for gate_key in sorted(set(actual_gates.keys()) | set(gates.keys())):
+            expected = bool(actual_gates.get(gate_key, False))
+            actual = bool(gates.get(gate_key, False))
+            if actual != expected:
+                add(f"gate_{gate_key}_mismatch", "decision_gate_mismatch", str(expected).lower(), str(actual).lower())
+
+    if parity_data is not None:
+        actual_parity_summary = str(parity_data.get("summary", "")).strip()
+        if str(report.get("parity_summary", "")).strip() != actual_parity_summary:
+            add("parity_summary_mismatch", "decision_summary_mismatch", actual_parity_summary, str(report.get("parity_summary", "")).strip())
+
+    if parity_trend_data is not None:
+        actual_parity_trend_status = str(parity_trend_data.get("status", "")).upper()
+        if str(statuses.get("parity_trend_status", "")).upper() != actual_parity_trend_status:
+            add("parity_trend_status_mismatch", "decision_summary_mismatch", actual_parity_trend_status, str(statuses.get("parity_trend_status", "")).upper())
+
+    if validation_trend_data is not None:
+        actual_validation_trend_status = str(validation_trend_data.get("status", "")).upper()
+        if str(statuses.get("validation_trend_status", "")).upper() != actual_validation_trend_status:
+            add("validation_trend_status_mismatch", "decision_summary_mismatch", actual_validation_trend_status, str(statuses.get("validation_trend_status", "")).upper())
+
+    expected_primary_blocking = blocking_codes[0] if blocking_codes else ""
+    expected_primary_hold = hold_codes[0] if hold_codes else ""
+    if primary_blocking_code != expected_primary_blocking:
+        add("primary_blocking_code_mismatch", "decision_primary_code_mismatch", expected_primary_blocking, primary_blocking_code)
+    if primary_hold_code != expected_primary_hold:
+        add("primary_hold_code_mismatch", "decision_primary_code_mismatch", expected_primary_hold, primary_hold_code)
+
+    if decision == "BLOCK" and not blocking_codes:
+        add("decision_block_without_blocking_codes", "decision_code_mismatch", "blocking_codes_present", "blocking_codes_missing")
+    if decision == "HOLD" and (blocking_codes or not hold_codes):
+        add("decision_hold_code_mismatch", "decision_code_mismatch", "hold_only_codes", f"blocking={bool(blocking_codes)} hold={bool(hold_codes)}")
+    if decision == "GO" and (blocking_codes or hold_codes):
+        add("decision_go_with_reason_codes", "decision_code_mismatch", "no_reason_codes", f"blocking={bool(blocking_codes)} hold={bool(hold_codes)}")
+
+    return regressions
+
 def decision_chain_regressions(report, label):
     regressions = []
     validation_report = str(report.get("validation_report_json", "")).strip()
@@ -449,6 +540,7 @@ def decision_chain_regressions(report, label):
     regressions.extend(parity_report_chain_regressions(parity_report, f"{label}_decision_parity"))
     regressions.extend(parity_trend_chain_regressions(parity_trend_report, f"{label}_decision_parity_trend"))
     regressions.extend(validation_trend_chain_regressions(validation_trend_report, f"{label}_decision_validation_trend"))
+    regressions.extend(cutover_decision_consistency_regressions(report, f"{label}_decision"))
     return regressions
 
 decision_rank = {"BLOCK": 0, "HOLD": 1, "GO": 2}
@@ -634,6 +726,16 @@ if regressions:
                 f"`{item['summary_field']}` to be `{item['expected'] or 'missing'}` "
                 f"but saw `{item['actual'] or 'missing'}`"
             )
+        elif item["kind"] in {
+            "decision_summary_mismatch",
+            "decision_gate_mismatch",
+            "decision_primary_code_mismatch",
+            "decision_code_mismatch",
+        }:
+            lines.append(
+                f"- `{item['code']}`: `{item['decision_label']}` expected "
+                f"`{item['expected'] or 'missing'}` but saw `{item['actual'] or 'missing'}`"
+            )
         elif item["kind"] == "validation_chain_missing_metadata":
             lines.append(
                 f"- `{item['code']}`: `{item['report_label']}` has checksum "
@@ -709,6 +811,16 @@ if regressions:
                 f"REGRESSION: {item['code']} {item['report_label']} expected "
                 f"{item['summary_field']}={item['expected'] or 'missing'} "
                 f"but saw {item['actual'] or 'missing'}"
+            )
+        elif item["kind"] in {
+            "decision_summary_mismatch",
+            "decision_gate_mismatch",
+            "decision_primary_code_mismatch",
+            "decision_code_mismatch",
+        }:
+            print(
+                f"REGRESSION: {item['code']} {item['decision_label']} expected "
+                f"{item['expected'] or 'missing'} but saw {item['actual'] or 'missing'}"
             )
         elif item["kind"] == "validation_chain_missing_metadata":
             print(

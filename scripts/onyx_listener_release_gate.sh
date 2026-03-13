@@ -276,6 +276,87 @@ def readiness_report_consistency_issues(report):
         issues.append(("readiness_required_cutover_trend_not_pass", f"readiness report requires cutover trend PASS but referenced cutover trend status is {actual_cutover_trend_status or 'missing'}"))
     return issues
 
+def cutover_decision_consistency_issues(report):
+    issues = []
+    statuses = report.get("statuses", {}) or {}
+    gates = report.get("gates", {}) or {}
+    blocking_codes = [str(item) for item in (report.get("blocking_codes", []) or [])]
+    hold_codes = [str(item) for item in (report.get("hold_codes", []) or [])]
+    primary_blocking_code = str(report.get("primary_blocking_code", "")).strip()
+    primary_hold_code = str(report.get("primary_hold_code", "")).strip()
+    decision = str(report.get("decision", "")).upper()
+
+    validation_report = str(report.get("validation_report_json", "")).strip()
+    parity_report = str(report.get("parity_report_json", "")).strip()
+    parity_trend = str(report.get("parity_trend_report_json", "")).strip()
+    validation_trend = str(report.get("validation_trend_report_json", "")).strip()
+
+    validation_data = load_json(validation_report)
+    parity_data = load_json(parity_report)
+    parity_trend_data = load_json(parity_trend)
+    validation_trend_data = load_json(validation_trend)
+
+    if validation_data is not None:
+        actual_validation_status = str(validation_data.get("overall_status", "")).upper()
+        reported_validation_status = str(statuses.get("validation_overall_status", "")).upper()
+        if reported_validation_status != actual_validation_status:
+            issues.append(("cutover_validation_status_mismatch", f"cutover decision validation status does not match referenced validation report ({reported_validation_status or 'missing'} vs {actual_validation_status or 'missing'})"))
+
+        actual_review = str(((validation_data.get("baseline_review") or {}).get("recommendation", ""))).lower()
+        reported_review = str(statuses.get("baseline_review_recommendation", "")).lower()
+        if reported_review != actual_review:
+            issues.append(("cutover_baseline_review_recommendation_mismatch", f"cutover decision baseline review recommendation does not match referenced validation report ({reported_review or 'missing'} vs {actual_review or 'missing'})"))
+
+        actual_health_status = str(((validation_data.get("baseline_health") or {}).get("status", ""))).upper()
+        reported_health_status = str(statuses.get("baseline_health_status", "")).upper()
+        if reported_health_status != actual_health_status:
+            issues.append(("cutover_baseline_health_status_mismatch", f"cutover decision baseline health status does not match referenced validation report ({reported_health_status or 'missing'} vs {actual_health_status or 'missing'})"))
+
+        actual_health_category = str(((validation_data.get("baseline_health") or {}).get("category", ""))).lower()
+        reported_health_category = str(statuses.get("baseline_health_category", "")).lower()
+        if reported_health_category != actual_health_category:
+            issues.append(("cutover_baseline_health_category_mismatch", f"cutover decision baseline health category does not match referenced validation report ({reported_health_category or 'missing'} vs {actual_health_category or 'missing'})"))
+
+        actual_gates = validation_data.get("gates", {}) or {}
+        for gate_key in sorted(set(actual_gates.keys()) | set(gates.keys())):
+            actual_gate = bool(actual_gates.get(gate_key, False))
+            reported_gate = bool(gates.get(gate_key, False))
+            if reported_gate != actual_gate:
+                issues.append((f"cutover_gate_{gate_key}_mismatch", f"cutover decision gate {gate_key} does not match referenced validation report ({str(reported_gate).lower()} vs {str(actual_gate).lower()})"))
+
+    if parity_data is not None:
+        actual_parity_summary = str(parity_data.get("summary", "")).strip()
+        reported_parity_summary = str(report.get("parity_summary", "")).strip()
+        if reported_parity_summary != actual_parity_summary:
+            issues.append(("cutover_parity_summary_mismatch", "cutover decision parity summary does not match referenced parity report"))
+
+    if parity_trend_data is not None:
+        actual_parity_trend_status = str(parity_trend_data.get("status", "")).upper()
+        reported_parity_trend_status = str(statuses.get("parity_trend_status", "")).upper()
+        if reported_parity_trend_status != actual_parity_trend_status:
+            issues.append(("cutover_parity_trend_status_mismatch", f"cutover decision parity trend status does not match referenced parity trend report ({reported_parity_trend_status or 'missing'} vs {actual_parity_trend_status or 'missing'})"))
+
+    if validation_trend_data is not None:
+        actual_validation_trend_status = str(validation_trend_data.get("status", "")).upper()
+        reported_validation_trend_status = str(statuses.get("validation_trend_status", "")).upper()
+        if reported_validation_trend_status != actual_validation_trend_status:
+            issues.append(("cutover_validation_trend_status_mismatch", f"cutover decision validation trend status does not match referenced validation trend report ({reported_validation_trend_status or 'missing'} vs {actual_validation_trend_status or 'missing'})"))
+
+    expected_primary_blocking = blocking_codes[0] if blocking_codes else ""
+    expected_primary_hold = hold_codes[0] if hold_codes else ""
+    if primary_blocking_code != expected_primary_blocking:
+        issues.append(("cutover_primary_blocking_code_mismatch", "cutover decision primary_blocking_code does not match blocking_codes"))
+    if primary_hold_code != expected_primary_hold:
+        issues.append(("cutover_primary_hold_code_mismatch", "cutover decision primary_hold_code does not match hold_codes"))
+
+    if decision == "BLOCK" and not blocking_codes:
+        issues.append(("cutover_decision_block_without_blocking_codes", "cutover decision is BLOCK but blocking_codes is empty"))
+    if decision == "HOLD" and (blocking_codes or not hold_codes):
+        issues.append(("cutover_decision_hold_code_mismatch", "cutover decision is HOLD but reason codes do not reflect a hold-only state"))
+    if decision == "GO" and (blocking_codes or hold_codes):
+        issues.append(("cutover_decision_go_with_reason_codes", "cutover decision is GO but blocking_codes or hold_codes are still present"))
+    return issues
+
 def cutover_decision_chain_issues(path_str, label):
     issues = []
     if not path_str:
@@ -298,6 +379,10 @@ def cutover_decision_chain_issues(path_str, label):
         issues.append((f"cutover_trend_{label}_missing_parity_trend_report", f"cutover trend {label} decision references a missing parity trend report"))
     if validation_trend and not path_exists(validation_trend):
         issues.append((f"cutover_trend_{label}_missing_validation_trend_report", f"cutover trend {label} decision references a missing validation trend report"))
+    for code, message in cutover_decision_consistency_issues(report):
+        nested_code = code[8:] if code.startswith("cutover_") else code
+        nested_message = f"cutover trend {label} decision {message}" if message else f"cutover trend {label} decision consistency mismatch"
+        issues.append((f"cutover_trend_{label}_{nested_code}", nested_message))
     return issues
 
 def signoff_report_consistency_issues(report):
@@ -431,6 +516,8 @@ else:
             "cutover_missing_validation_trend_report",
             "cutover decision references a missing validation trend report",
         )
+    for code, message in cutover_decision_consistency_issues(cutover):
+        add_reason(fail_items, code, message)
     if cutover_decision == "BLOCK":
       add_reason(fail_items, "cutover_blocked", "cutover decision is BLOCK")
     elif cutover_decision != "GO":

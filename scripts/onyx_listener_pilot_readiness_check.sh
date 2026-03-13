@@ -596,6 +596,12 @@ path = sys.argv[1]
 with open(path, "r", encoding="utf-8") as handle:
     data = json.load(handle)
 
+def load_json(path_str):
+    if not path_str or not os.path.isfile(path_str):
+        return None
+    with open(path_str, "r", encoding="utf-8") as handle:
+        return json.load(handle)
+
 decision = str(data.get("decision", "")).upper()
 validation_report = str(data.get("validation_report_json", "")).strip()
 parity_report = str(data.get("parity_report_json", "")).strip()
@@ -609,6 +615,70 @@ if parity_trend_report and not os.path.isfile(parity_trend_report):
     raise SystemExit("missing_parity_trend_report")
 if validation_trend_report and not os.path.isfile(validation_trend_report):
     raise SystemExit("missing_validation_trend_report")
+
+validation_data = load_json(validation_report)
+parity_data = load_json(parity_report)
+parity_trend_data = load_json(parity_trend_report)
+validation_trend_data = load_json(validation_trend_report)
+
+statuses = data.get("statuses", {}) or {}
+gates = data.get("gates", {}) or {}
+blocking_codes = [str(item) for item in (data.get("blocking_codes", []) or [])]
+hold_codes = [str(item) for item in (data.get("hold_codes", []) or [])]
+primary_blocking_code = str(data.get("primary_blocking_code", "")).strip()
+primary_hold_code = str(data.get("primary_hold_code", "")).strip()
+
+if validation_data is not None:
+    actual_validation_status = str(validation_data.get("overall_status", "")).upper()
+    if str(statuses.get("validation_overall_status", "")).upper() != actual_validation_status:
+        raise SystemExit("validation_status_mismatch")
+
+    actual_review = str(((validation_data.get("baseline_review") or {}).get("recommendation", ""))).lower()
+    if str(statuses.get("baseline_review_recommendation", "")).lower() != actual_review:
+        raise SystemExit("baseline_review_recommendation_mismatch")
+
+    actual_health_status = str(((validation_data.get("baseline_health") or {}).get("status", ""))).upper()
+    if str(statuses.get("baseline_health_status", "")).upper() != actual_health_status:
+        raise SystemExit("baseline_health_status_mismatch")
+
+    actual_health_category = str(((validation_data.get("baseline_health") or {}).get("category", ""))).lower()
+    if str(statuses.get("baseline_health_category", "")).lower() != actual_health_category:
+        raise SystemExit("baseline_health_category_mismatch")
+
+    actual_gates = validation_data.get("gates", {}) or {}
+    gate_keys = sorted(set(actual_gates.keys()) | set(gates.keys()))
+    for gate_key in gate_keys:
+        if bool(gates.get(gate_key, False)) != bool(actual_gates.get(gate_key, False)):
+            raise SystemExit(f"gate_{gate_key}_mismatch")
+
+if parity_data is not None:
+    actual_parity_summary = str(parity_data.get("summary", "")).strip()
+    if str(data.get("parity_summary", "")).strip() != actual_parity_summary:
+        raise SystemExit("parity_summary_mismatch")
+
+if parity_trend_data is not None:
+    actual_parity_trend_status = str(parity_trend_data.get("status", "")).upper()
+    if str(statuses.get("parity_trend_status", "")).upper() != actual_parity_trend_status:
+        raise SystemExit("parity_trend_status_mismatch")
+
+if validation_trend_data is not None:
+    actual_validation_trend_status = str(validation_trend_data.get("status", "")).upper()
+    if str(statuses.get("validation_trend_status", "")).upper() != actual_validation_trend_status:
+        raise SystemExit("validation_trend_status_mismatch")
+
+expected_primary_blocking_code = blocking_codes[0] if blocking_codes else ""
+expected_primary_hold_code = hold_codes[0] if hold_codes else ""
+if primary_blocking_code != expected_primary_blocking_code:
+    raise SystemExit("primary_blocking_code_mismatch")
+if primary_hold_code != expected_primary_hold_code:
+    raise SystemExit("primary_hold_code_mismatch")
+
+if decision == "BLOCK" and not blocking_codes:
+    raise SystemExit("decision_block_without_blocking_codes")
+if decision == "HOLD" and (blocking_codes or not hold_codes):
+    raise SystemExit("decision_hold_code_mismatch")
+if decision == "GO" and (blocking_codes or hold_codes):
+    raise SystemExit("decision_go_with_reason_codes")
 
 print(decision)
 PY
@@ -942,7 +1012,7 @@ if [[ "$REQUIRE_CUTOVER_GO" -eq 1 ]]; then
         fail cutover_decision_missing_validation_trend_report "Listener readiness failed: cutover decision references a missing validation trend report."
         ;;
       *)
-        fail cutover_decision_verification_failed "Listener readiness failed: cutover decision verification failed: ${cutover_decision_status:-unknown}."
+        fail "${cutover_decision_status:-cutover_decision_verification_failed}" "Listener readiness failed: cutover decision verification failed: ${cutover_decision_status:-unknown}."
         ;;
     esac
   }
@@ -983,7 +1053,7 @@ if [[ "$REQUIRE_CUTOVER_TREND_PASS" -eq 1 ]]; then
         fail cutover_trend_current_missing_validation_trend_report "Listener readiness failed: cutover trend current decision references a missing validation trend report."
         ;;
       *)
-        fail cutover_trend_current_decision_verification_failed "Listener readiness failed: cutover trend current decision verification failed: ${current_cutover_gate_status:-unknown}."
+        fail "${current_cutover_gate_status:-cutover_trend_current_decision_verification_failed}" "Listener readiness failed: cutover trend current decision verification failed: ${current_cutover_gate_status:-unknown}."
         ;;
     esac
   }
@@ -1002,7 +1072,7 @@ if [[ "$REQUIRE_CUTOVER_TREND_PASS" -eq 1 ]]; then
         fail cutover_trend_previous_missing_validation_trend_report "Listener readiness failed: cutover trend previous decision references a missing validation trend report."
         ;;
       *)
-        fail cutover_trend_previous_decision_verification_failed "Listener readiness failed: cutover trend previous decision verification failed: ${previous_cutover_gate_status:-unknown}."
+        fail "${previous_cutover_gate_status:-cutover_trend_previous_decision_verification_failed}" "Listener readiness failed: cutover trend previous decision verification failed: ${previous_cutover_gate_status:-unknown}."
         ;;
     esac
   }
