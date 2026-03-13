@@ -399,6 +399,29 @@ fi
 
 "${readiness_cmd[@]}"
 
+PARITY_STATUS=""
+PARITY_PRIMARY_ISSUE_CODE=""
+if [[ -f "$ARTIFACT_DIR/report.json" ]]; then
+  PARITY_STATUS="$(
+    python3 - "$ARTIFACT_DIR/report.json" <<'PY'
+import json
+import sys
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+print(str(data.get("status", "")).upper())
+PY
+  )"
+  PARITY_PRIMARY_ISSUE_CODE="$(
+    python3 - "$ARTIFACT_DIR/report.json" <<'PY'
+import json
+import sys
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+print(str(data.get("primary_issue_code", "")))
+PY
+  )"
+fi
+
 PARITY_READINESS_STATUS=""
 PARITY_READINESS_FAILURE_CODE=""
 if [[ -f "$ARTIFACT_DIR/parity_readiness_report.json" ]]; then
@@ -418,6 +441,29 @@ import sys
 with open(sys.argv[1], "r", encoding="utf-8") as handle:
     data = json.load(handle)
 print(str(data.get("failure_code", "")))
+PY
+  )"
+fi
+
+PARITY_TREND_STATUS=""
+PARITY_TREND_PRIMARY_REGRESSION_CODE=""
+if [[ -f "$ARTIFACT_DIR/trend_report.json" ]]; then
+  PARITY_TREND_STATUS="$(
+    python3 - "$ARTIFACT_DIR/trend_report.json" <<'PY'
+import json
+import sys
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+print(str(data.get("status", "")).upper())
+PY
+  )"
+  PARITY_TREND_PRIMARY_REGRESSION_CODE="$(
+    python3 - "$ARTIFACT_DIR/trend_report.json" <<'PY'
+import json
+import sys
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+print(str(data.get("primary_regression_code", "")))
 PY
   )"
 fi
@@ -444,6 +490,12 @@ echo ""
 echo "PASS: Listener pilot gate completed."
 echo "Capture pack: $CAPTURE_DIR"
 echo "Parity artifact: $ARTIFACT_DIR/report.json"
+if [[ -n "$PARITY_STATUS" ]]; then
+  echo "Parity status: $PARITY_STATUS"
+fi
+if [[ -n "$PARITY_PRIMARY_ISSUE_CODE" ]]; then
+  echo "Parity primary issue code: $PARITY_PRIMARY_ISSUE_CODE"
+fi
 if [[ -f "$ARTIFACT_DIR/parity_readiness_report.json" ]]; then
   echo "Parity readiness artifact: $ARTIFACT_DIR/parity_readiness_report.json"
   if [[ -n "$PARITY_READINESS_STATUS" ]]; then
@@ -455,4 +507,10 @@ if [[ -f "$ARTIFACT_DIR/parity_readiness_report.json" ]]; then
 fi
 if [[ "$COMPARE_PREVIOUS" -eq 1 ]]; then
   echo "Trend artifact: $ARTIFACT_DIR/trend_report.json"
+  if [[ -n "$PARITY_TREND_STATUS" ]]; then
+    echo "Parity trend status: $PARITY_TREND_STATUS"
+  fi
+  if [[ -n "$PARITY_TREND_PRIMARY_REGRESSION_CODE" ]]; then
+    echo "Parity trend primary regression code: $PARITY_TREND_PRIMARY_REGRESSION_CODE"
+  fi
 fi
