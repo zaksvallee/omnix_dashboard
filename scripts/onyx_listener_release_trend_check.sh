@@ -1066,6 +1066,18 @@ def release_gate_consistency_regressions(report, label):
         actual_signoff_status = str(signoff_data.get("status", "")).upper()
         if str(statuses.get("signoff_status", "")).upper() != actual_signoff_status:
             add("signoff_status_mismatch", "release_gate_status_mismatch", actual_signoff_status, str(statuses.get("signoff_status", "")).upper())
+        actual_signoff_validation = str(signoff_data.get("validation_report_json", "")).strip()
+        actual_signoff_readiness = str(signoff_data.get("readiness_report_json", "")).strip()
+        actual_signoff_cutover = str(signoff_data.get("cutover_decision_json", "")).strip()
+        actual_signoff_cutover_trend = str(signoff_data.get("cutover_trend_report_json", "")).strip()
+        if validation_report and actual_signoff_validation and actual_signoff_validation != validation_report:
+            add("signoff_validation_report_mismatch", "release_gate_status_mismatch", validation_report, actual_signoff_validation)
+        if readiness_report and actual_signoff_readiness and actual_signoff_readiness != readiness_report:
+            add("signoff_readiness_report_mismatch", "release_gate_status_mismatch", readiness_report, actual_signoff_readiness)
+        if cutover_decision and actual_signoff_cutover and actual_signoff_cutover != cutover_decision:
+            add("signoff_cutover_decision_report_mismatch", "release_gate_status_mismatch", cutover_decision, actual_signoff_cutover)
+        if cutover_trend and actual_signoff_cutover_trend and actual_signoff_cutover_trend != cutover_trend:
+            add("signoff_cutover_trend_report_mismatch", "release_gate_status_mismatch", cutover_trend, actual_signoff_cutover_trend)
 
     expected_primary_fail = fail_codes[0] if fail_codes else ""
     expected_primary_hold = hold_codes[0] if hold_codes else ""

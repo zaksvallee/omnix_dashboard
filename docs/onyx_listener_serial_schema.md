@@ -352,6 +352,9 @@ state, such as `status = PASS` with a non-empty `failure_code` or
 They also verify the signoff mock-artifact policy against the referenced
 validation bundle, so a tampered signoff report cannot claim mock artifacts
 were disallowed while still pointing at a mock field bundle.
+Release posture also rejects mixed-bundle signoff, so a signoff report cannot
+quietly point at a different validation, readiness, or cutover artifact than
+the release gate that is trying to consume it.
 
 Cutover and release trend comparisons now prefer stable machine-readable
 `hold_codes`, `blocking_codes`, and `fail_codes` when present, falling back to

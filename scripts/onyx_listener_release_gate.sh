@@ -657,13 +657,37 @@ else:
 signoff_status = ""
 if signoff_report is not None:
     signoff_status = str(signoff_report.get("status", "")).upper()
+    signoff_validation_report = str(signoff_report.get("validation_report_json", "")).strip()
+    signoff_readiness_report = str(signoff_report.get("readiness_report_json", "")).strip()
     signoff_parity_report = str(signoff_report.get("report_json", "")).strip()
     signoff_trend_report = str(signoff_report.get("trend_report_json", "")).strip()
-    signoff_validation_report = str(signoff_report.get("validation_report_json", "")).strip()
     signoff_validation_trend = str(signoff_report.get("validation_trend_report_json", "")).strip()
     signoff_cutover_decision = str(signoff_report.get("cutover_decision_json", "")).strip()
     signoff_cutover_trend = str(signoff_report.get("cutover_trend_report_json", "")).strip()
-    signoff_readiness_report = str(signoff_report.get("readiness_report_json", "")).strip()
+    if signoff_validation_report and str(validation_path) and signoff_validation_report != str(validation_path):
+        add_reason(
+            fail_items,
+            "signoff_validation_report_mismatch",
+            "signoff report validation report does not match release gate validation report",
+        )
+    if signoff_readiness_report and readiness_path and signoff_readiness_report != str(readiness_path):
+        add_reason(
+            fail_items,
+            "signoff_readiness_report_mismatch",
+            "signoff report readiness report does not match release gate readiness report",
+        )
+    if signoff_cutover_decision and cutover_path and signoff_cutover_decision != str(cutover_path):
+        add_reason(
+            fail_items,
+            "signoff_cutover_decision_report_mismatch",
+            "signoff report cutover decision does not match release gate cutover decision",
+        )
+    if signoff_cutover_trend and cutover_trend_path and signoff_cutover_trend != str(cutover_trend_path):
+        add_reason(
+            fail_items,
+            "signoff_cutover_trend_report_mismatch",
+            "signoff report cutover trend does not match release gate cutover trend report",
+        )
     if signoff_readiness_report and not path_exists(signoff_readiness_report):
         add_reason(
             fail_items,
