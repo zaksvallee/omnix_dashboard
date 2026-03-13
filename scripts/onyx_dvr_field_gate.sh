@@ -166,4 +166,5 @@ if [[ -f "$ARTIFACT_DIR/readiness_report.json" ]]; then
 fi
 if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
   echo "Signoff note: $EFFECTIVE_SIGNOFF_OUT"
+  echo "Signoff artifact: $(dirname "$EFFECTIVE_SIGNOFF_OUT")/$(basename "$EFFECTIVE_SIGNOFF_OUT" .md).json"
 fi

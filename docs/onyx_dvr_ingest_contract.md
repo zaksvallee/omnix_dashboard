@@ -79,3 +79,4 @@ Current scope:
   - `scripts/onyx_dvr_pilot_gate.sh`
   - `scripts/onyx_dvr_field_gate.sh`
   - `scripts/onyx_dvr_signoff_generate.sh`
+    - emits a sibling `*.json` signoff report on pass and fail once the validation bundle is resolved

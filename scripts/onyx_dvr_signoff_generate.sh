@@ -10,12 +10,53 @@ PROVIDER="${ONYX_DVR_PROVIDER:-hikvision_dvr}"
 EXPECT_CAMERA=""
 EXPECT_ZONE=""
 ALLOW_MOCK_ARTIFACTS=0
+ARTIFACT_DIR=""
+SIGNOFF_JSON_OUT=""
 
 usage() {
   cat <<'USAGE'
 Usage:
   ./scripts/onyx_dvr_signoff_generate.sh [--report-json <path>] [--out <path>] [--provider <id>] [--expect-camera <camera_id>] [--expect-zone <zone>] [--allow-mock-artifacts]
 USAGE
+}
+
+json_string() {
+  python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "${1:-}"
+}
+
+write_signoff_report() {
+  local status="$1"
+  local summary="$2"
+  local failure_code="${3:-}"
+  if [[ -z "$SIGNOFF_JSON_OUT" ]]; then
+    return 0
+  fi
+  mkdir -p "$(dirname "$SIGNOFF_JSON_OUT")"
+  local generated_at
+  generated_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  cat >"$SIGNOFF_JSON_OUT" <<EOF
+{
+  "generated_at_utc": $(json_string "$generated_at"),
+  "status": $(json_string "$status"),
+  "failure_code": $(json_string "$failure_code"),
+  "summary": $(json_string "$summary"),
+  "provider": $(json_string "$PROVIDER"),
+  "expected_camera": $(json_string "$EXPECT_CAMERA"),
+  "expected_zone": $(json_string "$EXPECT_ZONE"),
+  "report_json": $(json_string "$REPORT_JSON"),
+  "artifact_dir": $(json_string "$ARTIFACT_DIR"),
+  "signoff_markdown": $(json_string "$OUT_FILE"),
+  "allow_mock_artifacts": $([[ "$ALLOW_MOCK_ARTIFACTS" -eq 1 ]] && echo true || echo false)
+}
+EOF
+}
+
+fail() {
+  local summary="$1"
+  local failure_code="${2:-signoff_failed}"
+  write_signoff_report "FAIL" "$summary" "$failure_code"
+  echo "FAIL: $summary"
+  exit 1
 }
 
 while [[ $# -gt 0 ]]; do
@@ -72,11 +113,22 @@ if [[ -z "$REPORT_JSON" || ! -f "$REPORT_JSON" ]]; then
   exit 1
 fi
 
+ARTIFACT_DIR="$(json_get "$REPORT_JSON" "artifact_dir")"
+if [[ -z "$ARTIFACT_DIR" ]]; then
+  ARTIFACT_DIR="$(cd "$(dirname "$REPORT_JSON")" && pwd)"
+fi
+
+if [[ -z "$OUT_FILE" ]]; then
+  OUT_FILE="docs/onyx_dvr_pilot_signoff_$(TZ=Africa/Johannesburg date +%Y-%m-%d).md"
+fi
+mkdir -p "$(dirname "$OUT_FILE")"
+SIGNOFF_JSON_OUT="$(dirname "$OUT_FILE")/$(basename "$OUT_FILE" .md).json"
+
 readiness_cmd=(./scripts/onyx_dvr_pilot_readiness_check.sh --provider "$PROVIDER" --report-json "$REPORT_JSON")
 [[ -n "$EXPECT_CAMERA" ]] && readiness_cmd+=(--expect-camera "$EXPECT_CAMERA")
 [[ -n "$EXPECT_ZONE" ]] && readiness_cmd+=(--expect-zone "$EXPECT_ZONE")
 [[ "$ALLOW_MOCK_ARTIFACTS" -ne 1 ]] && readiness_cmd+=(--require-real-artifacts)
-"${readiness_cmd[@]}" >/dev/null
+"${readiness_cmd[@]}" >/dev/null || fail "DVR signoff blocked: readiness gate did not pass." "readiness_not_pass"
 
 artifact_dir="$(json_get "$REPORT_JSON" "artifact_dir")"
 capture_dir="$(json_get "$REPORT_JSON" "capture_dir")"
@@ -90,11 +142,6 @@ field_notes_file=""
 if [[ -n "$capture_dir" && -f "$capture_dir/field_notes.md" ]]; then
   field_notes_file="$capture_dir/field_notes.md"
 fi
-
-if [[ -z "$OUT_FILE" ]]; then
-  OUT_FILE="docs/onyx_dvr_pilot_signoff_$(TZ=Africa/Johannesburg date +%Y-%m-%d).md"
-fi
-mkdir -p "$(dirname "$OUT_FILE")"
 
 {
   echo "# ONYX DVR Pilot Signoff ($(TZ=Africa/Johannesburg date +%Y-%m-%d))"
@@ -134,4 +181,5 @@ mkdir -p "$(dirname "$OUT_FILE")"
   echo "- Remaining blockers: \`$([[ "$overall_status" == "PASS" ]] && echo none || echo review_validation_bundle)\`"
 } >"$OUT_FILE"
 
+write_signoff_report "PASS" "DVR pilot signoff generated successfully." ""
 echo "PASS: DVR pilot signoff generated: $OUT_FILE"
