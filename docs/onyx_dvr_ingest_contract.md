@@ -94,6 +94,7 @@ Current scope:
     - now also requires canonical staged filenames for `validation_report.json` and `readiness_report.json`
     - now also requires canonical staged filenames for `dvr_pilot_signoff.md` and `dvr_pilot_signoff.json`
     - readiness and signoff now also require canonical staged filenames for `release_gate.json` and `release_trend_report.json` when those gates are enforced
+    - readiness and signoff now also reject release-trend artifacts whose `previous_release_gate_json` does not use the canonical `release_gate.json` filename
   - `scripts/onyx_dvr_release_trend_check.sh`
     - emits `release_trend_report.json` and `release_trend_report.md` from the current and previous release-gate posture
     - now also requires canonical staged input names for the current and previous `release_gate.json`

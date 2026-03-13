@@ -332,9 +332,13 @@ if [[ "$REQUIRE_RELEASE_TREND_PASS" -eq 1 ]]; then
     fail "DVR readiness failed: release trend does not use the canonical staged filename." "release_trend_name_mismatch"
   fi
   release_trend_current_gate="$(json_get "$RELEASE_TREND_REPORT_JSON" "current_release_gate_json")"
+  release_trend_previous_gate="$(json_get "$RELEASE_TREND_REPORT_JSON" "previous_release_gate_json")"
   release_trend_status="$(json_get "$RELEASE_TREND_REPORT_JSON" "status" | tr '[:lower:]' '[:upper:]')"
   if [[ -n "$RELEASE_GATE_JSON" && -n "$release_trend_current_gate" && "$release_trend_current_gate" != "$RELEASE_GATE_JSON" ]]; then
     fail "DVR readiness failed: release trend current gate does not match the active release gate artifact." "release_trend_current_gate_mismatch"
+  fi
+  if [[ -n "$release_trend_previous_gate" && "$(basename "$release_trend_previous_gate")" != "release_gate.json" ]]; then
+    fail "DVR readiness failed: release trend previous gate does not use the canonical staged filename." "release_trend_previous_gate_name_mismatch"
   fi
   if [[ "$release_trend_status" != "PASS" ]]; then
     release_trend_primary_code="$(json_get "$RELEASE_TREND_REPORT_JSON" "primary_regression_code")"
