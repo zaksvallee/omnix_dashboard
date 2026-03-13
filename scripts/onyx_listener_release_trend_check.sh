@@ -115,10 +115,10 @@ result_rank = {"FAIL": 0, "HOLD": 1, "PASS": 2}
 current_result = str(current.get("result", "")).upper()
 previous_result = str(previous.get("result", "")).upper()
 
-current_hold = list(current.get("hold_reasons", []) or [])
-previous_hold = list(previous.get("hold_reasons", []) or [])
-current_fail = list(current.get("fail_reasons", []) or [])
-previous_fail = list(previous.get("fail_reasons", []) or [])
+current_hold_codes = list(current.get("hold_codes", []) or current.get("hold_reasons", []) or [])
+previous_hold_codes = list(previous.get("hold_codes", []) or previous.get("hold_reasons", []) or [])
+current_fail_codes = list(current.get("fail_codes", []) or current.get("fail_reasons", []) or [])
+previous_fail_codes = list(previous.get("fail_codes", []) or previous.get("fail_reasons", []) or [])
 
 regressions = []
 if result_rank.get(current_result, -1) < result_rank.get(previous_result, -1):
@@ -131,42 +131,42 @@ if result_rank.get(current_result, -1) < result_rank.get(previous_result, -1):
         }
     )
 
-hold_increase = len(current_hold) - len(previous_hold)
+hold_increase = len(current_hold_codes) - len(previous_hold_codes)
 if hold_increase > allow_hold_increase:
     regressions.append(
         {
             "code": "hold_reason_increase",
             "kind": "hold_reason_increase",
-            "previous": len(previous_hold),
-            "current": len(current_hold),
+            "previous": len(previous_hold_codes),
+            "current": len(current_hold_codes),
             "delta": hold_increase,
             "allowed_increase": allow_hold_increase,
         }
     )
 
-fail_increase = len(current_fail) - len(previous_fail)
+fail_increase = len(current_fail_codes) - len(previous_fail_codes)
 if fail_increase > allow_fail_increase:
     regressions.append(
         {
             "code": "fail_reason_increase",
             "kind": "fail_reason_increase",
-            "previous": len(previous_fail),
-            "current": len(current_fail),
+            "previous": len(previous_fail_codes),
+            "current": len(current_fail_codes),
             "delta": fail_increase,
             "allowed_increase": allow_fail_increase,
         }
     )
 
-new_hold_reasons = sorted(set(current_hold) - set(previous_hold))
-new_fail_reasons = sorted(set(current_fail) - set(previous_fail))
+new_hold_codes = sorted(set(current_hold_codes) - set(previous_hold_codes))
+new_fail_codes = sorted(set(current_fail_codes) - set(previous_fail_codes))
 
 status = "PASS" if not regressions else "FAIL"
 result = {
     "status": status,
     "summary": (
         f"release {previous_result or 'missing'} -> {current_result or 'missing'}; "
-        f"hold reasons {len(previous_hold)} -> {len(current_hold)}; "
-        f"fail reasons {len(previous_fail)} -> {len(current_fail)}"
+        f"hold codes {len(previous_hold_codes)} -> {len(current_hold_codes)}; "
+        f"fail codes {len(previous_fail_codes)} -> {len(current_fail_codes)}"
     ),
     "current_release_gate_json": str(current_path),
     "previous_release_gate_json": str(previous_path),
@@ -176,20 +176,20 @@ result = {
     },
     "counts": {
         "hold_reasons": {
-            "previous": len(previous_hold),
-            "current": len(current_hold),
+            "previous": len(previous_hold_codes),
+            "current": len(current_hold_codes),
             "delta": hold_increase,
             "allowed_increase": allow_hold_increase,
         },
         "fail_reasons": {
-            "previous": len(previous_fail),
-            "current": len(current_fail),
+            "previous": len(previous_fail_codes),
+            "current": len(current_fail_codes),
             "delta": fail_increase,
             "allowed_increase": allow_fail_increase,
         },
     },
-    "new_hold_reasons": new_hold_reasons,
-    "new_fail_reasons": new_fail_reasons,
+    "new_hold_reasons": new_hold_codes,
+    "new_fail_reasons": new_fail_codes,
     "primary_regression_code": regressions[0]["code"] if regressions else "",
     "regression_codes": [item["code"] for item in regressions],
     "regressions": regressions,
@@ -214,25 +214,25 @@ lines = [
     "",
     "## Count Deltas",
     (
-        f"- Hold reasons: `{len(previous_hold)} -> {len(current_hold)}` "
+        f"- Hold codes: `{len(previous_hold_codes)} -> {len(current_hold_codes)}` "
         f"(delta `{hold_increase}`, allowed `{allow_hold_increase}`)"
     ),
     (
-        f"- Fail reasons: `{len(previous_fail)} -> {len(current_fail)}` "
+        f"- Fail codes: `{len(previous_fail_codes)} -> {len(current_fail_codes)}` "
         f"(delta `{fail_increase}`, allowed `{allow_fail_increase}`)"
     ),
     "",
-    "## New Hold Reasons",
+    "## New Hold Codes",
 ]
-if new_hold_reasons:
-    for item in new_hold_reasons:
+if new_hold_codes:
+    for item in new_hold_codes:
         lines.append(f"- {item}")
 else:
     lines.append("- None")
 
-lines.extend(["", "## New Fail Reasons"])
-if new_fail_reasons:
-    for item in new_fail_reasons:
+lines.extend(["", "## New Fail Codes"])
+if new_fail_codes:
+    for item in new_fail_codes:
         lines.append(f"- {item}")
 else:
     lines.append("- None")

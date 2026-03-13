@@ -323,6 +323,11 @@ The cutover-trend artifact also carries `primary_regression_code` plus
 `regression_codes`, so downstream gates can classify cutover regressions
 without parsing prose summaries.
 
+Cutover and release trend comparisons now prefer stable machine-readable
+`hold_codes`, `blocking_codes`, and `fail_codes` when present, falling back to
+the older prose reason arrays only for legacy artifacts. That prevents
+markdown or wording-only changes from registering as false regressions.
+
 To collapse validation, cutover posture, and signoff presence into one final
 release gate:
 

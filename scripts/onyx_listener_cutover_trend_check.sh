@@ -115,10 +115,10 @@ decision_rank = {"BLOCK": 0, "HOLD": 1, "GO": 2}
 current_decision = str(current.get("decision", "")).upper()
 previous_decision = str(previous.get("decision", "")).upper()
 
-current_hold = list(current.get("hold_reasons", []) or [])
-previous_hold = list(previous.get("hold_reasons", []) or [])
-current_blocking = list(current.get("blocking_reasons", []) or [])
-previous_blocking = list(previous.get("blocking_reasons", []) or [])
+current_hold_codes = list(current.get("hold_codes", []) or current.get("hold_reasons", []) or [])
+previous_hold_codes = list(previous.get("hold_codes", []) or previous.get("hold_reasons", []) or [])
+current_blocking_codes = list(current.get("blocking_codes", []) or current.get("blocking_reasons", []) or [])
+previous_blocking_codes = list(previous.get("blocking_codes", []) or previous.get("blocking_reasons", []) or [])
 
 regressions = []
 if decision_rank.get(current_decision, -1) < decision_rank.get(previous_decision, -1):
@@ -131,42 +131,42 @@ if decision_rank.get(current_decision, -1) < decision_rank.get(previous_decision
         }
     )
 
-hold_increase = len(current_hold) - len(previous_hold)
+hold_increase = len(current_hold_codes) - len(previous_hold_codes)
 if hold_increase > allow_hold_increase:
     regressions.append(
         {
             "code": "hold_reason_increase",
             "kind": "hold_reason_increase",
-            "previous": len(previous_hold),
-            "current": len(current_hold),
+            "previous": len(previous_hold_codes),
+            "current": len(current_hold_codes),
             "delta": hold_increase,
             "allowed_increase": allow_hold_increase,
         }
     )
 
-blocking_increase = len(current_blocking) - len(previous_blocking)
+blocking_increase = len(current_blocking_codes) - len(previous_blocking_codes)
 if blocking_increase > allow_blocking_increase:
     regressions.append(
         {
             "code": "blocking_reason_increase",
             "kind": "blocking_reason_increase",
-            "previous": len(previous_blocking),
-            "current": len(current_blocking),
+            "previous": len(previous_blocking_codes),
+            "current": len(current_blocking_codes),
             "delta": blocking_increase,
             "allowed_increase": allow_blocking_increase,
         }
     )
 
-new_hold_reasons = sorted(set(current_hold) - set(previous_hold))
-new_blocking_reasons = sorted(set(current_blocking) - set(previous_blocking))
+new_hold_codes = sorted(set(current_hold_codes) - set(previous_hold_codes))
+new_blocking_codes = sorted(set(current_blocking_codes) - set(previous_blocking_codes))
 
 status = "PASS" if not regressions else "FAIL"
 result = {
     "status": status,
     "summary": (
         f"cutover {previous_decision or 'missing'} -> {current_decision or 'missing'}; "
-        f"hold reasons {len(previous_hold)} -> {len(current_hold)}; "
-        f"blocking reasons {len(previous_blocking)} -> {len(current_blocking)}"
+        f"hold codes {len(previous_hold_codes)} -> {len(current_hold_codes)}; "
+        f"blocking codes {len(previous_blocking_codes)} -> {len(current_blocking_codes)}"
     ),
     "current_decision_json": str(current_path),
     "previous_decision_json": str(previous_path),
@@ -176,20 +176,20 @@ result = {
     },
     "counts": {
         "hold_reasons": {
-            "previous": len(previous_hold),
-            "current": len(current_hold),
+            "previous": len(previous_hold_codes),
+            "current": len(current_hold_codes),
             "delta": hold_increase,
             "allowed_increase": allow_hold_increase,
         },
         "blocking_reasons": {
-            "previous": len(previous_blocking),
-            "current": len(current_blocking),
+            "previous": len(previous_blocking_codes),
+            "current": len(current_blocking_codes),
             "delta": blocking_increase,
             "allowed_increase": allow_blocking_increase,
         },
     },
-    "new_hold_reasons": new_hold_reasons,
-    "new_blocking_reasons": new_blocking_reasons,
+    "new_hold_reasons": new_hold_codes,
+    "new_blocking_reasons": new_blocking_codes,
     "primary_regression_code": regressions[0]["code"] if regressions else "",
     "regression_codes": [item["code"] for item in regressions],
     "regressions": regressions,
@@ -214,25 +214,25 @@ lines = [
     "",
     "## Count Deltas",
     (
-        f"- Hold reasons: `{len(previous_hold)} -> {len(current_hold)}` "
+        f"- Hold codes: `{len(previous_hold_codes)} -> {len(current_hold_codes)}` "
         f"(delta `{hold_increase}`, allowed `{allow_hold_increase}`)"
     ),
     (
-        f"- Blocking reasons: `{len(previous_blocking)} -> {len(current_blocking)}` "
+        f"- Blocking codes: `{len(previous_blocking_codes)} -> {len(current_blocking_codes)}` "
         f"(delta `{blocking_increase}`, allowed `{allow_blocking_increase}`)"
     ),
     "",
-    "## New Hold Reasons",
+    "## New Hold Codes",
 ]
-if new_hold_reasons:
-    for item in new_hold_reasons:
+if new_hold_codes:
+    for item in new_hold_codes:
         lines.append(f"- {item}")
 else:
     lines.append("- None")
 
-lines.extend(["", "## New Blocking Reasons"])
-if new_blocking_reasons:
-    for item in new_blocking_reasons:
+lines.extend(["", "## New Blocking Codes"])
+if new_blocking_codes:
+    for item in new_blocking_codes:
         lines.append(f"- {item}")
 else:
     lines.append("- None")

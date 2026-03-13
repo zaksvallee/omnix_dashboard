@@ -135,6 +135,7 @@ Notes:
   - Standalone listener release-gate auto-discovery now only accepts filenames containing `signoff`, preventing `readiness_report.md` or other audited artifacts from being misclassified as signoff evidence.
   - Standalone listener cutover decision now auto-resolves staged parity and trend artifacts from the validation bundle, so one-command cutover evaluation no longer reports missing parity evidence when that evidence is already staged in the field-validation artifact.
   - Standalone listener signoff now auto-resolves validation and cutover artifacts from a staged field-validation bundle when parity artifacts are colocated there, so one-command closeout no longer assumes the older parent-directory layout.
+  - Listener cutover-trend and release-trend checks now compare stable reason codes instead of prose reason text when those codes are present, preventing wording-only changes from showing up as false regressions.
 
 ---
 
