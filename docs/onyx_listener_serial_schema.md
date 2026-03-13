@@ -336,6 +336,12 @@ reference. That prevents a stale or hand-edited `release_gate.json` from
 satisfying readiness or release-trend checks on referenced-path integrity
 alone.
 
+Standalone cutover and release consumers now also treat the staged
+`pilot_gate_report.json` inside a validation bundle as structured evidence
+rather than a checksummed blob. If the pilot gate's copied bench/parity/parity
+readiness/parity trend statuses no longer match the artifacts it references,
+cutover/release posture and their trend checks now fail directly.
+
 Cutover and release trend comparisons now prefer stable machine-readable
 `hold_codes`, `blocking_codes`, and `fail_codes` when present, falling back to
 the older prose reason arrays only for legacy artifacts. That prevents

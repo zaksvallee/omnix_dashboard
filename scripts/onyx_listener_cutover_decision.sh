@@ -227,6 +227,73 @@ def validation_report_consistency_issues(report):
         issues.append(("validation_primary_failure_code_mismatch", "validation primary_failure_code does not match failure_codes"))
     if primary_warning_code != expected_primary_warning:
         issues.append(("validation_primary_warning_code_mismatch", "validation primary_warning_code does not match warning_codes"))
+
+    pilot_gate = load_json_file(files.get("pilot_gate_report_json", ""))
+    if pilot_gate is not None:
+        pilot_files = pilot_gate.get("files", {}) or {}
+        pilot_statuses = pilot_gate.get("statuses", {}) or {}
+        compare_previous = bool(pilot_gate.get("compare_previous", False))
+
+        required_files = [
+            "serial_parsed_json",
+            "parity_report_json",
+            "parity_report_markdown",
+            "parity_readiness_report_json",
+            "parity_readiness_report_markdown",
+        ]
+        if compare_previous:
+            required_files.extend(["trend_report_json", "trend_report_markdown"])
+        for file_key in required_files:
+            file_path = str(pilot_files.get(file_key, "")).strip()
+            if not file_path:
+                issues.append((f"validation_pilot_gate_missing_{file_key}", f"validation pilot gate is missing {file_key}"))
+            elif not Path(file_path).is_file():
+                issues.append((f"validation_pilot_gate_missing_{file_key}", f"validation pilot gate references a missing {file_key}"))
+
+        serial_parsed = load_json_file(pilot_files.get("serial_parsed_json", ""))
+        if serial_parsed is not None:
+            anomaly_gate = serial_parsed.get("anomaly_gate", {}) or {}
+            expected_status = str(anomaly_gate.get("status", "")).upper()
+            expected_code = str((((anomaly_gate.get("failures") or [{}])[0]).get("type", "") or "")).strip()
+            actual_status = str(pilot_statuses.get("bench_anomaly_status", "")).upper()
+            actual_code = str(pilot_statuses.get("bench_primary_failure_code", "")).strip()
+            if actual_status != expected_status:
+                issues.append(("validation_pilot_gate_bench_anomaly_status_mismatch", "validation pilot gate bench anomaly status does not match serial bench output"))
+            if actual_code != expected_code:
+                issues.append(("validation_pilot_gate_bench_primary_failure_code_mismatch", "validation pilot gate bench primary failure code does not match serial bench output"))
+
+        parity_data = load_json_file(pilot_files.get("parity_report_json", ""))
+        if parity_data is not None:
+            expected_status = str(parity_data.get("status", "")).upper()
+            expected_code = str(parity_data.get("primary_issue_code", "")).strip()
+            actual_status = str(pilot_statuses.get("parity_status", "")).upper()
+            actual_code = str(pilot_statuses.get("parity_primary_issue_code", "")).strip()
+            if actual_status != expected_status:
+                issues.append(("validation_pilot_gate_parity_status_mismatch", "validation pilot gate parity status does not match parity report"))
+            if actual_code != expected_code:
+                issues.append(("validation_pilot_gate_parity_primary_issue_code_mismatch", "validation pilot gate parity primary issue code does not match parity report"))
+
+        readiness_data = load_json_file(pilot_files.get("parity_readiness_report_json", ""))
+        if readiness_data is not None:
+            expected_status = str(readiness_data.get("status", "")).upper()
+            expected_code = str(readiness_data.get("failure_code", "")).strip()
+            actual_status = str(pilot_statuses.get("parity_readiness_status", "")).upper()
+            actual_code = str(pilot_statuses.get("parity_readiness_failure_code", "")).strip()
+            if actual_status != expected_status:
+                issues.append(("validation_pilot_gate_parity_readiness_status_mismatch", "validation pilot gate parity readiness status does not match parity readiness report"))
+            if actual_code != expected_code:
+                issues.append(("validation_pilot_gate_parity_readiness_failure_code_mismatch", "validation pilot gate parity readiness failure code does not match parity readiness report"))
+
+        trend_data = load_json_file(pilot_files.get("trend_report_json", ""))
+        if compare_previous and trend_data is not None:
+            expected_status = str(trend_data.get("status", "")).upper()
+            expected_code = str(trend_data.get("primary_regression_code", "")).strip()
+            actual_status = str(pilot_statuses.get("parity_trend_status", "")).upper()
+            actual_code = str(pilot_statuses.get("parity_trend_primary_regression_code", "")).strip()
+            if actual_status != expected_status:
+                issues.append(("validation_pilot_gate_parity_trend_status_mismatch", "validation pilot gate parity trend status does not match parity trend report"))
+            if actual_code != expected_code:
+                issues.append(("validation_pilot_gate_parity_trend_primary_regression_code_mismatch", "validation pilot gate parity trend primary regression code does not match parity trend report"))
     return issues
 
 def parity_report_chain_issues(path_str, label):

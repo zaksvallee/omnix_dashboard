@@ -360,6 +360,98 @@ def validation_bundle_chain_regressions(path_str, label):
             "expected": expected_primary_warning,
             "actual": primary_warning_code,
         })
+    regressions.extend(validation_pilot_gate_regressions(report, label))
+    return regressions
+
+def validation_pilot_gate_regressions(report, label):
+    regressions = []
+    files = report.get("files", {}) or {}
+    pilot_gate_path = str(files.get("pilot_gate_report_json", "")).strip()
+    if not pilot_gate_path or not path_exists(pilot_gate_path):
+        return regressions
+    with Path(pilot_gate_path).open("r", encoding="utf-8") as handle:
+        pilot_gate = json.load(handle)
+    pilot_files = pilot_gate.get("files", {}) or {}
+    pilot_statuses = pilot_gate.get("statuses", {}) or {}
+    compare_previous = bool(pilot_gate.get("compare_previous", False))
+
+    def add(code_suffix, kind, **extra):
+        issue = {
+            "code": f"{label}_pilot_gate_{code_suffix}",
+            "kind": kind,
+            "report_label": label,
+        }
+        issue.update(extra)
+        regressions.append(issue)
+
+    required_files = [
+        "serial_parsed_json",
+        "parity_report_json",
+        "parity_report_markdown",
+        "parity_readiness_report_json",
+        "parity_readiness_report_markdown",
+    ]
+    if compare_previous:
+        required_files.extend(["trend_report_json", "trend_report_markdown"])
+    for file_key in required_files:
+        file_path = str(pilot_files.get(file_key, "")).strip()
+        if not file_path:
+            add(f"missing_{file_key}", "pilot_gate_missing_file", missing_field=file_key, missing_path="")
+        elif not path_exists(file_path):
+            add(f"missing_{file_key}", "pilot_gate_missing_file", missing_field=file_key, missing_path=file_path)
+
+    serial_parsed = str(pilot_files.get("serial_parsed_json", "")).strip()
+    if serial_parsed and path_exists(serial_parsed):
+        with Path(serial_parsed).open("r", encoding="utf-8") as handle:
+            serial_data = json.load(handle)
+        anomaly_gate = serial_data.get("anomaly_gate", {}) or {}
+        expected_status = str(anomaly_gate.get("status", "")).upper()
+        expected_code = str((((anomaly_gate.get("failures") or [{}])[0]).get("type", "") or "")).strip()
+        actual_status = str(pilot_statuses.get("bench_anomaly_status", "")).upper()
+        actual_code = str(pilot_statuses.get("bench_primary_failure_code", "")).strip()
+        if actual_status != expected_status:
+            add("bench_anomaly_status_mismatch", "pilot_gate_status_mismatch", expected=expected_status, actual=actual_status)
+        if actual_code != expected_code:
+            add("bench_primary_failure_code_mismatch", "pilot_gate_code_mismatch", expected=expected_code, actual=actual_code)
+
+    parity_report = str(pilot_files.get("parity_report_json", "")).strip()
+    if parity_report and path_exists(parity_report):
+        with Path(parity_report).open("r", encoding="utf-8") as handle:
+            parity_data = json.load(handle)
+        expected_status = str(parity_data.get("status", "")).upper()
+        expected_code = str(parity_data.get("primary_issue_code", "")).strip()
+        actual_status = str(pilot_statuses.get("parity_status", "")).upper()
+        actual_code = str(pilot_statuses.get("parity_primary_issue_code", "")).strip()
+        if actual_status != expected_status:
+            add("parity_status_mismatch", "pilot_gate_status_mismatch", expected=expected_status, actual=actual_status)
+        if actual_code != expected_code:
+            add("parity_primary_issue_code_mismatch", "pilot_gate_code_mismatch", expected=expected_code, actual=actual_code)
+
+    parity_readiness = str(pilot_files.get("parity_readiness_report_json", "")).strip()
+    if parity_readiness and path_exists(parity_readiness):
+        with Path(parity_readiness).open("r", encoding="utf-8") as handle:
+            readiness_data = json.load(handle)
+        expected_status = str(readiness_data.get("status", "")).upper()
+        expected_code = str(readiness_data.get("failure_code", "")).strip()
+        actual_status = str(pilot_statuses.get("parity_readiness_status", "")).upper()
+        actual_code = str(pilot_statuses.get("parity_readiness_failure_code", "")).strip()
+        if actual_status != expected_status:
+            add("parity_readiness_status_mismatch", "pilot_gate_status_mismatch", expected=expected_status, actual=actual_status)
+        if actual_code != expected_code:
+            add("parity_readiness_failure_code_mismatch", "pilot_gate_code_mismatch", expected=expected_code, actual=actual_code)
+
+    trend_report = str(pilot_files.get("trend_report_json", "")).strip()
+    if compare_previous and trend_report and path_exists(trend_report):
+        with Path(trend_report).open("r", encoding="utf-8") as handle:
+            trend_data = json.load(handle)
+        expected_status = str(trend_data.get("status", "")).upper()
+        expected_code = str(trend_data.get("primary_regression_code", "")).strip()
+        actual_status = str(pilot_statuses.get("parity_trend_status", "")).upper()
+        actual_code = str(pilot_statuses.get("parity_trend_primary_regression_code", "")).strip()
+        if actual_status != expected_status:
+            add("parity_trend_status_mismatch", "pilot_gate_status_mismatch", expected=expected_status, actual=actual_status)
+        if actual_code != expected_code:
+            add("parity_trend_primary_regression_code_mismatch", "pilot_gate_code_mismatch", expected=expected_code, actual=actual_code)
     return regressions
 
 def parity_report_chain_regressions(path_str, label):
@@ -1185,6 +1277,16 @@ if regressions:
                 f"- `{item['code']}`: `{item['report_label']}` expected "
                 f"`{item['expected'] or 'missing'}` but saw `{item['actual'] or 'missing'}`"
             )
+        elif item["kind"] == "pilot_gate_missing_file":
+            lines.append(
+                f"- `{item['code']}`: `{item['report_label']}` pilot gate missing "
+                f"`{item['missing_field']}` at `{item['missing_path'] or 'missing'}`"
+            )
+        elif item["kind"] in {"pilot_gate_status_mismatch", "pilot_gate_code_mismatch"}:
+            lines.append(
+                f"- `{item['code']}`: `{item['report_label']}` pilot gate expected "
+                f"`{item['expected'] or 'missing'}` but saw `{item['actual'] or 'missing'}`"
+            )
         elif item["kind"] in {
             "cutover_chain_status_mismatch",
             "cutover_chain_gate_mismatch",
@@ -1300,6 +1402,16 @@ if regressions:
         }:
             print(
                 f"REGRESSION: {item['code']} {item['report_label']} expected "
+                f"{item['expected'] or 'missing'} but saw {item['actual'] or 'missing'}"
+            )
+        elif item["kind"] == "pilot_gate_missing_file":
+            print(
+                f"REGRESSION: {item['code']} {item['report_label']} pilot gate missing "
+                f"{item['missing_field']} at {item['missing_path'] or 'missing'}"
+            )
+        elif item["kind"] in {"pilot_gate_status_mismatch", "pilot_gate_code_mismatch"}:
+            print(
+                f"REGRESSION: {item['code']} {item['report_label']} pilot gate expected "
                 f"{item['expected'] or 'missing'} but saw {item['actual'] or 'missing'}"
             )
         elif item["kind"] in {
