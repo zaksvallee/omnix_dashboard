@@ -300,6 +300,9 @@ if [[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]]; then
   if [[ -n "$release_gate_signoff_report" && -f "$release_gate_signoff_report" ]]; then
     signoff_report_validation="$(json_get_optional "$release_gate_signoff_report" "report_json")"
     signoff_report_release_gate="$(json_get_optional "$release_gate_signoff_report" "release_gate_json")"
+    signoff_report_release_trend="$(json_get_optional "$release_gate_signoff_report" "release_trend_report_json")"
+    signoff_report_release_trend_status="$(json_get_optional "$release_gate_signoff_report" "release_trend_status" | tr '[:lower:]' '[:upper:]')"
+    signoff_report_require_release_trend_pass="$(json_get_optional "$release_gate_signoff_report" "require_release_trend_pass" | tr '[:upper:]' '[:lower:]')"
     signoff_report_markdown="$(json_get_optional "$release_gate_signoff_report" "signoff_markdown")"
     signoff_report_status="$(json_get_optional "$release_gate_signoff_report" "status" | tr '[:lower:]' '[:upper:]')"
     if [[ -n "$signoff_report_validation" && "$signoff_report_validation" != "$REPORT_JSON" ]]; then
@@ -307,6 +310,24 @@ if [[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]]; then
     fi
     if [[ -n "$signoff_report_release_gate" && "$signoff_report_release_gate" != "$RELEASE_GATE_JSON" ]]; then
       fail "DVR readiness failed: release gate signoff report points at a different release gate artifact." "release_gate_signoff_release_gate_mismatch"
+    fi
+    if [[ -n "$signoff_report_release_trend" && "$signoff_report_release_trend" != "$ARTIFACT_DIR/release_trend_report.json" ]]; then
+      fail "DVR readiness failed: release gate signoff report points at a different release trend artifact." "release_gate_signoff_release_trend_report_mismatch"
+    fi
+    if [[ -n "$signoff_report_release_trend" && ! -f "$signoff_report_release_trend" ]]; then
+      fail "DVR readiness failed: release gate signoff release trend artifact was not found." "release_gate_signoff_release_trend_report_not_found"
+    fi
+    if [[ -n "$signoff_report_release_trend" && -f "$signoff_report_release_trend" ]]; then
+      actual_signoff_release_trend_status="$(json_get_optional "$signoff_report_release_trend" "status" | tr '[:lower:]' '[:upper:]')"
+      if [[ -n "$signoff_report_release_trend_status" && "$signoff_report_release_trend_status" != "$actual_signoff_release_trend_status" ]]; then
+        fail "DVR readiness failed: release gate signoff release trend status does not match the referenced release trend." "release_gate_signoff_release_trend_status_mismatch"
+      fi
+      if [[ "$signoff_report_require_release_trend_pass" == "true" && "$actual_signoff_release_trend_status" != "PASS" ]]; then
+        release_gate_signoff_release_trend_code="$(json_get_optional "$signoff_report_release_trend" "primary_regression_code")"
+        fail "DVR readiness failed: release gate signoff requires a PASS release trend, but the referenced release trend is not PASS." "${release_gate_signoff_release_trend_code:-release_gate_signoff_release_trend_not_pass}"
+      fi
+    elif [[ "$signoff_report_require_release_trend_pass" == "true" ]]; then
+      fail "DVR readiness failed: release gate signoff requires a release trend artifact, but none was recorded." "release_gate_signoff_release_trend_required_missing"
     fi
     if [[ -n "$release_gate_signoff_file" && -n "$signoff_report_markdown" && "$signoff_report_markdown" != "$release_gate_signoff_file" ]]; then
       fail "DVR readiness failed: release gate signoff report markdown path does not match the release gate signoff markdown." "release_gate_signoff_markdown_mismatch"
