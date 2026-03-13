@@ -68,4 +68,21 @@ void main() {
     expect(find.text('AI Automation Queue'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('ai queue switches video activation labels for DVR', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: AIQueuePage(events: [], videoOpsLabel: 'DVR'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('DVR ACTIVATION'), findsOneWidget);
+    expect(
+      find.textContaining('Request DVR stream from perimeter cameras.'),
+      findsOneWidget,
+    );
+  });
 }

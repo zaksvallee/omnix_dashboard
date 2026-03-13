@@ -80,8 +80,13 @@ class _AiQueueDailyStats {
 
 class AIQueuePage extends StatefulWidget {
   final List<DispatchEvent> events;
+  final String videoOpsLabel;
 
-  const AIQueuePage({super.key, required this.events});
+  const AIQueuePage({
+    super.key,
+    required this.events,
+    this.videoOpsLabel = 'CCTV',
+  });
 
   @override
   State<AIQueuePage> createState() => _AIQueuePageState();
@@ -1049,7 +1054,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         .toList(growable: false);
 
     if (queuedDecisions.isEmpty) {
-      return const [
+      return [
         _AiQueueAction(
           id: 'A001',
           incidentId: 'INC-8829-QX',
@@ -1077,8 +1082,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
           incidentId: 'INC-8827-PX',
           incidentPriority: _AiIncidentPriority.p2High,
           site: 'Blue Ridge Security',
-          actionType: 'CCTV ACTIVATION',
-          description: 'Request CCTV stream from perimeter cameras.',
+          actionType: '${widget.videoOpsLabel} ACTIVATION',
+          description:
+              'Request ${widget.videoOpsLabel} stream from perimeter cameras.',
           timeUntilExecutionSeconds: 72,
           status: _AiActionStatus.pending,
           metadata: {},
@@ -1086,12 +1092,13 @@ class _AIQueuePageState extends State<AIQueuePage> {
       ];
     }
 
-    const actionTypes = [
+    final actionTypes = [
       'AUTO-DISPATCH',
       'VOIP CLIENT CALL',
-      'CCTV ACTIVATION',
+      '${widget.videoOpsLabel} ACTIVATION',
       'VISION VERIFY',
     ];
+    final videoActivationType = '${widget.videoOpsLabel} ACTIVATION';
     final seeded = <_AiQueueAction>[];
     for (var index = 0; index < queuedDecisions.length; index++) {
       final decision = queuedDecisions[index];
@@ -1109,14 +1116,13 @@ class _AIQueuePageState extends State<AIQueuePage> {
           incidentPriority: priority,
           site: decision.siteId,
           actionType: type,
-          description: switch (type) {
-            'AUTO-DISPATCH' =>
-              'Dispatch nearest reaction unit to ${decision.siteId}.',
-            'VOIP CLIENT CALL' => 'Initiate safe-word verification call.',
-            'CCTV ACTIVATION' =>
-              'Request perimeter and gate camera activation.',
-            _ => 'Queue visual verification capture for AI review.',
-          },
+          description: type == 'AUTO-DISPATCH'
+              ? 'Dispatch nearest reaction unit to ${decision.siteId}.'
+              : type == 'VOIP CLIENT CALL'
+              ? 'Initiate safe-word verification call.'
+              : type == videoActivationType
+              ? 'Request perimeter and gate camera activation.'
+              : 'Queue visual verification capture for AI review.',
           timeUntilExecutionSeconds: 27 + (index * 18),
           status: index == 0
               ? _AiActionStatus.executing

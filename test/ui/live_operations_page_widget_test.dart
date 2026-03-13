@@ -152,4 +152,50 @@ void main() {
     expect(find.textContaining('snapshot.jpg'), findsOneWidget);
     expect(find.textContaining('clip.mp4'), findsOneWidget);
   });
+
+  testWidgets('live operations switches latest intel and ladder labels for DVR', (
+    tester,
+  ) async {
+    final now = DateTime.now().toUtc();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LiveOperationsPage(
+          events: [
+            DecisionCreated(
+              eventId: 'decision-1',
+              sequence: 1,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 3)),
+              dispatchId: 'D-1001',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-SANDTON',
+            ),
+            IntelligenceReceived(
+              eventId: 'intel-1',
+              sequence: 2,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 2)),
+              intelligenceId: 'INT-1',
+              provider: 'hikvision-dvr',
+              sourceType: 'dvr',
+              externalId: 'evt-1',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-SANDTON',
+              headline: 'DVR INTRUSION',
+              summary: 'DVR vehicle detected at bay_2',
+              riskScore: 91,
+              canonicalHash: 'hash-1',
+            ),
+          ],
+          videoOpsLabel: 'DVR',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Latest DVR Intel'), findsOneWidget);
+    expect(find.text('DVR ACTIVATION'), findsWidgets);
+  });
 }

@@ -134,11 +134,13 @@ class _GuardVigilance {
 class LiveOperationsPage extends StatefulWidget {
   final List<DispatchEvent> events;
   final String focusIncidentReference;
+  final String videoOpsLabel;
 
   const LiveOperationsPage({
     super.key,
     required this.events,
     this.focusIncidentReference = '',
+    this.videoOpsLabel = 'CCTV',
   });
 
   @override
@@ -994,7 +996,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       _metaRow('Contact', 'John Sovereign'),
       _metaRow('Client Safe Word', 'PHOENIX'),
       if ((incident.latestIntelHeadline ?? '').trim().isNotEmpty)
-        _metaRow('Latest CCTV Intel', incident.latestIntelHeadline!.trim()),
+        _metaRow(
+          'Latest ${widget.videoOpsLabel} Intel',
+          incident.latestIntelHeadline!.trim(),
+        ),
       if ((incident.latestIntelSummary ?? '').trim().isNotEmpty)
         _metaRow(
           'Intel Detail',
@@ -2071,7 +2076,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       if (intel.riskScore > existing) {
         riskBySite[intel.siteId] = intel.riskScore;
       }
-      if (intel.sourceType != 'hardware') {
+      if (intel.sourceType != 'hardware' && intel.sourceType != 'dvr') {
         continue;
       }
       final current = latestHardwareIntelBySite[intel.siteId];
@@ -2175,8 +2180,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   List<_LadderStep> _ladderStepsFor(_IncidentRecord? incident) {
     if (incident == null) return const [];
     final duress = _duressDetected(incident);
+    final videoActivationStep = '${widget.videoOpsLabel} ACTIVATION';
     if (incident.status == _IncidentStatus.resolved) {
-      return const [
+      return [
         _LadderStep(
           id: 's1',
           name: 'SIGNAL TRIAGE',
@@ -2194,7 +2200,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         ),
         _LadderStep(
           id: 's4',
-          name: 'CCTV ACTIVATION',
+          name: videoActivationStep,
           status: _LadderStepStatus.completed,
         ),
         _LadderStep(
@@ -2205,7 +2211,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       ];
     }
     if (incident.status == _IncidentStatus.investigating) {
-      return const [
+      return [
         _LadderStep(
           id: 's1',
           name: 'SIGNAL TRIAGE',
@@ -2223,7 +2229,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         ),
         _LadderStep(
           id: 's4',
-          name: 'CCTV ACTIVATION',
+          name: videoActivationStep,
           status: _LadderStepStatus.active,
           details: 'Live perimeter stream active.',
           timestamp: '22:14:18',
@@ -2238,7 +2244,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       ];
     }
     if (incident.status == _IncidentStatus.dispatched) {
-      return const [
+      return [
         _LadderStep(
           id: 's1',
           name: 'SIGNAL TRIAGE',
@@ -2260,7 +2266,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         ),
         _LadderStep(
           id: 's4',
-          name: 'CCTV ACTIVATION',
+          name: videoActivationStep,
           status: _LadderStepStatus.pending,
         ),
         _LadderStep(
@@ -2292,9 +2298,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             ? 'Silent duress suspected • waiting for forced dispatch.'
             : 'Waiting for VoIP completion...',
       ),
-      const _LadderStep(
+      _LadderStep(
         id: 's4',
-        name: 'CCTV ACTIVATION',
+        name: videoActivationStep,
         status: _LadderStepStatus.pending,
       ),
       const _LadderStep(
