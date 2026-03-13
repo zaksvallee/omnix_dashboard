@@ -264,6 +264,9 @@ To collapse the latest validation/trend posture into one cutover decision:
 
 This emits `cutover_decision.json` plus `cutover_decision.md` with:
 - `decision = GO|HOLD|BLOCK`
+- `primary_blocking_code` and `primary_hold_code`
+- `blocking_codes`
+- `hold_codes`
 - `blocking_reasons`
 - `hold_reasons`
 - resolved validation/parity/trend artifact references
@@ -287,6 +290,10 @@ fails when:
 - `decision` regresses from `GO -> HOLD` or `HOLD -> BLOCK`
 - hold-reason count increases beyond the allowed threshold
 - blocking-reason count increases beyond the allowed threshold
+
+The cutover-trend artifact also carries `primary_regression_code` plus
+`regression_codes`, so downstream gates can classify cutover regressions
+without parsing prose summaries.
 
 To collapse validation, cutover posture, and signoff presence into one final
 release gate:

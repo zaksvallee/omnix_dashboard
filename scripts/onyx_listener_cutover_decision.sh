@@ -107,8 +107,11 @@ parity_trend = load_optional(parity_trend_path)
 validation_trend = load_optional(validation_trend_path)
 
 decision = "GO"
-blocking_reasons = []
-hold_reasons = []
+blocking_items = []
+hold_items = []
+
+def add_reason(items, code, message):
+    items.append({"code": code, "message": message})
 
 overall_status = str(validation.get("overall_status", "")).upper()
 is_mock = bool(validation.get("is_mock", False))
@@ -130,57 +133,90 @@ hard_gate_names = [
 ]
 for gate_name in hard_gate_names:
     if not gate(gate_name):
-        blocking_reasons.append(f"{gate_name} is false")
+        add_reason(blocking_items, f"gate_{gate_name}_false", f"{gate_name} is false")
 
 if overall_status != "PASS":
-    blocking_reasons.append(f"validation overall_status is {overall_status or 'missing'}")
+    add_reason(
+        blocking_items,
+        "validation_not_pass",
+        f"validation overall_status is {overall_status or 'missing'}",
+    )
 
 if require_real and (is_mock or "/mock-" in artifact_dir or artifact_dir.startswith("mock-")):
-    blocking_reasons.append("validation artifact is mock while real artifacts are required")
+    add_reason(
+        blocking_items,
+        "mock_artifacts_not_allowed",
+        "validation artifact is mock while real artifacts are required",
+    )
 
 baseline_recommendation = str(baseline_review.get("recommendation", "")).lower()
 baseline_health_category = str(baseline_health.get("category", "")).lower()
 baseline_health_status = str(baseline_health.get("status", "")).upper()
 
 if baseline_recommendation == "investigate_new_frame_shape":
-    blocking_reasons.append("baseline review recommends investigate_new_frame_shape")
+    add_reason(
+        blocking_items,
+        "baseline_review_investigate_new_frame_shape",
+        "baseline review recommends investigate_new_frame_shape",
+    )
 elif baseline_recommendation and baseline_recommendation != "hold_baseline":
-    hold_reasons.append(f"baseline review recommends {baseline_recommendation}")
+    add_reason(
+        hold_items,
+        f"baseline_review_{baseline_recommendation}",
+        f"baseline review recommends {baseline_recommendation}",
+    )
 elif not baseline_recommendation:
-    hold_reasons.append("baseline review recommendation missing")
+    add_reason(hold_items, "missing_baseline_review", "baseline review recommendation missing")
 
 if baseline_health_status == "FAIL":
-    blocking_reasons.append("baseline health status is FAIL")
+    add_reason(blocking_items, "baseline_health_fail", "baseline health status is FAIL")
 elif baseline_health_category in {"stale", "missing_history", "invalid_timestamp", "missing_baseline"}:
-    hold_reasons.append(f"baseline health category is {baseline_health_category}")
+    add_reason(
+        hold_items,
+        f"baseline_health_{baseline_health_category}",
+        f"baseline health category is {baseline_health_category}",
+    )
 elif not baseline_health_category:
-    hold_reasons.append("baseline health category missing")
+    add_reason(hold_items, "missing_baseline_health_category", "baseline health category missing")
 
 if parity is not None:
     parity_summary = str(parity.get("summary", "")).strip()
 else:
     parity_summary = ""
-    hold_reasons.append("parity report artifact missing")
+    add_reason(hold_items, "missing_parity_report", "parity report artifact missing")
 
 if parity_trend is not None:
     parity_trend_status = str(parity_trend.get("status", "")).upper()
     if parity_trend_status != "PASS":
-        blocking_reasons.append(f"parity trend status is {parity_trend_status or 'missing'}")
+        add_reason(
+            blocking_items,
+            "parity_trend_not_pass",
+            f"parity trend status is {parity_trend_status or 'missing'}",
+        )
 else:
     parity_trend_status = ""
-    hold_reasons.append("parity trend artifact missing")
+    add_reason(hold_items, "missing_parity_trend", "parity trend artifact missing")
 
 if validation_trend is not None:
     validation_trend_status = str(validation_trend.get("status", "")).upper()
     if validation_trend_status != "PASS":
-        blocking_reasons.append(f"validation trend status is {validation_trend_status or 'missing'}")
+        add_reason(
+            blocking_items,
+            "validation_trend_not_pass",
+            f"validation trend status is {validation_trend_status or 'missing'}",
+        )
 else:
     validation_trend_status = ""
-    hold_reasons.append("validation trend artifact missing")
+    add_reason(hold_items, "missing_validation_trend", "validation trend artifact missing")
 
-if blocking_reasons:
+blocking_reasons = [item["message"] for item in blocking_items]
+hold_reasons = [item["message"] for item in hold_items]
+blocking_codes = [item["code"] for item in blocking_items]
+hold_codes = [item["code"] for item in hold_items]
+
+if blocking_items:
     decision = "BLOCK"
-elif hold_reasons:
+elif hold_items:
     decision = "HOLD"
 
 result = {
@@ -205,6 +241,10 @@ result = {
         "parity_trend_status": parity_trend_status,
         "validation_trend_status": validation_trend_status,
     },
+    "primary_blocking_code": blocking_codes[0] if blocking_codes else "",
+    "primary_hold_code": hold_codes[0] if hold_codes else "",
+    "blocking_codes": blocking_codes,
+    "hold_codes": hold_codes,
     "gates": {
         key: bool(value) for key, value in sorted(gates.items())
     },
@@ -238,21 +278,23 @@ lines.extend([
     f"- Baseline health: `{baseline_health_status or 'missing'} / {baseline_health_category or 'missing'}`",
     f"- Parity trend status: `{parity_trend_status or 'missing'}`",
     f"- Validation trend status: `{validation_trend_status or 'missing'}`",
+    f"- Primary blocking code: `{result['primary_blocking_code'] or 'missing'}`",
+    f"- Primary hold code: `{result['primary_hold_code'] or 'missing'}`",
     "",
     "## Hard Gates",
 ])
 for key, value in sorted(gates.items()):
     lines.append(f"- `{key}`: `{value}`")
 lines.extend(["", "## Blocking Reasons"])
-if blocking_reasons:
-    for item in blocking_reasons:
-        lines.append(f"- {item}")
+if blocking_items:
+    for item in blocking_items:
+        lines.append(f"- `{item['code']}`: {item['message']}")
 else:
     lines.append("- None")
 lines.extend(["", "## Hold Reasons"])
-if hold_reasons:
-    for item in hold_reasons:
-        lines.append(f"- {item}")
+if hold_items:
+    for item in hold_items:
+        lines.append(f"- `{item['code']}`: {item['message']}")
 else:
     lines.append("- None")
 if parity_summary:

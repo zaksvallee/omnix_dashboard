@@ -680,6 +680,16 @@ CUTOVER_TREND_STATUS=""
 if [[ -f "$CUTOVER_TREND_JSON" ]]; then
   CUTOVER_TREND_STATUS="$(json_get "$CUTOVER_TREND_JSON" "status" | tr '[:lower:]' '[:upper:]')"
 fi
+CUTOVER_PRIMARY_BLOCKING_CODE=""
+CUTOVER_PRIMARY_HOLD_CODE=""
+if [[ -f "$CUTOVER_DECISION_JSON" ]]; then
+  CUTOVER_PRIMARY_BLOCKING_CODE="$(json_get "$CUTOVER_DECISION_JSON" "primary_blocking_code")"
+  CUTOVER_PRIMARY_HOLD_CODE="$(json_get "$CUTOVER_DECISION_JSON" "primary_hold_code")"
+fi
+CUTOVER_TREND_PRIMARY_CODE=""
+if [[ -f "$CUTOVER_TREND_JSON" ]]; then
+  CUTOVER_TREND_PRIMARY_CODE="$(json_get "$CUTOVER_TREND_JSON" "primary_regression_code")"
+fi
 RELEASE_GATE_RESULT=""
 RELEASE_GATE_SUMMARY=""
 RELEASE_GATE_PRIMARY_FAIL_CODE=""
@@ -713,11 +723,20 @@ if [[ -n "$VALIDATION_TREND_STATUS" ]]; then
 fi
 if [[ -n "$CUTOVER_DECISION" ]]; then
   echo "Cutover decision: ${CUTOVER_DECISION}"
+  if [[ -n "$CUTOVER_PRIMARY_BLOCKING_CODE" ]]; then
+    echo "Cutover primary blocking code: ${CUTOVER_PRIMARY_BLOCKING_CODE}"
+  fi
+  if [[ -n "$CUTOVER_PRIMARY_HOLD_CODE" ]]; then
+    echo "Cutover primary hold code: ${CUTOVER_PRIMARY_HOLD_CODE}"
+  fi
   echo "Cutover decision artifact: $ARTIFACT_DIR/cutover_decision.json"
 fi
 if [[ -n "$CUTOVER_TREND_STATUS" ]]; then
   echo "Cutover trend: ${CUTOVER_TREND_STATUS}"
   echo "Cutover trend summary: ${CUTOVER_TREND_SUMMARY:-n/a}"
+  if [[ -n "$CUTOVER_TREND_PRIMARY_CODE" ]]; then
+    echo "Cutover trend primary regression code: ${CUTOVER_TREND_PRIMARY_CODE}"
+  fi
   echo "Cutover trend artifact: $ARTIFACT_DIR/cutover_trend_report.json"
 fi
 if [[ -n "$RELEASE_GATE_RESULT" ]]; then

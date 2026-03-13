@@ -124,6 +124,7 @@ regressions = []
 if decision_rank.get(current_decision, -1) < decision_rank.get(previous_decision, -1):
     regressions.append(
         {
+            "code": "decision_regression",
             "kind": "decision_regression",
             "previous": previous_decision,
             "current": current_decision,
@@ -134,6 +135,7 @@ hold_increase = len(current_hold) - len(previous_hold)
 if hold_increase > allow_hold_increase:
     regressions.append(
         {
+            "code": "hold_reason_increase",
             "kind": "hold_reason_increase",
             "previous": len(previous_hold),
             "current": len(current_hold),
@@ -146,6 +148,7 @@ blocking_increase = len(current_blocking) - len(previous_blocking)
 if blocking_increase > allow_blocking_increase:
     regressions.append(
         {
+            "code": "blocking_reason_increase",
             "kind": "blocking_reason_increase",
             "previous": len(previous_blocking),
             "current": len(current_blocking),
@@ -187,6 +190,8 @@ result = {
     },
     "new_hold_reasons": new_hold_reasons,
     "new_blocking_reasons": new_blocking_reasons,
+    "primary_regression_code": regressions[0]["code"] if regressions else "",
+    "regression_codes": [item["code"] for item in regressions],
     "regressions": regressions,
 }
 
@@ -236,10 +241,10 @@ lines.extend(["", "## Regressions"])
 if regressions:
     for item in regressions:
         if item["kind"] == "decision_regression":
-            lines.append(f"- `{item['kind']}`: `{item['previous']} -> {item['current']}`")
+            lines.append(f"- `{item['code']}`: `{item['previous']} -> {item['current']}`")
         else:
             lines.append(
-                f"- `{item['kind']}`: `{item['previous']} -> {item['current']}` "
+                f"- `{item['code']}`: `{item['previous']} -> {item['current']}` "
                 f"(delta `{item['delta']}`, allowed `{item['allowed_increase']}`)"
             )
 else:
@@ -254,10 +259,10 @@ print(f"Status: {status}")
 if regressions:
     for item in regressions:
         if item["kind"] == "decision_regression":
-            print(f"REGRESSION: {item['kind']} {item['previous']} -> {item['current']}")
+            print(f"REGRESSION: {item['code']} {item['previous']} -> {item['current']}")
         else:
             print(
-                f"REGRESSION: {item['kind']} {item['previous']} -> {item['current']} "
+                f"REGRESSION: {item['code']} {item['previous']} -> {item['current']} "
                 f"(delta {item['delta']}, allowed {item['allowed_increase']})"
             )
     sys.exit(1)
