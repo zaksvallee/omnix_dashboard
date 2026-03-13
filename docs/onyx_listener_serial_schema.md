@@ -375,6 +375,9 @@ presence of pilot-subdirectory copies when the staged bundle already exists.
 Release posture and release trend now apply the same exact-alignment rule to
 `readiness_report.json`, so readiness cannot quietly point at a different
 validation or cutover chain than the release gate consuming it.
+That readiness alignment now also covers the resolved validation-trend
+artifact, so readiness cannot quietly borrow a different validation-trend
+report from another run.
 
 Cutover and release trend comparisons now prefer stable machine-readable
 `hold_codes`, `blocking_codes`, and `fail_codes` when present, falling back to

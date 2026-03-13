@@ -551,6 +551,9 @@ baseline_health = (validation.get("baseline_health") or {}).get("category", "")
 validation_files = validation.get("files", {}) or {}
 validation_parity_report = str(validation_files.get("parity_report_json", "")).strip()
 validation_parity_trend = str(validation_files.get("trend_report_json", "")).strip()
+expected_validation_trend_path = f"{artifact_dir}/validation_trend_report.json" if artifact_dir else ""
+if expected_validation_trend_path and not path_exists(expected_validation_trend_path):
+    expected_validation_trend_path = ""
 
 if overall_status != "PASS":
     add_reason(
@@ -590,6 +593,12 @@ if readiness is not None:
             fail_items,
             "readiness_cutover_trend_report_mismatch",
             "readiness report cutover trend does not match release gate cutover trend report",
+        )
+    if resolved_validation_trend_path != expected_validation_trend_path:
+        add_reason(
+            fail_items,
+            "readiness_validation_trend_report_mismatch",
+            "readiness report validation trend does not match release gate validation trend report",
         )
     if readiness_status != "PASS":
         add_reason(

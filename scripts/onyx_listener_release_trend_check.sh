@@ -1024,6 +1024,10 @@ def release_gate_consistency_regressions(report, label):
     validation_files = (validation_data or {}).get("files", {}) or {}
     validation_parity_report = str(validation_files.get("parity_report_json", "")).strip()
     validation_parity_trend = str(validation_files.get("trend_report_json", "")).strip()
+    expected_validation_trend = str((validation_data or {}).get("artifact_dir", "")).strip()
+    expected_validation_trend = f"{expected_validation_trend}/validation_trend_report.json" if expected_validation_trend else ""
+    if expected_validation_trend and not path_exists(expected_validation_trend):
+        expected_validation_trend = ""
     resolved_validation_trend = str((((readiness_data or {}).get("resolved_files") or {}).get("validation_trend_report_json", ""))).strip()
     if not resolved_validation_trend:
         resolved_validation_trend = str((cutover_data or {}).get("validation_trend_report_json", "")).strip()
@@ -1061,12 +1065,15 @@ def release_gate_consistency_regressions(report, label):
         actual_readiness_validation = str(readiness_data.get("validation_report_json", "")).strip()
         actual_readiness_cutover = str(readiness_resolved_files.get("cutover_decision_json", "")).strip()
         actual_readiness_cutover_trend = str(readiness_resolved_files.get("cutover_trend_report_json", "")).strip()
+        actual_readiness_validation_trend = str(readiness_resolved_files.get("validation_trend_report_json", "")).strip()
         if actual_readiness_validation != validation_report:
             add("readiness_validation_report_mismatch", "release_gate_status_mismatch", validation_report, actual_readiness_validation)
         if actual_readiness_cutover != cutover_decision:
             add("readiness_cutover_decision_report_mismatch", "release_gate_status_mismatch", cutover_decision, actual_readiness_cutover)
         if actual_readiness_cutover_trend != cutover_trend:
             add("readiness_cutover_trend_report_mismatch", "release_gate_status_mismatch", cutover_trend, actual_readiness_cutover_trend)
+        if actual_readiness_validation_trend != expected_validation_trend:
+            add("readiness_validation_trend_report_mismatch", "release_gate_status_mismatch", expected_validation_trend, actual_readiness_validation_trend)
 
     if cutover_data is not None:
         actual_cutover_decision = str(cutover_data.get("decision", "")).upper()
