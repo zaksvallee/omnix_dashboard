@@ -551,9 +551,11 @@ for code, message in validation_report_consistency_issues(validation):
 
 readiness_status = ""
 readiness_failure_code = ""
+resolved_validation_trend_path = ""
 if readiness is not None:
     readiness_status = str(readiness.get("status", "")).upper()
     readiness_failure_code = str(readiness.get("failure_code", "")).strip()
+    resolved_validation_trend_path = str(((readiness.get("resolved_files") or {}).get("validation_trend_report_json", ""))).strip()
     if readiness_status != "PASS":
         add_reason(
             fail_items,
@@ -592,6 +594,8 @@ else:
     cutover_parity_report = str(cutover.get("parity_report_json", "")).strip()
     cutover_parity_trend = str(cutover.get("parity_trend_report_json", "")).strip()
     cutover_validation_trend = str(cutover.get("validation_trend_report_json", "")).strip()
+    if not resolved_validation_trend_path and cutover_validation_trend:
+        resolved_validation_trend_path = cutover_validation_trend
     if cutover_validation_report and not path_exists(cutover_validation_report):
         add_reason(
             fail_items,
@@ -690,6 +694,12 @@ if signoff_report is not None:
             fail_items,
             "signoff_parity_trend_report_mismatch",
             "signoff report parity trend does not match validation bundle parity trend report",
+        )
+    if signoff_validation_trend and resolved_validation_trend_path and signoff_validation_trend != resolved_validation_trend_path:
+        add_reason(
+            fail_items,
+            "signoff_validation_trend_report_mismatch",
+            "signoff report validation trend does not match release gate validation trend report",
         )
     if signoff_cutover_decision and cutover_path and signoff_cutover_decision != str(cutover_path):
         add_reason(

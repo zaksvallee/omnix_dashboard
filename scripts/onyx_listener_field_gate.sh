@@ -585,12 +585,12 @@ if [[ "$GENERATE_SIGNOFF" -eq 1 ]]; then
   EFFECTIVE_SIGNOFF_JSON_OUT="${EFFECTIVE_SIGNOFF_OUT%.md}.json"
   signoff_cmd=(
     ./scripts/onyx_listener_signoff_generate.sh
-    --report-json "$ARTIFACT_DIR/pilot_artifact/report.json"
+    --report-json "$ARTIFACT_DIR/report.json"
     --out "$EFFECTIVE_SIGNOFF_OUT"
     --json-out "$EFFECTIVE_SIGNOFF_JSON_OUT"
   )
-  if [[ -f "$ARTIFACT_DIR/pilot_artifact/trend_report.json" ]]; then
-    signoff_cmd+=(--trend-report-json "$ARTIFACT_DIR/pilot_artifact/trend_report.json")
+  if [[ -f "$ARTIFACT_DIR/trend_report.json" ]]; then
+    signoff_cmd+=(--trend-report-json "$ARTIFACT_DIR/trend_report.json")
   fi
   signoff_cmd+=(--validation-report-json "$ARTIFACT_DIR/validation_report.json")
   if [[ -f "$ARTIFACT_DIR/validation_trend_report.json" ]]; then

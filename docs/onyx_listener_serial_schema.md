@@ -358,6 +358,9 @@ the release gate that is trying to consume it.
 That alignment now also covers the validation bundle's staged parity report
 and parity trend, so a signoff cannot quietly borrow a parity chain from a
 different listener run.
+It also covers the resolved validation-trend artifact, so signoff cannot
+quietly borrow a different validation-trend report while still citing the same
+validation bundle.
 
 Cutover and release trend comparisons now prefer stable machine-readable
 `hold_codes`, `blocking_codes`, and `fail_codes` when present, falling back to
@@ -394,6 +397,10 @@ next to the markdown closeout, and the release gate consumes that structured
 signoff status when present. The signoff report now persists on both pass and
 fail and carries `failure_code`, so downstream tooling does not need to parse
 terminal output when signoff generation is blocked.
+When signoff is generated through the one-command field gate, it now uses the
+staged parity report and staged parity trend from the field-validation bundle
+rather than the pilot subdirectory copies, so release posture sees one
+consistent parity chain.
 
 Release posture now treats a present `signoff_report.json` as sufficient
 evidence of signoff presence. Missing markdown alone no longer forces a hold
