@@ -749,6 +749,7 @@ def signoff_report_chain_regressions(path_str, label):
     with report_path.open("r", encoding="utf-8") as handle:
         report = json.load(handle)
     signoff_file = str(report.get("signoff_file", "")).strip()
+    readiness_report = str(report.get("readiness_report_json", "")).strip()
     parity_report = str(report.get("report_json", "")).strip()
     parity_trend = str(report.get("trend_report_json", "")).strip()
     validation_report = str(report.get("validation_report_json", "")).strip()
@@ -763,6 +764,16 @@ def signoff_report_chain_regressions(path_str, label):
             "missing_field": "signoff_file",
             "missing_path": signoff_file,
         })
+    if readiness_report and not path_exists(readiness_report):
+        regressions.append({
+            "code": f"{label}_missing_readiness_report",
+            "kind": "signoff_chain_missing_file",
+            "report_label": label,
+            "missing_field": "readiness_report",
+            "missing_path": readiness_report,
+        })
+    else:
+        regressions.extend(readiness_report_consistency_regressions(readiness_report, f"{label}_readiness"))
     if parity_report and not path_exists(parity_report):
         regressions.append({
             "code": f"{label}_missing_parity_report",
@@ -826,16 +837,21 @@ def signoff_report_chain_regressions(path_str, label):
 
     statuses = report.get("statuses", {}) or {}
     requirements = report.get("requirements", {}) or {}
+    readiness_data = load_json(readiness_report)
     trend_data = load_json(parity_trend)
     validation_trend_data = load_json(validation_trend)
     cutover_data = load_json(cutover_decision)
     cutover_trend_data = load_json(cutover_trend)
 
+    actual_readiness_status = str((readiness_data or {}).get("status", "")).upper()
+    actual_readiness_failure_code = str((readiness_data or {}).get("failure_code", "")).strip()
     actual_trend_status = str((trend_data or {}).get("status", "")).upper()
     actual_validation_trend_status = str((validation_trend_data or {}).get("status", "")).upper()
     actual_cutover_decision = str((cutover_data or {}).get("decision", "")).upper()
     actual_cutover_trend_status = str((cutover_trend_data or {}).get("status", "")).upper()
 
+    reported_readiness_status = str(statuses.get("readiness_status", "")).upper()
+    reported_readiness_failure_code = str(statuses.get("readiness_failure_code", "")).strip()
     reported_trend_status = str(statuses.get("trend_status", "")).upper()
     reported_validation_trend_status = str(statuses.get("validation_trend_status", "")).upper()
     reported_cutover_decision = str(statuses.get("cutover_decision", "")).upper()
@@ -850,6 +866,10 @@ def signoff_report_chain_regressions(path_str, label):
             "actual": actual,
         })
 
+    if readiness_data is not None and reported_readiness_status != actual_readiness_status:
+        add_consistency("readiness_status_mismatch", actual_readiness_status, reported_readiness_status)
+    if readiness_data is not None and reported_readiness_failure_code != actual_readiness_failure_code:
+        add_consistency("readiness_failure_code_mismatch", actual_readiness_failure_code, reported_readiness_failure_code)
     if trend_data is not None and reported_trend_status != actual_trend_status:
         add_consistency("trend_status_mismatch", actual_trend_status, reported_trend_status)
     if validation_trend_data is not None and reported_validation_trend_status != actual_validation_trend_status:

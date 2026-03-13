@@ -342,6 +342,11 @@ rather than a checksummed blob. If the pilot gate's copied bench/parity/parity
 readiness/parity trend statuses no longer match the artifacts it references,
 cutover/release posture and their trend checks now fail directly.
 
+Listener signoff now also records the readiness artifact it actually used, plus
+the copied readiness status and failure code. Release posture and release-trend
+checks verify those readiness fields the same way they already verify signoff
+trend and cutover fields.
+
 Cutover and release trend comparisons now prefer stable machine-readable
 `hold_codes`, `blocking_codes`, and `fail_codes` when present, falling back to
 the older prose reason arrays only for legacy artifacts. That prevents

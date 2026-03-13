@@ -456,26 +456,36 @@ def signoff_report_consistency_issues(report):
     issues = []
     statuses = report.get("statuses", {}) or {}
     requirements = report.get("requirements", {}) or {}
+    readiness_report = str(report.get("readiness_report_json", "")).strip()
     trend_report = str(report.get("trend_report_json", "")).strip()
     validation_trend = str(report.get("validation_trend_report_json", "")).strip()
     cutover_decision = str(report.get("cutover_decision_json", "")).strip()
     cutover_trend = str(report.get("cutover_trend_report_json", "")).strip()
 
+    readiness_data = load_json(readiness_report)
     trend_data = load_json(trend_report)
     validation_trend_data = load_json(validation_trend)
     cutover_data = load_json(cutover_decision)
     cutover_trend_data = load_json(cutover_trend)
 
+    actual_readiness_status = str((readiness_data or {}).get("status", "")).upper()
+    actual_readiness_failure_code = str((readiness_data or {}).get("failure_code", "")).strip()
     actual_trend_status = str((trend_data or {}).get("status", "")).upper()
     actual_validation_trend_status = str((validation_trend_data or {}).get("status", "")).upper()
     actual_cutover_decision = str((cutover_data or {}).get("decision", "")).upper()
     actual_cutover_trend_status = str((cutover_trend_data or {}).get("status", "")).upper()
 
+    reported_readiness_status = str(statuses.get("readiness_status", "")).upper()
+    reported_readiness_failure_code = str(statuses.get("readiness_failure_code", "")).strip()
     reported_trend_status = str(statuses.get("trend_status", "")).upper()
     reported_validation_trend_status = str(statuses.get("validation_trend_status", "")).upper()
     reported_cutover_decision = str(statuses.get("cutover_decision", "")).upper()
     reported_cutover_trend_status = str(statuses.get("cutover_trend_status", "")).upper()
 
+    if readiness_data is not None and reported_readiness_status != actual_readiness_status:
+        issues.append(("signoff_readiness_status_mismatch", f"signoff report readiness status does not match referenced readiness report ({reported_readiness_status or 'missing'} vs {actual_readiness_status or 'missing'})"))
+    if readiness_data is not None and reported_readiness_failure_code != actual_readiness_failure_code:
+        issues.append(("signoff_readiness_failure_code_mismatch", f"signoff report readiness failure code does not match referenced readiness report ({reported_readiness_failure_code or 'missing'} vs {actual_readiness_failure_code or 'missing'})"))
     if trend_data is not None and reported_trend_status != actual_trend_status:
         issues.append(("signoff_trend_status_mismatch", f"signoff report trend status does not match referenced trend report ({reported_trend_status or 'missing'} vs {actual_trend_status or 'missing'})"))
     if validation_trend_data is not None and reported_validation_trend_status != actual_validation_trend_status:
@@ -633,6 +643,13 @@ if signoff_report is not None:
     signoff_validation_trend = str(signoff_report.get("validation_trend_report_json", "")).strip()
     signoff_cutover_decision = str(signoff_report.get("cutover_decision_json", "")).strip()
     signoff_cutover_trend = str(signoff_report.get("cutover_trend_report_json", "")).strip()
+    signoff_readiness_report = str(signoff_report.get("readiness_report_json", "")).strip()
+    if signoff_readiness_report and not path_exists(signoff_readiness_report):
+        add_reason(
+            fail_items,
+            "signoff_missing_readiness_report",
+            "signoff report references a missing readiness report",
+        )
     if signoff_parity_report and not path_exists(signoff_parity_report):
         add_reason(
             fail_items,

@@ -14,6 +14,10 @@ REQUIRE_CUTOVER_GO=0
 CUTOVER_TREND_REPORT_JSON=""
 REQUIRE_CUTOVER_TREND_PASS=0
 ALLOW_MOCK_ARTIFACTS=0
+READINESS_REPORT_JSON=""
+READINESS_REPORT_MD=""
+readiness_status=""
+readiness_failure_code=""
 
 usage() {
   cat <<'USAGE'
@@ -273,7 +277,7 @@ write_signoff_json_report() {
   local signoff_summary="$2"
   local signoff_failure_code="${3:-}"
   mkdir -p "$(dirname "$JSON_OUT_FILE")"
-  python3 - "$JSON_OUT_FILE" "$OUT_FILE" "$REPORT_JSON" "$TREND_REPORT_JSON" "$VALIDATION_REPORT_JSON" "$VALIDATION_TREND_REPORT_JSON" "$CUTOVER_DECISION_JSON" "$CUTOVER_TREND_REPORT_JSON" "${trend_status:-}" "${validation_trend_status:-}" "${cutover_decision:-}" "${cutover_trend_status:-}" "$REQUIRE_TREND_PASS" "$REQUIRE_VALIDATION_TREND_PASS" "$REQUIRE_CUTOVER_GO" "$REQUIRE_CUTOVER_TREND_PASS" "$ALLOW_MOCK_ARTIFACTS" "$signoff_status" "$signoff_summary" "$signoff_failure_code" <<'PY'
+  python3 - "$JSON_OUT_FILE" "$OUT_FILE" "$REPORT_JSON" "$TREND_REPORT_JSON" "$VALIDATION_REPORT_JSON" "$VALIDATION_TREND_REPORT_JSON" "$CUTOVER_DECISION_JSON" "$CUTOVER_TREND_REPORT_JSON" "$READINESS_REPORT_JSON" "$READINESS_REPORT_MD" "${trend_status:-}" "${validation_trend_status:-}" "${cutover_decision:-}" "${cutover_trend_status:-}" "${readiness_status:-}" "${readiness_failure_code:-}" "$REQUIRE_TREND_PASS" "$REQUIRE_VALIDATION_TREND_PASS" "$REQUIRE_CUTOVER_GO" "$REQUIRE_CUTOVER_TREND_PASS" "$ALLOW_MOCK_ARTIFACTS" "$signoff_status" "$signoff_summary" "$signoff_failure_code" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -286,22 +290,26 @@ validation_report_json = sys.argv[5]
 validation_trend_report_json = sys.argv[6]
 cutover_decision_json = sys.argv[7]
 cutover_trend_report_json = sys.argv[8]
-trend_status = sys.argv[9]
-validation_trend_status = sys.argv[10]
-cutover_decision = sys.argv[11]
-cutover_trend_status = sys.argv[12]
+readiness_report_json = sys.argv[9]
+readiness_report_markdown = sys.argv[10]
+trend_status = sys.argv[11]
+validation_trend_status = sys.argv[12]
+cutover_decision = sys.argv[13]
+cutover_trend_status = sys.argv[14]
+readiness_status = sys.argv[15]
+readiness_failure_code = sys.argv[16]
 
 def as_bool(raw: str) -> bool:
     return raw == "1"
 
-require_trend_pass = as_bool(sys.argv[13])
-require_validation_trend_pass = as_bool(sys.argv[14])
-require_cutover_go = as_bool(sys.argv[15])
-require_cutover_trend_pass = as_bool(sys.argv[16])
-allow_mock_artifacts = as_bool(sys.argv[17])
-signoff_status = sys.argv[18]
-signoff_summary = sys.argv[19]
-signoff_failure_code = sys.argv[20]
+require_trend_pass = as_bool(sys.argv[17])
+require_validation_trend_pass = as_bool(sys.argv[18])
+require_cutover_go = as_bool(sys.argv[19])
+require_cutover_trend_pass = as_bool(sys.argv[20])
+allow_mock_artifacts = as_bool(sys.argv[21])
+signoff_status = sys.argv[22]
+signoff_summary = sys.argv[23]
+signoff_failure_code = sys.argv[24]
 
 payload = {
     "status": signoff_status,
@@ -314,11 +322,15 @@ payload = {
     "validation_trend_report_json": validation_trend_report_json,
     "cutover_decision_json": cutover_decision_json,
     "cutover_trend_report_json": cutover_trend_report_json,
+    "readiness_report_json": readiness_report_json,
+    "readiness_report_markdown": readiness_report_markdown,
     "statuses": {
         "trend_status": trend_status,
         "validation_trend_status": validation_trend_status,
         "cutover_decision": cutover_decision,
         "cutover_trend_status": cutover_trend_status,
+        "readiness_status": readiness_status,
+        "readiness_failure_code": readiness_failure_code,
     },
     "requirements": {
         "require_trend_pass": require_trend_pass,
@@ -498,7 +510,10 @@ if [[ -n "$CUTOVER_TREND_REPORT_JSON" && ! -f "$CUTOVER_TREND_REPORT_JSON" ]]; t
 fi
 
 if [[ -n "$VALIDATION_REPORT_JSON" || "$REQUIRE_VALIDATION_TREND_PASS" -eq 1 ]]; then
+  READINESS_REPORT_JSON="${validation_artifact_dir:-$(dirname "$VALIDATION_REPORT_JSON")}/readiness_report.json"
+  READINESS_REPORT_MD="${READINESS_REPORT_JSON%.json}.md"
   readiness_cmd=(./scripts/onyx_listener_pilot_readiness_check.sh --report-json "$VALIDATION_REPORT_JSON")
+  readiness_cmd+=(--json-out "$READINESS_REPORT_JSON" --markdown-out "$READINESS_REPORT_MD")
   if [[ "$REQUIRE_TREND_PASS" -eq 1 ]]; then
     readiness_cmd+=(--require-trend-pass)
   fi
@@ -521,13 +536,21 @@ if [[ -n "$VALIDATION_REPORT_JSON" || "$REQUIRE_VALIDATION_TREND_PASS" -eq 1 ]];
     readiness_cmd+=(--require-cutover-trend-pass)
   fi
 else
+  report_artifact_dir="$(json_get "$REPORT_JSON" "artifact_dir")"
+  READINESS_REPORT_JSON="${report_artifact_dir:-$(dirname "$REPORT_JSON")}/parity_readiness_report.json"
+  READINESS_REPORT_MD="${READINESS_REPORT_JSON%.json}.md"
   readiness_cmd=(./scripts/onyx_listener_parity_readiness_check.sh --report-json "$REPORT_JSON")
+  readiness_cmd+=(--json-out "$READINESS_REPORT_JSON" --markdown-out "$READINESS_REPORT_MD")
 fi
 if [[ "$ALLOW_MOCK_ARTIFACTS" -ne 1 ]]; then
   readiness_cmd+=(--require-real-artifacts)
 fi
 if ! "${readiness_cmd[@]}" >/dev/null; then
   fail_signoff "readiness_not_pass" "listener readiness did not pass for signoff generation."
+fi
+if [[ -f "$READINESS_REPORT_JSON" ]]; then
+  readiness_status="$(json_get "$READINESS_REPORT_JSON" "status")"
+  readiness_failure_code="$(json_get "$READINESS_REPORT_JSON" "failure_code")"
 fi
 
 trend_status=""
