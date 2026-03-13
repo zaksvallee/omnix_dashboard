@@ -89,6 +89,7 @@ Current scope:
     - emits a sibling `*.json` signoff report on pass and fail once the validation bundle is resolved
     - now rejects release gate or release trend artifacts that point at a different validation or release chain
     - now also rejects release gates that point at different signoff markdown or signoff JSON paths than the signoff being generated
+    - now also rejects release-trend previous gates that point at missing validation/readiness/signoff artifacts
   - `scripts/onyx_dvr_release_gate.sh`
     - emits `release_gate.json` and `release_gate.md` from validation, readiness, and signoff posture
     - rejects contradictory or misaligned signoff audit JSON instead of trusting signoff presence alone

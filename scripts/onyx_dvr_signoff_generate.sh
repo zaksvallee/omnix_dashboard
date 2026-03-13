@@ -201,6 +201,20 @@ if [[ "$REQUIRE_RELEASE_TREND_PASS" -eq 1 ]]; then
   if [[ -n "$release_trend_previous_gate" && "$(basename "$release_trend_previous_gate")" != "release_gate.json" ]]; then
     fail "DVR signoff blocked: release trend previous gate does not use the canonical staged filename." "release_trend_previous_gate_name_mismatch"
   fi
+  if [[ -n "$release_trend_previous_gate" ]]; then
+    previous_gate_validation_report="$(json_get "$release_trend_previous_gate" "validation_report_json")"
+    previous_gate_readiness_report="$(json_get "$release_trend_previous_gate" "readiness_report_json")"
+    previous_gate_signoff_report="$(json_get "$release_trend_previous_gate" "signoff_report_json")"
+    if [[ -n "$previous_gate_validation_report" && ! -f "$previous_gate_validation_report" ]]; then
+      fail "DVR signoff blocked: release trend previous gate validation report was not found." "release_trend_previous_gate_validation_report_not_found"
+    fi
+    if [[ -n "$previous_gate_readiness_report" && ! -f "$previous_gate_readiness_report" ]]; then
+      fail "DVR signoff blocked: release trend previous gate readiness report was not found." "release_trend_previous_gate_readiness_report_not_found"
+    fi
+    if [[ -n "$previous_gate_signoff_report" && ! -f "$previous_gate_signoff_report" ]]; then
+      fail "DVR signoff blocked: release trend previous gate signoff report was not found." "release_trend_previous_gate_signoff_report_not_found"
+    fi
+  fi
   if [[ "$release_trend_status" != "PASS" ]]; then
     release_trend_code="$(json_get "$RELEASE_TREND_REPORT_JSON" "primary_regression_code")"
     fail "DVR signoff blocked: release trend is ${release_trend_status:-UNKNOWN}, expected PASS." "${release_trend_code:-release_trend_not_pass}"
