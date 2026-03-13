@@ -349,6 +349,9 @@ artifact is emitted on both passing and failing runs once the validation bundle
 has been resolved, so downstream tooling can audit failed readiness checks
 without relying on terminal output alone.
 
+On failure, `readiness_report.json` now also includes a machine-readable
+`failure_code` so downstream gates do not need to parse the human summary.
+
 To drive the full listener field flow in one command:
 
 ```bash

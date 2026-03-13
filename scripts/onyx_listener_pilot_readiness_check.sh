@@ -13,6 +13,7 @@ ARTIFACT_DIR=""
 REPORT_AGE_HOURS=""
 OVERALL_STATUS=""
 BENCH_BASELINE_JSON=""
+READINESS_FAILURE_CODE=""
 REQUIRE_TREND_PASS=0
 VALIDATION_TREND_REPORT_JSON=""
 REQUIRE_VALIDATION_TREND_PASS=0
@@ -36,7 +37,7 @@ write_readiness_report() {
   mkdir -p "$(dirname "$JSON_OUT")"
   mkdir -p "$(dirname "$MARKDOWN_OUT")"
 
-  python3 - "$JSON_OUT" "$MARKDOWN_OUT" "${READINESS_STATUS:-FAIL}" "${READINESS_SUMMARY:-Listener readiness failed.}" "${REPORT_JSON:-}" "${ARTIFACT_DIR:-}" "${REPORT_AGE_HOURS:-}" "${OVERALL_STATUS:-}" "$REQUIRE_REAL_ARTIFACTS" "$REQUIRE_TREND_PASS" "$REQUIRE_VALIDATION_TREND_PASS" "$REQUIRE_CUTOVER_GO" "$REQUIRE_CUTOVER_TREND_PASS" "$REQUIRE_RELEASE_GATE_PASS" "$REQUIRE_RELEASE_TREND_PASS" "$REQUIRE_BASELINE_HISTORY" "${MAX_BASELINE_AGE_DAYS:-}" "${VALIDATION_TREND_REPORT_JSON:-}" "${CUTOVER_DECISION_JSON:-}" "${CUTOVER_TREND_REPORT_JSON:-}" "${RELEASE_GATE_JSON:-}" "${RELEASE_TREND_REPORT_JSON:-}" "${BENCH_BASELINE_JSON:-}" <<'PY'
+  python3 - "$JSON_OUT" "$MARKDOWN_OUT" "${READINESS_STATUS:-FAIL}" "${READINESS_SUMMARY:-Listener readiness failed.}" "${READINESS_FAILURE_CODE:-}" "${REPORT_JSON:-}" "${ARTIFACT_DIR:-}" "${REPORT_AGE_HOURS:-}" "${OVERALL_STATUS:-}" "$REQUIRE_REAL_ARTIFACTS" "$REQUIRE_TREND_PASS" "$REQUIRE_VALIDATION_TREND_PASS" "$REQUIRE_CUTOVER_GO" "$REQUIRE_CUTOVER_TREND_PASS" "$REQUIRE_RELEASE_GATE_PASS" "$REQUIRE_RELEASE_TREND_PASS" "$REQUIRE_BASELINE_HISTORY" "${MAX_BASELINE_AGE_DAYS:-}" "${VALIDATION_TREND_REPORT_JSON:-}" "${CUTOVER_DECISION_JSON:-}" "${CUTOVER_TREND_REPORT_JSON:-}" "${RELEASE_GATE_JSON:-}" "${RELEASE_TREND_REPORT_JSON:-}" "${BENCH_BASELINE_JSON:-}" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -45,29 +46,30 @@ json_out = Path(sys.argv[1])
 md_out = Path(sys.argv[2])
 status = sys.argv[3]
 summary = sys.argv[4]
-validation_report_json = sys.argv[5]
-artifact_dir = sys.argv[6]
-report_age_hours_raw = sys.argv[7]
-overall_status = sys.argv[8]
+failure_code = sys.argv[5]
+validation_report_json = sys.argv[6]
+artifact_dir = sys.argv[7]
+report_age_hours_raw = sys.argv[8]
+overall_status = sys.argv[9]
 
 def as_bool(raw: str) -> bool:
     return raw == "1"
 
-require_real_artifacts = as_bool(sys.argv[9])
-require_trend_pass = as_bool(sys.argv[10])
-require_validation_trend_pass = as_bool(sys.argv[11])
-require_cutover_go = as_bool(sys.argv[12])
-require_cutover_trend_pass = as_bool(sys.argv[13])
-require_release_gate_pass = as_bool(sys.argv[14])
-require_release_trend_pass = as_bool(sys.argv[15])
-require_baseline_history = as_bool(sys.argv[16])
-max_baseline_age_days = sys.argv[17]
-validation_trend_report_json = sys.argv[18]
-cutover_decision_json = sys.argv[19]
-cutover_trend_report_json = sys.argv[20]
-release_gate_json = sys.argv[21]
-release_trend_report_json = sys.argv[22]
-bench_baseline_json = sys.argv[23]
+require_real_artifacts = as_bool(sys.argv[10])
+require_trend_pass = as_bool(sys.argv[11])
+require_validation_trend_pass = as_bool(sys.argv[12])
+require_cutover_go = as_bool(sys.argv[13])
+require_cutover_trend_pass = as_bool(sys.argv[14])
+require_release_gate_pass = as_bool(sys.argv[15])
+require_release_trend_pass = as_bool(sys.argv[16])
+require_baseline_history = as_bool(sys.argv[17])
+max_baseline_age_days = sys.argv[18]
+validation_trend_report_json = sys.argv[19]
+cutover_decision_json = sys.argv[20]
+cutover_trend_report_json = sys.argv[21]
+release_gate_json = sys.argv[22]
+release_trend_report_json = sys.argv[23]
+bench_baseline_json = sys.argv[24]
 
 report_age_hours = None
 if report_age_hours_raw:
@@ -79,6 +81,7 @@ if report_age_hours_raw:
 payload = {
     "status": status,
     "summary": summary,
+    "failure_code": failure_code,
     "validation_report_json": validation_report_json,
     "artifact_dir": artifact_dir,
     "report_age_hours": report_age_hours,
@@ -114,6 +117,7 @@ lines = [
     "",
     f"- Status: `{status}`",
     f"- Summary: `{summary}`",
+    f"- Failure code: `{failure_code or 'n/a'}`",
     f"- Validation report: `{validation_report_json or 'n/a'}`",
     f"- Artifact dir: `{artifact_dir or 'n/a'}`",
     f"- Report age hours: `{age_display}`",
@@ -142,6 +146,11 @@ PY
 }
 
 fail() {
+  READINESS_FAILURE_CODE="generic_failure"
+  if [[ $# -ge 2 ]]; then
+    READINESS_FAILURE_CODE="$1"
+    shift
+  fi
   READINESS_STATUS="FAIL"
   READINESS_SUMMARY="$1"
   write_readiness_report
@@ -246,10 +255,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 if ! [[ "$MAX_REPORT_AGE_HOURS" =~ ^[0-9]+$ ]]; then
-  fail "--max-report-age-hours must be a non-negative integer."
+  fail invalid_max_report_age "--max-report-age-hours must be a non-negative integer."
 fi
 if [[ -n "$MAX_BASELINE_AGE_DAYS" ]] && ! [[ "$MAX_BASELINE_AGE_DAYS" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
-  fail "--max-baseline-age-days must be a non-negative number."
+  fail invalid_max_baseline_age "--max-baseline-age-days must be a non-negative number."
 fi
 if [[ "$REQUIRE_REAL_ARTIFACTS" -eq 1 ]]; then
   REQUIRE_BASELINE_HISTORY=1
@@ -513,7 +522,7 @@ if [[ -z "$latest_report_json" ]]; then
   latest_report_json="$(latest_validation_report_json || true)"
 fi
 if [[ -z "$latest_report_json" || ! -f "$latest_report_json" ]]; then
-  fail "No listener validation_report.json found under tmp/listener_field_validation."
+  fail missing_validation_report "No listener validation_report.json found under tmp/listener_field_validation."
 fi
 
 if [[ -z "$JSON_OUT" ]]; then
@@ -563,7 +572,7 @@ max_age = float(sys.argv[2])
 raise SystemExit(0 if age <= max_age else 1)
 PY
 then
-  fail "Latest listener validation report is stale (${report_age}h old > ${MAX_REPORT_AGE_HOURS}h)."
+  fail stale_validation_report "Latest listener validation report is stale (${report_age}h old > ${MAX_REPORT_AGE_HOURS}h)."
 fi
 
 OVERALL_STATUS="$(json_get "$latest_report_json" "overall_status" | tr '[:lower:]' '[:upper:]')"
@@ -579,124 +588,124 @@ parity_gate_passed="$(json_get "$latest_report_json" "gates.parity_gate_passed" 
 trend_gate_passed="$(json_get "$latest_report_json" "gates.trend_gate_passed" | tr '[:upper:]' '[:lower:]')"
 REPORT_JSON="$latest_report_json"
 REPORT_AGE_HOURS="$report_age"
-verify_result="$(verify_json_report_checksums "$latest_report_json")" || fail "Listener validation checksum verification failed: $verify_result"
+verify_result="$(verify_json_report_checksums "$latest_report_json")" || fail validation_checksum_failed "Listener validation checksum verification failed: $verify_result"
 pass "Listener validation checksums verified."
 
 if [[ "$REQUIRE_REAL_ARTIFACTS" -eq 1 ]]; then
   if [[ "$is_mock" == "true" || "$ARTIFACT_DIR" == *"/mock-"* || "$ARTIFACT_DIR" == mock-* || "$ARTIFACT_DIR" == *"/mock-pass"* || "$ARTIFACT_DIR" == mock-pass* ]]; then
-    fail "Listener readiness failed: mock artifact directory is not allowed under --require-real-artifacts ($ARTIFACT_DIR)."
+    fail mock_artifacts_not_allowed "Listener readiness failed: mock artifact directory is not allowed under --require-real-artifacts ($ARTIFACT_DIR)."
   fi
   pass "Real-artifact gate passed ($ARTIFACT_DIR)."
 fi
 
 if [[ "$REQUIRE_VALIDATION_TREND_PASS" -eq 1 ]]; then
-  [[ -n "$VALIDATION_TREND_REPORT_JSON" && -f "$VALIDATION_TREND_REPORT_JSON" ]] || fail "Listener readiness failed: validation trend report is missing under --require-validation-trend-pass."
+  [[ -n "$VALIDATION_TREND_REPORT_JSON" && -f "$VALIDATION_TREND_REPORT_JSON" ]] || fail missing_validation_trend_report "Listener readiness failed: validation trend report is missing under --require-validation-trend-pass."
   validation_trend_status="$(verify_validation_trend_report "$VALIDATION_TREND_REPORT_JSON" 2>&1)" || {
     case "$validation_trend_status" in
       missing_current_report)
-        fail "Listener readiness failed: validation trend report references a missing current validation report."
+        fail validation_trend_missing_current_report "Listener readiness failed: validation trend report references a missing current validation report."
         ;;
       missing_previous_report)
-        fail "Listener readiness failed: validation trend report references a missing previous validation report."
+        fail validation_trend_missing_previous_report "Listener readiness failed: validation trend report references a missing previous validation report."
         ;;
       *)
-        fail "Listener readiness failed: validation trend verification failed: ${validation_trend_status:-unknown}."
+        fail validation_trend_verification_failed "Listener readiness failed: validation trend verification failed: ${validation_trend_status:-unknown}."
         ;;
     esac
   }
-  [[ "$validation_trend_status" == "PASS" ]] || fail "Listener readiness failed: validation trend report is not PASS (${validation_trend_status:-missing})."
+  [[ "$validation_trend_status" == "PASS" ]] || fail validation_trend_not_pass "Listener readiness failed: validation trend report is not PASS (${validation_trend_status:-missing})."
   pass "Validation trend gate passed ($VALIDATION_TREND_REPORT_JSON)."
 fi
 
 if [[ "$REQUIRE_CUTOVER_GO" -eq 1 ]]; then
-  [[ -n "$CUTOVER_DECISION_JSON" && -f "$CUTOVER_DECISION_JSON" ]] || fail "Listener readiness failed: cutover decision report is missing under --require-cutover-go."
+  [[ -n "$CUTOVER_DECISION_JSON" && -f "$CUTOVER_DECISION_JSON" ]] || fail missing_cutover_decision_report "Listener readiness failed: cutover decision report is missing under --require-cutover-go."
   cutover_decision_status="$(verify_cutover_decision_report "$CUTOVER_DECISION_JSON" 2>&1)" || {
     case "$cutover_decision_status" in
       missing_validation_report)
-        fail "Listener readiness failed: cutover decision references a missing validation report."
+        fail cutover_decision_missing_validation_report "Listener readiness failed: cutover decision references a missing validation report."
         ;;
       *)
-        fail "Listener readiness failed: cutover decision verification failed: ${cutover_decision_status:-unknown}."
+        fail cutover_decision_verification_failed "Listener readiness failed: cutover decision verification failed: ${cutover_decision_status:-unknown}."
         ;;
     esac
   }
-  [[ "$cutover_decision_status" == "GO" ]] || fail "Listener readiness failed: cutover decision is not GO (${cutover_decision_status:-missing})."
+  [[ "$cutover_decision_status" == "GO" ]] || fail cutover_decision_not_go "Listener readiness failed: cutover decision is not GO (${cutover_decision_status:-missing})."
   pass "Cutover decision gate passed ($CUTOVER_DECISION_JSON)."
 fi
 
 if [[ "$REQUIRE_CUTOVER_TREND_PASS" -eq 1 ]]; then
-  [[ -n "$CUTOVER_TREND_REPORT_JSON" && -f "$CUTOVER_TREND_REPORT_JSON" ]] || fail "Listener readiness failed: cutover trend report is missing under --require-cutover-trend-pass."
+  [[ -n "$CUTOVER_TREND_REPORT_JSON" && -f "$CUTOVER_TREND_REPORT_JSON" ]] || fail missing_cutover_trend_report "Listener readiness failed: cutover trend report is missing under --require-cutover-trend-pass."
   cutover_trend_status="$(verify_cutover_trend_report "$CUTOVER_TREND_REPORT_JSON" 2>&1)" || {
     case "$cutover_trend_status" in
       missing_current_decision)
-        fail "Listener readiness failed: cutover trend report references a missing current cutover decision."
+        fail cutover_trend_missing_current_decision "Listener readiness failed: cutover trend report references a missing current cutover decision."
         ;;
       missing_previous_decision)
-        fail "Listener readiness failed: cutover trend report references a missing previous cutover decision."
+        fail cutover_trend_missing_previous_decision "Listener readiness failed: cutover trend report references a missing previous cutover decision."
         ;;
       *)
-        fail "Listener readiness failed: cutover trend verification failed: ${cutover_trend_status:-unknown}."
+        fail cutover_trend_verification_failed "Listener readiness failed: cutover trend verification failed: ${cutover_trend_status:-unknown}."
         ;;
     esac
   }
-  [[ "$cutover_trend_status" == "PASS" ]] || fail "Listener readiness failed: cutover trend report is not PASS (${cutover_trend_status:-missing})."
+  [[ "$cutover_trend_status" == "PASS" ]] || fail cutover_trend_not_pass "Listener readiness failed: cutover trend report is not PASS (${cutover_trend_status:-missing})."
   pass "Cutover trend gate passed ($CUTOVER_TREND_REPORT_JSON)."
 fi
 
 if [[ "$REQUIRE_RELEASE_GATE_PASS" -eq 1 ]]; then
-  [[ -n "$RELEASE_GATE_JSON" && -f "$RELEASE_GATE_JSON" ]] || fail "Listener readiness failed: release gate report is missing under --require-release-gate-pass."
+  [[ -n "$RELEASE_GATE_JSON" && -f "$RELEASE_GATE_JSON" ]] || fail missing_release_gate_report "Listener readiness failed: release gate report is missing under --require-release-gate-pass."
   release_gate_status="$(verify_release_gate_report "$RELEASE_GATE_JSON" 2>&1)" || {
     case "$release_gate_status" in
       missing_validation_report)
-        fail "Listener readiness failed: release gate references a missing validation report."
+        fail release_gate_missing_validation_report "Listener readiness failed: release gate references a missing validation report."
         ;;
       *)
-        fail "Listener readiness failed: release gate verification failed: ${release_gate_status:-unknown}."
+        fail release_gate_verification_failed "Listener readiness failed: release gate verification failed: ${release_gate_status:-unknown}."
         ;;
     esac
   }
-  [[ "$release_gate_status" == "PASS" ]] || fail "Listener readiness failed: release gate is not PASS (${release_gate_status:-missing})."
+  [[ "$release_gate_status" == "PASS" ]] || fail release_gate_not_pass "Listener readiness failed: release gate is not PASS (${release_gate_status:-missing})."
   pass "Release gate passed ($RELEASE_GATE_JSON)."
 fi
 
 if [[ "$REQUIRE_RELEASE_TREND_PASS" -eq 1 ]]; then
-  [[ -n "$RELEASE_TREND_REPORT_JSON" && -f "$RELEASE_TREND_REPORT_JSON" ]] || fail "Listener readiness failed: release trend report is missing under --require-release-trend-pass."
+  [[ -n "$RELEASE_TREND_REPORT_JSON" && -f "$RELEASE_TREND_REPORT_JSON" ]] || fail missing_release_trend_report "Listener readiness failed: release trend report is missing under --require-release-trend-pass."
   release_trend_status="$(verify_release_trend_report "$RELEASE_TREND_REPORT_JSON" 2>&1)" || {
     case "$release_trend_status" in
       missing_current_release_gate)
-        fail "Listener readiness failed: release trend report references a missing current release gate."
+        fail release_trend_missing_current_gate "Listener readiness failed: release trend report references a missing current release gate."
         ;;
       missing_previous_release_gate)
-        fail "Listener readiness failed: release trend report references a missing previous release gate."
+        fail release_trend_missing_previous_gate "Listener readiness failed: release trend report references a missing previous release gate."
         ;;
       *)
-        fail "Listener readiness failed: release trend verification failed: ${release_trend_status:-unknown}."
+        fail release_trend_verification_failed "Listener readiness failed: release trend verification failed: ${release_trend_status:-unknown}."
         ;;
     esac
   }
-  [[ "$release_trend_status" == "PASS" ]] || fail "Listener readiness failed: release trend report is not PASS (${release_trend_status:-missing})."
+  [[ "$release_trend_status" == "PASS" ]] || fail release_trend_not_pass "Listener readiness failed: release trend report is not PASS (${release_trend_status:-missing})."
   pass "Release trend gate passed ($RELEASE_TREND_REPORT_JSON)."
 fi
 
 if [[ "$REQUIRE_BASELINE_HISTORY" -eq 1 ]]; then
-  [[ -n "$BENCH_BASELINE_JSON" && -f "$BENCH_BASELINE_JSON" ]] || fail "Listener readiness failed: bench baseline JSON is missing under --require-baseline-history."
+  [[ -n "$BENCH_BASELINE_JSON" && -f "$BENCH_BASELINE_JSON" ]] || fail missing_bench_baseline_json "Listener readiness failed: bench baseline JSON is missing under --require-baseline-history."
   baseline_history_result="$(verify_baseline_history "$BENCH_BASELINE_JSON" "$MAX_BASELINE_AGE_DAYS" 2>&1)" || {
     case "$baseline_history_result" in
       missing_history)
-        fail "Listener readiness failed: bench baseline has no promotion_history."
+        fail bench_baseline_missing_history "Listener readiness failed: bench baseline has no promotion_history."
         ;;
       missing_last_promoted_at)
-        fail "Listener readiness failed: bench baseline has no last_promoted_at_utc."
+        fail bench_baseline_missing_last_promoted "Listener readiness failed: bench baseline has no last_promoted_at_utc."
         ;;
       invalid_last_promoted_at)
-        fail "Listener readiness failed: bench baseline last_promoted_at_utc is invalid."
+        fail bench_baseline_invalid_last_promoted "Listener readiness failed: bench baseline last_promoted_at_utc is invalid."
         ;;
       stale:*)
         age_days="${baseline_history_result#stale:}"
-        fail "Listener readiness failed: bench baseline is stale (${age_days}d old > ${MAX_BASELINE_AGE_DAYS}d)."
+        fail bench_baseline_stale "Listener readiness failed: bench baseline is stale (${age_days}d old > ${MAX_BASELINE_AGE_DAYS}d)."
         ;;
       *)
-        fail "Listener readiness failed: bench baseline history verification failed: ${baseline_history_result:-unknown}."
+        fail bench_baseline_history_verification_failed "Listener readiness failed: bench baseline history verification failed: ${baseline_history_result:-unknown}."
         ;;
     esac
   }
@@ -707,16 +716,16 @@ if [[ "$REQUIRE_BASELINE_HISTORY" -eq 1 ]]; then
   fi
 fi
 
-[[ "$serial_capture_present" == "true" ]] || fail "Listener readiness failed: serial capture gate is not true."
-[[ "$legacy_capture_present" == "true" ]] || fail "Listener readiness failed: legacy capture gate is not true."
-[[ "$field_notes_present" == "true" ]] || fail "Listener readiness failed: field notes gate is not true."
-[[ "$read_only_wiring_documented" == "true" ]] || fail "Listener readiness failed: read-only wiring gate is not true."
-[[ "$bench_anomaly_gate_passed" == "true" ]] || fail "Listener readiness failed: bench anomaly gate is not true."
-[[ "$parity_gate_passed" == "true" ]] || fail "Listener readiness failed: parity gate is not true."
+[[ "$serial_capture_present" == "true" ]] || fail serial_capture_gate_false "Listener readiness failed: serial capture gate is not true."
+[[ "$legacy_capture_present" == "true" ]] || fail legacy_capture_gate_false "Listener readiness failed: legacy capture gate is not true."
+[[ "$field_notes_present" == "true" ]] || fail field_notes_gate_false "Listener readiness failed: field notes gate is not true."
+[[ "$read_only_wiring_documented" == "true" ]] || fail read_only_wiring_gate_false "Listener readiness failed: read-only wiring gate is not true."
+[[ "$bench_anomaly_gate_passed" == "true" ]] || fail bench_anomaly_gate_false "Listener readiness failed: bench anomaly gate is not true."
+[[ "$parity_gate_passed" == "true" ]] || fail parity_gate_false "Listener readiness failed: parity gate is not true."
 if [[ "$REQUIRE_TREND_PASS" -eq 1 ]]; then
-  [[ "$trend_gate_passed" == "true" ]] || fail "Listener readiness failed: trend gate is not true."
+  [[ "$trend_gate_passed" == "true" ]] || fail trend_gate_false "Listener readiness failed: trend gate is not true."
 fi
-[[ "$OVERALL_STATUS" == "PASS" ]] || fail "Listener readiness failed: overall status is $OVERALL_STATUS, expected PASS."
+[[ "$OVERALL_STATUS" == "PASS" ]] || fail overall_status_not_pass "Listener readiness failed: overall status is $OVERALL_STATUS, expected PASS."
 
 READINESS_STATUS="PASS"
 READINESS_SUMMARY="Listener readiness checks passed."
