@@ -124,6 +124,47 @@ cat >"$CAPTURE_DIR/field_notes.md" <<EOF
 - None. Mock bundle for tooling verification only.
 EOF
 
+cat >"$CAPTURE_DIR/listener_bench_baseline.json" <<'EOF'
+{
+  "site_id": "SITE-SANDTON",
+  "device_path": "/dev/ttyUSB0",
+  "created_at_utc": "2026-03-13T08:00:00Z",
+  "max_capture_signatures": 1,
+  "allowed_capture_signatures": [
+    "tokenized|tokens=6|timestamp=embedded_token|partition=present|zone=present|user=present|qualifier=present"
+  ],
+  "max_unexpected_signatures": 0,
+  "max_fallback_timestamp_count": 0,
+  "max_unknown_event_rate_percent": 0,
+  "last_promoted_at_utc": "2026-03-13T08:05:00Z",
+  "last_promoted_from": "mock_validation_report.json",
+  "last_promotion_mode": "merge_signatures",
+  "last_review_recommendation": "hold_baseline",
+  "promotion_history": [
+    {
+      "promoted_at_utc": "2026-03-13T08:05:00Z",
+      "source_json": "mock_validation_report.json",
+      "source_kind": "validation_report",
+      "promotion_mode": "merge_signatures",
+      "review_status": "PASS",
+      "recommendation": "hold_baseline",
+      "summary": "Mock baseline history entry for tooling verification.",
+      "observed_signatures": [
+        "tokenized|tokens=6|timestamp=embedded_token|partition=present|zone=present|user=present|qualifier=present"
+      ],
+      "promoted_signatures_added": [],
+      "promoted_signature_count": 1,
+      "bench_thresholds": {
+        "max_capture_signatures": 1,
+        "max_unexpected_signatures": 0,
+        "max_fallback_timestamp_count": 0,
+        "max_unknown_event_rate_percent": 0
+      }
+    }
+  ]
+}
+EOF
+
 if [[ "$COMPARE_PREVIOUS" -eq 1 ]]; then
   cat >"$PREV_DIR/report.json" <<'EOF'
 {

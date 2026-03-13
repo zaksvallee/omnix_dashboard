@@ -76,6 +76,8 @@ cat >"$OUT_DIR/README.md" <<EOF
   Legacy listener export normalized into accepted JSON rows for parity checks.
 - \`field_notes.md\`
   Bench notes, wiring details, observed anomalies, and timestamps.
+- \`listener_bench_baseline.json\`
+  Approved anomaly thresholds and allowed capture signatures for this pilot.
 
 ## Bench commands
 
@@ -84,7 +86,23 @@ cat >"$OUT_DIR/README.md" <<EOF
   --input $OUT_DIR/serial_raw.txt \\
   --client-id ${CLIENT_ID:-CLIENT-001} \\
   --region-id ${REGION_ID:-REGION-GAUTENG} \\
-  --site-id ${SITE_ID:-SITE-SANDTON}
+  --site-id ${SITE_ID:-SITE-SANDTON} \\
+  --max-capture-signatures 2 \\
+  --max-fallback-timestamp-count 0 \\
+  --max-unknown-event-rate-percent 5
+\`\`\`
+
+\`\`\`bash
+./scripts/onyx_listener_pilot_gate.sh \\
+  --capture-dir $OUT_DIR \\
+  --site-id ${SITE_ID:-SITE-SANDTON} \\
+  --device-path ${DEVICE_PATH:-/dev/ttyUSB0}
+\`\`\`
+
+\`\`\`bash
+./scripts/onyx_listener_bench_baseline_promote.sh \\
+  --source-json tmp/listener_field_validation/<timestamp>/validation_report.json \\
+  --baseline-json $OUT_DIR/listener_bench_baseline.json
 \`\`\`
 
 \`\`\`bash
@@ -92,6 +110,23 @@ cat >"$OUT_DIR/README.md" <<EOF
   --serial tmp/listener_serial_bench/<timestamp>/parsed.json \\
   --legacy $OUT_DIR/legacy_events.json
 \`\`\`
+EOF
+
+cat >"$OUT_DIR/listener_bench_baseline.json" <<EOF
+{
+  "site_id": "${SITE_ID:-SITE-SANDTON}",
+  "device_path": "${DEVICE_PATH:-/dev/ttyUSB0}",
+  "created_at_utc": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "max_capture_signatures": 2,
+  "allowed_capture_signatures": [
+    "tokenized|tokens=6|timestamp=embedded_token|partition=present|zone=present|user=present|qualifier=present"
+  ],
+  "max_unexpected_signatures": 1,
+  "max_fallback_timestamp_count": 0,
+  "max_unknown_event_rate_percent": 5,
+  "notes": "Update this baseline after the first clean read-only bench capture for the pilot.",
+  "promotion_history": []
+}
 EOF
 
 cat >"$OUT_DIR/serial_raw.txt" <<'EOF'
@@ -156,3 +191,4 @@ echo "  $OUT_DIR/README.md"
 echo "  $OUT_DIR/serial_raw.txt"
 echo "  $OUT_DIR/legacy_events.json"
 echo "  $OUT_DIR/field_notes.md"
+echo "  $OUT_DIR/listener_bench_baseline.json"

@@ -69,10 +69,101 @@ Use:
   --input tmp/listener_serial_capture/sample.txt \
   --client-id CLIENT-001 \
   --region-id REGION-GAUTENG \
-  --site-id SITE-SANDTON
+  --site-id SITE-SANDTON \
+  --max-capture-signatures 2 \
+  --max-fallback-timestamp-count 0 \
+  --max-unknown-event-rate-percent 5
 ```
 
 The script emits parsed envelopes to `tmp/listener_serial_bench/<timestamp>/parsed.json`.
+The bench artifact now includes:
+- `accepted`
+- `rejected` with `line`, `line_number`, and `reason`
+- `stats.accepted_count`
+- `stats.rejected_count`
+- `stats.ignored_count`
+- `stats.reject_reason_counts`
+- `stats.timestamp_source_counts`
+- `stats.warning_counts`
+- `stats.event_code_counts`
+- `stats.qualifier_counts`
+- `stats.parse_mode_counts`
+- `stats.capture_signature_counts`
+- `stats.unexpected_capture_signature_counts`
+- `anomaly_gate.status`
+- `anomaly_gate.thresholds`
+- `anomaly_gate.observed`
+- `anomaly_gate.failures`
+
+Accepted events now record timestamp provenance in `metadata.timestamp_source`:
+- `embedded_token`
+- `embedded_json`
+- `fallback_now`
+
+When present, accepted events also record:
+- `metadata.timestamp_token` for tokenized embedded timestamps
+- `metadata.timestamp_field` for JSON timestamps (`occurred_at_utc` vs `timestamp`)
+- `metadata.normalized_event_label`
+- `metadata.risk_score`
+- `metadata.normalization_status`
+- `metadata.normalization_warning`
+- `metadata.normalization_warnings`
+- `metadata.capture_signature`
+
+Capture signatures summarize the observed frame shape for profiling:
+- parse mode (`tokenized` or `json_line`)
+- token count when applicable
+- timestamp source and timestamp field when applicable
+- occupancy of partition, zone, user, and qualifier fields
+
+The bench script can also enforce anomaly gates during capture profiling:
+- `--max-capture-signatures`
+- `--allow-capture-signature`
+- `--max-unexpected-signatures`
+- `--max-fallback-timestamp-count`
+- `--max-unknown-event-rate-percent`
+
+Those thresholds can be persisted in `tmp/listener_capture/listener_bench_baseline.json`
+or passed explicitly with `--bench-baseline-json` to the pilot/field scripts.
+CLI flags override values loaded from the baseline file.
+
+To promote a reviewed field run back into the baseline:
+
+```bash
+./scripts/onyx_listener_bench_baseline_promote.sh \
+  --source-json tmp/listener_field_validation/<timestamp>/validation_report.json \
+  --baseline-json tmp/listener_capture/listener_bench_baseline.json
+```
+
+The promotion script:
+- accepts `validation_report.json` or `serial_parsed.json`
+- refuses `investigate_new_frame_shape` promotions unless `--force` is supplied
+- can merge or replace signatures
+- records `promotion_history` inside the baseline file
+
+If any configured anomaly threshold is exceeded, the script still writes
+`parsed.json` but exits with code `2` and records the failure details in
+`anomaly_gate.failures`.
+
+Current normalization warnings:
+- `unknown_event_code`
+- `nonstandard_event_qualifier`
+
+Common reject reasons:
+- `insufficient_tokens`
+- `invalid_qualifier_code`
+- `missing_account_number`
+- `invalid_account_number`
+- `invalid_partition`
+- `invalid_zone`
+- `invalid_json`
+- `json_missing_timestamp`
+- `json_missing_event_code`
+- `json_missing_account_number`
+- `json_invalid_numeric_fields`
+- `json_invalid_partition`
+- `json_invalid_zone`
+- `json_invalid_qualifier`
 
 ## Parity Report
 
@@ -117,6 +208,10 @@ Once `tmp/listener_capture/` is filled with real capture data:
   --legacy-source legacy_listener \
   --min-match-rate-percent 95 \
   --max-observed-skew-seconds 90 \
+  --max-capture-signatures 2 \
+  --max-fallback-timestamp-count 0 \
+  --max-unknown-event-rate-percent 5 \
+  --bench-baseline-json tmp/listener_capture/listener_bench_baseline.json \
   --allow-drift-reason zone_mismatch \
   --max-drift-reason-count zone_mismatch=2 \
   --compare-previous \
@@ -153,6 +248,10 @@ To create a self-contained field-validation bundle from a real capture pack:
   --site-id SITE-SANDTON \
   --device-path /dev/ttyUSB0 \
   --legacy-source legacy_listener \
+  --bench-baseline-json tmp/listener_capture/listener_bench_baseline.json \
+  --max-capture-signatures 2 \
+  --max-fallback-timestamp-count 0 \
+  --max-unknown-event-rate-percent 5 \
   --compare-previous \
   --allow-match-rate-drop-percent 1 \
   --allow-max-skew-increase-seconds 5
@@ -161,7 +260,10 @@ To create a self-contained field-validation bundle from a real capture pack:
 To confirm the latest listener field-validation bundle is signoff-ready:
 
 ```bash
-./scripts/onyx_listener_pilot_readiness_check.sh --require-trend-pass
+./scripts/onyx_listener_pilot_readiness_check.sh \
+  --require-trend-pass \
+  --require-baseline-history \
+  --max-baseline-age-days 30
 ```
 
 To drive the full listener field flow in one command:
@@ -172,6 +274,10 @@ To drive the full listener field flow in one command:
   --site-id SITE-SANDTON \
   --device-path /dev/ttyUSB0 \
   --legacy-source legacy_listener \
+  --bench-baseline-json tmp/listener_capture/listener_bench_baseline.json \
+  --max-capture-signatures 2 \
+  --max-fallback-timestamp-count 0 \
+  --max-unknown-event-rate-percent 5 \
   --compare-previous \
   --generate-signoff
 ```
@@ -184,6 +290,53 @@ For local tooling checks without real hardware:
 
 These mock artifacts are valid for local gate verification only and should be
 rejected for real pilot signoff with `--require-real-artifacts`.
+
+Field validation and readiness now also enforce the serial bench anomaly gate:
+- `gates.bench_anomaly_gate_passed`
+- `files.serial_parsed_json`
+- `files.bench_baseline_json`
+- `files.baseline_review_json`
+- `files.baseline_health_json`
+- `checksums.serial_parsed_json_sha256`
+- `checksums.bench_baseline_json_sha256`
+- `checksums.baseline_review_json_sha256`
+- `checksums.baseline_health_json_sha256`
+
+Field validation also emits `baseline_review` with:
+- `status`
+- `recommendation`
+- `summary`
+- `observed_signatures`
+- `baseline_signatures`
+- `effective_allowed_signatures`
+- `new_observed_signatures`
+- `missing_baseline_signatures`
+
+Recommendation meanings:
+- `hold_baseline`
+- `promote_baseline`
+- `investigate_new_frame_shape`
+
+Field validation also emits advisory `baseline_health` with:
+- `status`
+- `category`
+- `summary`
+- `last_promoted_at_utc`
+- `age_days`
+
+Baseline health categories:
+- `fresh`
+- `stale`
+- `missing_history`
+- `invalid_timestamp`
+- `missing_baseline`
+
+Readiness can also doctor the persisted baseline:
+- `--require-baseline-history`
+- `--max-baseline-age-days <days>`
+
+Under `--require-real-artifacts`, readiness now automatically requires baseline
+history. Use `--max-baseline-age-days` to fail on stale promoted baselines.
 
 ## Non-Goals
 

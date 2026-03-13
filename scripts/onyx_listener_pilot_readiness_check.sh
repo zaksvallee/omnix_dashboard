@@ -8,6 +8,8 @@ REPORT_JSON=""
 MAX_REPORT_AGE_HOURS=24
 REQUIRE_REAL_ARTIFACTS=0
 REQUIRE_TREND_PASS=0
+REQUIRE_BASELINE_HISTORY=0
+MAX_BASELINE_AGE_DAYS=""
 
 pass() { printf "PASS: %s\n" "$1"; }
 fail() { printf "FAIL: %s\n" "$1"; exit 1; }
@@ -15,7 +17,7 @@ fail() { printf "FAIL: %s\n" "$1"; exit 1; }
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/onyx_listener_pilot_readiness_check.sh [--report-json <path>] [--max-report-age-hours <hours>] [--require-real-artifacts] [--require-trend-pass]
+  ./scripts/onyx_listener_pilot_readiness_check.sh [--report-json <path>] [--max-report-age-hours <hours>] [--require-real-artifacts] [--require-trend-pass] [--require-baseline-history] [--max-baseline-age-days <days>]
 
 Purpose:
   Validate the latest listener field-validation artifact under
@@ -42,6 +44,14 @@ while [[ $# -gt 0 ]]; do
       REQUIRE_TREND_PASS=1
       shift
       ;;
+    --require-baseline-history)
+      REQUIRE_BASELINE_HISTORY=1
+      shift
+      ;;
+    --max-baseline-age-days)
+      MAX_BASELINE_AGE_DAYS="${2:-}"
+      shift 2
+      ;;
     -h|--help)
       usage
       exit 0
@@ -54,6 +64,12 @@ done
 
 if ! [[ "$MAX_REPORT_AGE_HOURS" =~ ^[0-9]+$ ]]; then
   fail "--max-report-age-hours must be a non-negative integer."
+fi
+if [[ -n "$MAX_BASELINE_AGE_DAYS" ]] && ! [[ "$MAX_BASELINE_AGE_DAYS" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+  fail "--max-baseline-age-days must be a non-negative number."
+fi
+if [[ "$REQUIRE_REAL_ARTIFACTS" -eq 1 ]]; then
+  REQUIRE_BASELINE_HISTORY=1
 fi
 
 latest_validation_report_json() {
@@ -121,6 +137,10 @@ artifact_dir = data.get("artifact_dir", "")
 
 pairs = [
     ("serial_capture", "serial_capture_sha256"),
+    ("serial_parsed_json", "serial_parsed_json_sha256"),
+    ("bench_baseline_json", "bench_baseline_json_sha256"),
+    ("baseline_review_json", "baseline_review_json_sha256"),
+    ("baseline_health_json", "baseline_health_json_sha256"),
     ("legacy_capture", "legacy_capture_sha256"),
     ("field_notes", "field_notes_sha256"),
     ("parity_report_json", "parity_report_json_sha256"),
@@ -149,6 +169,49 @@ print("ok")
 PY
 }
 
+verify_baseline_history() {
+  local baseline_file="$1"
+  local max_age_days="${2:-}"
+  python3 - "$baseline_file" "$max_age_days" <<'PY'
+import json
+import sys
+import time
+from datetime import datetime, timezone
+
+baseline_file = sys.argv[1]
+max_age_days_raw = sys.argv[2].strip()
+
+with open(baseline_file, "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+
+history = data.get("promotion_history")
+if not isinstance(history, list) or len(history) == 0:
+    raise SystemExit("missing_history")
+
+last_promoted = str(data.get("last_promoted_at_utc") or "").strip()
+if not last_promoted:
+    last_promoted = str(history[-1].get("promoted_at_utc") or "").strip()
+if not last_promoted:
+    raise SystemExit("missing_last_promoted_at")
+
+try:
+    promoted_at = datetime.fromisoformat(last_promoted.replace("Z", "+00:00"))
+except ValueError as exc:
+    raise SystemExit("invalid_last_promoted_at") from exc
+if promoted_at.tzinfo is None:
+    promoted_at = promoted_at.replace(tzinfo=timezone.utc)
+promoted_at = promoted_at.astimezone(timezone.utc)
+
+if max_age_days_raw:
+    max_age_days = float(max_age_days_raw)
+    age_days = max((time.time() - promoted_at.timestamp()) / 86400.0, 0.0)
+    if age_days > max_age_days:
+        raise SystemExit(f"stale:{age_days:.2f}")
+
+print(last_promoted)
+PY
+}
+
 latest_report_json="$REPORT_JSON"
 if [[ -z "$latest_report_json" ]]; then
   latest_report_json="$(latest_validation_report_json || true)"
@@ -171,10 +234,12 @@ fi
 overall_status="$(json_get "$latest_report_json" "overall_status" | tr '[:lower:]' '[:upper:]')"
 artifact_dir="$(json_get "$latest_report_json" "artifact_dir")"
 is_mock="$(json_get "$latest_report_json" "is_mock" | tr '[:upper:]' '[:lower:]')"
+bench_baseline_json="$(json_get "$latest_report_json" "files.bench_baseline_json")"
 serial_capture_present="$(json_get "$latest_report_json" "gates.serial_capture_present" | tr '[:upper:]' '[:lower:]')"
 legacy_capture_present="$(json_get "$latest_report_json" "gates.legacy_capture_present" | tr '[:upper:]' '[:lower:]')"
 field_notes_present="$(json_get "$latest_report_json" "gates.field_notes_present" | tr '[:upper:]' '[:lower:]')"
 read_only_wiring_documented="$(json_get "$latest_report_json" "gates.read_only_wiring_documented" | tr '[:upper:]' '[:lower:]')"
+bench_anomaly_gate_passed="$(json_get "$latest_report_json" "gates.bench_anomaly_gate_passed" | tr '[:upper:]' '[:lower:]')"
 parity_gate_passed="$(json_get "$latest_report_json" "gates.parity_gate_passed" | tr '[:upper:]' '[:lower:]')"
 trend_gate_passed="$(json_get "$latest_report_json" "gates.trend_gate_passed" | tr '[:upper:]' '[:lower:]')"
 verify_result="$(verify_json_report_checksums "$latest_report_json")" || fail "Listener validation checksum verification failed: $verify_result"
@@ -187,10 +252,40 @@ if [[ "$REQUIRE_REAL_ARTIFACTS" -eq 1 ]]; then
   pass "Real-artifact gate passed ($artifact_dir)."
 fi
 
+if [[ "$REQUIRE_BASELINE_HISTORY" -eq 1 ]]; then
+  [[ -n "$bench_baseline_json" && -f "$bench_baseline_json" ]] || fail "Listener readiness failed: bench baseline JSON is missing under --require-baseline-history."
+  baseline_history_result="$(verify_baseline_history "$bench_baseline_json" "$MAX_BASELINE_AGE_DAYS" 2>&1)" || {
+    case "$baseline_history_result" in
+      missing_history)
+        fail "Listener readiness failed: bench baseline has no promotion_history."
+        ;;
+      missing_last_promoted_at)
+        fail "Listener readiness failed: bench baseline has no last_promoted_at_utc."
+        ;;
+      invalid_last_promoted_at)
+        fail "Listener readiness failed: bench baseline last_promoted_at_utc is invalid."
+        ;;
+      stale:*)
+        age_days="${baseline_history_result#stale:}"
+        fail "Listener readiness failed: bench baseline is stale (${age_days}d old > ${MAX_BASELINE_AGE_DAYS}d)."
+        ;;
+      *)
+        fail "Listener readiness failed: bench baseline history verification failed: ${baseline_history_result:-unknown}."
+        ;;
+    esac
+  }
+  if [[ -n "$MAX_BASELINE_AGE_DAYS" ]]; then
+    pass "Bench baseline freshness gate passed ($baseline_history_result)."
+  else
+    pass "Bench baseline history gate passed ($baseline_history_result)."
+  fi
+fi
+
 [[ "$serial_capture_present" == "true" ]] || fail "Listener readiness failed: serial capture gate is not true."
 [[ "$legacy_capture_present" == "true" ]] || fail "Listener readiness failed: legacy capture gate is not true."
 [[ "$field_notes_present" == "true" ]] || fail "Listener readiness failed: field notes gate is not true."
 [[ "$read_only_wiring_documented" == "true" ]] || fail "Listener readiness failed: read-only wiring gate is not true."
+[[ "$bench_anomaly_gate_passed" == "true" ]] || fail "Listener readiness failed: bench anomaly gate is not true."
 [[ "$parity_gate_passed" == "true" ]] || fail "Listener readiness failed: parity gate is not true."
 if [[ "$REQUIRE_TREND_PASS" -eq 1 ]]; then
   [[ "$trend_gate_passed" == "true" ]] || fail "Listener readiness failed: trend gate is not true."

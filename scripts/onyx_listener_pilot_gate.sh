@@ -8,6 +8,7 @@ LEGACY_SOURCE=""
 CLIENT_ID="CLIENT-001"
 REGION_ID="REGION-GAUTENG"
 ARTIFACT_DIR=""
+BENCH_BASELINE_JSON=""
 MAX_REPORT_AGE_HOURS=24
 MAX_SKEW_SECONDS=90
 MIN_MATCH_RATE_PERCENT=95
@@ -19,6 +20,11 @@ PREVIOUS_REPORT_JSON=""
 ALLOW_MATCH_RATE_DROP_PERCENT=0
 ALLOW_MAX_SKEW_INCREASE_SECONDS=0
 ALLOW_TREND_DRIFT_COUNT_INCREASES=()
+MAX_CAPTURE_SIGNATURES=""
+ALLOW_CAPTURE_SIGNATURES=()
+MAX_UNEXPECTED_SIGNATURES=""
+MAX_FALLBACK_TIMESTAMP_COUNT=""
+MAX_UNKNOWN_EVENT_RATE_PERCENT=""
 INIT_CAPTURE_PACK=0
 ALLOW_UNMATCHED_SERIAL=0
 ALLOW_UNMATCHED_LEGACY=0
@@ -27,7 +33,7 @@ ALLOW_MOCK_ARTIFACTS=0
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/onyx_listener_pilot_gate.sh [--capture-dir <path>] [--site-id <site_id>] [--device-path <tty>] [--legacy-source <label>] [--client-id <id>] [--region-id <id>] [--artifact-dir <path>] [--max-report-age-hours 24] [--max-skew-seconds 90] [--min-match-rate-percent 95] [--max-observed-skew-seconds <n>] [--allow-drift-reason <reason>]... [--max-drift-reason-count <reason=count>]... [--compare-previous] [--previous-report-json <path>] [--allow-match-rate-drop-percent 0] [--allow-max-skew-increase-seconds 0] [--allow-trend-drift-count-increase <reason=count>]... [--init-capture-pack] [--allow-unmatched-serial] [--allow-unmatched-legacy] [--allow-mock-artifacts]
+  ./scripts/onyx_listener_pilot_gate.sh [--capture-dir <path>] [--site-id <site_id>] [--device-path <tty>] [--legacy-source <label>] [--client-id <id>] [--region-id <id>] [--artifact-dir <path>] [--bench-baseline-json <path>] [--max-report-age-hours 24] [--max-skew-seconds 90] [--min-match-rate-percent 95] [--max-observed-skew-seconds <n>] [--allow-drift-reason <reason>]... [--max-drift-reason-count <reason=count>]... [--compare-previous] [--previous-report-json <path>] [--allow-match-rate-drop-percent 0] [--allow-max-skew-increase-seconds 0] [--allow-trend-drift-count-increase <reason=count>]... [--max-capture-signatures <count>] [--allow-capture-signature <signature>]... [--max-unexpected-signatures <count>] [--max-fallback-timestamp-count <count>] [--max-unknown-event-rate-percent <percent>] [--init-capture-pack] [--allow-unmatched-serial] [--allow-unmatched-legacy] [--allow-mock-artifacts]
 
 Purpose:
   One-command listener pilot gate:
@@ -67,6 +73,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --artifact-dir)
       ARTIFACT_DIR="${2:-}"
+      shift 2
+      ;;
+    --bench-baseline-json)
+      BENCH_BASELINE_JSON="${2:-}"
       shift 2
       ;;
     --max-report-age-hours)
@@ -113,6 +123,26 @@ while [[ $# -gt 0 ]]; do
       ALLOW_TREND_DRIFT_COUNT_INCREASES+=("${2:-}")
       shift 2
       ;;
+    --max-capture-signatures)
+      MAX_CAPTURE_SIGNATURES="${2:-}"
+      shift 2
+      ;;
+    --allow-capture-signature)
+      ALLOW_CAPTURE_SIGNATURES+=("${2:-}")
+      shift 2
+      ;;
+    --max-unexpected-signatures)
+      MAX_UNEXPECTED_SIGNATURES="${2:-}"
+      shift 2
+      ;;
+    --max-fallback-timestamp-count)
+      MAX_FALLBACK_TIMESTAMP_COUNT="${2:-}"
+      shift 2
+      ;;
+    --max-unknown-event-rate-percent)
+      MAX_UNKNOWN_EVENT_RATE_PERCENT="${2:-}"
+      shift 2
+      ;;
     --init-capture-pack)
       INIT_CAPTURE_PACK=1
       shift
@@ -140,6 +170,58 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+baseline_json_get() {
+  local file_path="$1"
+  local key="$2"
+  python3 - "$file_path" "$key" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+key = sys.argv[2]
+with open(path, "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+value = data.get(key, "")
+if value is None:
+    print("")
+elif isinstance(value, list):
+    for item in value:
+        if item is not None:
+            print(str(item))
+else:
+    print(str(value))
+PY
+}
+
+if [[ -z "$BENCH_BASELINE_JSON" && -f "$CAPTURE_DIR/listener_bench_baseline.json" ]]; then
+  BENCH_BASELINE_JSON="$CAPTURE_DIR/listener_bench_baseline.json"
+fi
+
+if [[ -n "$BENCH_BASELINE_JSON" ]]; then
+  if [[ ! -f "$BENCH_BASELINE_JSON" ]]; then
+    echo "FAIL: --bench-baseline-json must point to an existing JSON file."
+    exit 1
+  fi
+  if [[ -z "$MAX_CAPTURE_SIGNATURES" ]]; then
+    MAX_CAPTURE_SIGNATURES="$(baseline_json_get "$BENCH_BASELINE_JSON" "max_capture_signatures" | head -n 1)"
+  fi
+  if [[ ${#ALLOW_CAPTURE_SIGNATURES[@]} -eq 0 ]]; then
+    while IFS= read -r signature; do
+      [[ -n "$signature" ]] || continue
+      ALLOW_CAPTURE_SIGNATURES+=("$signature")
+    done < <(baseline_json_get "$BENCH_BASELINE_JSON" "allowed_capture_signatures")
+  fi
+  if [[ -z "$MAX_UNEXPECTED_SIGNATURES" ]]; then
+    MAX_UNEXPECTED_SIGNATURES="$(baseline_json_get "$BENCH_BASELINE_JSON" "max_unexpected_signatures" | head -n 1)"
+  fi
+  if [[ -z "$MAX_FALLBACK_TIMESTAMP_COUNT" ]]; then
+    MAX_FALLBACK_TIMESTAMP_COUNT="$(baseline_json_get "$BENCH_BASELINE_JSON" "max_fallback_timestamp_count" | head -n 1)"
+  fi
+  if [[ -z "$MAX_UNKNOWN_EVENT_RATE_PERCENT" ]]; then
+    MAX_UNKNOWN_EVENT_RATE_PERCENT="$(baseline_json_get "$BENCH_BASELINE_JSON" "max_unknown_event_rate_percent" | head -n 1)"
+  fi
+fi
+
 if ! [[ "$MAX_REPORT_AGE_HOURS" =~ ^[0-9]+$ ]]; then
   echo "FAIL: --max-report-age-hours must be a non-negative integer."
   exit 1
@@ -164,6 +246,22 @@ if ! [[ "$ALLOW_MAX_SKEW_INCREASE_SECONDS" =~ ^[0-9]+$ ]]; then
   echo "FAIL: --allow-max-skew-increase-seconds must be a non-negative integer."
   exit 1
 fi
+if [[ -n "$MAX_CAPTURE_SIGNATURES" ]] && ! [[ "$MAX_CAPTURE_SIGNATURES" =~ ^[0-9]+$ ]]; then
+  echo "FAIL: --max-capture-signatures must be a non-negative integer."
+  exit 1
+fi
+if [[ -n "$MAX_UNEXPECTED_SIGNATURES" ]] && ! [[ "$MAX_UNEXPECTED_SIGNATURES" =~ ^[0-9]+$ ]]; then
+  echo "FAIL: --max-unexpected-signatures must be a non-negative integer."
+  exit 1
+fi
+if [[ -n "$MAX_FALLBACK_TIMESTAMP_COUNT" ]] && ! [[ "$MAX_FALLBACK_TIMESTAMP_COUNT" =~ ^[0-9]+$ ]]; then
+  echo "FAIL: --max-fallback-timestamp-count must be a non-negative integer."
+  exit 1
+fi
+if [[ -n "$MAX_UNKNOWN_EVENT_RATE_PERCENT" ]] && ! [[ "$MAX_UNKNOWN_EVENT_RATE_PERCENT" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+  echo "FAIL: --max-unknown-event-rate-percent must be a non-negative number."
+  exit 1
+fi
 for trend_drift_cap in "${ALLOW_TREND_DRIFT_COUNT_INCREASES[@]-}"; do
   [[ -n "$trend_drift_cap" ]] || continue
   if ! [[ "$trend_drift_cap" =~ ^[A-Za-z0-9_:-]+=[0-9]+$ ]]; then
@@ -184,10 +282,18 @@ echo "Device path: ${DEVICE_PATH:-<unset>}"
 echo "Legacy source: ${LEGACY_SOURCE:-<unset>}"
 echo "Client ID: $CLIENT_ID"
 echo "Region ID: $REGION_ID"
+echo "Bench baseline: ${BENCH_BASELINE_JSON:-<none>}"
 echo "Max report age: ${MAX_REPORT_AGE_HOURS}h"
 echo "Max skew: ${MAX_SKEW_SECONDS}s"
 echo "Min match rate: ${MIN_MATCH_RATE_PERCENT}%"
 echo "Max observed skew gate: ${MAX_OBSERVED_SKEW_SECONDS:-<disabled>}"
+echo "Max capture signatures: ${MAX_CAPTURE_SIGNATURES:-<disabled>}"
+if [[ -n "${ALLOW_CAPTURE_SIGNATURES[*]-}" ]]; then
+  echo "Allowed capture signatures: ${ALLOW_CAPTURE_SIGNATURES[*]}"
+fi
+echo "Max unexpected signatures: ${MAX_UNEXPECTED_SIGNATURES:-<disabled>}"
+echo "Max fallback timestamps: ${MAX_FALLBACK_TIMESTAMP_COUNT:-<disabled>}"
+echo "Max unknown-event rate: ${MAX_UNKNOWN_EVENT_RATE_PERCENT:-<disabled>}%"
 if [[ -n "${ALLOW_DRIFT_REASONS[*]-}" ]]; then
   echo "Allowed drift reasons: ${ALLOW_DRIFT_REASONS[*]}"
 fi
@@ -228,12 +334,32 @@ fi
 
 mkdir -p "$ARTIFACT_DIR"
 
-./scripts/onyx_listener_serial_bench.sh \
-  --input "$CAPTURE_DIR/serial_raw.txt" \
-  --client-id "$CLIENT_ID" \
-  --region-id "$REGION_ID" \
-  --site-id "${SITE_ID:-SITE-SANDTON}" \
+bench_cmd=(
+  ./scripts/onyx_listener_serial_bench.sh
+  --input "$CAPTURE_DIR/serial_raw.txt"
+  --client-id "$CLIENT_ID"
+  --region-id "$REGION_ID"
+  --site-id "${SITE_ID:-SITE-SANDTON}"
   --out "$ARTIFACT_DIR/serial_parsed.json"
+)
+if [[ -n "$MAX_CAPTURE_SIGNATURES" ]]; then
+  bench_cmd+=(--max-capture-signatures "$MAX_CAPTURE_SIGNATURES")
+fi
+for signature in "${ALLOW_CAPTURE_SIGNATURES[@]-}"; do
+  [[ -n "$signature" ]] || continue
+  bench_cmd+=(--allow-capture-signature "$signature")
+done
+if [[ -n "$MAX_UNEXPECTED_SIGNATURES" ]]; then
+  bench_cmd+=(--max-unexpected-signatures "$MAX_UNEXPECTED_SIGNATURES")
+fi
+if [[ -n "$MAX_FALLBACK_TIMESTAMP_COUNT" ]]; then
+  bench_cmd+=(--max-fallback-timestamp-count "$MAX_FALLBACK_TIMESTAMP_COUNT")
+fi
+if [[ -n "$MAX_UNKNOWN_EVENT_RATE_PERCENT" ]]; then
+  bench_cmd+=(--max-unknown-event-rate-percent "$MAX_UNKNOWN_EVENT_RATE_PERCENT")
+fi
+
+"${bench_cmd[@]}"
 
 ./scripts/onyx_listener_parity_report.sh \
   --serial "$ARTIFACT_DIR/serial_parsed.json" \
