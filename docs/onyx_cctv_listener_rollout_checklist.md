@@ -100,6 +100,12 @@ Notes:
   - `scripts/onyx_listener_capture_pack_init.sh`
   - `scripts/onyx_listener_pilot_gate.sh`
   - `scripts/onyx_listener_signoff_generate.sh`
+  - Listener parity hardening defaults now enforce a minimum match-rate gate and optional observed-skew ceiling during readiness.
+  - Listener parity artifacts now classify drift causes such as skew, zone, partition, account, and site divergence.
+  - Listener readiness can now allow or cap specific drift reasons explicitly during pilot cutover evaluation.
+  - Listener trend checks can now compare the latest parity report to the previous run and flag regressions in match rate, skew, or drift counts.
+  - Listener pilot gate can now run the trend comparison inline against the previous parity artifact.
+  - Listener signoff can now require a passing trend report before closeout.
 
 ---
 

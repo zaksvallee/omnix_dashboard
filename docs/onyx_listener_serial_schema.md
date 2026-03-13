@@ -86,10 +86,24 @@ listener export:
 ```
 
 The report emits:
+- `report.md` alongside `report.json` for field review
 - `matched_count`
 - `unmatched_serial_count`
 - `unmatched_legacy_count`
+- `match_rate_percent`
+- `max_skew_seconds_observed`
+- `average_skew_seconds`
+- `drift_reason_counts`
+- `unmatched_serial_drifts`
+- `unmatched_legacy_drifts`
 - per-event skew in seconds for matched pairs
+- `trend_report.json` and `trend_report.md` can be generated to compare one run against the prior run
+
+Current hardening gate defaults:
+- minimum match rate: `95%`
+- maximum observed skew gate: optional override in readiness/pilot scripts
+- zero unmatched serial and legacy events unless explicitly relaxed
+- drift policy can be made reason-aware with `--allow-drift-reason` and `--max-drift-reason-count`
 
 ## Pilot Gate
 
@@ -100,7 +114,14 @@ Once `tmp/listener_capture/` is filled with real capture data:
   --capture-dir tmp/listener_capture \
   --site-id SITE-SANDTON \
   --device-path /dev/ttyUSB0 \
-  --legacy-source legacy_listener
+  --legacy-source legacy_listener \
+  --min-match-rate-percent 95 \
+  --max-observed-skew-seconds 90 \
+  --allow-drift-reason zone_mismatch \
+  --max-drift-reason-count zone_mismatch=2 \
+  --compare-previous \
+  --allow-match-rate-drop-percent 1 \
+  --allow-max-skew-increase-seconds 5
 ```
 
 Then generate the closeout:
@@ -108,6 +129,21 @@ Then generate the closeout:
 ```bash
 ./scripts/onyx_listener_signoff_generate.sh
 ```
+
+If trend regression checking must be part of signoff:
+
+```bash
+./scripts/onyx_listener_signoff_generate.sh --require-trend-pass
+```
+
+To compare the latest parity run against the prior one:
+
+```bash
+./scripts/onyx_listener_parity_trend_check.sh
+```
+
+The pilot gate can also run this trend comparison inline and emit
+`trend_report.json` plus `trend_report.md` into the pilot artifact directory.
 
 ## Non-Goals
 

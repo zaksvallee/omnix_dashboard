@@ -1,4 +1,4 @@
-.PHONY: run-web analyze test smoke-ui preflight preflight-smoke guard-auto guard-predevice guard-pilot cctv-validate cctv-readiness cctv-mock-artifacts cctv-capture-pack cctv-pilot-gate cctv-signoff listener-bench listener-parity listener-capture-pack listener-parity-readiness listener-pilot-gate listener-signoff
+.PHONY: run-web analyze test smoke-ui preflight preflight-smoke guard-auto guard-predevice guard-pilot cctv-validate cctv-readiness cctv-mock-artifacts cctv-capture-pack cctv-pilot-gate cctv-signoff listener-bench listener-parity listener-parity-trend listener-capture-pack listener-parity-readiness listener-pilot-gate listener-signoff
 
 CONFIG ?= config/onyx.local.json
 ACTION ?= com.onyx.fsk.SDK_HEARTBEAT
@@ -55,6 +55,9 @@ listener-bench:
 
 listener-parity:
 	./scripts/onyx_listener_parity_report.sh --serial tmp/listener_serial_bench/parsed.json --legacy tmp/listener_legacy_export/accepted.json
+
+listener-parity-trend:
+	./scripts/onyx_listener_parity_trend_check.sh
 
 listener-capture-pack:
 	./scripts/onyx_listener_capture_pack_init.sh
