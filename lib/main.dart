@@ -15385,6 +15385,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         activeIncidentCount: _activeIncidentCount(events),
         aiActionCount: _pendingAiActionCount(events),
         guardsOnlineCount: _guardsOnlineCount(events),
+        operatorLabel: service.operator.operatorId,
         complianceIssuesCount: _complianceIssuesCount(),
         tacticalSosAlerts: _tacticalSosAlerts(),
         intelTickerItems: _intelTickerItems(events),

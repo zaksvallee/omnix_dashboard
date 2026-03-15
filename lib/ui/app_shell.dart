@@ -46,6 +46,7 @@ class AppShell extends StatefulWidget {
   final int activeIncidentCount;
   final int aiActionCount;
   final int guardsOnlineCount;
+  final String operatorLabel;
   final int complianceIssuesCount;
   final int tacticalSosAlerts;
   final List<OnyxIntelTickerItem> intelTickerItems;
@@ -64,6 +65,7 @@ class AppShell extends StatefulWidget {
     this.activeIncidentCount = 0,
     this.aiActionCount = 0,
     this.guardsOnlineCount = 0,
+    this.operatorLabel = '',
     this.complianceIssuesCount = 0,
     this.tacticalSosAlerts = 0,
     this.intelTickerItems = const [],
@@ -196,6 +198,7 @@ class _AppShellState extends State<AppShell> {
                         activeIncidentCount: widget.activeIncidentCount,
                         aiActionCount: widget.aiActionCount,
                         guardsOnlineCount: widget.guardsOnlineCount,
+                        operatorLabel: widget.operatorLabel,
                         demoAutopilotStatusLabel:
                             widget.demoAutopilotStatusLabel,
                         onStopDemoAutopilot: widget.onStopDemoAutopilot,
@@ -233,6 +236,7 @@ class _ShellTopBar extends StatelessWidget {
   final int activeIncidentCount;
   final int aiActionCount;
   final int guardsOnlineCount;
+  final String operatorLabel;
   final String demoAutopilotStatusLabel;
   final VoidCallback? onStopDemoAutopilot;
   final VoidCallback? onSkipDemoAutopilot;
@@ -246,6 +250,7 @@ class _ShellTopBar extends StatelessWidget {
     required this.activeIncidentCount,
     required this.aiActionCount,
     required this.guardsOnlineCount,
+    required this.operatorLabel,
     this.demoAutopilotStatusLabel = '',
     this.onStopDemoAutopilot,
     this.onSkipDemoAutopilot,
@@ -301,6 +306,7 @@ class _ShellTopBar extends StatelessWidget {
               constraints.maxWidth >= (showAutopilot ? 1180 : 1080);
           final showGuardChip =
               constraints.maxWidth >= (showAutopilot ? 1460 : 1240);
+          final showOperatorChip = constraints.maxWidth >= 1160;
           final showExtendedAutopilotControls = constraints.maxWidth >= 1460;
           final showCompactAutopilotControls =
               showAutopilot && !showExtendedAutopilotControls;
@@ -370,6 +376,15 @@ class _ShellTopBar extends StatelessWidget {
                   ),
                 ),
               ),
+              if (showOperatorChip && operatorLabel.trim().isNotEmpty) ...[
+                _TopChip(
+                  label: 'OPERATOR • $operatorLabel',
+                  foreground: const Color(0xFFBFDBFE),
+                  background: const Color(0x14224466),
+                  border: const Color(0x333B82F6),
+                ),
+                const SizedBox(width: 8),
+              ],
               if (showAutopilot) ...[
                 SizedBox(
                   width: autopilotChipWidth,

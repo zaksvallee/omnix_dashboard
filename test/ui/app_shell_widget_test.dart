@@ -129,6 +129,31 @@ void main() {
     expect(find.text('19'), findsOneWidget);
   });
 
+  testWidgets('AppShell shows the active operator chip on desktop layout', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AppShell(
+          currentRoute: OnyxRoute.dashboard,
+          onRouteChanged: (_) {},
+          operatorLabel: 'OPERATOR-77',
+          child: const SizedBox.expand(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('OPERATOR • OPERATOR-77'), findsOneWidget);
+  });
+
   testWidgets('AppShell renders intel ticker entries on desktop layout', (
     tester,
   ) async {
