@@ -4689,6 +4689,53 @@ class _AdministrationPageState extends State<AdministrationPage> {
             ],
           ),
           const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (widget.onOpenGovernance != null)
+                OutlinedButton.icon(
+                  onPressed: () {
+                    widget.onOpenGovernance!.call();
+                    _snack('Opening Governance readiness board');
+                  },
+                  icon: const Icon(Icons.verified_user_rounded, size: 16),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF8FD1FF),
+                    side: const BorderSide(color: Color(0xFF35506F)),
+                  ),
+                  label: Text(
+                    'Open Governance',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              FilledButton.icon(
+                onPressed: rows.isEmpty ? null : _copyPartnerScorecardJson,
+                icon: const Icon(Icons.copy_all_rounded, size: 16),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF1D4ED8),
+                  foregroundColor: const Color(0xFFEAF4FF),
+                ),
+                label: Text(
+                  'Copy Scorecard JSON',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: rows.isEmpty ? null : _copyPartnerScorecardCsv,
+                icon: const Icon(Icons.table_rows_rounded, size: 16),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF9AB1CF),
+                  side: const BorderSide(color: Color(0xFF35506F)),
+                ),
+                label: Text(
+                  'Copy Scorecard CSV',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
           if (rows.isEmpty)
             Text(
               'No partner scorecard history is available yet.',
@@ -4720,6 +4767,65 @@ class _AdministrationPageState extends State<AdministrationPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _copyPartnerScorecardJson() async {
+    final text = _partnerScorecardJson();
+    await Clipboard.setData(ClipboardData(text: text));
+    _snack('Partner scorecard JSON copied.');
+  }
+
+  Future<void> _copyPartnerScorecardCsv() async {
+    final text = _partnerScorecardCsv();
+    await Clipboard.setData(ClipboardData(text: text));
+    _snack('Partner scorecard CSV copied.');
+  }
+
+  String _partnerScorecardJson() {
+    final rows = _partnerTrendRowsGlobal();
+    final latestGeneratedAtUtc = widget.morningSovereignReportHistory.isEmpty
+        ? null
+        : ([...widget.morningSovereignReportHistory]
+              ..sort(
+                (a, b) => b.generatedAtUtc.toUtc().compareTo(a.generatedAtUtc.toUtc()),
+              ))
+            .first
+            .generatedAtUtc
+            .toIso8601String();
+    final payload = <String, Object?>{
+      'generatedAtUtc': latestGeneratedAtUtc,
+      'scorecardRows': rows
+          .map(
+            (row) => <String, Object?>{
+              'clientId': row.clientId,
+              'siteId': row.siteId,
+              'partnerLabel': row.partnerLabel,
+              'reportDays': row.reportDays,
+              'dispatchCount': row.dispatchCount,
+              'strongCount': row.strongCount,
+              'onTrackCount': row.onTrackCount,
+              'watchCount': row.watchCount,
+              'criticalCount': row.criticalCount,
+              'averageAcceptedDelayMinutes': row.averageAcceptedDelayMinutes,
+              'averageOnSiteDelayMinutes': row.averageOnSiteDelayMinutes,
+              'currentScoreLabel': row.currentScoreLabel,
+              'trendLabel': row.trendLabel,
+              'trendReason': row.trendReason,
+            },
+          )
+          .toList(growable: false),
+    };
+    return const JsonEncoder.withIndent('  ').convert(payload);
+  }
+
+  String _partnerScorecardCsv() {
+    final rows = _partnerTrendRowsGlobal();
+    final lines = <String>[
+      'client_id,site_id,partner_label,report_days,dispatch_count,strong_count,on_track_count,watch_count,critical_count,avg_accept_minutes,avg_on_site_minutes,current_score,trend_label,trend_reason',
+      for (final row in rows)
+        '"${row.clientId.replaceAll('"', '""')}","${row.siteId.replaceAll('"', '""')}","${row.partnerLabel.replaceAll('"', '""')}",${row.reportDays},${row.dispatchCount},${row.strongCount},${row.onTrackCount},${row.watchCount},${row.criticalCount},${row.averageAcceptedDelayMinutes.toStringAsFixed(1)},${row.averageOnSiteDelayMinutes.toStringAsFixed(1)},"${row.currentScoreLabel.replaceAll('"', '""')}","${row.trendLabel.replaceAll('"', '""')}","${row.trendReason.replaceAll('"', '""')}"',
+    ];
+    return lines.join('\n');
   }
 
   Widget _partnerScorecardChip({

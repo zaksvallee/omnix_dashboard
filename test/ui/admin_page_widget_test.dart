@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/application/morning_sovereign_report_service.dart';
@@ -269,6 +270,25 @@ void main() {
   testWidgets('system tab shows partner scorecard summary and opens scope drill-in', (
     tester,
   ) async {
+    String? copiedPayload;
+    var openedGovernance = 0;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final args = call.arguments as Map<dynamic, dynamic>;
+          copiedPayload = args['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+
     final priorReport = SovereignReport(
       date: '2026-03-14',
       generatedAtUtc: DateTime.utc(2026, 3, 14, 6, 0),
@@ -379,6 +399,9 @@ void main() {
           supabaseReady: false,
           initialTab: AdministrationPageTab.system,
           morningSovereignReportHistory: [priorReport, currentReport],
+          onOpenGovernance: () {
+            openedGovernance += 1;
+          },
           initialSitePartnerLaneDetails: const <String, List<String>>{
             'CLT-001::WTF-MAIN': <String>[
               'PARTNER • Alpha • chat=-1001234567890 • thread=77',
@@ -396,6 +419,40 @@ void main() {
     expect(find.text('Slipping: 0'), findsOneWidget);
     expect(find.text('Critical: 0'), findsOneWidget);
     expect(find.text('Improving: 1'), findsOneWidget);
+    expect(find.text('Open Governance'), findsOneWidget);
+    expect(find.text('Copy Scorecard JSON'), findsOneWidget);
+    expect(find.text('Copy Scorecard CSV'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Open Governance'));
+    await tester.tap(find.text('Open Governance'));
+    await tester.pumpAndSettle();
+
+    expect(openedGovernance, 1);
+    expect(find.text('Opening Governance readiness board'), findsOneWidget);
+
+    await tester.tap(find.text('Copy Scorecard JSON'));
+    await tester.pumpAndSettle();
+
+    expect(copiedPayload, isNotNull);
+    expect(copiedPayload, contains('"scorecardRows"'));
+    expect(copiedPayload, contains('"clientId": "CLT-001"'));
+    expect(copiedPayload, contains('"siteId": "WTF-MAIN"'));
+    expect(copiedPayload, contains('"partnerLabel": "PARTNER • Alpha"'));
+    expect(copiedPayload, contains('"trendLabel": "IMPROVING"'));
+
+    await tester.ensureVisible(find.text('Copy Scorecard CSV'));
+    await tester.tap(find.text('Copy Scorecard CSV'));
+    await tester.pumpAndSettle();
+
+    expect(copiedPayload, isNotNull);
+    expect(
+      copiedPayload,
+      contains(
+        'client_id,site_id,partner_label,report_days,dispatch_count,strong_count',
+      ),
+    );
+    expect(copiedPayload, contains('"CLT-001","WTF-MAIN","PARTNER • Alpha"'));
+    expect(copiedPayload, contains('"IMPROVING"'));
 
     final scorecardFinder = find.byKey(
       const ValueKey('admin-partner-scorecard-CLT-001-WTF-MAIN-PARTNER • Alpha'),
