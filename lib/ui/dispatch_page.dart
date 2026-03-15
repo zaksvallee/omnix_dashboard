@@ -87,6 +87,24 @@ class _SuppressedDispatchReviewEntry {
   });
 }
 
+class _PartnerDispatchProgressSummary {
+  final String dispatchId;
+  final String partnerLabel;
+  final PartnerDispatchStatus latestStatus;
+  final DateTime latestOccurredAt;
+  final int declarationCount;
+  final Map<PartnerDispatchStatus, DateTime> firstOccurrenceByStatus;
+
+  const _PartnerDispatchProgressSummary({
+    required this.dispatchId,
+    required this.partnerLabel,
+    required this.latestStatus,
+    required this.latestOccurredAt,
+    required this.declarationCount,
+    required this.firstOccurrenceByStatus,
+  });
+}
+
 class DispatchPage extends StatefulWidget {
   final String clientId;
   final String regionId;
@@ -891,6 +909,7 @@ class _DispatchPageState extends State<DispatchPage> {
     final selected = dispatch.id == _selectedDispatchId;
     final statusStyle = _statusStyle(dispatch.status);
     final priorityStyle = _priorityStyle(dispatch.priority);
+    final partnerProgress = _partnerDispatchProgressSummary(dispatch.id);
 
     return InkWell(
       onTap: () => _setSelectedDispatchId(dispatch.id),
@@ -993,6 +1012,74 @@ class _DispatchPageState extends State<DispatchPage> {
                         _metaItem('Distance', dispatch.distance!),
                     ],
                   ),
+                  if (selected && partnerProgress != null) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      key: ValueKey<String>(
+                        'dispatch-partner-progress-card-${dispatch.id}',
+                      ),
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0C1117),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFF223244)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'PARTNER PROGRESSION',
+                            style: GoogleFonts.inter(
+                              color: const Color(0x7FFFFFFF),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            '${partnerProgress.partnerLabel} • Latest ${_partnerDispatchStatusLabel(partnerProgress.latestStatus)} • ${_clockLabel(partnerProgress.latestOccurredAt.toLocal())}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFEAF4FF),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 4,
+                            children: [
+                              _metaItem(
+                                'Declarations',
+                                '${partnerProgress.declarationCount}',
+                              ),
+                              _metaItem(
+                                'Dispatch',
+                                '$dispatch.id',
+                                color: const Color(0xFF8FD1FF),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              for (final status in PartnerDispatchStatus.values)
+                                _partnerProgressBadge(
+                                  dispatchId: dispatch.id,
+                                  status: status,
+                                  timestamp: partnerProgress
+                                      .firstOccurrenceByStatus[status],
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 10),
                   SizedBox(
                     width: double.infinity,
@@ -1065,6 +1152,86 @@ class _DispatchPageState extends State<DispatchPage> {
         ),
       ),
     );
+  }
+
+  Widget _partnerProgressBadge({
+    required String dispatchId,
+    required PartnerDispatchStatus status,
+    required DateTime? timestamp,
+  }) {
+    final reached = timestamp != null;
+    final tone = _partnerProgressTone(status);
+    return Container(
+      key: ValueKey<String>(
+        'dispatch-partner-progress-$dispatchId-${status.name}',
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: reached ? tone.$2 : const Color(0xFF111822),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: reached ? tone.$3 : const Color(0xFF2A374A)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            _partnerDispatchStatusLabel(status),
+            style: GoogleFonts.inter(
+              color: reached ? tone.$1 : const Color(0xFF94A3B8),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            reached ? _clockLabel(timestamp.toLocal()) : 'Pending',
+            style: GoogleFonts.inter(
+              color: reached
+                  ? const Color(0xFFEAF4FF)
+                  : const Color(0xFF8EA4C2),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _partnerDispatchStatusLabel(PartnerDispatchStatus status) {
+    return switch (status) {
+      PartnerDispatchStatus.accepted => 'ACCEPT',
+      PartnerDispatchStatus.onSite => 'ON SITE',
+      PartnerDispatchStatus.allClear => 'ALL CLEAR',
+      PartnerDispatchStatus.cancelled => 'CANCEL',
+    };
+  }
+
+  (Color, Color, Color) _partnerProgressTone(PartnerDispatchStatus status) {
+    return switch (status) {
+      PartnerDispatchStatus.accepted => (
+        const Color(0xFF38BDF8),
+        const Color(0x1A38BDF8),
+        const Color(0x6638BDF8),
+      ),
+      PartnerDispatchStatus.onSite => (
+        const Color(0xFFF59E0B),
+        const Color(0x1AF59E0B),
+        const Color(0x66F59E0B),
+      ),
+      PartnerDispatchStatus.allClear => (
+        const Color(0xFF34D399),
+        const Color(0x1A34D399),
+        const Color(0x6634D399),
+      ),
+      PartnerDispatchStatus.cancelled => (
+        const Color(0xFFF87171),
+        const Color(0x1AF87171),
+        const Color(0x66F87171),
+      ),
+    };
   }
 
   Widget _systemStatusPanel({
@@ -2605,6 +2772,44 @@ class _DispatchPageState extends State<DispatchPage> {
         .toSet();
     if (guardIds.isEmpty) return 12;
     return (guardIds.length + 8).clamp(8, 24);
+  }
+
+  _PartnerDispatchProgressSummary? _partnerDispatchProgressSummary(
+    String dispatchId,
+  ) {
+    final normalizedDispatchId = dispatchId.trim();
+    if (normalizedDispatchId.isEmpty) {
+      return null;
+    }
+    final declarations = widget.events
+        .whereType<PartnerDispatchStatusDeclared>()
+        .where((event) => event.dispatchId.trim() == normalizedDispatchId)
+        .toList(growable: false);
+    if (declarations.isEmpty) {
+      return null;
+    }
+    final ordered = [...declarations]
+      ..sort((a, b) {
+        final occurredAtCompare = a.occurredAt.compareTo(b.occurredAt);
+        if (occurredAtCompare != 0) {
+          return occurredAtCompare;
+        }
+        return a.sequence.compareTo(b.sequence);
+      });
+    final first = ordered.first;
+    final latest = ordered.last;
+    final firstOccurrenceByStatus = <PartnerDispatchStatus, DateTime>{};
+    for (final event in ordered) {
+      firstOccurrenceByStatus.putIfAbsent(event.status, () => event.occurredAt);
+    }
+    return _PartnerDispatchProgressSummary(
+      dispatchId: normalizedDispatchId,
+      partnerLabel: first.partnerLabel,
+      latestStatus: latest.status,
+      latestOccurredAt: latest.occurredAt,
+      declarationCount: ordered.length,
+      firstOccurrenceByStatus: firstOccurrenceByStatus,
+    );
   }
 
   String _averageResponseTimeLabel(List<DispatchEvent> events) {

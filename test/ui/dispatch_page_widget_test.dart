@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
+import 'package:omnix_dashboard/domain/events/decision_created.dart';
+import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
+import 'package:omnix_dashboard/domain/events/partner_dispatch_status_declared.dart';
 import 'package:omnix_dashboard/infrastructure/intelligence/news_intelligence_service.dart';
 import 'package:omnix_dashboard/ui/dispatch_page.dart';
 import 'package:omnix_dashboard/ui/video_fleet_scope_health_sections.dart';
@@ -45,6 +48,7 @@ void main() {
     bool radioQueueHasPending = false,
     String? radioQueueFailureDetail,
     String? radioQueueManualActionDetail,
+    List<DispatchEvent> events = const [],
     required ValueChanged<String> onExecute,
   }) {
     return MaterialApp(
@@ -116,7 +120,7 @@ void main() {
         onClearProfilePersistence: () {},
         stressRunning: false,
         intakeTelemetry: IntakeTelemetry.zero,
-        events: const [],
+        events: events,
         onExecute: onExecute,
       ),
     );
@@ -380,6 +384,107 @@ void main() {
     expect(ingestNewsCalls, 1);
     expect(loadFeedCalls, 1);
     expect(executedDispatch, isNotNull);
+  });
+
+  testWidgets('dispatch page shows partner progression on selected dispatch', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      buildPage(
+        onGenerate: () {},
+        onIngestFeeds: () {},
+        initialSelectedDispatchId: 'DSP-8821',
+        events: [
+          DecisionCreated(
+            eventId: 'decision-1',
+            sequence: 4,
+            version: 1,
+            occurredAt: DateTime.utc(2026, 3, 15, 21, 10),
+            dispatchId: 'DSP-8821',
+            clientId: 'CLIENT-001',
+            regionId: 'REGION-GAUTENG',
+            siteId: 'SITE-SANDTON',
+          ),
+          PartnerDispatchStatusDeclared(
+            eventId: 'partner-1',
+            sequence: 3,
+            version: 1,
+            occurredAt: DateTime.utc(2026, 3, 15, 21, 11),
+            dispatchId: 'DSP-8821',
+            clientId: 'CLIENT-001',
+            regionId: 'REGION-GAUTENG',
+            siteId: 'SITE-SANDTON',
+            partnerLabel: 'PARTNER • Alpha',
+            actorLabel: '@partner.alpha',
+            status: PartnerDispatchStatus.accepted,
+            sourceChannel: 'telegram',
+            sourceMessageKey: 'tg-partner-1',
+          ),
+          PartnerDispatchStatusDeclared(
+            eventId: 'partner-2',
+            sequence: 2,
+            version: 1,
+            occurredAt: DateTime.utc(2026, 3, 15, 21, 14),
+            dispatchId: 'DSP-8821',
+            clientId: 'CLIENT-001',
+            regionId: 'REGION-GAUTENG',
+            siteId: 'SITE-SANDTON',
+            partnerLabel: 'PARTNER • Alpha',
+            actorLabel: '@partner.alpha',
+            status: PartnerDispatchStatus.onSite,
+            sourceChannel: 'telegram',
+            sourceMessageKey: 'tg-partner-2',
+          ),
+          PartnerDispatchStatusDeclared(
+            eventId: 'partner-3',
+            sequence: 1,
+            version: 1,
+            occurredAt: DateTime.utc(2026, 3, 15, 21, 19),
+            dispatchId: 'DSP-8821',
+            clientId: 'CLIENT-001',
+            regionId: 'REGION-GAUTENG',
+            siteId: 'SITE-SANDTON',
+            partnerLabel: 'PARTNER • Alpha',
+            actorLabel: '@partner.alpha',
+            status: PartnerDispatchStatus.allClear,
+            sourceChannel: 'telegram',
+            sourceMessageKey: 'tg-partner-3',
+          ),
+        ],
+        onExecute: (_) {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('DSP-8821'), findsWidgets);
+    expect(
+      find.byKey(const ValueKey('dispatch-partner-progress-card-DSP-8821')),
+      findsOneWidget,
+    );
+    expect(find.text('PARTNER PROGRESSION'), findsOneWidget);
+    expect(
+      find.textContaining('PARTNER • Alpha • Latest ALL CLEAR'),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('dispatch-partner-progress-DSP-8821-accepted')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('dispatch-partner-progress-DSP-8821-onSite')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('dispatch-partner-progress-DSP-8821-allClear')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey('dispatch-partner-progress-DSP-8821-cancelled'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Pending'), findsOneWidget);
   });
 
   testWidgets('dispatch page shows radio queue diagnostics', (tester) async {
