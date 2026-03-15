@@ -545,6 +545,9 @@ class SovereignReportVehicleVisitException {
   final String statusLabel;
   final String reasonLabel;
   final String workflowSummary;
+  final bool operatorReviewed;
+  final DateTime? operatorReviewedAtUtc;
+  final String operatorStatusOverride;
   final String primaryEventId;
   final DateTime startedAtUtc;
   final DateTime lastSeenAtUtc;
@@ -560,6 +563,9 @@ class SovereignReportVehicleVisitException {
     required this.statusLabel,
     required this.reasonLabel,
     this.workflowSummary = '',
+    this.operatorReviewed = false,
+    this.operatorReviewedAtUtc,
+    this.operatorStatusOverride = '',
     required this.primaryEventId,
     required this.startedAtUtc,
     required this.lastSeenAtUtc,
@@ -577,6 +583,9 @@ class SovereignReportVehicleVisitException {
       'statusLabel': statusLabel,
       'reasonLabel': reasonLabel,
       'workflowSummary': workflowSummary,
+      'operatorReviewed': operatorReviewed,
+      'operatorReviewedAtUtc': operatorReviewedAtUtc?.toIso8601String(),
+      'operatorStatusOverride': operatorStatusOverride,
       'primaryEventId': primaryEventId,
       'startedAtUtc': startedAtUtc.toIso8601String(),
       'lastSeenAtUtc': lastSeenAtUtc.toIso8601String(),
@@ -610,6 +619,13 @@ class SovereignReportVehicleVisitException {
       statusLabel: (json['statusLabel'] as String? ?? '').trim(),
       reasonLabel: (json['reasonLabel'] as String? ?? '').trim(),
       workflowSummary: (json['workflowSummary'] as String? ?? '').trim(),
+      operatorReviewed: json['operatorReviewed'] == true,
+      operatorReviewedAtUtc:
+          DateTime.tryParse(
+            (json['operatorReviewedAtUtc'] as String? ?? '').trim(),
+          )?.toUtc(),
+      operatorStatusOverride:
+          (json['operatorStatusOverride'] as String? ?? '').trim(),
       primaryEventId: (json['primaryEventId'] as String? ?? '').trim(),
       startedAtUtc:
           DateTime.tryParse(

@@ -72,6 +72,30 @@ class _FleetStatus {
   });
 }
 
+class _VehicleExceptionReviewOverride {
+  final bool reviewed;
+  final DateTime reviewedAtUtc;
+  final String statusOverride;
+
+  const _VehicleExceptionReviewOverride({
+    required this.reviewed,
+    required this.reviewedAtUtc,
+    this.statusOverride = '',
+  });
+
+  _VehicleExceptionReviewOverride copyWith({
+    bool? reviewed,
+    DateTime? reviewedAtUtc,
+    String? statusOverride,
+  }) {
+    return _VehicleExceptionReviewOverride(
+      reviewed: reviewed ?? this.reviewed,
+      reviewedAtUtc: reviewedAtUtc ?? this.reviewedAtUtc,
+      statusOverride: statusOverride ?? this.statusOverride,
+    );
+  }
+}
+
 class _GovernanceReportView {
   final String reportDate;
   final int totalEvents;
@@ -197,6 +221,8 @@ class _GovernancePageState extends State<GovernancePage> {
   bool _generatingMorningReport = false;
   GovernanceSceneActionFocus? _activeSceneActionFocus;
   String? _activeVehicleExceptionEventId;
+  Map<String, _VehicleExceptionReviewOverride> _vehicleExceptionReviewOverrides =
+      const <String, _VehicleExceptionReviewOverride>{};
 
   @override
   void initState() {
@@ -244,6 +270,12 @@ class _GovernancePageState extends State<GovernancePage> {
           )) {
         _activeVehicleExceptionEventId = null;
       }
+      final validExceptionKeys = report.vehicleExceptionVisits
+          .map(_vehicleExceptionReviewKey)
+          .toSet();
+      _vehicleExceptionReviewOverrides = Map<String, _VehicleExceptionReviewOverride>.from(
+        _vehicleExceptionReviewOverrides,
+      )..removeWhere((key, _) => !validExceptionKeys.contains(key));
     }
   }
 
@@ -1447,6 +1479,104 @@ class _GovernancePageState extends State<GovernancePage> {
     return _resolveReport(_buildCompliance(DateTime.now()));
   }
 
+  String _vehicleExceptionReviewKey(
+    SovereignReportVehicleVisitException exception,
+  ) {
+    final primaryEventId = exception.primaryEventId.trim();
+    if (primaryEventId.isNotEmpty) {
+      return primaryEventId;
+    }
+    return [
+      exception.clientId.trim(),
+      exception.siteId.trim(),
+      exception.vehicleLabel.trim(),
+      exception.startedAtUtc.toUtc().toIso8601String(),
+    ].join('|');
+  }
+
+  SovereignReportVehicleVisitException _applyVehicleExceptionReviewOverlay(
+    SovereignReportVehicleVisitException exception,
+  ) {
+    final override = _vehicleExceptionReviewOverrides[
+        _vehicleExceptionReviewKey(exception)];
+    if (override == null) {
+      return exception;
+    }
+    final effectiveStatus = override.statusOverride.trim().isEmpty
+        ? exception.statusLabel.trim()
+        : override.statusOverride.trim().toUpperCase();
+    final effectiveWorkflow = _applyStatusToWorkflowSummary(
+      exception.workflowSummary,
+      effectiveStatus,
+    );
+    return SovereignReportVehicleVisitException(
+      clientId: exception.clientId,
+      siteId: exception.siteId,
+      vehicleLabel: exception.vehicleLabel,
+      statusLabel: effectiveStatus,
+      reasonLabel: exception.reasonLabel,
+      workflowSummary: effectiveWorkflow,
+      operatorReviewed: override.reviewed,
+      operatorReviewedAtUtc: override.reviewedAtUtc.toUtc(),
+      operatorStatusOverride: override.statusOverride.trim().toUpperCase(),
+      primaryEventId: exception.primaryEventId,
+      startedAtUtc: exception.startedAtUtc,
+      lastSeenAtUtc: exception.lastSeenAtUtc,
+      dwellMinutes: exception.dwellMinutes,
+      eventIds: exception.eventIds,
+      zoneLabels: exception.zoneLabels,
+      intelligenceIds: exception.intelligenceIds,
+    );
+  }
+
+  String _applyStatusToWorkflowSummary(String summary, String statusLabel) {
+    final normalizedStatus = statusLabel.trim().toUpperCase();
+    if (normalizedStatus.isEmpty) {
+      return summary.trim();
+    }
+    final trimmed = summary.trim();
+    if (trimmed.isEmpty) {
+      return 'OBSERVED ($normalizedStatus)';
+    }
+    final statusPattern = RegExp(r'\s*\([A-Z_]+\)\s*$');
+    if (statusPattern.hasMatch(trimmed)) {
+      return trimmed.replaceFirst(statusPattern, ' ($normalizedStatus)');
+    }
+    return '$trimmed ($normalizedStatus)';
+  }
+
+  void _setVehicleExceptionReviewed(
+    SovereignReportVehicleVisitException exception, {
+    String? statusOverride,
+  }) {
+    final key = _vehicleExceptionReviewKey(exception);
+    final existing = _vehicleExceptionReviewOverrides[key];
+    final nextStatus = statusOverride ?? existing?.statusOverride ?? '';
+    setState(() {
+      _vehicleExceptionReviewOverrides = Map<String, _VehicleExceptionReviewOverride>.from(
+        _vehicleExceptionReviewOverrides,
+      )..[key] = _VehicleExceptionReviewOverride(
+          reviewed: true,
+          reviewedAtUtc: DateTime.now().toUtc(),
+          statusOverride: nextStatus.trim().toUpperCase(),
+        );
+    });
+  }
+
+  void _clearVehicleExceptionReview(
+    SovereignReportVehicleVisitException exception,
+  ) {
+    final key = _vehicleExceptionReviewKey(exception);
+    if (!_vehicleExceptionReviewOverrides.containsKey(key)) {
+      return;
+    }
+    setState(() {
+      _vehicleExceptionReviewOverrides = Map<String, _VehicleExceptionReviewOverride>.from(
+        _vehicleExceptionReviewOverrides,
+      )..remove(key);
+    });
+  }
+
   void _setActiveSceneActionFocus(GovernanceSceneActionFocus? value) {
     if (_activeSceneActionFocus == value) {
       return;
@@ -1829,6 +1959,7 @@ class _GovernancePageState extends State<GovernancePage> {
     final canOpenEvent =
         widget.onOpenVehicleExceptionEvent != null &&
         exceptionEventId.isNotEmpty;
+    final hasStatusOverride = exception.operatorStatusOverride.trim().isNotEmpty;
     return InkWell(
       key: ValueKey<String>(
         'governance-vehicle-exception-${exception.vehicleLabel}-${exception.siteId}',
@@ -1864,10 +1995,56 @@ class _GovernancePageState extends State<GovernancePage> {
                     ),
                   ),
                 ),
+                if (exception.operatorReviewed) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0x2210B981),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: const Color(0x6610B981)),
+                    ),
+                    child: Text(
+                      'REVIEWED',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF10B981),
+                        fontSize: 8,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                ],
+                if (hasStatusOverride) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0x2222D3EE),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: const Color(0x6622D3EE)),
+                    ),
+                    child: Text(
+                      'OVERRIDE',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF22D3EE),
+                        fontSize: 8,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                ],
                 Text(
                   exception.statusLabel,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFFDE68A),
+                    color: hasStatusOverride
+                        ? const Color(0xFF67E8F9)
+                        : const Color(0xFFFDE68A),
                     fontSize: 9,
                     fontWeight: FontWeight.w800,
                   ),
@@ -1990,6 +2167,101 @@ class _GovernancePageState extends State<GovernancePage> {
                           : exception.intelligenceIds.join(', '),
                     ),
                     _vehicleExceptionDetailLine('Workflow', workflow),
+                    if (exception.operatorReviewed)
+                      _vehicleExceptionDetailLine(
+                        'Reviewed at',
+                        exception.operatorReviewedAtUtc == null
+                            ? 'session review'
+                            : _timestampLabel(exception.operatorReviewedAtUtc!),
+                      ),
+                    if (hasStatusOverride)
+                      _vehicleExceptionDetailLine(
+                        'Status override',
+                        exception.operatorStatusOverride,
+                      ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Operator review',
+                      key: ValueKey<String>(
+                        'governance-vehicle-review-${exceptionEventId.isEmpty ? _vehicleExceptionReviewKey(exception) : exceptionEventId}',
+                      ),
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFEAF4FF),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        _vehicleReviewAction(
+                          actionKey: ValueKey<String>(
+                            'governance-vehicle-review-mark-${exceptionEventId.isEmpty ? _vehicleExceptionReviewKey(exception) : exceptionEventId}',
+                          ),
+                          label: exception.operatorReviewed
+                              ? 'Reviewed'
+                              : 'Mark Reviewed',
+                          active: exception.operatorReviewed,
+                          onTap: () => _setVehicleExceptionReviewed(exception),
+                        ),
+                        _vehicleReviewAction(
+                          actionKey: ValueKey<String>(
+                            'governance-vehicle-review-completed-${exceptionEventId.isEmpty ? _vehicleExceptionReviewKey(exception) : exceptionEventId}',
+                          ),
+                          label: 'Set Completed',
+                          active: exception.statusLabel == 'COMPLETED',
+                          onTap: () => _setVehicleExceptionReviewed(
+                            exception,
+                            statusOverride: 'COMPLETED',
+                          ),
+                        ),
+                        _vehicleReviewAction(
+                          actionKey: ValueKey<String>(
+                            'governance-vehicle-review-active-${exceptionEventId.isEmpty ? _vehicleExceptionReviewKey(exception) : exceptionEventId}',
+                          ),
+                          label: 'Set Active',
+                          active: exception.statusLabel == 'ACTIVE',
+                          onTap: () => _setVehicleExceptionReviewed(
+                            exception,
+                            statusOverride: 'ACTIVE',
+                          ),
+                        ),
+                        _vehicleReviewAction(
+                          actionKey: ValueKey<String>(
+                            'governance-vehicle-review-incomplete-${exceptionEventId.isEmpty ? _vehicleExceptionReviewKey(exception) : exceptionEventId}',
+                          ),
+                          label: 'Set Incomplete',
+                          active: exception.statusLabel == 'INCOMPLETE',
+                          onTap: () => _setVehicleExceptionReviewed(
+                            exception,
+                            statusOverride: 'INCOMPLETE',
+                          ),
+                        ),
+                        if (hasStatusOverride)
+                          _vehicleReviewAction(
+                            actionKey: ValueKey<String>(
+                              'governance-vehicle-review-inferred-${exceptionEventId.isEmpty ? _vehicleExceptionReviewKey(exception) : exceptionEventId}',
+                            ),
+                            label: 'Use Inferred',
+                            active: false,
+                            onTap: () => _setVehicleExceptionReviewed(
+                              exception,
+                              statusOverride: '',
+                            ),
+                          ),
+                        if (exception.operatorReviewed || hasStatusOverride)
+                          _vehicleReviewAction(
+                            actionKey: ValueKey<String>(
+                              'governance-vehicle-review-clear-${exceptionEventId.isEmpty ? _vehicleExceptionReviewKey(exception) : exceptionEventId}',
+                            ),
+                            label: 'Clear Review',
+                            active: false,
+                            onTap: () => _clearVehicleExceptionReview(exception),
+                          ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -2028,6 +2300,37 @@ class _GovernancePageState extends State<GovernancePage> {
     );
   }
 
+  Widget _vehicleReviewAction({
+    Key? actionKey,
+    required String label,
+    required bool active,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      key: actionKey,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(
+          color: active ? const Color(0x1A22D3EE) : const Color(0x14151F2F),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: active ? const Color(0x6622D3EE) : const Color(0x335C728F),
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            color: active ? const Color(0xFF67E8F9) : const Color(0xFF9CB2D1),
+            fontSize: 9,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
   String _vehicleScopeLabel(SovereignReportVehicleScopeBreakdown scope) {
     return '${scope.clientId}/${scope.siteId}';
   }
@@ -2045,7 +2348,10 @@ class _GovernancePageState extends State<GovernancePage> {
     final workflow = exception.workflowSummary.trim().isEmpty
         ? 'OBSERVED (${exception.statusLabel})'
         : exception.workflowSummary;
-    return '${exception.reasonLabel} • ${exception.statusLabel} • ${exception.vehicleLabel} • ${exception.clientId}/${exception.siteId} • dwell ${exception.dwellMinutes.toStringAsFixed(1)}m • workflow $workflow • zones $zones';
+    final review = exception.operatorReviewed
+        ? ' • reviewed ${exception.operatorReviewedAtUtc == null ? 'session' : _timestampLabel(exception.operatorReviewedAtUtc!)}${exception.operatorStatusOverride.trim().isNotEmpty ? ' • override ${exception.operatorStatusOverride}' : ''}'
+        : '';
+    return '${exception.reasonLabel} • ${exception.statusLabel} • ${exception.vehicleLabel} • ${exception.clientId}/${exception.siteId} • dwell ${exception.dwellMinutes.toStringAsFixed(1)}m • workflow $workflow • zones $zones$review';
   }
 
   Widget _card({
@@ -2158,6 +2464,9 @@ class _GovernancePageState extends State<GovernancePage> {
   _GovernanceReportView _resolveReport(List<_ComplianceIssue> compliance) {
     final canonical = widget.morningSovereignReport;
     if (canonical != null) {
+      final reviewedExceptions = canonical.vehicleThroughput.exceptionVisits
+          .map(_applyVehicleExceptionReviewOverlay)
+          .toList(growable: false);
       final reasons = canonical.aiHumanDelta.overrideReasons.entries.toList(
         growable: false,
       )..sort((a, b) => b.value.compareTo(a.value));
@@ -2204,7 +2513,7 @@ class _GovernancePageState extends State<GovernancePage> {
         vehicleWorkflowHeadline: canonical.vehicleThroughput.workflowHeadline,
         vehicleSummary: canonical.vehicleThroughput.summaryLine,
         vehicleScopeBreakdowns: canonical.vehicleThroughput.scopeBreakdowns,
-        vehicleExceptionVisits: canonical.vehicleThroughput.exceptionVisits,
+        vehicleExceptionVisits: reviewedExceptions,
         latestActionTaken: canonical.sceneReview.latestActionTaken,
         recentActionsSummary: canonical.sceneReview.recentActionsSummary,
         latestSuppressedPattern: canonical.sceneReview.latestSuppressedPattern,
