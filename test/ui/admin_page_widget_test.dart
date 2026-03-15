@@ -150,6 +150,117 @@ void main() {
     expect(find.text('Active operator: OPERATOR-01'), findsOneWidget);
   });
 
+  testWidgets('system tab can manage partner dispatch runtime lane', (
+    tester,
+  ) async {
+    late Map<String, Object?> boundPayload;
+    late Map<String, Object?> checkedPayload;
+    late Map<String, Object?> unlinkedPayload;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AdministrationPage(
+          events: const <DispatchEvent>[],
+          supabaseReady: false,
+          initialTab: AdministrationPageTab.system,
+          onBindPartnerTelegramEndpoint: ({
+            required clientId,
+            required siteId,
+            required endpointLabel,
+            required chatId,
+            int? threadId,
+          }) async {
+            boundPayload = <String, Object?>{
+              'clientId': clientId,
+              'siteId': siteId,
+              'endpointLabel': endpointLabel,
+              'chatId': chatId,
+              'threadId': threadId,
+            };
+            return 'PASS (partner lane bound)\nscope=$clientId/$siteId';
+          },
+          onCheckPartnerTelegramEndpoint: ({
+            required clientId,
+            required siteId,
+            required chatId,
+            int? threadId,
+          }) async {
+            checkedPayload = <String, Object?>{
+              'clientId': clientId,
+              'siteId': siteId,
+              'chatId': chatId,
+              'threadId': threadId,
+            };
+            return 'PASS (partner lane linked)\nscope=$clientId/$siteId';
+          },
+          onUnlinkPartnerTelegramEndpoint: ({
+            required clientId,
+            required siteId,
+            required chatId,
+            int? threadId,
+          }) async {
+            unlinkedPayload = <String, Object?>{
+              'clientId': clientId,
+              'siteId': siteId,
+              'chatId': chatId,
+              'threadId': threadId,
+            };
+            return 'PASS (partner lane updated)\nscope=$clientId/$siteId';
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Partner Dispatch Runtime'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('admin-partner-runtime-label-field')),
+      'Field Response',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('admin-partner-runtime-chat-field')),
+      '-1001234567890',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('admin-partner-runtime-thread-field')),
+      '77',
+    );
+    await tester.ensureVisible(find.text('Bind Partner Lane'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Bind Partner Lane'));
+    await tester.pumpAndSettle();
+
+    expect(boundPayload['clientId'], 'CLT-001');
+    expect(boundPayload['siteId'], 'WTF-MAIN');
+    expect(boundPayload['endpointLabel'], 'Field Response');
+    expect(boundPayload['chatId'], '-1001234567890');
+    expect(boundPayload['threadId'], 77);
+    expect(find.textContaining('PASS (partner lane bound)'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Check Lane'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Check Lane'));
+    await tester.pumpAndSettle();
+
+    expect(checkedPayload['clientId'], 'CLT-001');
+    expect(checkedPayload['siteId'], 'WTF-MAIN');
+    expect(checkedPayload['chatId'], '-1001234567890');
+    expect(checkedPayload['threadId'], 77);
+    expect(find.textContaining('PASS (partner lane linked)'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Unlink Lane'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Unlink Lane'));
+    await tester.pumpAndSettle();
+
+    expect(unlinkedPayload['clientId'], 'CLT-001');
+    expect(unlinkedPayload['siteId'], 'WTF-MAIN');
+    expect(unlinkedPayload['chatId'], '-1001234567890');
+    expect(unlinkedPayload['threadId'], 77);
+    expect(find.textContaining('PASS (partner lane updated)'), findsOneWidget);
+  });
+
   testWidgets('administration page reports tab changes to parent state', (
     tester,
   ) async {

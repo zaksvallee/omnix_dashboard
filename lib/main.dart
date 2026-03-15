@@ -16267,6 +16267,176 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
   }
 
+  Future<String> _bindAdminPartnerTelegramEndpoint({
+    required String clientId,
+    required String siteId,
+    required String endpointLabel,
+    required String chatId,
+    int? threadId,
+  }) async {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    final normalizedChatId = chatId.trim();
+    final normalizedLabel = _normalizePartnerEndpointLabel(endpointLabel);
+    if (normalizedClientId.isEmpty ||
+        normalizedSiteId.isEmpty ||
+        normalizedChatId.isEmpty) {
+      return 'FAIL (missing client/site/chat scope)';
+    }
+    if (!widget.supabaseReady) {
+      return 'SKIP (Supabase disabled)';
+    }
+    try {
+      final repository = SupabaseClientMessagingBridgeRepository(
+        Supabase.instance.client,
+      );
+      await repository.upsertOnboardingSetup(
+        ClientMessagingOnboardingSetup(
+          clientId: normalizedClientId,
+          siteId: normalizedSiteId,
+          contactName: 'Partner Control',
+          contactRole: 'response_partner',
+          contactConsentConfirmed: false,
+          provider: 'telegram',
+          endpointLabel: normalizedLabel,
+          telegramChatId: normalizedChatId,
+          telegramThreadId: threadId?.toString(),
+        ),
+      );
+      final targets = await repository.readActiveTelegramTargets(
+        clientId: normalizedClientId,
+        siteId: normalizedSiteId,
+      );
+      final partnerTargets = targets
+          .where((target) => _isPartnerEndpointLabel(target.displayLabel))
+          .toList(growable: false);
+      return 'PASS (partner lane bound)\n'
+          'scope=$normalizedClientId/$normalizedSiteId\n'
+          'chat=$normalizedChatId${threadId == null ? '' : '#$threadId'}\n'
+          'label=$normalizedLabel\n'
+          'active_partner_endpoints=${partnerTargets.length}';
+    } catch (error) {
+      return 'FAIL ($error)';
+    }
+  }
+
+  Future<String> _unlinkAdminPartnerTelegramEndpoint({
+    required String clientId,
+    required String siteId,
+    required String chatId,
+    int? threadId,
+  }) async {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    final normalizedChatId = chatId.trim();
+    if (normalizedClientId.isEmpty ||
+        normalizedSiteId.isEmpty ||
+        normalizedChatId.isEmpty) {
+      return 'FAIL (missing client/site/chat scope)';
+    }
+    if (!widget.supabaseReady) {
+      return 'SKIP (Supabase disabled)';
+    }
+    try {
+      final repository = SupabaseClientMessagingBridgeRepository(
+        Supabase.instance.client,
+      );
+      final targets = await repository.readActiveTelegramTargets(
+        clientId: normalizedClientId,
+        siteId: normalizedSiteId,
+      );
+      final matching = targets
+          .where(
+            (target) =>
+                _isPartnerEndpointLabel(target.displayLabel) &&
+                target.chatId.trim() == normalizedChatId &&
+                target.threadId == threadId,
+          )
+          .toList(growable: false);
+      var deactivated = 0;
+      for (final target in matching) {
+        await Supabase.instance.client
+            .from('client_messaging_endpoints')
+            .update({
+              'is_active': false,
+              'last_delivery_status': 'partner_unlinked',
+            })
+            .eq('client_id', normalizedClientId)
+            .eq('id', target.endpointId);
+        deactivated += 1;
+      }
+      final remaining = (await repository.readActiveTelegramTargets(
+        clientId: normalizedClientId,
+        siteId: normalizedSiteId,
+      )).where((target) => _isPartnerEndpointLabel(target.displayLabel)).length;
+      return 'PASS (partner lane updated)\n'
+          'scope=$normalizedClientId/$normalizedSiteId\n'
+          'chat=$normalizedChatId${threadId == null ? '' : '#$threadId'}\n'
+          'deactivated=$deactivated\n'
+          'remaining_partner_endpoints=$remaining';
+    } catch (error) {
+      return 'FAIL ($error)';
+    }
+  }
+
+  Future<String> _checkAdminPartnerTelegramEndpoint({
+    required String clientId,
+    required String siteId,
+    required String chatId,
+    int? threadId,
+  }) async {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    final normalizedChatId = chatId.trim();
+    if (normalizedClientId.isEmpty ||
+        normalizedSiteId.isEmpty ||
+        normalizedChatId.isEmpty) {
+      return 'FAIL (missing client/site/chat scope)';
+    }
+    if (!widget.supabaseReady) {
+      return 'SKIP (Supabase disabled)';
+    }
+    try {
+      final repository = SupabaseClientMessagingBridgeRepository(
+        Supabase.instance.client,
+      );
+      final targets = await repository.readActiveTelegramTargets(
+        clientId: normalizedClientId,
+        siteId: normalizedSiteId,
+      );
+      final partnerTargets = targets
+          .where((target) => _isPartnerEndpointLabel(target.displayLabel))
+          .toList(growable: false);
+      final matching = partnerTargets
+          .where(
+            (target) =>
+                target.chatId.trim() == normalizedChatId &&
+                target.threadId == threadId,
+          )
+          .toList(growable: false);
+      final linked = matching.isNotEmpty;
+      final rows = partnerTargets
+          .take(4)
+          .map((target) {
+            final marker =
+                target.chatId.trim() == normalizedChatId &&
+                    target.threadId == threadId
+                ? ' [current]'
+                : '';
+            return '- ${target.displayLabel} | chat=${target.chatId}${target.threadId == null ? '' : '#${target.threadId}'}$marker';
+          })
+          .join('\n');
+      return '${linked ? 'PASS' : 'FAIL'} (${linked ? 'partner lane linked' : 'partner lane missing'})\n'
+          'scope=$normalizedClientId/$normalizedSiteId\n'
+          'current_chat=$normalizedChatId${threadId == null ? '' : '#$threadId'}\n'
+          'matching_partner_endpoints=${matching.length}\n'
+          'active_partner_endpoints=${partnerTargets.length}'
+          '${rows.isEmpty ? '\n(no active partner targets configured)' : '\n$rows'}';
+    } catch (error) {
+      return 'FAIL ($error)';
+    }
+  }
+
   String _normalizeIntelSourceFilter(String sourceType) {
     var normalized = sourceType.trim().toUpperCase();
     if (normalized.isEmpty || normalized == 'ALL') {
@@ -16878,6 +17048,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           telegramAiPendingDrafts: _telegramAiPendingDraftViews(),
           operatorId: service.operator.operatorId,
           onSetOperatorId: _setOperatorIdentity,
+          onBindPartnerTelegramEndpoint: _bindAdminPartnerTelegramEndpoint,
+          onUnlinkPartnerTelegramEndpoint: _unlinkAdminPartnerTelegramEndpoint,
+          onCheckPartnerTelegramEndpoint: _checkAdminPartnerTelegramEndpoint,
           onSetTelegramAiAssistantEnabled:
               _setTelegramAiAssistantEnabledFromAdmin,
           onSetTelegramAiApprovalRequired:

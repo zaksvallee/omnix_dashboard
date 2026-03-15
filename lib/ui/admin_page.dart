@@ -489,6 +489,28 @@ class AdministrationPage extends StatefulWidget {
   final List<TelegramAiPendingDraftView> telegramAiPendingDrafts;
   final String operatorId;
   final Future<void> Function(String operatorId)? onSetOperatorId;
+  final Future<String> Function({
+    required String clientId,
+    required String siteId,
+    required String endpointLabel,
+    required String chatId,
+    int? threadId,
+  })?
+  onBindPartnerTelegramEndpoint;
+  final Future<String> Function({
+    required String clientId,
+    required String siteId,
+    required String chatId,
+    int? threadId,
+  })?
+  onUnlinkPartnerTelegramEndpoint;
+  final Future<String> Function({
+    required String clientId,
+    required String siteId,
+    required String chatId,
+    int? threadId,
+  })?
+  onCheckPartnerTelegramEndpoint;
   final Future<void> Function(bool enabled)? onSetTelegramAiAssistantEnabled;
   final Future<void> Function(bool required)? onSetTelegramAiApprovalRequired;
   final Future<String> Function(int updateId)? onApproveTelegramAiDraft;
@@ -595,6 +617,9 @@ class AdministrationPage extends StatefulWidget {
     this.telegramAiPendingDrafts = const <TelegramAiPendingDraftView>[],
     this.operatorId = 'OPERATOR-01',
     this.onSetOperatorId,
+    this.onBindPartnerTelegramEndpoint,
+    this.onUnlinkPartnerTelegramEndpoint,
+    this.onCheckPartnerTelegramEndpoint,
     this.onSetTelegramAiAssistantEnabled,
     this.onSetTelegramAiApprovalRequired,
     this.onApproveTelegramAiDraft,
@@ -616,6 +641,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
   late final TextEditingController _demoRouteCuesController =
       TextEditingController(text: _resolvedInitialDemoRouteCuesJson());
   late final TextEditingController _operatorIdController;
+  late final TextEditingController _partnerEndpointLabelController;
+  late final TextEditingController _partnerChatIdController;
+  late final TextEditingController _partnerThreadIdController;
 
   _AdminTab _activeTab = _AdminTab.guards;
   String _query = '';
@@ -641,6 +669,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
   String? _demoRouteCueValidation;
   bool _demoRouteCueValidationError = false;
   bool _operatorIdSaving = false;
+  bool _partnerRuntimeBusy = false;
+  String? _partnerRuntimeClientId;
+  String? _partnerRuntimeSiteId;
+  String? _partnerRuntimeStatus;
   bool _telegramAiSettingsBusy = false;
   Set<int> _telegramAiDraftActionBusyIds = const <int>{};
   VideoFleetWatchActionDrilldown? _activeWatchActionDrilldown;
@@ -902,6 +934,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
     _radioIntentPhrasesController.dispose();
     _demoRouteCuesController.dispose();
     _operatorIdController.dispose();
+    _partnerEndpointLabelController.dispose();
+    _partnerChatIdController.dispose();
+    _partnerThreadIdController.dispose();
     super.dispose();
   }
 
@@ -1002,6 +1037,11 @@ class _AdministrationPageState extends State<AdministrationPage> {
   void initState() {
     super.initState();
     _operatorIdController = TextEditingController(text: widget.operatorId);
+    _partnerEndpointLabelController = TextEditingController(
+      text: 'PARTNER • Response',
+    );
+    _partnerChatIdController = TextEditingController();
+    _partnerThreadIdController = TextEditingController();
     _activeTab = _adminTabFromPublic(widget.initialTab);
     _activeWatchActionDrilldown = widget.initialWatchActionDrilldown;
     _monitoringIdentityPolicyService = widget.monitoringIdentityPolicyService;
@@ -1012,6 +1052,12 @@ class _AdministrationPageState extends State<AdministrationPage> {
     _identityPolicyAuditExpanded =
         widget.initialMonitoringIdentityRuleAuditExpanded;
     _telegramIdentityIntakes = widget.initialTelegramIdentityIntakes;
+    final partnerScope = _resolvePartnerRuntimeScope(
+      clients: _clients,
+      sites: _sites,
+    );
+    _partnerRuntimeClientId = partnerScope.clientId;
+    _partnerRuntimeSiteId = partnerScope.siteId;
     if (widget.supabaseReady) {
       _loadDirectoryFromSupabase();
       _loadTelegramIdentityIntakesFromSupabase();
@@ -3799,6 +3845,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
           const SizedBox(height: 12),
           _operatorRuntimePanel(),
           const SizedBox(height: 12),
+          _partnerDispatchRuntimePanel(),
+          const SizedBox(height: 12),
           _telegramAiAssistantPanel(),
           if (_hasVideoIntegrityCertificatePreview()) ...[
             const SizedBox(height: 12),
@@ -4209,6 +4257,162 @@ class _AdministrationPageState extends State<AdministrationPage> {
     } finally {
       if (mounted) {
         setState(() => _operatorIdSaving = false);
+      }
+    }
+  }
+
+  ({String clientId, String siteId}) _resolvePartnerRuntimeScope({
+    required List<_ClientAdminRow> clients,
+    required List<_SiteAdminRow> sites,
+    String? preferredClientId,
+    String? preferredSiteId,
+  }) {
+    final sitePreferred = preferredSiteId?.trim() ?? '';
+    final clientPreferred = preferredClientId?.trim() ?? '';
+
+    if (sitePreferred.isNotEmpty) {
+      for (final site in sites) {
+        if (site.id == sitePreferred) {
+          return (clientId: site.clientId, siteId: site.id);
+        }
+      }
+    }
+
+    if (clientPreferred.isNotEmpty) {
+      final siteForClient = sites.where((site) => site.clientId == clientPreferred);
+      if (siteForClient.isNotEmpty) {
+        return (clientId: clientPreferred, siteId: siteForClient.first.id);
+      }
+      final clientExists = clients.any((client) => client.id == clientPreferred);
+      if (clientExists) {
+        return (clientId: clientPreferred, siteId: '');
+      }
+    }
+
+    if (sites.isNotEmpty) {
+      return (clientId: sites.first.clientId, siteId: sites.first.id);
+    }
+    if (clients.isNotEmpty) {
+      return (clientId: clients.first.id, siteId: '');
+    }
+    return (clientId: '', siteId: '');
+  }
+
+  List<_SiteAdminRow> _partnerRuntimeSitesForClient(String clientId) {
+    final normalizedClientId = clientId.trim();
+    if (normalizedClientId.isEmpty) {
+      return _sites;
+    }
+    return _sites.where((site) => site.clientId == normalizedClientId).toList(
+      growable: false,
+    );
+  }
+
+  Future<void> _runPartnerRuntimeBind() async {
+    if (_partnerRuntimeBusy || widget.onBindPartnerTelegramEndpoint == null) {
+      return;
+    }
+    final clientId = (_partnerRuntimeClientId ?? '').trim();
+    final siteId = (_partnerRuntimeSiteId ?? '').trim();
+    final endpointLabel = _partnerEndpointLabelController.text.trim();
+    final chatId = _partnerChatIdController.text.trim();
+    final threadId = int.tryParse(_partnerThreadIdController.text.trim());
+    if (clientId.isEmpty || siteId.isEmpty) {
+      _snack('Select a client/site scope before binding a partner lane.');
+      return;
+    }
+    if (chatId.isEmpty) {
+      _snack('Partner chat ID is required.');
+      return;
+    }
+    setState(() => _partnerRuntimeBusy = true);
+    try {
+      final result = await widget.onBindPartnerTelegramEndpoint!.call(
+        clientId: clientId,
+        siteId: siteId,
+        endpointLabel: endpointLabel,
+        chatId: chatId,
+        threadId: threadId,
+      );
+      if (!mounted) return;
+      setState(() => _partnerRuntimeStatus = result);
+      _snack('Partner dispatch lane saved.');
+    } catch (error) {
+      _snack('Failed to save partner dispatch lane.');
+    } finally {
+      if (mounted) {
+        setState(() => _partnerRuntimeBusy = false);
+      }
+    }
+  }
+
+  Future<void> _runPartnerRuntimeCheck() async {
+    if (_partnerRuntimeBusy || widget.onCheckPartnerTelegramEndpoint == null) {
+      return;
+    }
+    final clientId = (_partnerRuntimeClientId ?? '').trim();
+    final siteId = (_partnerRuntimeSiteId ?? '').trim();
+    final chatId = _partnerChatIdController.text.trim();
+    final threadId = int.tryParse(_partnerThreadIdController.text.trim());
+    if (clientId.isEmpty || siteId.isEmpty) {
+      _snack('Select a client/site scope before checking a partner lane.');
+      return;
+    }
+    if (chatId.isEmpty) {
+      _snack('Partner chat ID is required for check.');
+      return;
+    }
+    setState(() => _partnerRuntimeBusy = true);
+    try {
+      final result = await widget.onCheckPartnerTelegramEndpoint!.call(
+        clientId: clientId,
+        siteId: siteId,
+        chatId: chatId,
+        threadId: threadId,
+      );
+      if (!mounted) return;
+      setState(() => _partnerRuntimeStatus = result);
+    } catch (error) {
+      _snack('Failed to verify partner dispatch lane.');
+    } finally {
+      if (mounted) {
+        setState(() => _partnerRuntimeBusy = false);
+      }
+    }
+  }
+
+  Future<void> _runPartnerRuntimeUnlink() async {
+    if (_partnerRuntimeBusy || widget.onUnlinkPartnerTelegramEndpoint == null) {
+      return;
+    }
+    final clientId = (_partnerRuntimeClientId ?? '').trim();
+    final siteId = (_partnerRuntimeSiteId ?? '').trim();
+    final chatId = _partnerChatIdController.text.trim();
+    final threadId = int.tryParse(_partnerThreadIdController.text.trim());
+    if (clientId.isEmpty || siteId.isEmpty) {
+      _snack('Select a client/site scope before unlinking a partner lane.');
+      return;
+    }
+    if (chatId.isEmpty) {
+      _snack('Partner chat ID is required for unlink.');
+      return;
+    }
+    setState(() => _partnerRuntimeBusy = true);
+    try {
+      final result = await widget.onUnlinkPartnerTelegramEndpoint!.call(
+        clientId: clientId,
+        siteId: siteId,
+        chatId: chatId,
+        threadId: threadId,
+      );
+      if (!mounted) return;
+      setState(() => _partnerRuntimeStatus = result);
+      _snack('Partner dispatch lane updated.');
+    } catch (error) {
+      _snack('Failed to unlink partner dispatch lane.');
+    } finally {
+      if (mounted) {
+        setState(() => _partnerRuntimeBusy = false);
       }
     }
   }
@@ -4672,6 +4876,274 @@ class _AdministrationPageState extends State<AdministrationPage> {
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _partnerDispatchRuntimePanel() {
+    final clientScope = (_partnerRuntimeClientId ?? '').trim();
+    final siteScope = (_partnerRuntimeSiteId ?? '').trim();
+    final sitesForClient = _partnerRuntimeSitesForClient(clientScope);
+    final canMutate = widget.onBindPartnerTelegramEndpoint != null;
+    final canCheck = widget.onCheckPartnerTelegramEndpoint != null;
+    final canUnlink = widget.onUnlinkPartnerTelegramEndpoint != null;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C1117),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: const Color(0x332B425F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.local_shipping_rounded,
+                size: 16,
+                color: Color(0xFFF59E0B),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Partner Dispatch Runtime',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFEAF4FF),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Bind, verify, or unlink the Telegram lane used for partner ACCEPT / ON SITE / ALL CLEAR updates.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB1CF),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (_clients.isEmpty || _sites.isEmpty)
+            Text(
+              'Client/site directory is required before partner runtime lanes can be managed.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            )
+          else ...[
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    key: ValueKey(
+                      'admin-partner-runtime-client-dropdown-$clientScope',
+                    ),
+                    isExpanded: true,
+                    initialValue: clientScope.isEmpty ? null : clientScope,
+                    items: _clients
+                        .map(
+                          (client) => DropdownMenuItem<String>(
+                            value: client.id,
+                            child: Text(
+                              client.name,
+                              style: GoogleFonts.inter(fontSize: 12),
+                            ),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: _partnerRuntimeBusy
+                        ? null
+                        : (value) {
+                            final resolved = _resolvePartnerRuntimeScope(
+                              clients: _clients,
+                              sites: _sites,
+                              preferredClientId: value,
+                            );
+                            setState(() {
+                              _partnerRuntimeClientId = resolved.clientId;
+                              _partnerRuntimeSiteId = resolved.siteId;
+                            });
+                          },
+                    decoration: const InputDecoration(labelText: 'Client Scope'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    key: ValueKey(
+                      'admin-partner-runtime-site-dropdown-$siteScope',
+                    ),
+                    isExpanded: true,
+                    initialValue: siteScope.isEmpty ? null : siteScope,
+                    items: sitesForClient
+                        .map(
+                          (site) => DropdownMenuItem<String>(
+                            value: site.id,
+                            child: Text(
+                              site.name,
+                              style: GoogleFonts.inter(fontSize: 12),
+                            ),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: _partnerRuntimeBusy
+                        ? null
+                        : (value) {
+                            setState(() {
+                              _partnerRuntimeSiteId = value?.trim() ?? '';
+                            });
+                          },
+                    decoration: const InputDecoration(labelText: 'Site Scope'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              key: const ValueKey('admin-partner-runtime-label-field'),
+              controller: _partnerEndpointLabelController,
+              enabled: !_partnerRuntimeBusy,
+              style: GoogleFonts.robotoMono(
+                color: const Color(0xFFEAF4FF),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'Partner Endpoint Label',
+                hintText: 'PARTNER • Response',
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    key: const ValueKey('admin-partner-runtime-chat-field'),
+                    controller: _partnerChatIdController,
+                    enabled: !_partnerRuntimeBusy,
+                    style: GoogleFonts.robotoMono(
+                      color: const Color(0xFFEAF4FF),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Partner Chat ID',
+                      hintText: '-1000000009999',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 160,
+                  child: TextField(
+                    key: const ValueKey('admin-partner-runtime-thread-field'),
+                    controller: _partnerThreadIdController,
+                    enabled: !_partnerRuntimeBusy,
+                    style: GoogleFonts.robotoMono(
+                      color: const Color(0xFFEAF4FF),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Thread ID',
+                      hintText: 'optional',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.icon(
+                  onPressed: (!canMutate || _partnerRuntimeBusy)
+                      ? null
+                      : _runPartnerRuntimeBind,
+                  icon: _partnerRuntimeBusy
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.link_rounded, size: 16),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF2B5E93),
+                    foregroundColor: const Color(0xFFEAF4FF),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  label: Text(
+                    _partnerRuntimeBusy ? 'Working...' : 'Bind Partner Lane',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: (!canCheck || _partnerRuntimeBusy)
+                      ? null
+                      : _runPartnerRuntimeCheck,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFEAF4FF),
+                    side: const BorderSide(color: Color(0xFF35506F)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  icon: const Icon(Icons.verified_user_rounded, size: 16),
+                  label: Text(
+                    'Check Lane',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: (!canUnlink || _partnerRuntimeBusy)
+                      ? null
+                      : _runPartnerRuntimeUnlink,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFFCA5A5),
+                    side: const BorderSide(color: Color(0xFF7F1D1D)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  icon: const Icon(Icons.link_off_rounded, size: 16),
+                  label: Text(
+                    'Unlink Lane',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if ((_partnerRuntimeStatus ?? '').trim().isNotEmpty) ...[
+              const SizedBox(height: 8),
+              SelectableText(
+                _partnerRuntimeStatus!.trim(),
+                style: GoogleFonts.robotoMono(
+                  color: const Color(0xFF9AB1CF),
+                  fontSize: 11,
+                  height: 1.45,
+                ),
+              ),
+            ],
+          ],
         ],
       ),
     );
@@ -8901,10 +9373,18 @@ class _AdministrationPageState extends State<AdministrationPage> {
           .toList(growable: false);
 
       if (!mounted) return;
+      final partnerScope = _resolvePartnerRuntimeScope(
+        clients: nextClients,
+        sites: nextSites,
+        preferredClientId: _partnerRuntimeClientId,
+        preferredSiteId: _partnerRuntimeSiteId,
+      );
       setState(() {
         _clients = nextClients;
         _sites = nextSites;
         _guards = nextEmployees;
+        _partnerRuntimeClientId = partnerScope.clientId;
+        _partnerRuntimeSiteId = partnerScope.siteId;
         _clientMessagingEndpointCounts = endpointCounts;
         _clientTelegramEndpointCounts = telegramCounts;
         _clientMessagingContactCounts = contactCounts;
