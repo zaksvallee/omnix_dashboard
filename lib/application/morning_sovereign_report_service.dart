@@ -246,6 +246,8 @@ class SovereignReport {
       suspiciousShortVisitCount: 0,
       loiteringVisitCount: 0,
       summaryLine: '',
+      scopeBreakdowns: <SovereignReportVehicleScopeBreakdown>[],
+      exceptionVisits: <SovereignReportVehicleVisitException>[],
     ),
   });
 
@@ -365,6 +367,8 @@ class SovereignReport {
               suspiciousShortVisitCount: 0,
               loiteringVisitCount: 0,
               summaryLine: '',
+              scopeBreakdowns: <SovereignReportVehicleScopeBreakdown>[],
+              exceptionVisits: <SovereignReportVehicleVisitException>[],
             ),
     );
   }
@@ -384,6 +388,8 @@ class SovereignReportVehicleThroughput {
   final int suspiciousShortVisitCount;
   final int loiteringVisitCount;
   final String summaryLine;
+  final List<SovereignReportVehicleScopeBreakdown> scopeBreakdowns;
+  final List<SovereignReportVehicleVisitException> exceptionVisits;
 
   const SovereignReportVehicleThroughput({
     required this.totalVisits,
@@ -399,6 +405,8 @@ class SovereignReportVehicleThroughput {
     required this.suspiciousShortVisitCount,
     required this.loiteringVisitCount,
     required this.summaryLine,
+    this.scopeBreakdowns = const <SovereignReportVehicleScopeBreakdown>[],
+    this.exceptionVisits = const <SovereignReportVehicleVisitException>[],
   });
 
   Map<String, Object?> toJson() {
@@ -416,10 +424,40 @@ class SovereignReportVehicleThroughput {
       'suspiciousShortVisitCount': suspiciousShortVisitCount,
       'loiteringVisitCount': loiteringVisitCount,
       'summaryLine': summaryLine,
+      'scopeBreakdowns': scopeBreakdowns
+          .map((scope) => scope.toJson())
+          .toList(growable: false),
+      'exceptionVisits': exceptionVisits
+          .map((exception) => exception.toJson())
+          .toList(growable: false),
     };
   }
 
   factory SovereignReportVehicleThroughput.fromJson(Map<String, Object?> json) {
+    final scopeBreakdowns = <SovereignReportVehicleScopeBreakdown>[];
+    final scopeBreakdownsRaw = json['scopeBreakdowns'];
+    if (scopeBreakdownsRaw is List) {
+      for (final item in scopeBreakdownsRaw) {
+        if (item is! Map) continue;
+        scopeBreakdowns.add(
+          SovereignReportVehicleScopeBreakdown.fromJson(
+            item.map((key, value) => MapEntry(key.toString(), value)),
+          ),
+        );
+      }
+    }
+    final exceptionVisits = <SovereignReportVehicleVisitException>[];
+    final exceptionVisitsRaw = json['exceptionVisits'];
+    if (exceptionVisitsRaw is List) {
+      for (final item in exceptionVisitsRaw) {
+        if (item is! Map) continue;
+        exceptionVisits.add(
+          SovereignReportVehicleVisitException.fromJson(
+            item.map((key, value) => MapEntry(key.toString(), value)),
+          ),
+        );
+      }
+    }
     return SovereignReportVehicleThroughput(
       totalVisits: (json['totalVisits'] as num?)?.toInt() ?? 0,
       completedVisits: (json['completedVisits'] as num?)?.toInt() ?? 0,
@@ -437,6 +475,134 @@ class SovereignReportVehicleThroughput {
           (json['suspiciousShortVisitCount'] as num?)?.toInt() ?? 0,
       loiteringVisitCount: (json['loiteringVisitCount'] as num?)?.toInt() ?? 0,
       summaryLine: (json['summaryLine'] as String? ?? '').trim(),
+      scopeBreakdowns: scopeBreakdowns,
+      exceptionVisits: exceptionVisits,
+    );
+  }
+}
+
+class SovereignReportVehicleScopeBreakdown {
+  final String clientId;
+  final String siteId;
+  final int totalVisits;
+  final int completedVisits;
+  final int activeVisits;
+  final int incompleteVisits;
+  final int unknownVehicleEvents;
+  final String summaryLine;
+
+  const SovereignReportVehicleScopeBreakdown({
+    required this.clientId,
+    required this.siteId,
+    required this.totalVisits,
+    required this.completedVisits,
+    required this.activeVisits,
+    required this.incompleteVisits,
+    required this.unknownVehicleEvents,
+    required this.summaryLine,
+  });
+
+  Map<String, Object?> toJson() {
+    return {
+      'clientId': clientId,
+      'siteId': siteId,
+      'totalVisits': totalVisits,
+      'completedVisits': completedVisits,
+      'activeVisits': activeVisits,
+      'incompleteVisits': incompleteVisits,
+      'unknownVehicleEvents': unknownVehicleEvents,
+      'summaryLine': summaryLine,
+    };
+  }
+
+  factory SovereignReportVehicleScopeBreakdown.fromJson(
+    Map<String, Object?> json,
+  ) {
+    return SovereignReportVehicleScopeBreakdown(
+      clientId: (json['clientId'] as String? ?? '').trim(),
+      siteId: (json['siteId'] as String? ?? '').trim(),
+      totalVisits: (json['totalVisits'] as num?)?.toInt() ?? 0,
+      completedVisits: (json['completedVisits'] as num?)?.toInt() ?? 0,
+      activeVisits: (json['activeVisits'] as num?)?.toInt() ?? 0,
+      incompleteVisits: (json['incompleteVisits'] as num?)?.toInt() ?? 0,
+      unknownVehicleEvents:
+          (json['unknownVehicleEvents'] as num?)?.toInt() ?? 0,
+      summaryLine: (json['summaryLine'] as String? ?? '').trim(),
+    );
+  }
+}
+
+class SovereignReportVehicleVisitException {
+  final String clientId;
+  final String siteId;
+  final String vehicleLabel;
+  final String statusLabel;
+  final String reasonLabel;
+  final DateTime startedAtUtc;
+  final DateTime lastSeenAtUtc;
+  final double dwellMinutes;
+  final List<String> zoneLabels;
+  final List<String> intelligenceIds;
+
+  const SovereignReportVehicleVisitException({
+    required this.clientId,
+    required this.siteId,
+    required this.vehicleLabel,
+    required this.statusLabel,
+    required this.reasonLabel,
+    required this.startedAtUtc,
+    required this.lastSeenAtUtc,
+    required this.dwellMinutes,
+    this.zoneLabels = const <String>[],
+    this.intelligenceIds = const <String>[],
+  });
+
+  Map<String, Object?> toJson() {
+    return {
+      'clientId': clientId,
+      'siteId': siteId,
+      'vehicleLabel': vehicleLabel,
+      'statusLabel': statusLabel,
+      'reasonLabel': reasonLabel,
+      'startedAtUtc': startedAtUtc.toIso8601String(),
+      'lastSeenAtUtc': lastSeenAtUtc.toIso8601String(),
+      'dwellMinutes': dwellMinutes,
+      'zoneLabels': zoneLabels,
+      'intelligenceIds': intelligenceIds,
+    };
+  }
+
+  factory SovereignReportVehicleVisitException.fromJson(
+    Map<String, Object?> json,
+  ) {
+    final zoneLabels = <String>[
+      for (final item in (json['zoneLabels'] as List?) ?? const <Object?>[])
+        item.toString().trim(),
+    ].where((item) => item.isNotEmpty).toList(growable: false);
+    final intelligenceIds = <String>[
+      for (final item
+          in (json['intelligenceIds'] as List?) ?? const <Object?>[])
+        item.toString().trim(),
+    ].where((item) => item.isNotEmpty).toList(growable: false);
+    return SovereignReportVehicleVisitException(
+      clientId: (json['clientId'] as String? ?? '').trim(),
+      siteId: (json['siteId'] as String? ?? '').trim(),
+      vehicleLabel: (json['vehicleLabel'] as String? ?? '').trim(),
+      statusLabel: (json['statusLabel'] as String? ?? '').trim(),
+      reasonLabel: (json['reasonLabel'] as String? ?? '').trim(),
+      startedAtUtc:
+          DateTime.tryParse(
+            (json['startedAtUtc'] as String? ?? '').trim(),
+          )?.toUtc() ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      lastSeenAtUtc:
+          DateTime.tryParse(
+            (json['lastSeenAtUtc'] as String? ?? '').trim(),
+          )?.toUtc() ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      dwellMinutes: (json['dwellMinutes'] as num?)?.toDouble() ?? 0,
+      zoneLabels: zoneLabels,
+      intelligenceIds: intelligenceIds,
     );
   }
 }
@@ -644,11 +810,23 @@ class MorningSovereignReportService {
         suspiciousShortVisitCount: 0,
         loiteringVisitCount: 0,
         summaryLine: '',
+        scopeBreakdowns: <SovereignReportVehicleScopeBreakdown>[],
+        exceptionVisits: <SovereignReportVehicleVisitException>[],
       );
     }
     final visits = <VehicleVisitRecord>[
       for (final snapshot in snapshots.values) ...snapshot.visits,
     ];
+    final scopeEntries = snapshots.entries.toList(growable: false)
+      ..sort((a, b) {
+        final countCompare = b.value.summary.totalVisits.compareTo(
+          a.value.summary.totalVisits,
+        );
+        if (countCompare != 0) {
+          return countCompare;
+        }
+        return a.key.compareTo(b.key);
+      });
     final vehicleVisitCount = <String, int>{};
     final visitsByHour = <int, int>{};
     var completedVisits = 0;
@@ -696,6 +874,32 @@ class MorningSovereignReportService {
     });
     final peakHour = peakHourEntry?.key;
     final repeatVehicles = vehicleVisitCount.values.where((count) => count > 1);
+    final scopeBreakdowns = <SovereignReportVehicleScopeBreakdown>[
+      for (final entry in scopeEntries)
+        _buildVehicleScopeBreakdown(scopeKey: entry.key, snapshot: entry.value),
+    ];
+    final exceptionVisits = <SovereignReportVehicleVisitException>[];
+    for (final entry in scopeEntries) {
+      for (final visit in entry.value.visits) {
+        final exception = _vehicleVisitExceptionForVisit(
+          scopeKey: entry.key,
+          visit: visit,
+          nowUtc: nowUtc,
+        );
+        if (exception != null) {
+          exceptionVisits.add(exception);
+        }
+      }
+    }
+    exceptionVisits.sort((a, b) {
+      final severityCompare = _vehicleExceptionPriority(
+        a.reasonLabel,
+      ).compareTo(_vehicleExceptionPriority(b.reasonLabel));
+      if (severityCompare != 0) {
+        return severityCompare;
+      }
+      return b.lastSeenAtUtc.compareTo(a.lastSeenAtUtc);
+    });
     final summary = VehicleThroughputSummary(
       totalVisits: visits.length,
       entryCount: visits.where((visit) => visit.sawEntry).length,
@@ -730,7 +934,104 @@ class MorningSovereignReportService {
       suspiciousShortVisitCount: summary.suspiciousShortVisitCount,
       loiteringVisitCount: summary.loiteringVisitCount,
       summaryLine: const VehicleThroughputSummaryFormatter().format(summary),
+      scopeBreakdowns: scopeBreakdowns,
+      exceptionVisits: exceptionVisits,
     );
+  }
+
+  SovereignReportVehicleScopeBreakdown _buildVehicleScopeBreakdown({
+    required String scopeKey,
+    required VehicleVisitLedgerSnapshot snapshot,
+  }) {
+    final scope = _vehicleScopeFromKey(scopeKey);
+    return SovereignReportVehicleScopeBreakdown(
+      clientId: scope.clientId,
+      siteId: scope.siteId,
+      totalVisits: snapshot.summary.totalVisits,
+      completedVisits: snapshot.summary.completedCount,
+      activeVisits: snapshot.summary.activeCount,
+      incompleteVisits: snapshot.summary.incompleteCount,
+      unknownVehicleEvents: snapshot.summary.unknownVehicleEvents,
+      summaryLine: const VehicleThroughputSummaryFormatter().format(
+        snapshot.summary,
+      ),
+    );
+  }
+
+  SovereignReportVehicleVisitException? _vehicleVisitExceptionForVisit({
+    required String scopeKey,
+    required VehicleVisitRecord visit,
+    required DateTime nowUtc,
+  }) {
+    final status = visit.statusAt(nowUtc);
+    String? reasonLabel;
+    switch (status) {
+      case VehicleVisitStatus.incomplete:
+        reasonLabel = 'Incomplete visit';
+      case VehicleVisitStatus.active:
+        reasonLabel = 'Active at shift close';
+      case VehicleVisitStatus.completed:
+        if (visit.dwell < const Duration(minutes: 2)) {
+          reasonLabel = 'Short completed visit';
+        } else if (visit.dwell >= const Duration(minutes: 30)) {
+          reasonLabel = 'Loitering visit';
+        }
+    }
+    if (reasonLabel == null) {
+      return null;
+    }
+    final scope = _vehicleScopeFromKey(scopeKey);
+    final zoneLabels = visit.zoneLabels
+        .map((label) => label.trim())
+        .where((label) => label.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    final intelligenceIds = visit.intelligenceIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toList(growable: false);
+    return SovereignReportVehicleVisitException(
+      clientId: scope.clientId,
+      siteId: scope.siteId,
+      vehicleLabel: visit.plateNumber.trim().isEmpty
+          ? visit.vehicleKey
+          : visit.plateNumber,
+      statusLabel: status.name.toUpperCase(),
+      reasonLabel: reasonLabel,
+      startedAtUtc: visit.startedAtUtc.toUtc(),
+      lastSeenAtUtc: visit.lastSeenAtUtc.toUtc(),
+      dwellMinutes: double.parse(
+        (visit.dwell.inSeconds / 60.0).toStringAsFixed(1),
+      ),
+      zoneLabels: zoneLabels,
+      intelligenceIds: intelligenceIds,
+    );
+  }
+
+  ({String clientId, String siteId}) _vehicleScopeFromKey(String scopeKey) {
+    final separator = scopeKey.indexOf('|');
+    if (separator < 0) {
+      return (clientId: '', siteId: scopeKey.trim());
+    }
+    return (
+      clientId: scopeKey.substring(0, separator).trim(),
+      siteId: scopeKey.substring(separator + 1).trim(),
+    );
+  }
+
+  int _vehicleExceptionPriority(String reasonLabel) {
+    switch (reasonLabel.trim().toLowerCase()) {
+      case 'incomplete visit':
+        return 0;
+      case 'active at shift close':
+        return 1;
+      case 'short completed visit':
+        return 2;
+      case 'loitering visit':
+        return 3;
+      default:
+        return 9;
+    }
   }
 
   _SceneReviewDecisionBucket _sceneReviewDecisionBucket(

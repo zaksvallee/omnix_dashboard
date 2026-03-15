@@ -93,7 +93,7 @@ void main() {
         latestSuppressedPattern:
             '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
       ),
-      vehicleThroughput: const SovereignReportVehicleThroughput(
+      vehicleThroughput: SovereignReportVehicleThroughput(
         totalVisits: 18,
         completedVisits: 15,
         activeVisits: 2,
@@ -108,6 +108,44 @@ void main() {
         loiteringVisitCount: 0,
         summaryLine:
             'Visits 18 • Entry 18 • Completed 15 • Active 2 • Incomplete 1 • Unique 16 • Repeat 2 • Avg dwell 17.4m • Peak 23:00-00:00 (6) • Short visits 1 • Unknown vehicle events 1',
+        scopeBreakdowns: const [
+          SovereignReportVehicleScopeBreakdown(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            totalVisits: 12,
+            completedVisits: 10,
+            activeVisits: 1,
+            incompleteVisits: 1,
+            unknownVehicleEvents: 1,
+            summaryLine:
+                'Visits 12 • Entry 12 • Completed 10 • Active 1 • Incomplete 1 • Unique 11 • Avg dwell 16.1m • Peak 23:00-00:00 (4) • Unknown vehicle events 1',
+          ),
+          SovereignReportVehicleScopeBreakdown(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-88',
+            totalVisits: 6,
+            completedVisits: 5,
+            activeVisits: 1,
+            incompleteVisits: 0,
+            unknownVehicleEvents: 0,
+            summaryLine:
+                'Visits 6 • Entry 6 • Completed 5 • Active 1 • Incomplete 0 • Unique 5 • Repeat 1 • Avg dwell 20.0m • Peak 01:00-02:00 (2)',
+          ),
+        ],
+        exceptionVisits: [
+          SovereignReportVehicleVisitException(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            vehicleLabel: 'CA123456',
+            statusLabel: 'INCOMPLETE',
+            reasonLabel: 'Incomplete visit',
+            startedAtUtc: DateTime.utc(2026, 3, 10, 0, 40),
+            lastSeenAtUtc: DateTime.utc(2026, 3, 10, 1, 22),
+            dwellMinutes: 42.0,
+            zoneLabels: ['Entry Lane', 'Wash Bay'],
+            intelligenceIds: ['INT-201', 'INT-202'],
+          ),
+        ],
       ),
     );
 
@@ -169,6 +207,10 @@ void main() {
       find.textContaining('Visits 18 • Entry 18 • Completed 15'),
       findsOneWidget,
     );
+    expect(find.text('Vehicle site ledger'), findsOneWidget);
+    expect(find.text('Vehicle exception review'), findsOneWidget);
+    expect(find.textContaining('CLIENT-1/SITE-42'), findsWidgets);
+    expect(find.textContaining('Incomplete visit • CA123456'), findsOneWidget);
     expect(find.text('Copy Morning JSON'), findsOneWidget);
     expect(find.text('Download Morning CSV'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -220,7 +262,7 @@ void main() {
         latestSuppressedPattern:
             '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
       ),
-      vehicleThroughput: const SovereignReportVehicleThroughput(
+      vehicleThroughput: SovereignReportVehicleThroughput(
         totalVisits: 18,
         completedVisits: 15,
         activeVisits: 2,
@@ -235,6 +277,33 @@ void main() {
         loiteringVisitCount: 0,
         summaryLine:
             'Visits 18 • Entry 18 • Completed 15 • Active 2 • Incomplete 1 • Unique 16 • Repeat 2 • Avg dwell 17.4m • Peak 23:00-00:00 (6) • Short visits 1 • Unknown vehicle events 1',
+        scopeBreakdowns: const [
+          SovereignReportVehicleScopeBreakdown(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            totalVisits: 12,
+            completedVisits: 10,
+            activeVisits: 1,
+            incompleteVisits: 1,
+            unknownVehicleEvents: 1,
+            summaryLine:
+                'Visits 12 • Entry 12 • Completed 10 • Active 1 • Incomplete 1 • Unique 11 • Avg dwell 16.1m • Peak 23:00-00:00 (4) • Unknown vehicle events 1',
+          ),
+        ],
+        exceptionVisits: [
+          SovereignReportVehicleVisitException(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            vehicleLabel: 'CA123456',
+            statusLabel: 'INCOMPLETE',
+            reasonLabel: 'Incomplete visit',
+            startedAtUtc: DateTime.utc(2026, 3, 10, 0, 40),
+            lastSeenAtUtc: DateTime.utc(2026, 3, 10, 1, 22),
+            dwellMinutes: 42.0,
+            zoneLabels: ['Entry Lane', 'Wash Bay'],
+            intelligenceIds: ['INT-201', 'INT-202'],
+          ),
+        ],
       ),
     );
 
@@ -449,7 +518,7 @@ void main() {
         latestSuppressedPattern:
             '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
       ),
-      vehicleThroughput: const SovereignReportVehicleThroughput(
+      vehicleThroughput: SovereignReportVehicleThroughput(
         totalVisits: 18,
         completedVisits: 15,
         activeVisits: 2,
@@ -464,6 +533,33 @@ void main() {
         loiteringVisitCount: 0,
         summaryLine:
             'Visits 18 • Entry 18 • Completed 15 • Active 2 • Incomplete 1 • Unique 16 • Repeat 2 • Avg dwell 17.4m • Peak 23:00-00:00 (6) • Short visits 1 • Unknown vehicle events 1',
+        scopeBreakdowns: const [
+          SovereignReportVehicleScopeBreakdown(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            totalVisits: 12,
+            completedVisits: 10,
+            activeVisits: 1,
+            incompleteVisits: 1,
+            unknownVehicleEvents: 1,
+            summaryLine:
+                'Visits 12 • Entry 12 • Completed 10 • Active 1 • Incomplete 1 • Unique 11 • Avg dwell 16.1m • Peak 23:00-00:00 (4) • Unknown vehicle events 1',
+          ),
+        ],
+        exceptionVisits: [
+          SovereignReportVehicleVisitException(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            vehicleLabel: 'CA123456',
+            statusLabel: 'INCOMPLETE',
+            reasonLabel: 'Incomplete visit',
+            startedAtUtc: DateTime.utc(2026, 3, 10, 0, 40),
+            lastSeenAtUtc: DateTime.utc(2026, 3, 10, 1, 22),
+            dwellMinutes: 42.0,
+            zoneLabels: ['Entry Lane', 'Wash Bay'],
+            intelligenceIds: ['INT-201', 'INT-202'],
+          ),
+        ],
       ),
     );
 
@@ -559,7 +655,7 @@ void main() {
         latestSuppressedPattern:
             '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
       ),
-      vehicleThroughput: const SovereignReportVehicleThroughput(
+      vehicleThroughput: SovereignReportVehicleThroughput(
         totalVisits: 18,
         completedVisits: 15,
         activeVisits: 2,
@@ -574,6 +670,33 @@ void main() {
         loiteringVisitCount: 0,
         summaryLine:
             'Visits 18 • Entry 18 • Completed 15 • Active 2 • Incomplete 1 • Unique 16 • Repeat 2 • Avg dwell 17.4m • Peak 23:00-00:00 (6) • Short visits 1 • Unknown vehicle events 1',
+        scopeBreakdowns: const [
+          SovereignReportVehicleScopeBreakdown(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            totalVisits: 12,
+            completedVisits: 10,
+            activeVisits: 1,
+            incompleteVisits: 1,
+            unknownVehicleEvents: 1,
+            summaryLine:
+                'Visits 12 • Entry 12 • Completed 10 • Active 1 • Incomplete 1 • Unique 11 • Avg dwell 16.1m • Peak 23:00-00:00 (4) • Unknown vehicle events 1',
+          ),
+        ],
+        exceptionVisits: [
+          SovereignReportVehicleVisitException(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            vehicleLabel: 'CA123456',
+            statusLabel: 'INCOMPLETE',
+            reasonLabel: 'Incomplete visit',
+            startedAtUtc: DateTime.utc(2026, 3, 10, 0, 40),
+            lastSeenAtUtc: DateTime.utc(2026, 3, 10, 1, 22),
+            dwellMinutes: 42.0,
+            zoneLabels: ['Entry Lane', 'Wash Bay'],
+            intelligenceIds: ['INT-201', 'INT-202'],
+          ),
+        ],
       ),
     );
     GovernanceSceneActionFocus? persistedFocus;
@@ -1390,7 +1513,7 @@ void main() {
         latestSuppressedPattern:
             '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
       ),
-      vehicleThroughput: const SovereignReportVehicleThroughput(
+      vehicleThroughput: SovereignReportVehicleThroughput(
         totalVisits: 18,
         completedVisits: 15,
         activeVisits: 2,
@@ -1405,6 +1528,33 @@ void main() {
         loiteringVisitCount: 0,
         summaryLine:
             'Visits 18 • Entry 18 • Completed 15 • Active 2 • Incomplete 1 • Unique 16 • Repeat 2 • Avg dwell 17.4m • Peak 23:00-00:00 (6) • Short visits 1 • Unknown vehicle events 1',
+        scopeBreakdowns: const [
+          SovereignReportVehicleScopeBreakdown(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            totalVisits: 12,
+            completedVisits: 10,
+            activeVisits: 1,
+            incompleteVisits: 1,
+            unknownVehicleEvents: 1,
+            summaryLine:
+                'Visits 12 • Entry 12 • Completed 10 • Active 1 • Incomplete 1 • Unique 11 • Avg dwell 16.1m • Peak 23:00-00:00 (4) • Unknown vehicle events 1',
+          ),
+        ],
+        exceptionVisits: [
+          SovereignReportVehicleVisitException(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            vehicleLabel: 'CA123456',
+            statusLabel: 'INCOMPLETE',
+            reasonLabel: 'Incomplete visit',
+            startedAtUtc: DateTime.utc(2026, 3, 10, 0, 40),
+            lastSeenAtUtc: DateTime.utc(2026, 3, 10, 1, 22),
+            dwellMinutes: 42.0,
+            zoneLabels: ['Entry Lane', 'Wash Bay'],
+            intelligenceIds: ['INT-201', 'INT-202'],
+          ),
+        ],
       ),
     );
 
@@ -1445,6 +1595,10 @@ void main() {
       copiedPayload,
       contains('"summaryLine": "Visits 18 • Entry 18 • Completed 15'),
     );
+    expect(copiedPayload, contains('"scopeBreakdowns"'));
+    expect(copiedPayload, contains('"exceptionVisits"'));
+    expect(copiedPayload, contains('"siteId": "SITE-42"'));
+    expect(copiedPayload, contains('"reasonLabel": "Incomplete visit"'));
     expect(
       copiedPayload,
       contains(
@@ -1463,6 +1617,14 @@ void main() {
     expect(
       copiedPayload,
       contains('vehicle_summary,"Visits 18 • Entry 18 • Completed 15'),
+    );
+    expect(
+      copiedPayload,
+      contains('vehicle_scope_1,"CLIENT-1/SITE-42 • Visits 12'),
+    );
+    expect(
+      copiedPayload,
+      contains('vehicle_exception_1,"Incomplete visit • INCOMPLETE • CA123456'),
     );
     expect(
       copiedPayload,

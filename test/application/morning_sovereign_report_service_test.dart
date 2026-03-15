@@ -255,6 +255,22 @@ void main() {
       expect(report.vehicleThroughput.peakHourLabel, '01:00-02:00');
       expect(report.vehicleThroughput.peakHourVisitCount, 1);
       expect(report.vehicleThroughput.averageCompletedDwellMinutes, 30);
+      expect(report.vehicleThroughput.scopeBreakdowns, hasLength(1));
+      expect(
+        report.vehicleThroughput.scopeBreakdowns.first.clientId,
+        'CLIENT-1',
+      );
+      expect(report.vehicleThroughput.scopeBreakdowns.first.siteId, 'SITE-2');
+      expect(report.vehicleThroughput.scopeBreakdowns.first.totalVisits, 1);
+      expect(report.vehicleThroughput.exceptionVisits, hasLength(1));
+      expect(
+        report.vehicleThroughput.exceptionVisits.first.reasonLabel,
+        'Loitering visit',
+      );
+      expect(
+        report.vehicleThroughput.exceptionVisits.first.vehicleLabel,
+        'CA123456',
+      );
       expect(
         report.vehicleThroughput.summaryLine,
         'Visits 1 • Entry 1 • Completed 1 • Active 0 • Incomplete 0 • Unique 1 • Avg dwell 30.0m • Peak 01:00-02:00 (1) • Loitering 1',
@@ -286,6 +302,8 @@ void main() {
         restored.vehicleThroughput.summaryLine,
         report.vehicleThroughput.summaryLine,
       );
+      expect(restored.vehicleThroughput.scopeBreakdowns, hasLength(1));
+      expect(restored.vehicleThroughput.exceptionVisits, hasLength(1));
     });
   });
 }

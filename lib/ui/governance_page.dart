@@ -104,6 +104,8 @@ class _GovernanceReportView {
   final String vehiclePeakHourLabel;
   final int vehiclePeakHourVisitCount;
   final String vehicleSummary;
+  final List<SovereignReportVehicleScopeBreakdown> vehicleScopeBreakdowns;
+  final List<SovereignReportVehicleVisitException> vehicleExceptionVisits;
   final String latestActionTaken;
   final String recentActionsSummary;
   final String latestSuppressedPattern;
@@ -145,6 +147,8 @@ class _GovernanceReportView {
     required this.vehiclePeakHourLabel,
     required this.vehiclePeakHourVisitCount,
     required this.vehicleSummary,
+    required this.vehicleScopeBreakdowns,
+    required this.vehicleExceptionVisits,
     required this.latestActionTaken,
     required this.recentActionsSummary,
     required this.latestSuppressedPattern,
@@ -947,6 +951,52 @@ class _GovernancePageState extends State<GovernancePage> {
               ),
             ),
           ],
+          if (report.vehicleScopeBreakdowns.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Vehicle site ledger',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFEAF4FF),
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final scope in report.vehicleScopeBreakdowns)
+                  _vehicleScopeCard(scope),
+              ],
+            ),
+          ],
+          if (report.vehicleExceptionVisits.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Vehicle exception review',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFEAF4FF),
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            for (final exception in report.vehicleExceptionVisits) ...[
+              _vehicleExceptionRow(exception),
+              const SizedBox(height: 6),
+            ],
+          ] else if (report.vehicleVisits > 0) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Vehicle exception review: no flagged visits in the last shift window.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
           if (_hasSceneActionFocusOptions(report)) ...[
             const SizedBox(height: 8),
             Wrap(
@@ -1709,6 +1759,125 @@ class _GovernancePageState extends State<GovernancePage> {
     );
   }
 
+  Widget _vehicleScopeCard(SovereignReportVehicleScopeBreakdown scope) {
+    final scopeLabel = _vehicleScopeLabel(scope);
+    return SizedBox(
+      width: 280,
+      child: Container(
+        key: ValueKey<String>('governance-vehicle-scope-$scopeLabel'),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: const Color(0x14000000),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0x22FFFFFF)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              scopeLabel,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFEAF4FF),
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              scope.summaryLine,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF9CB2D1),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _vehicleExceptionRow(SovereignReportVehicleVisitException exception) {
+    final scopeLabel = '${exception.clientId}/${exception.siteId}';
+    final zones = exception.zoneLabels.isEmpty
+        ? 'no zones captured'
+        : exception.zoneLabels.join(' -> ');
+    return Container(
+      key: ValueKey<String>(
+        'governance-vehicle-exception-${exception.vehicleLabel}-${exception.siteId}',
+      ),
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0x14151F2F),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0x335C728F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${exception.reasonLabel} • ${exception.vehicleLabel}',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFEAF4FF),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Text(
+                exception.statusLabel,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFFDE68A),
+                  fontSize: 9,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '$scopeLabel • dwell ${exception.dwellMinutes.toStringAsFixed(1)}m • last seen ${_timestampLabel(exception.lastSeenAtUtc)}',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9CB2D1),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Zones: $zones',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _vehicleScopeLabel(SovereignReportVehicleScopeBreakdown scope) {
+    return '${scope.clientId}/${scope.siteId}';
+  }
+
+  String _vehicleScopeCsvSummary(SovereignReportVehicleScopeBreakdown scope) {
+    return '${_vehicleScopeLabel(scope)} • ${scope.summaryLine}';
+  }
+
+  String _vehicleExceptionCsvSummary(
+    SovereignReportVehicleVisitException exception,
+  ) {
+    final zones = exception.zoneLabels.isEmpty
+        ? 'no zones captured'
+        : exception.zoneLabels.join(' -> ');
+    return '${exception.reasonLabel} • ${exception.statusLabel} • ${exception.vehicleLabel} • ${exception.clientId}/${exception.siteId} • dwell ${exception.dwellMinutes.toStringAsFixed(1)}m • zones $zones';
+  }
+
   Widget _card({
     required String title,
     required String subtitle,
@@ -1863,6 +2032,8 @@ class _GovernancePageState extends State<GovernancePage> {
         vehiclePeakHourVisitCount:
             canonical.vehicleThroughput.peakHourVisitCount,
         vehicleSummary: canonical.vehicleThroughput.summaryLine,
+        vehicleScopeBreakdowns: canonical.vehicleThroughput.scopeBreakdowns,
+        vehicleExceptionVisits: canonical.vehicleThroughput.exceptionVisits,
         latestActionTaken: canonical.sceneReview.latestActionTaken,
         recentActionsSummary: canonical.sceneReview.recentActionsSummary,
         latestSuppressedPattern: canonical.sceneReview.latestSuppressedPattern,
@@ -1932,6 +2103,8 @@ class _GovernancePageState extends State<GovernancePage> {
       vehiclePeakHourLabel: 'none',
       vehiclePeakHourVisitCount: 0,
       vehicleSummary: '',
+      vehicleScopeBreakdowns: const <SovereignReportVehicleScopeBreakdown>[],
+      vehicleExceptionVisits: const <SovereignReportVehicleVisitException>[],
       latestActionTaken: '',
       recentActionsSummary: '',
       latestSuppressedPattern: '',
@@ -1999,6 +2172,12 @@ class _GovernancePageState extends State<GovernancePage> {
         'peakHourLabel': report.vehiclePeakHourLabel,
         'peakHourVisitCount': report.vehiclePeakHourVisitCount,
         'summaryLine': report.vehicleSummary,
+        'scopeBreakdowns': report.vehicleScopeBreakdowns
+            .map((scope) => scope.toJson())
+            .toList(growable: false),
+        'exceptionVisits': report.vehicleExceptionVisits
+            .map((exception) => exception.toJson())
+            .toList(growable: false),
       },
       'complianceBlockage': {
         'psiraExpired': report.psiraExpired,
@@ -2049,6 +2228,10 @@ class _GovernancePageState extends State<GovernancePage> {
       'vehicle_peak_hour_label,${report.vehiclePeakHourLabel}',
       'vehicle_peak_hour_visit_count,${report.vehiclePeakHourVisitCount}',
       'vehicle_summary,"${report.vehicleSummary.replaceAll('"', '""')}"',
+      for (var i = 0; i < report.vehicleScopeBreakdowns.length; i++)
+        'vehicle_scope_${i + 1},"${_vehicleScopeCsvSummary(report.vehicleScopeBreakdowns[i]).replaceAll('"', '""')}"',
+      for (var i = 0; i < report.vehicleExceptionVisits.length; i++)
+        'vehicle_exception_${i + 1},"${_vehicleExceptionCsvSummary(report.vehicleExceptionVisits[i]).replaceAll('"', '""')}"',
       if (focusedSceneAction != null)
         'scene_focused_lens_key,${focusedSceneAction['key']}',
       if (focusedSceneAction != null)
