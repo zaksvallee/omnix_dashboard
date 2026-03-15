@@ -14,6 +14,7 @@ import '../application/monitoring_watch_recovery_store.dart';
 import '../application/ops_integration_profile.dart';
 import '../application/site_identity_registry_repository.dart';
 import '../domain/events/dispatch_event.dart';
+import '../domain/events/partner_dispatch_status_declared.dart';
 import 'onyx_surface.dart';
 import 'video_fleet_scope_health_card.dart';
 import 'video_fleet_scope_health_panel.dart';
@@ -485,8 +486,10 @@ class AdministrationPage extends StatefulWidget {
   final Map<String, int> initialClientPartnerEndpointCounts;
   final Map<String, String> initialClientPartnerLanePreview;
   final Map<String, String> initialClientPartnerChatcheckStatus;
+  final Map<String, List<String>> initialClientPartnerLaneDetails;
   final Map<String, int> initialSitePartnerEndpointCounts;
   final Map<String, String> initialSitePartnerChatcheckStatus;
+  final Map<String, List<String>> initialSitePartnerLaneDetails;
   final bool telegramAiAssistantEnabled;
   final bool telegramAiApprovalRequired;
   final DateTime? telegramAiLastHandledAtUtc;
@@ -618,8 +621,10 @@ class AdministrationPage extends StatefulWidget {
     this.initialClientPartnerEndpointCounts = const <String, int>{},
     this.initialClientPartnerLanePreview = const <String, String>{},
     this.initialClientPartnerChatcheckStatus = const <String, String>{},
+    this.initialClientPartnerLaneDetails = const <String, List<String>>{},
     this.initialSitePartnerEndpointCounts = const <String, int>{},
     this.initialSitePartnerChatcheckStatus = const <String, String>{},
+    this.initialSitePartnerLaneDetails = const <String, List<String>>{},
     this.telegramAiAssistantEnabled = false,
     this.telegramAiApprovalRequired = false,
     this.telegramAiLastHandledAtUtc,
@@ -858,8 +863,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
   Map<String, int> _clientPartnerEndpointCounts = const {};
   Map<String, String> _clientPartnerLanePreview = const {};
   Map<String, String> _clientPartnerChatcheckStatus = const {};
+  Map<String, List<String>> _clientPartnerLaneDetails = const {};
   Map<String, int> _sitePartnerEndpointCounts = const {};
   Map<String, String> _sitePartnerChatcheckStatus = const {};
+  Map<String, List<String>> _sitePartnerLaneDetails = const {};
   late MonitoringIdentityPolicyService _monitoringIdentityPolicyService;
   List<MonitoringIdentityPolicyAuditRecord> _identityPolicyAuditHistory =
       const <MonitoringIdentityPolicyAuditRecord>[];
@@ -955,6 +962,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
       _clientPartnerChatcheckStatus =
           widget.initialClientPartnerChatcheckStatus;
     }
+    if (oldWidget.initialClientPartnerLaneDetails !=
+        widget.initialClientPartnerLaneDetails) {
+      _clientPartnerLaneDetails = widget.initialClientPartnerLaneDetails;
+    }
     if (oldWidget.initialSitePartnerEndpointCounts !=
         widget.initialSitePartnerEndpointCounts) {
       _sitePartnerEndpointCounts = widget.initialSitePartnerEndpointCounts;
@@ -962,6 +973,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
     if (oldWidget.initialSitePartnerChatcheckStatus !=
         widget.initialSitePartnerChatcheckStatus) {
       _sitePartnerChatcheckStatus = widget.initialSitePartnerChatcheckStatus;
+    }
+    if (oldWidget.initialSitePartnerLaneDetails !=
+        widget.initialSitePartnerLaneDetails) {
+      _sitePartnerLaneDetails = widget.initialSitePartnerLaneDetails;
     }
   }
 
@@ -1092,8 +1107,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
     _clientPartnerEndpointCounts = widget.initialClientPartnerEndpointCounts;
     _clientPartnerLanePreview = widget.initialClientPartnerLanePreview;
     _clientPartnerChatcheckStatus = widget.initialClientPartnerChatcheckStatus;
+    _clientPartnerLaneDetails = widget.initialClientPartnerLaneDetails;
     _sitePartnerEndpointCounts = widget.initialSitePartnerEndpointCounts;
     _sitePartnerChatcheckStatus = widget.initialSitePartnerChatcheckStatus;
+    _sitePartnerLaneDetails = widget.initialSitePartnerLaneDetails;
     final partnerScope = _resolvePartnerRuntimeScope(
       clients: _clients,
       sites: _sites,
@@ -3321,6 +3338,202 @@ class _AdministrationPageState extends State<AdministrationPage> {
     );
   }
 
+  String _partnerDispatchStatusLabel(PartnerDispatchStatus status) {
+    return switch (status) {
+      PartnerDispatchStatus.accepted => 'ACCEPT',
+      PartnerDispatchStatus.onSite => 'ON SITE',
+      PartnerDispatchStatus.allClear => 'ALL CLEAR',
+      PartnerDispatchStatus.cancelled => 'CANCEL',
+    };
+  }
+
+  String _partnerEventTimeLabel(DateTime occurredAt) {
+    final value = occurredAt.toUtc();
+    final year = value.year.toString().padLeft(4, '0');
+    final month = value.month.toString().padLeft(2, '0');
+    final day = value.day.toString().padLeft(2, '0');
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '$year-$month-$day $hour:$minute UTC';
+  }
+
+  List<String> _partnerLaneDetailsForScope(String clientId, {String? siteId}) {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId?.trim() ?? '';
+    if (normalizedSiteId.isNotEmpty) {
+      final scoped = _sitePartnerLaneDetails[
+          _siteScopeKey(normalizedClientId, normalizedSiteId)];
+      if (scoped != null && scoped.isNotEmpty) {
+        return scoped;
+      }
+    }
+    return _clientPartnerLaneDetails[normalizedClientId] ?? const <String>[];
+  }
+
+  List<PartnerDispatchStatusDeclared> _recentPartnerActionsForScope(
+    String clientId, {
+    String? siteId,
+  }) {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId?.trim() ?? '';
+    final matching = widget.events
+        .whereType<PartnerDispatchStatusDeclared>()
+        .where(
+          (event) =>
+              event.clientId.trim() == normalizedClientId &&
+              (normalizedSiteId.isEmpty || event.siteId.trim() == normalizedSiteId),
+        )
+        .toList(growable: false);
+    matching.sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    return matching.take(6).toList(growable: false);
+  }
+
+  Future<void> _showPartnerDispatchDetailDialog({
+    required String clientId,
+    String? siteId,
+  }) async {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId?.trim() ?? '';
+    final laneDetails = _partnerLaneDetailsForScope(
+      normalizedClientId,
+      siteId: normalizedSiteId,
+    );
+    final partnerStatus = normalizedSiteId.isEmpty
+        ? (_clientPartnerChatcheckStatus[normalizedClientId] ?? '').trim()
+        : (_sitePartnerChatcheckStatus[
+                    _siteScopeKey(normalizedClientId, normalizedSiteId)] ??
+                '')
+            .trim();
+    final recentActions = _recentPartnerActionsForScope(
+      normalizedClientId,
+      siteId: normalizedSiteId,
+    );
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF0C1117),
+          title: Text(
+            normalizedSiteId.isEmpty
+                ? 'Partner Dispatch Detail'
+                : 'Partner Dispatch Detail • ${_siteName(normalizedSiteId)}',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF4FF),
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          content: SizedBox(
+            width: _responsiveDialogWidth(context, maxWidth: 720),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Scope: ${_clientName(normalizedClientId)}${normalizedSiteId.isEmpty ? '' : ' • ${_siteName(normalizedSiteId)}'}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF9AB1CF),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (partnerStatus.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Current health: $partnerStatus',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFEAF4FF),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  Text(
+                    'Bound lane details',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFEAF4FF),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  if (laneDetails.isEmpty)
+                    Text(
+                      'No bound partner lane details are cached for this scope yet.',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF8EA4C2),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    )
+                  else
+                    ...laneDetails.map(
+                      (detail) => Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Text(
+                          detail,
+                          style: GoogleFonts.robotoMono(
+                            color: const Color(0xFFB9CCE5),
+                            fontSize: 11,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Recent declared actions',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFEAF4FF),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  if (recentActions.isEmpty)
+                    Text(
+                      'No partner-declared actions recorded for this scope yet.',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF8EA4C2),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    )
+                  else
+                    ...recentActions.map(
+                      (event) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Text(
+                          '${_partnerEventTimeLabel(event.occurredAt)} • ${event.partnerLabel} • ${_partnerDispatchStatusLabel(event.status)} • ${event.actorLabel} • dispatch=${event.dispatchId}',
+                          style: GoogleFonts.robotoMono(
+                            color: const Color(0xFFB9CCE5),
+                            fontSize: 11,
+                            height: 1.45,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(
+                'Close',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFEAF4FF),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _guardsTable() {
     final filtered = _guards
         .where((row) {
@@ -3380,18 +3593,22 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     ?.trim() ??
                 '';
             final sitePartnerChatcheck =
-                _sitePartnerChatcheckStatus[_siteScopeKey(
-                      row.clientId,
-                      row.id,
-                    )]
+                _sitePartnerChatcheckStatus[_siteScopeKey(row.clientId, row.id)]
                     ?.trim() ??
                 '';
             final sitePartnerLaneCount =
                 _sitePartnerEndpointCounts[_siteScopeKey(
-                      row.clientId,
-                      row.id,
-                    )] ??
+                  row.clientId,
+                  row.id,
+                )] ??
                 0;
+            final hasPartnerDrillIn =
+                sitePartnerLaneCount > 0 ||
+                sitePartnerChatcheck.isNotEmpty ||
+                _recentPartnerActionsForScope(
+                  row.clientId,
+                  siteId: row.id,
+                ).isNotEmpty;
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: _dataCard(
@@ -3416,6 +3633,12 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   if (sitePartnerChatcheck.isNotEmpty)
                     _partnerDispatchBadge(sitePartnerChatcheck),
                 ],
+                onTap: !hasPartnerDrillIn
+                    ? null
+                    : () => _showPartnerDispatchDetailDialog(
+                          clientId: row.clientId,
+                          siteId: row.id,
+                        ),
                 onEdit: () => _showEditStub('Site'),
                 onDelete: () => _deleteSite(row.id),
               ),
@@ -3450,6 +3673,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 _clientPartnerLanePreview[row.id]?.trim() ?? '';
             final partnerChatcheck =
                 _clientPartnerChatcheckStatus[row.id]?.trim() ?? '';
+            final hasPartnerDrillIn =
+                partnerLaneCount > 0 ||
+                partnerChatcheck.isNotEmpty ||
+                _recentPartnerActionsForScope(row.id).isNotEmpty;
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: _dataCard(
@@ -3462,8 +3689,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   'Chat Lanes: $laneCount • Telegram: $telegramCount • Contacts: $contactCount',
                   if (lanePreview.isNotEmpty) 'Lane Labels: $lanePreview',
                   if (clientChatcheck.isNotEmpty) 'Chatcheck: $clientChatcheck',
-                  if (partnerLaneCount > 0)
-                    'Partner Lanes: $partnerLaneCount',
+                  if (partnerLaneCount > 0) 'Partner Lanes: $partnerLaneCount',
                   if (partnerLanePreview.isNotEmpty)
                     'Partner Labels: $partnerLanePreview',
                   if (partnerChatcheck.isNotEmpty)
@@ -3478,6 +3704,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   if (partnerChatcheck.isNotEmpty)
                     _partnerDispatchBadge(partnerChatcheck),
                 ],
+                onTap: !hasPartnerDrillIn
+                    ? null
+                    : () => _showPartnerDispatchDetailDialog(clientId: row.id),
                 onEdit: () =>
                     _openClientMessagingBridgeFlow(initialClientId: row.id),
                 editTooltip: 'Add chat lane',
@@ -7650,13 +7879,14 @@ class _AdministrationPageState extends State<AdministrationPage> {
     required _AdminStatus status,
     bool isDemo = false,
     List<Widget> headerBadges = const [],
+    VoidCallback? onTap,
     required VoidCallback onEdit,
     String editTooltip = 'Edit',
     IconData editIcon = Icons.edit_rounded,
     Color editIconColor = const Color(0xFF60A5FA),
     required VoidCallback onDelete,
   }) {
-    return Container(
+    final body = Container(
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
@@ -7739,6 +7969,17 @@ class _AdministrationPageState extends State<AdministrationPage> {
             ),
           ),
         ],
+      ),
+    );
+    if (onTap == null) {
+      return body;
+    }
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: body,
       ),
     );
   }
@@ -9308,7 +9549,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         final endpointsRaw = await supabase
             .from('client_messaging_endpoints')
             .select(
-              'client_id, site_id, provider, is_active, display_label, last_delivery_status, last_error',
+              'client_id, site_id, provider, is_active, display_label, telegram_chat_id, telegram_thread_id, last_delivery_status, last_error',
             );
         endpointRows = List<Map<String, dynamic>>.from(endpointsRaw);
       } catch (_) {
@@ -9339,11 +9580,13 @@ class _AdministrationPageState extends State<AdministrationPage> {
       final partnerEndpointCounts = <String, int>{};
       final lanePreviewByClient = <String, List<String>>{};
       final partnerLanePreviewByClient = <String, List<String>>{};
+      final partnerLaneDetailsByClient = <String, List<String>>{};
       final chatcheckByClient = <String, String>{};
       final chatcheckBySite = <String, String>{};
       final partnerChatcheckByClient = <String, String>{};
       final partnerChatcheckBySite = <String, String>{};
       final partnerEndpointCountsBySite = <String, int>{};
+      final partnerLaneDetailsBySite = <String, List<String>>{};
       for (final row in endpointRows) {
         if (row['is_active'] == false) continue;
         final clientId = (row['client_id'] ?? '').toString().trim();
@@ -9359,6 +9602,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
             .toLowerCase();
         final label = (row['display_label'] ?? '').toString().trim();
         final isPartner = _isPartnerEndpointLabel(label);
+        final chatId = (row['telegram_chat_id'] ?? '').toString().trim();
+        final threadRaw = (row['telegram_thread_id'] ?? '').toString().trim();
         if (provider == 'telegram') {
           if (isPartner) {
             partnerEndpointCounts.update(
@@ -9368,11 +9613,32 @@ class _AdministrationPageState extends State<AdministrationPage> {
             );
             final siteId = (row['site_id'] ?? '').toString().trim();
             if (siteId.isNotEmpty) {
+              final scopeKey = _siteScopeKey(clientId, siteId);
               partnerEndpointCountsBySite.update(
-                _siteScopeKey(clientId, siteId),
+                scopeKey,
                 (value) => value + 1,
                 ifAbsent: () => 1,
               );
+              final detailLine =
+                  '$label • chat=${chatId.isEmpty ? 'pending' : chatId}'
+                  '${threadRaw.isEmpty ? '' : ' • thread=$threadRaw'}';
+              final siteDetails = partnerLaneDetailsBySite.putIfAbsent(
+                scopeKey,
+                () => <String>[],
+              );
+              if (!siteDetails.contains(detailLine)) {
+                siteDetails.add(detailLine);
+              }
+            }
+            final detailLine =
+                '$label • chat=${chatId.isEmpty ? 'pending' : chatId}'
+                '${threadRaw.isEmpty ? '' : ' • thread=$threadRaw'}';
+            final clientDetails = partnerLaneDetailsByClient.putIfAbsent(
+              clientId,
+              () => <String>[],
+            );
+            if (!clientDetails.contains(detailLine)) {
+              clientDetails.add(detailLine);
             }
           } else {
             telegramCounts.update(
@@ -9417,10 +9683,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
           }
         }
         if (label.isNotEmpty) {
-          final preview = (isPartner
-                  ? partnerLanePreviewByClient
-                  : lanePreviewByClient)
-              .putIfAbsent(clientId, () => <String>[]);
+          final preview =
+              (isPartner ? partnerLanePreviewByClient : lanePreviewByClient)
+                  .putIfAbsent(clientId, () => <String>[]);
           if (!preview.contains(label) && preview.length < 2) {
             preview.add(label);
           }
@@ -9570,11 +9835,19 @@ class _AdministrationPageState extends State<AdministrationPage> {
           for (final entry in partnerLanePreviewByClient.entries)
             entry.key: entry.value.join(' • '),
         };
+        _clientPartnerLaneDetails = {
+          for (final entry in partnerLaneDetailsByClient.entries)
+            entry.key: List<String>.unmodifiable(entry.value),
+        };
         _clientTelegramChatcheckStatus = chatcheckByClient;
         _siteTelegramChatcheckStatus = chatcheckBySite;
         _clientPartnerChatcheckStatus = partnerChatcheckByClient;
         _sitePartnerEndpointCounts = partnerEndpointCountsBySite;
         _sitePartnerChatcheckStatus = partnerChatcheckBySite;
+        _sitePartnerLaneDetails = {
+          for (final entry in partnerLaneDetailsBySite.entries)
+            entry.key: List<String>.unmodifiable(entry.value),
+        };
         _directoryLoadedFromSupabase = true;
         _directorySyncMessage =
             'Directory synced: ${nextClients.length} clients, ${nextSites.length} sites, ${nextEmployees.length} employees.';
@@ -9589,11 +9862,13 @@ class _AdministrationPageState extends State<AdministrationPage> {
         _clientPartnerEndpointCounts = const {};
         _clientMessagingLanePreview = const {};
         _clientPartnerLanePreview = const {};
+        _clientPartnerLaneDetails = const {};
         _clientTelegramChatcheckStatus = const {};
         _siteTelegramChatcheckStatus = const {};
         _clientPartnerChatcheckStatus = const {};
         _sitePartnerEndpointCounts = const {};
         _sitePartnerChatcheckStatus = const {};
+        _sitePartnerLaneDetails = const {};
         _directorySyncMessage = 'Directory sync failed: $error';
       });
     } finally {

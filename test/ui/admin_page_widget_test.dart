@@ -5,6 +5,7 @@ import 'package:omnix_dashboard/application/monitoring_identity_policy_service.d
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 import 'package:omnix_dashboard/application/site_identity_registry_repository.dart';
 import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
+import 'package:omnix_dashboard/domain/events/partner_dispatch_status_declared.dart';
 import 'package:omnix_dashboard/ui/admin_page.dart';
 import 'package:omnix_dashboard/ui/video_fleet_scope_health_sections.dart';
 import 'package:omnix_dashboard/ui/video_fleet_scope_health_view.dart';
@@ -273,9 +274,7 @@ void main() {
           events: <DispatchEvent>[],
           supabaseReady: false,
           initialTab: AdministrationPageTab.clients,
-          initialClientPartnerEndpointCounts: <String, int>{
-            'CLT-001': 2,
-          },
+          initialClientPartnerEndpointCounts: <String, int>{'CLT-001': 2},
           initialClientPartnerLanePreview: <String, String>{
             'CLT-001': 'PARTNER • Alpha • PARTNER • Bravo',
           },
@@ -313,6 +312,63 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('PARTNER FAIL'), findsOneWidget);
+  });
+
+  testWidgets('site partner health row opens drill-in with lane details', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AdministrationPage(
+          events: <DispatchEvent>[
+            PartnerDispatchStatusDeclared(
+              eventId: 'evt-partner-1',
+              sequence: 1,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 15, 21, 14),
+              dispatchId: 'DSP-8821',
+              clientId: 'CLT-001',
+              regionId: 'GAUTENG',
+              siteId: 'WTF-MAIN',
+              partnerLabel: 'PARTNER • Alpha',
+              actorLabel: '@partner.alpha',
+              status: PartnerDispatchStatus.onSite,
+              sourceChannel: 'telegram',
+              sourceMessageKey: 'tg-partner-1',
+            ),
+          ],
+          supabaseReady: false,
+          initialTab: AdministrationPageTab.sites,
+          initialSitePartnerEndpointCounts: <String, int>{
+            'CLT-001::WTF-MAIN': 1,
+          },
+          initialSitePartnerChatcheckStatus: <String, String>{
+            'CLT-001::WTF-MAIN': 'PASS (partner lane linked)',
+          },
+          initialSitePartnerLaneDetails: <String, List<String>>{
+            'CLT-001::WTF-MAIN': <String>[
+              'PARTNER • Alpha • chat=-1001234567890 • thread=77',
+            ],
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Waterfall Estate Main (WTF-MAIN)'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Partner Dispatch Detail'), findsOneWidget);
+    expect(
+      find.text('PARTNER • Alpha • chat=-1001234567890 • thread=77'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        '2026-03-15 21:14 UTC • PARTNER • Alpha • ON SITE • @partner.alpha • dispatch=DSP-8821',
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('administration page reports tab changes to parent state', (
