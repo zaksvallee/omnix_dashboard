@@ -3443,6 +3443,97 @@ void main() {
   );
 
   testWidgets(
+    'client reports shows tracked section configuration on generated receipts before preview',
+    (tester) async {
+      final fixture = buildReviewedReportGenerationFixture(
+        intelligenceEventId: 'INTEL-GENERATE-CONFIG-1',
+        intelligenceId: 'intel-generate-config-1',
+      );
+      final store = fixture.store;
+      final shellState = ValueNotifier(
+        const ReportShellState(
+          includeAiDecisionLog: false,
+          includeGuardMetrics: false,
+        ),
+      );
+      final previewRequests = <ReportPreviewRequest>[];
+      addTearDown(shellState.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ValueListenableBuilder<ReportShellState>(
+            valueListenable: shellState,
+            builder: (context, value, _) {
+              return ClientIntelligenceReportsPage(
+                store: store,
+                selectedClient: 'CLIENT-001',
+                selectedSite: 'SITE-SANDTON',
+                sceneReviewByIntelligenceId:
+                    fixture.sceneReviewByIntelligenceId,
+                reportShellState: value,
+                onReportShellStateChanged: (next) => shellState.value = next,
+                onRequestPreview: previewRequests.add,
+              );
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final previewReportAction = find.text('Preview Report').first;
+      await tester.ensureVisible(previewReportAction);
+      await tester.tap(previewReportAction);
+      await tester.pumpAndSettle();
+
+      final generatedReceipt = store.allEvents().whereType<ReportGenerated>().single;
+      expect(generatedReceipt.reportSchemaVersion, 3);
+      expect(generatedReceipt.includeAiDecisionLog, isFalse);
+      expect(generatedReceipt.includeGuardMetrics, isFalse);
+
+      expect(
+        find.byKey(
+          ValueKey('report-receipt-config-${generatedReceipt.eventId}'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Tracked Config'), findsOneWidget);
+      expect(find.text('2 Sections Omitted'), findsWidgets);
+      expect(
+        find.text(
+          'Included: Incident Timeline, Dispatch Summary, Checkpoint Compliance. Omitted: AI Decision Log, Guard Metrics.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Preview target: ${generatedReceipt.eventId}'), findsOneWidget);
+      expect(find.text('2 Sections Omitted'), findsWidgets);
+      expect(previewRequests, hasLength(1));
+    },
+  );
+
+  testWidgets('client reports labels legacy receipt configuration in history', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ClientIntelligenceReportsPage(
+          store: InMemoryEventStore(),
+          selectedClient: 'CLIENT-001',
+          selectedSite: 'SITE-SANDTON',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Legacy Config'), findsWidgets);
+    expect(
+      find.text(
+        'Legacy receipt. Per-section report configuration was not captured for this generation.',
+      ),
+      findsWidgets,
+    );
+  });
+
+  testWidgets(
     'client reports preview report opens reviewed preview route without callback',
     (tester) async {
       final fixture = buildReviewedReportGenerationFixture(

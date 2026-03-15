@@ -2159,6 +2159,14 @@ class _ClientIntelligenceReportsPageState
     final sceneAccent = _sceneReviewAccent(sceneReviewSummary);
     final sceneNarrative = _sceneReviewNarrative(sceneReviewSummary);
     final isSelected = row.event.eventId == _selectedReceiptEventId;
+    final hasTrackedSectionConfiguration = _hasTrackedSectionConfiguration(
+      row.event,
+    );
+    final sectionSummary = _receiptSectionConfigurationSummary(row.event);
+    final sectionColor = _receiptSectionConfigurationAccent(row.event);
+    final omittedSections = _omittedSectionLabels(
+      row.event.sectionConfiguration,
+    );
 
     return Container(
       width: double.infinity,
@@ -2234,6 +2242,61 @@ class _ClientIntelligenceReportsPageState
               _receiptMeta('Period', period),
               _receiptMeta('Events', '${row.event.eventCount}'),
             ],
+          ),
+          const SizedBox(height: 8),
+          Container(
+            key: ValueKey<String>('report-receipt-config-${row.event.eventId}'),
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0E1A2B),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: sectionColor.withValues(alpha: 0.38)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Report Configuration',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFE8F1FF),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _receiptSceneReviewPill(
+                      hasTrackedSectionConfiguration
+                          ? 'Tracked Config'
+                          : 'Legacy Config',
+                      sectionColor,
+                    ),
+                    if (hasTrackedSectionConfiguration)
+                      _receiptSceneReviewPill(
+                        omittedSections.isEmpty
+                            ? 'All Sections Included'
+                            : '${omittedSections.length} Sections Omitted',
+                        omittedSections.isEmpty
+                            ? const Color(0xFF59D79B)
+                            : const Color(0xFFF6C067),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  sectionSummary,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF9CB2D1),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
           if (sceneReviewSummary != null) ...[
             const SizedBox(height: 8),
@@ -2673,6 +2736,10 @@ class _ClientIntelligenceReportsPageState
                 ? sceneAccent
                 : const Color(0xFF8EA4C2),
           ),
+        _receiptSceneReviewPill(
+          _receiptSectionConfigurationDockLabel(row.event),
+          _receiptSectionConfigurationAccent(row.event),
+        ),
       ],
       primaryAction: _pillActionButton(
         label: 'Open Full Preview',
@@ -2706,6 +2773,62 @@ class _ClientIntelligenceReportsPageState
 
   String? _sceneReviewNarrative(ReportReceiptSceneReviewSummary? summary) {
     return ReportReceiptSceneReviewPresenter.narrative(summary);
+  }
+
+  bool _hasTrackedSectionConfiguration(ReportGenerated event) {
+    return event.reportSchemaVersion >= 3;
+  }
+
+  List<String> _includedSectionLabels(ReportSectionConfiguration configuration) {
+    return <String>[
+      if (configuration.includeTimeline) 'Incident Timeline',
+      if (configuration.includeDispatchSummary) 'Dispatch Summary',
+      if (configuration.includeCheckpointCompliance) 'Checkpoint Compliance',
+      if (configuration.includeAiDecisionLog) 'AI Decision Log',
+      if (configuration.includeGuardMetrics) 'Guard Metrics',
+    ];
+  }
+
+  List<String> _omittedSectionLabels(ReportSectionConfiguration configuration) {
+    return <String>[
+      if (!configuration.includeTimeline) 'Incident Timeline',
+      if (!configuration.includeDispatchSummary) 'Dispatch Summary',
+      if (!configuration.includeCheckpointCompliance)
+        'Checkpoint Compliance',
+      if (!configuration.includeAiDecisionLog) 'AI Decision Log',
+      if (!configuration.includeGuardMetrics) 'Guard Metrics',
+    ];
+  }
+
+  String _receiptSectionConfigurationSummary(ReportGenerated event) {
+    if (!_hasTrackedSectionConfiguration(event)) {
+      return 'Legacy receipt. Per-section report configuration was not captured for this generation.';
+    }
+    final included = _includedSectionLabels(event.sectionConfiguration);
+    final omitted = _omittedSectionLabels(event.sectionConfiguration);
+    final includedLabel = included.isEmpty ? 'None' : included.join(', ');
+    final omittedLabel = omitted.isEmpty ? 'None' : omitted.join(', ');
+    return 'Included: $includedLabel. Omitted: $omittedLabel.';
+  }
+
+  String _receiptSectionConfigurationDockLabel(ReportGenerated event) {
+    if (!_hasTrackedSectionConfiguration(event)) {
+      return 'Legacy Config';
+    }
+    final omitted = _omittedSectionLabels(event.sectionConfiguration);
+    if (omitted.isEmpty) {
+      return 'All Sections Included';
+    }
+    return '${omitted.length} Sections Omitted';
+  }
+
+  Color _receiptSectionConfigurationAccent(ReportGenerated event) {
+    if (!_hasTrackedSectionConfiguration(event)) {
+      return const Color(0xFF8EA4C2);
+    }
+    return _omittedSectionLabels(event.sectionConfiguration).isEmpty
+        ? const Color(0xFF59D79B)
+        : const Color(0xFFF6C067);
   }
 
   Widget _fieldLabel(String label) {
