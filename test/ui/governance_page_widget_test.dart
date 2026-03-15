@@ -365,6 +365,8 @@ void main() {
       required double acceptedDelayMinutes,
       required double onSiteDelayMinutes,
       required String summaryLine,
+      List<SovereignReportPartnerDispatchChain> dispatchChains =
+          const <SovereignReportPartnerDispatchChain>[],
     }) {
       return SovereignReport(
         date: date,
@@ -417,6 +419,7 @@ void main() {
               summaryLine: summaryLine,
             ),
           ],
+          dispatchChains: dispatchChains,
         ),
       );
     }
@@ -446,6 +449,27 @@ void main() {
       onSiteDelayMinutes: 10.0,
       summaryLine:
           'Dispatches 2 • Strong 2 • On track 0 • Watch 0 • Critical 0 • Avg accept 4.0m • Avg on site 10.0m',
+      dispatchChains: [
+        SovereignReportPartnerDispatchChain(
+          dispatchId: 'DSP-200',
+          clientId: 'CLIENT-1',
+          siteId: 'SITE-42',
+          partnerLabel: 'Partner Alpha',
+          declarationCount: 3,
+          latestStatus: PartnerDispatchStatus.allClear,
+          latestOccurredAtUtc: DateTime.utc(2026, 3, 10, 1, 30),
+          dispatchCreatedAtUtc: DateTime.utc(2026, 3, 10, 1, 0),
+          acceptedAtUtc: DateTime.utc(2026, 3, 10, 1, 4),
+          onSiteAtUtc: DateTime.utc(2026, 3, 10, 1, 10),
+          allClearAtUtc: DateTime.utc(2026, 3, 10, 1, 30),
+          acceptedDelayMinutes: 4.0,
+          onSiteDelayMinutes: 10.0,
+          scoreLabel: 'STRONG',
+          scoreReason:
+              'Partner reached ALL CLEAR inside target acceptance and on-site windows.',
+          workflowSummary: 'ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)',
+        ),
+      ],
     );
 
     await tester.pumpWidget(
@@ -469,6 +493,30 @@ void main() {
     );
     expect(
       find.text('Acceptance timing improved against the prior 7-day average.'),
+      findsOneWidget,
+    );
+
+    final scoreboardFinder = find.byKey(
+      const ValueKey(
+        'governance-partner-scoreboard-CLIENT-1/SITE-42-Partner Alpha',
+      ),
+    );
+    await tester.ensureVisible(scoreboardFinder);
+    await tester.tap(scoreboardFinder);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('governance-partner-scoreboard-dialog')),
+      findsOneWidget,
+    );
+    expect(find.text('PARTNER SCORECARD DRILL-IN'), findsOneWidget);
+    expect(find.text('7-day scoreboard history'), findsOneWidget);
+    expect(find.text('2026-03-10 • CURRENT'), findsOneWidget);
+    expect(find.text('2026-03-09'), findsOneWidget);
+    expect(find.text('Current dispatch chains'), findsOneWidget);
+    expect(find.textContaining('DSP-200 • STRONG'), findsOneWidget);
+    expect(
+      find.text('ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)'),
       findsOneWidget,
     );
   });

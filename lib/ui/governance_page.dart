@@ -180,6 +180,18 @@ class _PartnerTrendAggregate {
   });
 }
 
+class _PartnerScoreboardHistoryPoint {
+  final String reportDate;
+  final SovereignReportPartnerScoreboardRow row;
+  final bool current;
+
+  const _PartnerScoreboardHistoryPoint({
+    required this.reportDate,
+    required this.row,
+    required this.current,
+  });
+}
+
 class _GovernanceReportView {
   final String reportDate;
   final int totalEvents;
@@ -3111,37 +3123,50 @@ class _GovernancePageState extends State<GovernancePage> {
     final scopeLabel = '${row.clientId}/${row.siteId}';
     return SizedBox(
       width: 320,
-      child: Container(
+      child: InkWell(
         key: ValueKey<String>(
           'governance-partner-scoreboard-$scopeLabel-${row.partnerLabel}',
         ),
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: const Color(0x14000000),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0x22FFFFFF)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '$scopeLabel • ${row.partnerLabel}',
-              style: GoogleFonts.inter(
-                color: const Color(0xFFEAF4FF),
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
+        onTap: () => _showPartnerScoreboardDrillIn(row: row),
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0x14000000),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0x22FFFFFF)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$scopeLabel • ${row.partnerLabel}',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFEAF4FF),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              row.summaryLine,
-              style: GoogleFonts.inter(
-                color: const Color(0xFF9CB2D1),
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
+              const SizedBox(height: 4),
+              Text(
+                row.summaryLine,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF9CB2D1),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 6),
+              Text(
+                'Tap to drill in',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF8FD1FF),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -3153,100 +3178,455 @@ class _GovernancePageState extends State<GovernancePage> {
     final currentScoreColor = _partnerScoreColor(row.currentScoreLabel);
     return SizedBox(
       width: 340,
-      child: Container(
+      child: InkWell(
         key: ValueKey<String>(
           'governance-partner-trend-$scopeLabel-${row.partnerLabel}',
         ),
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: const Color(0x14000000),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0x22FFFFFF)),
+        onTap: () => _showPartnerScoreboardDrillIn(
+          row: SovereignReportPartnerScoreboardRow(
+            clientId: row.clientId,
+            siteId: row.siteId,
+            partnerLabel: row.partnerLabel,
+            dispatchCount: row.dispatchCount,
+            strongCount: row.strongCount,
+            onTrackCount: row.onTrackCount,
+            watchCount: row.watchCount,
+            criticalCount: row.criticalCount,
+            averageAcceptedDelayMinutes: row.averageAcceptedDelayMinutes,
+            averageOnSiteDelayMinutes: row.averageOnSiteDelayMinutes,
+            summaryLine: row.summaryLine,
+          ),
+          trendRow: row,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '$scopeLabel • ${row.partnerLabel}',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFFEAF4FF),
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0x14000000),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0x22FFFFFF)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '$scopeLabel • ${row.partnerLabel}',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFEAF4FF),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                ),
-                if (row.currentScoreLabel.trim().isNotEmpty) ...[
+                  if (row.currentScoreLabel.trim().isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: currentScoreColor.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: currentScoreColor.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: Text(
+                        row.currentScoreLabel,
+                        style: GoogleFonts.inter(
+                          color: currentScoreColor,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 7,
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: currentScoreColor.withValues(alpha: 0.14),
+                      color: trendColor.withValues(alpha: 0.14),
                       borderRadius: BorderRadius.circular(999),
                       border: Border.all(
-                        color: currentScoreColor.withValues(alpha: 0.5),
+                        color: trendColor.withValues(alpha: 0.5),
                       ),
                     ),
                     child: Text(
-                      row.currentScoreLabel,
+                      row.trendLabel,
                       style: GoogleFonts.inter(
-                        color: currentScoreColor,
+                        color: trendColor,
                         fontSize: 8,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 6),
                 ],
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: trendColor.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: trendColor.withValues(alpha: 0.5),
-                    ),
-                  ),
-                  child: Text(
-                    row.trendLabel,
-                    style: GoogleFonts.inter(
-                      color: trendColor,
-                      fontSize: 8,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                row.summaryLine,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF9CB2D1),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
                 ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              row.summaryLine,
-              style: GoogleFonts.inter(
-                color: const Color(0xFF9CB2D1),
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              row.trendReason,
-              style: GoogleFonts.inter(
-                color: trendColor,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
+              const SizedBox(height: 4),
+              Text(
+                row.trendReason,
+                style: GoogleFonts.inter(
+                  color: trendColor,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 6),
+              Text(
+                'Tap to drill in',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF8FD1FF),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  Widget _partnerTrendMetricChip({
+    required String label,
+    required String value,
+    Color color = const Color(0xFF8FD1FF),
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Text(
+        '$label: $value',
+        style: GoogleFonts.inter(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  void _showPartnerScoreboardDrillIn({
+    required SovereignReportPartnerScoreboardRow row,
+    _PartnerTrendRow? trendRow,
+  }) {
+    final report = _currentGovernanceReportForFocusValidation();
+    final history = _partnerScoreboardHistory(
+      report: report,
+      clientId: row.clientId,
+      siteId: row.siteId,
+      partnerLabel: row.partnerLabel,
+    );
+    final chains = report.partnerDispatchChains
+        .where(
+          (chain) =>
+              chain.clientId.trim() == row.clientId.trim() &&
+              chain.siteId.trim() == row.siteId.trim() &&
+              chain.partnerLabel.trim().toUpperCase() ==
+                  row.partnerLabel.trim().toUpperCase(),
+        )
+        .toList(growable: false);
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: const Color(0xFF08111B),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 24,
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760, maxHeight: 720),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                key: const ValueKey('governance-partner-scoreboard-dialog'),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'PARTNER SCORECARD DRILL-IN',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFFEAF4FF),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${row.clientId}/${row.siteId} • ${row.partnerLabel}',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF9CB2D1),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        icon: const Icon(Icons.close, color: Color(0xFFEAF4FF)),
+                      ),
+                    ],
+                  ),
+                  if (trendRow != null) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0x14000000),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0x22FFFFFF)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _partnerTrendMetricChip(
+                                label: 'Trend',
+                                value:
+                                    '${trendRow.trendLabel} • ${trendRow.reportDays}d',
+                                color: _partnerTrendColor(trendRow.trendLabel),
+                              ),
+                              if (trendRow.currentScoreLabel.trim().isNotEmpty)
+                                _partnerTrendMetricChip(
+                                  label: 'Score',
+                                  value: trendRow.currentScoreLabel,
+                                  color: _partnerScoreColor(
+                                    trendRow.currentScoreLabel,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            trendRow.trendReason,
+                            style: GoogleFonts.inter(
+                              color: _partnerTrendColor(trendRow.trendLabel),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '7-day scoreboard history',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFEAF4FF),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          for (final point in history) ...[
+                            Container(
+                              width: double.infinity,
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: point.current
+                                    ? const Color(0x1A0EA5E9)
+                                    : const Color(0x14000000),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: point.current
+                                      ? const Color(0x550EA5E9)
+                                      : const Color(0x22FFFFFF),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    point.current
+                                        ? '${point.reportDate} • CURRENT'
+                                        : point.reportDate,
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFFEAF4FF),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    point.row.summaryLine,
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFF9CB2D1),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 8),
+                          Text(
+                            'Current dispatch chains',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFEAF4FF),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          if (chains.isEmpty)
+                            Text(
+                              'No current dispatch chains for this partner scope.',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF9CB2D1),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            )
+                          else
+                            for (final chain in chains) ...[
+                              Container(
+                                width: double.infinity,
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0x14000000),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: const Color(0x22FFFFFF),
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${chain.dispatchId} • ${chain.scoreLabel.isEmpty ? _partnerStatusLabel(chain.latestStatus) : chain.scoreLabel}',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFEAF4FF),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      chain.workflowSummary.isEmpty
+                                          ? chain.scoreReason
+                                          : chain.workflowSummary,
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF9CB2D1),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  List<_PartnerScoreboardHistoryPoint> _partnerScoreboardHistory({
+    required _GovernanceReportView report,
+    required String clientId,
+    required String siteId,
+    required String partnerLabel,
+  }) {
+    final byDate = <String, _PartnerScoreboardHistoryPoint>{};
+    for (final historicalReport in widget.morningSovereignReportHistory) {
+      final reportDate = historicalReport.date.trim();
+      if (reportDate.isEmpty) {
+        continue;
+      }
+      for (final row in historicalReport.partnerProgression.scoreboardRows) {
+        if (!_partnerScoreboardScopeMatches(
+          row,
+          clientId: clientId,
+          siteId: siteId,
+          partnerLabel: partnerLabel,
+        )) {
+          continue;
+        }
+        byDate[reportDate] = _PartnerScoreboardHistoryPoint(
+          reportDate: reportDate,
+          row: row,
+          current: false,
+        );
+      }
+    }
+    for (final row in report.partnerScoreboardRows) {
+      if (!_partnerScoreboardScopeMatches(
+        row,
+        clientId: clientId,
+        siteId: siteId,
+        partnerLabel: partnerLabel,
+      )) {
+        continue;
+      }
+      byDate[report.reportDate.trim()] = _PartnerScoreboardHistoryPoint(
+        reportDate: report.reportDate.trim(),
+        row: row,
+        current: true,
+      );
+    }
+    final points = byDate.values.toList(growable: false)
+      ..sort((a, b) => b.reportDate.compareTo(a.reportDate));
+    return points;
+  }
+
+  bool _partnerScoreboardScopeMatches(
+    SovereignReportPartnerScoreboardRow row, {
+    required String clientId,
+    required String siteId,
+    required String partnerLabel,
+  }) {
+    return row.clientId.trim() == clientId.trim() &&
+        row.siteId.trim() == siteId.trim() &&
+        row.partnerLabel.trim().toUpperCase() ==
+            partnerLabel.trim().toUpperCase();
   }
 
   Widget _partnerDispatchChainRow(SovereignReportPartnerDispatchChain chain) {
