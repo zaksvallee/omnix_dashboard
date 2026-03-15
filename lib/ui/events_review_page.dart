@@ -557,6 +557,35 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     );
   }
 
+  _PartnerScopeDetail? _partnerScopeDetail(List<DispatchEvent> scopedEvents) {
+    if (scopedEvents.isEmpty ||
+        scopedEvents.any((event) => event is! PartnerDispatchStatusDeclared)) {
+      return null;
+    }
+    final partnerEvents =
+        [...scopedEvents.cast<PartnerDispatchStatusDeclared>()]..sort((a, b) {
+          final occurredAtCompare = a.occurredAt.compareTo(b.occurredAt);
+          if (occurredAtCompare != 0) {
+            return occurredAtCompare;
+          }
+          return a.sequence.compareTo(b.sequence);
+        });
+    final firstEvent = partnerEvents.first;
+    final firstOccurrenceByStatus = <PartnerDispatchStatus, DateTime>{};
+    for (final event in partnerEvents) {
+      firstOccurrenceByStatus.putIfAbsent(event.status, () => event.occurredAt);
+    }
+    return _PartnerScopeDetail(
+      events: partnerEvents,
+      dispatchId: firstEvent.dispatchId,
+      partnerLabel: firstEvent.partnerLabel,
+      siteId: firstEvent.siteId,
+      latestStatus: partnerEvents.last.status,
+      latestOccurredAt: partnerEvents.last.occurredAt,
+      firstOccurrenceByStatus: firstOccurrenceByStatus,
+    );
+  }
+
   _VisitTimelineStatus _visitTimelineStatus(List<DispatchEvent> visitEvents) {
     if (visitEvents.isEmpty) {
       return _VisitTimelineStatus.active;
@@ -1047,6 +1076,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     final sceneReview = selected is IntelligenceReceived
         ? widget.sceneReviewByIntelligenceId[selected.intelligenceId.trim()]
         : null;
+    final partnerScopeDetail = _partnerScopeDetail(visitScopedEvents);
     final visitStatus = _visitTimelineStatus(visitScopedEvents);
     final linkedIntelligenceIds = visitScopedEvents
         .whereType<IntelligenceReceived>()
@@ -1065,6 +1095,91 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             letterSpacing: 0.8,
           ),
         ),
+        if (partnerScopeDetail != null) ...[
+          const SizedBox(height: 8),
+          _detailCard(
+            child: Column(
+              key: const ValueKey('events-partner-progress-card'),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'PARTNER DISPATCH CHAIN',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF9BB0CE),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.7,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _kvMini('DISPATCH', partnerScopeDetail.dispatchId),
+                    ),
+                    const SizedBox(width: 18),
+                    Expanded(
+                      child: _kvMini(
+                        'DECLARATIONS',
+                        '${partnerScopeDetail.events.length}',
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      key: const ValueKey('events-partner-latest-status-pill'),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _partnerStatusColor(
+                          partnerScopeDetail.latestStatus,
+                        ).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: _partnerStatusColor(
+                            partnerScopeDetail.latestStatus,
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        _partnerStatusLabel(partnerScopeDetail.latestStatus),
+                        style: GoogleFonts.inter(
+                          color: _partnerStatusColor(
+                            partnerScopeDetail.latestStatus,
+                          ),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                _contextRow('Partner', partnerScopeDetail.partnerLabel),
+                _contextRow('Site', partnerScopeDetail.siteId),
+                _contextRow(
+                  'Latest',
+                  '${_partnerStatusLabel(partnerScopeDetail.latestStatus)} • ${_fullTimestamp(partnerScopeDetail.latestOccurredAt)}',
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final status in PartnerDispatchStatus.values)
+                      _partnerMilestoneBadge(
+                        status: status,
+                        timestamp:
+                            partnerScopeDetail.firstOccurrenceByStatus[status],
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
         if (visitScopedEvents.isNotEmpty) ...[
           const SizedBox(height: 8),
           _detailCard(
@@ -1664,6 +1779,53 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     );
   }
 
+  Widget _partnerMilestoneBadge({
+    required PartnerDispatchStatus status,
+    required DateTime? timestamp,
+  }) {
+    final reached = timestamp != null;
+    final color = reached
+        ? _partnerStatusColor(status)
+        : const Color(0xFF64748B);
+    return Container(
+      key: ValueKey<String>('events-partner-milestone-${status.name}'),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: reached
+            ? color.withValues(alpha: 0.14)
+            : const Color(0xFF111822),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: reached ? color : const Color(0xFF2A374A)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            _partnerStatusLabel(status),
+            style: GoogleFonts.inter(
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            reached ? _clock12(timestamp) : 'Pending',
+            style: GoogleFonts.inter(
+              color: reached
+                  ? const Color(0xFFEAF1FB)
+                  : const Color(0xFF8EA4C2),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _exportEventData(DispatchEvent event) {
     final payloadJson = const JsonEncoder.withIndent(
       '  ',
@@ -1876,6 +2038,44 @@ class _PartnerScopeSummary {
         : ' ${detailParts.join(' • ')}';
     return 'Partner dispatch review active for $eventCount declared $actionWord.$detailSuffix';
   }
+}
+
+class _PartnerScopeDetail {
+  final List<PartnerDispatchStatusDeclared> events;
+  final String dispatchId;
+  final String partnerLabel;
+  final String siteId;
+  final PartnerDispatchStatus latestStatus;
+  final DateTime latestOccurredAt;
+  final Map<PartnerDispatchStatus, DateTime> firstOccurrenceByStatus;
+
+  const _PartnerScopeDetail({
+    required this.events,
+    required this.dispatchId,
+    required this.partnerLabel,
+    required this.siteId,
+    required this.latestStatus,
+    required this.latestOccurredAt,
+    required this.firstOccurrenceByStatus,
+  });
+}
+
+String _partnerStatusLabel(PartnerDispatchStatus status) {
+  return switch (status) {
+    PartnerDispatchStatus.accepted => 'ACCEPT',
+    PartnerDispatchStatus.onSite => 'ON SITE',
+    PartnerDispatchStatus.allClear => 'ALL CLEAR',
+    PartnerDispatchStatus.cancelled => 'CANCELLED',
+  };
+}
+
+Color _partnerStatusColor(PartnerDispatchStatus status) {
+  return switch (status) {
+    PartnerDispatchStatus.accepted => const Color(0xFF38BDF8),
+    PartnerDispatchStatus.onSite => const Color(0xFFF59E0B),
+    PartnerDispatchStatus.allClear => const Color(0xFF10B981),
+    PartnerDispatchStatus.cancelled => const Color(0xFFEF4444),
+  };
 }
 
 Map<String, dynamic> _eventPayload(DispatchEvent event) {

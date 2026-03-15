@@ -632,6 +632,34 @@ void main() {
     expect(find.textContaining('Visit-scoped review active for'), findsNothing);
     expect(find.textContaining('Rapid Shield declared'), findsWidgets);
     expect(find.text('Unrelated perimeter movement'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('events-partner-progress-card')),
+      findsOneWidget,
+    );
+    expect(find.text('PARTNER DISPATCH CHAIN'), findsOneWidget);
+    expect(find.text('INC-8821'), findsWidgets);
+    expect(find.text('ALL CLEAR'), findsWidgets);
+    expect(
+      find.byKey(const ValueKey('events-partner-latest-status-pill')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('events-partner-milestone-accepted')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('events-partner-milestone-onSite')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('events-partner-milestone-allClear')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('events-partner-milestone-cancelled')),
+      findsOneWidget,
+    );
+    expect(find.text('Pending'), findsOneWidget);
   });
 
   testWidgets('events review surfaces FR and LPR context for DVR events', (
