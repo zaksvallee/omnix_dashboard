@@ -1061,6 +1061,26 @@ class _ClientIntelligenceReportsPageState
               ),
             ),
           ],
+          if (comparison.historyPoints.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Recent shifts',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFE8F1FF),
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final point in comparison.historyPoints.take(3))
+                  _partnerComparisonHistoryChip(point),
+              ],
+            ),
+          ],
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -1085,6 +1105,37 @@ class _ClientIntelligenceReportsPageState
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _partnerComparisonHistoryChip(_PartnerScopeHistoryPoint point) {
+    final summary = _partnerComparisonHistorySummary(point.row);
+    return Container(
+      key: ValueKey<String>(
+        'reports-partner-comparison-history-${point.row.clientId}/${point.row.siteId}/${point.row.partnerLabel}-${point.reportDate}',
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: point.current
+            ? const Color(0x1A0EA5E9)
+            : const Color(0xFF102337),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: point.current
+              ? const Color(0x550EA5E9)
+              : const Color(0xFF223244),
+        ),
+      ),
+      child: Text(
+        '${point.reportDate} • $summary',
+        style: GoogleFonts.inter(
+          color: point.current
+              ? const Color(0xFFE8F1FF)
+              : const Color(0xFF9CB2D1),
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -1413,6 +1464,7 @@ class _ClientIntelligenceReportsPageState
             isLeader: identical(row, leader),
             trendLabel: _partnerScopeTrendLabel(historyPoints),
             trendReason: _partnerScopeTrendReason(historyPoints),
+            historyPoints: historyPoints,
             acceptDeltaMinutes: acceptDelta != null && acceptDelta > 0
                 ? double.parse(acceptDelta.toStringAsFixed(1))
                 : null,
@@ -1626,6 +1678,24 @@ class _ClientIntelligenceReportsPageState
     final dispatchCount = row.dispatchCount <= 0 ? 1 : row.dispatchCount;
     final rawScore = (row.criticalCount * 3) + row.watchCount - row.strongCount;
     return rawScore / dispatchCount;
+  }
+
+  String _partnerComparisonHistorySummary(
+    SovereignReportPartnerScoreboardRow row,
+  ) {
+    if (row.criticalCount > 0) {
+      return '${row.criticalCount} critical';
+    }
+    if (row.watchCount > 0) {
+      return '${row.watchCount} watch';
+    }
+    if (row.onTrackCount > 0) {
+      return '${row.onTrackCount} on track';
+    }
+    if (row.strongCount > 0) {
+      return '${row.strongCount} strong';
+    }
+    return '${row.dispatchCount} dispatches';
   }
 
   Color _partnerTrendColor(String label) {
@@ -3063,6 +3133,7 @@ class _PartnerComparisonRow {
   final bool isLeader;
   final String trendLabel;
   final String trendReason;
+  final List<_PartnerScopeHistoryPoint> historyPoints;
   final double? acceptDeltaMinutes;
   final double? onSiteDeltaMinutes;
 
@@ -3071,6 +3142,7 @@ class _PartnerComparisonRow {
     required this.isLeader,
     required this.trendLabel,
     required this.trendReason,
+    required this.historyPoints,
     required this.acceptDeltaMinutes,
     required this.onSiteDeltaMinutes,
   });

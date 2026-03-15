@@ -549,6 +549,10 @@ void main() {
     );
     expect(find.text('LEADER'), findsOneWidget);
     expect(find.text('Accept +2.0m • On site +2.0m vs leader'), findsOneWidget);
+    expect(find.text('Recent shifts'), findsNWidgets(2));
+    expect(find.text('2026-03-15 • 1 strong'), findsOneWidget);
+    expect(find.text('2026-03-14 • 1 on track'), findsOneWidget);
+    expect(find.text('2026-03-15 • 1 on track'), findsOneWidget);
     expect(find.text('Partner Scorecard Lanes'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('reports-partner-scope-banner')),
