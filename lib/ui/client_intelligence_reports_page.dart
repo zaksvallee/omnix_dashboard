@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../application/morning_sovereign_report_service.dart';
 import '../application/monitoring_scene_review_store.dart';
+import '../application/report_entry_context.dart';
 import '../application/report_output_mode.dart';
 import '../application/report_partner_comparison_window.dart';
 import '../application/report_receipt_export_payload.dart';
@@ -984,6 +985,10 @@ class _ClientIntelligenceReportsPageState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (_entryContext != null) ...[
+            _receiptPolicyEntryContextBanner(),
+            const SizedBox(height: 10),
+          ],
           if (current != null)
             Wrap(
               spacing: 8,
@@ -1053,6 +1058,73 @@ class _ClientIntelligenceReportsPageState
             _receiptPolicyHistoryRow(rows[index], current: index == 0),
             if (index < rows.length - 1 && index < 3) const SizedBox(height: 8),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _receiptPolicyEntryContextBanner() {
+    final entryContext = _entryContext;
+    if (entryContext == null) {
+      return const SizedBox.shrink();
+    }
+    final previewReceiptEventId = _previewReceiptEventId?.trim();
+    return Container(
+      key: const ValueKey('reports-receipt-policy-entry-context-banner'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF102337),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF29425F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            entryContext.bannerTitle,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8FD1FF),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            entryContext.bannerDetail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFE8F1FF),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (previewReceiptEventId != null && previewReceiptEventId.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _partnerScopeChip(
+                    label: 'Receipt • $previewReceiptEventId',
+                    color: const Color(0xFF8FD1FF),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 10),
+          _actionButton(
+            key: const ValueKey('reports-receipt-policy-entry-context-clear'),
+            label: 'Dismiss Context',
+            icon: Icons.subdirectory_arrow_left_rounded,
+            onTap: () {
+              clearReportEntryContext();
+              _showReceiptActionFeedback(
+                'Governance branding-drift context cleared.',
+              );
+            },
+          ),
         ],
       ),
     );
@@ -3262,6 +3334,8 @@ class _ClientIntelligenceReportsPageState
   String? get _selectedReceiptEventId => _shellBinding.selectedReceiptEventId;
 
   String? get _previewReceiptEventId => _shellBinding.previewReceiptEventId;
+
+  ReportEntryContext? get _entryContext => _shellBinding.entryContext;
 
   ReportPreviewSurface get _previewSurface => _shellBinding.previewSurface;
 

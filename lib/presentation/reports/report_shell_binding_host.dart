@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../../application/report_shell_binding.dart';
+import '../../application/report_entry_context.dart';
 import '../../application/report_output_mode.dart';
 import '../../application/report_partner_comparison_window.dart';
 import '../../application/report_preview_request.dart';
@@ -90,6 +91,14 @@ mixin ReportShellBindingHost<T extends StatefulWidget> on State<T> {
 
   void clearReportPartnerScopeFocus() {
     mutateReportShellBinding((binding) => binding.clearingPartnerScopeFocus());
+  }
+
+  void setReportEntryContext(ReportEntryContext? value) {
+    mutateReportShellBinding((binding) => binding.withEntryContext(value));
+  }
+
+  void clearReportEntryContext() {
+    setReportEntryContext(null);
   }
 
   void setReportSectionConfiguration({

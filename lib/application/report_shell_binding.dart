@@ -1,3 +1,4 @@
+import 'report_entry_context.dart';
 import 'report_partner_comparison_window.dart';
 import 'report_output_mode.dart';
 import 'report_preview_surface.dart';
@@ -9,6 +10,7 @@ class ReportShellBinding {
   final ReportOutputMode outputMode;
   final String? selectedReceiptEventId;
   final String? previewReceiptEventId;
+  final ReportEntryContext? entryContext;
   final ReportPreviewSurface previewSurface;
   final ReportPartnerComparisonWindow partnerComparisonWindow;
   final String? partnerScopeClientId;
@@ -27,6 +29,7 @@ class ReportShellBinding {
     this.outputMode = ReportOutputMode.pdf,
     this.selectedReceiptEventId,
     this.previewReceiptEventId,
+    this.entryContext,
     this.previewSurface = ReportPreviewSurface.route,
     this.partnerComparisonWindow = ReportPartnerComparisonWindow.latestShift,
     this.partnerScopeClientId,
@@ -78,6 +81,7 @@ class ReportShellBinding {
               normalizedPreviewReceiptEventId.isEmpty
           ? null
           : normalizedPreviewReceiptEventId,
+      entryContext: shellState.entryContext,
       previewSurface: shellState.previewSurface,
       partnerComparisonWindow: shellState.partnerComparisonWindow,
       partnerScopeClientId: hasCompletePartnerScope
@@ -111,6 +115,8 @@ class ReportShellBinding {
     bool clearSelectedReceiptEventId = false,
     String? previewReceiptEventId,
     bool clearPreviewReceiptEventId = false,
+    ReportEntryContext? entryContext,
+    bool clearEntryContext = false,
     ReportPreviewSurface? previewSurface,
     ReportPartnerComparisonWindow? partnerComparisonWindow,
     String? partnerScopeClientId,
@@ -178,6 +184,9 @@ class ReportShellBinding {
           : normalizedPreviewReceiptEventId.isEmpty
           ? null
           : normalizedPreviewReceiptEventId,
+      entryContext: clearEntryContext
+          ? null
+          : entryContext ?? this.entryContext,
       previewSurface: previewSurface ?? this.previewSurface,
       partnerComparisonWindow:
           partnerComparisonWindow ?? this.partnerComparisonWindow,
@@ -248,6 +257,14 @@ class ReportShellBinding {
           oldShellState.previewReceiptEventId !=
               newShellState.previewReceiptEventId &&
           newShellState.previewReceiptEventId == null,
+      entryContext:
+          oldShellState.entryContext != newShellState.entryContext &&
+              newShellState.entryContext != entryContext
+          ? newShellState.entryContext
+          : null,
+      clearEntryContext:
+          oldShellState.entryContext != newShellState.entryContext &&
+          newShellState.entryContext == null,
       previewSurface:
           oldShellState.previewSurface != newShellState.previewSurface &&
               newShellState.previewSurface != previewSurface
@@ -432,6 +449,10 @@ class ReportShellBinding {
     );
   }
 
+  ReportShellBinding withEntryContext(ReportEntryContext? value) {
+    return copyWith(entryContext: value, clearEntryContext: value == null);
+  }
+
   ReportShellBinding clearingPreviewTarget() {
     return copyWith(clearPreviewReceiptEventId: true);
   }
@@ -468,6 +489,8 @@ class ReportShellBinding {
       clearSelectedReceiptEventId: selectedReceiptEventId == null,
       previewReceiptEventId: previewReceiptEventId,
       clearPreviewReceiptEventId: previewReceiptEventId == null,
+      entryContext: entryContext,
+      clearEntryContext: entryContext == null,
       previewSurface: previewSurface,
       partnerComparisonWindow: partnerComparisonWindow,
       partnerScopeClientId: partnerScopeClientId,
@@ -500,6 +523,7 @@ class ReportShellBinding {
         other.outputMode == outputMode &&
         other.selectedReceiptEventId == selectedReceiptEventId &&
         other.previewReceiptEventId == previewReceiptEventId &&
+        other.entryContext == entryContext &&
         other.previewSurface == previewSurface &&
         other.partnerComparisonWindow == partnerComparisonWindow &&
         other.partnerScopeClientId == partnerScopeClientId &&
@@ -521,6 +545,7 @@ class ReportShellBinding {
     outputMode,
     selectedReceiptEventId,
     previewReceiptEventId,
+    entryContext,
     previewSurface,
     partnerComparisonWindow,
     partnerScopeClientId,

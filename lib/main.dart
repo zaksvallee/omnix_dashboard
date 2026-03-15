@@ -42,6 +42,7 @@ import 'application/monitoring_watch_scene_assessment_service.dart';
 import 'application/monitoring_temporary_identity_approval_service.dart';
 import 'application/monitoring_watch_vision_review_service.dart';
 import 'application/report_shell_state.dart';
+import 'application/report_entry_context.dart';
 import 'application/report_preview_request.dart';
 import 'application/monitoring_watch_resync_plan_service.dart';
 import 'application/monitoring_watch_resync_outcome_recorder.dart';
@@ -16244,6 +16245,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _reportsScopeClientId = '';
       _reportsScopeSiteId = '';
       _reportsScopePartnerLabel = '';
+      _reportShellState = _reportShellState.copyWith(clearEntryContext: true);
       _route = OnyxRoute.reports;
     });
   }
@@ -16267,6 +16269,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _reportsScopeClientId = normalizedClientId;
       _reportsScopeSiteId = normalizedSiteId;
       _reportsScopePartnerLabel = normalizedPartnerLabel;
+      _reportShellState = _reportShellState.copyWith(clearEntryContext: true);
       _route = OnyxRoute.reports;
     });
   }
@@ -16293,6 +16296,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _reportShellState = _reportShellState.copyWith(
         selectedReceiptEventId: normalizedReceiptEventId,
         previewReceiptEventId: normalizedReceiptEventId,
+        entryContext: ReportEntryContext.governanceBrandingDrift,
         clearPartnerScopeFocus: true,
       );
       _route = OnyxRoute.reports;

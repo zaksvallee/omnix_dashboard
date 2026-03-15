@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:omnix_dashboard/application/report_entry_context.dart';
 import 'package:omnix_dashboard/application/report_output_mode.dart';
 import 'package:omnix_dashboard/application/report_preview_surface.dart';
 import 'package:omnix_dashboard/application/report_receipt_scene_filter.dart';
@@ -90,6 +91,27 @@ void main() {
     final next = state.copyWith(clearPreviewReceiptEventId: true);
 
     expect(next.previewReceiptEventId, isNull);
+  });
+
+  test('report shell state copyWith updates entry context', () {
+    const state = ReportShellState();
+
+    final next = state.copyWith(
+      entryContext: ReportEntryContext.governanceBrandingDrift,
+    );
+
+    expect(next.entryContext, ReportEntryContext.governanceBrandingDrift);
+    expect(state.entryContext, isNull);
+  });
+
+  test('report shell state copyWith can clear entry context', () {
+    const state = ReportShellState(
+      entryContext: ReportEntryContext.governanceBrandingDrift,
+    );
+
+    final next = state.copyWith(clearEntryContext: true);
+
+    expect(next.entryContext, isNull);
   });
 
   test('report shell state copyWith clears blank preview receipt target', () {

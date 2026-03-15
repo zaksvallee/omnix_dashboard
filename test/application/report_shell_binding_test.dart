@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:omnix_dashboard/application/report_entry_context.dart';
 import 'package:omnix_dashboard/application/report_output_mode.dart';
 import 'package:omnix_dashboard/application/report_preview_surface.dart';
 import 'package:omnix_dashboard/application/report_receipt_scene_filter.dart';
@@ -12,6 +13,7 @@ void main() {
       outputMode: ReportOutputMode.json,
       selectedReceiptEventId: 'RPT-1',
       previewReceiptEventId: 'RPT-2',
+      entryContext: ReportEntryContext.governanceBrandingDrift,
       previewSurface: ReportPreviewSurface.dock,
     );
 
@@ -22,6 +24,10 @@ void main() {
     expect(nextShellState.outputMode, ReportOutputMode.json);
     expect(nextShellState.selectedReceiptEventId, 'RPT-1');
     expect(nextShellState.previewReceiptEventId, 'RPT-2');
+    expect(
+      nextShellState.entryContext,
+      ReportEntryContext.governanceBrandingDrift,
+    );
     expect(nextShellState.previewSurface, ReportPreviewSurface.dock);
   });
 
@@ -156,6 +162,21 @@ void main() {
     },
   );
 
+  test('report shell binding syncFromWidget can clear entry context', () {
+    const oldShellState = ReportShellState(
+      entryContext: ReportEntryContext.governanceBrandingDrift,
+    );
+    const newShellState = ReportShellState(entryContext: null);
+
+    final binding = ReportShellBinding.fromShellState(oldShellState);
+    final nextBinding = binding.syncFromWidget(
+      oldShellState: oldShellState,
+      newShellState: newShellState,
+    );
+
+    expect(nextBinding.entryContext, isNull);
+  });
+
   test('report shell binding toggles receipt filters back to all', () {
     const binding = ReportShellBinding(
       receiptFilter: ReportReceiptSceneFilter.reviewed,
@@ -207,6 +228,18 @@ void main() {
     final clearedPreview = focused.clearingPreviewTarget();
     expect(clearedPreview.selectedReceiptEventId, 'RPT-9');
     expect(clearedPreview.previewReceiptEventId, isNull);
+  });
+
+  test('report shell binding updates and clears entry context', () {
+    const binding = ReportShellBinding();
+
+    final focused = binding.withEntryContext(
+      ReportEntryContext.governanceBrandingDrift,
+    );
+    expect(focused.entryContext, ReportEntryContext.governanceBrandingDrift);
+
+    final cleared = focused.withEntryContext(null);
+    expect(cleared.entryContext, isNull);
   });
 
   test(

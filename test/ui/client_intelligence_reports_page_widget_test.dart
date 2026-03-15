@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/application/morning_sovereign_report_service.dart';
+import 'package:omnix_dashboard/application/report_entry_context.dart';
 import 'package:omnix_dashboard/application/report_output_mode.dart';
 import 'package:omnix_dashboard/application/report_partner_comparison_window.dart';
 import 'package:omnix_dashboard/application/report_preview_request.dart';
@@ -852,6 +853,95 @@ void main() {
       'selectedEventId': 'RPT-3',
     });
   });
+
+  testWidgets(
+    'client reports shows and clears governance branding drift entry context',
+    (tester) async {
+      final store = InMemoryEventStore();
+      store.append(
+        ReportGenerated(
+          eventId: 'RPT-CTX-1',
+          sequence: 1,
+          version: 1,
+          occurredAt: DateTime.utc(2026, 3, 15, 23, 30),
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          month: '2026-03',
+          contentHash: 'content-hash-ctx-1',
+          pdfHash: 'pdf-hash-ctx-1',
+          eventRangeStart: 1,
+          eventRangeEnd: 20,
+          eventCount: 20,
+          reportSchemaVersion: 3,
+          projectionVersion: 1,
+        ),
+      );
+
+      final shellState = ValueNotifier(
+        const ReportShellState(
+          previewReceiptEventId: 'RPT-CTX-1',
+          entryContext: ReportEntryContext.governanceBrandingDrift,
+        ),
+      );
+      addTearDown(shellState.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ValueListenableBuilder<ReportShellState>(
+            valueListenable: shellState,
+            builder: (context, value, _) {
+              return ClientIntelligenceReportsPage(
+                store: store,
+                selectedClient: 'CLIENT-001',
+                selectedSite: 'SITE-SANDTON',
+                reportShellState: value,
+                onReportShellStateChanged: (next) => shellState.value = next,
+              );
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(
+          const ValueKey('reports-receipt-policy-entry-context-banner'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text('OPENED FROM GOVERNANCE BRANDING DRIFT'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'This receipt scope was opened from Governance so operators can inspect the generated-report history behind a branding-drift shift.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Receipt • RPT-CTX-1'), findsOneWidget);
+
+      final dismissButton = find.byKey(
+        const ValueKey('reports-receipt-policy-entry-context-clear'),
+      );
+      await tester.ensureVisible(dismissButton);
+      await tester.tap(dismissButton);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(
+          const ValueKey('reports-receipt-policy-entry-context-banner'),
+        ),
+        findsNothing,
+      );
+      expect(shellState.value.entryContext, isNull);
+      expect(shellState.value.previewReceiptEventId, 'RPT-CTX-1');
+      expect(
+        find.textContaining('Governance branding-drift context cleared.'),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('client reports persists comparison window through remount', (
     tester,

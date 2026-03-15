@@ -1,3 +1,4 @@
+import 'report_entry_context.dart';
 import 'report_partner_comparison_window.dart';
 import 'report_output_mode.dart';
 import 'report_preview_surface.dart';
@@ -8,6 +9,7 @@ class ReportShellState {
   final ReportOutputMode outputMode;
   final String? selectedReceiptEventId;
   final String? previewReceiptEventId;
+  final ReportEntryContext? entryContext;
   final ReportPreviewSurface previewSurface;
   final ReportPartnerComparisonWindow partnerComparisonWindow;
   final String? partnerScopeClientId;
@@ -26,6 +28,7 @@ class ReportShellState {
     this.outputMode = ReportOutputMode.pdf,
     this.selectedReceiptEventId,
     this.previewReceiptEventId,
+    this.entryContext,
     this.previewSurface = ReportPreviewSurface.route,
     this.partnerComparisonWindow = ReportPartnerComparisonWindow.latestShift,
     this.partnerScopeClientId,
@@ -47,6 +50,8 @@ class ReportShellState {
     bool clearSelectedReceiptEventId = false,
     String? previewReceiptEventId,
     bool clearPreviewReceiptEventId = false,
+    ReportEntryContext? entryContext,
+    bool clearEntryContext = false,
     ReportPreviewSurface? previewSurface,
     ReportPartnerComparisonWindow? partnerComparisonWindow,
     String? partnerScopeClientId,
@@ -114,6 +119,9 @@ class ReportShellState {
           : normalizedPreviewReceiptEventId.isEmpty
           ? null
           : normalizedPreviewReceiptEventId,
+      entryContext: clearEntryContext
+          ? null
+          : entryContext ?? this.entryContext,
       previewSurface: previewSurface ?? this.previewSurface,
       partnerComparisonWindow:
           partnerComparisonWindow ?? this.partnerComparisonWindow,
