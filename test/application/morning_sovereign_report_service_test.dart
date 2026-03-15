@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/application/morning_sovereign_report_service.dart';
+import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 import 'package:omnix_dashboard/domain/events/decision_created.dart';
 import 'package:omnix_dashboard/domain/events/execution_denied.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
@@ -70,6 +71,42 @@ void main() {
             riskScore: 88,
             canonicalHash: 'hash',
           ),
+          IntelligenceReceived(
+            eventId: 'INT-2',
+            sequence: 13,
+            version: 1,
+            occurredAt: DateTime.utc(2026, 3, 10, 1, 10),
+            intelligenceId: 'INT-2',
+            provider: 'feed',
+            sourceType: 'hardware',
+            externalId: 'EXT-2',
+            clientId: 'CLIENT-1',
+            regionId: 'REGION-1',
+            siteId: 'SITE-2',
+            headline: 'Routine vehicle movement',
+            summary: 'Routine vehicle movement.',
+            riskScore: 21,
+            canonicalHash: 'hash-2',
+            cameraId: 'channel-2',
+          ),
+          IntelligenceReceived(
+            eventId: 'INT-3',
+            sequence: 14,
+            version: 1,
+            occurredAt: DateTime.utc(2026, 3, 10, 0, 12),
+            intelligenceId: 'INT-3',
+            provider: 'feed',
+            sourceType: 'hardware',
+            externalId: 'EXT-3',
+            clientId: 'CLIENT-1',
+            regionId: 'REGION-1',
+            siteId: 'SITE-1',
+            headline: 'Repeat person movement',
+            summary: 'Repeat person movement detected.',
+            riskScore: 58,
+            canonicalHash: 'hash-3',
+            cameraId: 'channel-1',
+          ),
         ],
         recentMedia: [
           GuardOpsMediaUpload(
@@ -94,6 +131,35 @@ void main() {
           ),
         ],
         guardOutcomePolicyDenied24h: 2,
+        sceneReviewByIntelligenceId: {
+          'INT-1': MonitoringSceneReviewRecord(
+            intelligenceId: 'INT-1',
+            sourceLabel: 'openai:gpt-4.1-mini',
+            postureLabel: 'escalation candidate',
+            decisionLabel: 'Escalation Candidate',
+            summary: 'Person visible near the boundary line.',
+            reviewedAtUtc: DateTime.utc(2026, 3, 10, 0, 31),
+          ),
+          'INT-2': MonitoringSceneReviewRecord(
+            intelligenceId: 'INT-2',
+            sourceLabel: 'metadata:fallback',
+            postureLabel: 'reviewed',
+            decisionLabel: 'Suppressed Review',
+            decisionSummary: 'Vehicle remained below escalation threshold.',
+            summary: 'Routine vehicle motion remained internal.',
+            reviewedAtUtc: DateTime.utc(2026, 3, 10, 1, 11),
+          ),
+          'INT-3': MonitoringSceneReviewRecord(
+            intelligenceId: 'INT-3',
+            sourceLabel: 'openai:gpt-4.1-mini',
+            postureLabel: 'repeat activity',
+            decisionLabel: 'Repeat Activity',
+            decisionSummary:
+                'Repeat activity update sent because person movement returned on the same camera.',
+            summary: 'Person movement returned on Camera 1.',
+            reviewedAtUtc: DateTime.utc(2026, 3, 10, 0, 13),
+          ),
+        },
       );
 
       final expectedWindowEndLocal = DateTime(2026, 3, 10, 6, 0);
@@ -105,7 +171,7 @@ void main() {
       expect(report.date, '2026-03-10');
       expect(report.shiftWindowStartUtc, expectedWindowStartUtc);
       expect(report.shiftWindowEndUtc, expectedWindowEndUtc);
-      expect(report.ledgerIntegrity.totalEvents, 3);
+      expect(report.ledgerIntegrity.totalEvents, 5);
       expect(report.ledgerIntegrity.hashVerified, isTrue);
       expect(report.aiHumanDelta.aiDecisions, 1);
       expect(report.aiHumanDelta.humanOverrides, 1);
@@ -114,11 +180,53 @@ void main() {
       expect(report.normDrift.driftDetected, 1);
       expect(report.complianceBlockage.psiraExpired, 1);
       expect(report.complianceBlockage.totalBlocked, 3);
+      expect(report.sceneReview.totalReviews, 3);
+      expect(report.sceneReview.modelReviews, 2);
+      expect(report.sceneReview.metadataFallbackReviews, 1);
+      expect(report.sceneReview.suppressedActions, 1);
+      expect(report.sceneReview.incidentAlerts, 0);
+      expect(report.sceneReview.repeatUpdates, 1);
+      expect(report.sceneReview.escalationCandidates, 1);
+      expect(report.sceneReview.topPosture, 'escalation candidate');
+      expect(
+        report.sceneReview.actionMixSummary,
+        '1 repeat update • 1 escalation • 1 suppressed review',
+      );
+      expect(
+        report.sceneReview.latestActionTaken,
+        '2026-03-10T00:30:00.000Z • Unspecified • Escalation Candidate • Person visible near the boundary line.',
+      );
+      expect(
+        report.sceneReview.recentActionsSummary,
+        '2026-03-10T00:30:00.000Z • Unspecified • Escalation Candidate • Person visible near the boundary line. (+1 more)',
+      );
+      expect(
+        report.sceneReview.latestSuppressedPattern,
+        '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
+      );
 
       final restored = SovereignReport.fromJson(report.toJson());
       expect(restored.date, report.date);
-      expect(restored.ledgerIntegrity.totalEvents, 3);
+      expect(restored.ledgerIntegrity.totalEvents, 5);
       expect(restored.aiHumanDelta.humanOverrides, 1);
+      expect(restored.sceneReview.totalReviews, 3);
+      expect(restored.sceneReview.escalationCandidates, 1);
+      expect(
+        restored.sceneReview.actionMixSummary,
+        report.sceneReview.actionMixSummary,
+      );
+      expect(
+        restored.sceneReview.latestActionTaken,
+        report.sceneReview.latestActionTaken,
+      );
+      expect(
+        restored.sceneReview.recentActionsSummary,
+        report.sceneReview.recentActionsSummary,
+      );
+      expect(
+        restored.sceneReview.latestSuppressedPattern,
+        report.sceneReview.latestSuppressedPattern,
+      );
     });
   });
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../application/monitoring_scene_review_store.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_completed.dart';
@@ -12,6 +13,10 @@ import '../infrastructure/intelligence/news_intelligence_service.dart';
 import 'dispatch_models.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
+import 'video_fleet_scope_health_card.dart';
+import 'video_fleet_scope_health_panel.dart';
+import 'video_fleet_scope_health_sections.dart';
+import 'video_fleet_scope_health_view.dart';
 
 export 'dispatch_models.dart';
 
@@ -71,6 +76,16 @@ class _DispatchItem {
   }
 }
 
+class _SuppressedDispatchReviewEntry {
+  final VideoFleetScopeHealthView scope;
+  final MonitoringSceneReviewRecord review;
+
+  const _SuppressedDispatchReviewEntry({
+    required this.scope,
+    required this.review,
+  });
+}
+
 class DispatchPage extends StatefulWidget {
   final String clientId;
   final String regionId;
@@ -94,6 +109,8 @@ class DispatchPage extends StatefulWidget {
   final bool livePolling;
   final String? livePollingLabel;
   final String? runtimeConfigHint;
+  final String? initialSelectedDispatchId;
+  final ValueChanged<String?>? onSelectedDispatchChanged;
   final bool supabaseReady;
   final bool guardSyncBackendEnabled;
   final String telemetryProviderReadiness;
@@ -117,6 +134,28 @@ class DispatchPage extends StatefulWidget {
   final String cctvOpsDetail;
   final String cctvCapabilitySummary;
   final String cctvRecentSignalSummary;
+  final List<VideoFleetScopeHealthView> fleetScopeHealth;
+  final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
+  final VideoFleetWatchActionDrilldown? initialWatchActionDrilldown;
+  final ValueChanged<VideoFleetWatchActionDrilldown?>?
+  onWatchActionDrilldownChanged;
+  final void Function(
+    String clientId,
+    String siteId,
+    String? incidentReference,
+  )?
+  onOpenFleetTacticalScope;
+  final void Function(
+    String clientId,
+    String siteId,
+    String? incidentReference,
+  )?
+  onOpenFleetDispatchScope;
+  final void Function(String clientId, String siteId)? onRecoverFleetWatchScope;
+  final Future<String> Function(VideoFleetScopeHealthView scope)?
+  onExtendTemporaryIdentityApproval;
+  final Future<String> Function(VideoFleetScopeHealthView scope)?
+  onExpireTemporaryIdentityApproval;
   final String wearableOpsReadiness;
   final String wearableOpsDetail;
   final List<String> livePollingHistory;
@@ -194,6 +233,8 @@ class DispatchPage extends StatefulWidget {
     this.livePolling = false,
     this.livePollingLabel,
     this.runtimeConfigHint,
+    this.initialSelectedDispatchId,
+    this.onSelectedDispatchChanged,
     this.supabaseReady = false,
     this.guardSyncBackendEnabled = false,
     this.telemetryProviderReadiness = 'unknown',
@@ -223,6 +264,16 @@ class DispatchPage extends StatefulWidget {
     this.cctvCapabilitySummary = 'caps none',
     this.cctvRecentSignalSummary =
         'recent video intel 0 (6h) • intrusion 0 • line_crossing 0 • motion 0 • fr 0 • lpr 0',
+    this.fleetScopeHealth = const [],
+    this.sceneReviewByIntelligenceId =
+        const <String, MonitoringSceneReviewRecord>{},
+    this.initialWatchActionDrilldown,
+    this.onWatchActionDrilldownChanged,
+    this.onOpenFleetTacticalScope,
+    this.onOpenFleetDispatchScope,
+    this.onRecoverFleetWatchScope,
+    this.onExtendTemporaryIdentityApproval,
+    this.onExpireTemporaryIdentityApproval,
     this.wearableOpsReadiness = 'UNCONFIGURED',
     this.wearableOpsDetail =
         'Configure ONYX_WEARABLE_PROVIDER and ONYX_WEARABLE_EVENTS_URL.',
@@ -275,10 +326,15 @@ class _DispatchPageState extends State<DispatchPage> {
   late List<_DispatchItem> _dispatches;
   String? _selectedDispatchId;
   bool _focusReferenceLinkedToLive = false;
+  VideoFleetWatchActionDrilldown? _activeWatchActionDrilldown;
 
   @override
   void initState() {
     super.initState();
+    _activeWatchActionDrilldown = widget.initialWatchActionDrilldown;
+    _selectedDispatchId = _normalizeSelectedDispatchId(
+      widget.initialSelectedDispatchId,
+    );
     _projectDispatches(fromInit: true);
   }
 
@@ -290,10 +346,63 @@ class _DispatchPageState extends State<DispatchPage> {
             widget.focusIncidentReference.trim()) {
       _projectDispatches();
     }
+    if (oldWidget.initialWatchActionDrilldown !=
+            widget.initialWatchActionDrilldown &&
+        _activeWatchActionDrilldown != widget.initialWatchActionDrilldown) {
+      _activeWatchActionDrilldown = widget.initialWatchActionDrilldown;
+    }
+    final incomingSelectedDispatchId = _normalizeSelectedDispatchId(
+      widget.initialSelectedDispatchId,
+    );
+    if (oldWidget.initialSelectedDispatchId !=
+            widget.initialSelectedDispatchId &&
+        incomingSelectedDispatchId != null &&
+        _selectedDispatchId != incomingSelectedDispatchId &&
+        widget.focusIncidentReference.trim().isEmpty &&
+        _dispatches.any(
+          (dispatch) => dispatch.id == incomingSelectedDispatchId,
+        )) {
+      _selectedDispatchId = incomingSelectedDispatchId;
+    }
+  }
+
+  String? _normalizeSelectedDispatchId(String? value) {
+    final normalized = value?.trim() ?? '';
+    return normalized.isEmpty ? null : normalized;
+  }
+
+  void _setActiveWatchActionDrilldown(
+    VideoFleetWatchActionDrilldown? value, {
+    bool notify = true,
+  }) {
+    if (_activeWatchActionDrilldown == value) {
+      return;
+    }
+    setState(() {
+      _activeWatchActionDrilldown = value;
+    });
+    if (notify) {
+      widget.onWatchActionDrilldownChanged?.call(value);
+    }
+  }
+
+  void _setSelectedDispatchId(String? value, {bool notify = true}) {
+    final normalized = _normalizeSelectedDispatchId(value);
+    if (_selectedDispatchId == normalized) {
+      return;
+    }
+    setState(() {
+      _selectedDispatchId = normalized;
+    });
+    if (notify) {
+      widget.onSelectedDispatchChanged?.call(normalized);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final fleetPanelKey = GlobalKey();
+    final suppressedPanelKey = GlobalKey();
     final wide = allowEmbeddedPanelScroll(context);
     final activeDispatches = _dispatches
         .where(
@@ -310,6 +419,54 @@ class _DispatchPageState extends State<DispatchPage> {
               dispatch.status == _DispatchStatus.pending,
         )
         .length;
+    final suppressedEntries = _suppressedDispatchReviewEntries();
+    void openWatchActionDrilldown(VideoFleetWatchActionDrilldown drilldown) {
+      if (_activeWatchActionDrilldown == drilldown) {
+        _setActiveWatchActionDrilldown(null);
+        return;
+      }
+      _setActiveWatchActionDrilldown(drilldown);
+      final targetContext =
+          drilldown == VideoFleetWatchActionDrilldown.filtered &&
+              suppressedEntries.isNotEmpty
+          ? suppressedPanelKey.currentContext
+          : fleetPanelKey.currentContext;
+      if (targetContext == null) {
+        return;
+      }
+      Scrollable.ensureVisible(
+        targetContext,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+      );
+    }
+
+    void openLatestWatchActionDetail(VideoFleetScopeHealthView scope) {
+      if (_activeWatchActionDrilldown ==
+              VideoFleetWatchActionDrilldown.filtered &&
+          suppressedEntries.isNotEmpty) {
+        final targetContext = suppressedPanelKey.currentContext;
+        if (targetContext != null) {
+          Scrollable.ensureVisible(
+            targetContext,
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+          );
+        }
+        return;
+      }
+      final primaryOpenFleetScope = scope.hasIncidentContext
+          ? (widget.onOpenFleetDispatchScope ?? widget.onOpenFleetTacticalScope)
+          : null;
+      if (primaryOpenFleetScope == null) {
+        return;
+      }
+      primaryOpenFleetScope.call(
+        scope.clientId,
+        scope.siteId,
+        scope.latestIncidentReference,
+      );
+    }
 
     return OnyxPageScaffold(
       child: SingleChildScrollView(
@@ -335,14 +492,33 @@ class _DispatchPageState extends State<DispatchPage> {
                         children: [
                           Expanded(flex: 7, child: _dispatchQueue()),
                           const SizedBox(width: 10),
-                          Expanded(flex: 5, child: _systemStatusPanel()),
+                          Expanded(
+                            flex: 5,
+                            child: _systemStatusPanel(
+                              fleetPanelKey: fleetPanelKey,
+                              suppressedPanelKey: suppressedPanelKey,
+                              suppressedEntries: suppressedEntries,
+                              onOpenWatchActionDrilldown:
+                                  openWatchActionDrilldown,
+                              onOpenLatestWatchActionDetail:
+                                  openLatestWatchActionDetail,
+                            ),
+                          ),
                         ],
                       )
                     : Column(
                         children: [
                           _dispatchQueue(),
                           const SizedBox(height: 10),
-                          _systemStatusPanel(),
+                          _systemStatusPanel(
+                            fleetPanelKey: fleetPanelKey,
+                            suppressedPanelKey: suppressedPanelKey,
+                            suppressedEntries: suppressedEntries,
+                            onOpenWatchActionDrilldown:
+                                openWatchActionDrilldown,
+                            onOpenLatestWatchActionDetail:
+                                openLatestWatchActionDetail,
+                          ),
                         ],
                       ),
               ],
@@ -716,7 +892,7 @@ class _DispatchPageState extends State<DispatchPage> {
     final priorityStyle = _priorityStyle(dispatch.priority);
 
     return InkWell(
-      onTap: () => setState(() => _selectedDispatchId = dispatch.id),
+      onTap: () => _setSelectedDispatchId(dispatch.id),
       borderRadius: BorderRadius.circular(10),
       child: Container(
         width: double.infinity,
@@ -890,7 +1066,21 @@ class _DispatchPageState extends State<DispatchPage> {
     );
   }
 
-  Widget _systemStatusPanel() {
+  Widget _systemStatusPanel({
+    required GlobalKey fleetPanelKey,
+    required GlobalKey suppressedPanelKey,
+    required List<_SuppressedDispatchReviewEntry> suppressedEntries,
+    required void Function(VideoFleetWatchActionDrilldown drilldown)
+    onOpenWatchActionDrilldown,
+    required void Function(VideoFleetScopeHealthView scope)
+    onOpenLatestWatchActionDetail,
+  }) {
+    final showSuppressedPrimary =
+        _activeWatchActionDrilldown ==
+            VideoFleetWatchActionDrilldown.filtered &&
+        suppressedEntries.isNotEmpty;
+    final showEscalatedPrimary =
+        _activeWatchActionDrilldown == VideoFleetWatchActionDrilldown.escalated;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
@@ -911,6 +1101,16 @@ class _DispatchPageState extends State<DispatchPage> {
               letterSpacing: 1.1,
             ),
           ),
+          if (showEscalatedPrimary && widget.fleetScopeHealth.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            KeyedSubtree(
+              key: fleetPanelKey,
+              child: _fleetScopePanel(
+                onOpenWatchActionDrilldown: onOpenWatchActionDrilldown,
+                onOpenLatestWatchActionDetail: onOpenLatestWatchActionDetail,
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           _statusSection(
             title: 'Transport & Intake',
@@ -969,7 +1169,8 @@ class _DispatchPageState extends State<DispatchPage> {
                 const SizedBox(height: 8),
                 _radioQueueActions(),
                 _BulletLine(
-                  title: '${widget.videoOpsLabel} Ops • ${widget.cctvOpsReadiness}',
+                  title:
+                      '${widget.videoOpsLabel} Ops • ${widget.cctvOpsReadiness}',
                   detail: widget.cctvOpsDetail,
                 ),
                 _BulletLine(
@@ -980,6 +1181,32 @@ class _DispatchPageState extends State<DispatchPage> {
                   title: '${widget.videoOpsLabel} Signals Recent',
                   detail: widget.cctvRecentSignalSummary,
                 ),
+                if (showSuppressedPrimary) ...[
+                  const SizedBox(height: 8),
+                  KeyedSubtree(
+                    key: suppressedPanelKey,
+                    child: _suppressedReviewPanel(suppressedEntries),
+                  ),
+                ],
+                if (!showEscalatedPrimary &&
+                    widget.fleetScopeHealth.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  KeyedSubtree(
+                    key: fleetPanelKey,
+                    child: _fleetScopePanel(
+                      onOpenWatchActionDrilldown: onOpenWatchActionDrilldown,
+                      onOpenLatestWatchActionDetail:
+                          onOpenLatestWatchActionDetail,
+                    ),
+                  ),
+                ],
+                if (!showSuppressedPrimary && suppressedEntries.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  KeyedSubtree(
+                    key: suppressedPanelKey,
+                    child: _suppressedReviewPanel(suppressedEntries),
+                  ),
+                ],
                 _BulletLine(
                   title: 'Wearable Ops • ${widget.wearableOpsReadiness}',
                   detail: widget.wearableOpsDetail,
@@ -1048,6 +1275,165 @@ class _DispatchPageState extends State<DispatchPage> {
     );
   }
 
+  List<_SuppressedDispatchReviewEntry> _suppressedDispatchReviewEntries() {
+    final output = <_SuppressedDispatchReviewEntry>[];
+    for (final scope in widget.fleetScopeHealth) {
+      if (!scope.hasSuppressedSceneAction) {
+        continue;
+      }
+      final intelligenceId = (scope.latestIncidentReference ?? '').trim();
+      if (intelligenceId.isEmpty) {
+        continue;
+      }
+      final review = widget.sceneReviewByIntelligenceId[intelligenceId];
+      if (review == null) {
+        continue;
+      }
+      output.add(_SuppressedDispatchReviewEntry(scope: scope, review: review));
+    }
+    output.sort(
+      (a, b) => b.review.reviewedAtUtc.compareTo(a.review.reviewedAtUtc),
+    );
+    return output.take(4).toList(growable: false);
+  }
+
+  Widget _suppressedReviewPanel(List<_SuppressedDispatchReviewEntry> entries) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C1117),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: const Color(0x332B425F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Suppressed ${widget.videoOpsLabel} Reviews',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFEAF4FF),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(width: 8),
+              _statusBadge(
+                'Internal',
+                '${entries.length}',
+                const Color(0xFF9AB1CF),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Recent ${widget.videoOpsLabel} reviews ONYX held below the client notification threshold while dispatch remained active.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB1CF),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...entries.asMap().entries.map((entry) {
+            final item = entry.value;
+            final scope = item.scope;
+            final review = item.review;
+            return Container(
+              width: double.infinity,
+              margin: EdgeInsets.only(
+                bottom: entry.key == entries.length - 1 ? 0 : 8,
+              ),
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: const Color(0xFF101722),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0x333A546E)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          scope.siteName,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFEAF4FF),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _clockLabel(review.reviewedAtUtc.toLocal()),
+                        style: GoogleFonts.robotoMono(
+                          color: const Color(0xFF8EA4C2),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _statusBadge(
+                        'Action',
+                        review.decisionLabel.trim().isEmpty
+                            ? 'Suppressed'
+                            : review.decisionLabel.trim(),
+                        const Color(0xFFBFD7F2),
+                      ),
+                      if ((scope.latestCameraLabel ?? '').trim().isNotEmpty)
+                        _statusBadge(
+                          'Camera',
+                          scope.latestCameraLabel!.trim(),
+                          const Color(0xFF67E8F9),
+                        ),
+                      _statusBadge(
+                        'Posture',
+                        review.postureLabel.trim(),
+                        const Color(0xFF86EFAC),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    review.decisionSummary.trim().isEmpty
+                        ? 'Suppressed because the activity remained below threshold.'
+                        : review.decisionSummary.trim(),
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFEAF4FF),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Scene review: ${review.summary.trim()}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF9AB1CF),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
   Widget _statusSection({
     required String title,
     required Widget child,
@@ -1098,6 +1484,643 @@ class _DispatchPageState extends State<DispatchPage> {
         ],
       ),
     );
+  }
+
+  Widget _fleetScopePanel({
+    required void Function(VideoFleetWatchActionDrilldown drilldown)
+    onOpenWatchActionDrilldown,
+    required void Function(VideoFleetScopeHealthView scope)
+    onOpenLatestWatchActionDetail,
+  }) {
+    final sections = VideoFleetScopeHealthSections.fromScopes(
+      widget.fleetScopeHealth,
+    );
+    final filteredSections = VideoFleetScopeHealthSections.fromScopes(
+      orderFleetScopesForWatchAction(
+        filterFleetScopesForWatchAction(
+          widget.fleetScopeHealth,
+          _activeWatchActionDrilldown,
+        ),
+        _activeWatchActionDrilldown,
+      ),
+    );
+    final primaryFocusedScope = primaryFleetScopeForWatchAction(
+      filteredSections,
+      _activeWatchActionDrilldown,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_activeWatchActionDrilldown != null) ...[
+          _watchActionFocusBanner(primaryFocusedScope),
+          const SizedBox(height: 8),
+        ],
+        VideoFleetScopeHealthPanel(
+          title: '${widget.videoOpsLabel} Fleet Health',
+          titleStyle: GoogleFonts.inter(
+            color: const Color(0xFFEAF4FF),
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+          sectionLabelStyle: GoogleFonts.inter(
+            color: const Color(0xFF8EA4C2),
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.9,
+          ),
+          sections: filteredSections,
+          activeWatchActionDrilldown: _activeWatchActionDrilldown,
+          summaryChildren: _fleetSummaryChips(
+            sections: sections,
+            onOpenWatchActionDrilldown: onOpenWatchActionDrilldown,
+          ),
+          actionableChildren: filteredSections.actionableScopes
+              .map(
+                (scope) => _fleetScopeCard(
+                  scope,
+                  onOpenLatestWatchActionDetail: onOpenLatestWatchActionDetail,
+                ),
+              )
+              .toList(growable: false),
+          watchOnlyChildren: filteredSections.watchOnlyScopes
+              .map(
+                (scope) => _fleetScopeCard(
+                  scope,
+                  onOpenLatestWatchActionDetail: onOpenLatestWatchActionDetail,
+                ),
+              )
+              .toList(growable: false),
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0C1117),
+            borderRadius: BorderRadius.circular(9),
+            border: Border.all(color: const Color(0x332B425F)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _fleetScopeCard(
+    VideoFleetScopeHealthView scope, {
+    required void Function(VideoFleetScopeHealthView scope)
+    onOpenLatestWatchActionDetail,
+  }) {
+    final statusColor = switch (scope.statusLabel.toUpperCase()) {
+      'LIVE' => const Color(0xFF10B981),
+      'ACTIVE WATCH' => const Color(0xFF22D3EE),
+      'WATCH READY' => const Color(0xFFF59E0B),
+      _ => const Color(0xFF8EA4C2),
+    };
+    final primaryOpenFleetScope = scope.hasIncidentContext
+        ? (widget.onOpenFleetDispatchScope ?? widget.onOpenFleetTacticalScope)
+        : null;
+    return VideoFleetScopeHealthCard(
+      title: scope.siteName,
+      endpointLabel: scope.endpointLabel,
+      lastSeenLabel: scope.lastSeenLabel,
+      titleStyle: GoogleFonts.inter(
+        color: const Color(0xFFEAF4FF),
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+      ),
+      endpointStyle: GoogleFonts.robotoMono(
+        color: const Color(0xFF8EA4C2),
+        fontSize: 10,
+        fontWeight: FontWeight.w600,
+      ),
+      lastSeenStyle: GoogleFonts.inter(
+        color: const Color(0xFF9AB1CF),
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+      ),
+      noteStyle: GoogleFonts.inter(
+        color: const Color(0xFF9AB1CF),
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
+      ),
+      latestStyle: GoogleFonts.inter(
+        color: const Color(0xFFEAF4FF),
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+      ),
+      primaryChips: [
+        if ((scope.operatorOutcomeLabel ?? '').trim().isNotEmpty)
+          _statusBadge(
+            'Cue',
+            scope.operatorOutcomeLabel!,
+            const Color(0xFF67E8F9),
+          ),
+        if ((scope.operatorOutcomeLabel ?? '').trim().isEmpty &&
+            (scope.lastRecoveryLabel ?? '').trim().isNotEmpty)
+          _statusBadge(
+            'Recovery',
+            scope.lastRecoveryLabel!,
+            const Color(0xFF86EFAC),
+          ),
+        if (scope.hasWatchActivationGap)
+          _statusBadge(
+            'Gap',
+            scope.watchActivationGapLabel!,
+            const Color(0xFFF87171),
+          ),
+        if (!scope.hasIncidentContext)
+          _statusBadge('Context', 'Pending', const Color(0xFFFBBF24)),
+        if (scope.identityPolicyChipValue != null)
+          _statusBadge(
+            'Identity',
+            scope.identityPolicyChipValue!,
+            identityPolicyAccentColorForScope(scope),
+          ),
+        if (scope.clientDecisionChipValue != null)
+          _statusBadge(
+            'Client',
+            scope.clientDecisionChipValue!,
+            scope.clientDecisionChipValue == 'Approved'
+                ? const Color(0xFF86EFAC)
+                : scope.clientDecisionChipValue == 'Review'
+                ? const Color(0xFFFDE68A)
+                : const Color(0xFFFCA5A5),
+          ),
+        _statusBadge('Status', scope.statusLabel, statusColor),
+        _statusBadge('Watch', scope.watchLabel, const Color(0xFF67E8F9)),
+        _statusBadge(
+          'Freshness',
+          scope.freshnessLabel,
+          _fleetFreshnessColor(scope),
+        ),
+        _statusBadge('6h', '${scope.recentEvents}', const Color(0xFF9AB1CF)),
+      ],
+      secondaryChips: [
+        if (scope.watchWindowLabel != null)
+          _statusBadge(
+            'Window',
+            scope.watchWindowLabel!,
+            const Color(0xFF86EFAC),
+          ),
+        if (scope.watchWindowStateLabel != null)
+          _statusBadge(
+            'Phase',
+            scope.watchWindowStateLabel!,
+            scope.watchWindowStateLabel == 'IN WINDOW'
+                ? const Color(0xFF86EFAC)
+                : const Color(0xFFFBBF24),
+          ),
+        if (scope.latestRiskScore != null)
+          _statusBadge(
+            'Risk',
+            _fleetRiskLabel(scope.latestRiskScore!),
+            _fleetRiskColor(scope.latestRiskScore!),
+          ),
+        if (scope.latestCameraLabel != null)
+          _statusBadge(
+            'Camera',
+            scope.latestCameraLabel!,
+            const Color(0xFF9AB1CF),
+          ),
+      ],
+      actionChildren: [
+        if (widget.onRecoverFleetWatchScope != null &&
+            scope.hasWatchActivationGap)
+          _fleetActionButton(
+            label: 'Resync',
+            color: const Color(0xFFF87171),
+            onPressed: () => widget.onRecoverFleetWatchScope!.call(
+              scope.clientId,
+              scope.siteId,
+            ),
+          ),
+        if (widget.onOpenFleetTacticalScope != null && scope.hasIncidentContext)
+          _fleetActionButton(
+            label: 'Tactical',
+            color: const Color(0xFF67E8F9),
+            onPressed: () => widget.onOpenFleetTacticalScope!.call(
+              scope.clientId,
+              scope.siteId,
+              scope.latestIncidentReference,
+            ),
+          ),
+        if (widget.onOpenFleetDispatchScope != null && scope.hasIncidentContext)
+          _fleetActionButton(
+            label: 'Dispatch',
+            color: const Color(0xFFFBBF24),
+            onPressed: () => widget.onOpenFleetDispatchScope!.call(
+              scope.clientId,
+              scope.siteId,
+              scope.latestIncidentReference,
+            ),
+          ),
+      ],
+      noteText: scope.noteText,
+      latestText: prominentLatestTextForWatchAction(
+        scope,
+        _activeWatchActionDrilldown,
+      ),
+      onLatestTap: () => onOpenLatestWatchActionDetail(scope),
+      onTap: primaryOpenFleetScope == null
+          ? null
+          : () => primaryOpenFleetScope.call(
+              scope.clientId,
+              scope.siteId,
+              scope.latestIncidentReference,
+            ),
+      decoration: BoxDecoration(
+        color: const Color(0xFF101722),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0x333A546E)),
+      ),
+      constraints: const BoxConstraints(minWidth: 210, maxWidth: 290),
+    );
+  }
+
+  List<Widget> _fleetSummaryChips({
+    required VideoFleetScopeHealthSections sections,
+    required void Function(VideoFleetWatchActionDrilldown drilldown)
+    onOpenWatchActionDrilldown,
+  }) {
+    return [
+      _statusBadge(
+        'Active',
+        '${sections.activeCount}',
+        const Color(0xFF67E8F9),
+      ),
+      _statusBadge('Gap', '${sections.gapCount}', const Color(0xFFF87171)),
+      _statusBadge(
+        'High Risk',
+        '${sections.highRiskCount}',
+        const Color(0xFFF87171),
+      ),
+      _statusBadge(
+        'Recovered 6h',
+        '${sections.recoveredCount}',
+        const Color(0xFF86EFAC),
+      ),
+      _statusBadge(
+        'Suppressed',
+        '${sections.suppressedCount}',
+        const Color(0xFF9AB1CF),
+      ),
+      _statusBadge(
+        'Alerts',
+        '${sections.alertActionCount}',
+        const Color(0xFF67E8F9),
+        isActive:
+            _activeWatchActionDrilldown ==
+            VideoFleetWatchActionDrilldown.alerts,
+        onTap: sections.alertActionCount > 0
+            ? () => onOpenWatchActionDrilldown(
+                VideoFleetWatchActionDrilldown.alerts,
+              )
+            : null,
+      ),
+      _statusBadge(
+        'Repeat',
+        '${sections.repeatActionCount}',
+        const Color(0xFFFDE68A),
+        isActive:
+            _activeWatchActionDrilldown ==
+            VideoFleetWatchActionDrilldown.repeat,
+        onTap: sections.repeatActionCount > 0
+            ? () => onOpenWatchActionDrilldown(
+                VideoFleetWatchActionDrilldown.repeat,
+              )
+            : null,
+      ),
+      _statusBadge(
+        'Escalated',
+        '${sections.escalationActionCount}',
+        const Color(0xFFF87171),
+        isActive:
+            _activeWatchActionDrilldown ==
+            VideoFleetWatchActionDrilldown.escalated,
+        onTap: sections.escalationActionCount > 0
+            ? () => onOpenWatchActionDrilldown(
+                VideoFleetWatchActionDrilldown.escalated,
+              )
+            : null,
+      ),
+      _statusBadge(
+        'Filtered',
+        '${sections.suppressedActionCount}',
+        const Color(0xFF9AB1CF),
+        isActive:
+            _activeWatchActionDrilldown ==
+            VideoFleetWatchActionDrilldown.filtered,
+        onTap: sections.suppressedActionCount > 0
+            ? () => onOpenWatchActionDrilldown(
+                VideoFleetWatchActionDrilldown.filtered,
+              )
+            : null,
+      ),
+      _statusBadge(
+        'Flagged ID',
+        '${sections.flaggedIdentityCount}',
+        VideoFleetWatchActionDrilldown.flaggedIdentity.accentColor,
+        isActive:
+            _activeWatchActionDrilldown ==
+            VideoFleetWatchActionDrilldown.flaggedIdentity,
+        onTap: sections.flaggedIdentityCount > 0
+            ? () => onOpenWatchActionDrilldown(
+                VideoFleetWatchActionDrilldown.flaggedIdentity,
+              )
+            : null,
+      ),
+      _statusBadge(
+        'Temporary ID',
+        '${sections.temporaryIdentityCount}',
+        temporaryIdentityAccentColorForScopes(widget.fleetScopeHealth),
+        isActive:
+            _activeWatchActionDrilldown ==
+            VideoFleetWatchActionDrilldown.temporaryIdentity,
+        onTap: sections.temporaryIdentityCount > 0
+            ? () => onOpenWatchActionDrilldown(
+                VideoFleetWatchActionDrilldown.temporaryIdentity,
+              )
+            : null,
+      ),
+      _statusBadge(
+        'Allowed ID',
+        '${sections.allowlistedIdentityCount}',
+        VideoFleetWatchActionDrilldown.allowlistedIdentity.accentColor,
+        isActive:
+            _activeWatchActionDrilldown ==
+            VideoFleetWatchActionDrilldown.allowlistedIdentity,
+        onTap: sections.allowlistedIdentityCount > 0
+            ? () => onOpenWatchActionDrilldown(
+                VideoFleetWatchActionDrilldown.allowlistedIdentity,
+              )
+            : null,
+      ),
+      _statusBadge('Stale', '${sections.staleCount}', const Color(0xFFFBBF24)),
+      _statusBadge(
+        'No Incident',
+        '${sections.noIncidentCount}',
+        const Color(0xFF9AB1CF),
+      ),
+    ];
+  }
+
+  Widget _fleetActionButton({
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: color,
+        side: BorderSide(color: color.withValues(alpha: 0.45)),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700),
+      ),
+      child: Text(label),
+    );
+  }
+
+  Color _fleetRiskColor(int score) {
+    if (score >= 85) {
+      return const Color(0xFFF87171);
+    }
+    if (score >= 70) {
+      return const Color(0xFFFBBF24);
+    }
+    if (score >= 40) {
+      return const Color(0xFF67E8F9);
+    }
+    return const Color(0xFF9AB1CF);
+  }
+
+  String _fleetRiskLabel(int score) {
+    if (score >= 85) {
+      return 'Critical';
+    }
+    if (score >= 70) {
+      return 'High';
+    }
+    if (score >= 40) {
+      return 'Watch';
+    }
+    return 'Routine';
+  }
+
+  Color _fleetFreshnessColor(VideoFleetScopeHealthView scope) {
+    return switch (scope.freshnessLabel) {
+      'Fresh' => const Color(0xFF10B981),
+      'Recent' => const Color(0xFF67E8F9),
+      'Stale' => const Color(0xFFF87171),
+      'Quiet' => const Color(0xFFFBBF24),
+      _ => const Color(0xFF9AB1CF),
+    };
+  }
+
+  Widget _statusBadge(
+    String label,
+    String value,
+    Color color, {
+    VoidCallback? onTap,
+    bool isActive = false,
+  }) {
+    final badge = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isActive ? 0.28 : 0.16),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: color.withValues(alpha: isActive ? 0.95 : 0.5),
+        ),
+      ),
+      child: Text(
+        '$label $value',
+        style: GoogleFonts.inter(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+    if (onTap == null) {
+      return badge;
+    }
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: badge,
+    );
+  }
+
+  Widget _watchActionFocusBanner(VideoFleetScopeHealthView? focusedScope) {
+    final active = _activeWatchActionDrilldown;
+    if (active == null) {
+      return const SizedBox.shrink();
+    }
+    final canMutateTemporaryApproval =
+        active == VideoFleetWatchActionDrilldown.temporaryIdentity &&
+        focusedScope != null;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: active.focusBannerBackgroundColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: active.focusBannerBorderColor),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  active.focusBannerTitle,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFEAF4FF),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  focusDetailForWatchAction(widget.fleetScopeHealth, active),
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF9AB1CF),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              if (canMutateTemporaryApproval &&
+                  widget.onExtendTemporaryIdentityApproval != null)
+                TextButton(
+                  onPressed: () async {
+                    final message = await widget
+                        .onExtendTemporaryIdentityApproval!(focusedScope);
+                    if (!mounted) {
+                      return;
+                    }
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(message)));
+                  },
+                  child: Text(
+                    'Extend 2h',
+                    style: GoogleFonts.inter(
+                      color: active.focusBannerActionColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              if (canMutateTemporaryApproval &&
+                  widget.onExpireTemporaryIdentityApproval != null)
+                TextButton(
+                  onPressed: () async {
+                    final confirmed =
+                        await _confirmExpireTemporaryIdentityApproval(
+                          focusedScope,
+                        );
+                    if (!confirmed) {
+                      return;
+                    }
+                    final message = await widget
+                        .onExpireTemporaryIdentityApproval!(focusedScope);
+                    if (!mounted) {
+                      return;
+                    }
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(message)));
+                  },
+                  child: Text(
+                    'Expire now',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFFCA5A5),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              TextButton(
+                onPressed: () => _setActiveWatchActionDrilldown(null),
+                child: Text(
+                  'Clear',
+                  style: GoogleFonts.inter(
+                    color: active.focusBannerActionColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool> _confirmExpireTemporaryIdentityApproval(
+    VideoFleetScopeHealthView scope,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF161B22),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: const BorderSide(color: Color(0xFF30363D)),
+          ),
+          title: Text(
+            'Expire Temporary Approval?',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF4FF),
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          content: Text(
+            'This immediately removes the temporary identity approval for ${scope.siteName}. Future matches will no longer be treated as approved.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB1CF),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF9AB1CF),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFB91C1C),
+                foregroundColor: const Color(0xFFEAF4FF),
+              ),
+              child: Text(
+                'Expire now',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+    return confirmed == true;
   }
 
   Widget _statePill(String label, Color color) {
@@ -1287,6 +2310,7 @@ class _DispatchPageState extends State<DispatchPage> {
           .toList(growable: false);
       _selectedDispatchId = dispatch.id;
     });
+    widget.onSelectedDispatchChanged?.call(dispatch.id);
   }
 
   void _projectDispatches({bool fromInit = false}) {
@@ -1300,6 +2324,7 @@ class _DispatchPageState extends State<DispatchPage> {
       focusReference: focusReference,
       hasLiveMatch: focusMatchedInLive,
     );
+    final previousSelectedDispatchId = _selectedDispatchId;
 
     void apply() {
       _dispatches = projected;
@@ -1318,6 +2343,18 @@ class _DispatchPageState extends State<DispatchPage> {
       apply();
     } else {
       setState(apply);
+    }
+    if (previousSelectedDispatchId != _selectedDispatchId) {
+      if (fromInit) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) {
+            return;
+          }
+          widget.onSelectedDispatchChanged?.call(_selectedDispatchId);
+        });
+      } else {
+        widget.onSelectedDispatchChanged?.call(_selectedDispatchId);
+      }
     }
   }
 

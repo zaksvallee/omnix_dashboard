@@ -9,6 +9,7 @@ import '../domain/events/guard_checked_in.dart';
 import '../domain/events/incident_closed.dart';
 import '../domain/events/intelligence_received.dart';
 import '../domain/events/response_arrived.dart';
+import '../application/monitoring_scene_review_store.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'ui_action_logger.dart';
@@ -32,6 +33,10 @@ class _IncidentRecord {
   final _IncidentStatus status;
   final String? latestIntelHeadline;
   final String? latestIntelSummary;
+  final String? latestSceneReviewLabel;
+  final String? latestSceneReviewSummary;
+  final String? latestSceneDecisionLabel;
+  final String? latestSceneDecisionSummary;
   final String? snapshotUrl;
   final String? clipUrl;
 
@@ -44,6 +49,10 @@ class _IncidentRecord {
     required this.status,
     this.latestIntelHeadline,
     this.latestIntelSummary,
+    this.latestSceneReviewLabel,
+    this.latestSceneReviewSummary,
+    this.latestSceneDecisionLabel,
+    this.latestSceneDecisionSummary,
     this.snapshotUrl,
     this.clipUrl,
   });
@@ -57,6 +66,10 @@ class _IncidentRecord {
     _IncidentStatus? status,
     String? latestIntelHeadline,
     String? latestIntelSummary,
+    String? latestSceneReviewLabel,
+    String? latestSceneReviewSummary,
+    String? latestSceneDecisionLabel,
+    String? latestSceneDecisionSummary,
     String? snapshotUrl,
     String? clipUrl,
   }) {
@@ -69,6 +82,14 @@ class _IncidentRecord {
       status: status ?? this.status,
       latestIntelHeadline: latestIntelHeadline ?? this.latestIntelHeadline,
       latestIntelSummary: latestIntelSummary ?? this.latestIntelSummary,
+      latestSceneReviewLabel:
+          latestSceneReviewLabel ?? this.latestSceneReviewLabel,
+      latestSceneReviewSummary:
+          latestSceneReviewSummary ?? this.latestSceneReviewSummary,
+      latestSceneDecisionLabel:
+          latestSceneDecisionLabel ?? this.latestSceneDecisionLabel,
+      latestSceneDecisionSummary:
+          latestSceneDecisionSummary ?? this.latestSceneDecisionSummary,
       snapshotUrl: snapshotUrl ?? this.snapshotUrl,
       clipUrl: clipUrl ?? this.clipUrl,
     );
@@ -131,16 +152,28 @@ class _GuardVigilance {
   });
 }
 
+class _SuppressedSceneReviewContext {
+  final IntelligenceReceived intelligence;
+  final MonitoringSceneReviewRecord review;
+
+  const _SuppressedSceneReviewContext({
+    required this.intelligence,
+    required this.review,
+  });
+}
+
 class LiveOperationsPage extends StatefulWidget {
   final List<DispatchEvent> events;
   final String focusIncidentReference;
   final String videoOpsLabel;
+  final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
 
   const LiveOperationsPage({
     super.key,
     required this.events,
     this.focusIncidentReference = '',
     this.videoOpsLabel = 'CCTV',
+    this.sceneReviewByIntelligenceId = const {},
   });
 
   @override
@@ -175,6 +208,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   void didUpdateWidget(covariant LiveOperationsPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.events.length != widget.events.length ||
+        oldWidget.sceneReviewByIntelligenceId !=
+            widget.sceneReviewByIntelligenceId ||
         oldWidget.focusIncidentReference.trim() !=
             widget.focusIncidentReference.trim()) {
       _projectFromEvents();
@@ -983,6 +1018,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     }
     final duress = _duressDetected(incident);
     final evidenceReady = _evidenceReadyLabel(incident);
+    final suppressedReviews = _suppressedSceneReviewsForIncident(incident);
     final rows = <Widget>[
       _metaRow('Incident', incident.id),
       _metaRow('Type', incident.type),
@@ -1005,11 +1041,29 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           'Intel Detail',
           _compactContextLabel(incident.latestIntelSummary!),
         ),
+      if ((incident.latestSceneReviewLabel ?? '').trim().isNotEmpty)
+        _metaRow('Scene Review', incident.latestSceneReviewLabel!.trim()),
+      if ((incident.latestSceneReviewSummary ?? '').trim().isNotEmpty)
+        _metaRow(
+          'Review Detail',
+          _compactContextLabel(incident.latestSceneReviewSummary!),
+        ),
+      if ((incident.latestSceneDecisionLabel ?? '').trim().isNotEmpty)
+        _metaRow('Scene Action', incident.latestSceneDecisionLabel!.trim()),
+      if ((incident.latestSceneDecisionSummary ?? '').trim().isNotEmpty)
+        _metaRow(
+          'Action Detail',
+          _compactContextLabel(incident.latestSceneDecisionSummary!),
+        ),
       _metaRow('Evidence Ready', evidenceReady),
       if ((incident.snapshotUrl ?? '').trim().isNotEmpty)
         _metaRow('Snapshot Ref', _compactContextLabel(incident.snapshotUrl!)),
       if ((incident.clipUrl ?? '').trim().isNotEmpty)
         _metaRow('Clip Ref', _compactContextLabel(incident.clipUrl!)),
+      if (suppressedReviews.isNotEmpty) ...[
+        const SizedBox(height: 8),
+        _suppressedSceneReviewQueue(suppressedReviews),
+      ],
       if (duress) ...[
         const SizedBox(height: 8),
         Container(
@@ -1072,6 +1126,188 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       );
     }
     return ListView(children: rows);
+  }
+
+  List<_SuppressedSceneReviewContext> _suppressedSceneReviewsForIncident(
+    _IncidentRecord incident,
+  ) {
+    final siteId = incident.site.trim();
+    final output = <_SuppressedSceneReviewContext>[];
+    for (final intel in widget.events.whereType<IntelligenceReceived>()) {
+      if (intel.siteId.trim() != siteId) {
+        continue;
+      }
+      if (intel.sourceType != 'hardware' && intel.sourceType != 'dvr') {
+        continue;
+      }
+      final review =
+          widget.sceneReviewByIntelligenceId[intel.intelligenceId.trim()];
+      if (review == null) {
+        continue;
+      }
+      final decisionLabel = review.decisionLabel.trim().toLowerCase();
+      final decisionSummary = review.decisionSummary.trim().toLowerCase();
+      if (!decisionLabel.contains('suppress') &&
+          !decisionSummary.contains('suppress')) {
+        continue;
+      }
+      output.add(_SuppressedSceneReviewContext(intelligence: intel, review: review));
+    }
+    output.sort(
+      (a, b) => b.review.reviewedAtUtc.compareTo(a.review.reviewedAtUtc),
+    );
+    return output.take(3).toList(growable: false);
+  }
+
+  Widget _suppressedSceneReviewQueue(
+    List<_SuppressedSceneReviewContext> entries,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF2A3D58)),
+        color: const Color(0x14000000),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Suppressed ${widget.videoOpsLabel} Reviews',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFE4EEFF),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(width: 8),
+              _contextChip(
+                label: '${entries.length} internal',
+                foreground: const Color(0xFFBFD7F2),
+                background: const Color(0x149AB1CF),
+                border: const Color(0x339AB1CF),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Recent ${widget.videoOpsLabel} reviews ONYX held below the client notification threshold for this site.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF7F95B6),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...entries.asMap().entries.map((entry) {
+            final item = entry.value;
+            final intel = item.intelligence;
+            final review = item.review;
+            final cameraLabel = (intel.cameraId ?? '').trim();
+            final zoneLabel = (intel.zone ?? '').trim();
+            final sourceLabel = review.sourceLabel.trim();
+            final postureLabel = review.postureLabel.trim();
+            return Container(
+              width: double.infinity,
+              margin: EdgeInsets.only(
+                bottom: entry.key == entries.length - 1 ? 0 : 8,
+              ),
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                color: const Color(0xFF0F1419),
+                border: Border.all(color: const Color(0xFF24364F)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          intel.headline.trim(),
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFE4EEFF),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _hhmm(review.reviewedAtUtc.toLocal()),
+                        style: GoogleFonts.robotoMono(
+                          color: const Color(0xFF8FA7C8),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    review.decisionSummary.trim().isEmpty
+                        ? 'Suppressed because the activity remained below threshold.'
+                        : review.decisionSummary.trim(),
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFE4EEFF),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Scene review: ${review.summary.trim()}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF7F95B6),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _contextChip(
+                        label: sourceLabel.isEmpty ? 'metadata' : sourceLabel,
+                        foreground: const Color(0xFFFDE68A),
+                        background: const Color(0x145B3A16),
+                        border: const Color(0x665B3A16),
+                      ),
+                      _contextChip(
+                        label: postureLabel.isEmpty ? 'reviewed' : postureLabel,
+                        foreground: const Color(0xFF86EFAC),
+                        background: const Color(0x1420643B),
+                        border: const Color(0x6634D399),
+                      ),
+                      if (cameraLabel.isNotEmpty)
+                        _contextChip(
+                          label: cameraLabel,
+                          foreground: const Color(0xFF67E8F9),
+                          background: const Color(0x1122D3EE),
+                          border: const Color(0x5522D3EE),
+                        ),
+                      if (zoneLabel.isNotEmpty)
+                        _contextChip(
+                          label: zoneLabel,
+                          foreground: const Color(0xFFBFD7F2),
+                          background: const Color(0x14000000),
+                          border: const Color(0xFF2A3D58),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
   }
 
   Widget _voipTab(_IncidentRecord? incident) {
@@ -1794,6 +2030,30 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
   }
 
+  Widget _contextChip({
+    required String label,
+    required Color foreground,
+    required Color background,
+    required Color border,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: background,
+        border: Border.all(color: border),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          color: foreground,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
   Widget _muted(String message) {
     return Center(
       child: Text(
@@ -2108,6 +2368,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   : _IncidentPriority.p4Low;
               final status = _statusOverrides[normalizedId] ?? baseStatus;
               final latestIntel = latestHardwareIntelBySite[decision.siteId];
+              final latestSceneReview = latestIntel == null
+                  ? null
+                  : widget.sceneReviewByIntelligenceId[latestIntel.intelligenceId
+                      .trim()];
               return _IncidentRecord(
                 id: normalizedId,
                 priority: priority,
@@ -2117,6 +2381,12 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 status: status,
                 latestIntelHeadline: latestIntel?.headline,
                 latestIntelSummary: latestIntel?.summary,
+                latestSceneReviewLabel: latestSceneReview == null
+                    ? null
+                    : '${latestSceneReview.sourceLabel} • ${latestSceneReview.postureLabel}',
+                latestSceneReviewSummary: latestSceneReview?.summary,
+                latestSceneDecisionLabel: latestSceneReview?.decisionLabel,
+                latestSceneDecisionSummary: latestSceneReview?.decisionSummary,
                 snapshotUrl: latestIntel?.snapshotUrl,
                 clipUrl: latestIntel?.clipUrl,
               );

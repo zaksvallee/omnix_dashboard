@@ -1,0 +1,35 @@
+import 'package:omnix_dashboard/domain/events/report_generated.dart';
+
+ReportGenerated buildTestReportGenerated({
+  String eventId = 'RPT-TEST-1',
+  int sequence = 0,
+  int version = 1,
+  DateTime? occurredAt,
+  String clientId = 'CLIENT-MS-VALLEE',
+  String siteId = 'SITE-MS-VALLEE-RESIDENCE',
+  String month = '2026-03',
+  String contentHash = 'content-hash',
+  String pdfHash = 'pdf-hash',
+  int eventRangeStart = 1,
+  int eventRangeEnd = 1,
+  int eventCount = 1,
+  int reportSchemaVersion = 2,
+  int projectionVersion = 1,
+}) {
+  return ReportGenerated(
+    eventId: eventId,
+    sequence: sequence,
+    version: version,
+    occurredAt: occurredAt ?? DateTime.utc(2026, 3, 14, 22, 0),
+    clientId: clientId,
+    siteId: siteId,
+    month: month,
+    contentHash: contentHash,
+    pdfHash: pdfHash,
+    eventRangeStart: eventRangeStart,
+    eventRangeEnd: eventRangeEnd,
+    eventCount: eventCount,
+    reportSchemaVersion: reportSchemaVersion,
+    projectionVersion: projectionVersion,
+  );
+}

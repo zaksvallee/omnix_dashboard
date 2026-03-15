@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'monitoring_scene_review_store.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_denied.dart';
@@ -130,6 +131,74 @@ class SovereignReportComplianceBlockage {
   }
 }
 
+class SovereignReportSceneReview {
+  final int totalReviews;
+  final int modelReviews;
+  final int metadataFallbackReviews;
+  final int suppressedActions;
+  final int incidentAlerts;
+  final int repeatUpdates;
+  final int escalationCandidates;
+  final String topPosture;
+  final String actionMixSummary;
+  final String latestActionTaken;
+  final String recentActionsSummary;
+  final String latestSuppressedPattern;
+
+  const SovereignReportSceneReview({
+    required this.totalReviews,
+    required this.modelReviews,
+    required this.metadataFallbackReviews,
+    this.suppressedActions = 0,
+    this.incidentAlerts = 0,
+    this.repeatUpdates = 0,
+    required this.escalationCandidates,
+    required this.topPosture,
+    this.actionMixSummary = '',
+    this.latestActionTaken = '',
+    this.recentActionsSummary = '',
+    this.latestSuppressedPattern = '',
+  });
+
+  Map<String, Object?> toJson() {
+    return {
+      'totalReviews': totalReviews,
+      'modelReviews': modelReviews,
+      'metadataFallbackReviews': metadataFallbackReviews,
+      'suppressedActions': suppressedActions,
+      'incidentAlerts': incidentAlerts,
+      'repeatUpdates': repeatUpdates,
+      'escalationCandidates': escalationCandidates,
+      'topPosture': topPosture,
+      'actionMixSummary': actionMixSummary,
+      'latestActionTaken': latestActionTaken,
+      'recentActionsSummary': recentActionsSummary,
+      'latestSuppressedPattern': latestSuppressedPattern,
+    };
+  }
+
+  factory SovereignReportSceneReview.fromJson(Map<String, Object?> json) {
+    return SovereignReportSceneReview(
+      totalReviews: (json['totalReviews'] as num?)?.toInt() ?? 0,
+      modelReviews: (json['modelReviews'] as num?)?.toInt() ?? 0,
+      metadataFallbackReviews:
+          (json['metadataFallbackReviews'] as num?)?.toInt() ?? 0,
+      suppressedActions: (json['suppressedActions'] as num?)?.toInt() ?? 0,
+      incidentAlerts: (json['incidentAlerts'] as num?)?.toInt() ?? 0,
+      repeatUpdates: (json['repeatUpdates'] as num?)?.toInt() ?? 0,
+      escalationCandidates:
+          (json['escalationCandidates'] as num?)?.toInt() ?? 0,
+      topPosture: (json['topPosture'] as String? ?? '').trim(),
+      actionMixSummary: (json['actionMixSummary'] as String? ?? '').trim(),
+      latestActionTaken: (json['latestActionTaken'] as String? ?? '').trim(),
+      recentActionsSummary:
+          (json['recentActionsSummary'] as String? ?? '').trim(),
+      latestSuppressedPattern:
+          (json['latestSuppressedPattern'] as String? ?? '').trim(),
+    );
+  }
+}
+
 class SovereignReport {
   final String date;
   final DateTime generatedAtUtc;
@@ -139,6 +208,7 @@ class SovereignReport {
   final SovereignReportAiHumanDelta aiHumanDelta;
   final SovereignReportNormDrift normDrift;
   final SovereignReportComplianceBlockage complianceBlockage;
+  final SovereignReportSceneReview sceneReview;
 
   const SovereignReport({
     required this.date,
@@ -149,6 +219,7 @@ class SovereignReport {
     required this.aiHumanDelta,
     required this.normDrift,
     required this.complianceBlockage,
+    required this.sceneReview,
   });
 
   Map<String, Object?> toJson() {
@@ -161,6 +232,7 @@ class SovereignReport {
       'aiHumanDelta': aiHumanDelta.toJson(),
       'normDrift': normDrift.toJson(),
       'complianceBlockage': complianceBlockage.toJson(),
+      'sceneReview': sceneReview.toJson(),
     };
   }
 
@@ -169,6 +241,7 @@ class SovereignReport {
     final aiHumanRaw = json['aiHumanDelta'];
     final normDriftRaw = json['normDrift'];
     final complianceRaw = json['complianceBlockage'];
+    final sceneReviewRaw = json['sceneReview'];
     return SovereignReport(
       date: (json['date'] as String? ?? '').trim(),
       generatedAtUtc:
@@ -224,6 +297,25 @@ class SovereignReport {
               pdpExpired: 0,
               totalBlocked: 0,
             ),
+      sceneReview: sceneReviewRaw is Map
+          ? SovereignReportSceneReview.fromJson(
+              sceneReviewRaw.map(
+                (key, value) => MapEntry(key.toString(), value),
+              ),
+            )
+          : const SovereignReportSceneReview(
+              totalReviews: 0,
+              modelReviews: 0,
+              metadataFallbackReviews: 0,
+              suppressedActions: 0,
+              incidentAlerts: 0,
+              repeatUpdates: 0,
+              escalationCandidates: 0,
+              topPosture: 'none',
+              actionMixSummary: '',
+              latestActionTaken: '',
+              latestSuppressedPattern: '',
+            ),
     );
   }
 }
@@ -249,6 +341,8 @@ class MorningSovereignReportService {
     required List<DispatchEvent> events,
     required List<GuardOpsMediaUpload> recentMedia,
     required int guardOutcomePolicyDenied24h,
+    Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId =
+        const {},
   }) {
     final nowLocal = nowUtc.toLocal();
     final shiftEndLocal = latestCompletedNightShiftEndLocal(nowLocal);
@@ -311,6 +405,54 @@ class MorningSovereignReportService {
     final pdpExpired = _countReasonToken(overrideReasons, 'pdp');
     final totalBlocked =
         psiraExpired + pdpExpired + guardOutcomePolicyDenied24h;
+    final nightIntel = nightEvents.whereType<IntelligenceReceived>().toList(
+      growable: false,
+    );
+    final reviewedSceneEvents =
+        <({IntelligenceReceived event, MonitoringSceneReviewRecord review})>[];
+    for (final intel in nightIntel) {
+      final review = sceneReviewByIntelligenceId[intel.intelligenceId.trim()];
+      if (review != null) {
+        reviewedSceneEvents.add((event: intel, review: review));
+      }
+    }
+    final modelReviews = reviewedSceneEvents
+        .where((entry) {
+          final normalized = entry.review.sourceLabel.trim().toLowerCase();
+          return normalized != 'metadata-only' &&
+              !normalized.startsWith('metadata:');
+        })
+        .length;
+    final metadataFallbackReviews =
+        reviewedSceneEvents.length - modelReviews;
+    var suppressedActions = 0;
+    var incidentAlerts = 0;
+    var repeatUpdates = 0;
+    var escalationCandidates = 0;
+    for (final entry in reviewedSceneEvents) {
+      switch (_sceneReviewDecisionBucket(entry.review)) {
+        case _SceneReviewDecisionBucket.suppressed:
+          suppressedActions += 1;
+        case _SceneReviewDecisionBucket.incident:
+          incidentAlerts += 1;
+        case _SceneReviewDecisionBucket.repeat:
+          repeatUpdates += 1;
+        case _SceneReviewDecisionBucket.escalation:
+          escalationCandidates += 1;
+      }
+    }
+    final topPosture = _topSceneReviewPosture(
+      reviewedSceneEvents.map((entry) => entry.review).toList(growable: false),
+    );
+    final actionMixSummary = _sceneActionMixSummary(
+      incidentAlerts: incidentAlerts,
+      repeatUpdates: repeatUpdates,
+      escalationCandidates: escalationCandidates,
+      suppressedActions: suppressedActions,
+    );
+    final latestActionTaken = _latestActionTaken(reviewedSceneEvents);
+    final recentActionsSummary = _recentActionsSummary(reviewedSceneEvents);
+    final latestSuppressedPattern = _latestSuppressedPattern(reviewedSceneEvents);
 
     return SovereignReport(
       date: _dateKey(shiftEndLocal),
@@ -337,7 +479,183 @@ class MorningSovereignReportService {
         pdpExpired: pdpExpired,
         totalBlocked: totalBlocked,
       ),
+      sceneReview: SovereignReportSceneReview(
+        totalReviews: reviewedSceneEvents.length,
+        modelReviews: modelReviews,
+        metadataFallbackReviews: metadataFallbackReviews,
+        suppressedActions: suppressedActions,
+        incidentAlerts: incidentAlerts,
+        repeatUpdates: repeatUpdates,
+        escalationCandidates: escalationCandidates,
+        topPosture: topPosture,
+        actionMixSummary: actionMixSummary,
+        latestActionTaken: latestActionTaken,
+        recentActionsSummary: recentActionsSummary,
+        latestSuppressedPattern: latestSuppressedPattern,
+      ),
     );
+  }
+
+  _SceneReviewDecisionBucket _sceneReviewDecisionBucket(
+    MonitoringSceneReviewRecord review,
+  ) {
+    final decision = review.decisionLabel.trim().toLowerCase();
+    final posture = review.postureLabel.trim().toLowerCase();
+    if (decision.contains('suppress')) {
+      return _SceneReviewDecisionBucket.suppressed;
+    }
+    if (decision.contains('repeat')) {
+      return _SceneReviewDecisionBucket.repeat;
+    }
+    if (decision.contains('escalation')) {
+      return _SceneReviewDecisionBucket.escalation;
+    }
+    if (decision.contains('alert') || decision.contains('incident')) {
+      return _SceneReviewDecisionBucket.incident;
+    }
+    if (posture.contains('escalation')) {
+      return _SceneReviewDecisionBucket.escalation;
+    }
+    if (posture.contains('repeat')) {
+      return _SceneReviewDecisionBucket.repeat;
+    }
+    if (posture.isNotEmpty) {
+      return _SceneReviewDecisionBucket.incident;
+    }
+    return _SceneReviewDecisionBucket.suppressed;
+  }
+
+  String _latestSuppressedPattern(
+    List<({IntelligenceReceived event, MonitoringSceneReviewRecord review})>
+    reviews,
+  ) {
+    final sorted = reviews.toList(growable: false)
+      ..sort((a, b) => b.event.occurredAt.compareTo(a.event.occurredAt));
+    for (final entry in sorted) {
+      if (_sceneReviewDecisionBucket(entry.review) !=
+          _SceneReviewDecisionBucket.suppressed) {
+        continue;
+      }
+      final detail = entry.review.decisionSummary.trim().isNotEmpty
+          ? entry.review.decisionSummary.trim()
+          : entry.review.summary.trim();
+      return '${entry.event.occurredAt.toUtc().toIso8601String()} • ${_cameraLabel(entry.event.cameraId)} • $detail';
+    }
+    return '';
+  }
+
+  String _latestActionTaken(
+    List<({IntelligenceReceived event, MonitoringSceneReviewRecord review})>
+    reviews,
+  ) {
+    final sorted = reviews.toList(growable: false)
+      ..sort((a, b) => b.event.occurredAt.compareTo(a.event.occurredAt));
+    for (final entry in sorted) {
+      if (_sceneReviewDecisionBucket(entry.review) ==
+          _SceneReviewDecisionBucket.suppressed) {
+        continue;
+      }
+      final decisionLabel = entry.review.decisionLabel.trim();
+      final detail = entry.review.decisionSummary.trim().isNotEmpty
+          ? entry.review.decisionSummary.trim()
+          : entry.review.summary.trim();
+      final parts = <String>[
+        entry.event.occurredAt.toUtc().toIso8601String(),
+        _cameraLabel(entry.event.cameraId),
+      ];
+      if (decisionLabel.isNotEmpty) {
+        parts.add(decisionLabel);
+      }
+      if (detail.isNotEmpty) {
+        parts.add(detail);
+      }
+      return parts.join(' • ');
+    }
+    return '';
+  }
+
+  String _recentActionsSummary(
+    List<({IntelligenceReceived event, MonitoringSceneReviewRecord review})>
+    reviews,
+  ) {
+    final recentActions = <String>[];
+    for (final entry in reviews) {
+      if (_sceneReviewDecisionBucket(entry.review) == _SceneReviewDecisionBucket.suppressed) {
+        continue;
+      }
+      final parts = <String>[
+        entry.event.occurredAt.toUtc().toIso8601String(),
+        _cameraLabel(entry.event.cameraId),
+      ];
+      final decisionLabel = entry.review.decisionLabel.trim();
+      if (decisionLabel.isNotEmpty) {
+        parts.add(decisionLabel);
+      }
+      final detail = entry.review.decisionSummary.trim().isNotEmpty
+          ? entry.review.decisionSummary.trim()
+          : entry.review.summary.trim();
+      if (detail.isNotEmpty) {
+        parts.add(detail);
+      }
+      recentActions.add(parts.join(' • '));
+      if (recentActions.length == 2) {
+        break;
+      }
+    }
+    if (recentActions.length <= 1) {
+      return '';
+    }
+    return '${recentActions.first} (+${recentActions.length - 1} more)';
+  }
+
+  String _cameraLabel(String? cameraId) {
+    final normalized = (cameraId ?? '').trim();
+    if (normalized.isEmpty) {
+      return 'Unspecified';
+    }
+    final channelMatch = RegExp(r'^channel-(\d+)$').firstMatch(normalized);
+    if (channelMatch != null) {
+      return 'Camera ${channelMatch.group(1)}';
+    }
+    final digitsMatch = RegExp(r'^(\d+)$').firstMatch(normalized);
+    if (digitsMatch != null) {
+      return 'Camera ${digitsMatch.group(1)}';
+    }
+    return normalized;
+  }
+
+  String _sceneActionMixSummary({
+    required int incidentAlerts,
+    required int repeatUpdates,
+    required int escalationCandidates,
+    required int suppressedActions,
+  }) {
+    final parts = <String>[];
+    if (incidentAlerts > 0) {
+      parts.add(
+        incidentAlerts == 1 ? '1 alert' : '$incidentAlerts alerts',
+      );
+    }
+    if (repeatUpdates > 0) {
+      parts.add(
+        repeatUpdates == 1 ? '1 repeat update' : '$repeatUpdates repeat updates',
+      );
+    }
+    if (escalationCandidates > 0) {
+      parts.add(
+        escalationCandidates == 1
+            ? '1 escalation'
+            : '$escalationCandidates escalations',
+      );
+    }
+    if (suppressedActions > 0) {
+      parts.add(
+        suppressedActions == 1
+            ? '1 suppressed review'
+            : '$suppressedActions suppressed reviews',
+      );
+    }
+    return parts.join(' • ');
   }
 
   int _observedMatchScore(GuardOpsMediaUpload media) {
@@ -367,7 +685,29 @@ class MorningSovereignReportService {
     }
     return count;
   }
+
+  String _topSceneReviewPosture(List<MonitoringSceneReviewRecord> reviews) {
+    if (reviews.isEmpty) {
+      return 'none';
+    }
+    final counts = <String, int>{};
+    for (final review in reviews) {
+      final posture = review.postureLabel.trim().isEmpty
+          ? 'unknown'
+          : review.postureLabel.trim().toLowerCase();
+      counts.update(posture, (value) => value + 1, ifAbsent: () => 1);
+    }
+    final sorted = counts.entries.toList(growable: false)
+      ..sort((a, b) {
+        final byCount = b.value.compareTo(a.value);
+        if (byCount != 0) return byCount;
+        return a.key.compareTo(b.key);
+      });
+    return sorted.first.key;
+  }
 }
+
+enum _SceneReviewDecisionBucket { suppressed, incident, repeat, escalation }
 
 String _dateKey(DateTime localDate) {
   String two(int value) => value.toString().padLeft(2, '0');

@@ -55,6 +55,10 @@ void main() {
     expect(record.externalId, 'DVR-EVT-1001');
     expect(record.cameraId, 'DVR-001');
     expect(record.summary, summary);
+    expect(record.faceMatchId, 'PERSON-44');
+    expect(record.faceConfidence, 91.2);
+    expect(record.plateNumber, 'CA123456');
+    expect(record.plateConfidence, 96.4);
     expect(record.snapshotUrl, contains('/snapshot'));
     expect(record.clipUrl, contains('/clip'));
   });

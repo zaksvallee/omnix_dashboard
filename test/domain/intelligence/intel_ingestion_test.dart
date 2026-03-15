@@ -20,6 +20,10 @@ void main() {
           clientId: 'CLIENT-001',
           regionId: 'REGION-GAUTENG',
           siteId: 'SITE-SANDTON',
+          faceMatchId: 'PERSON-44',
+          faceConfidence: 91.2,
+          plateNumber: 'CA123456',
+          plateConfidence: 96.4,
           headline: 'FRIGATE INTRUSION',
           summary: 'CCTV person detected in north_gate',
           riskScore: 94,
@@ -38,6 +42,10 @@ void main() {
           .allEvents()
           .whereType<IntelligenceReceived>()
           .single;
+      expect(ingested.faceMatchId, 'PERSON-44');
+      expect(ingested.faceConfidence, 91.2);
+      expect(ingested.plateNumber, 'CA123456');
+      expect(ingested.plateConfidence, 96.4);
       expect(
         ingested.snapshotUrl,
         'https://edge.example.com/api/events/evt-1/snapshot.jpg',

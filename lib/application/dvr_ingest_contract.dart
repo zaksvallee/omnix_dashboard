@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
+
 import 'video_edge_ingest_contract.dart';
 
 class DvrProviderProfile {
@@ -26,6 +28,9 @@ class DvrProviderProfile {
     if (key.isEmpty) {
       return null;
     }
+    if (key.contains('hikvision') && key.contains('monitor_only')) {
+      return hikvisionMonitorOnly;
+    }
     if (key.contains('hikvision')) {
       return hikvisionIsapi;
     }
@@ -38,13 +43,26 @@ class DvrProviderProfile {
   static const hikvisionIsapi = DvrProviderProfile(
     provider: 'hikvision_dvr',
     schemaId: 'hikvision_isapi_event_notification_alert',
-    eventTransport: 'isapi_pull',
-    snapshotPathTemplate: '/ISAPI/ContentMgmt/events/{eventId}/snapshot',
-    clipPathTemplate: '/ISAPI/ContentMgmt/events/{eventId}/clip',
+    eventTransport: 'isapi_alert_stream',
+    snapshotPathTemplate: '/ISAPI/Streaming/channels/{streamId}/picture',
+    clipPathTemplate: '',
     capabilities: VideoAnalyticsCapabilities(
       liveMonitoringEnabled: true,
-      facialRecognitionEnabled: true,
-      licensePlateRecognitionEnabled: true,
+      facialRecognitionEnabled: false,
+      licensePlateRecognitionEnabled: false,
+    ),
+  );
+
+  static const hikvisionMonitorOnly = DvrProviderProfile(
+    provider: 'hikvision_dvr_monitor_only',
+    schemaId: 'hikvision_isapi_event_notification_alert',
+    eventTransport: 'isapi_alert_stream',
+    snapshotPathTemplate: '/ISAPI/Streaming/channels/{streamId}/picture',
+    clipPathTemplate: '',
+    capabilities: VideoAnalyticsCapabilities(
+      liveMonitoringEnabled: true,
+      facialRecognitionEnabled: false,
+      licensePlateRecognitionEnabled: false,
     ),
   );
 
@@ -61,23 +79,39 @@ class DvrProviderProfile {
     ),
   );
 
-  String buildSnapshotUrl(Uri baseUri, String eventId) {
+  String? buildSnapshotUrl(Uri baseUri, String eventId, {String? channelId}) {
+    if (snapshotPathTemplate.trim().isEmpty) {
+      return null;
+    }
+    final streamId = _streamId(channelId);
     return baseUri
         .resolve(
-          snapshotPathTemplate.replaceAll(
-            '{eventId}',
-            Uri.encodeComponent(eventId),
-          ),
+          snapshotPathTemplate
+              .replaceAll('{eventId}', Uri.encodeComponent(eventId))
+              .replaceAll('{channelId}', Uri.encodeComponent(channelId ?? ''))
+              .replaceAll('{streamId}', Uri.encodeComponent(streamId)),
         )
         .toString();
   }
 
-  String buildClipUrl(Uri baseUri, String eventId) {
+  String? buildClipUrl(Uri baseUri, String eventId, {String? channelId}) {
+    if (clipPathTemplate.trim().isEmpty) {
+      return null;
+    }
+    final streamId = _streamId(channelId);
     return baseUri
         .resolve(
-          clipPathTemplate.replaceAll('{eventId}', Uri.encodeComponent(eventId)),
+          clipPathTemplate
+              .replaceAll('{eventId}', Uri.encodeComponent(eventId))
+              .replaceAll('{channelId}', Uri.encodeComponent(channelId ?? ''))
+              .replaceAll('{streamId}', Uri.encodeComponent(streamId)),
         )
         .toString();
+  }
+
+  String _streamId(String? channelId) {
+    final digits = channelId?.trim() ?? '';
+    return RegExp(r'^\d+$').hasMatch(digits) ? '${digits}01' : '';
   }
 }
 
@@ -125,27 +159,38 @@ class DvrFixtureContractNormalizer {
     if (alert.isEmpty) {
       return null;
     }
-    final eventId = _stringValue(
-      alert,
-      const ['UUID', 'eventId', 'eventID', 'id'],
-    );
+    final eventState = _stringValue(alert, const ['eventState']).toLowerCase();
+    if (eventState.isNotEmpty && eventState != 'active') {
+      return null;
+    }
+    final channelId = _stringValue(alert, const ['channelID', 'dynChannelID']);
+    final eventId = _stringValue(alert, const [
+      'UUID',
+      'eventId',
+      'eventID',
+      'id',
+    ]);
     final occurredAtUtc = _parseDateTime(
       _stringValue(alert, const ['dateTime', 'timestamp', 'UTC']),
     );
-    if (eventId.isEmpty || occurredAtUtc == null) {
+    if (occurredAtUtc == null) {
       return null;
     }
+    final externalId = eventId.isNotEmpty
+        ? eventId
+        : _syntheticHikvisionEventId(alert, occurredAtUtc, channelId);
     final zone = _extractHikvisionZone(alert);
     final faceData = _toObjectMap(alert['Faces']);
     final anprData = _toObjectMap(alert['ANPR']);
+    final targetType = _stringValue(alert, const ['targetType']).trim();
     final eventType = _eventHeadline(
       provider: profile.provider,
-      eventType: _stringValue(
-        alert,
-        const ['eventType', 'eventDescription', 'eventTypeEx'],
-      ),
+      eventType: _stringValue(alert, const [
+        'eventType',
+        'eventDescription',
+        'eventTypeEx',
+      ]),
     );
-    final externalId = eventId;
     return VideoEdgeEventContract(
       provider: profile.provider,
       sourceType: 'dvr',
@@ -153,43 +198,68 @@ class DvrFixtureContractNormalizer {
       clientId: clientId,
       regionId: regionId,
       siteId: siteId,
-      cameraId: _stringValue(alert, const ['deviceID', 'deviceId', 'ipAddress']),
-      channelId: _stringValue(alert, const ['channelID', 'dynChannelID']),
+      cameraId: _hikvisionCameraId(channelId),
+      channelId: channelId,
       zone: zone,
-      objectLabel: _objectLabelFromEventType(
-        _stringValue(alert, const ['eventType', 'eventTypeEx']),
-      ),
-      objectConfidence: _doubleValue(
-        alert,
-        const ['confidence', 'Confidence', 'probability'],
-      ),
-      faceMatchId: _stringValue(faceData, const ['matchId', 'faceMatchId', 'id']),
-      faceConfidence: _doubleValue(
-        faceData,
-        const ['confidence', 'score', 'Similarity'],
-      ),
-      plateNumber: _stringValue(
-        anprData,
-        const ['licensePlate', 'plateNumber', 'PlateNumber'],
-      ),
-      plateConfidence: _doubleValue(
-        anprData,
-        const ['confidence', 'score', 'Similarity'],
-      ),
+      objectLabel: targetType.isNotEmpty
+          ? targetType.toLowerCase()
+          : _objectLabelFromEventType(
+              _stringValue(alert, const ['eventType', 'eventTypeEx']),
+            ),
+      objectConfidence: _doubleValue(alert, const [
+        'confidence',
+        'Confidence',
+        'probability',
+      ]),
+      faceMatchId: _stringValue(faceData, const [
+        'matchId',
+        'faceMatchId',
+        'id',
+      ]),
+      faceConfidence: _doubleValue(faceData, const [
+        'confidence',
+        'score',
+        'Similarity',
+      ]),
+      plateNumber: _stringValue(anprData, const [
+        'licensePlate',
+        'plateNumber',
+        'PlateNumber',
+      ]),
+      plateConfidence: _doubleValue(anprData, const [
+        'confidence',
+        'score',
+        'Similarity',
+      ]),
       headline: eventType,
       riskScore: _riskScore(
         liveMonitoring: profile.capabilities.liveMonitoringEnabled,
-        hasFace: _stringValue(faceData, const ['matchId', 'faceMatchId']).isNotEmpty,
-        hasPlate:
-            _stringValue(anprData, const ['licensePlate', 'plateNumber']).isNotEmpty,
+        hasFace: _stringValue(faceData, const [
+          'matchId',
+          'faceMatchId',
+        ]).isNotEmpty,
+        hasPlate: _stringValue(anprData, const [
+          'licensePlate',
+          'plateNumber',
+        ]).isNotEmpty,
       ),
       occurredAtUtc: occurredAtUtc,
       capabilities: profile.capabilities,
       evidence: VideoEvidenceReference(
-        snapshotUrl: profile.buildSnapshotUrl(baseUri, externalId),
-        clipUrl: profile.buildClipUrl(baseUri, externalId),
+        snapshotUrl: profile.buildSnapshotUrl(
+          baseUri,
+          externalId,
+          channelId: channelId,
+        ),
+        clipUrl: profile.buildClipUrl(
+          baseUri,
+          externalId,
+          channelId: channelId,
+        ),
         snapshotExpected: true,
-        clipExpected: true,
+        clipExpected:
+            profile.buildClipUrl(baseUri, externalId, channelId: channelId) !=
+            null,
         accessMode: profile.privateEvidenceFetch
             ? VideoEvidenceAccessMode.privateFetch
             : VideoEvidenceAccessMode.directUrl,
@@ -238,13 +308,15 @@ class DvrFixtureContractNormalizer {
       evidence: VideoEvidenceReference(
         snapshotUrl: profile.buildSnapshotUrl(baseUri, eventId),
         clipUrl: profile.buildClipUrl(baseUri, eventId),
-        snapshotExpected: true,
-        clipExpected: true,
+        snapshotExpected: profile.buildSnapshotUrl(baseUri, eventId) != null,
+        clipExpected: profile.buildClipUrl(baseUri, eventId) != null,
         accessMode: profile.privateEvidenceFetch
             ? VideoEvidenceAccessMode.privateFetch
             : VideoEvidenceAccessMode.directUrl,
       ),
-      attributes: const <String, Object?>{'schema_id': 'generic_dvr_event_list'},
+      attributes: const <String, Object?>{
+        'schema_id': 'generic_dvr_event_list',
+      },
     );
   }
 
@@ -312,25 +384,25 @@ class DvrFixtureContractNormalizer {
     return _stringValue(alert, const ['zone', 'regionID']);
   }
 
-  String _eventHeadline({
-    required String provider,
-    required String eventType,
-  }) {
+  String _eventHeadline({required String provider, required String eventType}) {
     final normalized = eventType.trim().toUpperCase().replaceAll('-', '_');
+    if (normalized == 'VMD' || normalized.contains('MOTION')) {
+      return '${provider.toUpperCase()} MOTION';
+    }
     if (normalized.contains('LINE') || normalized.contains('CROSS')) {
       return '${provider.toUpperCase()} LINE_CROSSING';
     }
     if (normalized.contains('INTRUSION')) {
       return '${provider.toUpperCase()} INTRUSION';
     }
-    if (normalized.contains('MOTION')) {
-      return '${provider.toUpperCase()} MOTION';
-    }
     return '${provider.toUpperCase()} VIDEO_EVENT';
   }
 
   String? _objectLabelFromEventType(String raw) {
     final value = raw.trim().toLowerCase();
+    if (value == 'vmd') {
+      return 'motion';
+    }
     if (value.contains('line')) {
       return 'line_crossing';
     }
@@ -356,5 +428,28 @@ class DvrFixtureContractNormalizer {
       score += 6;
     }
     return score.clamp(1, 99);
+  }
+
+  String _syntheticHikvisionEventId(
+    Map<String, Object?> alert,
+    DateTime occurredAtUtc,
+    String channelId,
+  ) {
+    final seed = [
+      _stringValue(alert, const ['ipAddress', 'macAddress', 'deviceID']),
+      channelId,
+      _stringValue(alert, const [
+        'eventType',
+        'eventDescription',
+        'targetType',
+      ]),
+      occurredAtUtc.toIso8601String(),
+    ].join('|');
+    return md5.convert(utf8.encode(seed)).toString();
+  }
+
+  String _hikvisionCameraId(String channelId) {
+    final digits = channelId.trim();
+    return digits.isEmpty ? 'channel-unknown' : 'channel-$digits';
   }
 }

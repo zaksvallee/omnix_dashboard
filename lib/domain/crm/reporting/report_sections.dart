@@ -62,6 +62,56 @@ class IncidentDetailSnapshot {
   });
 }
 
+class SceneReviewHighlightSnapshot {
+  final String intelligenceId;
+  final String detectedAt;
+  final String cameraLabel;
+  final String sourceLabel;
+  final String postureLabel;
+  final String decisionLabel;
+  final String decisionSummary;
+  final String summary;
+
+  const SceneReviewHighlightSnapshot({
+    required this.intelligenceId,
+    required this.detectedAt,
+    required this.cameraLabel,
+    required this.sourceLabel,
+    required this.postureLabel,
+    this.decisionLabel = '',
+    this.decisionSummary = '',
+    required this.summary,
+  });
+}
+
+class SceneReviewSnapshot {
+  final int totalReviews;
+  final int modelReviews;
+  final int metadataFallbackReviews;
+  final int suppressedActions;
+  final int incidentAlerts;
+  final int repeatUpdates;
+  final int escalationCandidates;
+  final String topPosture;
+  final String latestActionTaken;
+  final String latestSuppressedPattern;
+  final List<SceneReviewHighlightSnapshot> highlights;
+
+  const SceneReviewSnapshot({
+    required this.totalReviews,
+    required this.modelReviews,
+    required this.metadataFallbackReviews,
+    this.suppressedActions = 0,
+    this.incidentAlerts = 0,
+    this.repeatUpdates = 0,
+    required this.escalationCandidates,
+    required this.topPosture,
+    this.latestActionTaken = '',
+    this.latestSuppressedPattern = '',
+    required this.highlights,
+  });
+}
+
 class SupervisorAssessment {
   final String operationalSummary;
   final String riskTrend;
@@ -77,15 +127,11 @@ class SupervisorAssessment {
 class CompanyAchievementsSnapshot {
   final List<String> highlights;
 
-  const CompanyAchievementsSnapshot({
-    required this.highlights,
-  });
+  const CompanyAchievementsSnapshot({required this.highlights});
 }
 
 class EmergingThreatSnapshot {
   final List<String> patternsObserved;
 
-  const EmergingThreatSnapshot({
-    required this.patternsObserved,
-  });
+  const EmergingThreatSnapshot({required this.patternsObserved});
 }

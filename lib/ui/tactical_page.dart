@@ -3,10 +3,15 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../application/monitoring_scene_review_store.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/intelligence_received.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
+import 'video_fleet_scope_health_card.dart';
+import 'video_fleet_scope_health_panel.dart';
+import 'video_fleet_scope_health_sections.dart';
+import 'video_fleet_scope_health_view.dart';
 
 enum _MarkerType { guard, vehicle, incident, site }
 
@@ -98,6 +103,16 @@ class _CctvLensTelemetry {
   });
 }
 
+class _SuppressedFleetReviewEntry {
+  final VideoFleetScopeHealthView scope;
+  final MonitoringSceneReviewRecord review;
+
+  const _SuppressedFleetReviewEntry({
+    required this.scope,
+    required this.review,
+  });
+}
+
 class TacticalPage extends StatelessWidget {
   final List<DispatchEvent> events;
   final String focusIncidentReference;
@@ -107,6 +122,28 @@ class TacticalPage extends StatelessWidget {
   final String cctvProvider;
   final String cctvCapabilitySummary;
   final String cctvRecentSignalSummary;
+  final List<VideoFleetScopeHealthView> fleetScopeHealth;
+  final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
+  final void Function(
+    String clientId,
+    String siteId,
+    String? incidentReference,
+  )?
+  onOpenFleetTacticalScope;
+  final void Function(
+    String clientId,
+    String siteId,
+    String? incidentReference,
+  )?
+  onOpenFleetDispatchScope;
+  final void Function(String clientId, String siteId)? onRecoverFleetWatchScope;
+  final Future<String> Function(VideoFleetScopeHealthView scope)?
+  onExtendTemporaryIdentityApproval;
+  final Future<String> Function(VideoFleetScopeHealthView scope)?
+  onExpireTemporaryIdentityApproval;
+  final VideoFleetWatchActionDrilldown? initialWatchActionDrilldown;
+  final ValueChanged<VideoFleetWatchActionDrilldown?>?
+  onWatchActionDrilldownChanged;
 
   const TacticalPage({
     super.key,
@@ -120,6 +157,16 @@ class TacticalPage extends StatelessWidget {
     this.cctvCapabilitySummary = 'caps none',
     this.cctvRecentSignalSummary =
         'recent video intel 0 (6h) • intrusion 0 • line_crossing 0 • motion 0 • fr 0 • lpr 0',
+    this.fleetScopeHealth = const [],
+    this.sceneReviewByIntelligenceId =
+        const <String, MonitoringSceneReviewRecord>{},
+    this.onOpenFleetTacticalScope,
+    this.onOpenFleetDispatchScope,
+    this.onRecoverFleetWatchScope,
+    this.onExtendTemporaryIdentityApproval,
+    this.onExpireTemporaryIdentityApproval,
+    this.initialWatchActionDrilldown,
+    this.onWatchActionDrilldownChanged,
   });
 
   static const List<_MapMarker> _markers = [
@@ -225,107 +272,800 @@ class TacticalPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final wide = allowEmbeddedPanelScroll(context);
-    final now = DateTime.now();
-    final isCombatWindow = now.hour >= 22 || now.hour < 6;
-    final normMode = isCombatWindow ? 'night' : 'day';
-    final focusReference = focusIncidentReference.trim();
-    final focusLinked =
-        focusReference.isNotEmpty &&
-        _markers.any(
-          (marker) =>
-              marker.type == _MarkerType.incident &&
-              marker.id == focusReference,
+    VideoFleetWatchActionDrilldown? activeWatchActionDrilldown =
+        initialWatchActionDrilldown;
+    return StatefulBuilder(
+      builder: (context, setState) {
+        final fleetPanelKey = GlobalKey();
+        final suppressedPanelKey = GlobalKey();
+        final wide = allowEmbeddedPanelScroll(context);
+        final now = DateTime.now();
+        final isCombatWindow = now.hour >= 22 || now.hour < 6;
+        final normMode = isCombatWindow ? 'night' : 'day';
+        final focusReference = focusIncidentReference.trim();
+        final focusLinked =
+            focusReference.isNotEmpty &&
+            _markers.any(
+              (marker) =>
+                  marker.type == _MarkerType.incident &&
+                  marker.id == focusReference,
+            );
+        final markers = _resolvedMarkers(
+          focusReference: focusReference,
+          linkedToLive: focusLinked,
         );
-    final markers = _resolvedMarkers(
-      focusReference: focusReference,
-      linkedToLive: focusLinked,
-    );
-    final geofenceAlerts = _geofences
-        .where(
-          (fence) =>
-              fence.status == _FenceStatus.breach ||
-              (fence.status == _FenceStatus.stationary &&
-                  (fence.stationaryTime ?? 0) > 120),
-        )
-        .length;
-    final sosAlerts = _markers
-        .where(
-          (marker) =>
-              marker.status == _MarkerStatus.sos &&
-              marker.type == _MarkerType.guard,
-        )
-        .length;
-    final lensTelemetry = _buildCctvLensTelemetry();
+        final geofenceAlerts = _geofences
+            .where(
+              (fence) =>
+                  fence.status == _FenceStatus.breach ||
+                  (fence.status == _FenceStatus.stationary &&
+                      (fence.stationaryTime ?? 0) > 120),
+            )
+            .length;
+        final sosAlerts = _markers
+            .where(
+              (marker) =>
+                  marker.status == _MarkerStatus.sos &&
+                  marker.type == _MarkerType.guard,
+            )
+            .length;
+        final lensTelemetry = _buildCctvLensTelemetry();
+        final suppressedEntries = _suppressedFleetReviewEntries();
+        final showSuppressedPrimary =
+            activeWatchActionDrilldown ==
+                VideoFleetWatchActionDrilldown.filtered &&
+            suppressedEntries.isNotEmpty;
+        void setActiveWatchActionDrilldown(
+          VideoFleetWatchActionDrilldown? value,
+        ) {
+          if (activeWatchActionDrilldown == value) {
+            return;
+          }
+          setState(() {
+            activeWatchActionDrilldown = value;
+          });
+          onWatchActionDrilldownChanged?.call(value);
+        }
 
-    return OnyxPageScaffold(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1500),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _topBar(
-                  geofenceAlerts: geofenceAlerts,
-                  sosAlerts: sosAlerts,
-                  mode: isCombatWindow ? 'Combat Window' : 'Day Window',
-                  focusReference: focusReference,
-                  focusLinked: focusLinked,
-                  cctvReadiness: cctvOpsReadiness,
-                  cctvCapabilitySummary: cctvCapabilitySummary,
-                  cctvRecentSignalSummary: cctvRecentSignalSummary,
-                ),
-                const SizedBox(height: 12),
-                wide
-                    ? Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            flex: 8,
-                            child: _mapPanel(
-                              markers: markers,
-                              focusReference: focusReference,
-                              focusLinked: focusLinked,
-                              geofenceAlerts: geofenceAlerts,
-                              sosAlerts: sosAlerts,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            flex: 4,
-                            child: _verificationPanel(
-                              normMode: normMode,
-                              timestamp: _clockLabel(now),
-                              telemetry: lensTelemetry,
-                            ),
-                          ),
-                        ],
-                      )
-                    : Column(
-                        children: [
-                          _mapPanel(
-                            markers: markers,
-                            focusReference: focusReference,
-                            focusLinked: focusLinked,
-                            geofenceAlerts: geofenceAlerts,
-                            sosAlerts: sosAlerts,
-                          ),
-                          const SizedBox(height: 12),
-                          _verificationPanel(
-                            normMode: normMode,
-                            timestamp: _clockLabel(now),
-                            telemetry: lensTelemetry,
-                          ),
-                        ],
+        void openWatchActionDrilldown(
+          VideoFleetWatchActionDrilldown drilldown,
+        ) {
+          if (activeWatchActionDrilldown == drilldown) {
+            setActiveWatchActionDrilldown(null);
+            return;
+          }
+          setActiveWatchActionDrilldown(drilldown);
+          final targetContext =
+              drilldown == VideoFleetWatchActionDrilldown.filtered &&
+                  suppressedEntries.isNotEmpty
+              ? suppressedPanelKey.currentContext
+              : fleetPanelKey.currentContext;
+          if (targetContext == null) {
+            return;
+          }
+          Scrollable.ensureVisible(
+            targetContext,
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+          );
+        }
+
+        void openLatestWatchActionDetail(VideoFleetScopeHealthView scope) {
+          if (activeWatchActionDrilldown ==
+                  VideoFleetWatchActionDrilldown.filtered &&
+              suppressedEntries.isNotEmpty) {
+            final targetContext = suppressedPanelKey.currentContext;
+            if (targetContext != null) {
+              Scrollable.ensureVisible(
+                targetContext,
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+              );
+            }
+            return;
+          }
+          final primaryOpenFleetScope = scope.hasIncidentContext
+              ? (onOpenFleetTacticalScope ?? onOpenFleetDispatchScope)
+              : null;
+          if (primaryOpenFleetScope == null) {
+            return;
+          }
+          primaryOpenFleetScope.call(
+            scope.clientId,
+            scope.siteId,
+            scope.latestIncidentReference,
+          );
+        }
+
+        return OnyxPageScaffold(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1500),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _topBar(
+                      geofenceAlerts: geofenceAlerts,
+                      sosAlerts: sosAlerts,
+                      mode: isCombatWindow ? 'Combat Window' : 'Day Window',
+                      focusReference: focusReference,
+                      focusLinked: focusLinked,
+                      cctvReadiness: cctvOpsReadiness,
+                      cctvCapabilitySummary: cctvCapabilitySummary,
+                      cctvRecentSignalSummary: cctvRecentSignalSummary,
+                    ),
+                    if (showSuppressedPrimary) ...[
+                      const SizedBox(height: 12),
+                      KeyedSubtree(
+                        key: suppressedPanelKey,
+                        child: _suppressedReviewPanel(suppressedEntries),
                       ),
-              ],
+                    ],
+                    if (fleetScopeHealth.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      KeyedSubtree(
+                        key: fleetPanelKey,
+                        child: _fleetScopePanel(
+                          context: context,
+                          activeWatchActionDrilldown:
+                              activeWatchActionDrilldown,
+                          onOpenWatchActionDrilldown: openWatchActionDrilldown,
+                          onOpenLatestWatchActionDetail:
+                              openLatestWatchActionDetail,
+                          onClearWatchActionDrilldown: () {
+                            setActiveWatchActionDrilldown(null);
+                          },
+                        ),
+                      ),
+                    ],
+                    if (!showSuppressedPrimary &&
+                        suppressedEntries.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      KeyedSubtree(
+                        key: suppressedPanelKey,
+                        child: _suppressedReviewPanel(suppressedEntries),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    wide
+                        ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                flex: 8,
+                                child: _mapPanel(
+                                  markers: markers,
+                                  focusReference: focusReference,
+                                  focusLinked: focusLinked,
+                                  geofenceAlerts: geofenceAlerts,
+                                  sosAlerts: sosAlerts,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                flex: 4,
+                                child: _verificationPanel(
+                                  normMode: normMode,
+                                  timestamp: _clockLabel(now),
+                                  telemetry: lensTelemetry,
+                                ),
+                              ),
+                            ],
+                          )
+                        : Column(
+                            children: [
+                              _mapPanel(
+                                markers: markers,
+                                focusReference: focusReference,
+                                focusLinked: focusLinked,
+                                geofenceAlerts: geofenceAlerts,
+                                sosAlerts: sosAlerts,
+                              ),
+                              const SizedBox(height: 12),
+                              _verificationPanel(
+                                normMode: normMode,
+                                timestamp: _clockLabel(now),
+                                telemetry: lensTelemetry,
+                              ),
+                            ],
+                          ),
+                  ],
+                ),
+              ),
             ),
           ),
+        );
+      },
+    );
+  }
+
+  Widget _fleetScopePanel({
+    required BuildContext context,
+    required VideoFleetWatchActionDrilldown? activeWatchActionDrilldown,
+    required void Function(VideoFleetWatchActionDrilldown drilldown)
+    onOpenWatchActionDrilldown,
+    required void Function(VideoFleetScopeHealthView scope)
+    onOpenLatestWatchActionDetail,
+    required VoidCallback onClearWatchActionDrilldown,
+  }) {
+    final sections = VideoFleetScopeHealthSections.fromScopes(fleetScopeHealth);
+    final filteredSections = VideoFleetScopeHealthSections.fromScopes(
+      orderFleetScopesForWatchAction(
+        filterFleetScopesForWatchAction(
+          fleetScopeHealth,
+          activeWatchActionDrilldown,
         ),
+        activeWatchActionDrilldown,
       ),
     );
+    final primaryFocusedScope = primaryFleetScopeForWatchAction(
+      filteredSections,
+      activeWatchActionDrilldown,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (activeWatchActionDrilldown != null) ...[
+          _watchActionFocusBanner(
+            context,
+            activeWatchActionDrilldown,
+            focusedScope: primaryFocusedScope,
+            onExtendTemporaryIdentityApproval:
+                onExtendTemporaryIdentityApproval,
+            onExpireTemporaryIdentityApproval:
+                onExpireTemporaryIdentityApproval,
+            onClear: onClearWatchActionDrilldown,
+          ),
+          const SizedBox(height: 8),
+        ],
+        VideoFleetScopeHealthPanel(
+          title: 'DVR FLEET HEALTH',
+          titleStyle: GoogleFonts.inter(
+            color: const Color(0x66FFFFFF),
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.1,
+          ),
+          sectionLabelStyle: GoogleFonts.inter(
+            color: const Color(0xFF8EA4C2),
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.9,
+          ),
+          sections: filteredSections,
+          activeWatchActionDrilldown: activeWatchActionDrilldown,
+          summaryChildren: _fleetSummaryChips(
+            sections: sections,
+            activeWatchActionDrilldown: activeWatchActionDrilldown,
+            onOpenWatchActionDrilldown: onOpenWatchActionDrilldown,
+          ),
+          actionableChildren: filteredSections.actionableScopes
+              .map(
+                (scope) => _fleetScopeCard(
+                  scope: scope,
+                  activeWatchActionDrilldown: activeWatchActionDrilldown,
+                  onOpenLatestWatchActionDetail: onOpenLatestWatchActionDetail,
+                ),
+              )
+              .toList(growable: false),
+          watchOnlyChildren: filteredSections.watchOnlyScopes
+              .map(
+                (scope) => _fleetScopeCard(
+                  scope: scope,
+                  activeWatchActionDrilldown: activeWatchActionDrilldown,
+                  onOpenLatestWatchActionDetail: onOpenLatestWatchActionDetail,
+                ),
+              )
+              .toList(growable: false),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0E1A2B),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFF223244)),
+          ),
+          cardSpacing: 10,
+          runSpacing: 10,
+        ),
+      ],
+    );
+  }
+
+  List<_SuppressedFleetReviewEntry> _suppressedFleetReviewEntries() {
+    final output = <_SuppressedFleetReviewEntry>[];
+    for (final scope in fleetScopeHealth) {
+      if (!scope.hasSuppressedSceneAction) {
+        continue;
+      }
+      final intelligenceId = (scope.latestIncidentReference ?? '').trim();
+      if (intelligenceId.isEmpty) {
+        continue;
+      }
+      final review = sceneReviewByIntelligenceId[intelligenceId];
+      if (review == null) {
+        continue;
+      }
+      output.add(_SuppressedFleetReviewEntry(scope: scope, review: review));
+    }
+    output.sort(
+      (a, b) => b.review.reviewedAtUtc.compareTo(a.review.reviewedAtUtc),
+    );
+    return output.take(4).toList(growable: false);
+  }
+
+  Widget _suppressedReviewPanel(List<_SuppressedFleetReviewEntry> entries) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1A2B),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF223244)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'SUPPRESSED ${videoOpsLabel.toUpperCase()} REVIEWS',
+                style: GoogleFonts.inter(
+                  color: const Color(0x66FFFFFF),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              const SizedBox(width: 8),
+              _topChip(
+                'Internal',
+                '${entries.length}',
+                const Color(0xFF9AB1CF),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Recent ${videoOpsLabel.toUpperCase()} reviews ONYX held below the client-notification threshold across the active fleet.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB1CF),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: entries
+                .map((entry) => _suppressedReviewCard(entry: entry))
+                .toList(growable: false),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _suppressedReviewCard({required _SuppressedFleetReviewEntry entry}) {
+    final scope = entry.scope;
+    final review = entry.review;
+    return Container(
+      width: 280,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF101D31),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF23344C)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  scope.siteName,
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                _clockLabel(review.reviewedAtUtc.toLocal()),
+                style: GoogleFonts.robotoMono(
+                  color: const Color(0xFF8EA4C2),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _topChip(
+                'Action',
+                review.decisionLabel.trim().isEmpty
+                    ? 'Suppressed'
+                    : review.decisionLabel.trim(),
+                const Color(0xFFBFD7F2),
+              ),
+              if ((scope.latestCameraLabel ?? '').trim().isNotEmpty)
+                _topChip(
+                  'Camera',
+                  scope.latestCameraLabel!.trim(),
+                  const Color(0xFF8FD1FF),
+                ),
+              _topChip(
+                'Posture',
+                review.postureLabel.trim(),
+                const Color(0xFF86EFAC),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            review.decisionSummary.trim().isEmpty
+                ? 'Suppressed because the activity remained below threshold.'
+                : review.decisionSummary.trim(),
+            style: GoogleFonts.inter(
+              color: const Color(0xFFD9E7F7),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Scene review: ${review.summary.trim()}',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB1CF),
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _fleetScopeCard({
+    required VideoFleetScopeHealthView scope,
+    required VideoFleetWatchActionDrilldown? activeWatchActionDrilldown,
+    required void Function(VideoFleetScopeHealthView scope)
+    onOpenLatestWatchActionDetail,
+  }) {
+    final statusColor = switch (scope.statusLabel.toUpperCase()) {
+      'LIVE' => const Color(0xFF86EFAC),
+      'ACTIVE WATCH' => const Color(0xFF8FD1FF),
+      'WATCH READY' => const Color(0xFFFDE68A),
+      _ => const Color(0xFF9AB1CF),
+    };
+    final primaryOpenFleetScope = scope.hasIncidentContext
+        ? (onOpenFleetTacticalScope ?? onOpenFleetDispatchScope)
+        : null;
+    return VideoFleetScopeHealthCard(
+      title: scope.siteName,
+      endpointLabel: scope.endpointLabel,
+      lastSeenLabel: ': ${scope.lastSeenLabel}',
+      titleStyle: GoogleFonts.inter(
+        color: Colors.white,
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+      ),
+      endpointStyle: GoogleFonts.inter(
+        color: const Color(0xFF8EA4C2),
+        fontSize: 10,
+        fontWeight: FontWeight.w600,
+      ),
+      lastSeenStyle: GoogleFonts.inter(
+        color: const Color(0xFF9AB1CF),
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+      ),
+      noteStyle: GoogleFonts.inter(
+        color: const Color(0xFF9AB1CF),
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
+      ),
+      latestStyle: GoogleFonts.inter(
+        color: const Color(0xFFD9E7F7),
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+      ),
+      primaryChips: [
+        if ((scope.operatorOutcomeLabel ?? '').trim().isNotEmpty)
+          _topChip('Cue', scope.operatorOutcomeLabel!, const Color(0xFF67E8F9)),
+        if ((scope.operatorOutcomeLabel ?? '').trim().isEmpty &&
+            (scope.lastRecoveryLabel ?? '').trim().isNotEmpty)
+          _topChip(
+            'Recovery',
+            scope.lastRecoveryLabel!,
+            const Color(0xFF86EFAC),
+          ),
+        if (scope.hasWatchActivationGap)
+          _topChip(
+            'Gap',
+            scope.watchActivationGapLabel!,
+            const Color(0xFFFCA5A5),
+          ),
+        if (!scope.hasIncidentContext)
+          _topChip('Context', 'Pending', const Color(0xFFFDE68A)),
+        if (scope.identityPolicyChipValue != null)
+          _topChip(
+            'Identity',
+            scope.identityPolicyChipValue!,
+            identityPolicyAccentColorForScope(scope),
+          ),
+        if (scope.clientDecisionChipValue != null)
+          _topChip(
+            'Client',
+            scope.clientDecisionChipValue!,
+            scope.clientDecisionChipValue == 'Approved'
+                ? const Color(0xFF86EFAC)
+                : scope.clientDecisionChipValue == 'Review'
+                ? const Color(0xFFFDE68A)
+                : const Color(0xFFFCA5A5),
+          ),
+        _topChip('Status', scope.statusLabel, statusColor),
+        _topChip('Watch', scope.watchLabel, const Color(0xFF8FD1FF)),
+        _topChip(
+          'Freshness',
+          scope.freshnessLabel,
+          _fleetFreshnessColor(scope),
+        ),
+        _topChip('Events 6h', '${scope.recentEvents}', const Color(0xFF9AB1CF)),
+      ],
+      secondaryChips: [
+        if (scope.watchWindowLabel != null)
+          _topChip('Window', scope.watchWindowLabel!, const Color(0xFF86EFAC)),
+        if (scope.watchWindowStateLabel != null)
+          _topChip(
+            'Phase',
+            scope.watchWindowStateLabel!,
+            scope.watchWindowStateLabel == 'IN WINDOW'
+                ? const Color(0xFF86EFAC)
+                : const Color(0xFFFDE68A),
+          ),
+        if (scope.latestRiskScore != null)
+          _topChip(
+            'Risk',
+            _fleetRiskLabel(scope.latestRiskScore!),
+            _fleetRiskColor(scope.latestRiskScore!),
+          ),
+        if (scope.latestCameraLabel != null)
+          _topChip('Camera', scope.latestCameraLabel!, const Color(0xFF9AB1CF)),
+      ],
+      actionChildren: [
+        if (onRecoverFleetWatchScope != null && scope.hasWatchActivationGap)
+          _fleetActionButton(
+            label: 'Resync',
+            color: const Color(0xFFFCA5A5),
+            onPressed: () =>
+                onRecoverFleetWatchScope!.call(scope.clientId, scope.siteId),
+          ),
+        if (onOpenFleetTacticalScope != null && scope.hasIncidentContext)
+          _fleetActionButton(
+            label: 'Tactical',
+            color: const Color(0xFF8FD1FF),
+            onPressed: () => onOpenFleetTacticalScope!.call(
+              scope.clientId,
+              scope.siteId,
+              scope.latestIncidentReference,
+            ),
+          ),
+        if (onOpenFleetDispatchScope != null && scope.hasIncidentContext)
+          _fleetActionButton(
+            label: 'Dispatch',
+            color: const Color(0xFFFDE68A),
+            onPressed: () => onOpenFleetDispatchScope!.call(
+              scope.clientId,
+              scope.siteId,
+              scope.latestIncidentReference,
+            ),
+          ),
+      ],
+      noteText: scope.noteText,
+      latestText: prominentLatestTextForWatchAction(
+        scope,
+        activeWatchActionDrilldown,
+      ),
+      onLatestTap: () => onOpenLatestWatchActionDetail(scope),
+      onTap: primaryOpenFleetScope == null
+          ? null
+          : () => primaryOpenFleetScope.call(
+              scope.clientId,
+              scope.siteId,
+              scope.latestIncidentReference,
+            ),
+      decoration: BoxDecoration(
+        color: const Color(0xFF101D31),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF23344C)),
+      ),
+      constraints: const BoxConstraints(minWidth: 230, maxWidth: 320),
+    );
+  }
+
+  List<Widget> _fleetSummaryChips({
+    required VideoFleetScopeHealthSections sections,
+    required VideoFleetWatchActionDrilldown? activeWatchActionDrilldown,
+    required void Function(VideoFleetWatchActionDrilldown drilldown)
+    onOpenWatchActionDrilldown,
+  }) {
+    return [
+      _topChip('Active', '${sections.activeCount}', const Color(0xFF8FD1FF)),
+      _topChip('Gap', '${sections.gapCount}', const Color(0xFFFCA5A5)),
+      _topChip(
+        'High Risk',
+        '${sections.highRiskCount}',
+        const Color(0xFFFCA5A5),
+      ),
+      _topChip(
+        'Recovered 6h',
+        '${sections.recoveredCount}',
+        const Color(0xFF86EFAC),
+      ),
+      _topChip(
+        'Suppressed',
+        '${sections.suppressedCount}',
+        const Color(0xFF9AB1CF),
+      ),
+      _topChip(
+        'Alerts',
+        '${sections.alertActionCount}',
+        const Color(0xFF67E8F9),
+        isActive:
+            activeWatchActionDrilldown == VideoFleetWatchActionDrilldown.alerts,
+        onTap: sections.alertActionCount > 0
+            ? () => onOpenWatchActionDrilldown(
+                VideoFleetWatchActionDrilldown.alerts,
+              )
+            : null,
+      ),
+      _topChip(
+        'Repeat',
+        '${sections.repeatActionCount}',
+        const Color(0xFFFDE68A),
+        isActive:
+            activeWatchActionDrilldown == VideoFleetWatchActionDrilldown.repeat,
+        onTap: sections.repeatActionCount > 0
+            ? () => onOpenWatchActionDrilldown(
+                VideoFleetWatchActionDrilldown.repeat,
+              )
+            : null,
+      ),
+      _topChip(
+        'Escalated',
+        '${sections.escalationActionCount}',
+        const Color(0xFFFCA5A5),
+        isActive:
+            activeWatchActionDrilldown ==
+            VideoFleetWatchActionDrilldown.escalated,
+        onTap: sections.escalationActionCount > 0
+            ? () => onOpenWatchActionDrilldown(
+                VideoFleetWatchActionDrilldown.escalated,
+              )
+            : null,
+      ),
+      _topChip(
+        'Filtered',
+        '${sections.suppressedActionCount}',
+        const Color(0xFF9AB1CF),
+        isActive:
+            activeWatchActionDrilldown ==
+            VideoFleetWatchActionDrilldown.filtered,
+        onTap: sections.suppressedActionCount > 0
+            ? () => onOpenWatchActionDrilldown(
+                VideoFleetWatchActionDrilldown.filtered,
+              )
+            : null,
+      ),
+      _topChip(
+        'Flagged ID',
+        '${sections.flaggedIdentityCount}',
+        VideoFleetWatchActionDrilldown.flaggedIdentity.accentColor,
+        isActive:
+            activeWatchActionDrilldown ==
+            VideoFleetWatchActionDrilldown.flaggedIdentity,
+        onTap: sections.flaggedIdentityCount > 0
+            ? () => onOpenWatchActionDrilldown(
+                VideoFleetWatchActionDrilldown.flaggedIdentity,
+              )
+            : null,
+      ),
+      _topChip(
+        'Temporary ID',
+        '${sections.temporaryIdentityCount}',
+        temporaryIdentityAccentColorForScopes(fleetScopeHealth),
+        isActive:
+            activeWatchActionDrilldown ==
+            VideoFleetWatchActionDrilldown.temporaryIdentity,
+        onTap: sections.temporaryIdentityCount > 0
+            ? () => onOpenWatchActionDrilldown(
+                VideoFleetWatchActionDrilldown.temporaryIdentity,
+              )
+            : null,
+      ),
+      _topChip(
+        'Allowed ID',
+        '${sections.allowlistedIdentityCount}',
+        VideoFleetWatchActionDrilldown.allowlistedIdentity.accentColor,
+        isActive:
+            activeWatchActionDrilldown ==
+            VideoFleetWatchActionDrilldown.allowlistedIdentity,
+        onTap: sections.allowlistedIdentityCount > 0
+            ? () => onOpenWatchActionDrilldown(
+                VideoFleetWatchActionDrilldown.allowlistedIdentity,
+              )
+            : null,
+      ),
+      _topChip('Stale', '${sections.staleCount}', const Color(0xFFFDE68A)),
+      _topChip(
+        'No Incident',
+        '${sections.noIncidentCount}',
+        const Color(0xFF9AB1CF),
+      ),
+    ];
+  }
+
+  Widget _fleetActionButton({
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: color,
+        side: BorderSide(color: color.withValues(alpha: 0.45)),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700),
+      ),
+      child: Text(label),
+    );
+  }
+
+  Color _fleetRiskColor(int score) {
+    if (score >= 85) {
+      return const Color(0xFFFCA5A5);
+    }
+    if (score >= 70) {
+      return const Color(0xFFFDE68A);
+    }
+    if (score >= 40) {
+      return const Color(0xFF93C5FD);
+    }
+    return const Color(0xFF9AB1CF);
+  }
+
+  String _fleetRiskLabel(int score) {
+    if (score >= 85) {
+      return 'Critical';
+    }
+    if (score >= 70) {
+      return 'High';
+    }
+    if (score >= 40) {
+      return 'Watch';
+    }
+    return 'Routine';
+  }
+
+  Color _fleetFreshnessColor(VideoFleetScopeHealthView scope) {
+    return switch (scope.freshnessLabel) {
+      'Fresh' => const Color(0xFF86EFAC),
+      'Recent' => const Color(0xFF8FD1FF),
+      'Stale' => const Color(0xFFFCA5A5),
+      'Quiet' => const Color(0xFFFDE68A),
+      _ => const Color(0xFF9AB1CF),
+    };
   }
 
   Widget _topBar({
@@ -1127,13 +1867,23 @@ class TacticalPage extends StatelessWidget {
     );
   }
 
-  Widget _topChip(String label, String value, Color color) {
-    return Container(
+  Widget _topChip(
+    String label,
+    String value,
+    Color color, {
+    VoidCallback? onTap,
+    bool isActive = false,
+  }) {
+    final chip = Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: isActive
+            ? color.withValues(alpha: 0.16)
+            : const Color(0xFF0E1A2B),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.55)),
+        border: Border.all(
+          color: color.withValues(alpha: isActive ? 0.95 : 0.55),
+        ),
       ),
       child: Text(
         '$label • $value',
@@ -1144,6 +1894,197 @@ class TacticalPage extends StatelessWidget {
         ),
       ),
     );
+    if (onTap == null) {
+      return chip;
+    }
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: chip,
+    );
+  }
+
+  Widget _watchActionFocusBanner(
+    BuildContext context,
+    VideoFleetWatchActionDrilldown active, {
+    required VideoFleetScopeHealthView? focusedScope,
+    required Future<String> Function(VideoFleetScopeHealthView scope)?
+    onExtendTemporaryIdentityApproval,
+    required Future<String> Function(VideoFleetScopeHealthView scope)?
+    onExpireTemporaryIdentityApproval,
+    required VoidCallback onClear,
+  }) {
+    final canMutateTemporaryApproval =
+        active == VideoFleetWatchActionDrilldown.temporaryIdentity &&
+        focusedScope != null;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: active.focusBannerBackgroundColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: active.focusBannerBorderColor),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  active.focusBannerTitle,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFEAF4FF),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  focusDetailForWatchAction(fleetScopeHealth, active),
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF9AB1CF),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              if (canMutateTemporaryApproval &&
+                  onExtendTemporaryIdentityApproval != null)
+                TextButton(
+                  onPressed: () async {
+                    final message = await onExtendTemporaryIdentityApproval(
+                      focusedScope,
+                    );
+                    if (!context.mounted) {
+                      return;
+                    }
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(message)));
+                  },
+                  child: Text(
+                    'Extend 2h',
+                    style: GoogleFonts.inter(
+                      color: active.focusBannerActionColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              if (canMutateTemporaryApproval &&
+                  onExpireTemporaryIdentityApproval != null)
+                TextButton(
+                  onPressed: () async {
+                    final confirmed =
+                        await _confirmExpireTemporaryIdentityApproval(
+                          context,
+                          focusedScope,
+                        );
+                    if (!confirmed) {
+                      return;
+                    }
+                    final message = await onExpireTemporaryIdentityApproval(
+                      focusedScope,
+                    );
+                    if (!context.mounted) {
+                      return;
+                    }
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(message)));
+                  },
+                  child: Text(
+                    'Expire now',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFFCA5A5),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              TextButton(
+                onPressed: onClear,
+                child: Text(
+                  'Clear',
+                  style: GoogleFonts.inter(
+                    color: active.focusBannerActionColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool> _confirmExpireTemporaryIdentityApproval(
+    BuildContext context,
+    VideoFleetScopeHealthView scope,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF161B22),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: const BorderSide(color: Color(0xFF30363D)),
+          ),
+          title: Text(
+            'Expire Temporary Approval?',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF4FF),
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          content: Text(
+            'This immediately removes the temporary identity approval for ${scope.siteName}. Future matches will no longer be treated as approved.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB1CF),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF9AB1CF),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFB91C1C),
+                foregroundColor: const Color(0xFFEAF4FF),
+              ),
+              child: Text(
+                'Expire now',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+    return confirmed == true;
   }
 
   Widget _legendPill(String label, Color color) {

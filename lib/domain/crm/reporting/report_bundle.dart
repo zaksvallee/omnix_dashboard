@@ -17,6 +17,7 @@ class ReportBundle {
   final List<GuardPerformanceSnapshot> guardPerformance;
   final PatrolPerformanceSnapshot patrolPerformance;
   final List<IncidentDetailSnapshot> incidentDetails;
+  final SceneReviewSnapshot sceneReview;
   final SupervisorAssessment supervisorAssessment;
   final CompanyAchievementsSnapshot companyAchievements;
   final EmergingThreatSnapshot emergingThreats;
@@ -30,6 +31,7 @@ class ReportBundle {
     required this.guardPerformance,
     required this.patrolPerformance,
     required this.incidentDetails,
+    required this.sceneReview,
     required this.supervisorAssessment,
     required this.companyAchievements,
     required this.emergingThreats,

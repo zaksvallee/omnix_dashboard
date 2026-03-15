@@ -16,6 +16,8 @@ import 'application/cctv_evidence_probe_service.dart';
 import 'application/cctv_false_positive_policy.dart';
 import 'application/dvr_bridge_service.dart';
 import 'application/dvr_evidence_probe_service.dart';
+import 'application/dvr_http_auth.dart';
+import 'application/dvr_scope_config.dart';
 import 'application/dispatch_persistence_service.dart';
 import 'application/dispatch_snapshot_file_service.dart';
 import 'application/dispatch_application_service.dart';
@@ -27,6 +29,26 @@ import 'application/guard_telemetry_ingestion_adapter.dart';
 import 'application/guard_telemetry_replay_fixture_service.dart';
 import 'application/intake_stress_service.dart';
 import 'application/morning_sovereign_report_service.dart';
+import 'application/monitoring_shift_notification_service.dart';
+import 'application/monitoring_scene_review_store.dart';
+import 'application/monitoring_watch_escalation_policy_service.dart';
+import 'application/monitoring_identity_policy_service.dart';
+import 'application/monitoring_watch_outcome_cue_store.dart';
+import 'application/monitoring_watch_recovery_policy.dart';
+import 'application/monitoring_watch_recovery_scope_resolver.dart';
+import 'application/monitoring_watch_recovery_store.dart';
+import 'application/monitoring_watch_runtime_store.dart';
+import 'application/monitoring_watch_scene_assessment_service.dart';
+import 'application/monitoring_temporary_identity_approval_service.dart';
+import 'application/monitoring_watch_vision_review_service.dart';
+import 'application/report_shell_state.dart';
+import 'application/report_preview_request.dart';
+import 'application/monitoring_watch_resync_plan_service.dart';
+import 'application/monitoring_watch_resync_outcome_recorder.dart';
+import 'application/monitoring_watch_schedule_sync_plan_service.dart';
+import 'application/monitoring_shift_schedule_service.dart';
+import 'application/site_identity_registry_repository.dart';
+import 'application/monitoring_shift_scope_config.dart';
 import 'application/offline_incident_spool_service.dart';
 import 'application/ops_integration_profile.dart';
 import 'application/radio_bridge_service.dart';
@@ -34,7 +56,11 @@ import 'application/runtime_config.dart';
 import 'application/telegram_admin_command_formatter.dart';
 import 'application/telegram_ai_assistant_service.dart';
 import 'application/telegram_bridge_service.dart';
+import 'application/telegram_client_approval_service.dart';
+import 'application/telegram_identity_intake_service.dart';
 import 'application/video_bridge_health_formatter.dart';
+import 'application/video_fleet_scope_presentation_service.dart';
+import 'application/video_fleet_scope_runtime_state_resolver.dart';
 import 'application/video_bridge_runtime.dart';
 import 'application/wearable_bridge_service.dart';
 import 'domain/authority/operator_context.dart';
@@ -70,6 +96,7 @@ import 'ui/app_shell.dart';
 import 'ui/ai_queue_page.dart';
 import 'ui/admin_page.dart';
 import 'ui/client_intelligence_reports_page.dart';
+import 'presentation/reports/report_preview_controller.dart';
 import 'ui/client_app_page.dart';
 import 'ui/clients_page.dart';
 import 'ui/dispatch_page.dart';
@@ -81,6 +108,8 @@ import 'ui/live_operations_page.dart';
 import 'ui/sites_command_page.dart';
 import 'ui/sovereign_ledger_page.dart';
 import 'ui/tactical_page.dart';
+import 'ui/video_fleet_scope_health_sections.dart';
+import 'ui/video_fleet_scope_health_view.dart';
 
 enum OnyxAppMode { controller, guard, client }
 
@@ -266,6 +295,18 @@ class _TelegramInboundClientTarget {
   });
 }
 
+class _MonitoringWatchTarget {
+  final String clientId;
+  final String siteId;
+  final String cameraLabel;
+
+  const _MonitoringWatchTarget({
+    required this.clientId,
+    required this.siteId,
+    this.cameraLabel = 'Camera 1',
+  });
+}
+
 class _TelegramAiPendingDraft {
   final int inboundUpdateId;
   final String chatId;
@@ -381,6 +422,10 @@ class OnyxApp extends StatefulWidget {
 
 class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   static const _liveFeeds = ConfiguredLiveFeedService();
+  static const _monitoringShiftNotifications =
+      MonitoringShiftNotificationService();
+  static const _telegramClientApprovalService = TelegramClientApprovalService();
+  static const _telegramIdentityIntakeService = TelegramIdentityIntakeService();
   late final NewsIntelligenceService _newsIntel;
   static const _browserFiles = DispatchSnapshotFileService();
   static const _guardMediaCapture = FilePickerGuardMediaCaptureService();
@@ -404,6 +449,21 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   );
   static const _dvrBearerTokenEnv = String.fromEnvironment(
     'ONYX_DVR_BEARER_TOKEN',
+  );
+  static const _dvrAuthModeEnv = String.fromEnvironment('ONYX_DVR_AUTH_MODE');
+  static const _dvrUsernameEnv = String.fromEnvironment('ONYX_DVR_USERNAME');
+  static const _dvrPasswordEnv = String.fromEnvironment('ONYX_DVR_PASSWORD');
+  static const _clientIdEnv = String.fromEnvironment(
+    'ONYX_CLIENT_ID',
+    defaultValue: 'CLIENT-MS-VALLEE',
+  );
+  static const _regionIdEnv = String.fromEnvironment(
+    'ONYX_REGION_ID',
+    defaultValue: 'REGION-GAUTENG',
+  );
+  static const _siteIdEnv = String.fromEnvironment(
+    'ONYX_SITE_ID',
+    defaultValue: 'SITE-MS-VALLEE-RESIDENCE',
   );
   static const _wearableProviderEnv = String.fromEnvironment(
     'ONYX_WEARABLE_PROVIDER',
@@ -444,6 +504,35 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   static const _dvrEvidenceProbeStaleSecondsEnv = int.fromEnvironment(
     'ONYX_DVR_STALE_FRAME_SECONDS',
     defaultValue: 1800,
+  );
+  static const _dvrScopeConfigsJsonEnv = String.fromEnvironment(
+    'ONYX_DVR_SCOPE_CONFIGS_JSON',
+  );
+  static const _monitoringShiftAutoEnabledEnv = bool.fromEnvironment(
+    'ONYX_MONITORING_SHIFT_AUTO_ENABLED',
+    defaultValue: false,
+  );
+  static const _monitoringShiftStartHourEnv = int.fromEnvironment(
+    'ONYX_MONITORING_SHIFT_START_HOUR',
+    defaultValue: 18,
+  );
+  static const _monitoringShiftStartMinuteEnv = int.fromEnvironment(
+    'ONYX_MONITORING_SHIFT_START_MINUTE',
+    defaultValue: 0,
+  );
+  static const _monitoringShiftEndHourEnv = int.fromEnvironment(
+    'ONYX_MONITORING_SHIFT_END_HOUR',
+    defaultValue: 6,
+  );
+  static const _monitoringShiftEndMinuteEnv = int.fromEnvironment(
+    'ONYX_MONITORING_SHIFT_END_MINUTE',
+    defaultValue: 0,
+  );
+  static const _monitoringShiftScopesJsonEnv = String.fromEnvironment(
+    'ONYX_MONITORING_SHIFT_SCOPES_JSON',
+  );
+  static const _monitoringIdentityRulesJsonEnv = String.fromEnvironment(
+    'ONYX_MONITORING_IDENTITY_RULES_JSON',
   );
   static const _cctvLiveMonitoringEnv = bool.fromEnvironment(
     'ONYX_CCTV_LIVE_MONITORING',
@@ -564,9 +653,26 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   static const _telegramAiEndpointEnv = String.fromEnvironment(
     'ONYX_TELEGRAM_AI_OPENAI_ENDPOINT',
   );
+  static const _monitoringVisionReviewEnabledEnv = bool.fromEnvironment(
+    'ONYX_MONITORING_VISION_REVIEW_ENABLED',
+    defaultValue: false,
+  );
+  static const _monitoringVisionOpenAiApiKeyEnv = String.fromEnvironment(
+    'ONYX_MONITORING_VISION_OPENAI_API_KEY',
+  );
+  static const _monitoringVisionModelEnv = String.fromEnvironment(
+    'ONYX_MONITORING_VISION_OPENAI_MODEL',
+    defaultValue: 'gpt-4.1-mini',
+  );
+  static const _monitoringVisionEndpointEnv = String.fromEnvironment(
+    'ONYX_MONITORING_VISION_OPENAI_ENDPOINT',
+  );
   late final OnyxAppMode _appMode = _resolveAppMode();
+  late final List<MonitoringShiftScopeConfig> _configuredMonitoringShiftScopes =
+      _resolveMonitoringShiftScopes();
   late final ClientPushDeliveryProvider _clientPushDeliveryProvider =
       ClientPushDeliveryProviderParser.fromCode(_clientPushDeliveryProviderEnv);
+  late final List<DvrScopeConfig> _configuredDvrScopes = _resolveDvrScopes();
   final GuardTelemetryIngestionAdapter _guardTelemetryAdapter =
       createGuardTelemetryIngestionAdapter(
         wearableHeartbeatUrl: _wearableTelemetryAdapterUrl,
@@ -588,9 +694,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   final http.Client _wearableBridgeHttpClient = http.Client();
   final http.Client _telegramBridgeHttpClient = http.Client();
   final http.Client _telegramAiHttpClient = http.Client();
+  final http.Client _monitoringVisionHttpClient = http.Client();
   late final TelegramBridgeService _telegramBridge = _buildTelegramBridge();
   late final TelegramAiAssistantService _telegramAiAssistant =
       _buildTelegramAiAssistant();
+  late final MonitoringWatchVisionReviewService _monitoringWatchVisionReview =
+      _buildMonitoringWatchVisionReview();
   late final OnyxOpsIntegrationProfile _opsIntegrationProfile =
       OnyxOpsIntegrationProfile.fromEnvironment(
         radioProvider: _radioProviderEnv,
@@ -613,7 +722,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     bearerToken: _radioBearerTokenEnv,
     client: _radioBridgeHttpClient,
   );
-  late final VideoBridgeService _videoBridgeService = _buildVideoBridgeService();
+  late final VideoBridgeService _videoBridgeService =
+      _buildVideoBridgeService();
   late final CctvFalsePositivePolicy _cctvFalsePositivePolicy =
       CctvFalsePositivePolicy.fromJsonString(_cctvFalsePositiveRulesEnv);
   late final VideoEvidenceProbeService _videoEvidenceProbeService =
@@ -713,11 +823,28 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   String _eventsSourceFilter = '';
   String _eventsProviderFilter = '';
   String _eventsSelectedEventId = '';
+  ReportShellState _reportShellState = const ReportShellState();
   String _operationsFocusIncidentReference = '';
+  VideoFleetWatchActionDrilldown? _tacticalWatchActionDrilldown;
+  VideoFleetWatchActionDrilldown? _dispatchWatchActionDrilldown;
+  String? _dispatchSelectedDispatchId;
+  AdministrationPageTab _adminPageTab = AdministrationPageTab.guards;
+  VideoFleetWatchActionDrilldown? _adminWatchActionDrilldown;
+  MonitoringIdentityPolicyAuditSource? _adminIdentityPolicyAuditSourceFilter;
+  bool _adminIdentityPolicyAuditExpanded = true;
 
-  final String _selectedClient = 'CLIENT-001';
-  final String _selectedRegion = 'REGION-GAUTENG';
-  final String _selectedSite = 'SITE-SANDTON';
+  late final String _selectedClient = _resolvedScopeValue(
+    _clientIdEnv,
+    fallback: 'CLIENT-MS-VALLEE',
+  );
+  late final String _selectedRegion = _resolvedScopeValue(
+    _regionIdEnv,
+    fallback: 'REGION-GAUTENG',
+  );
+  late final String _selectedSite = _resolvedScopeValue(
+    _siteIdEnv,
+    fallback: 'SITE-MS-VALLEE-RESIDENCE',
+  );
 
   String? _lastIntakeStatus;
   String? _lastStressStatus;
@@ -772,6 +899,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   String _telegramBridgeHealthLabel = 'disabled';
   String? _telegramBridgeHealthDetail;
   DateTime? _telegramBridgeHealthUpdatedAtUtc;
+  String? _monitoringWatchAuditSummary;
+  List<String> _monitoringWatchAuditHistory = const [];
   int? _telegramAdminLastUpdateId;
   bool _telegramAdminPollInFlight = false;
   bool _telegramAdminOffsetBootstrapped = false;
@@ -804,6 +933,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   List<ClientBackendProbeAttempt> _clientAppBackendProbeHistory = const [];
   List<NewsSourceDiagnostic> _newsSourceDiagnostics = const [];
   String _radioIntentPhrasesJsonOverride = '';
+  String _monitoringIdentityRulesJsonOverride = '';
+  List<MonitoringIdentityPolicyAuditRecord>
+  _monitoringIdentityRuleAuditHistory =
+      const <MonitoringIdentityPolicyAuditRecord>[];
   String _demoRouteCueOverridesJson = '';
   Map<String, String> _demoRouteCueOverrides = const {};
   List<String> _livePollingHistory = const [];
@@ -825,6 +958,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   DateTime? _offlineIncidentSpoolLastSyncedAtUtc;
   String? _offlineIncidentSpoolFailureReason;
   List<String> _offlineIncidentSpoolHistory = const [];
+  Map<String, Object?> _offlineIncidentSpoolReplayAudit = const {};
   bool _offlineIncidentSpoolSyncInFlight = false;
   int _offlineIncidentSpoolSyncFailures = 0;
   int _guardOutcomePolicyDeniedCount = 0;
@@ -845,6 +979,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   Map<String, Object?> _guardExportAuditClearMeta = const {};
   SovereignReport? _morningSovereignReport;
   String? _morningSovereignReportAutoRunKey;
+  GovernanceSceneActionFocus? _governanceSceneActionFocus;
   Map<String, DateTime> _guardCoachingPromptSnoozedUntilByRule = const {};
   final Set<String> _guardCoachingSnoozeExpiryEventInFlightRules = {};
   int _guardCoachingAckCount = 0;
@@ -890,6 +1025,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   Timer? _guardOpsSyncTimer;
   Timer? _offlineIncidentSpoolSyncTimer;
   Timer? _telegramAdminPollTimer;
+  Timer? _monitoringWatchScheduleTimer;
   Timer? _demoAutopilotRouteTimer;
   Timer? _demoAutopilotCountdownTimer;
   Timer? _telegramDemoScriptTimer;
@@ -902,6 +1038,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   DateTime? _telegramDemoScriptStartedAtUtc;
   DateTime? _telegramDemoScriptNextStepAtUtc;
   List<ClientAppPushDeliveryItem> _telegramDemoScriptPendingItems = const [];
+  final Map<String, MonitoringWatchRuntimeState> _monitoringWatchByScope = {};
+  final Map<String, MonitoringWatchOutcomeCueState>
+  _monitoringWatchOutcomeByScope = {};
+  final Map<String, MonitoringWatchRecoveryState>
+  _monitoringWatchRecoveryByScope = {};
+  final Map<String, MonitoringSceneReviewRecord>
+  _monitoringSceneReviewByIntelligenceId = {};
   bool _demoAutopilotRunning = false;
   bool _demoAutopilotPaused = false;
   int _demoAutopilotCurrentStep = 0;
@@ -931,6 +1074,43 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   bool _opsIntegrationPollInFlight = false;
   DateTime? _lastGuardResumeSyncEventQueuedAtUtc;
   late final OutcomeLabelGovernancePolicy _outcomeGovernancePolicy;
+  static const MonitoringWatchRecoveryPolicy _watchRecoveryPolicy =
+      MonitoringWatchRecoveryPolicy();
+  late MonitoringIdentityPolicyService _watchIdentityPolicyService;
+  MonitoringTemporaryIdentityApprovalService
+  _watchTemporaryIdentityApprovalService =
+      const MonitoringTemporaryIdentityApprovalService();
+  static const MonitoringWatchOutcomeCueStore _watchOutcomeCueStore =
+      MonitoringWatchOutcomeCueStore();
+  late MonitoringWatchSceneAssessmentService _watchSceneAssessmentService;
+  static const MonitoringWatchEscalationPolicyService
+  _watchEscalationPolicyService = MonitoringWatchEscalationPolicyService();
+  static const MonitoringWatchRecoveryStore _watchRecoveryStore =
+      MonitoringWatchRecoveryStore(policy: _watchRecoveryPolicy);
+  static const MonitoringWatchRuntimeStore _watchRuntimeStore =
+      MonitoringWatchRuntimeStore();
+  static const MonitoringWatchRecoveryScopeResolver
+  _watchRecoveryScopeResolver = MonitoringWatchRecoveryScopeResolver();
+  static const MonitoringSceneReviewStore _monitoringSceneReviewStore =
+      MonitoringSceneReviewStore();
+  static const MonitoringWatchResyncOutcomeRecorder
+  _watchResyncOutcomeRecorder = MonitoringWatchResyncOutcomeRecorder(
+    outcomeCueStore: _watchOutcomeCueStore,
+    recoveryStore: _watchRecoveryStore,
+  );
+  static const MonitoringWatchResyncPlanService _watchResyncPlanService =
+      MonitoringWatchResyncPlanService();
+  static const MonitoringWatchScheduleSyncPlanService
+  _watchScheduleSyncPlanService = MonitoringWatchScheduleSyncPlanService();
+  static const VideoFleetScopeRuntimeStateResolver _fleetRuntimeStateResolver =
+      VideoFleetScopeRuntimeStateResolver(
+        outcomeCueStore: _watchOutcomeCueStore,
+        recoveryStore: _watchRecoveryStore,
+      );
+  static const VideoFleetScopePresentationService _fleetPresentationService =
+      VideoFleetScopePresentationService(
+        runtimeStateResolver: _fleetRuntimeStateResolver,
+      );
 
   int get _guardResumeSyncEventThrottleSeconds {
     return _positiveThreshold(
@@ -941,6 +1121,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   int _positiveThreshold(int raw, {required int fallback}) {
     return raw > 0 ? raw : fallback;
+  }
+
+  static String _resolvedScopeValue(String raw, {required String fallback}) {
+    final trimmed = raw.trim();
+    return trimmed.isEmpty ? fallback : trimmed;
   }
 
   int get _normalizedTelegramAdminPollIntervalSeconds {
@@ -1091,9 +1276,49 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     );
   }
 
+  MonitoringWatchVisionReviewService _buildMonitoringWatchVisionReview() {
+    if (!_monitoringVisionReviewEnabledEnv) {
+      return const UnconfiguredMonitoringWatchVisionReviewService();
+    }
+    final apiKey = _monitoringVisionOpenAiApiKeyEnv.trim().isNotEmpty
+        ? _monitoringVisionOpenAiApiKeyEnv.trim()
+        : _telegramAiOpenAiApiKeyEnv.trim();
+    final model = _monitoringVisionModelEnv.trim().isNotEmpty
+        ? _monitoringVisionModelEnv.trim()
+        : _telegramAiModelEnv.trim();
+    if (apiKey.isEmpty || model.isEmpty) {
+      return const UnconfiguredMonitoringWatchVisionReviewService();
+    }
+    final endpoint = _monitoringVisionEndpointEnv.trim().isNotEmpty
+        ? _monitoringVisionEndpointEnv.trim()
+        : _telegramAiEndpointEnv.trim();
+    return OpenAiMonitoringWatchVisionReviewService(
+      client: _monitoringVisionHttpClient,
+      apiKey: apiKey,
+      model: model,
+      endpoint: endpoint.isEmpty ? null : Uri.tryParse(endpoint),
+    );
+  }
+
+  void _rebuildWatchSceneAssessmentService() {
+    _watchTemporaryIdentityApprovalService =
+        _watchTemporaryIdentityApprovalService.pruneExpired();
+    _watchSceneAssessmentService = MonitoringWatchSceneAssessmentService(
+      identityPolicyService: _watchIdentityPolicyService,
+      temporaryIdentityApprovalService: _watchTemporaryIdentityApprovalService,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
+    _watchIdentityPolicyService = MonitoringIdentityPolicyService.parseJson(
+      _monitoringIdentityRulesJsonEnv,
+    );
+    _rebuildWatchSceneAssessmentService();
+    if (widget.supabaseReady) {
+      unawaited(_hydrateTemporaryIdentityApprovalsFromSupabase());
+    }
     WidgetsBinding.instance.addObserver(this);
     _telegramBridgeHealthLabel = _telegramBridge.isConfigured
         ? 'configured'
@@ -1173,8 +1398,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
     final operator = OperatorContext(
       operatorId: 'OPERATOR-01',
-      allowedRegions: {'REGION-GAUTENG'},
-      allowedSites: {'SITE-SANDTON'},
+      allowedRegions: {_selectedRegion},
+      allowedSites: {_selectedSite},
     );
 
     service = DispatchApplicationService(
@@ -1194,14 +1419,24 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _hydrateLivePollSummary();
     _hydrateNewsSourceDiagnostics();
     _hydrateRadioIntentPhraseConfig();
+    _hydrateMonitoringIdentityRulesConfig();
+    _hydrateMonitoringIdentityRuleAuditHistory();
+    _hydrateMonitoringIdentityRuleAuditUiState();
+    _hydrateAdminPageTab();
+    _hydrateAdminWatchActionDrilldown();
     _hydratePendingRadioAutomatedResponses();
     _hydrateOpsIntegrationHealthSnapshot();
     _hydrateStressProfile();
     _hydrateClientAppDraft();
     _hydrateTelegramAdminRuntimeState();
+    _hydrateMonitoringWatchRuntimeState();
+    _hydrateMonitoringWatchAuditState();
+    _hydrateMonitoringWatchRecoveryState();
+    _hydrateMonitoringSceneReviewState();
     _hydrateGuardSyncState();
     _hydrateGuardOpsState();
     _hydrateOfflineIncidentSpoolState();
+    _hydrateOfflineIncidentSpoolReplayAudit();
     _hydrateGuardOutcomeGovernanceTelemetry();
     _hydrateGuardCoachingPromptSnoozes();
     _hydrateGuardCoachingTelemetry();
@@ -1215,6 +1450,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _startOfflineIncidentSpoolSyncLoop();
     _startOpsIntegrationPollingLoop();
     _startTelegramAdminControlLoop();
+    _startMonitoringWatchScheduleLoop();
   }
 
   // ignore: unused_element
@@ -1241,6 +1477,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _guardOpsSyncTimer?.cancel();
     _offlineIncidentSpoolSyncTimer?.cancel();
     _telegramAdminPollTimer?.cancel();
+    _monitoringWatchScheduleTimer?.cancel();
     _telegramDemoScriptTimer?.cancel();
     _cancelDemoAutopilot();
     _radioBridgeHttpClient.close();
@@ -1248,6 +1485,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _wearableBridgeHttpClient.close();
     _telegramBridgeHttpClient.close();
     _telegramAiHttpClient.close();
+    _monitoringVisionHttpClient.close();
     super.dispose();
   }
 
@@ -1259,6 +1497,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           state == AppLifecycleState.detached) {
         _opsIntegrationPollTimer?.cancel();
         _opsIntegrationPollTimer = null;
+        _monitoringWatchScheduleTimer?.cancel();
+        _monitoringWatchScheduleTimer = null;
         if (!_keepTelegramPollingWhenBackgrounded) {
           _telegramAdminPollTimer?.cancel();
           _telegramAdminPollTimer = null;
@@ -1268,6 +1508,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     _startOpsIntegrationPollingLoop();
     _startTelegramAdminControlLoop();
+    _startMonitoringWatchScheduleLoop();
     unawaited(_maybeAutoGenerateMorningSovereignReport());
     if (!widget.supabaseReady || _guardOpsSyncInFlight) return;
     if (mounted) {
@@ -1407,6 +1648,107 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     });
   }
 
+  void _applyMonitoringIdentityPolicyRuntime(
+    MonitoringIdentityPolicyService service,
+    String rawJson,
+  ) {
+    _watchIdentityPolicyService = service;
+    _rebuildWatchSceneAssessmentService();
+    if (!mounted) return;
+    setState(() {
+      _monitoringIdentityRulesJsonOverride = rawJson.trim();
+    });
+  }
+
+  Future<void> _hydrateMonitoringIdentityRulesConfig() async {
+    final persistence = await _persistenceServiceFuture;
+    final raw = await persistence.readMonitoringIdentityRulesJson();
+    if (raw == null) return;
+    final service = MonitoringIdentityPolicyService.parseJson(raw);
+    _applyMonitoringIdentityPolicyRuntime(service, raw);
+  }
+
+  Future<void> _hydrateTemporaryIdentityApprovalsFromSupabase() async {
+    if (!widget.supabaseReady) {
+      return;
+    }
+    try {
+      final repository = SupabaseSiteIdentityRegistryRepository(
+        Supabase.instance.client,
+      );
+      final profiles = await repository.listActiveTemporaryApprovalProfiles();
+      _watchTemporaryIdentityApprovalService =
+          MonitoringTemporaryIdentityApprovalService.fromProfiles(profiles);
+      _rebuildWatchSceneAssessmentService();
+    } catch (_) {
+      // Temporary approvals are an enhancement path; keep monitoring alive if sync fails.
+    }
+  }
+
+  Future<void> _hydrateMonitoringIdentityRuleAuditHistory() async {
+    final persistence = await _persistenceServiceFuture;
+    final restored = await persistence.readMonitoringIdentityRuleAuditHistory();
+    if (!mounted) {
+      _monitoringIdentityRuleAuditHistory = restored;
+      return;
+    }
+    setState(() {
+      _monitoringIdentityRuleAuditHistory = restored;
+    });
+  }
+
+  Future<void> _hydrateMonitoringIdentityRuleAuditUiState() async {
+    final persistence = await _persistenceServiceFuture;
+    final restoredSource = await persistence
+        .readMonitoringIdentityRuleAuditSourceFilter();
+    final restoredExpanded = await persistence
+        .readMonitoringIdentityRuleAuditExpanded();
+    if (!mounted) {
+      _adminIdentityPolicyAuditSourceFilter = restoredSource;
+      if (restoredExpanded != null) {
+        _adminIdentityPolicyAuditExpanded = restoredExpanded;
+      }
+      return;
+    }
+    setState(() {
+      _adminIdentityPolicyAuditSourceFilter = restoredSource;
+      if (restoredExpanded != null) {
+        _adminIdentityPolicyAuditExpanded = restoredExpanded;
+      }
+    });
+  }
+
+  Future<void> _hydrateAdminPageTab() async {
+    final persistence = await _persistenceServiceFuture;
+    final restored = await persistence.readAdminPageTab();
+    if (restored == null) return;
+    if (!mounted) {
+      _adminPageTab = restored;
+      return;
+    }
+    setState(() {
+      _adminPageTab = restored;
+    });
+  }
+
+  Future<void> _hydrateAdminWatchActionDrilldown() async {
+    final persistence = await _persistenceServiceFuture;
+    final restored = await persistence.readAdminWatchActionDrilldown();
+    if (!mounted) {
+      _adminWatchActionDrilldown = restored;
+      if (restored != null) {
+        _adminPageTab = AdministrationPageTab.system;
+      }
+      return;
+    }
+    setState(() {
+      _adminWatchActionDrilldown = restored;
+      if (restored != null) {
+        _adminPageTab = AdministrationPageTab.system;
+      }
+    });
+  }
+
   Future<void> _saveRadioIntentPhraseConfig(String rawJson) async {
     final trimmed = rawJson.trim();
     if (trimmed.isEmpty) {
@@ -1438,6 +1780,68 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _radioIntentPhrasesJsonOverride = '';
       _lastIntakeStatus = 'Radio intent phrase dictionary reset to defaults.';
     });
+  }
+
+  Future<void> _saveMonitoringIdentityRulesConfig(
+    MonitoringIdentityPolicyService service,
+  ) async {
+    final rawJson = service.toCanonicalJsonString();
+    final persistence = await _persistenceServiceFuture;
+    await persistence.saveMonitoringIdentityRulesJson(rawJson);
+    _watchIdentityPolicyService = service;
+    _rebuildWatchSceneAssessmentService();
+    if (!mounted) return;
+    setState(() {
+      _monitoringIdentityRulesJsonOverride = rawJson;
+      _lastIntakeStatus = 'Monitoring identity rules updated.';
+    });
+  }
+
+  Future<void> _clearMonitoringIdentityRulesConfig() async {
+    final persistence = await _persistenceServiceFuture;
+    await persistence.clearMonitoringIdentityRulesJson();
+    final service = MonitoringIdentityPolicyService.parseJson(
+      _monitoringIdentityRulesJsonEnv,
+    );
+    _watchIdentityPolicyService = service;
+    _rebuildWatchSceneAssessmentService();
+    if (!mounted) return;
+    setState(() {
+      _monitoringIdentityRulesJsonOverride = '';
+      _lastIntakeStatus =
+          'Monitoring identity rules reset to environment defaults.';
+    });
+  }
+
+  Future<void> _persistMonitoringIdentityRuleAuditHistory() async {
+    final persistence = await _persistenceServiceFuture;
+    await persistence.saveMonitoringIdentityRuleAuditHistory(
+      _monitoringIdentityRuleAuditHistory,
+    );
+  }
+
+  Future<void> _persistMonitoringIdentityRuleAuditSourceFilter() async {
+    final persistence = await _persistenceServiceFuture;
+    await persistence.saveMonitoringIdentityRuleAuditSourceFilter(
+      _adminIdentityPolicyAuditSourceFilter,
+    );
+  }
+
+  Future<void> _persistMonitoringIdentityRuleAuditExpanded() async {
+    final persistence = await _persistenceServiceFuture;
+    await persistence.saveMonitoringIdentityRuleAuditExpanded(
+      _adminIdentityPolicyAuditExpanded,
+    );
+  }
+
+  Future<void> _persistAdminWatchActionDrilldown() async {
+    final persistence = await _persistenceServiceFuture;
+    await persistence.saveAdminWatchActionDrilldown(_adminWatchActionDrilldown);
+  }
+
+  Future<void> _persistAdminPageTab() async {
+    final persistence = await _persistenceServiceFuture;
+    await persistence.saveAdminPageTab(_adminPageTab);
   }
 
   Future<void> _saveDemoRouteCueOverridesConfig(String rawJson) async {
@@ -1956,6 +2360,151 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     });
   }
 
+  Future<void> _hydrateMonitoringWatchRuntimeState() async {
+    final persistence = await _persistenceServiceFuture;
+    final raw = await persistence.readMonitoringWatchRuntimeState();
+    final restored = _watchRuntimeStore.parsePersistedState(raw);
+    _monitoringWatchByScope
+      ..clear()
+      ..addAll(restored);
+    if (mounted) {
+      setState(() {});
+    }
+    if (_monitoringShiftAutoEligible) {
+      unawaited(_syncMonitoringWatchScheduleNow());
+    }
+  }
+
+  Future<void> _persistMonitoringWatchRuntimeState() async {
+    final persistence = await _persistenceServiceFuture;
+    final prepared = _watchRuntimeStore.preparePersistedState(
+      _monitoringWatchByScope,
+    );
+    if (prepared.shouldClear) {
+      await persistence.clearMonitoringWatchRuntimeState();
+      return;
+    }
+    await persistence.saveMonitoringWatchRuntimeState(prepared.serializedState);
+  }
+
+  Future<void> _hydrateMonitoringWatchAuditState() async {
+    final persistence = await _persistenceServiceFuture;
+    final restored = await persistence.readMonitoringWatchAuditHistory();
+    final restoredSummary = await persistence.readMonitoringWatchAuditSummary();
+    final normalized = _watchRecoveryStore.restoreAuditState(
+      persistedHistory: restored,
+      persistedSummary: restoredSummary,
+    );
+    if (!mounted) {
+      _monitoringWatchAuditHistory = normalized.history;
+      _monitoringWatchAuditSummary = normalized.summary;
+      return;
+    }
+    setState(() {
+      _monitoringWatchAuditHistory = normalized.history;
+      _monitoringWatchAuditSummary = normalized.summary;
+    });
+  }
+
+  Future<void> _persistMonitoringWatchAuditSummary() async {
+    final persistence = await _persistenceServiceFuture;
+    final summary = _watchRecoveryStore.normalizeAuditSummaryForPersist(
+      _monitoringWatchAuditSummary,
+    );
+    if (summary == null) {
+      await persistence.clearMonitoringWatchAuditSummary();
+      return;
+    }
+    await persistence.saveMonitoringWatchAuditSummary(summary);
+  }
+
+  Future<void> _persistMonitoringWatchAuditHistory() async {
+    final persistence = await _persistenceServiceFuture;
+    final prepared = _watchRecoveryStore.prepareAuditHistoryForPersist(
+      auditHistory: _monitoringWatchAuditHistory,
+    );
+    if (prepared.shouldClear) {
+      await persistence.clearMonitoringWatchAuditHistory();
+      return;
+    }
+    if (prepared.history.length != _monitoringWatchAuditHistory.length) {
+      _monitoringWatchAuditHistory = prepared.history;
+    }
+    await persistence.saveMonitoringWatchAuditHistory(prepared.history);
+  }
+
+  Future<void> _hydrateMonitoringWatchRecoveryState() async {
+    final persistence = await _persistenceServiceFuture;
+    final raw = await persistence.readMonitoringWatchRecoveryState();
+    final nowUtc = DateTime.now().toUtc();
+    final restore = _watchRecoveryStore.restoreState(
+      raw: raw,
+      auditHistory: _monitoringWatchAuditHistory,
+      scopes: _watchRecoveryScopeResolver.resolve(
+        scopes: _configuredDvrScopes,
+        siteLabelForScope: (clientId, siteId) => _monitoringSiteProfileFor(
+          clientId: clientId,
+          siteId: siteId,
+        ).siteName,
+      ),
+      nowUtc: nowUtc,
+    );
+    _monitoringWatchRecoveryByScope
+      ..clear()
+      ..addAll(restore.stateByScope);
+    if (restore.shouldPersist) {
+      unawaited(_persistMonitoringWatchRecoveryState());
+    }
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _hydrateMonitoringSceneReviewState() async {
+    final persistence = await _persistenceServiceFuture;
+    final raw = await persistence.readMonitoringSceneReviewState();
+    final restored = _monitoringSceneReviewStore.parsePersistedState(raw);
+    _monitoringSceneReviewByIntelligenceId
+      ..clear()
+      ..addAll(restored);
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _persistMonitoringSceneReviewState() async {
+    final persistence = await _persistenceServiceFuture;
+    final prepared = _monitoringSceneReviewStore.preparePersistedState(
+      _monitoringSceneReviewByIntelligenceId,
+    );
+    if (prepared.shouldClear) {
+      await persistence.clearMonitoringSceneReviewState();
+      return;
+    }
+    await persistence.saveMonitoringSceneReviewState(prepared.serializedState);
+  }
+
+  Future<void> _persistMonitoringWatchRecoveryState() async {
+    final persistence = await _persistenceServiceFuture;
+    final prepared = _watchRecoveryStore.preparePersistedState(
+      stateByScope: _monitoringWatchRecoveryByScope,
+      nowUtc: DateTime.now().toUtc(),
+    );
+    if (prepared.freshStateByScope.length !=
+        _monitoringWatchRecoveryByScope.length) {
+      _monitoringWatchRecoveryByScope
+        ..clear()
+        ..addAll(prepared.freshStateByScope);
+    }
+    if (prepared.shouldClear) {
+      await persistence.clearMonitoringWatchRecoveryState();
+      return;
+    }
+    await persistence.saveMonitoringWatchRecoveryState(
+      prepared.serializedState,
+    );
+  }
+
   Future<void> _persistTelegramAdminRuntimeState() async {
     final persistence = await _persistenceServiceFuture;
     final state = <String, Object?>{
@@ -2335,10 +2884,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _offlineIncidentSpoolStatusLabel = state.statusLabel.trim().isEmpty
           ? 'idle'
           : state.statusLabel.trim();
-      _offlineIncidentSpoolPendingCount =
-          state.pendingCount < 0 ? 0 : state.pendingCount;
-      _offlineIncidentSpoolRetryCount =
-          state.retryCount < 0 ? 0 : state.retryCount;
+      _offlineIncidentSpoolPendingCount = state.pendingCount < 0
+          ? 0
+          : state.pendingCount;
+      _offlineIncidentSpoolRetryCount = state.retryCount < 0
+          ? 0
+          : state.retryCount;
       _offlineIncidentSpoolLastQueuedAtUtc = state.lastQueuedAtUtc;
       _offlineIncidentSpoolLastSyncedAtUtc = state.lastSyncedAtUtc;
       final failureReason = state.failureReason?.trim() ?? '';
@@ -2346,6 +2897,15 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           ? null
           : failureReason;
       _offlineIncidentSpoolHistory = state.history;
+    });
+  }
+
+  Future<void> _hydrateOfflineIncidentSpoolReplayAudit() async {
+    final persistence = await _persistenceServiceFuture;
+    final raw = await persistence.readOfflineIncidentSpoolReplayAudit();
+    if (!mounted) return;
+    setState(() {
+      _offlineIncidentSpoolReplayAudit = raw;
     });
   }
 
@@ -2380,6 +2940,76 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       }
     }
     return parts.join(' • ');
+  }
+
+  String? _offlineIncidentSpoolReplaySummary() {
+    final replayedAtRaw =
+        (_offlineIncidentSpoolReplayAudit['replayed_at_utc'] ?? '')
+            .toString()
+            .trim();
+    final replayedAt = DateTime.tryParse(replayedAtRaw)?.toUtc();
+    final syncedCount =
+        (_offlineIncidentSpoolReplayAudit['synced_count'] as num?)?.toInt() ??
+        0;
+    final firstIncident =
+        (_offlineIncidentSpoolReplayAudit['first_incident_reference'] ?? '')
+            .toString()
+            .trim();
+    final lastIncident =
+        (_offlineIncidentSpoolReplayAudit['last_incident_reference'] ?? '')
+            .toString()
+            .trim();
+    final transport = (_offlineIncidentSpoolReplayAudit['transport'] ?? '')
+        .toString()
+        .trim();
+    if (replayedAt == null && syncedCount <= 0 && lastIncident.isEmpty) {
+      return null;
+    }
+    final parts = <String>[
+      syncedCount == 1 ? '1 replayed' : '$syncedCount replayed',
+      if (transport.isNotEmpty) transport,
+      if (firstIncident.isNotEmpty) 'first $firstIncident',
+      if (lastIncident.isNotEmpty) 'last $lastIncident',
+      if (replayedAt != null) replayedAt.toIso8601String(),
+    ];
+    return parts.join(' • ');
+  }
+
+  Future<void> _recordOfflineIncidentSpoolReplayAudit(
+    OfflineIncidentSpoolSyncResult result,
+  ) async {
+    if (result.syncedEntries.isEmpty) {
+      return;
+    }
+    final ordered = [...result.syncedEntries]
+      ..sort((a, b) {
+        final ts = a.createdAtUtc.compareTo(b.createdAtUtc);
+        if (ts != 0) return ts;
+        return a.entryId.compareTo(b.entryId);
+      });
+    final audit = <String, Object?>{
+      'replayed_at_utc': DateTime.now().toUtc().toIso8601String(),
+      'transport': widget.supabaseReady ? 'client_ledger' : 'disabled',
+      'synced_count': ordered.length,
+      'first_incident_reference': ordered.first.incidentReference,
+      'last_incident_reference': ordered.last.incidentReference,
+      'site_id': ordered.last.siteId,
+      'client_id': ordered.last.clientId,
+      'ledger_dispatch_ids': ordered
+          .map(
+            (entry) =>
+                LedgerBackedOfflineIncidentSpoolRemoteGateway.ledgerDispatchIdFor(
+                  entry.entryId,
+                ),
+          )
+          .toList(growable: false),
+    };
+    final persistence = await _persistenceServiceFuture;
+    await persistence.saveOfflineIncidentSpoolReplayAudit(audit);
+    if (!mounted) return;
+    setState(() {
+      _offlineIncidentSpoolReplayAudit = audit;
+    });
   }
 
   void _startGuardOpsSyncLoop() {
@@ -2436,6 +3066,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     try {
       final service = await _offlineIncidentSpoolServiceFuture;
       final result = await service.syncPendingEntries(batchSize: 25);
+      await _recordOfflineIncidentSpoolReplayAudit(result);
       await _hydrateOfflineIncidentSpoolState();
       if (result.failureReason == null) {
         _offlineIncidentSpoolSyncFailures = 0;
@@ -3994,6 +4625,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       guardOutcomePolicyDenied24h: _guardOutcomeDeniedInWindow(
         const Duration(hours: 24),
       ),
+      sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
     );
     final nextAutoRunKey = (autoRunKey ?? '').trim().isNotEmpty
         ? autoRunKey!.trim()
@@ -4581,6 +5213,20 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'Message key: ${item.messageKey}';
   }
 
+  Map<String, Object?>? _telegramReplyMarkupForPushItem(
+    ClientAppPushDeliveryItem item,
+  ) {
+    if (_telegramClientApprovalService.isVerificationMessageKey(
+      item.messageKey,
+    )) {
+      return _telegramClientApprovalService.replyKeyboardMarkup();
+    }
+    if (_telegramClientApprovalService.isAllowanceMessageKey(item.messageKey)) {
+      return _telegramClientApprovalService.allowanceReplyKeyboardMarkup();
+    }
+    return null;
+  }
+
   _TelegramBridgeTarget? _telegramFallbackTarget() {
     final fallbackChatId = _telegramChatIdEnv.trim();
     if (fallbackChatId.isEmpty) {
@@ -4687,6 +5333,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             chatId: target.chatId,
             messageThreadId: target.threadId,
             text: '${_telegramMessageBodyFor(item)}\nEndpoint: ${target.label}',
+            replyMarkup: _telegramReplyMarkupForPushItem(item),
           ),
         );
       }
@@ -5202,16 +5849,41 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     if (updateStatus && mounted) {
       setState(() {
-        _lastIntakeStatus = 'Fetching ${profile.provider.trim().isEmpty ? 'video' : profile.provider} events...';
+        _lastIntakeStatus =
+            'Fetching ${profile.provider.trim().isEmpty ? 'video' : profile.provider} events...';
       });
     }
     try {
-      final records = await _videoBridgeService.fetchLatest(
-        clientId: _selectedClient,
-        regionId: _selectedRegion,
-        siteId: _selectedSite,
-      );
-      final evidenceProbe = await _videoEvidenceProbeService.probeBatch(records);
+      late final List<NormalizedIntelRecord> records;
+      late final VideoEvidenceProbeBatchResult evidenceProbe;
+      if (_hasConfiguredDvrFleet) {
+        final combinedRecords = <NormalizedIntelRecord>[];
+        final evidenceSnapshots = <VideoEvidenceProbeSnapshot>[];
+        for (final scope in _configuredDvrScopes) {
+          final bridge = _videoBridgeForDvrScope(scope);
+          final scopedRecords = await bridge.fetchLatest(
+            clientId: scope.clientId,
+            regionId: scope.regionId,
+            siteId: scope.siteId,
+          );
+          combinedRecords.addAll(scopedRecords);
+          final scopedProbe = await _videoEvidenceProbeForDvrScope(
+            scope,
+          ).probeBatch(scopedRecords);
+          evidenceSnapshots.add(scopedProbe.snapshot);
+        }
+        records = combinedRecords;
+        evidenceProbe = VideoEvidenceProbeBatchResult(
+          snapshot: _mergeVideoEvidenceSnapshots(evidenceSnapshots),
+        );
+      } else {
+        records = await _videoBridgeService.fetchLatest(
+          clientId: _selectedClient,
+          regionId: _selectedRegion,
+          siteId: _selectedSite,
+        );
+        evidenceProbe = await _videoEvidenceProbeService.probeBatch(records);
+      }
       if (mounted) {
         setState(() {
           _cctvEvidenceHealth = evidenceProbe.snapshot;
@@ -5225,14 +5897,23 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         runId: runId,
         batch: LiveFeedBatch(
           records: records,
-          feedDistribution: {
-            (provider.trim().isEmpty ? 'video' : provider): records.length,
-          },
+          feedDistribution: _hasConfiguredDvrFleet
+              ? {
+                  for (final scope in _configuredDvrScopes)
+                    '${scope.provider}:${scope.siteId}': records
+                        .where((entry) => entry.siteId == scope.siteId)
+                        .length,
+                }
+              : {
+                  (provider.trim().isEmpty ? 'video' : provider):
+                      records.length,
+                },
           isConfigured: true,
           sourceLabel: 'video-${provider.trim().isEmpty ? 'events' : provider}',
         ),
         updateStatus: updateStatus,
       );
+      unawaited(_processActiveMonitoringWatchEvents(outcome.appendedEvents));
       unawaited(_bufferOfflineVideoIncidents(outcome.appendedEvents));
       return _recordOpsIntegrationHealth(
         _OpsIntegrationIngestResult(
@@ -5570,10 +6251,86 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       return 'caps none';
     }
     final caps = _activeVideoProfile.capabilityLabels;
-    if (caps.isEmpty) {
+    final labels = <String>[
+      if (caps.isNotEmpty) ...caps else 'none',
+      if (_hasConfiguredDvrFleet) 'FLEET ${_configuredDvrScopes.length}',
+    ];
+    if (labels.isEmpty) {
       return 'caps none';
     }
-    return 'caps ${caps.join(' • ')}';
+    return 'caps ${labels.join(' • ')}';
+  }
+
+  String _dvrFleetScopeSummary(
+    List<DispatchEvent> events, {
+    int maxScopes = 3,
+  }) {
+    if (!_hasConfiguredDvrFleet) {
+      return '';
+    }
+    return _fleetPresentationService.formatSummary(
+      scopes: _configuredDvrScopes,
+      events: events.whereType<IntelligenceReceived>(),
+      nowUtc: DateTime.now().toUtc(),
+      siteNameForScope: (clientId, siteId) => _monitoringSiteProfileFor(
+        clientId: clientId,
+        siteId: siteId,
+      ).siteName,
+      endpointLabelForScope: _integrationEndpointLabel,
+      maxScopes: maxScopes,
+    );
+  }
+
+  List<VideoFleetScopeHealthView> _tacticalFleetScopeHealth(
+    List<DispatchEvent> events,
+  ) {
+    return _fleetPresentationService.projectHealth(
+      scopes: _configuredDvrScopes,
+      events: events.whereType<IntelligenceReceived>(),
+      nowUtc: DateTime.now().toUtc(),
+      activeWatchScopeKeys: _monitoringWatchByScope.keys.toSet(),
+      scheduleForScope: _monitoringScheduleForScope,
+      siteNameForScope: (clientId, siteId) => _monitoringSiteProfileFor(
+        clientId: clientId,
+        siteId: siteId,
+      ).siteName,
+      endpointLabelForScope: _integrationEndpointLabel,
+      cameraLabelForId: _monitoringCameraLabel,
+      outcomeCueStateByScope: _monitoringWatchOutcomeByScope,
+      recoveryStateByScope: _monitoringWatchRecoveryByScope,
+      watchRuntimeByScope: _monitoringWatchByScope,
+    );
+  }
+
+  void _recordMonitoringWatchResyncOutcome({
+    required String clientId,
+    required String siteId,
+    required String actor,
+    required String outcome,
+  }) {
+    final scopeKey = _monitoringScopeKey(clientId, siteId);
+    final site = _monitoringSiteProfileFor(clientId: clientId, siteId: siteId);
+    final siteLabel = site.siteName.trim().isEmpty
+        ? siteId
+        : site.siteName.trim();
+    final update = _watchResyncOutcomeRecorder.record(
+      cueStateByScope: _monitoringWatchOutcomeByScope,
+      auditHistory: _monitoringWatchAuditHistory,
+      scopeKey: scopeKey,
+      siteLabel: siteLabel,
+      actor: actor,
+      outcome: outcome,
+      nowUtc: DateTime.now().toUtc(),
+    );
+    _monitoringWatchOutcomeByScope
+      ..clear()
+      ..addAll(update.cueStateByScope);
+    _monitoringWatchAuditHistory = update.auditHistory;
+    _monitoringWatchAuditSummary = update.auditSummary;
+    _monitoringWatchRecoveryByScope[scopeKey] = update.recoveryState;
+    unawaited(_persistMonitoringWatchAuditSummary());
+    unawaited(_persistMonitoringWatchAuditHistory());
+    unawaited(_persistMonitoringWatchRecoveryState());
   }
 
   String _cctvRecentSignalSummary(List<DispatchEvent> events) {
@@ -5633,7 +6390,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     if (event.sourceType != 'hardware' && event.sourceType != 'dvr') {
       return false;
     }
-    final configuredProvider = _activeVideoProfile.provider.trim().toLowerCase();
+    final configuredProvider = _activeVideoProfile.provider
+        .trim()
+        .toLowerCase();
     if (configuredProvider.isNotEmpty &&
         event.provider.trim().toLowerCase() != configuredProvider) {
       return false;
@@ -5642,7 +6401,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return event.sourceType == expectedSourceType;
   }
 
-  IntelligenceReceived? _latestActiveVideoIntelligence(List<DispatchEvent> events) {
+  IntelligenceReceived? _latestActiveVideoIntelligence(
+    List<DispatchEvent> events,
+  ) {
     IntelligenceReceived? latest;
     for (final event in events.whereType<IntelligenceReceived>()) {
       if (!_matchesActiveVideoProviderEvent(event)) {
@@ -5673,7 +6434,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       return null;
     }
     final certificate = EvidenceProvenanceCertificate.fromIntelligence(event);
-    final snapshotState = certificate.snapshot.isPresent ? 'present' : 'missing';
+    final snapshotState = certificate.snapshot.isPresent
+        ? 'present'
+        : 'missing';
     final clipState = certificate.clip.isPresent ? 'present' : 'missing';
     return 'Latest ${_activeVideoOpsLabel.toLowerCase()} evidence certificate • '
         '${certificate.intelligenceId} • '
@@ -5699,7 +6462,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return const JsonEncoder.withIndent('  ').convert(payload);
   }
 
-  String? _videoIntegrityCertificateMarkdownPreview(List<DispatchEvent> events) {
+  String? _videoIntegrityCertificateMarkdownPreview(
+    List<DispatchEvent> events,
+  ) {
     final event = _latestActiveVideoIntelligence(events);
     if (event == null) {
       return null;
@@ -5725,24 +6490,40 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   String _cctvBridgeStatusSummary() {
     final profile = _activeVideoProfile;
-    return VideoBridgeHealthFormatter.bridgeStatus(
+    final fleetSummary = _dvrFleetScopeSummary(store.allEvents(), maxScopes: 2);
+    final base = VideoBridgeHealthFormatter.bridgeStatus(
       configured: profile.configured,
-      provider: profile.provider,
-      endpointLabel: _integrationEndpointLabel(profile.eventsUrl),
+      provider: _hasConfiguredDvrFleet
+          ? '${profile.provider} fleet'
+          : profile.provider,
+      endpointLabel: _hasConfiguredDvrFleet
+          ? '${_configuredDvrScopes.length} scope(s)'
+          : _integrationEndpointLabel(profile.eventsUrl),
       capabilitySummary: _cctvCapabilitySummary(),
       evidence: _cctvEvidenceHealth,
       pilotEdge:
           !profile.isDvr && profile.provider.toLowerCase().contains('frigate'),
     );
+    if (fleetSummary.isEmpty) {
+      return base;
+    }
+    return '$base • $fleetSummary';
   }
 
   String _cctvPilotContextSummary(List<DispatchEvent> events) {
-    return VideoBridgeHealthFormatter.pilotContext(
+    final base = VideoBridgeHealthFormatter.pilotContext(
       configured: _activeVideoProfile.configured,
-      provider: _activeVideoProfile.provider,
+      provider: _hasConfiguredDvrFleet
+          ? '${_activeVideoProfile.provider} fleet'
+          : _activeVideoProfile.provider,
       recentSignalSummary: _cctvRecentSignalSummary(events),
       evidence: _cctvEvidenceHealth,
     );
+    final fleetSummary = _dvrFleetScopeSummary(events);
+    if (fleetSummary.isEmpty) {
+      return base;
+    }
+    return base.isEmpty ? fleetSummary : '$base • $fleetSummary';
   }
 
   String _cctvIngestDetail({
@@ -5773,12 +6554,15 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   String _cctvOpsDetailLabel() {
     final base = _activeVideoProfile.detailLabel.trim();
     final evidence = _cctvEvidenceSummary();
-    final tuning = !_activeVideoProfile.isDvr && _cctvFalsePositivePolicy.enabled
+    final fleetSummary = _dvrFleetScopeSummary(store.allEvents(), maxScopes: 2);
+    final tuning =
+        !_activeVideoProfile.isDvr && _cctvFalsePositivePolicy.enabled
         ? _cctvFalsePositivePolicy.summaryLabel()
         : '';
     final extras = [
       if (tuning.isNotEmpty) tuning,
       if (evidence.isNotEmpty) evidence,
+      if (fleetSummary.isNotEmpty) fleetSummary,
     ];
     if (extras.isEmpty) {
       return base;
@@ -5803,6 +6587,150 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   String get _activeVideoOpsLabel => _activeVideoProfile.isDvr ? 'DVR' : 'CCTV';
 
+  List<DvrScopeConfig> _resolveDvrScopes() {
+    final parsed = DvrScopeConfig.parseJson(
+      _dvrScopeConfigsJsonEnv,
+      fallbackClientId: _selectedClient,
+      fallbackRegionId: _selectedRegion,
+      fallbackSiteId: _selectedSite,
+      fallbackProvider: _dvrProviderEnv,
+      fallbackEventsUri: Uri.tryParse(_dvrEventsUrlEnv),
+      fallbackAuthMode: _dvrAuthModeEnv,
+      fallbackUsername: _dvrUsernameEnv,
+      fallbackPassword: _dvrPasswordEnv,
+      fallbackBearerToken: _dvrBearerTokenEnv,
+    );
+    if (parsed.isNotEmpty) {
+      return parsed;
+    }
+    final fallback = DvrScopeConfig(
+      clientId: _selectedClient,
+      regionId: _selectedRegion,
+      siteId: _selectedSite,
+      provider: _dvrProviderEnv,
+      eventsUri: Uri.tryParse(_dvrEventsUrlEnv),
+      authMode: _dvrAuthModeEnv,
+      username: _dvrUsernameEnv,
+      password: _dvrPasswordEnv,
+      bearerToken: _dvrBearerTokenEnv,
+    );
+    return fallback.configured ? <DvrScopeConfig>[fallback] : const [];
+  }
+
+  bool get _hasConfiguredDvrFleet =>
+      _activeVideoProfile.isDvr && _configuredDvrScopes.isNotEmpty;
+
+  DvrBackedVideoBridgeService _videoBridgeForDvrScope(DvrScopeConfig scope) {
+    return DvrBackedVideoBridgeService(
+      delegate: createDvrBridgeService(
+        provider: scope.provider,
+        eventsUri: scope.eventsUri,
+        authMode: scope.authMode,
+        bearerToken: scope.bearerToken,
+        username: scope.username,
+        password: scope.password,
+        client: _cctvBridgeHttpClient,
+      ),
+    );
+  }
+
+  DvrBackedVideoEvidenceProbeService _videoEvidenceProbeForDvrScope(
+    DvrScopeConfig scope,
+  ) {
+    return DvrBackedVideoEvidenceProbeService(
+      delegate: HttpDvrEvidenceProbeService(
+        client: _cctvBridgeHttpClient,
+        authMode: parseDvrHttpAuthMode(scope.authMode),
+        bearerToken: scope.bearerToken.trim().isEmpty
+            ? null
+            : scope.bearerToken.trim(),
+        username: scope.username.trim().isEmpty ? null : scope.username.trim(),
+        password: scope.password.isEmpty ? null : scope.password,
+        maxQueueDepth: _positiveThreshold(
+          _dvrEvidenceProbeQueueDepthEnv,
+          fallback: 12,
+        ),
+        staleFrameThreshold: Duration(
+          seconds: _positiveThreshold(
+            _dvrEvidenceProbeStaleSecondsEnv,
+            fallback: 1800,
+          ),
+        ),
+      ),
+    );
+  }
+
+  DvrHttpAuthConfig _monitoringVisionAuthConfigForScope(
+    String clientId,
+    String siteId,
+  ) {
+    final scopeKey = _monitoringScopeKey(clientId, siteId);
+    final scope = _configuredDvrScopes.cast<DvrScopeConfig?>().firstWhere(
+      (entry) => entry?.scopeKey == scopeKey,
+      orElse: () => null,
+    );
+    if (scope != null) {
+      return DvrHttpAuthConfig(
+        mode: parseDvrHttpAuthMode(scope.authMode),
+        bearerToken: scope.bearerToken.trim().isEmpty
+            ? null
+            : scope.bearerToken.trim(),
+        username: scope.username.trim().isEmpty ? null : scope.username.trim(),
+        password: scope.password.isEmpty ? null : scope.password,
+      );
+    }
+    return DvrHttpAuthConfig(
+      mode: parseDvrHttpAuthMode(_dvrAuthModeEnv),
+      bearerToken: _dvrBearerTokenEnv.trim().isEmpty
+          ? null
+          : _dvrBearerTokenEnv.trim(),
+      username: _dvrUsernameEnv.trim().isEmpty ? null : _dvrUsernameEnv.trim(),
+      password: _dvrPasswordEnv.isEmpty ? null : _dvrPasswordEnv,
+    );
+  }
+
+  VideoEvidenceProbeSnapshot _mergeVideoEvidenceSnapshots(
+    List<VideoEvidenceProbeSnapshot> snapshots,
+  ) {
+    if (snapshots.isEmpty) {
+      return const VideoEvidenceProbeSnapshot();
+    }
+    DateTime? latestRunAtUtc;
+    final cameras = <VideoCameraHealth>[];
+    var queueDepth = 0;
+    var boundedQueueLimit = 0;
+    var droppedCount = 0;
+    var verifiedCount = 0;
+    var failureCount = 0;
+    var lastAlert = '';
+    for (final snapshot in snapshots) {
+      queueDepth += snapshot.queueDepth;
+      boundedQueueLimit += snapshot.boundedQueueLimit;
+      droppedCount += snapshot.droppedCount;
+      verifiedCount += snapshot.verifiedCount;
+      failureCount += snapshot.failureCount;
+      if ((snapshot.lastAlert).trim().isNotEmpty) {
+        lastAlert = snapshot.lastAlert.trim();
+      }
+      if (snapshot.lastRunAtUtc != null &&
+          (latestRunAtUtc == null ||
+              snapshot.lastRunAtUtc!.isAfter(latestRunAtUtc))) {
+        latestRunAtUtc = snapshot.lastRunAtUtc;
+      }
+      cameras.addAll(snapshot.cameras);
+    }
+    return VideoEvidenceProbeSnapshot(
+      queueDepth: queueDepth,
+      boundedQueueLimit: boundedQueueLimit,
+      droppedCount: droppedCount,
+      verifiedCount: verifiedCount,
+      failureCount: failureCount,
+      lastRunAtUtc: latestRunAtUtc,
+      lastAlert: lastAlert,
+      cameras: cameras,
+    );
+  }
+
   VideoBridgeService _buildVideoBridgeService() {
     final profile = _activeVideoProfile;
     if (profile.isDvr) {
@@ -5810,7 +6738,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         delegate: createDvrBridgeService(
           provider: profile.provider,
           eventsUri: profile.eventsUrl,
+          authMode: _dvrAuthModeEnv,
           bearerToken: _dvrBearerTokenEnv,
+          username: _dvrUsernameEnv,
+          password: _dvrPasswordEnv,
           client: _cctvBridgeHttpClient,
         ),
       );
@@ -5835,7 +6766,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       return DvrBackedVideoEvidenceProbeService(
         delegate: HttpDvrEvidenceProbeService(
           client: _cctvBridgeHttpClient,
+          authMode: parseDvrHttpAuthMode(_dvrAuthModeEnv),
           bearerToken: _dvrBearerTokenEnv,
+          username: _dvrUsernameEnv.trim().isEmpty
+              ? null
+              : _dvrUsernameEnv.trim(),
+          password: _dvrPasswordEnv.isEmpty ? null : _dvrPasswordEnv,
           maxQueueDepth: _positiveThreshold(
             _dvrEvidenceProbeQueueDepthEnv,
             fallback: 12,
@@ -6186,6 +7122,36 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         _normalizedOpsIntegrationPollIntervalSeconds,
       );
     }
+  }
+
+  Future<void> _recordMonitoringSceneReview({
+    required IntelligenceReceived event,
+    required MonitoringWatchSceneAssessment assessment,
+    required MonitoringWatchVisionReviewResult review,
+    required MonitoringWatchEscalationDecision decision,
+  }) async {
+    final intelligenceId = event.intelligenceId.trim();
+    if (intelligenceId.isEmpty) {
+      return;
+    }
+    final sceneReviewSource = review.usedFallback
+        ? 'metadata-only'
+        : review.sourceLabel.trim();
+    final sceneReviewSummary = review.summary.trim().isEmpty
+        ? assessment.rationale.join(' • ')
+        : review.summary.trim();
+    final record = _monitoringSceneReviewStore.buildRecord(
+      intelligenceId: intelligenceId,
+      evidenceRecordHash: (event.evidenceRecordHash ?? '').trim(),
+      sourceLabel: sceneReviewSource,
+      postureLabel: assessment.postureLabel,
+      decisionLabel: decision.incidentStatusLabel,
+      decisionSummary: decision.decisionSummary,
+      summary: sceneReviewSummary,
+      reviewedAtUtc: event.occurredAt,
+    );
+    _monitoringSceneReviewByIntelligenceId[intelligenceId] = record;
+    await _persistMonitoringSceneReviewState();
   }
 
   void _startTelegramAdminControlLoop() {
@@ -6602,6 +7568,36 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       messageProvider: 'telegram',
     );
     final canNotifyAdmin = adminChatId.trim().isNotEmpty;
+    final handledClientApproval = await _handleTelegramClientApprovalReply(
+      update: update,
+      target: target,
+      siteId: siteId,
+      adminChatId: adminChatId,
+      adminThreadId: adminThreadId,
+    );
+    if (handledClientApproval) {
+      return true;
+    }
+    final handledClientAllowance = await _handleTelegramClientAllowanceReply(
+      update: update,
+      target: target,
+      siteId: siteId,
+      adminChatId: adminChatId,
+      adminThreadId: adminThreadId,
+    );
+    if (handledClientAllowance) {
+      return true;
+    }
+    final handledIdentityIntake = await _handleTelegramIdentityIntake(
+      update: update,
+      target: target,
+      siteId: siteId,
+      adminChatId: adminChatId,
+      adminThreadId: adminThreadId,
+    );
+    if (handledIdentityIntake) {
+      return true;
+    }
     if (_isHighRiskTelegramMessage(trimmed)) {
       const escalationText =
           'ONYX ALERT RECEIVED: your message is marked high-priority and has been escalated to the control room.';
@@ -6830,6 +7826,1001 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     } catch (_) {
       return null;
     }
+  }
+
+  Future<bool> _handleTelegramClientApprovalReply({
+    required TelegramBridgeInboundMessage update,
+    required _TelegramInboundClientTarget target,
+    required String siteId,
+    required String adminChatId,
+    required int? adminThreadId,
+  }) async {
+    final decision = _telegramClientApprovalService.parseDecisionText(
+      update.text,
+    );
+    if (decision == null) {
+      return false;
+    }
+    final pending = await _latestPendingClientVerificationForScope(
+      clientId: target.clientId,
+      siteId: siteId,
+    );
+    if (pending == null) {
+      return false;
+    }
+    final actorLabel = update.fromUsername?.trim().isNotEmpty == true
+        ? '@${update.fromUsername!.trim()}'
+        : _telegramInboundAuthor(update);
+    await _recordClientAcknowledgementForScope(
+      clientId: target.clientId,
+      siteId: siteId,
+      messageKey: pending.messageKey,
+      channel: ClientAppAcknowledgementChannel.client,
+      acknowledgedBy:
+          '${ClientAppAcknowledgementChannel.client.defaultActor} • ${decision.label} • $actorLabel',
+      acknowledgedAtUtc: update.sentAtUtc ?? DateTime.now().toUtc(),
+    );
+    final confirmation = _telegramClientApprovalService.clientConfirmationText(
+      decision,
+    );
+    await _sendTelegramMessageWithChunks(
+      messageKeyPrefix:
+          'tg-client-verify-${decision.name}-${pending.messageKey.hashCode}',
+      chatId: update.chatId,
+      messageThreadId: update.messageThreadId,
+      responseText: confirmation,
+      failureContext: 'Client verification acknowledgement',
+      replyMarkup: _telegramClientApprovalService.removeKeyboardMarkup(),
+    );
+    final occurredAtUtc = DateTime.now().toUtc();
+    await _appendTelegramConversationMessage(
+      clientId: target.clientId,
+      siteId: siteId,
+      author: 'ONYX Control',
+      body: confirmation,
+      occurredAtUtc: occurredAtUtc,
+      roomKey: 'Residents',
+      viewerRole: ClientAppViewerRole.client.name,
+      incidentStatusLabel: switch (decision) {
+        TelegramClientApprovalDecision.approve => 'Client Approved',
+        TelegramClientApprovalDecision.review => 'Client Review Requested',
+        TelegramClientApprovalDecision.escalate => 'Client Escalated',
+      },
+      messageSource: 'telegram',
+      messageProvider: 'onyx_monitoring',
+    );
+    await _appendTelegramConversationMessage(
+      clientId: target.clientId,
+      siteId: siteId,
+      author: 'Client',
+      body: 'Telegram verification decision: ${decision.label}',
+      occurredAtUtc: occurredAtUtc,
+      roomKey: 'Security Desk',
+      viewerRole: ClientAppViewerRole.control.name,
+      incidentStatusLabel: 'Client Verification Decision',
+      messageSource: 'telegram',
+      messageProvider: 'telegram',
+    );
+    final approvedEvent = decision == TelegramClientApprovalDecision.approve
+        ? _intelligenceForClientPrompt(
+            clientId: target.clientId,
+            siteId: siteId,
+            promptOccurredAtUtc: pending.occurredAt,
+          )
+        : null;
+    if (approvedEvent != null &&
+        _canOfferPersistentAllowanceForEvent(approvedEvent)) {
+      final siteProfile = _monitoringSiteProfileFor(
+        clientId: approvedEvent.clientId,
+        siteId: approvedEvent.siteId,
+      );
+      final incident = MonitoringIncidentUpdate(
+        occurredAt: approvedEvent.occurredAt,
+        cameraLabel: _monitoringCameraLabel(approvedEvent.cameraId),
+        objectLabel: (approvedEvent.objectLabel ?? '').trim().isEmpty
+            ? 'person'
+            : approvedEvent.objectLabel!.trim(),
+        postureLabel: 'expected visitor pending memory choice',
+      );
+      final identityHint = _monitoringIdentityHint(approvedEvent);
+      if (identityHint != null) {
+        await _enqueueMonitoringClientNotification(
+          clientId: approvedEvent.clientId,
+          siteId: approvedEvent.siteId,
+          title: 'ONYX Allowlist Option',
+          body: _monitoringShiftNotifications.formatClientAllowancePrompt(
+            site: siteProfile,
+            incident: incident,
+            identityHint: identityHint,
+          ),
+          occurredAtUtc: approvedEvent.occurredAt,
+          messageKeyPrefix:
+              TelegramClientApprovalService.allowanceMessageKeyPrefix,
+          incidentStatusLabel: 'Client Allowlist Option',
+        );
+      }
+    }
+    if (adminChatId.trim().isNotEmpty) {
+      await _sendTelegramMessageWithChunks(
+        messageKeyPrefix:
+            'tg-admin-verify-${decision.name}-${pending.messageKey.hashCode}',
+        chatId: adminChatId,
+        messageThreadId: adminThreadId,
+        responseText: _telegramClientApprovalService.adminDecisionSummary(
+          decision: decision,
+          clientId: target.clientId,
+          siteId: siteId,
+          messageKey: pending.messageKey,
+        ),
+        failureContext: 'Admin verification relay',
+      );
+    }
+    return true;
+  }
+
+  Future<bool> _handleTelegramClientAllowanceReply({
+    required TelegramBridgeInboundMessage update,
+    required _TelegramInboundClientTarget target,
+    required String siteId,
+    required String adminChatId,
+    required int? adminThreadId,
+  }) async {
+    final decision = _telegramClientApprovalService.parseAllowanceDecisionText(
+      update.text,
+    );
+    if (decision == null) {
+      return false;
+    }
+    final pending = await _latestPendingClientAllowanceForScope(
+      clientId: target.clientId,
+      siteId: siteId,
+    );
+    if (pending == null) {
+      return false;
+    }
+    final actorLabel = update.fromUsername?.trim().isNotEmpty == true
+        ? '@${update.fromUsername!.trim()}'
+        : _telegramInboundAuthor(update);
+    await _recordClientAcknowledgementForScope(
+      clientId: target.clientId,
+      siteId: siteId,
+      messageKey: pending.messageKey,
+      channel: ClientAppAcknowledgementChannel.client,
+      acknowledgedBy:
+          '${ClientAppAcknowledgementChannel.client.defaultActor} • ${decision.label} • $actorLabel',
+      acknowledgedAtUtc: update.sentAtUtc ?? DateTime.now().toUtc(),
+    );
+    final sourceEvent = _intelligenceForClientPrompt(
+      clientId: target.clientId,
+      siteId: siteId,
+      promptOccurredAtUtc: pending.occurredAt,
+    );
+    if (sourceEvent != null) {
+      if (decision == TelegramClientAllowanceDecision.allowAlways) {
+        await _rememberAllowedIdentityFromEvent(
+          event: sourceEvent,
+          approvedBy: actorLabel,
+          approvedAtUtc: update.sentAtUtc ?? DateTime.now().toUtc(),
+        );
+      } else {
+        await _rememberTemporaryAllowedIdentityFromEvent(
+          event: sourceEvent,
+          approvedBy: actorLabel,
+          approvedAtUtc: update.sentAtUtc ?? DateTime.now().toUtc(),
+        );
+      }
+    }
+    final confirmation = _telegramClientApprovalService
+        .clientAllowanceConfirmationText(decision);
+    await _sendTelegramMessageWithChunks(
+      messageKeyPrefix:
+          'tg-client-allow-${decision.name}-${pending.messageKey.hashCode}',
+      chatId: update.chatId,
+      messageThreadId: update.messageThreadId,
+      responseText: confirmation,
+      failureContext: 'Client allowlist acknowledgement',
+      replyMarkup: _telegramClientApprovalService.removeKeyboardMarkup(),
+    );
+    final occurredAtUtc = DateTime.now().toUtc();
+    await _appendTelegramConversationMessage(
+      clientId: target.clientId,
+      siteId: siteId,
+      author: 'ONYX Control',
+      body: confirmation,
+      occurredAtUtc: occurredAtUtc,
+      roomKey: 'Residents',
+      viewerRole: ClientAppViewerRole.client.name,
+      incidentStatusLabel: switch (decision) {
+        TelegramClientAllowanceDecision.allowOnce => 'Client Allow Once',
+        TelegramClientAllowanceDecision.allowAlways => 'Client Allowed Always',
+      },
+      messageSource: 'telegram',
+      messageProvider: 'onyx_monitoring',
+    );
+    await _appendTelegramConversationMessage(
+      clientId: target.clientId,
+      siteId: siteId,
+      author: 'Client',
+      body: 'Telegram allowance decision: ${decision.label}',
+      occurredAtUtc: occurredAtUtc,
+      roomKey: 'Security Desk',
+      viewerRole: ClientAppViewerRole.control.name,
+      incidentStatusLabel: 'Client Allowlist Decision',
+      messageSource: 'telegram',
+      messageProvider: 'telegram',
+    );
+    if (adminChatId.trim().isNotEmpty) {
+      await _sendTelegramMessageWithChunks(
+        messageKeyPrefix:
+            'tg-admin-allow-${decision.name}-${pending.messageKey.hashCode}',
+        chatId: adminChatId,
+        messageThreadId: adminThreadId,
+        responseText: _telegramClientApprovalService
+            .adminAllowanceDecisionSummary(
+              decision: decision,
+              clientId: target.clientId,
+              siteId: siteId,
+              messageKey: pending.messageKey,
+            ),
+        failureContext: 'Admin allowlist relay',
+      );
+    }
+    return true;
+  }
+
+  Future<bool> _handleTelegramIdentityIntake({
+    required TelegramBridgeInboundMessage update,
+    required _TelegramInboundClientTarget target,
+    required String siteId,
+    required String adminChatId,
+    required int? adminThreadId,
+  }) async {
+    final occurredAtUtc = update.sentAtUtc ?? DateTime.now().toUtc();
+    final parsed = _telegramIdentityIntakeService.tryParse(
+      clientId: target.clientId,
+      siteId: siteId,
+      endpointId: target.endpointId,
+      rawText: update.text,
+      occurredAtUtc: occurredAtUtc,
+    );
+    if (parsed == null) {
+      return false;
+    }
+    if (widget.supabaseReady) {
+      try {
+        final repository = SupabaseSiteIdentityRegistryRepository(
+          Supabase.instance.client,
+        );
+        await repository.insertTelegramIntake(parsed.intake);
+      } catch (_) {
+        // Keep the operator/client messaging path working even if persistence
+        // fails temporarily.
+      }
+    }
+    await _sendTelegramMessageWithChunks(
+      messageKeyPrefix: 'tg-client-intake-${update.updateId}',
+      chatId: update.chatId,
+      messageThreadId: update.messageThreadId,
+      responseText: parsed.clientAcknowledgementText,
+      failureContext: 'Client identity intake acknowledgement',
+    );
+    await _appendTelegramConversationMessage(
+      clientId: target.clientId,
+      siteId: siteId,
+      author: 'ONYX Control',
+      body: parsed.clientAcknowledgementText,
+      occurredAtUtc: occurredAtUtc,
+      roomKey: 'Residents',
+      viewerRole: ClientAppViewerRole.client.name,
+      incidentStatusLabel: parsed.summaryLabel,
+      messageSource: 'telegram',
+      messageProvider: 'identity_intake',
+    );
+    await _appendTelegramConversationMessage(
+      clientId: target.clientId,
+      siteId: siteId,
+      author: 'ONYX Intake',
+      body: 'Telegram identity intake captured: ${parsed.summaryDetail}',
+      occurredAtUtc: occurredAtUtc,
+      roomKey: 'Security Desk',
+      viewerRole: ClientAppViewerRole.control.name,
+      incidentStatusLabel: parsed.summaryLabel,
+      messageSource: 'telegram',
+      messageProvider: 'identity_intake',
+    );
+    if (adminChatId.trim().isNotEmpty) {
+      await _sendTelegramMessageWithChunks(
+        messageKeyPrefix: 'tg-admin-intake-${update.updateId}',
+        chatId: adminChatId,
+        messageThreadId: adminThreadId,
+        responseText: parsed.adminSummaryText,
+        failureContext: 'Admin identity intake relay',
+      );
+    }
+    return true;
+  }
+
+  Future<ClientAppPushDeliveryItem?> _latestPendingClientVerificationForScope({
+    required String clientId,
+    required String siteId,
+  }) async {
+    final repository = await _conversationRepositoryForScope(
+      clientId: clientId,
+      siteId: siteId,
+    );
+    if (repository == null) {
+      return null;
+    }
+    final queue = await repository.readPushQueue();
+    final acknowledgements = await repository.readAcknowledgements();
+    final pending = queue
+        .where((item) {
+          if (!_telegramClientApprovalService.isVerificationMessageKey(
+            item.messageKey,
+          )) {
+            return false;
+          }
+          if (item.targetChannel != ClientAppAcknowledgementChannel.client) {
+            return false;
+          }
+          return !acknowledgements.any(
+            (ack) =>
+                ack.messageKey == item.messageKey &&
+                ack.channel == ClientAppAcknowledgementChannel.client,
+          );
+        })
+        .toList(growable: false);
+    if (pending.isEmpty) {
+      return null;
+    }
+    pending.sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    return pending.first;
+  }
+
+  Future<ClientAppPushDeliveryItem?> _latestPendingClientAllowanceForScope({
+    required String clientId,
+    required String siteId,
+  }) async {
+    final repository = await _conversationRepositoryForScope(
+      clientId: clientId,
+      siteId: siteId,
+    );
+    if (repository == null) {
+      return null;
+    }
+    final queue = await repository.readPushQueue();
+    final acknowledgements = await repository.readAcknowledgements();
+    final pending = queue
+        .where((item) {
+          if (!_telegramClientApprovalService.isAllowanceMessageKey(
+            item.messageKey,
+          )) {
+            return false;
+          }
+          if (item.targetChannel != ClientAppAcknowledgementChannel.client) {
+            return false;
+          }
+          return !acknowledgements.any(
+            (ack) =>
+                ack.messageKey == item.messageKey &&
+                ack.channel == ClientAppAcknowledgementChannel.client,
+          );
+        })
+        .toList(growable: false);
+    if (pending.isEmpty) {
+      return null;
+    }
+    pending.sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    return pending.first;
+  }
+
+  IntelligenceReceived? _intelligenceForClientPrompt({
+    required String clientId,
+    required String siteId,
+    required DateTime promptOccurredAtUtc,
+  }) {
+    final promptAtUtc = promptOccurredAtUtc.toUtc();
+    final scopedEvents =
+        store
+            .allEvents()
+            .whereType<IntelligenceReceived>()
+            .where(
+              (event) =>
+                  event.clientId == clientId.trim() &&
+                  event.siteId == siteId.trim(),
+            )
+            .toList(growable: false)
+          ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    for (final event in scopedEvents) {
+      if (event.occurredAt.toUtc() == promptAtUtc) {
+        return event;
+      }
+    }
+    for (final event in scopedEvents) {
+      if (!event.occurredAt.toUtc().isAfter(promptAtUtc)) {
+        return event;
+      }
+    }
+    return scopedEvents.isEmpty ? null : scopedEvents.first;
+  }
+
+  bool _canOfferPersistentAllowanceForEvent(IntelligenceReceived event) {
+    final objectLabel = (event.objectLabel ?? '').trim().toLowerCase();
+    final isHumanLike =
+        objectLabel == 'person' ||
+        objectLabel == 'human' ||
+        objectLabel == 'intruder' ||
+        objectLabel.isEmpty;
+    if (!isHumanLike) {
+      return false;
+    }
+    final faceMatchId = (event.faceMatchId ?? '').trim();
+    final plateNumber = (event.plateNumber ?? '').trim();
+    if (faceMatchId.isEmpty && plateNumber.isEmpty) {
+      return false;
+    }
+    final policy = _watchIdentityPolicyService.policyFor(
+      clientId: event.clientId,
+      siteId: event.siteId,
+    );
+    return !policy.matchesAllowedFace(faceMatchId) &&
+        !policy.matchesFlaggedFace(faceMatchId) &&
+        !policy.matchesAllowedPlate(plateNumber) &&
+        !policy.matchesFlaggedPlate(plateNumber);
+  }
+
+  Future<void> _rememberTemporaryAllowedIdentityProfile(
+    SiteIdentityProfile profile,
+  ) async {
+    _watchTemporaryIdentityApprovalService =
+        _watchTemporaryIdentityApprovalService.upsertProfile(profile);
+    _rebuildWatchSceneAssessmentService();
+  }
+
+  List<SiteIdentityProfile> _matchingTemporaryIdentityProfilesForScope(
+    VideoFleetScopeHealthView scope, {
+    DateTime? nowUtc,
+  }) {
+    final when = (nowUtc ?? DateTime.now()).toUtc();
+    final normalizedFace = (scope.latestFaceMatchId ?? '').trim().toUpperCase();
+    final normalizedPlate = (scope.latestPlateNumber ?? '')
+        .trim()
+        .toUpperCase();
+    return _watchTemporaryIdentityApprovalService.profiles
+        .where((profile) {
+          if (profile.clientId != scope.clientId ||
+              profile.siteId != scope.siteId) {
+            return false;
+          }
+          final validUntilUtc = profile.validUntilUtc?.toUtc();
+          if (validUntilUtc == null || !validUntilUtc.isAfter(when)) {
+            return false;
+          }
+          final faceMatches =
+              normalizedFace.isNotEmpty &&
+              profile.faceMatchId.trim().toUpperCase() == normalizedFace;
+          final plateMatches =
+              normalizedPlate.isNotEmpty &&
+              profile.plateNumber.trim().toUpperCase() == normalizedPlate;
+          return faceMatches || plateMatches;
+        })
+        .toList(growable: false);
+  }
+
+  Future<void> _updateTemporaryApprovalRuntimeForScope({
+    required VideoFleetScopeHealthView scope,
+    required String decisionSummary,
+    required String clientDecisionLabel,
+    required String clientDecisionSummary,
+    String? sceneReviewLabel,
+  }) async {
+    final scopeKey = _monitoringScopeKey(scope.clientId, scope.siteId);
+    final runtime = _monitoringWatchByScope[scopeKey];
+    if (runtime == null) {
+      return;
+    }
+    _monitoringWatchByScope[scopeKey] = runtime.copyWith(
+      latestSceneReviewPostureLabel:
+          sceneReviewLabel ?? runtime.latestSceneReviewPostureLabel,
+      latestSceneDecisionSummary: decisionSummary,
+      latestClientDecisionLabel: clientDecisionLabel,
+      latestClientDecisionSummary: clientDecisionSummary,
+      latestClientDecisionAtUtc: DateTime.now().toUtc(),
+    );
+    await _persistMonitoringWatchRuntimeState();
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<String> _extendTemporaryIdentityApprovalForScope(
+    VideoFleetScopeHealthView scope,
+  ) async {
+    final nowUtc = DateTime.now().toUtc();
+    final matches = _matchingTemporaryIdentityProfilesForScope(
+      scope,
+      nowUtc: nowUtc,
+    );
+    if (matches.isEmpty) {
+      return 'No active temporary approval found for ${scope.siteName}.';
+    }
+    final updatedProfiles = matches
+        .map((profile) {
+          final baseUntil = profile.validUntilUtc?.toUtc();
+          final nextUntil =
+              (baseUntil != null && baseUntil.isAfter(nowUtc)
+                      ? baseUntil
+                      : nowUtc)
+                  .add(const Duration(hours: 2));
+          return profile.copyWith(
+            validUntilUtc: nextUntil,
+            updatedAtUtc: nowUtc,
+            notes: 'Temporary approval extended by ONYX operator.',
+            metadata: <String, Object?>{
+              ...profile.metadata,
+              'last_operator_action': 'extend_temporary_approval',
+            },
+          );
+        })
+        .toList(growable: false);
+
+    for (final profile in updatedProfiles) {
+      await _rememberTemporaryAllowedIdentityProfile(profile);
+    }
+    if (widget.supabaseReady) {
+      try {
+        final repository = SupabaseSiteIdentityRegistryRepository(
+          Supabase.instance.client,
+        );
+        for (final profile in updatedProfiles) {
+          await repository.upsertProfile(profile);
+          await repository.insertApprovalDecision(
+            SiteIdentityApprovalDecisionRecord(
+              clientId: profile.clientId,
+              siteId: profile.siteId,
+              profileId: profile.profileId,
+              decision: SiteIdentityDecision.approveOnce,
+              source: SiteIdentityDecisionSource.admin,
+              decidedBy: 'ONYX Live Ops',
+              decisionSummary:
+                  'Extended temporary approval for ${scope.siteName} until ${profile.validUntilUtc!.toIso8601String()}.',
+              decidedAtUtc: nowUtc,
+              metadata: <String, Object?>{
+                'operator_action': 'extend_temporary_approval',
+                'site_name': scope.siteName,
+              },
+            ),
+          );
+        }
+      } catch (_) {
+        // Keep the live runtime path available even if Supabase persistence fails.
+      }
+    }
+    final nextUntil = updatedProfiles
+        .map((profile) => profile.validUntilUtc!.toUtc())
+        .reduce((left, right) => left.isBefore(right) ? left : right);
+    final untilLabel =
+        '${nextUntil.year.toString().padLeft(4, '0')}-${nextUntil.month.toString().padLeft(2, '0')}-${nextUntil.day.toString().padLeft(2, '0')} ${nextUntil.hour.toString().padLeft(2, '0')}:${nextUntil.minute.toString().padLeft(2, '0')} UTC';
+    await _updateTemporaryApprovalRuntimeForScope(
+      scope: scope,
+      decisionSummary:
+          'Suppressed because the matched identity has a one-time approval until $untilLabel and the activity remained below the client notification threshold. Operator extended the temporary pass.',
+      clientDecisionLabel: 'Temporary Pass Extended',
+      clientDecisionSummary:
+          'ONYX live operations extended the temporary approval until $untilLabel.',
+    );
+    return 'Temporary approval extended until $untilLabel.';
+  }
+
+  Future<String> _expireTemporaryIdentityApprovalForScope(
+    VideoFleetScopeHealthView scope,
+  ) async {
+    final nowUtc = DateTime.now().toUtc();
+    final matches = _matchingTemporaryIdentityProfilesForScope(
+      scope,
+      nowUtc: nowUtc,
+    );
+    if (matches.isEmpty) {
+      return 'No active temporary approval found for ${scope.siteName}.';
+    }
+    final expiredProfiles = matches
+        .map(
+          (profile) => profile.copyWith(
+            status: SiteIdentityStatus.expired,
+            validUntilUtc: nowUtc,
+            updatedAtUtc: nowUtc,
+            notes: 'Temporary approval expired by ONYX operator.',
+            metadata: <String, Object?>{
+              ...profile.metadata,
+              'last_operator_action': 'expire_temporary_approval',
+            },
+          ),
+        )
+        .toList(growable: false);
+
+    _watchTemporaryIdentityApprovalService =
+        _watchTemporaryIdentityApprovalService.pruneExpired(nowUtc: nowUtc);
+    _rebuildWatchSceneAssessmentService();
+    if (widget.supabaseReady) {
+      try {
+        final repository = SupabaseSiteIdentityRegistryRepository(
+          Supabase.instance.client,
+        );
+        for (final profile in expiredProfiles) {
+          await repository.upsertProfile(profile);
+          await repository.insertApprovalDecision(
+            SiteIdentityApprovalDecisionRecord(
+              clientId: profile.clientId,
+              siteId: profile.siteId,
+              profileId: profile.profileId,
+              decision: SiteIdentityDecision.revoke,
+              source: SiteIdentityDecisionSource.admin,
+              decidedBy: 'ONYX Live Ops',
+              decisionSummary:
+                  'Expired temporary approval for ${scope.siteName} at ${nowUtc.toIso8601String()}.',
+              decidedAtUtc: nowUtc,
+              metadata: <String, Object?>{
+                'operator_action': 'expire_temporary_approval',
+                'site_name': scope.siteName,
+              },
+            ),
+          );
+        }
+      } catch (_) {
+        // Keep the live runtime path available even if Supabase persistence fails.
+      }
+    }
+    final expiredLabel =
+        '${nowUtc.year.toString().padLeft(4, '0')}-${nowUtc.month.toString().padLeft(2, '0')}-${nowUtc.day.toString().padLeft(2, '0')} ${nowUtc.hour.toString().padLeft(2, '0')}:${nowUtc.minute.toString().padLeft(2, '0')} UTC';
+    await _updateTemporaryApprovalRuntimeForScope(
+      scope: scope,
+      sceneReviewLabel: 'review required',
+      decisionSummary:
+          'Temporary approval expired at $expiredLabel and future detections will require review.',
+      clientDecisionLabel: 'Temporary Pass Expired',
+      clientDecisionSummary:
+          'ONYX live operations expired the temporary approval at $expiredLabel.',
+    );
+    return 'Temporary approval expired at $expiredLabel.';
+  }
+
+  Future<void> _rememberTemporaryAllowedIdentityFromEvent({
+    required IntelligenceReceived event,
+    required String approvedBy,
+    required DateTime approvedAtUtc,
+  }) async {
+    final nowUtc = approvedAtUtc.toUtc();
+    final validUntilUtc = nowUtc.add(const Duration(hours: 12));
+    final normalizedFace = (event.faceMatchId ?? '').trim().toUpperCase();
+    final normalizedPlate = (event.plateNumber ?? '').trim().toUpperCase();
+    final profile = SiteIdentityProfile(
+      clientId: event.clientId,
+      siteId: event.siteId,
+      identityType: normalizedPlate.isNotEmpty && normalizedFace.isEmpty
+          ? SiteIdentityType.vehicle
+          : SiteIdentityType.person,
+      category: SiteIdentityCategory.visitor,
+      status: SiteIdentityStatus.allowed,
+      displayName:
+          _monitoringIdentityHint(event) ?? 'Temporary approved visitor',
+      faceMatchId: normalizedFace,
+      plateNumber: normalizedPlate,
+      externalReference:
+          'tg-allow-once-${event.intelligenceId}-${nowUtc.microsecondsSinceEpoch}',
+      notes: 'Approved once via Telegram by $approvedBy.',
+      validFromUtc: nowUtc,
+      validUntilUtc: validUntilUtc,
+      createdAtUtc: nowUtc,
+      updatedAtUtc: nowUtc,
+      metadata: <String, Object?>{
+        'source': 'telegram_allow_once',
+        'approved_by': approvedBy,
+        'intelligence_id': event.intelligenceId,
+      },
+    );
+    await _rememberTemporaryAllowedIdentityProfile(profile);
+    if (!widget.supabaseReady) {
+      return;
+    }
+    try {
+      final repository = SupabaseSiteIdentityRegistryRepository(
+        Supabase.instance.client,
+      );
+      await repository.upsertProfile(profile);
+      await repository.insertApprovalDecision(
+        SiteIdentityApprovalDecisionRecord(
+          clientId: event.clientId,
+          siteId: event.siteId,
+          decision: SiteIdentityDecision.approveOnce,
+          source: SiteIdentityDecisionSource.telegram,
+          decidedBy: approvedBy,
+          decisionSummary:
+              'Telegram allow-once approved ${_monitoringIdentityHint(event) ?? 'temporary visitor'} until ${validUntilUtc.toIso8601String()}.',
+          decidedAtUtc: nowUtc,
+          metadata: <String, Object?>{
+            'intelligence_id': event.intelligenceId,
+            'valid_until': validUntilUtc.toIso8601String(),
+          },
+        ),
+      );
+    } catch (_) {
+      // Runtime temporary approval already applied; keep the live path moving.
+    }
+  }
+
+  Future<void> _rememberAllowedIdentityFromEvent({
+    required IntelligenceReceived event,
+    required String approvedBy,
+    required DateTime approvedAtUtc,
+  }) async {
+    final currentPolicy = _watchIdentityPolicyService.policyFor(
+      clientId: event.clientId,
+      siteId: event.siteId,
+    );
+    final nextPolicy = currentPolicy.copyWith(
+      allowedFaceMatchIds: {
+        ...currentPolicy.allowedFaceMatchIds,
+        if ((event.faceMatchId ?? '').trim().isNotEmpty)
+          event.faceMatchId!.trim().toUpperCase(),
+      },
+      allowedPlateNumbers: {
+        ...currentPolicy.allowedPlateNumbers,
+        if ((event.plateNumber ?? '').trim().isNotEmpty)
+          event.plateNumber!.trim().toUpperCase(),
+      },
+    );
+    final nextService = _watchIdentityPolicyService.updateScopePolicy(
+      clientId: event.clientId,
+      siteId: event.siteId,
+      policy: nextPolicy,
+    );
+    await _saveMonitoringIdentityRulesConfig(nextService);
+    final auditRecord = MonitoringIdentityPolicyAuditRecord(
+      recordedAtUtc: approvedAtUtc.toUtc(),
+      source: MonitoringIdentityPolicyAuditSource.manualEdit,
+      message:
+          'Telegram allow-always added ${_monitoringIdentityHint(event) ?? 'approved identity'} for ${event.siteId} by $approvedBy.',
+    );
+    final nextAuditHistory = <MonitoringIdentityPolicyAuditRecord>[
+      auditRecord,
+      ..._monitoringIdentityRuleAuditHistory,
+    ].take(12).toList(growable: false);
+    if (mounted) {
+      setState(() {
+        _monitoringIdentityRuleAuditHistory = nextAuditHistory;
+      });
+    } else {
+      _monitoringIdentityRuleAuditHistory = nextAuditHistory;
+    }
+    await _persistMonitoringIdentityRuleAuditHistory();
+    await _persistAllowedIdentityToSupabase(
+      event: event,
+      approvedBy: approvedBy,
+      approvedAtUtc: approvedAtUtc,
+    );
+  }
+
+  Future<void> _persistAllowedIdentityToSupabase({
+    required IntelligenceReceived event,
+    required String approvedBy,
+    required DateTime approvedAtUtc,
+  }) async {
+    if (!widget.supabaseReady) {
+      return;
+    }
+    final repository = SupabaseSiteIdentityRegistryRepository(
+      Supabase.instance.client,
+    );
+    final jobs = <Future<void>>[];
+    final faceMatchId = (event.faceMatchId ?? '').trim();
+    final plateNumber = (event.plateNumber ?? '').trim();
+    if (faceMatchId.isNotEmpty) {
+      jobs.add(
+        repository.upsertProfile(
+          SiteIdentityProfile(
+            clientId: event.clientId,
+            siteId: event.siteId,
+            identityType: SiteIdentityType.person,
+            category: SiteIdentityCategory.visitor,
+            status: SiteIdentityStatus.allowed,
+            displayName: 'Visitor $faceMatchId',
+            faceMatchId: faceMatchId,
+            externalReference: event.intelligenceId,
+            notes: 'Approved through Telegram allow-always flow.',
+            createdAtUtc: approvedAtUtc.toUtc(),
+            updatedAtUtc: approvedAtUtc.toUtc(),
+            metadata: <String, Object?>{
+              'source': 'telegram_allow_always',
+              'intelligence_id': event.intelligenceId,
+            },
+          ),
+        ),
+      );
+    }
+    if (plateNumber.isNotEmpty) {
+      jobs.add(
+        repository.upsertProfile(
+          SiteIdentityProfile(
+            clientId: event.clientId,
+            siteId: event.siteId,
+            identityType: SiteIdentityType.vehicle,
+            category: SiteIdentityCategory.visitor,
+            status: SiteIdentityStatus.allowed,
+            displayName: 'Visitor vehicle $plateNumber',
+            plateNumber: plateNumber,
+            externalReference: event.intelligenceId,
+            notes: 'Approved through Telegram allow-always flow.',
+            createdAtUtc: approvedAtUtc.toUtc(),
+            updatedAtUtc: approvedAtUtc.toUtc(),
+            metadata: <String, Object?>{
+              'source': 'telegram_allow_always',
+              'intelligence_id': event.intelligenceId,
+            },
+          ),
+        ),
+      );
+    }
+    jobs.add(
+      repository.insertApprovalDecision(
+        SiteIdentityApprovalDecisionRecord(
+          clientId: event.clientId,
+          siteId: event.siteId,
+          intelligenceId: event.intelligenceId,
+          decision: SiteIdentityDecision.approveAlways,
+          source: SiteIdentityDecisionSource.telegram,
+          decidedBy: approvedBy,
+          decisionSummary:
+              'Client chose ALWAYS ALLOW from the Telegram verification follow-up.',
+          decidedAtUtc: approvedAtUtc.toUtc(),
+          metadata: <String, Object?>{
+            if (faceMatchId.isNotEmpty) 'face_match_id': faceMatchId,
+            if (plateNumber.isNotEmpty) 'plate_number': plateNumber,
+          },
+        ),
+      ),
+    );
+    try {
+      await Future.wait(jobs);
+    } catch (_) {
+      // Local runtime policy remains authoritative even if Supabase persistence
+      // is unavailable.
+    }
+  }
+
+  Future<void> _recordClientAcknowledgementForScope({
+    required String clientId,
+    required String siteId,
+    required String messageKey,
+    required ClientAppAcknowledgementChannel channel,
+    required String acknowledgedBy,
+    required DateTime acknowledgedAtUtc,
+  }) async {
+    final repository = await _conversationRepositoryForScope(
+      clientId: clientId,
+      siteId: siteId,
+    );
+    if (repository == null) {
+      return;
+    }
+    final nextAck = ClientAppAcknowledgement(
+      messageKey: messageKey,
+      channel: channel,
+      acknowledgedBy: acknowledgedBy.trim(),
+      acknowledgedAt: acknowledgedAtUtc.toUtc(),
+    );
+    final acknowledgements = await repository.readAcknowledgements();
+    final nextAcknowledgements = <ClientAppAcknowledgement>[
+      nextAck,
+      ...acknowledgements.where(
+        (ack) => !(ack.messageKey == messageKey && ack.channel == channel),
+      ),
+    ]..sort((a, b) => b.acknowledgedAt.compareTo(a.acknowledgedAt));
+    final queue = await repository.readPushQueue();
+    final nextQueue = queue
+        .map(
+          (item) => item.messageKey == messageKey
+              ? ClientAppPushDeliveryItem(
+                  messageKey: item.messageKey,
+                  title: item.title,
+                  body: item.body,
+                  occurredAt: item.occurredAt,
+                  clientId: item.clientId,
+                  siteId: item.siteId,
+                  targetChannel: item.targetChannel,
+                  deliveryProvider: item.deliveryProvider,
+                  priority: item.priority,
+                  status: ClientPushDeliveryStatus.acknowledged,
+                )
+              : item,
+        )
+        .toList(growable: false);
+    await repository.saveAcknowledgements(nextAcknowledgements);
+    await repository.savePushQueue(nextQueue);
+    if (clientId.trim() == _selectedClient.trim() &&
+        siteId.trim() == _selectedSite.trim()) {
+      _clientAppAcknowledgements = List<ClientAppAcknowledgement>.from(
+        nextAcknowledgements,
+      );
+      _clientAppPushQueue = List<ClientAppPushDeliveryItem>.from(nextQueue);
+    }
+    final scopeKey = _monitoringScopeKey(clientId, siteId);
+    final runtime = _monitoringWatchByScope[scopeKey];
+    if (runtime != null) {
+      _monitoringWatchByScope[scopeKey] = _watchRuntimeStore
+          .applyClientDecision(
+            runtime: runtime,
+            decisionLabel: _clientDecisionRuntimeLabel(acknowledgedBy),
+            decisionSummary: _clientDecisionRuntimeSummary(acknowledgedBy),
+            decidedAtUtc: acknowledgedAtUtc,
+          );
+      await _persistMonitoringWatchRuntimeState();
+    }
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<ClientConversationRepository?> _conversationRepositoryForScope({
+    required String clientId,
+    required String siteId,
+  }) async {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    if (normalizedClientId.isEmpty || normalizedSiteId.isEmpty) {
+      return null;
+    }
+    if (normalizedClientId == _selectedClient.trim() &&
+        normalizedSiteId == _selectedSite.trim()) {
+      return _clientConversationRepositoryFuture;
+    }
+    if (!widget.supabaseReady) {
+      return null;
+    }
+    return SupabaseClientConversationRepository(
+      client: Supabase.instance.client,
+      clientId: normalizedClientId,
+      siteId: normalizedSiteId,
+    );
+  }
+
+  String _clientDecisionRuntimeLabel(String acknowledgedBy) {
+    final normalized = acknowledgedBy.trim().toLowerCase();
+    if (normalized.contains('always allow')) {
+      return 'Client Allowed Always';
+    }
+    if (normalized.contains('allow once')) {
+      return 'Client Allow Once';
+    }
+    if (normalized.contains('approve')) {
+      return 'Client Approved';
+    }
+    if (normalized.contains('review')) {
+      return 'Client Review Requested';
+    }
+    if (normalized.contains('escalate')) {
+      return 'Client Escalated';
+    }
+    return 'Client Decision Received';
+  }
+
+  String _clientDecisionRuntimeSummary(String acknowledgedBy) {
+    final normalized = acknowledgedBy.trim().toLowerCase();
+    if (normalized.contains('always allow')) {
+      return 'Client asked ONYX to remember this visitor for future matches.';
+    }
+    if (normalized.contains('allow once')) {
+      return 'Client approved this visitor once and wants ONYX to ask again next time.';
+    }
+    if (normalized.contains('approve')) {
+      return 'Client confirmed the unidentified person was expected.';
+    }
+    if (normalized.contains('review')) {
+      return 'Client asked ONYX control to keep the event open for manual review.';
+    }
+    if (normalized.contains('escalate')) {
+      return 'Client requested urgent control review for the unidentified person.';
+    }
+    return 'Client responded to the ONYX verification prompt.';
   }
 
   bool _isHighRiskTelegramMessage(String text) {
@@ -7104,6 +9095,790 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
   }
 
+  String _monitoringScopeKey(String clientId, String siteId) {
+    return '${clientId.trim()}|${siteId.trim()}';
+  }
+
+  String _humanizeScopeLabel(String raw) {
+    final cleaned = raw
+        .trim()
+        .replaceAll(RegExp(r'[_\-]+'), ' ')
+        .replaceAll(RegExp(r'[^A-Za-z0-9 ]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    if (cleaned.isEmpty) {
+      return 'Unnamed Scope';
+    }
+    final stopWords = <String>{'and', 'of', 'the'};
+    return cleaned
+        .split(' ')
+        .asMap()
+        .entries
+        .map((entry) {
+          final token = entry.value.toLowerCase();
+          if (token.isEmpty) {
+            return '';
+          }
+          if (entry.key > 0 && stopWords.contains(token)) {
+            return token;
+          }
+          return '${token[0].toUpperCase()}${token.substring(1)}';
+        })
+        .join(' ');
+  }
+
+  MonitoringSiteProfile _monitoringSiteProfileFor({
+    required String clientId,
+    required String siteId,
+  }) {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    if (normalizedClientId == 'CLIENT-MS-VALLEE' &&
+        normalizedSiteId == 'SITE-MS-VALLEE-RESIDENCE') {
+      return const MonitoringSiteProfile(
+        siteName: 'MS Vallee Residence',
+        clientName: 'Muhammed Vallee',
+      );
+    }
+    return MonitoringSiteProfile(
+      siteName: _humanizeScopeLabel(normalizedSiteId),
+      clientName: '',
+    );
+  }
+
+  _MonitoringWatchTarget? _parseMonitoringWatchScope(
+    String arguments, {
+    bool includeCamera = false,
+  }) {
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (!includeCamera) {
+      if (tokens.isEmpty) {
+        return _MonitoringWatchTarget(
+          clientId: _telegramAdminTargetClientId,
+          siteId: _telegramAdminTargetSiteId,
+        );
+      }
+      if (tokens.length != 2) {
+        return null;
+      }
+      return _MonitoringWatchTarget(clientId: tokens[0], siteId: tokens[1]);
+    }
+    if (tokens.isEmpty) {
+      return _MonitoringWatchTarget(
+        clientId: _telegramAdminTargetClientId,
+        siteId: _telegramAdminTargetSiteId,
+      );
+    }
+    if (tokens.length == 1) {
+      return _MonitoringWatchTarget(
+        clientId: _telegramAdminTargetClientId,
+        siteId: _telegramAdminTargetSiteId,
+        cameraLabel: tokens[0],
+      );
+    }
+    if (tokens.length == 2) {
+      return _MonitoringWatchTarget(clientId: tokens[0], siteId: tokens[1]);
+    }
+    return _MonitoringWatchTarget(
+      clientId: tokens[0],
+      siteId: tokens[1],
+      cameraLabel: tokens.sublist(2).join(' '),
+    );
+  }
+
+  Future<String> _enqueueMonitoringClientNotification({
+    required String clientId,
+    required String siteId,
+    required String title,
+    required String body,
+    required DateTime occurredAtUtc,
+    required String messageKeyPrefix,
+    required String incidentStatusLabel,
+  }) async {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    final normalizedTitle = title.trim();
+    final normalizedBody = body.trim();
+    final messageKey =
+        '$messageKeyPrefix-${normalizedClientId.toLowerCase()}-${normalizedSiteId.toLowerCase()}-${occurredAtUtc.microsecondsSinceEpoch}';
+    await _appendTelegramConversationMessage(
+      clientId: normalizedClientId,
+      siteId: normalizedSiteId,
+      author: 'ONYX Control',
+      body: normalizedBody,
+      occurredAtUtc: occurredAtUtc,
+      roomKey: 'Residents',
+      viewerRole: 'client',
+      incidentStatusLabel: incidentStatusLabel,
+      messageSource: 'system',
+      messageProvider: 'onyx_monitoring',
+    );
+    await _persistClientAppPushQueue(<ClientAppPushDeliveryItem>[
+      ClientAppPushDeliveryItem(
+        messageKey: messageKey,
+        title: normalizedTitle,
+        body: normalizedBody,
+        occurredAt: occurredAtUtc,
+        clientId: normalizedClientId,
+        siteId: normalizedSiteId,
+        targetChannel: ClientAppAcknowledgementChannel.client,
+        deliveryProvider: _clientPushDeliveryProvider,
+        priority: true,
+        status: ClientPushDeliveryStatus.queued,
+      ),
+      ..._clientAppPushQueue,
+    ], forceTelegramResend: true);
+    return messageKey;
+  }
+
+  String? _monitoringIdentityHint(IntelligenceReceived event) {
+    final parts = <String>[];
+    final faceMatchId = (event.faceMatchId ?? '').trim();
+    final plateNumber = (event.plateNumber ?? '').trim();
+    if (faceMatchId.isNotEmpty) {
+      final confidence = event.faceConfidence == null
+          ? ''
+          : ' ${(event.faceConfidence! * 100).toStringAsFixed(1)}%';
+      parts.add('Face $faceMatchId$confidence');
+    }
+    if (plateNumber.isNotEmpty) {
+      final confidence = event.plateConfidence == null
+          ? ''
+          : ' ${(event.plateConfidence! * 100).toStringAsFixed(1)}%';
+      parts.add('Plate $plateNumber$confidence');
+    }
+    if (parts.isEmpty) {
+      return null;
+    }
+    return parts.join(' • ');
+  }
+
+  String _monitoringCameraLabel(String? cameraId) {
+    final raw = (cameraId ?? '').trim();
+    if (raw.isEmpty) {
+      return 'Camera 1';
+    }
+    final match = RegExp(r'(\d+)$').firstMatch(raw);
+    if (match == null) {
+      return raw;
+    }
+    return 'Camera ${match.group(1)}';
+  }
+
+  List<MonitoringShiftScopeConfig> _resolveMonitoringShiftScopes() {
+    final fallbackSchedule = _activeMonitoringShiftSchedule;
+    final parsed = MonitoringShiftScopeConfig.parseJson(
+      _monitoringShiftScopesJsonEnv,
+      fallbackSchedule: fallbackSchedule,
+      fallbackClientId: _selectedClient,
+      fallbackRegionId: _selectedRegion,
+      fallbackSiteId: _selectedSite,
+    );
+    if (parsed.isNotEmpty) {
+      return parsed;
+    }
+    return <MonitoringShiftScopeConfig>[
+      MonitoringShiftScopeConfig(
+        clientId: _selectedClient,
+        regionId: _selectedRegion,
+        siteId: _selectedSite,
+        schedule: fallbackSchedule,
+      ),
+    ];
+  }
+
+  MonitoringShiftSchedule get _activeMonitoringShiftSchedule =>
+      const MonitoringShiftSchedule(
+        enabled: _monitoringShiftAutoEnabledEnv,
+        startHour: _monitoringShiftStartHourEnv,
+        startMinute: _monitoringShiftStartMinuteEnv,
+        endHour: _monitoringShiftEndHourEnv,
+        endMinute: _monitoringShiftEndMinuteEnv,
+      );
+
+  bool get _monitoringShiftAutoEligible {
+    return _activeVideoProfile.isDvr &&
+        _activeVideoProfile.provider.toLowerCase().contains('monitor_only') &&
+        _configuredMonitoringShiftScopes.any((entry) => entry.schedule.enabled);
+  }
+
+  MonitoringShiftSchedule _monitoringScheduleForScope(
+    String clientId,
+    String siteId,
+  ) {
+    for (final entry in _configuredMonitoringShiftScopes) {
+      if (entry.clientId.trim() == clientId.trim() &&
+          entry.siteId.trim() == siteId.trim()) {
+        return entry.schedule;
+      }
+    }
+    return _activeMonitoringShiftSchedule;
+  }
+
+  void _startMonitoringWatchScheduleLoop() {
+    _monitoringWatchScheduleTimer?.cancel();
+    if (!_monitoringShiftAutoEligible) {
+      return;
+    }
+    unawaited(_syncMonitoringWatchScheduleNow());
+  }
+
+  void _scheduleNextMonitoringWatchSync(DateTime? nextTransitionLocal) {
+    _monitoringWatchScheduleTimer?.cancel();
+    if (!_monitoringShiftAutoEligible || nextTransitionLocal == null) {
+      return;
+    }
+    final delay = nextTransitionLocal.difference(DateTime.now());
+    final boundedDelay = delay.isNegative
+        ? const Duration(seconds: 1)
+        : delay + const Duration(seconds: 1);
+    _monitoringWatchScheduleTimer = Timer(boundedDelay, () {
+      unawaited(_syncMonitoringWatchScheduleNow());
+    });
+  }
+
+  Future<String?> _activateMonitoringWatch({
+    required String clientId,
+    required String siteId,
+    required DateTime startedAtUtc,
+    bool notifyClient = true,
+    String messageKeyPrefix = 'tg-watch-start',
+  }) async {
+    final scopeKey = _monitoringScopeKey(clientId, siteId);
+    if (_monitoringWatchByScope.containsKey(scopeKey)) {
+      return null;
+    }
+    final schedule = _monitoringScheduleForScope(clientId, siteId);
+    String? messageKey;
+    final expectedWindowEndUtc =
+        schedule.endForWindowStart(startedAtUtc.toLocal())?.toUtc() ??
+        startedAtUtc.add(const Duration(hours: 12));
+    if (notifyClient) {
+      final site = _monitoringSiteProfileFor(
+        clientId: clientId,
+        siteId: siteId,
+      );
+      final body = _monitoringShiftNotifications.formatShiftStart(
+        site: site,
+        window: MonitoringShiftWindow(
+          startedAt: startedAtUtc,
+          endsAt: expectedWindowEndUtc,
+        ),
+      );
+      messageKey = await _enqueueMonitoringClientNotification(
+        clientId: clientId,
+        siteId: siteId,
+        title: 'ONYX Monitoring Active',
+        body: body,
+        occurredAtUtc: startedAtUtc,
+        messageKeyPrefix: messageKeyPrefix,
+        incidentStatusLabel: 'Monitoring Active',
+      );
+    }
+    _monitoringWatchByScope[scopeKey] = MonitoringWatchRuntimeState(
+      startedAtUtc: startedAtUtc,
+    );
+    await _persistMonitoringWatchRuntimeState();
+    if (mounted) {
+      setState(() {});
+    }
+    return messageKey;
+  }
+
+  Future<String?> _deactivateMonitoringWatch({
+    required String clientId,
+    required String siteId,
+    required DateTime endedAtUtc,
+    bool notifyClient = true,
+    String messageKeyPrefix = 'tg-watch-end',
+  }) async {
+    final scopeKey = _monitoringScopeKey(clientId, siteId);
+    final runtime = _monitoringWatchByScope[scopeKey];
+    if (runtime == null) {
+      return null;
+    }
+    String? messageKey;
+    if (notifyClient) {
+      final site = _monitoringSiteProfileFor(
+        clientId: clientId,
+        siteId: siteId,
+      );
+      final summary = MonitoringShiftSummary(
+        window: MonitoringShiftWindow(
+          startedAt: runtime.startedAtUtc,
+          endsAt: endedAtUtc,
+        ),
+        reviewedEvents: runtime.reviewedEvents,
+        primaryActivitySource: runtime.primaryActivitySource.trim().isEmpty
+            ? 'No material activity logged'
+            : runtime.primaryActivitySource.trim(),
+        dispatchCount: runtime.dispatchCount,
+        alertCount: runtime.alertCount,
+        repeatCount: runtime.repeatCount,
+        escalationCount: runtime.escalationCount,
+        suppressedCount: runtime.suppressedCount,
+        actionHistory: runtime.actionHistory,
+        suppressedHistory: runtime.suppressedHistory,
+        monitoringAvailable: runtime.monitoringAvailable,
+        unresolvedActionCount: runtime.unresolvedActionCount,
+      );
+      final body = _monitoringShiftNotifications.formatShiftSitrep(
+        site: site,
+        summary: summary,
+      );
+      messageKey = await _enqueueMonitoringClientNotification(
+        clientId: clientId,
+        siteId: siteId,
+        title: 'ONYX Shift Sitrep',
+        body: body,
+        occurredAtUtc: endedAtUtc,
+        messageKeyPrefix: messageKeyPrefix,
+        incidentStatusLabel: 'Shift Sitrep',
+      );
+    }
+    _monitoringWatchByScope.remove(scopeKey);
+    await _persistMonitoringWatchRuntimeState();
+    if (mounted) {
+      setState(() {});
+    }
+    return messageKey;
+  }
+
+  Future<void> _syncMonitoringWatchScheduleNow() async {
+    final nowLocal = DateTime.now();
+    DateTime? nextTransitionLocal;
+    if (!_monitoringShiftAutoEligible) {
+      _scheduleNextMonitoringWatchSync(null);
+      return;
+    }
+    for (final configuredScope in _configuredMonitoringShiftScopes) {
+      final schedule = configuredScope.schedule;
+      final snapshot = schedule.snapshotAt(nowLocal);
+      final transition = snapshot.nextTransitionLocal;
+      if (transition != null &&
+          (nextTransitionLocal == null ||
+              transition.isBefore(nextTransitionLocal))) {
+        nextTransitionLocal = transition;
+      }
+      final clientId = configuredScope.clientId;
+      final siteId = configuredScope.siteId;
+      final scopeKey = _monitoringScopeKey(clientId, siteId);
+      final runtime = _monitoringWatchByScope[scopeKey];
+      final plan = _watchScheduleSyncPlanService.resolve(
+        schedule: schedule,
+        snapshot: snapshot,
+        nowLocal: nowLocal,
+        nowUtc: nowLocal.toUtc(),
+        activeWatchStartedAtUtc: runtime?.startedAtUtc,
+      );
+      if (plan.action == MonitoringWatchScheduleSyncAction.activate &&
+          plan.startedAtUtc != null) {
+        await _activateMonitoringWatch(
+          clientId: clientId,
+          siteId: siteId,
+          startedAtUtc: plan.startedAtUtc!,
+          notifyClient: plan.shouldNotify,
+          messageKeyPrefix: 'tg-watch-auto-start',
+        );
+        continue;
+      }
+      if (plan.action == MonitoringWatchScheduleSyncAction.deactivate &&
+          plan.endedAtUtc != null) {
+        await _deactivateMonitoringWatch(
+          clientId: clientId,
+          siteId: siteId,
+          endedAtUtc: plan.endedAtUtc!,
+          notifyClient: plan.shouldNotify,
+          messageKeyPrefix: 'tg-watch-auto-end',
+        );
+      }
+    }
+    _scheduleNextMonitoringWatchSync(nextTransitionLocal);
+  }
+
+  Future<void> _resyncMonitoringWatchForScope({
+    required String clientId,
+    required String siteId,
+    String actor = 'SYSTEM',
+  }) async {
+    final schedule = _monitoringScheduleForScope(clientId, siteId);
+    final nowLocal = DateTime.now();
+    final nowUtc = nowLocal.toUtc();
+    final snapshot = schedule.snapshotAt(nowLocal);
+    final scopeKey = _monitoringScopeKey(clientId, siteId);
+    final runtime = _monitoringWatchByScope[scopeKey];
+    final plan = _watchResyncPlanService.resolve(
+      schedule: schedule,
+      snapshot: snapshot,
+      nowUtc: nowUtc,
+      activeWatchStartedAtUtc: runtime?.startedAtUtc,
+    );
+    if (plan.action == MonitoringWatchResyncAction.activate &&
+        plan.startedAtUtc != null) {
+      await _activateMonitoringWatch(
+        clientId: clientId,
+        siteId: siteId,
+        startedAtUtc: plan.startedAtUtc!,
+        notifyClient: false,
+        messageKeyPrefix: 'tg-watch-resync-start',
+      );
+    } else if (plan.action == MonitoringWatchResyncAction.deactivate &&
+        plan.endedAtUtc != null) {
+      await _deactivateMonitoringWatch(
+        clientId: clientId,
+        siteId: siteId,
+        endedAtUtc: plan.endedAtUtc!,
+        notifyClient: false,
+        messageKeyPrefix: 'tg-watch-resync-end',
+      );
+    }
+    _recordMonitoringWatchResyncOutcome(
+      clientId: clientId,
+      siteId: siteId,
+      actor: actor,
+      outcome: plan.outcome,
+    );
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _processActiveMonitoringWatchEvents(
+    List<IntelligenceReceived> appendedEvents,
+  ) async {
+    if (appendedEvents.isEmpty || !_activeVideoProfile.isDvr) {
+      return;
+    }
+    if (!_activeVideoProfile.provider.toLowerCase().contains('monitor_only')) {
+      return;
+    }
+    final scopedEvents = <String, List<IntelligenceReceived>>{};
+    for (final event in appendedEvents) {
+      if (!_matchesActiveVideoProviderEvent(event)) {
+        continue;
+      }
+      final scopeKey = _monitoringScopeKey(event.clientId, event.siteId);
+      if (!_monitoringWatchByScope.containsKey(scopeKey)) {
+        continue;
+      }
+      final bucket = scopedEvents.putIfAbsent(
+        scopeKey,
+        () => <IntelligenceReceived>[],
+      );
+      bucket.add(event);
+    }
+    if (scopedEvents.isEmpty) {
+      return;
+    }
+    for (final entry in scopedEvents.entries) {
+      final runtime = _monitoringWatchByScope[entry.key];
+      if (runtime == null) {
+        continue;
+      }
+      final events = entry.value.toList(growable: false)
+        ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+      final latest = events.first;
+      final cameraLabel = _monitoringCameraLabel(latest.cameraId);
+      final site = _monitoringSiteProfileFor(
+        clientId: latest.clientId,
+        siteId: latest.siteId,
+      );
+      final review = await _monitoringWatchVisionReview.review(
+        event: latest,
+        authConfig: _monitoringVisionAuthConfigForScope(
+          latest.clientId,
+          latest.siteId,
+        ),
+        priorReviewedEvents: runtime.reviewedEvents,
+        groupedEventCount: events.length,
+      );
+      final assessment = _watchSceneAssessmentService.assess(
+        event: latest,
+        review: review,
+        priorReviewedEvents: runtime.reviewedEvents,
+        groupedEventCount: events.length,
+      );
+      final decision = _watchEscalationPolicyService.decide(assessment);
+      final sceneReviewSource = review.usedFallback
+          ? 'metadata-only'
+          : review.sourceLabel.trim();
+      final sceneReviewSummary = review.summary.trim().isEmpty
+          ? assessment.rationale.join(' • ')
+          : review.summary.trim();
+      await _recordMonitoringSceneReview(
+        event: latest,
+        assessment: assessment,
+        review: review,
+        decision: decision,
+      );
+      final incident = MonitoringIncidentUpdate(
+        occurredAt: latest.occurredAt,
+        cameraLabel: cameraLabel,
+        objectLabel: assessment.objectLabel,
+        postureLabel: assessment.postureLabel,
+      );
+      if (decision.shouldNotifyClient) {
+        final requiresClientApproval = _telegramClientApprovalService
+            .requiresClientApproval(event: latest, assessment: assessment);
+        final messageBody = requiresClientApproval
+            ? _monitoringShiftNotifications.formatClientVerificationPrompt(
+                site: site,
+                incident: incident,
+                identityHint: _monitoringIdentityHint(latest),
+              )
+            : switch (decision.kind) {
+                MonitoringWatchNotificationKind.repeat =>
+                  _monitoringShiftNotifications.formatRepeatActivity(
+                    site: site,
+                    incident: incident,
+                  ),
+                MonitoringWatchNotificationKind.escalationCandidate =>
+                  _monitoringShiftNotifications.formatEscalationCandidate(
+                    site: site,
+                    incident: incident,
+                  ),
+                MonitoringWatchNotificationKind.incident =>
+                  _monitoringShiftNotifications.formatIncident(
+                    site: site,
+                    incident: incident,
+                  ),
+                MonitoringWatchNotificationKind.suppressed => '',
+              };
+        await _enqueueMonitoringClientNotification(
+          clientId: latest.clientId,
+          siteId: latest.siteId,
+          title: requiresClientApproval
+              ? 'ONYX Verification Required'
+              : decision.title,
+          body: messageBody,
+          occurredAtUtc: latest.occurredAt,
+          messageKeyPrefix: requiresClientApproval
+              ? TelegramClientApprovalService.verificationMessageKeyPrefix
+              : decision.messageKeyPrefix,
+          incidentStatusLabel: requiresClientApproval
+              ? 'Client Verification Required'
+              : decision.incidentStatusLabel,
+        );
+      }
+      _monitoringWatchByScope[entry.key] = _watchRuntimeStore
+          .applyReviewedActivity(
+            runtime: runtime,
+            reviewedEventDelta: events.length,
+            activitySource: cameraLabel,
+            alertDelta:
+                decision.kind == MonitoringWatchNotificationKind.incident
+                ? 1
+                : 0,
+            repeatDelta: decision.kind == MonitoringWatchNotificationKind.repeat
+                ? 1
+                : 0,
+            escalationDelta: decision.shouldIncrementEscalation ? 1 : 0,
+            suppressedDelta:
+                decision.kind == MonitoringWatchNotificationKind.suppressed
+                ? events.length
+                : 0,
+            sceneReviewSourceLabel: sceneReviewSource,
+            sceneReviewPostureLabel: assessment.postureLabel,
+            sceneReviewSummary: sceneReviewSummary,
+            sceneDecisionLabel: decision.incidentStatusLabel,
+            sceneDecisionSummary: decision.decisionSummary,
+            sceneReviewRecordedAtUtc: latest.occurredAt,
+          );
+      await _persistMonitoringWatchRuntimeState();
+    }
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<String> _telegramAdminWatchStartCommand(String arguments) async {
+    final target = _parseMonitoringWatchScope(arguments);
+    if (target == null) {
+      return 'ONYX WATCHSTART\nUsage: /watchstart [client_id site_id]';
+    }
+    final clientId = target.clientId.trim();
+    final siteId = target.siteId.trim();
+    if (clientId.isEmpty || siteId.isEmpty) {
+      return 'ONYX WATCHSTART\nInvalid scope. Use /settarget <client_id site_id> first.';
+    }
+    final scopeKey = _monitoringScopeKey(clientId, siteId);
+    final activeRuntime = _monitoringWatchByScope[scopeKey];
+    if (activeRuntime != null) {
+      return 'ONYX WATCHSTART\n'
+          'scope=$clientId/$siteId\n'
+          'status=already-active\n'
+          'started_at=${activeRuntime.startedAtUtc.toIso8601String()}';
+    }
+    final nowUtc = DateTime.now().toUtc();
+    final messageKey =
+        await _activateMonitoringWatch(
+          clientId: clientId,
+          siteId: siteId,
+          startedAtUtc: nowUtc,
+          notifyClient: true,
+          messageKeyPrefix: 'tg-watch-start',
+        ) ??
+        '';
+    return 'ONYX WATCHSTART\n'
+        'scope=$clientId/$siteId\n'
+        'message_key=$messageKey\n'
+        'queue_size=${_clientAppPushQueue.length}\n'
+        'started_at=${nowUtc.toIso8601String()}';
+  }
+
+  Future<String> _telegramAdminWatchAlertCommand(String arguments) async {
+    final target = _parseMonitoringWatchScope(arguments, includeCamera: true);
+    if (target == null) {
+      return 'ONYX WATCHALERT\nUsage: /watchalert [client_id site_id] [camera_label]';
+    }
+    final clientId = target.clientId.trim();
+    final siteId = target.siteId.trim();
+    if (clientId.isEmpty || siteId.isEmpty) {
+      return 'ONYX WATCHALERT\nInvalid scope. Use /settarget <client_id site_id> first.';
+    }
+    final scopeKey = _monitoringScopeKey(clientId, siteId);
+    final runtime = _monitoringWatchByScope[scopeKey];
+    if (runtime == null) {
+      return 'ONYX WATCHALERT\nscope=$clientId/$siteId\nNo active monitoring watch. Run /watchstart first.';
+    }
+    final nowUtc = DateTime.now().toUtc();
+    final cameraLabel = target.cameraLabel.trim().isEmpty
+        ? 'Camera 1'
+        : target.cameraLabel.trim();
+    final site = _monitoringSiteProfileFor(clientId: clientId, siteId: siteId);
+    final body = _monitoringShiftNotifications.formatIncident(
+      site: site,
+      incident: MonitoringIncidentUpdate(
+        occurredAt: nowUtc,
+        cameraLabel: cameraLabel,
+      ),
+    );
+    final messageKey = await _enqueueMonitoringClientNotification(
+      clientId: clientId,
+      siteId: siteId,
+      title: 'ONYX Monitoring Alert',
+      body: body,
+      occurredAtUtc: nowUtc,
+      messageKeyPrefix: 'tg-watch-alert',
+      incidentStatusLabel: 'Monitoring Alert',
+    );
+    _monitoringWatchByScope[scopeKey] = _watchRuntimeStore
+        .applyReviewedActivity(
+          runtime: runtime,
+          reviewedEventDelta: 1,
+          activitySource: cameraLabel,
+          alertDelta: 1,
+        );
+    await _persistMonitoringWatchRuntimeState();
+    if (mounted) {
+      setState(() {});
+    }
+    return 'ONYX WATCHALERT\n'
+        'scope=$clientId/$siteId\n'
+        'camera=$cameraLabel\n'
+        'message_key=$messageKey\n'
+        'reviewed_events=${_monitoringWatchByScope[scopeKey]!.reviewedEvents}\n'
+        'queue_size=${_clientAppPushQueue.length}\n'
+        'utc=${nowUtc.toIso8601String()}';
+  }
+
+  Future<String> _telegramAdminWatchRepeatCommand(String arguments) async {
+    final target = _parseMonitoringWatchScope(arguments, includeCamera: true);
+    if (target == null) {
+      return 'ONYX WATCHREPEAT\nUsage: /watchrepeat [client_id site_id] [camera_label]';
+    }
+    final clientId = target.clientId.trim();
+    final siteId = target.siteId.trim();
+    if (clientId.isEmpty || siteId.isEmpty) {
+      return 'ONYX WATCHREPEAT\nInvalid scope. Use /settarget <client_id site_id> first.';
+    }
+    final scopeKey = _monitoringScopeKey(clientId, siteId);
+    final runtime = _monitoringWatchByScope[scopeKey];
+    if (runtime == null) {
+      return 'ONYX WATCHREPEAT\nscope=$clientId/$siteId\nNo active monitoring watch. Run /watchstart first.';
+    }
+    final nowUtc = DateTime.now().toUtc();
+    final cameraLabel = target.cameraLabel.trim().isEmpty
+        ? 'Camera 1'
+        : target.cameraLabel.trim();
+    final site = _monitoringSiteProfileFor(clientId: clientId, siteId: siteId);
+    final body = _monitoringShiftNotifications.formatRepeatActivity(
+      site: site,
+      incident: MonitoringIncidentUpdate(
+        occurredAt: nowUtc,
+        cameraLabel: cameraLabel,
+      ),
+    );
+    final messageKey = await _enqueueMonitoringClientNotification(
+      clientId: clientId,
+      siteId: siteId,
+      title: 'ONYX Monitoring Update',
+      body: body,
+      occurredAtUtc: nowUtc,
+      messageKeyPrefix: 'tg-watch-repeat',
+      incidentStatusLabel: 'Repeat Activity',
+    );
+    _monitoringWatchByScope[scopeKey] = _watchRuntimeStore
+        .applyReviewedActivity(
+          runtime: runtime,
+          reviewedEventDelta: 1,
+          activitySource: cameraLabel,
+          repeatDelta: 1,
+          escalationDelta: 1,
+        );
+    await _persistMonitoringWatchRuntimeState();
+    if (mounted) {
+      setState(() {});
+    }
+    return 'ONYX WATCHREPEAT\n'
+        'scope=$clientId/$siteId\n'
+        'camera=$cameraLabel\n'
+        'message_key=$messageKey\n'
+        'reviewed_events=${_monitoringWatchByScope[scopeKey]!.reviewedEvents}\n'
+        'escalations=${_monitoringWatchByScope[scopeKey]!.escalationCount}\n'
+        'queue_size=${_clientAppPushQueue.length}\n'
+        'utc=${nowUtc.toIso8601String()}';
+  }
+
+  Future<String> _telegramAdminWatchEndCommand(String arguments) async {
+    final target = _parseMonitoringWatchScope(arguments);
+    if (target == null) {
+      return 'ONYX WATCHEND\nUsage: /watchend [client_id site_id]';
+    }
+    final clientId = target.clientId.trim();
+    final siteId = target.siteId.trim();
+    if (clientId.isEmpty || siteId.isEmpty) {
+      return 'ONYX WATCHEND\nInvalid scope. Use /settarget <client_id site_id> first.';
+    }
+    final scopeKey = _monitoringScopeKey(clientId, siteId);
+    final runtime = _monitoringWatchByScope[scopeKey];
+    if (runtime == null) {
+      return 'ONYX WATCHEND\nscope=$clientId/$siteId\nNo active monitoring watch. Run /watchstart first.';
+    }
+    final nowUtc = DateTime.now().toUtc();
+    final messageKey =
+        await _deactivateMonitoringWatch(
+          clientId: clientId,
+          siteId: siteId,
+          endedAtUtc: nowUtc,
+          notifyClient: true,
+          messageKeyPrefix: 'tg-watch-end',
+        ) ??
+        '';
+    return 'ONYX WATCHEND\n'
+        'scope=$clientId/$siteId\n'
+        'message_key=$messageKey\n'
+        'reviewed_events=${runtime.reviewedEvents}\n'
+        'escalations=${runtime.escalationCount}\n'
+        'dispatches=${runtime.dispatchCount}\n'
+        'queue_size=${_clientAppPushQueue.length}\n'
+        'ended_at=${nowUtc.toIso8601String()}';
+  }
+
   Future<void> _appendTelegramAiLedger({
     required String clientId,
     required String siteId,
@@ -7258,6 +10033,26 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case '/notifytest':
         return _TelegramAdminCommandParseResult(
           command: 'notifytest',
+          arguments: arguments,
+        );
+      case '/watchstart':
+        return _TelegramAdminCommandParseResult(
+          command: 'watchstart',
+          arguments: arguments,
+        );
+      case '/watchalert':
+        return _TelegramAdminCommandParseResult(
+          command: 'watchalert',
+          arguments: arguments,
+        );
+      case '/watchrepeat':
+        return _TelegramAdminCommandParseResult(
+          command: 'watchrepeat',
+          arguments: arguments,
+        );
+      case '/watchend':
+        return _TelegramAdminCommandParseResult(
+          command: 'watchend',
           arguments: arguments,
         );
       case '/bindchat':
@@ -7478,6 +10273,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'acl',
         'exec',
         'notifytest',
+        'watchstart',
+        'watchalert',
+        'watchrepeat',
+        'watchend',
         'bindchat',
         'linkchat',
         'unlinkchat',
@@ -7650,6 +10449,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case 'demofull':
       case 'demostop':
       case 'notifytest':
+      case 'watchstart':
+      case 'watchalert':
+      case 'watchrepeat':
+      case 'watchend':
       case 'bindchat':
       case 'linkchat':
       case 'unlinkchat':
@@ -7736,6 +10539,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         return _telegramAdminExecCommand(arguments);
       case 'notifytest':
         return _telegramAdminNotifyTestCommand(arguments);
+      case 'watchstart':
+        return _telegramAdminWatchStartCommand(arguments);
+      case 'watchalert':
+        return _telegramAdminWatchAlertCommand(arguments);
+      case 'watchrepeat':
+        return _telegramAdminWatchRepeatCommand(arguments);
+      case 'watchend':
+        return _telegramAdminWatchEndCommand(arguments);
       case 'bindchat':
         return _telegramAdminBindChatCommand(arguments, update);
       case 'linkchat':
@@ -7869,6 +10680,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '• <code>/aiapproval [on|off|status|default]</code>\n'
         '• <code>/aidrafts</code> | <code>/aiapprove &lt;id&gt;</code> | <code>/aireject &lt;id&gt;</code>\n'
         '• <code>/aiconv [client_id site_id]</code>\n'
+        '• <code>/watchstart [client_id site_id]</code>\n'
+        '• <code>/watchalert [client_id site_id] [camera_label]</code>\n'
+        '• <code>/watchrepeat [client_id site_id] [camera_label]</code>\n'
+        '• <code>/watchend [client_id site_id]</code>\n'
         '\n---\n\n'
         '<b>Admin</b>\n'
         '• <code>/exec [on|off|status|default]</code>\n'
@@ -11149,9 +13964,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }
 
   void _seedDemoData() {
-    const clientId = 'CLIENT-001';
-    const regionId = 'REGION-GAUTENG';
-    const siteId = 'SITE-SANDTON';
+    final clientId = _selectedClient;
+    final regionId = _selectedRegion;
+    final siteId = _selectedSite;
     const guardId = 'GUARD-1';
 
     final now = DateTime.now().toUtc();
@@ -11486,6 +14301,49 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     });
   }
 
+  String _latestIncidentReferenceForScope(String clientId, String siteId) {
+    IntelligenceReceived? latest;
+    for (final event in store.allEvents().whereType<IntelligenceReceived>()) {
+      if (event.clientId != clientId || event.siteId != siteId) {
+        continue;
+      }
+      if (latest == null || event.occurredAt.isAfter(latest.occurredAt)) {
+        latest = event;
+      }
+    }
+    return latest?.intelligenceId.trim() ?? '';
+  }
+
+  void _openTacticalForFleetScope(
+    String clientId,
+    String siteId, [
+    String? latestIncidentReference,
+  ]) {
+    _cancelDemoAutopilot();
+    final ref = latestIncidentReference?.trim().isNotEmpty == true
+        ? latestIncidentReference!.trim()
+        : _latestIncidentReferenceForScope(clientId, siteId);
+    setState(() {
+      _operationsFocusIncidentReference = ref;
+      _route = OnyxRoute.tactical;
+    });
+  }
+
+  void _openDispatchesForFleetScope(
+    String clientId,
+    String siteId, [
+    String? latestIncidentReference,
+  ]) {
+    _cancelDemoAutopilot();
+    final ref = latestIncidentReference?.trim().isNotEmpty == true
+        ? latestIncidentReference!.trim()
+        : _latestIncidentReferenceForScope(clientId, siteId);
+    setState(() {
+      _operationsFocusIncidentReference = ref;
+      _route = OnyxRoute.dispatches;
+    });
+  }
+
   void _startDemoAutopilotFromAdminIncident(String incidentReference) {
     final ref = incidentReference.trim();
     if (ref.isEmpty) return;
@@ -11741,6 +14599,20 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       OnyxRoute.reports => 'Demonstrate export and report proof.',
       OnyxRoute.admin => 'Demo seeding and runtime controls.',
     };
+  }
+
+  void _presentReportPreview(ReportPreviewRequest request) {
+    if (!mounted) {
+      return;
+    }
+    ReportPreviewController.handleRequest(
+      context: context,
+      request: request,
+      shellState: _reportShellState,
+      onReportShellStateChanged: (value) {
+        _reportShellState = value;
+      },
+    );
   }
 
   void _showDemoAutopilotStepSnack({
@@ -12171,25 +15043,46 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           events: events,
           focusIncidentReference: _operationsFocusIncidentReference,
           videoOpsLabel: _activeVideoOpsLabel,
+          sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
         );
 
       case OnyxRoute.aiQueue:
-        return AIQueuePage(
-          events: events,
-          videoOpsLabel: _activeVideoOpsLabel,
-        );
+        return AIQueuePage(events: events, videoOpsLabel: _activeVideoOpsLabel);
 
       case OnyxRoute.tactical:
         return TacticalPage(
           events: events,
           focusIncidentReference: _operationsFocusIncidentReference,
           videoOpsLabel: _activeVideoOpsLabel,
+          sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
           cctvOpsReadiness: _activeVideoProfile.readinessLabel,
           cctvOpsDetail: _cctvOpsDetailLabel(),
           cctvProvider: _activeVideoProfile.provider,
           cctvCapabilitySummary: _cctvCapabilitySummary(),
           cctvRecentSignalSummary:
               '${_cctvRecentSignalSummary(events)}${_cctvCameraHealthSummary().isEmpty ? '' : ' • ${_cctvCameraHealthSummary()}'}',
+          fleetScopeHealth: _tacticalFleetScopeHealth(events),
+          initialWatchActionDrilldown: _tacticalWatchActionDrilldown,
+          onWatchActionDrilldownChanged: (value) {
+            setState(() {
+              _tacticalWatchActionDrilldown = value;
+            });
+          },
+          onOpenFleetTacticalScope: _openTacticalForFleetScope,
+          onOpenFleetDispatchScope: _openDispatchesForFleetScope,
+          onRecoverFleetWatchScope: (clientId, siteId) {
+            unawaited(
+              _resyncMonitoringWatchForScope(
+                clientId: clientId,
+                siteId: siteId,
+                actor: 'TACTICAL',
+              ),
+            );
+          },
+          onExtendTemporaryIdentityApproval:
+              _extendTemporaryIdentityApprovalForScope,
+          onExpireTemporaryIdentityApproval:
+              _expireTemporaryIdentityApprovalForScope,
         );
 
       case OnyxRoute.governance:
@@ -12197,6 +15090,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           events: events,
           morningSovereignReport: _morningSovereignReport,
           morningSovereignReportAutoRunKey: _morningSovereignReportAutoRunKey,
+          initialSceneActionFocus: _governanceSceneActionFocus,
+          onSceneActionFocusChanged: (value) {
+            setState(() {
+              _governanceSceneActionFocus = value;
+            });
+          },
           onGenerateMorningSovereignReport: () async {
             await _generateMorningSovereignReport();
           },
@@ -12278,6 +15177,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           livePolling: _livePolling,
           livePollingLabel: _livePollingLabel,
           runtimeConfigHint: _runtimeConfigHint,
+          initialSelectedDispatchId: _dispatchSelectedDispatchId,
+          onSelectedDispatchChanged: (value) {
+            setState(() {
+              _dispatchSelectedDispatchId = value;
+            });
+          },
           supabaseReady: widget.supabaseReady,
           guardSyncBackendEnabled: _guardSyncUsingBackend,
           telemetryProviderReadiness: _guardTelemetryReadiness.name,
@@ -12303,6 +15208,28 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           cctvCapabilitySummary: _cctvCapabilitySummary(),
           cctvRecentSignalSummary:
               '${_cctvRecentSignalSummary(events)}${_cctvCameraHealthSummary().isEmpty ? '' : ' • ${_cctvCameraHealthSummary()}'}',
+          fleetScopeHealth: _tacticalFleetScopeHealth(events),
+          initialWatchActionDrilldown: _dispatchWatchActionDrilldown,
+          onWatchActionDrilldownChanged: (value) {
+            setState(() {
+              _dispatchWatchActionDrilldown = value;
+            });
+          },
+          onOpenFleetTacticalScope: _openTacticalForFleetScope,
+          onOpenFleetDispatchScope: _openDispatchesForFleetScope,
+          onRecoverFleetWatchScope: (clientId, siteId) {
+            unawaited(
+              _resyncMonitoringWatchForScope(
+                clientId: clientId,
+                siteId: siteId,
+                actor: 'DISPATCH',
+              ),
+            );
+          },
+          onExtendTemporaryIdentityApproval:
+              _extendTemporaryIdentityApprovalForScope,
+          onExpireTemporaryIdentityApproval:
+              _expireTemporaryIdentityApprovalForScope,
           wearableOpsReadiness:
               _wearableProviderEnv.trim().isNotEmpty &&
                   _wearableBridgeUri != null
@@ -12391,6 +15318,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case OnyxRoute.events:
         return EventsReviewPage(
           events: events,
+          sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
           initialSourceFilter: _eventsSourceFilter.trim().isEmpty
               ? null
               : _eventsSourceFilter,
@@ -12406,6 +15334,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         return SovereignLedgerPage(
           clientId: _selectedClient,
           events: events,
+          sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
           initialFocusReference: _operationsFocusIncidentReference,
         );
 
@@ -12414,12 +15343,76 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           store: store,
           selectedClient: _selectedClient,
           selectedSite: _selectedSite,
+          sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
+          reportShellState: _reportShellState,
+          onReportShellStateChanged: (value) {
+            _reportShellState = value;
+          },
+          onRequestPreview: _presentReportPreview,
         );
 
       case OnyxRoute.admin:
         return AdministrationPage(
           events: events,
           supabaseReady: widget.supabaseReady,
+          sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
+          monitoringIdentityPolicyService: _watchIdentityPolicyService,
+          onMonitoringIdentityPolicyServiceChanged: (value) {
+            _watchIdentityPolicyService = value;
+            _rebuildWatchSceneAssessmentService();
+            setState(() {
+              _monitoringIdentityRulesJsonOverride = value
+                  .toCanonicalJsonString();
+            });
+          },
+          onRegisterTemporaryIdentityApprovalProfile:
+              _rememberTemporaryAllowedIdentityProfile,
+          onExtendTemporaryIdentityApproval:
+              _extendTemporaryIdentityApprovalForScope,
+          onExpireTemporaryIdentityApproval:
+              _expireTemporaryIdentityApprovalForScope,
+          initialMonitoringIdentityRuleAuditHistory:
+              _monitoringIdentityRuleAuditHistory,
+          onMonitoringIdentityRuleAuditHistoryChanged: (value) {
+            setState(() {
+              _monitoringIdentityRuleAuditHistory = value;
+            });
+            unawaited(_persistMonitoringIdentityRuleAuditHistory());
+          },
+          initialMonitoringIdentityRuleAuditSourceFilter:
+              _adminIdentityPolicyAuditSourceFilter,
+          onMonitoringIdentityRuleAuditSourceFilterChanged: (value) {
+            setState(() {
+              _adminIdentityPolicyAuditSourceFilter = value;
+            });
+            unawaited(_persistMonitoringIdentityRuleAuditSourceFilter());
+          },
+          initialMonitoringIdentityRuleAuditExpanded:
+              _adminIdentityPolicyAuditExpanded,
+          onMonitoringIdentityRuleAuditExpandedChanged: (value) {
+            setState(() {
+              _adminIdentityPolicyAuditExpanded = value;
+            });
+            unawaited(_persistMonitoringIdentityRuleAuditExpanded());
+          },
+          initialTab: _adminPageTab,
+          onTabChanged: (value) {
+            setState(() {
+              _adminPageTab = value;
+            });
+            unawaited(_persistAdminPageTab());
+          },
+          initialWatchActionDrilldown: _adminWatchActionDrilldown,
+          onWatchActionDrilldownChanged: (value) {
+            setState(() {
+              _adminWatchActionDrilldown = value;
+              if (value != null) {
+                _adminPageTab = AdministrationPageTab.system;
+              }
+            });
+            unawaited(_persistAdminPageTab());
+            unawaited(_persistAdminWatchActionDrilldown());
+          },
           onOpenOperationsForIncident: _openOperationsFromAdminIncident,
           onOpenTacticalForIncident: _openTacticalFromAdminIncident,
           onOpenEventsForIncident: _openEventsFromAdminIncident,
@@ -12434,10 +15427,16 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           onOpenReports: _openReportsFromAdmin,
           initialRadioIntentPhrasesJson: _radioIntentPhrasesJsonOverride,
           initialDemoRouteCuesJson: _demoRouteCueOverridesJson,
+          initialMonitoringIdentityRulesJson:
+              _monitoringIdentityRulesJsonOverride,
           onSaveRadioIntentPhrasesJson: _saveRadioIntentPhraseConfig,
           onResetRadioIntentPhrasesJson: _clearRadioIntentPhraseConfig,
           onSaveDemoRouteCuesJson: _saveDemoRouteCueOverridesConfig,
           onResetDemoRouteCuesJson: _clearDemoRouteCueOverridesConfig,
+          onSaveMonitoringIdentityPolicyService:
+              _saveMonitoringIdentityRulesConfig,
+          onResetMonitoringIdentityPolicyService:
+              _clearMonitoringIdentityRulesConfig,
           onRunOpsIntegrationPoll: _opsIntegrationPollingAvailable
               ? _pollOpsIntegrationOnce
               : null,
@@ -12490,7 +15489,22 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           cctvRecentSignalSummary: _cctvRecentSignalSummary(events),
           cctvEvidenceHealthSummary: _cctvEvidenceSummary(),
           cctvCameraHealthSummary: _cctvCameraHealthSummary(),
+          fleetScopeHealth: _tacticalFleetScopeHealth(events),
+          onOpenFleetTacticalScope: _openTacticalForFleetScope,
+          onOpenFleetDispatchScope: _openDispatchesForFleetScope,
+          onRecoverFleetWatchScope: (clientId, siteId) {
+            unawaited(
+              _resyncMonitoringWatchForScope(
+                clientId: clientId,
+                siteId: siteId,
+                actor: 'ADMIN',
+              ),
+            );
+          },
+          monitoringWatchAuditSummary: _monitoringWatchAuditSummary,
+          monitoringWatchAuditHistory: _monitoringWatchAuditHistory,
           incidentSpoolHealthSummary: _offlineIncidentSpoolSummary(),
+          incidentSpoolReplaySummary: _offlineIncidentSpoolReplaySummary(),
           videoIntegrityCertificateStatus: _videoIntegrityCertificateStatus(
             events,
           ),

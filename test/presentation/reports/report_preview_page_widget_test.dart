@@ -1,0 +1,291 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:omnix_dashboard/domain/crm/reporting/report_sections.dart';
+import 'package:omnix_dashboard/presentation/reports/report_preview_page.dart';
+
+import '../../fixtures/report_test_bundle.dart';
+import '../../fixtures/report_test_receipt.dart';
+
+class _NavigatorObserver extends NavigatorObserver {
+  int popCount = 0;
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    popCount += 1;
+    super.didPop(route, previousRoute);
+  }
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets('report preview shows scene review brief summary', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReportPreviewPage(
+          bundle: buildTestReportBundle(
+            sceneReview: const SceneReviewSnapshot(
+              totalReviews: 2,
+              modelReviews: 1,
+              metadataFallbackReviews: 1,
+              suppressedActions: 1,
+              incidentAlerts: 0,
+              repeatUpdates: 1,
+              escalationCandidates: 1,
+              topPosture: 'escalation candidate',
+              latestActionTaken:
+                  '2026-03-14T21:18:00.000Z • Camera 2 • Escalation Candidate • Escalated for urgent review because person activity was detected near the boundary.',
+              latestSuppressedPattern:
+                  '2026-03-14T21:16:00.000Z • Camera 3 • Vehicle remained below escalation threshold.',
+              highlights: [
+                SceneReviewHighlightSnapshot(
+                  intelligenceId: 'intel-2',
+                  detectedAt: '2026-03-14T21:18:00.000Z',
+                  cameraLabel: 'Camera 2',
+                  sourceLabel: 'metadata:fallback',
+                  postureLabel: 'escalation candidate',
+                  decisionLabel: 'Escalation Candidate',
+                  decisionSummary:
+                      'Escalated for urgent review because person activity was detected near the boundary.',
+                  summary:
+                      'Person visible near the boundary after repeat activity.',
+                ),
+              ],
+            ),
+          ),
+          initialPdfBytes: Uint8List.fromList(
+            '%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF'.codeUnits,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(find.text('Scene Review Brief'), findsOneWidget);
+    expect(find.textContaining('Latest action taken:'), findsOneWidget);
+    expect(find.textContaining('Latest filtered pattern:'), findsOneWidget);
+    expect(find.text('Notable Findings'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'ONYX action: Escalated for urgent review because person activity was detected near the boundary.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Person visible near the boundary'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('report preview hides receipt integrity when no receipt is provided', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReportPreviewPage(
+          bundle: buildTestReportBundle(),
+          initialPdfBytes: Uint8List.fromList(
+            '%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF'.codeUnits,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(find.text('Receipt Integrity'), findsNothing);
+    expect(find.text('Receipt'), findsNothing);
+    expect(find.text('Replay'), findsNothing);
+  });
+
+  testWidgets('report preview shows receipt integrity details when provided', (
+    tester,
+  ) async {
+    final receipt = buildTestReportGenerated(
+      eventId: 'RPT-PREVIEW-INTEGRITY-1',
+      eventRangeStart: 7,
+      eventRangeEnd: 19,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReportPreviewPage(
+          bundle: buildTestReportBundle(),
+          initialPdfBytes: Uint8List.fromList(
+            '%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF'.codeUnits,
+          ),
+          receiptEvent: receipt,
+          replayMatches: true,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(find.text('Receipt Integrity'), findsOneWidget);
+    expect(find.textContaining('RPT-PREVIEW-INTEGRITY-1'), findsWidgets);
+    expect(find.textContaining('7-19'), findsWidgets);
+    expect(find.textContaining('Matched'), findsWidgets);
+  });
+
+  testWidgets('report preview back action pops route', (tester) async {
+    final observer = _NavigatorObserver();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        navigatorObservers: [observer],
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => ReportPreviewPage(
+                      bundle: buildTestReportBundle(),
+                      initialPdfBytes: Uint8List.fromList(
+                        '%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF'
+                            .codeUnits,
+                      ),
+                    ),
+                  ),
+                );
+              },
+              child: const Text('Open'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(find.text('Operational Intelligence PDF'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.arrow_back_rounded).first);
+    await tester.pumpAndSettle();
+
+    expect(observer.popCount, 1);
+    expect(find.text('Operational Intelligence PDF'), findsNothing);
+  });
+
+  testWidgets('report preview print action invokes printing channel', (
+    tester,
+  ) async {
+    MethodCall? capturedCall;
+    final printingChannel = const MethodChannel('net.nfet.printing');
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      printingChannel,
+      (call) async {
+        if (call.method == 'printingInfo') {
+          return <String, dynamic>{
+            'directPrint': false,
+            'dynamicLayout': true,
+            'canPrint': true,
+            'canShare': true,
+            'canRaster': false,
+          };
+        }
+        if (call.method == 'printPdf') {
+          capturedCall = call;
+          return 1;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        printingChannel,
+        null,
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReportPreviewPage(
+          bundle: buildTestReportBundle(),
+          initialPdfBytes: Uint8List.fromList(
+            '%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF'.codeUnits,
+          ),
+          receiptEvent: buildTestReportGenerated(eventId: 'RPT-PREVIEW-PRINT-1'),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    await tester.tap(find.text('Print').first);
+    await tester.pump();
+
+    expect(capturedCall, isNotNull);
+    expect(capturedCall?.method, 'printPdf');
+    final args = capturedCall!.arguments as Map<dynamic, dynamic>;
+    expect(args['name'], isA<String>());
+    expect((args['name'] as String).isNotEmpty, isTrue);
+    expect(args['job'], isNotNull);
+    expect(args['outputType'], isNotNull);
+  });
+
+  testWidgets('report preview download action invokes share channel', (
+    tester,
+  ) async {
+    MethodCall? capturedCall;
+    final printingChannel = const MethodChannel('net.nfet.printing');
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      printingChannel,
+      (call) async {
+        if (call.method == 'printingInfo') {
+          return <String, dynamic>{
+            'directPrint': false,
+            'dynamicLayout': true,
+            'canPrint': true,
+            'canShare': true,
+            'canRaster': false,
+          };
+        }
+        if (call.method == 'sharePdf') {
+          capturedCall = call;
+          return 1;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        printingChannel,
+        null,
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReportPreviewPage(
+          bundle: buildTestReportBundle(),
+          initialPdfBytes: Uint8List.fromList(
+            '%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF'.codeUnits,
+          ),
+          receiptEvent: buildTestReportGenerated(
+            eventId: 'RPT-PREVIEW-DOWNLOAD-1',
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    await tester.tap(find.text('Download').first);
+    await tester.pump();
+
+    expect(capturedCall, isNotNull);
+    expect(capturedCall?.method, 'sharePdf');
+    final args = capturedCall!.arguments as Map<dynamic, dynamic>;
+    expect(args['name'], 'onyx_intelligence_report.pdf');
+    expect(args['doc'], isA<Uint8List>());
+    expect((args['doc'] as Uint8List).isNotEmpty, isTrue);
+  });
+}

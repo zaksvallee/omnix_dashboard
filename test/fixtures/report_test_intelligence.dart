@@ -1,0 +1,39 @@
+import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
+
+IntelligenceReceived buildTestIntelligenceReceived({
+  String eventId = 'evt-1',
+  int sequence = 1,
+  int version = 1,
+  DateTime? occurredAt,
+  String intelligenceId = 'intel-1',
+  String provider = 'hikvision',
+  String sourceType = 'dvr',
+  String externalId = 'ext-1',
+  String clientId = 'CLIENT-MS-VALLEE',
+  String regionId = 'REGION-GAUTENG',
+  String siteId = 'SITE-MS-VALLEE-RESIDENCE',
+  String cameraId = 'channel-1',
+  String headline = 'Vehicle movement',
+  String summary = 'Vehicle detected on Camera 1.',
+  int riskScore = 42,
+  String canonicalHash = 'hash-1',
+}) {
+  return IntelligenceReceived(
+    eventId: eventId,
+    sequence: sequence,
+    version: version,
+    occurredAt: occurredAt ?? DateTime.utc(2026, 3, 14, 21, 14),
+    intelligenceId: intelligenceId,
+    provider: provider,
+    sourceType: sourceType,
+    externalId: externalId,
+    clientId: clientId,
+    regionId: regionId,
+    siteId: siteId,
+    cameraId: cameraId,
+    headline: headline,
+    summary: summary,
+    riskScore: riskScore,
+    canonicalHash: canonicalHash,
+  );
+}

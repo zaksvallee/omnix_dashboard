@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../application/monitoring_scene_review_store.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_completed.dart';
@@ -21,12 +22,14 @@ class SovereignLedgerPage extends StatefulWidget {
   final String clientId;
   final List<DispatchEvent> events;
   final String initialFocusReference;
+  final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
 
   const SovereignLedgerPage({
     super.key,
     required this.clientId,
     required this.events,
     this.initialFocusReference = '',
+    this.sceneReviewByIntelligenceId = const {},
   });
 
   @override
@@ -39,7 +42,10 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
 
   @override
   Widget build(BuildContext context) {
-    final entries = _buildLedgerEntries(widget.events);
+    final entries = _buildLedgerEntries(
+      widget.events,
+      sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+    );
     var list = entries.isEmpty ? _fallbackEntries : entries;
     final focusReference = widget.initialFocusReference.trim();
     final hasFocusReference = focusReference.isNotEmpty;
@@ -732,6 +738,60 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
             ],
           ),
         ),
+        if (_sceneReviewPayloadForEntry(selected) != null) ...[
+          const SizedBox(height: 8),
+          _detailCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _blockTitle('SCENE REVIEW'),
+                const SizedBox(height: 8),
+                _contextRow(
+                  'Source',
+                  (_sceneReviewPayloadForEntry(selected)!['source_label'] ?? '')
+                      .toString(),
+                ),
+                _contextRow(
+                  'Posture',
+                  (_sceneReviewPayloadForEntry(selected)!['posture_label'] ?? '')
+                      .toString(),
+                ),
+                if (((_sceneReviewPayloadForEntry(selected)!['decision_label'] ??
+                                '')
+                            .toString()
+                            .trim())
+                        .isNotEmpty)
+                  _contextRow(
+                    'Action',
+                    (_sceneReviewPayloadForEntry(selected)!['decision_label'] ??
+                            '')
+                        .toString(),
+                  ),
+                _contextRow(
+                  'Reviewed At',
+                  (_sceneReviewPayloadForEntry(selected)!['reviewed_at_utc'] ?? '')
+                      .toString(),
+                ),
+                _contextRow(
+                  'Summary',
+                  (_sceneReviewPayloadForEntry(selected)!['summary'] ?? '')
+                      .toString(),
+                ),
+                if (((_sceneReviewPayloadForEntry(selected)!['decision_summary'] ??
+                                '')
+                            .toString()
+                            .trim())
+                        .isNotEmpty)
+                  _contextRow(
+                    'Decision Detail',
+                    (_sceneReviewPayloadForEntry(selected)!['decision_summary'] ??
+                            '')
+                        .toString(),
+                  ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 8),
         _detailCard(
           child: Column(
@@ -1048,7 +1108,23 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
       'previous_hash': entry.previousHash,
       'site': entry.site,
       'dispatch_id': entry.dispatchId,
+      'payload': entry.payload,
     };
+  }
+
+  Map<String, Object?>? _sceneReviewPayloadForEntry(_LedgerEntryView entry) {
+    final payload = entry.payload['sceneReview'];
+    if (payload is! Map) {
+      return null;
+    }
+    final mapped = payload.map(
+      (key, value) => MapEntry(key.toString(), value as Object?),
+    );
+    if ((mapped['source_label'] ?? '').toString().trim().isEmpty &&
+        (mapped['summary'] ?? '').toString().trim().isEmpty) {
+      return null;
+    }
+    return mapped;
   }
 
   void _showActionMessage(String message) {
@@ -1154,7 +1230,11 @@ final List<_LedgerEntryView> _fallbackEntries = [
   ),
 ];
 
-List<_LedgerEntryView> _buildLedgerEntries(List<DispatchEvent> events) {
+List<_LedgerEntryView> _buildLedgerEntries(
+  List<DispatchEvent> events, {
+  Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId =
+      const {},
+}) {
   if (events.isEmpty) {
     return const [];
   }
@@ -1164,17 +1244,10 @@ List<_LedgerEntryView> _buildLedgerEntries(List<DispatchEvent> events) {
   final built = <_LedgerEntryView>[];
 
   for (final event in sorted) {
-    final payload = {
-      'eventId': event.eventId,
-      'sequence': event.sequence,
-      'version': event.version,
-      'type': _rawEventType(event),
-      'clientId': _eventClientId(event),
-      'regionId': _eventRegionId(event),
-      'siteId': _eventSiteId(event),
-      'occurredAt': event.occurredAt.toUtc().toIso8601String(),
-      'summary': _eventTitle(event),
-    };
+    final payload = _ledgerPayloadForEvent(
+      event,
+      sceneReviewByIntelligenceId: sceneReviewByIntelligenceId,
+    );
 
     final hash = sha256
         .convert(utf8.encode('${jsonEncode(payload)}|$previousHash'))
@@ -1202,6 +1275,57 @@ List<_LedgerEntryView> _buildLedgerEntries(List<DispatchEvent> events) {
 
   final newestFirst = built.reversed.toList(growable: false);
   return newestFirst;
+}
+
+Map<String, Object?> _ledgerPayloadForEvent(
+  DispatchEvent event, {
+  required Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId,
+}) {
+  final payload = <String, Object?>{
+    'eventId': event.eventId,
+    'sequence': event.sequence,
+    'version': event.version,
+    'type': _rawEventType(event),
+    'clientId': _eventClientId(event),
+    'regionId': _eventRegionId(event),
+    'siteId': _eventSiteId(event),
+    'occurredAt': event.occurredAt.toUtc().toIso8601String(),
+    'summary': _eventTitle(event),
+  };
+  if (event is IntelligenceReceived) {
+    payload['intelligenceId'] = event.intelligenceId;
+    payload['provider'] = event.provider;
+    payload['sourceType'] = event.sourceType;
+    payload['riskScore'] = event.riskScore;
+    if ((event.cameraId ?? '').trim().isNotEmpty) {
+      payload['cameraId'] = event.cameraId!.trim();
+    }
+    if ((event.objectLabel ?? '').trim().isNotEmpty) {
+      payload['objectLabel'] = event.objectLabel!.trim();
+    }
+    if (event.objectConfidence != null) {
+      payload['objectConfidence'] = event.objectConfidence;
+    }
+    if ((event.evidenceRecordHash ?? '').trim().isNotEmpty) {
+      payload['evidenceRecordHash'] = event.evidenceRecordHash!.trim();
+    }
+    final review = sceneReviewByIntelligenceId[event.intelligenceId.trim()];
+    if (review != null) {
+      payload['sceneReview'] = <String, Object?>{
+        'source_label': review.sourceLabel,
+        'posture_label': review.postureLabel,
+        if (review.decisionLabel.trim().isNotEmpty)
+          'decision_label': review.decisionLabel,
+        if (review.decisionSummary.trim().isNotEmpty)
+          'decision_summary': review.decisionSummary,
+        'summary': review.summary,
+        'reviewed_at_utc': review.reviewedAtUtc.toIso8601String(),
+        if (review.evidenceRecordHash.trim().isNotEmpty)
+          'evidence_record_hash': review.evidenceRecordHash,
+      };
+    }
+  }
+  return payload;
 }
 
 bool _verifyChain(List<_LedgerEntryView> entries) {

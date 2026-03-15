@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 
 import '../domain/intelligence/intel_ingestion.dart';
+import 'dvr_http_auth.dart';
 
 class DvrCameraHealth {
   final String cameraId;
@@ -64,21 +65,27 @@ class DvrEvidenceProbeBatchResult {
 
 class HttpDvrEvidenceProbeService {
   final http.Client client;
+  final DvrHttpAuthMode authMode;
   final int maxQueueDepth;
   final int retryAttempts;
   final Duration initialBackoff;
   final Duration requestTimeout;
   final Duration staleFrameThreshold;
   final String? bearerToken;
+  final String? username;
+  final String? password;
 
   const HttpDvrEvidenceProbeService({
     required this.client,
+    this.authMode = DvrHttpAuthMode.none,
     this.maxQueueDepth = 12,
     this.retryAttempts = 3,
     this.initialBackoff = const Duration(milliseconds: 150),
     this.requestTimeout = const Duration(seconds: 3),
     this.staleFrameThreshold = const Duration(minutes: 30),
     this.bearerToken,
+    this.username,
+    this.password,
   });
 
   Future<DvrEvidenceProbeBatchResult> probeBatch(
@@ -263,24 +270,16 @@ class HttpDvrEvidenceProbeService {
     if (uri == null) {
       return false;
     }
-    final headers = <String, String>{};
-    final token = bearerToken?.trim();
-    if (token != null && token.isNotEmpty) {
-      headers['Authorization'] = 'Bearer $token';
-    }
     try {
-      final head = await client
-          .head(uri, headers: headers)
-          .timeout(requestTimeout);
+      final head = await _auth.head(client, uri).timeout(requestTimeout);
       if (head.statusCode >= 200 && head.statusCode < 300) {
         return true;
       }
       if (head.statusCode == 405 ||
           head.statusCode == 403 ||
           head.statusCode == 400) {
-        final getHeaders = {...headers, 'Range': 'bytes=0-0'};
-        final get = await client
-            .get(uri, headers: getHeaders)
+        final get = await _auth
+            .get(client, uri, headers: const {'Range': 'bytes=0-0'})
             .timeout(requestTimeout);
         return get.statusCode >= 200 && get.statusCode < 300;
       }
@@ -302,6 +301,13 @@ class HttpDvrEvidenceProbeService {
   static String _verificationKey(_DvrProbeItem probe) {
     return '${probe.cameraId}|${probe.mediaType}|${probe.url}';
   }
+
+  DvrHttpAuthConfig get _auth => DvrHttpAuthConfig(
+    mode: authMode,
+    bearerToken: bearerToken,
+    username: username,
+    password: password,
+  );
 }
 
 class _DvrProbeItem {

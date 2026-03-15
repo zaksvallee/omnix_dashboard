@@ -13,11 +13,13 @@ import '../domain/events/incident_closed.dart';
 import '../domain/events/intelligence_received.dart';
 import '../domain/events/patrol_completed.dart';
 import '../domain/events/response_arrived.dart';
+import '../application/monitoring_scene_review_store.dart';
 import 'onyx_surface.dart';
 import 'ui_action_logger.dart';
 
 class EventsReviewPage extends StatefulWidget {
   final List<DispatchEvent> events;
+  final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
   final String? initialSourceFilter;
   final String? initialProviderFilter;
   final String? initialSelectedEventId;
@@ -25,6 +27,7 @@ class EventsReviewPage extends StatefulWidget {
   const EventsReviewPage({
     super.key,
     required this.events,
+    this.sceneReviewByIntelligenceId = const {},
     this.initialSourceFilter,
     this.initialProviderFilter,
     this.initialSelectedEventId,
@@ -70,6 +73,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   static const String _filterAll = 'ALL';
   static const String _sourceFilterAll = 'ALL SOURCES';
   static const String _providerFilterAll = 'ALL PROVIDERS';
+  static const String _identityPolicyFilterAll = 'ALL POLICIES';
+  static const String _identityPolicyFilterFlagged = 'FLAGGED MATCH';
+  static const String _identityPolicyFilterTemporary = 'TEMPORARY APPROVAL';
+  static const String _identityPolicyFilterAllowlisted = 'ALLOWLISTED MATCH';
   static const List<String> _filterOptions = [
     'ALL',
     'INCIDENT CREATED',
@@ -81,6 +88,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   String _activeFilter = _filterAll;
   String _activeSourceFilter = _sourceFilterAll;
   String _activeProviderFilter = _providerFilterAll;
+  String _activeIdentityPolicyFilter = _identityPolicyFilterAll;
   String _lastActionFeedback = '';
   DispatchEvent? _selectedEvent;
   final Map<String, GlobalKey> _rowKeys = <String, GlobalKey>{};
@@ -160,9 +168,22 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     _activeProviderFilter;
               })
               .toList(growable: false);
+    final identityPolicyOptions = _identityPolicyFilterOptions(
+      providerFiltered,
+    );
+    final identityPolicyFiltered =
+        _activeIdentityPolicyFilter == _identityPolicyFilterAll
+        ? providerFiltered
+        : providerFiltered
+              .where((event) {
+                if (event is! IntelligenceReceived) return false;
+                return _eventIdentityPolicyFilterLabel(event) ==
+                    _activeIdentityPolicyFilter;
+              })
+              .toList(growable: false);
     DispatchEvent? requestedSelectedEvent;
     if (requestedSelectedId.isNotEmpty) {
-      for (final event in providerFiltered) {
+      for (final event in identityPolicyFiltered) {
         if (event.eventId == requestedSelectedId) {
           requestedSelectedEvent = event;
           break;
@@ -173,22 +194,22 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     final requestedSelectionMissing =
         requestedSelectedId.isNotEmpty && !requestedSelectionFound;
 
-    final selected = providerFiltered.isEmpty
+    final selected = identityPolicyFiltered.isEmpty
         ? null
         : requestedSelectionFound
         ? requestedSelectedEvent
         : _selectedEvent != null
-        ? providerFiltered.firstWhere(
+        ? identityPolicyFiltered.firstWhere(
             (event) => event.eventId == _selectedEvent!.eventId,
-            orElse: () => providerFiltered.first,
+            orElse: () => identityPolicyFiltered.first,
           )
-        : providerFiltered.first;
+        : identityPolicyFiltered.first;
     _selectedEvent = selected;
     if (selected != null && requestedSelectionFound) {
       _scheduleEnsureVisible(selected.eventId);
     }
 
-    final visibleEvents = providerFiltered.length;
+    final visibleEvents = identityPolicyFiltered.length;
     final totalEvents = timeline.length;
     final latestSequence = timeline.isEmpty
         ? 'N/A'
@@ -247,7 +268,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   },
                 ),
                 const SizedBox(height: 8),
-                _filterStrip(),
+                _filterStrip(identityPolicyOptions),
                 if (hasFocusedFallback) ...[
                   const SizedBox(height: 8),
                   Container(
@@ -302,7 +323,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                       return Column(
                         children: [
                           _timelinePane(
-                            events: providerFiltered,
+                            events: identityPolicyFiltered,
                             bounded: false,
                           ),
                           const SizedBox(height: 8),
@@ -318,7 +339,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                           Expanded(
                             flex: 6,
                             child: _timelinePane(
-                              events: providerFiltered,
+                              events: identityPolicyFiltered,
                               bounded: true,
                             ),
                           ),
@@ -429,7 +450,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     );
   }
 
-  Widget _filterStrip() {
+  Widget _filterStrip(List<String> identityPolicyOptions) {
     final sourceOptions = _sourceFilterOptions();
     final providerOptions = _providerFilterOptions();
     return Container(
@@ -467,6 +488,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   _activeFilter = _filterAll;
                   _activeSourceFilter = _sourceFilterAll;
                   _activeProviderFilter = _providerFilterAll;
+                  _activeIdentityPolicyFilter = _identityPolicyFilterAll;
                 }),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -548,6 +570,23 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         provider,
                       ),
                     ),
+                  ),
+              ],
+            ),
+          ],
+          if (identityPolicyOptions.length > 1 ||
+              _activeIdentityPolicyFilter != _identityPolicyFilterAll) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final policy in identityPolicyOptions)
+                  _filterChip(
+                    label: policy,
+                    selected: _activeIdentityPolicyFilter == policy,
+                    onTap: () =>
+                        setState(() => _activeIdentityPolicyFilter = policy),
                   ),
               ],
             ),
@@ -731,6 +770,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   }
 
   Widget _detailBody(DispatchEvent selected) {
+    final sceneReview = selected is IntelligenceReceived
+        ? widget.sceneReviewByIntelligenceId[selected.intelligenceId.trim()]
+        : null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -820,12 +862,80 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               ),
               const SizedBox(height: 8),
               _contextRow('Site', _eventSiteId(selected)),
+              if (selected is IntelligenceReceived) ...[
+                _contextRow('Provider', selected.provider),
+                _contextRow('Source', selected.sourceType),
+                if ((selected.cameraId ?? '').trim().isNotEmpty)
+                  _contextRow('Camera', selected.cameraId!.trim()),
+                if ((selected.zone ?? '').trim().isNotEmpty)
+                  _contextRow('Zone', selected.zone!.trim()),
+                if ((selected.objectLabel ?? '').trim().isNotEmpty)
+                  _contextRow(
+                    'Detection',
+                    _eventSignalLabel(
+                      selected.objectLabel,
+                      selected.objectConfidence,
+                    ),
+                  ),
+                if ((selected.faceMatchId ?? '').trim().isNotEmpty)
+                  _contextRow(
+                    'Face Match',
+                    _eventSignalLabel(
+                      selected.faceMatchId,
+                      selected.faceConfidence,
+                    ),
+                  ),
+                if ((selected.plateNumber ?? '').trim().isNotEmpty)
+                  _contextRow(
+                    'Plate Match',
+                    _eventSignalLabel(
+                      selected.plateNumber,
+                      selected.plateConfidence,
+                    ),
+                  ),
+              ],
               if (_guardLabel(selected).isNotEmpty)
                 _contextRow('Guard', _guardLabel(selected)),
               _contextRow('Summary', _eventSummary(selected)),
             ],
           ),
         ),
+        if (sceneReview != null) ...[
+          const SizedBox(height: 8),
+          _detailCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'SCENE REVIEW',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF9BB0CE),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.7,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _contextRow('Source', sceneReview.sourceLabel),
+                _contextRow('Posture', sceneReview.postureLabel),
+                if (_sceneReviewIdentityPolicy(sceneReview) != null)
+                  _contextRow(
+                    'Identity Policy',
+                    _sceneReviewIdentityPolicy(sceneReview)!,
+                  ),
+                if (sceneReview.decisionLabel.trim().isNotEmpty)
+                  _contextRow('Action', sceneReview.decisionLabel),
+                _contextRow(
+                  'Reviewed At',
+                  _fullTimestamp(sceneReview.reviewedAtUtc),
+                ),
+                _contextRow('Summary', sceneReview.summary),
+                if (sceneReview.decisionSummary.trim().isNotEmpty)
+                  _contextRow('Decision Detail', sceneReview.decisionSummary),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 8),
         _detailCard(
           child: Column(
@@ -1165,6 +1275,19 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return <String>[_providerFilterAll, ...orderedProviders];
   }
 
+  List<String> _identityPolicyFilterOptions(List<DispatchEvent> events) {
+    final policies =
+        events
+            .whereType<IntelligenceReceived>()
+            .map(_eventIdentityPolicyFilterLabel)
+            .whereType<String>()
+            .where((policy) => policy != _identityPolicyFilterAll)
+            .toSet()
+            .toList(growable: false)
+          ..sort();
+    return <String>[_identityPolicyFilterAll, ...policies];
+  }
+
   String _normalizeSourceFilter(String? sourceType) {
     final normalized = sourceType?.trim().toUpperCase() ?? '';
     if (normalized.isEmpty || normalized == 'ALL') {
@@ -1186,6 +1309,25 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     }
     return normalized;
   }
+
+  String? _eventIdentityPolicyFilterLabel(IntelligenceReceived event) {
+    final review =
+        widget.sceneReviewByIntelligenceId[event.intelligenceId.trim()];
+    if (review == null) {
+      return null;
+    }
+    final policy = _sceneReviewIdentityPolicy(review);
+    if (policy == 'Flagged match') {
+      return _identityPolicyFilterFlagged;
+    }
+    if (policy == 'Temporary approval') {
+      return _identityPolicyFilterTemporary;
+    }
+    if (policy == 'Allowlisted match') {
+      return _identityPolicyFilterAllowlisted;
+    }
+    return null;
+  }
 }
 
 Map<String, dynamic> _eventPayload(DispatchEvent event) {
@@ -1199,7 +1341,60 @@ Map<String, dynamic> _eventPayload(DispatchEvent event) {
     'siteId': _eventSiteId(event),
     'occurredAt': event.occurredAt.toUtc().toIso8601String(),
     'summary': _eventSummary(event),
+    if (event is IntelligenceReceived) ...{
+      'provider': event.provider,
+      'sourceType': event.sourceType,
+      'cameraId': event.cameraId,
+      'zone': event.zone,
+      'objectLabel': event.objectLabel,
+      'objectConfidence': event.objectConfidence,
+      'faceMatchId': event.faceMatchId,
+      'faceConfidence': event.faceConfidence,
+      'plateNumber': event.plateNumber,
+      'plateConfidence': event.plateConfidence,
+      'headline': event.headline,
+      'detailSummary': event.summary,
+    },
   };
+}
+
+String _eventSignalLabel(String? label, double? confidence) {
+  final normalized = (label ?? '').trim();
+  if (normalized.isEmpty) {
+    return 'unknown';
+  }
+  final confidenceLabel = _eventConfidenceLabel(confidence);
+  if (confidenceLabel == null) {
+    return normalized;
+  }
+  return '$normalized • $confidenceLabel';
+}
+
+String? _eventConfidenceLabel(double? confidence) {
+  if (confidence == null) {
+    return null;
+  }
+  return '${confidence.toStringAsFixed(1)}%';
+}
+
+String? _sceneReviewIdentityPolicy(MonitoringSceneReviewRecord review) {
+  final posture = review.postureLabel.trim().toLowerCase();
+  final decisionSummary = review.decisionSummary.trim().toLowerCase();
+  if (decisionSummary.contains('one-time approval') ||
+      decisionSummary.contains('one time approval')) {
+    return 'Temporary approval';
+  }
+  if (posture.contains('known allowed identity') ||
+      decisionSummary.contains('allowlisted for this site')) {
+    return 'Allowlisted match';
+  }
+  if (posture.contains('identity match concern') ||
+      decisionSummary.contains('was flagged') ||
+      decisionSummary.contains('watchlist context') ||
+      decisionSummary.contains('unauthorized or watchlist context')) {
+    return 'Flagged match';
+  }
+  return null;
 }
 
 String _eventTypeLabel(DispatchEvent event) {

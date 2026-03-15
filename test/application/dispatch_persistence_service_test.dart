@@ -4,12 +4,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:omnix_dashboard/application/dispatch_persistence_service.dart';
+import 'package:omnix_dashboard/application/monitoring_identity_policy_service.dart';
 import 'package:omnix_dashboard/application/offline_incident_spool_service.dart';
 import 'package:omnix_dashboard/domain/guard/guard_mobile_ops.dart';
 import 'package:omnix_dashboard/infrastructure/intelligence/news_intelligence_service.dart';
 import 'package:omnix_dashboard/application/radio_bridge_service.dart';
+import 'package:omnix_dashboard/ui/admin_page.dart';
 import 'package:omnix_dashboard/ui/client_app_page.dart';
 import 'package:omnix_dashboard/ui/dispatch_page.dart';
+import 'package:omnix_dashboard/ui/video_fleet_scope_health_sections.dart';
 
 void main() {
   group('DispatchPersistenceService', () {
@@ -231,6 +234,61 @@ void main() {
         await service.clearPendingRadioQueueStateChangeDetail();
         final cleared = await service.readPendingRadioQueueStateChangeDetail();
         expect(cleared, isNull);
+      },
+    );
+
+    test('saves, restores, and clears monitoring watch audit summary', () async {
+      final service = await DispatchPersistenceService.create();
+      const summary =
+          'Resync • ADMIN • MS Vallee Residence • Resynced • 2026-03-14T10:08:00.000Z';
+
+      await service.saveMonitoringWatchAuditSummary(summary);
+      final restored = await service.readMonitoringWatchAuditSummary();
+
+      expect(restored, summary);
+
+      await service.clearMonitoringWatchAuditSummary();
+      final cleared = await service.readMonitoringWatchAuditSummary();
+      expect(cleared, isNull);
+    });
+
+    test('saves, restores, and clears monitoring watch audit history', () async {
+      final service = await DispatchPersistenceService.create();
+      const history = <String>[
+        'Resync • ADMIN • MS Vallee Residence • Resynced • 2026-03-14T10:08:00.000Z',
+        'Resync • DISPATCH • MS Vallee Residence • Already aligned • 2026-03-14T09:12:00.000Z',
+      ];
+
+      await service.saveMonitoringWatchAuditHistory(history);
+      final restored = await service.readMonitoringWatchAuditHistory();
+
+      expect(restored, history);
+
+      await service.clearMonitoringWatchAuditHistory();
+      final cleared = await service.readMonitoringWatchAuditHistory();
+      expect(cleared, isEmpty);
+    });
+
+    test(
+      'saves, restores, and clears monitoring watch recovery state',
+      () async {
+        final service = await DispatchPersistenceService.create();
+        final state = <String, Object?>{
+          'CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE': <String, Object?>{
+            'actor': 'ADMIN',
+            'outcome': 'Resynced',
+            'recorded_at_utc': '2026-03-14T10:08:00.000Z',
+          },
+        };
+
+        await service.saveMonitoringWatchRecoveryState(state);
+        final restored = await service.readMonitoringWatchRecoveryState();
+
+        expect(restored, state);
+
+        await service.clearMonitoringWatchRecoveryState();
+        final cleared = await service.readMonitoringWatchRecoveryState();
+        expect(cleared, isEmpty);
       },
     );
 
@@ -968,37 +1026,110 @@ void main() {
       );
     });
 
-    test('saves and restores offline incident spool entries and sync state', () async {
+    test(
+      'saves and restores offline incident spool entries and sync state',
+      () async {
+        final service = await DispatchPersistenceService.create();
+        final entries = [
+          OfflineIncidentSpoolEntry(
+            entryId: 'spool-001',
+            incidentReference: 'INC-001',
+            sourceType: 'dvr',
+            provider: 'hikvision_dvr',
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-1',
+            createdAtUtc: DateTime.parse('2026-03-13T08:00:00Z'),
+            occurredAtUtc: DateTime.parse('2026-03-13T07:59:00Z'),
+            summary: 'Buffered DVR incident',
+            payload: const {'event_id': 'dvr-001'},
+          ),
+        ];
+        const state = OfflineIncidentSpoolSyncState(
+          statusLabel: 'buffering',
+          pendingCount: 1,
+          history: ['Queued INC-001 • dvr'],
+        );
+
+        await service.saveOfflineIncidentSpoolEntries(entries);
+        await service.saveOfflineIncidentSpoolSyncState(state);
+
+        final restoredEntries = await service.readOfflineIncidentSpoolEntries();
+        final restoredState = await service.readOfflineIncidentSpoolSyncState();
+
+        expect(restoredEntries, hasLength(1));
+        expect(restoredEntries.single.toJson(), entries.single.toJson());
+        expect(restoredState.toJson(), state.toJson());
+      },
+    );
+
+    test('saves and restores monitoring identity audit UI state', () async {
       final service = await DispatchPersistenceService.create();
-      final entries = [
-        OfflineIncidentSpoolEntry(
-          entryId: 'spool-001',
-          incidentReference: 'INC-001',
-          sourceType: 'dvr',
-          provider: 'hikvision_dvr',
-          clientId: 'CLIENT-1',
-          siteId: 'SITE-1',
-          createdAtUtc: DateTime.parse('2026-03-13T08:00:00Z'),
-          occurredAtUtc: DateTime.parse('2026-03-13T07:59:00Z'),
-          summary: 'Buffered DVR incident',
-          payload: const {'event_id': 'dvr-001'},
-        ),
-      ];
-      const state = OfflineIncidentSpoolSyncState(
-        statusLabel: 'buffering',
-        pendingCount: 1,
-        history: ['Queued INC-001 • dvr'],
+
+      await service.saveMonitoringIdentityRuleAuditSourceFilter(
+        MonitoringIdentityPolicyAuditSource.manualEdit,
+      );
+      await service.saveMonitoringIdentityRuleAuditExpanded(false);
+
+      expect(
+        await service.readMonitoringIdentityRuleAuditSourceFilter(),
+        MonitoringIdentityPolicyAuditSource.manualEdit,
+      );
+      expect(await service.readMonitoringIdentityRuleAuditExpanded(), isFalse);
+
+      await service.saveMonitoringIdentityRuleAuditSourceFilter(null);
+      await service.clearMonitoringIdentityRuleAuditExpanded();
+
+      expect(
+        await service.readMonitoringIdentityRuleAuditSourceFilter(),
+        isNull,
+      );
+      expect(await service.readMonitoringIdentityRuleAuditExpanded(), isNull);
+    });
+
+    test('saves and restores admin watch action drilldown', () async {
+      final service = await DispatchPersistenceService.create();
+
+      await service.saveAdminWatchActionDrilldown(
+        VideoFleetWatchActionDrilldown.filtered,
       );
 
-      await service.saveOfflineIncidentSpoolEntries(entries);
-      await service.saveOfflineIncidentSpoolSyncState(state);
+      expect(
+        await service.readAdminWatchActionDrilldown(),
+        VideoFleetWatchActionDrilldown.filtered,
+      );
 
-      final restoredEntries = await service.readOfflineIncidentSpoolEntries();
-      final restoredState = await service.readOfflineIncidentSpoolSyncState();
+      await service.saveAdminWatchActionDrilldown(null);
 
-      expect(restoredEntries, hasLength(1));
-      expect(restoredEntries.single.toJson(), entries.single.toJson());
-      expect(restoredState.toJson(), state.toJson());
+      expect(await service.readAdminWatchActionDrilldown(), isNull);
+    });
+
+    test('saves and restores admin page tab', () async {
+      final service = await DispatchPersistenceService.create();
+
+      await service.saveAdminPageTab(AdministrationPageTab.system);
+
+      expect(await service.readAdminPageTab(), AdministrationPageTab.system);
+
+      await service.saveAdminPageTab(null);
+
+      expect(await service.readAdminPageTab(), isNull);
+    });
+
+    test('saves and restores offline incident spool replay audit', () async {
+      final service = await DispatchPersistenceService.create();
+      final audit = <String, Object?>{
+        'replayed_at_utc': '2026-03-13T10:07:00.000Z',
+        'transport': 'client_ledger',
+        'synced_count': 2,
+        'first_incident_reference': 'INC-001',
+        'last_incident_reference': 'INC-002',
+      };
+
+      await service.saveOfflineIncidentSpoolReplayAudit(audit);
+
+      final restored = await service.readOfflineIncidentSpoolReplayAudit();
+
+      expect(restored, audit);
     });
 
     test('clears corrupt offline incident spool caches', () async {
@@ -1006,14 +1137,18 @@ void main() {
         DispatchPersistenceService.offlineIncidentSpoolEntriesKey: '{not-json',
         DispatchPersistenceService.offlineIncidentSpoolSyncStateKey:
             '{not-json',
+        DispatchPersistenceService.offlineIncidentSpoolReplayAuditKey:
+            '{not-json',
       });
       final service = await DispatchPersistenceService.create();
 
       final restoredEntries = await service.readOfflineIncidentSpoolEntries();
       final restoredState = await service.readOfflineIncidentSpoolSyncState();
+      final restoredAudit = await service.readOfflineIncidentSpoolReplayAudit();
 
       expect(restoredEntries, isEmpty);
       expect(restoredState.statusLabel, 'idle');
+      expect(restoredAudit, isEmpty);
       expect(
         service.prefs.containsKey(
           DispatchPersistenceService.offlineIncidentSpoolEntriesKey,
@@ -1023,6 +1158,12 @@ void main() {
       expect(
         service.prefs.containsKey(
           DispatchPersistenceService.offlineIncidentSpoolSyncStateKey,
+        ),
+        isFalse,
+      );
+      expect(
+        service.prefs.containsKey(
+          DispatchPersistenceService.offlineIncidentSpoolReplayAuditKey,
         ),
         isFalse,
       );

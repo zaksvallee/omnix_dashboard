@@ -12,6 +12,10 @@ class IntelligenceReceived extends DispatchEvent {
   final String? zone;
   final String? objectLabel;
   final double? objectConfidence;
+  final String? faceMatchId;
+  final double? faceConfidence;
+  final String? plateNumber;
+  final double? plateConfidence;
   final String headline;
   final String summary;
   final int riskScore;
@@ -38,6 +42,10 @@ class IntelligenceReceived extends DispatchEvent {
     this.zone,
     this.objectLabel,
     this.objectConfidence,
+    this.faceMatchId,
+    this.faceConfidence,
+    this.plateNumber,
+    this.plateConfidence,
     required this.headline,
     required this.summary,
     required this.riskScore,
@@ -67,6 +75,10 @@ class IntelligenceReceived extends DispatchEvent {
       zone: zone,
       objectLabel: objectLabel,
       objectConfidence: objectConfidence,
+      faceMatchId: faceMatchId,
+      faceConfidence: faceConfidence,
+      plateNumber: plateNumber,
+      plateConfidence: plateConfidence,
       headline: headline,
       summary: summary,
       riskScore: riskScore,

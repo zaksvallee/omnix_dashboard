@@ -34,8 +34,9 @@ class ReportBundleCanonicalizer {
         'totalSlaBreaches': bundle.monthlyReport.totalSlaBreaches,
         'totalSlaOverrides': bundle.monthlyReport.totalSlaOverrides,
         'totalClientContacts': bundle.monthlyReport.totalClientContacts,
-        'slaComplianceRate':
-            double.parse(bundle.monthlyReport.slaComplianceRate.toStringAsFixed(6)),
+        'slaComplianceRate': double.parse(
+          bundle.monthlyReport.slaComplianceRate.toStringAsFixed(6),
+        ),
       },
       'executiveSummary': <String, Object?>{
         'headline': bundle.executiveSummary.headline,
@@ -48,12 +49,14 @@ class ReportBundleCanonicalizer {
         'previousMonth': bundle.escalationTrend.previousMonth,
         'currentEscalations': bundle.escalationTrend.currentEscalations,
         'previousEscalations': bundle.escalationTrend.previousEscalations,
-        'escalationDeltaPercent':
-            double.parse(bundle.escalationTrend.escalationDeltaPercent.toStringAsFixed(6)),
+        'escalationDeltaPercent': double.parse(
+          bundle.escalationTrend.escalationDeltaPercent.toStringAsFixed(6),
+        ),
         'currentSlaBreaches': bundle.escalationTrend.currentSlaBreaches,
         'previousSlaBreaches': bundle.escalationTrend.previousSlaBreaches,
-        'breachDeltaPercent':
-            double.parse(bundle.escalationTrend.breachDeltaPercent.toStringAsFixed(6)),
+        'breachDeltaPercent': double.parse(
+          bundle.escalationTrend.breachDeltaPercent.toStringAsFixed(6),
+        ),
       },
       'siteComparisons': bundle.siteComparisons
           .map(
@@ -62,8 +65,9 @@ class ReportBundleCanonicalizer {
               'totalIncidents': site.totalIncidents,
               'totalEscalations': site.totalEscalations,
               'totalSlaBreaches': site.totalSlaBreaches,
-              'slaComplianceRate':
-                  double.parse(site.slaComplianceRate.toStringAsFixed(6)),
+              'slaComplianceRate': double.parse(
+                site.slaComplianceRate.toStringAsFixed(6),
+              ),
             },
           )
           .toList(growable: false),
@@ -81,8 +85,9 @@ class ReportBundleCanonicalizer {
               'idNumber': guard.idNumber,
               'psiraNumber': guard.psiraNumber,
               'rank': guard.rank,
-              'compliancePercentage':
-                  double.parse(guard.compliancePercentage.toStringAsFixed(6)),
+              'compliancePercentage': double.parse(
+                guard.compliancePercentage.toStringAsFixed(6),
+              ),
               'escalationsHandled': guard.escalationsHandled,
             },
           )
@@ -91,8 +96,9 @@ class ReportBundleCanonicalizer {
         'scheduledPatrols': bundle.patrolPerformance.scheduledPatrols,
         'completedPatrols': bundle.patrolPerformance.completedPatrols,
         'missedPatrols': bundle.patrolPerformance.missedPatrols,
-        'completionRate':
-            double.parse(bundle.patrolPerformance.completionRate.toStringAsFixed(6)),
+        'completionRate': double.parse(
+          bundle.patrolPerformance.completionRate.toStringAsFixed(6),
+        ),
       },
       'incidentDetails': bundle.incidentDetails
           .map(
@@ -105,6 +111,33 @@ class ReportBundleCanonicalizer {
             },
           )
           .toList(growable: false),
+      if (reportSchemaVersion >= 2)
+        'sceneReview': <String, Object?>{
+          'totalReviews': bundle.sceneReview.totalReviews,
+          'modelReviews': bundle.sceneReview.modelReviews,
+          'metadataFallbackReviews': bundle.sceneReview.metadataFallbackReviews,
+          'suppressedActions': bundle.sceneReview.suppressedActions,
+          'incidentAlerts': bundle.sceneReview.incidentAlerts,
+          'repeatUpdates': bundle.sceneReview.repeatUpdates,
+          'escalationCandidates': bundle.sceneReview.escalationCandidates,
+          'topPosture': bundle.sceneReview.topPosture,
+          'latestActionTaken': bundle.sceneReview.latestActionTaken,
+          'latestSuppressedPattern': bundle.sceneReview.latestSuppressedPattern,
+          'highlights': bundle.sceneReview.highlights
+              .map(
+                (highlight) => <String, Object?>{
+                  'intelligenceId': highlight.intelligenceId,
+                  'detectedAt': highlight.detectedAt,
+                  'cameraLabel': highlight.cameraLabel,
+                  'sourceLabel': highlight.sourceLabel,
+                  'postureLabel': highlight.postureLabel,
+                  'decisionLabel': highlight.decisionLabel,
+                  'decisionSummary': highlight.decisionSummary,
+                  'summary': highlight.summary,
+                },
+              )
+              .toList(growable: false),
+        },
       'supervisorAssessment': <String, Object?>{
         'operationalSummary': bundle.supervisorAssessment.operationalSummary,
         'riskTrend': bundle.supervisorAssessment.riskTrend,

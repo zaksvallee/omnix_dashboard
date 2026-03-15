@@ -7,11 +7,29 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../application/client_messaging_bridge_repository.dart';
+import '../application/monitoring_identity_policy_service.dart';
+import '../application/monitoring_scene_review_store.dart';
+import '../application/monitoring_watch_recovery_policy.dart';
+import '../application/monitoring_watch_recovery_store.dart';
 import '../application/ops_integration_profile.dart';
+import '../application/site_identity_registry_repository.dart';
 import '../domain/events/dispatch_event.dart';
 import 'onyx_surface.dart';
+import 'video_fleet_scope_health_card.dart';
+import 'video_fleet_scope_health_panel.dart';
+import 'video_fleet_scope_health_sections.dart';
+import 'video_fleet_scope_health_view.dart';
+
+enum AdministrationPageTab { guards, sites, clients, system }
 
 enum _AdminTab { guards, sites, clients, system }
+
+enum _IdentityRuleBucket {
+  flaggedFaces,
+  flaggedPlates,
+  allowedFaces,
+  allowedPlates,
+}
 
 enum _AdminStatus { active, inactive, suspended }
 
@@ -150,6 +168,16 @@ class _DemoOperationsSeedResult {
     this.vehicleCallsign,
     this.incidentEventUid,
     this.warnings = const <String>[],
+  });
+}
+
+class _SuppressedSceneReviewEntry {
+  final VideoFleetScopeHealthView scope;
+  final MonitoringSceneReviewRecord review;
+
+  const _SuppressedSceneReviewEntry({
+    required this.scope,
+    required this.review,
   });
 }
 
@@ -396,7 +424,54 @@ class AdministrationPage extends StatefulWidget {
   final String? cctvRecentSignalSummary;
   final String? cctvEvidenceHealthSummary;
   final String? cctvCameraHealthSummary;
+  final List<VideoFleetScopeHealthView> fleetScopeHealth;
+  final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
+  final MonitoringIdentityPolicyService monitoringIdentityPolicyService;
+  final ValueChanged<MonitoringIdentityPolicyService>?
+  onMonitoringIdentityPolicyServiceChanged;
+  final String initialMonitoringIdentityRulesJson;
+  final Future<void> Function(MonitoringIdentityPolicyService service)?
+  onSaveMonitoringIdentityPolicyService;
+  final Future<void> Function()? onResetMonitoringIdentityPolicyService;
+  final Future<void> Function(SiteIdentityProfile profile)?
+  onRegisterTemporaryIdentityApprovalProfile;
+  final Future<String> Function(VideoFleetScopeHealthView scope)?
+  onExtendTemporaryIdentityApproval;
+  final Future<String> Function(VideoFleetScopeHealthView scope)?
+  onExpireTemporaryIdentityApproval;
+  final List<MonitoringIdentityPolicyAuditRecord>
+  initialMonitoringIdentityRuleAuditHistory;
+  final ValueChanged<List<MonitoringIdentityPolicyAuditRecord>>?
+  onMonitoringIdentityRuleAuditHistoryChanged;
+  final MonitoringIdentityPolicyAuditSource?
+  initialMonitoringIdentityRuleAuditSourceFilter;
+  final ValueChanged<MonitoringIdentityPolicyAuditSource?>?
+  onMonitoringIdentityRuleAuditSourceFilterChanged;
+  final bool initialMonitoringIdentityRuleAuditExpanded;
+  final ValueChanged<bool>? onMonitoringIdentityRuleAuditExpandedChanged;
+  final List<TelegramIdentityIntakeRecord> initialTelegramIdentityIntakes;
+  final AdministrationPageTab initialTab;
+  final ValueChanged<AdministrationPageTab>? onTabChanged;
+  final VideoFleetWatchActionDrilldown? initialWatchActionDrilldown;
+  final ValueChanged<VideoFleetWatchActionDrilldown?>?
+  onWatchActionDrilldownChanged;
+  final void Function(
+    String clientId,
+    String siteId,
+    String? incidentReference,
+  )?
+  onOpenFleetTacticalScope;
+  final void Function(
+    String clientId,
+    String siteId,
+    String? incidentReference,
+  )?
+  onOpenFleetDispatchScope;
+  final void Function(String clientId, String siteId)? onRecoverFleetWatchScope;
+  final String? monitoringWatchAuditSummary;
+  final List<String> monitoringWatchAuditHistory;
   final String? incidentSpoolHealthSummary;
+  final String? incidentSpoolReplaySummary;
   final String? videoIntegrityCertificateStatus;
   final String? videoIntegrityCertificateSummary;
   final String? videoIntegrityCertificateJsonPreview;
@@ -469,7 +544,38 @@ class AdministrationPage extends StatefulWidget {
     this.cctvRecentSignalSummary,
     this.cctvEvidenceHealthSummary,
     this.cctvCameraHealthSummary,
+    this.fleetScopeHealth = const <VideoFleetScopeHealthView>[],
+    this.sceneReviewByIntelligenceId =
+        const <String, MonitoringSceneReviewRecord>{},
+    this.monitoringIdentityPolicyService =
+        const MonitoringIdentityPolicyService(),
+    this.onMonitoringIdentityPolicyServiceChanged,
+    this.initialMonitoringIdentityRulesJson = '',
+    this.onSaveMonitoringIdentityPolicyService,
+    this.onResetMonitoringIdentityPolicyService,
+    this.onRegisterTemporaryIdentityApprovalProfile,
+    this.onExtendTemporaryIdentityApproval,
+    this.onExpireTemporaryIdentityApproval,
+    this.initialMonitoringIdentityRuleAuditHistory =
+        const <MonitoringIdentityPolicyAuditRecord>[],
+    this.onMonitoringIdentityRuleAuditHistoryChanged,
+    this.initialMonitoringIdentityRuleAuditSourceFilter,
+    this.onMonitoringIdentityRuleAuditSourceFilterChanged,
+    this.initialMonitoringIdentityRuleAuditExpanded = true,
+    this.onMonitoringIdentityRuleAuditExpandedChanged,
+    this.initialTelegramIdentityIntakes =
+        const <TelegramIdentityIntakeRecord>[],
+    this.initialTab = AdministrationPageTab.guards,
+    this.onTabChanged,
+    this.initialWatchActionDrilldown,
+    this.onWatchActionDrilldownChanged,
+    this.onOpenFleetTacticalScope,
+    this.onOpenFleetDispatchScope,
+    this.onRecoverFleetWatchScope,
+    this.monitoringWatchAuditSummary,
+    this.monitoringWatchAuditHistory = const <String>[],
     this.incidentSpoolHealthSummary,
+    this.incidentSpoolReplaySummary,
     this.videoIntegrityCertificateStatus,
     this.videoIntegrityCertificateSummary,
     this.videoIntegrityCertificateJsonPreview,
@@ -497,6 +603,9 @@ class AdministrationPage extends StatefulWidget {
 }
 
 class _AdministrationPageState extends State<AdministrationPage> {
+  static const MonitoringWatchRecoveryStore _watchRecoveryStore =
+      MonitoringWatchRecoveryStore(policy: MonitoringWatchRecoveryPolicy());
+
   final TextEditingController _searchController = TextEditingController();
   late final TextEditingController _radioIntentPhrasesController =
       TextEditingController(text: _resolvedInitialRadioIntentPhrasesJson());
@@ -520,6 +629,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
   DateTime? _demoStoryUpdatedAt;
   String? _directorySyncMessage;
   bool _radioIntentPhrasesSaving = false;
+  bool _identityPolicySaving = false;
   String? _radioIntentPhraseValidation;
   bool _radioIntentPhraseValidationError = false;
   bool _demoRouteCuesSaving = false;
@@ -527,6 +637,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
   bool _demoRouteCueValidationError = false;
   bool _telegramAiSettingsBusy = false;
   Set<int> _telegramAiDraftActionBusyIds = const <int>{};
+  VideoFleetWatchActionDrilldown? _activeWatchActionDrilldown;
 
   List<_GuardAdminRow> _guards = const [
     _GuardAdminRow(
@@ -606,6 +717,20 @@ class _AdministrationPageState extends State<AdministrationPage> {
       status: _AdminStatus.active,
     ),
     _SiteAdminRow(
+      id: 'SITE-MS-VALLEE-RESIDENCE',
+      name: 'MS Vallee Residence',
+      code: 'SITE-MS-VALLEE-RESIDENCE',
+      clientId: 'CLIENT-MS-VALLEE',
+      address: '11 Eastwood Street, Reuven, Johannesburg, 2091',
+      lat: -26.2041,
+      lng: 28.0473,
+      contactPerson: 'Muhammed Vallee',
+      contactPhone: '0824787276',
+      fskNumber: 'DVR-HIK-MS-VALLEE',
+      geofenceRadiusMeters: 150,
+      status: _AdminStatus.active,
+    ),
+    _SiteAdminRow(
       id: 'SDN-NORTH',
       name: 'Sandton Estate North',
       code: 'SDN-NORTH',
@@ -649,6 +774,19 @@ class _AdministrationPageState extends State<AdministrationPage> {
       status: _AdminStatus.active,
     ),
     _ClientAdminRow(
+      id: 'CLIENT-MS-VALLEE',
+      name: 'MS Vallee Residence',
+      code: 'MS-VALLEE',
+      contactPerson: 'Muhammed Vallee',
+      contactEmail: '-',
+      contactPhone: '0824787276',
+      slaTier: 'monitor_only',
+      contractStart: '2026-03-13',
+      contractEnd: '-',
+      sites: 1,
+      status: _AdminStatus.active,
+    ),
+    _ClientAdminRow(
       id: 'CLT-003',
       name: 'Centurion Business Park',
       code: 'CNT-BIZ',
@@ -668,6 +806,33 @@ class _AdministrationPageState extends State<AdministrationPage> {
   Map<String, String> _clientMessagingLanePreview = const {};
   Map<String, String> _clientTelegramChatcheckStatus = const {};
   Map<String, String> _siteTelegramChatcheckStatus = const {};
+  late MonitoringIdentityPolicyService _monitoringIdentityPolicyService;
+  List<MonitoringIdentityPolicyAuditRecord> _identityPolicyAuditHistory =
+      const <MonitoringIdentityPolicyAuditRecord>[];
+  MonitoringIdentityPolicyAuditSource? _activeIdentityPolicyAuditSource;
+  bool _identityPolicyAuditExpanded = true;
+  List<TelegramIdentityIntakeRecord> _telegramIdentityIntakes =
+      const <TelegramIdentityIntakeRecord>[];
+  bool _telegramIdentityIntakesLoading = false;
+  Set<String> _telegramIdentityIntakeBusyIds = const <String>{};
+
+  _AdminTab _adminTabFromPublic(AdministrationPageTab tab) {
+    return switch (tab) {
+      AdministrationPageTab.guards => _AdminTab.guards,
+      AdministrationPageTab.sites => _AdminTab.sites,
+      AdministrationPageTab.clients => _AdminTab.clients,
+      AdministrationPageTab.system => _AdminTab.system,
+    };
+  }
+
+  AdministrationPageTab _adminTabToPublic(_AdminTab tab) {
+    return switch (tab) {
+      _AdminTab.guards => AdministrationPageTab.guards,
+      _AdminTab.sites => AdministrationPageTab.sites,
+      _AdminTab.clients => AdministrationPageTab.clients,
+      _AdminTab.system => AdministrationPageTab.system,
+    };
+  }
 
   @override
   void didUpdateWidget(covariant AdministrationPage oldWidget) {
@@ -682,6 +847,43 @@ class _AdministrationPageState extends State<AdministrationPage> {
     }
     if (!oldWidget.supabaseReady && widget.supabaseReady) {
       _loadDirectoryFromSupabase();
+      _loadTelegramIdentityIntakesFromSupabase();
+    }
+    if (oldWidget.initialTab != widget.initialTab &&
+        _activeTab != _adminTabFromPublic(widget.initialTab)) {
+      _activeTab = _adminTabFromPublic(widget.initialTab);
+    }
+    if (oldWidget.initialWatchActionDrilldown !=
+            widget.initialWatchActionDrilldown &&
+        _activeWatchActionDrilldown != widget.initialWatchActionDrilldown) {
+      _activeWatchActionDrilldown = widget.initialWatchActionDrilldown;
+    }
+    if (oldWidget.monitoringIdentityPolicyService !=
+        widget.monitoringIdentityPolicyService) {
+      _monitoringIdentityPolicyService = widget.monitoringIdentityPolicyService;
+    }
+    if (oldWidget.initialMonitoringIdentityRuleAuditHistory !=
+        widget.initialMonitoringIdentityRuleAuditHistory) {
+      _identityPolicyAuditHistory =
+          widget.initialMonitoringIdentityRuleAuditHistory;
+    }
+    if (oldWidget.initialMonitoringIdentityRuleAuditSourceFilter !=
+            widget.initialMonitoringIdentityRuleAuditSourceFilter &&
+        _activeIdentityPolicyAuditSource !=
+            widget.initialMonitoringIdentityRuleAuditSourceFilter) {
+      _activeIdentityPolicyAuditSource =
+          widget.initialMonitoringIdentityRuleAuditSourceFilter;
+    }
+    if (oldWidget.initialMonitoringIdentityRuleAuditExpanded !=
+            widget.initialMonitoringIdentityRuleAuditExpanded &&
+        _identityPolicyAuditExpanded !=
+            widget.initialMonitoringIdentityRuleAuditExpanded) {
+      _identityPolicyAuditExpanded =
+          widget.initialMonitoringIdentityRuleAuditExpanded;
+    }
+    if (oldWidget.initialTelegramIdentityIntakes !=
+        widget.initialTelegramIdentityIntakes) {
+      _telegramIdentityIntakes = widget.initialTelegramIdentityIntakes;
     }
   }
 
@@ -789,11 +991,964 @@ class _AdministrationPageState extends State<AdministrationPage> {
   @override
   void initState() {
     super.initState();
+    _activeTab = _adminTabFromPublic(widget.initialTab);
+    _activeWatchActionDrilldown = widget.initialWatchActionDrilldown;
+    _monitoringIdentityPolicyService = widget.monitoringIdentityPolicyService;
+    _identityPolicyAuditHistory =
+        widget.initialMonitoringIdentityRuleAuditHistory;
+    _activeIdentityPolicyAuditSource =
+        widget.initialMonitoringIdentityRuleAuditSourceFilter;
+    _identityPolicyAuditExpanded =
+        widget.initialMonitoringIdentityRuleAuditExpanded;
+    _telegramIdentityIntakes = widget.initialTelegramIdentityIntakes;
     if (widget.supabaseReady) {
       _loadDirectoryFromSupabase();
+      _loadTelegramIdentityIntakesFromSupabase();
     } else {
       _directorySyncMessage = 'Supabase offline. Using local seed data.';
     }
+  }
+
+  void _setActiveWatchActionDrilldown(
+    VideoFleetWatchActionDrilldown? value, {
+    bool notify = true,
+  }) {
+    if (_activeWatchActionDrilldown == value) {
+      return;
+    }
+    setState(() {
+      _activeWatchActionDrilldown = value;
+    });
+    if (notify) {
+      widget.onWatchActionDrilldownChanged?.call(value);
+    }
+  }
+
+  void _setActiveTab(_AdminTab value, {bool notify = true}) {
+    if (_activeTab == value) {
+      return;
+    }
+    setState(() {
+      _activeTab = value;
+    });
+    if (notify) {
+      widget.onTabChanged?.call(_adminTabToPublic(value));
+    }
+  }
+
+  String _normalizeIdentityRuleValue(String raw) {
+    return raw.trim().toUpperCase();
+  }
+
+  Set<String> _identityRuleValues(
+    MonitoringIdentityScopePolicy policy,
+    _IdentityRuleBucket bucket,
+  ) {
+    return switch (bucket) {
+      _IdentityRuleBucket.flaggedFaces => policy.flaggedFaceMatchIds,
+      _IdentityRuleBucket.flaggedPlates => policy.flaggedPlateNumbers,
+      _IdentityRuleBucket.allowedFaces => policy.allowedFaceMatchIds,
+      _IdentityRuleBucket.allowedPlates => policy.allowedPlateNumbers,
+    };
+  }
+
+  MonitoringIdentityScopePolicy _identityRulePolicyWithValues(
+    MonitoringIdentityScopePolicy policy,
+    _IdentityRuleBucket bucket,
+    Set<String> values,
+  ) {
+    return switch (bucket) {
+      _IdentityRuleBucket.flaggedFaces => policy.copyWith(
+        flaggedFaceMatchIds: values,
+      ),
+      _IdentityRuleBucket.flaggedPlates => policy.copyWith(
+        flaggedPlateNumbers: values,
+      ),
+      _IdentityRuleBucket.allowedFaces => policy.copyWith(
+        allowedFaceMatchIds: values,
+      ),
+      _IdentityRuleBucket.allowedPlates => policy.copyWith(
+        allowedPlateNumbers: values,
+      ),
+    };
+  }
+
+  String _identityRuleLabel(_IdentityRuleBucket bucket) {
+    return switch (bucket) {
+      _IdentityRuleBucket.flaggedFaces => 'Flagged faces',
+      _IdentityRuleBucket.flaggedPlates => 'Flagged plates',
+      _IdentityRuleBucket.allowedFaces => 'Allowed faces',
+      _IdentityRuleBucket.allowedPlates => 'Allowed plates',
+    };
+  }
+
+  String _identityRuleSingularLabel(_IdentityRuleBucket bucket) {
+    return switch (bucket) {
+      _IdentityRuleBucket.flaggedFaces => 'flagged face',
+      _IdentityRuleBucket.flaggedPlates => 'flagged plate',
+      _IdentityRuleBucket.allowedFaces => 'allowed face',
+      _IdentityRuleBucket.allowedPlates => 'allowed plate',
+    };
+  }
+
+  Color _identityRuleBucketColor(_IdentityRuleBucket bucket) {
+    return switch (bucket) {
+      _IdentityRuleBucket.flaggedFaces => const Color(0xFFFF7A7A),
+      _IdentityRuleBucket.flaggedPlates => const Color(0xFFFFB36B),
+      _IdentityRuleBucket.allowedFaces => const Color(0xFF58D68D),
+      _IdentityRuleBucket.allowedPlates => const Color(0xFF4FD1C5),
+    };
+  }
+
+  void _commitMonitoringIdentityPolicyService(
+    MonitoringIdentityPolicyService nextService,
+  ) {
+    setState(() {
+      _monitoringIdentityPolicyService = nextService;
+    });
+    widget.onMonitoringIdentityPolicyServiceChanged?.call(nextService);
+  }
+
+  void _recordIdentityPolicyAudit(
+    String message, {
+    required MonitoringIdentityPolicyAuditSource source,
+  }) {
+    final nextHistory = <MonitoringIdentityPolicyAuditRecord>[
+      MonitoringIdentityPolicyAuditRecord(
+        recordedAtUtc: DateTime.now().toUtc(),
+        source: source,
+        message: message,
+      ),
+      ..._identityPolicyAuditHistory,
+    ].take(8).toList(growable: false);
+    setState(() {
+      _identityPolicyAuditHistory = nextHistory;
+    });
+    widget.onMonitoringIdentityRuleAuditHistoryChanged?.call(nextHistory);
+  }
+
+  void _setActiveIdentityPolicyAuditSource(
+    MonitoringIdentityPolicyAuditSource? source,
+  ) {
+    if (_activeIdentityPolicyAuditSource == source) {
+      return;
+    }
+    setState(() {
+      _activeIdentityPolicyAuditSource = source;
+    });
+    widget.onMonitoringIdentityRuleAuditSourceFilterChanged?.call(source);
+  }
+
+  void _setIdentityPolicyAuditExpanded(bool value) {
+    if (_identityPolicyAuditExpanded == value) {
+      return;
+    }
+    setState(() {
+      _identityPolicyAuditExpanded = value;
+    });
+    widget.onMonitoringIdentityRuleAuditExpandedChanged?.call(value);
+  }
+
+  Future<void> _loadTelegramIdentityIntakesFromSupabase() async {
+    if (!widget.supabaseReady) {
+      return;
+    }
+    setState(() {
+      _telegramIdentityIntakesLoading = true;
+    });
+    try {
+      final repository = SupabaseSiteIdentityRegistryRepository(
+        Supabase.instance.client,
+      );
+      final records = await repository.listPendingTelegramIntakes();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _telegramIdentityIntakes = records;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      _snack('Failed to load Telegram visitor proposals: $error');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _telegramIdentityIntakesLoading = false;
+        });
+      }
+    }
+  }
+
+  void _setTelegramIdentityIntakeBusy(String intakeId, bool busy) {
+    final normalized = intakeId.trim();
+    if (normalized.isEmpty) {
+      return;
+    }
+    final next = {..._telegramIdentityIntakeBusyIds};
+    if (busy) {
+      next.add(normalized);
+    } else {
+      next.remove(normalized);
+    }
+    setState(() {
+      _telegramIdentityIntakeBusyIds = next;
+    });
+  }
+
+  String _telegramIntakeDisplayName(TelegramIdentityIntakeRecord intake) {
+    if (intake.parsedDisplayName.trim().isNotEmpty) {
+      return intake.parsedDisplayName.trim();
+    }
+    if (intake.parsedFaceMatchId.trim().isNotEmpty) {
+      return 'Face ${intake.parsedFaceMatchId.trim()}';
+    }
+    if (intake.parsedPlateNumber.trim().isNotEmpty) {
+      return 'Plate ${intake.parsedPlateNumber.trim()}';
+    }
+    return 'Unnamed visitor';
+  }
+
+  String _telegramIntakeSummary(TelegramIdentityIntakeRecord intake) {
+    final details = <String>[
+      intake.category.code.toUpperCase(),
+      if (intake.parsedFaceMatchId.trim().isNotEmpty)
+        'Face ${intake.parsedFaceMatchId.trim()}',
+      if (intake.parsedPlateNumber.trim().isNotEmpty)
+        'Plate ${intake.parsedPlateNumber.trim()}',
+      if (intake.validUntilUtc != null)
+        'Until ${intake.validUntilUtc!.toUtc().hour.toString().padLeft(2, '0')}:${intake.validUntilUtc!.toUtc().minute.toString().padLeft(2, '0')} UTC',
+    ];
+    return details.join(' • ');
+  }
+
+  DateTime _telegramIntakeApprovalExpiry(TelegramIdentityIntakeRecord intake) {
+    final fromUtc = intake.validFromUtc?.toUtc() ?? intake.createdAtUtc.toUtc();
+    final untilUtc = intake.validUntilUtc?.toUtc();
+    if (untilUtc != null && untilUtc.isAfter(fromUtc)) {
+      return untilUtc;
+    }
+    return DateTime.now().toUtc().add(const Duration(hours: 12));
+  }
+
+  String _telegramIntakeExpiryLabel(DateTime utc) {
+    final year = utc.year.toString().padLeft(4, '0');
+    final month = utc.month.toString().padLeft(2, '0');
+    final day = utc.day.toString().padLeft(2, '0');
+    final hour = utc.hour.toString().padLeft(2, '0');
+    final minute = utc.minute.toString().padLeft(2, '0');
+    return '$year-$month-$day $hour:$minute UTC';
+  }
+
+  Future<void> _approveTelegramIdentityIntakeOnce(
+    TelegramIdentityIntakeRecord intake,
+  ) async {
+    if (!widget.supabaseReady) {
+      _snack('Supabase required to action Telegram visitor proposals.');
+      return;
+    }
+    _setTelegramIdentityIntakeBusy(intake.intakeId, true);
+    try {
+      final repository = SupabaseSiteIdentityRegistryRepository(
+        Supabase.instance.client,
+      );
+      final nowUtc = DateTime.now().toUtc();
+      final validUntilUtc = _telegramIntakeApprovalExpiry(intake);
+      final displayName = _telegramIntakeDisplayName(intake);
+      final faceId = intake.parsedFaceMatchId.trim().toUpperCase();
+      final plate = intake.parsedPlateNumber.trim().toUpperCase();
+      final summary =
+          'Admin approved one-time Telegram visitor proposal for '
+          '${displayName.isEmpty ? intake.siteId : displayName} until '
+          '${_telegramIntakeExpiryLabel(validUntilUtc)}.';
+
+      final profileType = plate.isNotEmpty && faceId.isEmpty
+          ? SiteIdentityType.vehicle
+          : SiteIdentityType.person;
+      final profile = SiteIdentityProfile(
+        clientId: intake.clientId,
+        siteId: intake.siteId,
+        identityType: profileType,
+        category: intake.category,
+        status: SiteIdentityStatus.allowed,
+        displayName: displayName,
+        faceMatchId: faceId,
+        plateNumber: plate,
+        externalReference: intake.intakeId,
+        notes: 'Approved once from Telegram visitor proposal.',
+        validFromUtc: intake.validFromUtc?.toUtc() ?? nowUtc,
+        validUntilUtc: validUntilUtc,
+        createdAtUtc: nowUtc,
+        updatedAtUtc: nowUtc,
+        metadata: <String, Object?>{
+          'source': 'telegram_identity_intake',
+          'intake_id': intake.intakeId,
+          'temporary_approval': true,
+        },
+      );
+      await repository.upsertProfile(profile);
+      await repository.insertApprovalDecision(
+        SiteIdentityApprovalDecisionRecord(
+          clientId: intake.clientId,
+          siteId: intake.siteId,
+          decision: SiteIdentityDecision.approveOnce,
+          source: SiteIdentityDecisionSource.admin,
+          decidedBy: 'ONYX Admin',
+          decisionSummary: summary,
+          decidedAtUtc: nowUtc,
+          metadata: <String, Object?>{
+            'intake_id': intake.intakeId,
+            'raw_text': intake.rawText,
+            'valid_until': validUntilUtc.toIso8601String(),
+          },
+        ),
+      );
+      await repository.updateTelegramIntakeApprovalState(
+        intakeId: intake.intakeId,
+        approvalState: 'approved_once',
+      );
+      if (widget.onRegisterTemporaryIdentityApprovalProfile != null) {
+        await widget.onRegisterTemporaryIdentityApprovalProfile!(profile);
+      }
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _telegramIdentityIntakes = _telegramIdentityIntakes
+            .where((record) => record.intakeId != intake.intakeId)
+            .toList(growable: false);
+      });
+      _snack(
+        'Telegram visitor proposal approved once until ${_telegramIntakeExpiryLabel(validUntilUtc)}.',
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      _snack('Failed to approve one-time Telegram visitor proposal: $error');
+    } finally {
+      if (mounted) {
+        _setTelegramIdentityIntakeBusy(intake.intakeId, false);
+      }
+    }
+  }
+
+  Future<void> _approveTelegramIdentityIntakeAlways(
+    TelegramIdentityIntakeRecord intake,
+  ) async {
+    if (!widget.supabaseReady) {
+      _snack('Supabase required to action Telegram visitor proposals.');
+      return;
+    }
+    _setTelegramIdentityIntakeBusy(intake.intakeId, true);
+    try {
+      final repository = SupabaseSiteIdentityRegistryRepository(
+        Supabase.instance.client,
+      );
+      final nowUtc = DateTime.now().toUtc();
+      final faceId = intake.parsedFaceMatchId.trim().toUpperCase();
+      final plate = intake.parsedPlateNumber.trim().toUpperCase();
+      final displayName = _telegramIntakeDisplayName(intake);
+      final summary =
+          'Admin approved Telegram visitor proposal for '
+          '${displayName.isEmpty ? intake.siteId : displayName}.';
+
+      if (faceId.isNotEmpty) {
+        await repository.upsertProfile(
+          SiteIdentityProfile(
+            clientId: intake.clientId,
+            siteId: intake.siteId,
+            identityType: SiteIdentityType.person,
+            category: intake.category,
+            status: SiteIdentityStatus.allowed,
+            displayName: displayName,
+            faceMatchId: faceId,
+            externalReference: intake.intakeId,
+            notes: 'Approved from Telegram visitor proposal.',
+            validFromUtc: intake.validFromUtc ?? nowUtc,
+            createdAtUtc: nowUtc,
+            updatedAtUtc: nowUtc,
+            metadata: <String, Object?>{
+              'source': 'telegram_identity_intake',
+              'intake_id': intake.intakeId,
+            },
+          ),
+        );
+      }
+      if (plate.isNotEmpty) {
+        await repository.upsertProfile(
+          SiteIdentityProfile(
+            clientId: intake.clientId,
+            siteId: intake.siteId,
+            identityType: SiteIdentityType.vehicle,
+            category: intake.category,
+            status: SiteIdentityStatus.allowed,
+            displayName: plate,
+            plateNumber: plate,
+            externalReference: intake.intakeId,
+            notes: 'Approved from Telegram visitor proposal.',
+            validFromUtc: intake.validFromUtc ?? nowUtc,
+            createdAtUtc: nowUtc,
+            updatedAtUtc: nowUtc,
+            metadata: <String, Object?>{
+              'source': 'telegram_identity_intake',
+              'intake_id': intake.intakeId,
+            },
+          ),
+        );
+      }
+
+      await repository.insertApprovalDecision(
+        SiteIdentityApprovalDecisionRecord(
+          clientId: intake.clientId,
+          siteId: intake.siteId,
+          decision: SiteIdentityDecision.approveAlways,
+          source: SiteIdentityDecisionSource.admin,
+          decidedBy: 'ONYX Admin',
+          decisionSummary: summary,
+          decidedAtUtc: nowUtc,
+          metadata: <String, Object?>{
+            'intake_id': intake.intakeId,
+            'raw_text': intake.rawText,
+          },
+        ),
+      );
+      await repository.updateTelegramIntakeApprovalState(
+        intakeId: intake.intakeId,
+        approvalState: 'approved',
+      );
+
+      if (faceId.isNotEmpty || plate.isNotEmpty) {
+        final current = _monitoringIdentityPolicyService.policyFor(
+          clientId: intake.clientId,
+          siteId: intake.siteId,
+        );
+        _commitMonitoringIdentityPolicyService(
+          _monitoringIdentityPolicyService.updateScopePolicy(
+            clientId: intake.clientId,
+            siteId: intake.siteId,
+            policy: current.copyWith(
+              allowedFaceMatchIds: faceId.isEmpty
+                  ? current.allowedFaceMatchIds
+                  : <String>{...current.allowedFaceMatchIds, faceId},
+              allowedPlateNumbers: plate.isEmpty
+                  ? current.allowedPlateNumbers
+                  : <String>{...current.allowedPlateNumbers, plate},
+            ),
+          ),
+        );
+        _recordIdentityPolicyAudit(
+          'Approved Telegram visitor proposal for ${intake.siteId} (${_telegramIntakeSummary(intake)}).',
+          source: MonitoringIdentityPolicyAuditSource.manualEdit,
+        );
+      }
+
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _telegramIdentityIntakes = _telegramIdentityIntakes
+            .where((record) => record.intakeId != intake.intakeId)
+            .toList(growable: false);
+      });
+      _snack(
+        faceId.isEmpty && plate.isEmpty
+            ? 'Proposal approved into the registry. Add a stable face or plate later for automatic matching.'
+            : 'Telegram visitor proposal allowlisted.',
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      _snack('Failed to approve Telegram visitor proposal: $error');
+    } finally {
+      if (mounted) {
+        _setTelegramIdentityIntakeBusy(intake.intakeId, false);
+      }
+    }
+  }
+
+  Future<void> _rejectTelegramIdentityIntake(
+    TelegramIdentityIntakeRecord intake,
+  ) async {
+    if (!widget.supabaseReady) {
+      _snack('Supabase required to action Telegram visitor proposals.');
+      return;
+    }
+    _setTelegramIdentityIntakeBusy(intake.intakeId, true);
+    try {
+      final repository = SupabaseSiteIdentityRegistryRepository(
+        Supabase.instance.client,
+      );
+      await repository.insertApprovalDecision(
+        SiteIdentityApprovalDecisionRecord(
+          clientId: intake.clientId,
+          siteId: intake.siteId,
+          decision: SiteIdentityDecision.review,
+          source: SiteIdentityDecisionSource.admin,
+          decidedBy: 'ONYX Admin',
+          decisionSummary:
+              'Admin rejected Telegram visitor proposal and left it out of the allowlist.',
+          decidedAtUtc: DateTime.now().toUtc(),
+          metadata: <String, Object?>{
+            'intake_id': intake.intakeId,
+            'raw_text': intake.rawText,
+          },
+        ),
+      );
+      await repository.updateTelegramIntakeApprovalState(
+        intakeId: intake.intakeId,
+        approvalState: 'rejected',
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _telegramIdentityIntakes = _telegramIdentityIntakes
+            .where((record) => record.intakeId != intake.intakeId)
+            .toList(growable: false);
+      });
+      _snack('Telegram visitor proposal rejected.');
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      _snack('Failed to reject Telegram visitor proposal: $error');
+    } finally {
+      if (mounted) {
+        _setTelegramIdentityIntakeBusy(intake.intakeId, false);
+      }
+    }
+  }
+
+  Future<void> _copyMonitoringIdentityRulesJson() async {
+    final rawJson = _monitoringIdentityPolicyService.toCanonicalJsonString();
+    await Clipboard.setData(ClipboardData(text: rawJson));
+    _snack('Identity rules JSON copied.');
+  }
+
+  Future<void> _importMonitoringIdentityRulesJson() async {
+    final controller = TextEditingController(
+      text: _monitoringIdentityPolicyService.toCanonicalJsonString(),
+    );
+    final rawJson = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF0C1117),
+          title: Text(
+            'Import Identity Rules JSON',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF4FF),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          content: SizedBox(
+            width: 520,
+            child: TextField(
+              key: const ValueKey('identity-rules-import-text-field'),
+              controller: controller,
+              minLines: 8,
+              maxLines: 14,
+              style: GoogleFonts.robotoMono(
+                color: const Color(0xFFEAF4FF),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+              decoration: InputDecoration(
+                hintText:
+                    '[{"client_id":"CLIENT-MS-VALLEE","site_id":"SITE-MS-VALLEE-RESIDENCE","flagged_face_match_ids":["PERSON-44"]}]',
+                hintStyle: GoogleFonts.robotoMono(
+                  color: const Color(0xFF6A829F),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+                filled: true,
+                fillColor: const Color(0xFF0A0F15),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0x332B425F)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0x332B425F)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0x6655A4FF)),
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(controller.text),
+              child: const Text('Import'),
+            ),
+          ],
+        );
+      },
+    );
+    final trimmed = (rawJson ?? '').trim();
+    if (trimmed.isEmpty) {
+      return;
+    }
+    try {
+      final importedService = MonitoringIdentityPolicyService.parseJson(
+        trimmed,
+      );
+      _commitMonitoringIdentityPolicyService(importedService);
+      _recordIdentityPolicyAudit(
+        'Imported full identity rule set with ${importedService.entries.length} site entries.',
+        source: MonitoringIdentityPolicyAuditSource.importAll,
+      );
+      _snack('Identity rules imported into runtime.');
+    } catch (error) {
+      _snack('Failed to import identity rules: $error');
+    }
+  }
+
+  String _identityPolicyEntryJson(MonitoringIdentityScopePolicyEntry entry) {
+    final service = MonitoringIdentityPolicyService(
+      policiesByScope: {'${entry.clientId}|${entry.siteId}': entry.policy},
+    );
+    return service.toCanonicalJsonString();
+  }
+
+  Future<void> _copyMonitoringIdentitySiteRulesJson(
+    MonitoringIdentityScopePolicyEntry entry,
+  ) async {
+    await Clipboard.setData(
+      ClipboardData(text: _identityPolicyEntryJson(entry)),
+    );
+    _snack('Site identity rules JSON copied.');
+  }
+
+  Future<void> _importMonitoringIdentitySiteRulesJson(
+    MonitoringIdentityScopePolicyEntry entry,
+  ) async {
+    final controller = TextEditingController(
+      text: _identityPolicyEntryJson(entry),
+    );
+    final rawJson = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF0C1117),
+          title: Text(
+            'Import Site Identity Rules JSON',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF4FF),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          content: SizedBox(
+            width: 520,
+            child: TextField(
+              key: ValueKey('identity-rules-site-import-${entry.siteId}'),
+              controller: controller,
+              minLines: 8,
+              maxLines: 14,
+              style: GoogleFonts.robotoMono(
+                color: const Color(0xFFEAF4FF),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+              decoration: InputDecoration(
+                hintText:
+                    '[{"client_id":"${entry.clientId}","site_id":"${entry.siteId}","flagged_face_match_ids":["PERSON-44"]}]',
+                hintStyle: GoogleFonts.robotoMono(
+                  color: const Color(0xFF6A829F),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+                filled: true,
+                fillColor: const Color(0xFF0A0F15),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0x332B425F)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0x332B425F)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0x6655A4FF)),
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(controller.text),
+              child: const Text('Import'),
+            ),
+          ],
+        );
+      },
+    );
+    final trimmed = (rawJson ?? '').trim();
+    if (trimmed.isEmpty) {
+      return;
+    }
+    try {
+      final importedService = MonitoringIdentityPolicyService.parseJson(
+        trimmed,
+      );
+      final importedEntries = importedService.entries;
+      if (importedEntries.length != 1) {
+        throw const FormatException(
+          'Import exactly one site policy in the JSON payload.',
+        );
+      }
+      final importedEntry = importedEntries.single;
+      if (importedEntry.clientId != entry.clientId ||
+          importedEntry.siteId != entry.siteId) {
+        throw FormatException(
+          'Imported policy targets ${importedEntry.clientId}/${importedEntry.siteId}, expected ${entry.clientId}/${entry.siteId}.',
+        );
+      }
+      final merged = _monitoringIdentityPolicyService.updateScopePolicy(
+        clientId: entry.clientId,
+        siteId: entry.siteId,
+        policy: importedEntry.policy,
+      );
+      _commitMonitoringIdentityPolicyService(merged);
+      _recordIdentityPolicyAudit(
+        'Imported site rules for ${entry.siteId}.',
+        source: MonitoringIdentityPolicyAuditSource.importSite,
+      );
+      _snack('Imported site identity rules for ${entry.siteId}.');
+    } catch (error) {
+      _snack('Failed to import site identity rules: $error');
+    }
+  }
+
+  Future<void> _clearMonitoringIdentitySiteRules(
+    MonitoringIdentityScopePolicyEntry entry,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF0C1117),
+          title: Text(
+            'Clear Site Identity Rules?',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF4FF),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          content: Text(
+            'This will remove all flagged and allowlisted identity rules for ${entry.siteId}.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFBFD7F2),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: const Color(0xFFEAF4FF),
+              ),
+              child: const Text('Clear'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true) {
+      return;
+    }
+    final cleared = _monitoringIdentityPolicyService.updateScopePolicy(
+      clientId: entry.clientId,
+      siteId: entry.siteId,
+      policy: const MonitoringIdentityScopePolicy(),
+    );
+    _commitMonitoringIdentityPolicyService(cleared);
+    _recordIdentityPolicyAudit(
+      'Cleared all site rules for ${entry.siteId}.',
+      source: MonitoringIdentityPolicyAuditSource.clearSite,
+    );
+    _snack('Cleared site identity rules for ${entry.siteId}.');
+  }
+
+  Future<void> _saveMonitoringIdentityRules() async {
+    if (widget.onSaveMonitoringIdentityPolicyService == null) {
+      _snack('Identity rules runtime save unavailable.');
+      return;
+    }
+    setState(() {
+      _identityPolicySaving = true;
+    });
+    try {
+      await widget.onSaveMonitoringIdentityPolicyService!(
+        _monitoringIdentityPolicyService,
+      );
+      if (!mounted) return;
+      _recordIdentityPolicyAudit(
+        'Saved runtime identity rules (${_monitoringIdentityPolicyService.entries.length} sites).',
+        source: MonitoringIdentityPolicyAuditSource.saveRuntime,
+      );
+      _snack('Identity rules runtime saved.');
+    } catch (error) {
+      if (!mounted) return;
+      _snack('Failed to save identity rules: $error');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _identityPolicySaving = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _resetMonitoringIdentityRules() async {
+    if (widget.onResetMonitoringIdentityPolicyService == null) {
+      _snack('Identity rules reset unavailable.');
+      return;
+    }
+    setState(() {
+      _identityPolicySaving = true;
+    });
+    try {
+      await widget.onResetMonitoringIdentityPolicyService!();
+      if (!mounted) return;
+      _recordIdentityPolicyAudit(
+        'Reset identity rules to defaults.',
+        source: MonitoringIdentityPolicyAuditSource.resetRuntime,
+      );
+      _snack('Identity rules reset to defaults.');
+    } catch (error) {
+      if (!mounted) return;
+      _snack('Failed to reset identity rules: $error');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _identityPolicySaving = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _promptAddIdentityRuleValue({
+    required String clientId,
+    required String siteId,
+    required MonitoringIdentityScopePolicy policy,
+    required _IdentityRuleBucket bucket,
+  }) async {
+    final controller = TextEditingController();
+    final label = _identityRuleSingularLabel(bucket);
+    final rawValue = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF0C1117),
+          title: Text(
+            'Add $label',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF4FF),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            style: GoogleFonts.inter(color: const Color(0xFFEAF4FF)),
+            decoration: InputDecoration(
+              hintText: 'Enter ${label.replaceAll(' ', ' ID / ')}',
+              hintStyle: GoogleFonts.inter(color: const Color(0xFF8EA4C2)),
+            ),
+            onSubmitted: (value) => Navigator.of(context).pop(value),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(controller.text),
+              child: const Text('Add'),
+            ),
+          ],
+        );
+      },
+    );
+    final normalized = _normalizeIdentityRuleValue(rawValue ?? '');
+    if (normalized.isEmpty) {
+      return;
+    }
+    final currentValues = _identityRuleValues(policy, bucket);
+    if (currentValues.contains(normalized)) {
+      _snack('${_identityRuleLabel(bucket)} already contains $normalized');
+      return;
+    }
+    final nextValues = {...currentValues, normalized};
+    final nextPolicy = _identityRulePolicyWithValues(
+      policy,
+      bucket,
+      nextValues,
+    );
+    _commitMonitoringIdentityPolicyService(
+      _monitoringIdentityPolicyService.updateScopePolicy(
+        clientId: clientId,
+        siteId: siteId,
+        policy: nextPolicy,
+      ),
+    );
+    _recordIdentityPolicyAudit(
+      'Added $normalized to ${_identityRuleLabel(bucket).toLowerCase()} for $siteId.',
+      source: MonitoringIdentityPolicyAuditSource.manualEdit,
+    );
+    _snack('Added $normalized to ${_identityRuleLabel(bucket).toLowerCase()}');
+  }
+
+  void _removeIdentityRuleValue({
+    required String clientId,
+    required String siteId,
+    required MonitoringIdentityScopePolicy policy,
+    required _IdentityRuleBucket bucket,
+    required String value,
+  }) {
+    final normalized = _normalizeIdentityRuleValue(value);
+    final nextValues = {..._identityRuleValues(policy, bucket)}
+      ..remove(normalized);
+    final nextPolicy = _identityRulePolicyWithValues(
+      policy,
+      bucket,
+      nextValues,
+    );
+    _commitMonitoringIdentityPolicyService(
+      _monitoringIdentityPolicyService.updateScopePolicy(
+        clientId: clientId,
+        siteId: siteId,
+        policy: nextPolicy,
+      ),
+    );
+    _recordIdentityPolicyAudit(
+      'Removed $normalized from ${_identityRuleLabel(bucket).toLowerCase()} for $siteId.',
+      source: MonitoringIdentityPolicyAuditSource.manualEdit,
+    );
+    _snack(
+      'Removed $normalized from ${_identityRuleLabel(bucket).toLowerCase()}',
+    );
   }
 
   Widget _tabBar() {
@@ -822,7 +1977,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             .map((tab) {
               final active = _activeTab == tab.$1;
               return InkWell(
-                onTap: () => setState(() => _activeTab = tab.$1),
+                onTap: () => _setActiveTab(tab.$1),
                 borderRadius: BorderRadius.circular(10),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -2543,6 +3698,63 @@ class _AdministrationPageState extends State<AdministrationPage> {
   }
 
   Widget _systemInfoCard() {
+    final fleetPanelKey = GlobalKey();
+    final suppressedPanelKey = GlobalKey();
+    final suppressedEntries = _suppressedSceneReviewEntries();
+    final showSuppressedPrimary =
+        _activeWatchActionDrilldown ==
+            VideoFleetWatchActionDrilldown.filtered &&
+        suppressedEntries.isNotEmpty;
+    final showEscalatedPrimary =
+        _activeWatchActionDrilldown == VideoFleetWatchActionDrilldown.escalated;
+    void openWatchActionDrilldown(VideoFleetWatchActionDrilldown drilldown) {
+      if (_activeWatchActionDrilldown == drilldown) {
+        _setActiveWatchActionDrilldown(null);
+        return;
+      }
+      _setActiveWatchActionDrilldown(drilldown);
+      final targetContext =
+          drilldown == VideoFleetWatchActionDrilldown.filtered &&
+              suppressedEntries.isNotEmpty
+          ? suppressedPanelKey.currentContext
+          : fleetPanelKey.currentContext;
+      if (targetContext == null) {
+        return;
+      }
+      Scrollable.ensureVisible(
+        targetContext,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+      );
+    }
+
+    void openLatestWatchActionDetail(VideoFleetScopeHealthView scope) {
+      if (_activeWatchActionDrilldown ==
+              VideoFleetWatchActionDrilldown.filtered &&
+          suppressedEntries.isNotEmpty) {
+        final targetContext = suppressedPanelKey.currentContext;
+        if (targetContext != null) {
+          Scrollable.ensureVisible(
+            targetContext,
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+          );
+        }
+        return;
+      }
+      final primaryOpenFleetScope = scope.hasIncidentContext
+          ? (widget.onOpenFleetTacticalScope ?? widget.onOpenFleetDispatchScope)
+          : null;
+      if (primaryOpenFleetScope == null) {
+        return;
+      }
+      primaryOpenFleetScope.call(
+        scope.clientId,
+        scope.siteId,
+        scope.latestIncidentReference,
+      );
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
@@ -2551,6 +3763,16 @@ class _AdministrationPageState extends State<AdministrationPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _subTitle('System Information'),
+          if (showEscalatedPrimary && widget.fleetScopeHealth.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            KeyedSubtree(
+              key: fleetPanelKey,
+              child: _fleetScopeHealthPanel(
+                onOpenWatchActionDrilldown: openWatchActionDrilldown,
+                onOpenLatestWatchActionDetail: openLatestWatchActionDetail,
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -2574,9 +3796,45 @@ class _AdministrationPageState extends State<AdministrationPage> {
             _subTitle('Ops Integration Poll Health'),
             const SizedBox(height: 8),
             ..._opsPollHealthRows(),
-            const SizedBox(height: 8),
-            _opsQueueActionButtons(),
+            if (widget.monitoringWatchAuditHistory.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              _monitoringWatchAuditTrailPanel(),
+            ],
           ],
+          if (showSuppressedPrimary) ...[
+            const SizedBox(height: 8),
+            KeyedSubtree(
+              key: suppressedPanelKey,
+              child: _suppressedSceneReviewPanel(suppressedEntries),
+            ),
+          ],
+          if (!showEscalatedPrimary && widget.fleetScopeHealth.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            KeyedSubtree(
+              key: fleetPanelKey,
+              child: _fleetScopeHealthPanel(
+                onOpenWatchActionDrilldown: openWatchActionDrilldown,
+                onOpenLatestWatchActionDetail: openLatestWatchActionDetail,
+              ),
+            ),
+          ],
+          if (!showSuppressedPrimary && suppressedEntries.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            KeyedSubtree(
+              key: suppressedPanelKey,
+              child: _suppressedSceneReviewPanel(suppressedEntries),
+            ),
+          ],
+          if (_monitoringIdentityPolicyService.entries.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _identityPolicyPanel(),
+          ],
+          if (widget.supabaseReady || _telegramIdentityIntakes.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _telegramIdentityIntakePanel(),
+          ],
+          const SizedBox(height: 8),
+          _opsQueueActionButtons(),
         ],
       ),
     );
@@ -2586,7 +3844,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
     return (widget.videoIntegrityCertificateStatus ?? '').trim().isNotEmpty ||
         (widget.videoIntegrityCertificateSummary ?? '').trim().isNotEmpty ||
         (widget.videoIntegrityCertificateJsonPreview ?? '').trim().isNotEmpty ||
-        (widget.videoIntegrityCertificateMarkdownPreview ?? '').trim().isNotEmpty;
+        (widget.videoIntegrityCertificateMarkdownPreview ?? '')
+            .trim()
+            .isNotEmpty;
   }
 
   Widget _videoIntegrityCertificatePanel() {
@@ -2594,7 +3854,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
     final summary = (widget.videoIntegrityCertificateSummary ?? '').trim();
     final hasPreview =
         (widget.videoIntegrityCertificateJsonPreview ?? '').trim().isNotEmpty ||
-        (widget.videoIntegrityCertificateMarkdownPreview ?? '').trim().isNotEmpty;
+        (widget.videoIntegrityCertificateMarkdownPreview ?? '')
+            .trim()
+            .isNotEmpty;
     final statusUpper = status.toUpperCase();
     final accent = statusUpper == 'PASS'
         ? const Color(0xFF34D399)
@@ -3540,19 +4802,37 @@ class _AdministrationPageState extends State<AdministrationPage> {
       rows.add((widget.videoOpsLabel, widget.cctvOpsPollHealth!.trim()));
     }
     if ((widget.cctvCapabilitySummary ?? '').trim().isNotEmpty) {
-      rows.add(('${widget.videoOpsLabel} Caps', widget.cctvCapabilitySummary!.trim()));
+      rows.add((
+        '${widget.videoOpsLabel} Caps',
+        widget.cctvCapabilitySummary!.trim(),
+      ));
     }
     if ((widget.cctvRecentSignalSummary ?? '').trim().isNotEmpty) {
-      rows.add(('${widget.videoOpsLabel} Recent', widget.cctvRecentSignalSummary!.trim()));
+      rows.add((
+        '${widget.videoOpsLabel} Recent',
+        widget.cctvRecentSignalSummary!.trim(),
+      ));
     }
     if ((widget.cctvEvidenceHealthSummary ?? '').trim().isNotEmpty) {
-      rows.add(('${widget.videoOpsLabel} Evidence', widget.cctvEvidenceHealthSummary!.trim()));
+      rows.add((
+        '${widget.videoOpsLabel} Evidence',
+        widget.cctvEvidenceHealthSummary!.trim(),
+      ));
     }
     if ((widget.cctvCameraHealthSummary ?? '').trim().isNotEmpty) {
-      rows.add(('${widget.videoOpsLabel} Cameras', widget.cctvCameraHealthSummary!.trim()));
+      rows.add((
+        '${widget.videoOpsLabel} Cameras',
+        widget.cctvCameraHealthSummary!.trim(),
+      ));
     }
     if ((widget.incidentSpoolHealthSummary ?? '').trim().isNotEmpty) {
       rows.add(('Incident Spool', widget.incidentSpoolHealthSummary!.trim()));
+    }
+    if ((widget.incidentSpoolReplaySummary ?? '').trim().isNotEmpty) {
+      rows.add(('Spool Replay', widget.incidentSpoolReplaySummary!.trim()));
+    }
+    if ((widget.monitoringWatchAuditSummary ?? '').trim().isNotEmpty) {
+      rows.add(('Watch Audit', widget.monitoringWatchAuditSummary!.trim()));
     }
     if ((widget.wearableOpsPollHealth ?? '').trim().isNotEmpty) {
       rows.add(('Wearable', widget.wearableOpsPollHealth!.trim()));
@@ -3601,6 +4881,1937 @@ class _AdministrationPageState extends State<AdministrationPage> {
           ),
         )
         .toList(growable: false);
+  }
+
+  Widget _monitoringWatchAuditTrailPanel() {
+    final history = widget.monitoringWatchAuditHistory
+        .map((entry) => entry.trim())
+        .where((entry) => entry.isNotEmpty)
+        .map(
+          (entry) =>
+              (raw: entry, record: _watchRecoveryStore.parseAuditRecord(entry)),
+        )
+        .toList(growable: false);
+    if (history.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C1117),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: const Color(0x332B425F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Watch Recovery Trail',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFEAF4FF),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0x1422D3EE),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: const Color(0x3322D3EE)),
+                ),
+                child: Text(
+                  '${history.length} entries',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF67E8F9),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...history.asMap().entries.map((entry) {
+            final index = entry.key;
+            final audit = entry.value;
+            final isLatest = index == 0;
+            final record = audit.record;
+            final isStructured = record?.isValid ?? false;
+            return Container(
+              width: double.infinity,
+              margin: EdgeInsets.only(
+                bottom: index == history.length - 1 ? 0 : 8,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+              decoration: BoxDecoration(
+                color: isLatest
+                    ? const Color(0x1410B981)
+                    : const Color(0xFF11161D),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isLatest
+                      ? const Color(0x334AD2A0)
+                      : const Color(0x332B425F),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 46,
+                    child: Text(
+                      isLatest ? 'LATEST' : '#${index + 1}',
+                      style: GoogleFonts.inter(
+                        color: isLatest
+                            ? const Color(0xFF86EFAC)
+                            : const Color(0xFF8EA4C2),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.7,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: isStructured
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                record!.siteLabel,
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFFEAF4FF),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: [
+                                  _watchAuditChip(
+                                    'Actor',
+                                    record.actor,
+                                    color: const Color(0xFF67E8F9),
+                                  ),
+                                  _watchAuditChip(
+                                    'Outcome',
+                                    record.outcome,
+                                    color: isLatest
+                                        ? const Color(0xFF86EFAC)
+                                        : const Color(0xFFFDE68A),
+                                  ),
+                                  _watchAuditChip(
+                                    'At',
+                                    _watchAuditRecordedAtLabel(record),
+                                    color: const Color(0xFFBFD7F2),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                record.action,
+                                style: GoogleFonts.robotoMono(
+                                  color: const Color(0xFF67E8F9),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          )
+                        : Text(
+                            audit.raw,
+                            style: GoogleFonts.robotoMono(
+                              color: const Color(0xFF67E8F9),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _watchAuditChip(String label, String value, {required Color color}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C1117),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0x332B425F)),
+      ),
+      child: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(
+              text: '$label ',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            TextSpan(
+              text: value,
+              style: GoogleFonts.inter(
+                color: color,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _watchAuditRecordedAtLabel(MonitoringWatchAuditRecord audit) {
+    final recordedAtUtc = audit.recordedAtUtc;
+    if (recordedAtUtc == null) {
+      return 'Unknown';
+    }
+    final year = recordedAtUtc.year.toString().padLeft(4, '0');
+    final month = recordedAtUtc.month.toString().padLeft(2, '0');
+    final day = recordedAtUtc.day.toString().padLeft(2, '0');
+    final hour = recordedAtUtc.hour.toString().padLeft(2, '0');
+    final minute = recordedAtUtc.minute.toString().padLeft(2, '0');
+    return '$year-$month-$day $hour:$minute UTC';
+  }
+
+  Widget _fleetScopeHealthPanel({
+    required void Function(VideoFleetWatchActionDrilldown drilldown)
+    onOpenWatchActionDrilldown,
+    required void Function(VideoFleetScopeHealthView scope)
+    onOpenLatestWatchActionDetail,
+  }) {
+    final sections = VideoFleetScopeHealthSections.fromScopes(
+      widget.fleetScopeHealth,
+    );
+    final filteredSections = VideoFleetScopeHealthSections.fromScopes(
+      orderFleetScopesForWatchAction(
+        filterFleetScopesForWatchAction(
+          widget.fleetScopeHealth,
+          _activeWatchActionDrilldown,
+        ),
+        _activeWatchActionDrilldown,
+      ),
+    );
+    final primaryFocusedScope = primaryFleetScopeForWatchAction(
+      filteredSections,
+      _activeWatchActionDrilldown,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_activeWatchActionDrilldown != null) ...[
+          _watchActionFocusBanner(primaryFocusedScope),
+          const SizedBox(height: 8),
+        ],
+        VideoFleetScopeHealthPanel(
+          title: '${widget.videoOpsLabel} Fleet Health',
+          titleStyle: GoogleFonts.inter(
+            color: const Color(0xFFEAF4FF),
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+          sectionLabelStyle: GoogleFonts.inter(
+            color: const Color(0xFF8EA4C2),
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.9,
+          ),
+          sections: filteredSections,
+          activeWatchActionDrilldown: _activeWatchActionDrilldown,
+          summaryChildren: _fleetSummaryChips(
+            sections: sections,
+            onOpenWatchActionDrilldown: onOpenWatchActionDrilldown,
+          ),
+          actionableChildren: filteredSections.actionableScopes
+              .map(
+                (scope) => _fleetScopeHealthCard(
+                  scope,
+                  onOpenLatestWatchActionDetail: onOpenLatestWatchActionDetail,
+                ),
+              )
+              .toList(growable: false),
+          watchOnlyChildren: filteredSections.watchOnlyScopes
+              .map(
+                (scope) => _fleetScopeHealthCard(
+                  scope,
+                  onOpenLatestWatchActionDetail: onOpenLatestWatchActionDetail,
+                ),
+              )
+              .toList(growable: false),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0C1117),
+            borderRadius: BorderRadius.circular(9),
+            border: Border.all(color: const Color(0x332B425F)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<_SuppressedSceneReviewEntry> _suppressedSceneReviewEntries() {
+    final output = <_SuppressedSceneReviewEntry>[];
+    for (final scope in widget.fleetScopeHealth) {
+      if (!scope.hasSuppressedSceneAction) {
+        continue;
+      }
+      final intelligenceId = (scope.latestIncidentReference ?? '').trim();
+      if (intelligenceId.isEmpty) {
+        continue;
+      }
+      final review = widget.sceneReviewByIntelligenceId[intelligenceId];
+      if (review == null) {
+        continue;
+      }
+      output.add(_SuppressedSceneReviewEntry(scope: scope, review: review));
+    }
+    output.sort(
+      (a, b) => b.review.reviewedAtUtc.compareTo(a.review.reviewedAtUtc),
+    );
+    return output;
+  }
+
+  Widget _suppressedSceneReviewPanel(
+    List<_SuppressedSceneReviewEntry> entries,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C1117),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: const Color(0x332B425F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Suppressed Scene Reviews',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFEAF4FF),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0x149AB1CF),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: const Color(0x339AB1CF)),
+                ),
+                child: Text(
+                  '${entries.length} internal',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFBFD7F2),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Recent ${widget.videoOpsLabel} reviews ONYX kept internal during the active watch window.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB1CF),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 10),
+          ...entries.take(6).toList(growable: false).asMap().entries.map((
+            entry,
+          ) {
+            final item = entry.value;
+            final scope = item.scope;
+            final review = item.review;
+            final incidentRef = (scope.latestIncidentReference ?? '').trim();
+            final decisionSummary = review.decisionSummary.trim();
+            final reviewSummary = review.summary.trim();
+            return Container(
+              width: double.infinity,
+              margin: EdgeInsets.only(
+                bottom: entry.key == math.min(entries.length, 6) - 1 ? 0 : 8,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+              decoration: BoxDecoration(
+                color: const Color(0xFF11161D),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0x332B425F)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          scope.siteName,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFEAF4FF),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _suppressedReviewedAtLabel(review.reviewedAtUtc),
+                        style: GoogleFonts.robotoMono(
+                          color: const Color(0xFF8EA4C2),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _watchAuditChip(
+                        'Action',
+                        review.decisionLabel.trim().isEmpty
+                            ? 'Suppressed'
+                            : review.decisionLabel,
+                        color: const Color(0xFFBFD7F2),
+                      ),
+                      if ((scope.latestCameraLabel ?? '').trim().isNotEmpty)
+                        _watchAuditChip(
+                          'Camera',
+                          scope.latestCameraLabel!,
+                          color: const Color(0xFF67E8F9),
+                        ),
+                      _watchAuditChip(
+                        'Source',
+                        review.sourceLabel,
+                        color: const Color(0xFFFDE68A),
+                      ),
+                      _watchAuditChip(
+                        'Posture',
+                        review.postureLabel,
+                        color: const Color(0xFF86EFAC),
+                      ),
+                    ],
+                  ),
+                  if (decisionSummary.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      decisionSummary,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFEAF4FF),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                  if (reviewSummary.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Scene review: $reviewSummary',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF9AB1CF),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                  if (incidentRef.isNotEmpty &&
+                      (widget.onOpenEventsForIncident != null ||
+                          widget.onOpenLedgerForIncident != null)) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        if (widget.onOpenEventsForIncident != null)
+                          _fleetActionButton(
+                            label: 'Events',
+                            color: const Color(0xFF67E8F9),
+                            onPressed: () => widget.onOpenEventsForIncident!
+                                .call(incidentRef),
+                          ),
+                        if (widget.onOpenLedgerForIncident != null)
+                          _fleetActionButton(
+                            label: 'Ledger',
+                            color: const Color(0xFFFBBF24),
+                            onPressed: () => widget.onOpenLedgerForIncident!
+                                .call(incidentRef),
+                          ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _identityPolicyPanel() {
+    final entries = _monitoringIdentityPolicyService.entries;
+    final hasOverride = widget.initialMonitoringIdentityRulesJson
+        .trim()
+        .isNotEmpty;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C1117),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: const Color(0x332B425F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Identity Rules',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFEAF4FF),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0x149AB1CF),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: const Color(0x339AB1CF)),
+                ),
+                child: Text(
+                  '${entries.length} sites',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFBFD7F2),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Configured allowlisted and flagged face and plate rules currently shaping ONYX watch decisions.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB1CF),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                key: const ValueKey('identity-rules-copy-json'),
+                onPressed: _identityPolicySaving
+                    ? null
+                    : _copyMonitoringIdentityRulesJson,
+                icon: const Icon(Icons.copy_all_rounded, size: 16),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF2B5E93),
+                  foregroundColor: const Color(0xFFEAF4FF),
+                ),
+                label: Text(
+                  'Copy JSON',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                ),
+              ),
+              FilledButton.icon(
+                key: const ValueKey('identity-rules-import-json'),
+                onPressed: _identityPolicySaving
+                    ? null
+                    : _importMonitoringIdentityRulesJson,
+                icon: const Icon(Icons.upload_file_rounded, size: 16),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF3B82F6),
+                  foregroundColor: const Color(0xFFEAF4FF),
+                ),
+                label: Text(
+                  'Import JSON',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                ),
+              ),
+              FilledButton.icon(
+                key: const ValueKey('identity-rules-save-runtime'),
+                onPressed:
+                    _identityPolicySaving ||
+                        widget.onSaveMonitoringIdentityPolicyService == null
+                    ? null
+                    : _saveMonitoringIdentityRules,
+                icon: const Icon(Icons.save_rounded, size: 16),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF2563EB),
+                  foregroundColor: const Color(0xFFEAF4FF),
+                ),
+                label: Text(
+                  'Save Runtime',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                ),
+              ),
+              OutlinedButton.icon(
+                key: const ValueKey('identity-rules-reset-runtime'),
+                onPressed:
+                    _identityPolicySaving ||
+                        widget.onResetMonitoringIdentityPolicyService == null
+                    ? null
+                    : _resetMonitoringIdentityRules,
+                icon: const Icon(Icons.restart_alt_rounded, size: 16),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF9AB1CF),
+                  side: const BorderSide(color: Color(0xFF35506F)),
+                ),
+                label: Text(
+                  hasOverride ? 'Reset To Defaults' : 'Defaults Active',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...entries.take(6).toList(growable: false).asMap().entries.map((
+            entry,
+          ) {
+            final item = entry.value;
+            final policy = item.policy;
+            return Container(
+              width: double.infinity,
+              margin: EdgeInsets.only(
+                bottom: entry.key == math.min(entries.length, 6) - 1 ? 0 : 8,
+              ),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0A0F15),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0x332B425F)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.siteId,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFEAF4FF),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    item.clientId,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF9AB1CF),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      TextButton.icon(
+                        key: ValueKey(
+                          'identity-rules-copy-site-${item.siteId}',
+                        ),
+                        onPressed: _identityPolicySaving
+                            ? null
+                            : () => _copyMonitoringIdentitySiteRulesJson(item),
+                        icon: const Icon(Icons.copy_all_rounded, size: 14),
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF67E8F9),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        label: Text(
+                          'Copy Site JSON',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      TextButton.icon(
+                        key: ValueKey(
+                          'identity-rules-import-site-${item.siteId}',
+                        ),
+                        onPressed: _identityPolicySaving
+                            ? null
+                            : () =>
+                                  _importMonitoringIdentitySiteRulesJson(item),
+                        icon: const Icon(Icons.upload_file_rounded, size: 14),
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF93C5FD),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        label: Text(
+                          'Import Site JSON',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      TextButton.icon(
+                        key: ValueKey(
+                          'identity-rules-clear-site-${item.siteId}',
+                        ),
+                        onPressed: _identityPolicySaving
+                            ? null
+                            : () => _clearMonitoringIdentitySiteRules(item),
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                          size: 14,
+                        ),
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFFFCA5A5),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        label: Text(
+                          'Clear Site Rules',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _identityRuleChip(
+                        'Flagged faces ${policy.flaggedFaceMatchIds.length}',
+                        const Color(0xFFFF7A7A),
+                      ),
+                      _identityRuleChip(
+                        'Flagged plates ${policy.flaggedPlateNumbers.length}',
+                        const Color(0xFFFFB36B),
+                      ),
+                      _identityRuleChip(
+                        'Allowed faces ${policy.allowedFaceMatchIds.length}',
+                        const Color(0xFF58D68D),
+                      ),
+                      _identityRuleChip(
+                        'Allowed plates ${policy.allowedPlateNumbers.length}',
+                        const Color(0xFF4FD1C5),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  _identityRuleLine(
+                    clientId: item.clientId,
+                    siteId: item.siteId,
+                    policy: policy,
+                    bucket: _IdentityRuleBucket.flaggedFaces,
+                  ),
+                  _identityRuleLine(
+                    clientId: item.clientId,
+                    siteId: item.siteId,
+                    policy: policy,
+                    bucket: _IdentityRuleBucket.flaggedPlates,
+                  ),
+                  _identityRuleLine(
+                    clientId: item.clientId,
+                    siteId: item.siteId,
+                    policy: policy,
+                    bucket: _IdentityRuleBucket.allowedFaces,
+                  ),
+                  _identityRuleLine(
+                    clientId: item.clientId,
+                    siteId: item.siteId,
+                    policy: policy,
+                    bucket: _IdentityRuleBucket.allowedPlates,
+                  ),
+                ],
+              ),
+            );
+          }),
+          if (_identityPolicyAuditHistory.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Builder(
+              builder: (context) {
+                final filteredHistory = _activeIdentityPolicyAuditSource == null
+                    ? _identityPolicyAuditHistory
+                    : _identityPolicyAuditHistory
+                          .where(
+                            (record) =>
+                                record.source ==
+                                _activeIdentityPolicyAuditSource,
+                          )
+                          .toList(growable: false);
+                final availableSources = _identityPolicyAuditHistory
+                    .map((record) => record.source)
+                    .toSet()
+                    .toList(growable: false);
+                availableSources.sort((a, b) => a.label.compareTo(b.label));
+                return Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0A0F15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0x332B425F)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'Recent Rule Changes',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFEAF4FF),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0x149AB1CF),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: const Color(0x339AB1CF),
+                              ),
+                            ),
+                            child: Text(
+                              '${filteredHistory.length} recent',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFFBFD7F2),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          const Spacer(),
+                          TextButton.icon(
+                            key: const ValueKey('identity-audit-toggle'),
+                            onPressed: () => _setIdentityPolicyAuditExpanded(
+                              !_identityPolicyAuditExpanded,
+                            ),
+                            icon: Icon(
+                              _identityPolicyAuditExpanded
+                                  ? Icons.unfold_less_rounded
+                                  : Icons.unfold_more_rounded,
+                              size: 16,
+                            ),
+                            style: TextButton.styleFrom(
+                              foregroundColor: const Color(0xFFBFD7F2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              textStyle: GoogleFonts.inter(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            label: Text(
+                              _identityPolicyAuditExpanded
+                                  ? 'Collapse'
+                                  : 'Expand',
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_identityPolicyAuditExpanded) ...[
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            FilterChip(
+                              key: const ValueKey('identity-audit-filter-all'),
+                              label: const Text('All'),
+                              selected:
+                                  _activeIdentityPolicyAuditSource == null,
+                              onSelected: (_) =>
+                                  _setActiveIdentityPolicyAuditSource(null),
+                              selectedColor: const Color(0x339AB1CF),
+                              checkmarkColor: const Color(0xFFBFD7F2),
+                              labelStyle: GoogleFonts.inter(
+                                color: const Color(0xFFBFD7F2),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              side: const BorderSide(color: Color(0x339AB1CF)),
+                            ),
+                            ...availableSources.map((source) {
+                              return FilterChip(
+                                key: ValueKey(
+                                  'identity-audit-filter-${source.persistenceKey}',
+                                ),
+                                label: Text(source.label),
+                                selected:
+                                    _activeIdentityPolicyAuditSource == source,
+                                onSelected: (_) =>
+                                    _setActiveIdentityPolicyAuditSource(source),
+                                selectedColor: const Color(0x339AB1CF),
+                                checkmarkColor: const Color(0xFFBFD7F2),
+                                labelStyle: GoogleFonts.inter(
+                                  color: const Color(0xFFBFD7F2),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                side: const BorderSide(
+                                  color: Color(0x339AB1CF),
+                                ),
+                              );
+                            }),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        ...filteredHistory.asMap().entries.map((entry) {
+                          final record = entry.value;
+                          return Padding(
+                            padding: EdgeInsets.only(
+                              bottom: entry.key == filteredHistory.length - 1
+                                  ? 0
+                                  : 6,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0x149AB1CF),
+                                        borderRadius: BorderRadius.circular(
+                                          999,
+                                        ),
+                                        border: Border.all(
+                                          color: const Color(0x339AB1CF),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        record.source.label,
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFFBFD7F2),
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      record.recordedAtLabel,
+                                      style: GoogleFonts.robotoMono(
+                                        color: const Color(0xFF8EA4C2),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  record.message,
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFFBFD7F2),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _telegramIdentityIntakePanel() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C1117),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: const Color(0x332B425F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Telegram Visitor Proposals',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFEAF4FF),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0x149AB1CF),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: const Color(0x339AB1CF)),
+                ),
+                child: Text(
+                  '${_telegramIdentityIntakes.length} pending',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFBFD7F2),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              if (widget.supabaseReady)
+                TextButton.icon(
+                  key: const ValueKey('telegram-identity-intake-refresh'),
+                  onPressed: _telegramIdentityIntakesLoading
+                      ? null
+                      : _loadTelegramIdentityIntakesFromSupabase,
+                  icon: _telegramIdentityIntakesLoading
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.refresh_rounded, size: 14),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF93C5FD),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                  ),
+                  label: Text(
+                    'Refresh',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Client Telegram messages parsed into visitor proposals that control can review into the site allowlist.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB1CF),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (_telegramIdentityIntakes.isEmpty)
+            Text(
+              widget.supabaseReady
+                  ? 'No pending Telegram visitor proposals.'
+                  : 'Supabase offline. Pending Telegram visitor proposals are unavailable in this session.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFD9E7FA),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            )
+          else
+            ..._telegramIdentityIntakes.map((intake) {
+              final busy = _telegramIdentityIntakeBusyIds.contains(
+                intake.intakeId.trim(),
+              );
+              return Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0A0F15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0x332B425F)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _telegramIntakeDisplayName(intake),
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFEAF4FF),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '${intake.createdAtUtc.toUtc().toIso8601String().replaceFirst('T', ' ').substring(0, 16)} UTC',
+                          style: GoogleFonts.robotoMono(
+                            color: const Color(0xFF8EA4C2),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${intake.siteId} • ${intake.clientId}',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF9AB1CF),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        _identityRuleChip(
+                          intake.category.code.toUpperCase(),
+                          const Color(0xFF67E8F9),
+                        ),
+                        if (intake.parsedFaceMatchId.trim().isNotEmpty)
+                          _identityRuleChip(
+                            'Face ${intake.parsedFaceMatchId.trim()}',
+                            const Color(0xFF58D68D),
+                          ),
+                        if (intake.parsedPlateNumber.trim().isNotEmpty)
+                          _identityRuleChip(
+                            'Plate ${intake.parsedPlateNumber.trim()}',
+                            const Color(0xFFFBBF24),
+                          ),
+                        _identityRuleChip(
+                          '${(intake.aiConfidence * 100).toStringAsFixed(0)}% parse',
+                          const Color(0xFFBFD7F2),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      intake.rawText,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFBFD7F2),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (_telegramIntakeSummary(intake).isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        _telegramIntakeSummary(intake),
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF8EA4C2),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        FilledButton.icon(
+                          key: ValueKey(
+                            'telegram-identity-allow-once-${intake.intakeId}',
+                          ),
+                          onPressed: busy
+                              ? null
+                              : () =>
+                                    _approveTelegramIdentityIntakeOnce(intake),
+                          icon: busy
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.schedule_rounded, size: 16),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFF2B5E93),
+                            foregroundColor: const Color(0xFFEAF4FF),
+                          ),
+                          label: Text(
+                            'Allow Once',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        FilledButton.icon(
+                          key: ValueKey(
+                            'telegram-identity-allow-${intake.intakeId}',
+                          ),
+                          onPressed: busy
+                              ? null
+                              : () => _approveTelegramIdentityIntakeAlways(
+                                  intake,
+                                ),
+                          icon: busy
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.verified_user_rounded,
+                                  size: 16,
+                                ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFF2563EB),
+                            foregroundColor: const Color(0xFFEAF4FF),
+                          ),
+                          label: Text(
+                            'Always Allow',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          key: ValueKey(
+                            'telegram-identity-reject-${intake.intakeId}',
+                          ),
+                          onPressed: busy
+                              ? null
+                              : () => _rejectTelegramIdentityIntake(intake),
+                          icon: const Icon(Icons.close_rounded, size: 16),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFFCA5A5),
+                            side: const BorderSide(color: Color(0xFF7F1D1D)),
+                          ),
+                          label: Text(
+                            'Reject',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
+  Widget _identityRuleChip(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Widget _identityRuleLine({
+    required String clientId,
+    required String siteId,
+    required MonitoringIdentityScopePolicy policy,
+    required _IdentityRuleBucket bucket,
+  }) {
+    final values = _identityRuleValues(policy, bucket).toList(growable: false)
+      ..sort();
+    final label = _identityRuleLabel(bucket);
+    final color = _identityRuleBucketColor(bucket);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF8EA4C2),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              TextButton(
+                key: ValueKey('identity-rule-add-${bucket.name}-$siteId'),
+                onPressed: () => _promptAddIdentityRuleValue(
+                  clientId: clientId,
+                  siteId: siteId,
+                  policy: policy,
+                  bucket: bucket,
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: color,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text('Add'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          if (values.isEmpty)
+            Text(
+              'None configured',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFD9E7FA),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            )
+          else
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: values
+                  .map(
+                    (value) => InputChip(
+                      key: ValueKey(
+                        'identity-rule-chip-${bucket.name}-$siteId-$value',
+                      ),
+                      label: Text(value),
+                      deleteIconColor: color,
+                      deleteButtonTooltipMessage: 'Remove $value',
+                      onDeleted: () => _removeIdentityRuleValue(
+                        clientId: clientId,
+                        siteId: siteId,
+                        policy: policy,
+                        bucket: bucket,
+                        value: value,
+                      ),
+                      backgroundColor: color.withValues(alpha: 0.12),
+                      side: BorderSide(color: color.withValues(alpha: 0.35)),
+                      labelStyle: GoogleFonts.inter(
+                        color: const Color(0xFFD9E7FA),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _suppressedReviewedAtLabel(DateTime reviewedAtUtc) {
+    final value = reviewedAtUtc.toUtc();
+    final year = value.year.toString().padLeft(4, '0');
+    final month = value.month.toString().padLeft(2, '0');
+    final day = value.day.toString().padLeft(2, '0');
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '$year-$month-$day $hour:$minute UTC';
+  }
+
+  Widget _fleetScopeHealthCard(
+    VideoFleetScopeHealthView scope, {
+    required void Function(VideoFleetScopeHealthView scope)
+    onOpenLatestWatchActionDetail,
+  }) {
+    final statusColor = switch (scope.statusLabel.toUpperCase()) {
+      'LIVE' => const Color(0xFF10B981),
+      'ACTIVE WATCH' => const Color(0xFF22D3EE),
+      'WATCH READY' => const Color(0xFFF59E0B),
+      _ => const Color(0xFF8EA4C2),
+    };
+    final primaryOpenFleetScope = scope.hasIncidentContext
+        ? (widget.onOpenFleetTacticalScope ?? widget.onOpenFleetDispatchScope)
+        : null;
+    return VideoFleetScopeHealthCard(
+      title: scope.siteName,
+      endpointLabel: scope.endpointLabel,
+      lastSeenLabel: scope.lastSeenLabel,
+      titleStyle: GoogleFonts.inter(
+        color: const Color(0xFFEAF4FF),
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+      ),
+      endpointStyle: GoogleFonts.robotoMono(
+        color: const Color(0xFF8EA4C2),
+        fontSize: 10,
+        fontWeight: FontWeight.w600,
+      ),
+      lastSeenStyle: GoogleFonts.inter(
+        color: const Color(0xFF9AB1CF),
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+      ),
+      noteStyle: GoogleFonts.inter(
+        color: const Color(0xFF9AB1CF),
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
+      ),
+      latestStyle: GoogleFonts.inter(
+        color: const Color(0xFFEAF4FF),
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+      ),
+      primaryChips: [
+        if ((scope.operatorOutcomeLabel ?? '').trim().isNotEmpty)
+          _fleetBadge(
+            'Cue',
+            scope.operatorOutcomeLabel!,
+            const Color(0xFF67E8F9),
+          ),
+        if ((scope.operatorOutcomeLabel ?? '').trim().isEmpty &&
+            (scope.lastRecoveryLabel ?? '').trim().isNotEmpty)
+          _fleetBadge(
+            'Recovery',
+            scope.lastRecoveryLabel!,
+            const Color(0xFF86EFAC),
+          ),
+        if (scope.hasWatchActivationGap)
+          _fleetBadge(
+            'Gap',
+            scope.watchActivationGapLabel!,
+            const Color(0xFFF87171),
+          ),
+        if (!scope.hasIncidentContext)
+          _fleetBadge('Context', 'Pending', const Color(0xFFFBBF24)),
+        if (scope.identityPolicyChipValue != null)
+          _fleetBadge(
+            'Identity',
+            scope.identityPolicyChipValue!,
+            identityPolicyAccentColorForScope(scope),
+          ),
+        if (scope.clientDecisionChipValue != null)
+          _fleetBadge(
+            'Client',
+            scope.clientDecisionChipValue!,
+            scope.clientDecisionChipValue == 'Approved'
+                ? const Color(0xFF86EFAC)
+                : scope.clientDecisionChipValue == 'Review'
+                ? const Color(0xFFFDE68A)
+                : const Color(0xFFFCA5A5),
+          ),
+        _fleetBadge('Status', scope.statusLabel, statusColor),
+        _fleetBadge('Watch', scope.watchLabel, const Color(0xFF67E8F9)),
+        _fleetBadge(
+          'Freshness',
+          scope.freshnessLabel,
+          _fleetFreshnessColor(scope),
+        ),
+        _fleetBadge('6h', '${scope.recentEvents}', const Color(0xFF9AB1CF)),
+      ],
+      secondaryChips: [
+        if (scope.watchWindowLabel != null)
+          _fleetBadge(
+            'Window',
+            scope.watchWindowLabel!,
+            const Color(0xFF86EFAC),
+          ),
+        if (scope.watchWindowStateLabel != null)
+          _fleetBadge(
+            'Phase',
+            scope.watchWindowStateLabel!,
+            scope.watchWindowStateLabel == 'IN WINDOW'
+                ? const Color(0xFF86EFAC)
+                : const Color(0xFFFBBF24),
+          ),
+        if (scope.latestRiskScore != null)
+          _fleetBadge(
+            'Risk',
+            _fleetRiskLabel(scope.latestRiskScore!),
+            _fleetRiskColor(scope.latestRiskScore!),
+          ),
+        if (scope.latestCameraLabel != null)
+          _fleetBadge(
+            'Camera',
+            scope.latestCameraLabel!,
+            const Color(0xFF9AB1CF),
+          ),
+      ],
+      actionChildren: [
+        if (widget.onRecoverFleetWatchScope != null &&
+            scope.hasWatchActivationGap)
+          _fleetActionButton(
+            label: 'Resync',
+            color: const Color(0xFFF87171),
+            onPressed: () => widget.onRecoverFleetWatchScope!.call(
+              scope.clientId,
+              scope.siteId,
+            ),
+          ),
+        if (widget.onOpenFleetTacticalScope != null && scope.hasIncidentContext)
+          _fleetActionButton(
+            label: 'Tactical',
+            color: const Color(0xFF67E8F9),
+            onPressed: () => widget.onOpenFleetTacticalScope!.call(
+              scope.clientId,
+              scope.siteId,
+              scope.latestIncidentReference,
+            ),
+          ),
+        if (widget.onOpenFleetDispatchScope != null && scope.hasIncidentContext)
+          _fleetActionButton(
+            label: 'Dispatch',
+            color: const Color(0xFFFBBF24),
+            onPressed: () => widget.onOpenFleetDispatchScope!.call(
+              scope.clientId,
+              scope.siteId,
+              scope.latestIncidentReference,
+            ),
+          ),
+      ],
+      noteText: scope.noteText,
+      latestText: prominentLatestTextForWatchAction(
+        scope,
+        _activeWatchActionDrilldown,
+      ),
+      onLatestTap: () => onOpenLatestWatchActionDetail(scope),
+      onTap: primaryOpenFleetScope == null
+          ? null
+          : () => primaryOpenFleetScope.call(
+              scope.clientId,
+              scope.siteId,
+              scope.latestIncidentReference,
+            ),
+      decoration: BoxDecoration(
+        color: const Color(0xFF101722),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0x333A546E)),
+      ),
+      constraints: const BoxConstraints(minWidth: 220, maxWidth: 300),
+    );
+  }
+
+  List<Widget> _fleetSummaryChips({
+    required VideoFleetScopeHealthSections sections,
+    required void Function(VideoFleetWatchActionDrilldown drilldown)
+    onOpenWatchActionDrilldown,
+  }) {
+    return [
+      _fleetBadge('Active', '${sections.activeCount}', const Color(0xFF67E8F9)),
+      _fleetBadge('Gap', '${sections.gapCount}', const Color(0xFFF87171)),
+      _fleetBadge(
+        'High Risk',
+        '${sections.highRiskCount}',
+        const Color(0xFFF87171),
+      ),
+      _fleetBadge(
+        'Recovered 6h',
+        '${sections.recoveredCount}',
+        const Color(0xFF86EFAC),
+      ),
+      _fleetBadge(
+        'Suppressed',
+        '${sections.suppressedCount}',
+        const Color(0xFF9AB1CF),
+      ),
+      _fleetBadge(
+        'Alerts',
+        '${sections.alertActionCount}',
+        const Color(0xFF67E8F9),
+        isActive:
+            _activeWatchActionDrilldown ==
+            VideoFleetWatchActionDrilldown.alerts,
+        onTap: sections.alertActionCount > 0
+            ? () => onOpenWatchActionDrilldown(
+                VideoFleetWatchActionDrilldown.alerts,
+              )
+            : null,
+      ),
+      _fleetBadge(
+        'Repeat',
+        '${sections.repeatActionCount}',
+        const Color(0xFFFDE68A),
+        isActive:
+            _activeWatchActionDrilldown ==
+            VideoFleetWatchActionDrilldown.repeat,
+        onTap: sections.repeatActionCount > 0
+            ? () => onOpenWatchActionDrilldown(
+                VideoFleetWatchActionDrilldown.repeat,
+              )
+            : null,
+      ),
+      _fleetBadge(
+        'Escalated',
+        '${sections.escalationActionCount}',
+        const Color(0xFFF87171),
+        isActive:
+            _activeWatchActionDrilldown ==
+            VideoFleetWatchActionDrilldown.escalated,
+        onTap: sections.escalationActionCount > 0
+            ? () => onOpenWatchActionDrilldown(
+                VideoFleetWatchActionDrilldown.escalated,
+              )
+            : null,
+      ),
+      _fleetBadge(
+        'Filtered',
+        '${sections.suppressedActionCount}',
+        const Color(0xFF9AB1CF),
+        isActive:
+            _activeWatchActionDrilldown ==
+            VideoFleetWatchActionDrilldown.filtered,
+        onTap: sections.suppressedActionCount > 0
+            ? () => onOpenWatchActionDrilldown(
+                VideoFleetWatchActionDrilldown.filtered,
+              )
+            : null,
+      ),
+      _fleetBadge(
+        'Flagged ID',
+        '${sections.flaggedIdentityCount}',
+        VideoFleetWatchActionDrilldown.flaggedIdentity.accentColor,
+        isActive:
+            _activeWatchActionDrilldown ==
+            VideoFleetWatchActionDrilldown.flaggedIdentity,
+        onTap: sections.flaggedIdentityCount > 0
+            ? () => onOpenWatchActionDrilldown(
+                VideoFleetWatchActionDrilldown.flaggedIdentity,
+              )
+            : null,
+      ),
+      _fleetBadge(
+        'Temporary ID',
+        '${sections.temporaryIdentityCount}',
+        temporaryIdentityAccentColorForScopes(widget.fleetScopeHealth),
+        isActive:
+            _activeWatchActionDrilldown ==
+            VideoFleetWatchActionDrilldown.temporaryIdentity,
+        onTap: sections.temporaryIdentityCount > 0
+            ? () => onOpenWatchActionDrilldown(
+                VideoFleetWatchActionDrilldown.temporaryIdentity,
+              )
+            : null,
+      ),
+      _fleetBadge(
+        'Allowed ID',
+        '${sections.allowlistedIdentityCount}',
+        VideoFleetWatchActionDrilldown.allowlistedIdentity.accentColor,
+        isActive:
+            _activeWatchActionDrilldown ==
+            VideoFleetWatchActionDrilldown.allowlistedIdentity,
+        onTap: sections.allowlistedIdentityCount > 0
+            ? () => onOpenWatchActionDrilldown(
+                VideoFleetWatchActionDrilldown.allowlistedIdentity,
+              )
+            : null,
+      ),
+      _fleetBadge('Stale', '${sections.staleCount}', const Color(0xFFFBBF24)),
+      _fleetBadge(
+        'No Incident',
+        '${sections.noIncidentCount}',
+        const Color(0xFF9AB1CF),
+      ),
+    ];
+  }
+
+  Widget _fleetActionButton({
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: color,
+        side: BorderSide(color: color.withValues(alpha: 0.45)),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700),
+      ),
+      child: Text(label),
+    );
+  }
+
+  Color _fleetRiskColor(int score) {
+    if (score >= 85) {
+      return const Color(0xFFF87171);
+    }
+    if (score >= 70) {
+      return const Color(0xFFFBBF24);
+    }
+    if (score >= 40) {
+      return const Color(0xFF67E8F9);
+    }
+    return const Color(0xFF9AB1CF);
+  }
+
+  String _fleetRiskLabel(int score) {
+    if (score >= 85) {
+      return 'Critical';
+    }
+    if (score >= 70) {
+      return 'High';
+    }
+    if (score >= 40) {
+      return 'Watch';
+    }
+    return 'Routine';
+  }
+
+  Color _fleetFreshnessColor(VideoFleetScopeHealthView scope) {
+    return switch (scope.freshnessLabel) {
+      'Fresh' => const Color(0xFF10B981),
+      'Recent' => const Color(0xFF67E8F9),
+      'Stale' => const Color(0xFFF87171),
+      'Quiet' => const Color(0xFFFBBF24),
+      _ => const Color(0xFF9AB1CF),
+    };
+  }
+
+  Widget _fleetBadge(
+    String label,
+    String value,
+    Color color, {
+    VoidCallback? onTap,
+    bool isActive = false,
+  }) {
+    final badge = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isActive ? 0.28 : 0.16),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: color.withValues(alpha: isActive ? 0.95 : 0.5),
+        ),
+      ),
+      child: Text(
+        '$label $value',
+        style: GoogleFonts.inter(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+    if (onTap == null) {
+      return badge;
+    }
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: badge,
+    );
+  }
+
+  Widget _watchActionFocusBanner(VideoFleetScopeHealthView? focusedScope) {
+    final active = _activeWatchActionDrilldown;
+    if (active == null) {
+      return const SizedBox.shrink();
+    }
+    final canMutateTemporaryApproval =
+        active == VideoFleetWatchActionDrilldown.temporaryIdentity &&
+        focusedScope != null;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: active.focusBannerBackgroundColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: active.focusBannerBorderColor),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  active.focusBannerTitle,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFEAF4FF),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  focusDetailForWatchAction(widget.fleetScopeHealth, active),
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF9AB1CF),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              if (canMutateTemporaryApproval &&
+                  widget.onExtendTemporaryIdentityApproval != null)
+                TextButton(
+                  onPressed: () async {
+                    final message = await widget
+                        .onExtendTemporaryIdentityApproval!(focusedScope);
+                    if (!mounted) {
+                      return;
+                    }
+                    _snack(message);
+                  },
+                  child: Text(
+                    'Extend 2h',
+                    style: GoogleFonts.inter(
+                      color: active.focusBannerActionColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              if (canMutateTemporaryApproval &&
+                  widget.onExpireTemporaryIdentityApproval != null)
+                TextButton(
+                  onPressed: () async {
+                    final confirmed =
+                        await _confirmExpireTemporaryIdentityApproval(
+                          focusedScope,
+                        );
+                    if (!confirmed) {
+                      return;
+                    }
+                    final message = await widget
+                        .onExpireTemporaryIdentityApproval!(focusedScope);
+                    if (!mounted) {
+                      return;
+                    }
+                    _snack(message);
+                  },
+                  child: Text(
+                    'Expire now',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFFCA5A5),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              TextButton(
+                onPressed: () => _setActiveWatchActionDrilldown(null),
+                child: Text(
+                  'Clear',
+                  style: GoogleFonts.inter(
+                    color: active.focusBannerActionColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool> _confirmExpireTemporaryIdentityApproval(
+    VideoFleetScopeHealthView scope,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF0C1117),
+          title: Text(
+            'Expire Temporary Approval?',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF4FF),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          content: Text(
+            'This immediately removes the temporary identity approval for ${scope.siteName}. Future matches will no longer be treated as approved.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFBFD7F2),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: const Color(0xFFEAF4FF),
+              ),
+              child: const Text('Expire now'),
+            ),
+          ],
+        );
+      },
+    );
+    return confirmed == true;
   }
 
   Widget _sysInfoMini(String label, String value) {
@@ -4438,6 +7649,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           _activeTab = _AdminTab.sites;
           _query = siteId;
         });
+        widget.onTabChanged?.call(AdministrationPageTab.sites);
         _searchController.text = siteId;
       }
     } finally {

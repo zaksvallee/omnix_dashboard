@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 import 'package:omnix_dashboard/domain/events/decision_created.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/ui/live_operations_page.dart';
@@ -197,5 +198,175 @@ void main() {
 
     expect(find.text('Latest DVR Intel'), findsOneWidget);
     expect(find.text('DVR ACTIVATION'), findsWidgets);
+  });
+
+  testWidgets('live operations shows scene review alongside latest intel', (
+    tester,
+  ) async {
+    final now = DateTime.now().toUtc();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LiveOperationsPage(
+          events: [
+            DecisionCreated(
+              eventId: 'decision-1',
+              sequence: 1,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 3)),
+              dispatchId: 'D-1001',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-SANDTON',
+            ),
+            IntelligenceReceived(
+              eventId: 'intel-2',
+              sequence: 2,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 2)),
+              intelligenceId: 'INT-2',
+              provider: 'hikvision-dvr',
+              sourceType: 'dvr',
+              externalId: 'evt-2',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-SANDTON',
+              headline: 'DVR BOUNDARY ALERT',
+              summary: 'Motion detected at boundary line',
+              riskScore: 92,
+              canonicalHash: 'hash-2',
+            ),
+          ],
+          videoOpsLabel: 'DVR',
+          sceneReviewByIntelligenceId: {
+            'INT-2': MonitoringSceneReviewRecord(
+              intelligenceId: 'INT-2',
+              sourceLabel: 'openai:gpt-4.1-mini',
+              postureLabel: 'escalation candidate',
+              decisionLabel: 'Escalation Candidate',
+              decisionSummary:
+                  'Escalated for urgent review because person activity was detected, the scene suggested boundary proximity, and confidence remained high.',
+              summary: 'Person visible near the boundary line.',
+              reviewedAtUtc: now.subtract(const Duration(minutes: 2)),
+            ),
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Scene Review'), findsOneWidget);
+    expect(find.text('Review Detail'), findsOneWidget);
+    expect(find.text('Scene Action'), findsOneWidget);
+    expect(find.text('Action Detail'), findsOneWidget);
+    expect(
+      find.textContaining('openai:gpt-4.1-mini • escalation candidate'),
+      findsOneWidget,
+    );
+    expect(find.text('Escalation Candidate'), findsOneWidget);
+    expect(find.textContaining('Person visible near the boundary line.'), findsOneWidget);
+    expect(find.textContaining('Escalated for urgent review'), findsOneWidget);
+  });
+
+  testWidgets('live operations shows suppressed scene review queue for active site', (
+    tester,
+  ) async {
+    final now = DateTime.now().toUtc();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LiveOperationsPage(
+          events: [
+            DecisionCreated(
+              eventId: 'decision-1',
+              sequence: 1,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 4)),
+              dispatchId: 'D-1001',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-SANDTON',
+            ),
+            IntelligenceReceived(
+              eventId: 'intel-suppressed',
+              sequence: 2,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 3)),
+              intelligenceId: 'INT-SUPPRESSED-1',
+              provider: 'hikvision-dvr',
+              sourceType: 'dvr',
+              externalId: 'evt-suppressed',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-SANDTON',
+              cameraId: 'Camera 2',
+              zone: 'north_gate',
+              headline: 'DVR VEHICLE PASS',
+              summary: 'Vehicle passed through the north gate approach lane.',
+              riskScore: 41,
+              canonicalHash: 'hash-suppressed',
+            ),
+            IntelligenceReceived(
+              eventId: 'intel-latest',
+              sequence: 3,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 2)),
+              intelligenceId: 'INT-LATEST-1',
+              provider: 'hikvision-dvr',
+              sourceType: 'dvr',
+              externalId: 'evt-latest',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-SANDTON',
+              headline: 'DVR BOUNDARY ALERT',
+              summary: 'Motion detected at boundary line',
+              riskScore: 92,
+              canonicalHash: 'hash-latest',
+            ),
+          ],
+          videoOpsLabel: 'DVR',
+          sceneReviewByIntelligenceId: {
+            'INT-SUPPRESSED-1': MonitoringSceneReviewRecord(
+              intelligenceId: 'INT-SUPPRESSED-1',
+              sourceLabel: 'openai:gpt-4.1-mini',
+              postureLabel: 'reviewed',
+              decisionLabel: 'Suppressed',
+              decisionSummary:
+                  'Suppressed because the vehicle activity remained below the client notification threshold.',
+              summary: 'Vehicle remained below escalation threshold.',
+              reviewedAtUtc: now.subtract(const Duration(minutes: 3)),
+            ),
+            'INT-LATEST-1': MonitoringSceneReviewRecord(
+              intelligenceId: 'INT-LATEST-1',
+              sourceLabel: 'openai:gpt-4.1-mini',
+              postureLabel: 'escalation candidate',
+              decisionLabel: 'Escalation Candidate',
+              decisionSummary:
+                  'Escalated for urgent review because person activity was detected near the boundary line.',
+              summary: 'Person visible near the boundary line.',
+              reviewedAtUtc: now.subtract(const Duration(minutes: 2)),
+            ),
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Suppressed DVR Reviews'), findsOneWidget);
+    expect(find.text('1 internal'), findsOneWidget);
+    expect(find.text('DVR VEHICLE PASS'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Suppressed because the vehicle activity remained below the client notification threshold.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Scene review: Vehicle remained below escalation threshold.'),
+      findsOneWidget,
+    );
+    expect(find.text('Camera 2'), findsOneWidget);
+    expect(find.text('north_gate'), findsOneWidget);
+    expect(find.text('openai:gpt-4.1-mini'), findsOneWidget);
+    expect(find.text('reviewed'), findsOneWidget);
+    expect(find.text('Escalation Candidate'), findsOneWidget);
   });
 }

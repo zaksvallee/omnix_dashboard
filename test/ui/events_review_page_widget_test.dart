@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/ui/events_review_page.dart';
@@ -157,5 +158,291 @@ void main() {
     expect(find.text('Loading bay vehicle alert'), findsWidgets);
     expect(find.text('Perimeter line crossing'), findsNothing);
     expect(find.text('Regional protest alert'), findsNothing);
+  });
+
+  testWidgets('events review shows persisted scene review context', (
+    tester,
+  ) async {
+    final events = <DispatchEvent>[
+      IntelligenceReceived(
+        eventId: 'INT-DVR-2',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 6, 11, 5),
+        intelligenceId: 'INTEL-DVR-002',
+        provider: 'hikvision-dvr',
+        sourceType: 'dvr',
+        externalId: 'dvr-2',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        headline: 'Perimeter alert',
+        summary: 'Motion detected at the boundary.',
+        riskScore: 90,
+        canonicalHash: 'hash-dvr-2',
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: EventsReviewPage(
+          events: events,
+          sceneReviewByIntelligenceId: {
+            'INTEL-DVR-002': MonitoringSceneReviewRecord(
+              intelligenceId: 'INTEL-DVR-002',
+              sourceLabel: 'openai:gpt-4.1-mini',
+              postureLabel: 'escalation candidate',
+              decisionLabel: 'Escalation Candidate',
+              decisionSummary:
+                  'Escalated for urgent review because person activity was detected, the scene suggested boundary proximity, and confidence remained high.',
+              summary: 'Person visible near the boundary line.',
+              reviewedAtUtc: DateTime.utc(2026, 3, 6, 11, 5),
+            ),
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('SCENE REVIEW'), findsOneWidget);
+    expect(find.text('openai:gpt-4.1-mini'), findsOneWidget);
+    expect(find.text('escalation candidate'), findsOneWidget);
+    expect(find.text('Escalation Candidate'), findsOneWidget);
+    expect(find.text('Person visible near the boundary line.'), findsOneWidget);
+    expect(find.textContaining('Escalated for urgent review'), findsOneWidget);
+  });
+
+  testWidgets('events review shows identity policy from scene review', (
+    tester,
+  ) async {
+    final events = <DispatchEvent>[
+      IntelligenceReceived(
+        eventId: 'INT-DVR-4',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 6, 11, 8),
+        intelligenceId: 'INTEL-DVR-004',
+        provider: 'hikvision-dvr',
+        sourceType: 'dvr',
+        externalId: 'dvr-4',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        headline: 'Identity alert',
+        summary: 'Face and plate matched flagged records.',
+        riskScore: 93,
+        canonicalHash: 'hash-dvr-4',
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: EventsReviewPage(
+          events: events,
+          sceneReviewByIntelligenceId: {
+            'INTEL-DVR-004': MonitoringSceneReviewRecord(
+              intelligenceId: 'INTEL-DVR-004',
+              sourceLabel: 'openai:gpt-4.1-mini',
+              postureLabel: 'identity match concern',
+              decisionLabel: 'Escalation Candidate',
+              decisionSummary:
+                  'Escalated for urgent review because face match PERSON-44 was flagged and the event metadata suggested an unauthorized or watchlist context.',
+              summary: 'Flagged face and plate remained in frame.',
+              reviewedAtUtc: DateTime.utc(2026, 3, 6, 11, 8),
+            ),
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Identity Policy'), findsOneWidget);
+    expect(find.text('Flagged match'), findsOneWidget);
+  });
+
+  testWidgets('events review exposes identity policy filter and applies it', (
+    tester,
+  ) async {
+    final events = <DispatchEvent>[
+      IntelligenceReceived(
+        eventId: 'INT-DVR-FLAGGED',
+        sequence: 3,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 6, 11, 9),
+        intelligenceId: 'INTEL-DVR-FLAGGED',
+        provider: 'hikvision-dvr',
+        sourceType: 'dvr',
+        externalId: 'dvr-flagged',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        headline: 'Flagged visitor vehicle',
+        summary: 'Face and plate matched flagged records.',
+        riskScore: 93,
+        canonicalHash: 'hash-dvr-flagged',
+      ),
+      IntelligenceReceived(
+        eventId: 'INT-DVR-ALLOWLISTED',
+        sequence: 2,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 6, 11, 8),
+        intelligenceId: 'INTEL-DVR-ALLOWLISTED',
+        provider: 'hikvision-dvr',
+        sourceType: 'dvr',
+        externalId: 'dvr-allowlisted',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        headline: 'Resident vehicle entry',
+        summary: 'Known resident vehicle entered the driveway.',
+        riskScore: 41,
+        canonicalHash: 'hash-dvr-allowlisted',
+      ),
+      IntelligenceReceived(
+        eventId: 'INT-DVR-OTHER',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 6, 11, 7),
+        intelligenceId: 'INTEL-DVR-OTHER',
+        provider: 'hikvision-dvr',
+        sourceType: 'dvr',
+        externalId: 'dvr-other',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        headline: 'Vehicle motion',
+        summary: 'Vehicle remained near the loading bay.',
+        riskScore: 61,
+        canonicalHash: 'hash-dvr-other',
+      ),
+      IntelligenceReceived(
+        eventId: 'INT-DVR-TEMP',
+        sequence: 0,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 6, 11, 6),
+        intelligenceId: 'INTEL-DVR-TEMP',
+        provider: 'hikvision-dvr',
+        sourceType: 'dvr',
+        externalId: 'dvr-temp',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        headline: 'Expected visitor arrival',
+        summary: 'One-time approved visitor entered the gate lane.',
+        riskScore: 38,
+        canonicalHash: 'hash-dvr-temp',
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: EventsReviewPage(
+          events: events,
+          sceneReviewByIntelligenceId: {
+            'INTEL-DVR-FLAGGED': MonitoringSceneReviewRecord(
+              intelligenceId: 'INTEL-DVR-FLAGGED',
+              sourceLabel: 'openai:gpt-4.1-mini',
+              postureLabel: 'identity match concern',
+              decisionLabel: 'Escalation Candidate',
+              decisionSummary:
+                  'Escalated for urgent review because face match PERSON-44 was flagged and the event metadata suggested an unauthorized or watchlist context.',
+              summary: 'Flagged face and plate remained in frame.',
+              reviewedAtUtc: DateTime.utc(2026, 3, 6, 11, 9),
+            ),
+            'INTEL-DVR-ALLOWLISTED': MonitoringSceneReviewRecord(
+              intelligenceId: 'INTEL-DVR-ALLOWLISTED',
+              sourceLabel: 'openai:gpt-4.1-mini',
+              postureLabel: 'known allowed identity',
+              decisionLabel: 'Suppressed',
+              decisionSummary:
+                  'Suppressed because the face and plate were allowlisted for this site.',
+              summary: 'Resident remained within the expected arrival lane.',
+              reviewedAtUtc: DateTime.utc(2026, 3, 6, 11, 8),
+            ),
+            'INTEL-DVR-TEMP': MonitoringSceneReviewRecord(
+              intelligenceId: 'INTEL-DVR-TEMP',
+              sourceLabel: 'openai:gpt-4.1-mini',
+              postureLabel: 'known allowed identity',
+              decisionLabel: 'Suppressed',
+              decisionSummary:
+                  'Suppressed because the matched identity has a one-time approval until 2026-03-15 18:00 UTC and the activity remained below the client notification threshold.',
+              summary: 'Visitor remained within the expected arrival lane.',
+              reviewedAtUtc: DateTime.utc(2026, 3, 6, 11, 6),
+            ),
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('ALL POLICIES'), findsOneWidget);
+    expect(find.text('FLAGGED MATCH'), findsOneWidget);
+    expect(find.text('TEMPORARY APPROVAL'), findsOneWidget);
+    expect(find.text('ALLOWLISTED MATCH'), findsOneWidget);
+
+    await tester.tap(find.text('FLAGGED MATCH'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Flagged visitor vehicle'), findsWidgets);
+    expect(find.text('Resident vehicle entry'), findsNothing);
+    expect(find.text('Expected visitor arrival'), findsNothing);
+    expect(find.text('Vehicle motion'), findsNothing);
+
+    await tester.tap(find.text('TEMPORARY APPROVAL'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Expected visitor arrival'), findsWidgets);
+    expect(find.text('Flagged visitor vehicle'), findsNothing);
+    expect(find.text('Resident vehicle entry'), findsNothing);
+  });
+
+  testWidgets('events review surfaces FR and LPR context for DVR events', (
+    tester,
+  ) async {
+    final events = <DispatchEvent>[
+      IntelligenceReceived(
+        eventId: 'INT-DVR-3',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 6, 11, 7),
+        intelligenceId: 'INTEL-DVR-003',
+        provider: 'hikvision_dvr',
+        sourceType: 'dvr',
+        externalId: 'dvr-3',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        cameraId: 'channel-3',
+        zone: 'loading_bay',
+        objectLabel: 'vehicle',
+        objectConfidence: 94.2,
+        faceMatchId: 'PERSON-44',
+        faceConfidence: 91.2,
+        plateNumber: 'CA123456',
+        plateConfidence: 96.4,
+        headline: 'Vehicle detection alert',
+        summary: 'Matched visitor vehicle entered loading bay.',
+        riskScore: 88,
+        canonicalHash: 'hash-dvr-3',
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(home: EventsReviewPage(events: events)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('hikvision_dvr'), findsWidgets);
+    expect(find.text('channel-3'), findsOneWidget);
+    expect(find.text('loading_bay'), findsOneWidget);
+    expect(find.text('vehicle • 94.2%'), findsOneWidget);
+    expect(find.text('PERSON-44 • 91.2%'), findsOneWidget);
+    expect(find.text('CA123456 • 96.4%'), findsOneWidget);
+    expect(find.textContaining('"faceMatchId": "PERSON-44"'), findsOneWidget);
+    expect(find.textContaining('"plateNumber": "CA123456"'), findsOneWidget);
+    expect(
+      find.textContaining('"detailSummary": "Matched visitor vehicle entered'),
+      findsOneWidget,
+    );
   });
 }

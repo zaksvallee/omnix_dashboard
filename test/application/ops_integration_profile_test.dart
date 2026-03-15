@@ -48,30 +48,33 @@ void main() {
     );
   });
 
-  test('dvr profile becomes active video path when cctv is unconfigured', () {
-    final profile = OnyxOpsIntegrationProfile.fromEnvironment(
-      radioProvider: '',
-      radioListenUrl: '',
-      radioRespondUrl: '',
-      radioChannel: '',
-      radioAiAutoAllClearEnabled: false,
-      cctvProvider: '',
-      cctvEventsUrl: '',
-      cctvLiveMonitoringEnabled: false,
-      cctvFacialRecognitionEnabled: false,
-      cctvLicensePlateRecognitionEnabled: false,
-      dvrProvider: 'hikvision_dvr',
-      dvrEventsUrl: 'https://dvr.example.com/ISAPI/Event/notification/alertStream',
-    );
+  test(
+    'monitor-only dvr profile becomes active video path when cctv is unconfigured',
+    () {
+      final profile = OnyxOpsIntegrationProfile.fromEnvironment(
+        radioProvider: '',
+        radioListenUrl: '',
+        radioRespondUrl: '',
+        radioChannel: '',
+        radioAiAutoAllClearEnabled: false,
+        cctvProvider: '',
+        cctvEventsUrl: '',
+        cctvLiveMonitoringEnabled: false,
+        cctvFacialRecognitionEnabled: false,
+        cctvLicensePlateRecognitionEnabled: false,
+        dvrProvider: 'hikvision_dvr_monitor_only',
+        dvrEventsUrl:
+            'https://dvr.example.com/ISAPI/Event/notification/alertStream',
+      );
 
-    expect(profile.dvr.configured, isTrue);
-    expect(profile.activeVideo.isDvr, isTrue);
-    expect(profile.activeVideo.provider, 'hikvision_dvr');
-    expect(
-      profile.activeVideo.capabilityLabels,
-      containsAll(<String>['LIVE AI MONITORING', 'FR', 'LPR']),
-    );
-  });
+      expect(profile.dvr.configured, isTrue);
+      expect(profile.activeVideo.isDvr, isTrue);
+      expect(profile.activeVideo.provider, 'hikvision_dvr_monitor_only');
+      expect(profile.activeVideo.capabilityLabels, <String>[
+        'LIVE AI MONITORING',
+      ]);
+    },
+  );
 
   test('cctv retains precedence when both cctv and dvr are configured', () {
     final profile = OnyxOpsIntegrationProfile.fromEnvironment(
@@ -86,7 +89,8 @@ void main() {
       cctvFacialRecognitionEnabled: false,
       cctvLicensePlateRecognitionEnabled: false,
       dvrProvider: 'hikvision_dvr',
-      dvrEventsUrl: 'https://dvr.example.com/ISAPI/Event/notification/alertStream',
+      dvrEventsUrl:
+          'https://dvr.example.com/ISAPI/Event/notification/alertStream',
     );
 
     expect(profile.activeVideo.isDvr, isFalse);

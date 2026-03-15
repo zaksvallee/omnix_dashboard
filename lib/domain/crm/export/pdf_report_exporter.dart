@@ -19,6 +19,8 @@ class PDFReportExporter {
   static final PdfColor _chipAmberBorder = PdfColor.fromHex('#F2DBA3');
   static final PdfColor _chipRed = PdfColor.fromHex('#FFF1F1');
   static final PdfColor _chipRedBorder = PdfColor.fromHex('#F4B8B8');
+  static final PdfColor _chipSlate = PdfColor.fromHex('#F1F5F9');
+  static final PdfColor _chipSlateBorder = PdfColor.fromHex('#CBD5E1');
 
   static Future<Uint8List> generate(ReportBundle bundle) async {
     final fontData = await rootBundle.load('assets/fonts/Inter-Variable.ttf');
@@ -47,9 +49,14 @@ class PDFReportExporter {
           _buildSectionTitle('EXECUTIVE SUMMARY'),
           _buildExecutiveCard(bundle),
           pw.SizedBox(height: 20),
+          _buildSectionTitle('CCTV SCENE REVIEW'),
+          _buildSceneReviewSection(bundle),
+          pw.SizedBox(height: 20),
           _buildSectionTitle('INCIDENT REGISTER'),
           bundle.incidentDetails.isEmpty
-              ? _buildInfoCard('No incidents recorded for this reporting period.')
+              ? _buildInfoCard(
+                  'No incidents recorded for this reporting period.',
+                )
               : _buildIncidentTable(bundle),
           pw.SizedBox(height: 20),
           _buildSectionTitle('SLA PERFORMANCE SUMMARY'),
@@ -139,7 +146,10 @@ class PDFReportExporter {
                 ),
                 pw.SizedBox(height: 10),
                 _metaLine('Client', bundle.clientSnapshot.clientId),
-                _metaLine('Reporting Period', bundle.clientSnapshot.reportingPeriod),
+                _metaLine(
+                  'Reporting Period',
+                  bundle.clientSnapshot.reportingPeriod,
+                ),
                 _metaLine('SLA Tier', bundle.clientSnapshot.slaTier),
               ],
             ),
@@ -154,10 +164,7 @@ class PDFReportExporter {
       padding: const pw.EdgeInsets.only(bottom: 2),
       child: pw.Text(
         '$label: $value',
-        style: pw.TextStyle(
-          color: PdfColor.fromHex('#E4ECF5'),
-          fontSize: 12.5,
-        ),
+        style: pw.TextStyle(color: PdfColor.fromHex('#E4ECF5'), fontSize: 12.5),
       ),
     );
   }
@@ -165,7 +172,8 @@ class PDFReportExporter {
   static pw.Widget _buildKpiRow(ReportBundle bundle) {
     final incidents = bundle.monthlyReport.totalIncidents.toString();
     final escalations = bundle.monthlyReport.totalEscalations.toString();
-    final compliance = '${(bundle.monthlyReport.slaComplianceRate * 100).toStringAsFixed(1)}%';
+    final compliance =
+        '${(bundle.monthlyReport.slaComplianceRate * 100).toStringAsFixed(1)}%';
 
     return pw.Row(
       children: [
@@ -174,11 +182,21 @@ class PDFReportExporter {
         ),
         pw.SizedBox(width: 10),
         pw.Expanded(
-          child: _kpiCard('Escalations', escalations, _chipAmber, _chipAmberBorder),
+          child: _kpiCard(
+            'Escalations',
+            escalations,
+            _chipAmber,
+            _chipAmberBorder,
+          ),
         ),
         pw.SizedBox(width: 10),
         pw.Expanded(
-          child: _kpiCard('Compliance', compliance, _chipGreen, _chipGreenBorder),
+          child: _kpiCard(
+            'Compliance',
+            compliance,
+            _chipGreen,
+            _chipGreenBorder,
+          ),
         ),
       ],
     );
@@ -291,7 +309,13 @@ class PDFReportExporter {
 
   static pw.Widget _buildIncidentTable(ReportBundle bundle) {
     return pw.TableHelper.fromTextArray(
-      headers: const ['Incident ID', 'Risk', 'Detected', 'SLA Result', 'Override'],
+      headers: const [
+        'Incident ID',
+        'Risk',
+        'Detected',
+        'SLA Result',
+        'Override',
+      ],
       data: bundle.incidentDetails.map((i) {
         return [
           i.incidentId,
@@ -317,15 +341,136 @@ class PDFReportExporter {
   static pw.Widget _buildSlaSummary(ReportBundle bundle) {
     final breaches = bundle.monthlyReport.totalSlaBreaches;
     final overrides = bundle.monthlyReport.totalSlaOverrides;
-    final compliance = (bundle.monthlyReport.slaComplianceRate * 100).toStringAsFixed(1);
+    final compliance = (bundle.monthlyReport.slaComplianceRate * 100)
+        .toStringAsFixed(1);
 
     return pw.Wrap(
       spacing: 8,
       runSpacing: 8,
       children: [
-        _metricPill('Total SLA Breaches', breaches.toString(), _chipRed, _chipRedBorder),
-        _metricPill('Total SLA Overrides', overrides.toString(), _chipAmber, _chipAmberBorder),
-        _metricPill('Compliance Rate', '$compliance%', _chipGreen, _chipGreenBorder),
+        _metricPill(
+          'Total SLA Breaches',
+          breaches.toString(),
+          _chipRed,
+          _chipRedBorder,
+        ),
+        _metricPill(
+          'Total SLA Overrides',
+          overrides.toString(),
+          _chipAmber,
+          _chipAmberBorder,
+        ),
+        _metricPill(
+          'Compliance Rate',
+          '$compliance%',
+          _chipGreen,
+          _chipGreenBorder,
+        ),
+      ],
+    );
+  }
+
+  static pw.Widget _buildSceneReviewSection(ReportBundle bundle) {
+    final sceneReview = bundle.sceneReview;
+    if (sceneReview.totalReviews == 0) {
+      return _buildInfoCard(
+        'No AI-reviewed CCTV scene assessments were recorded for this reporting period.',
+      );
+    }
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _metricPill(
+              'Total Reviews',
+              sceneReview.totalReviews.toString(),
+              _chipBlue,
+              _chipBlueBorder,
+            ),
+            _metricPill(
+              'Model Reviews',
+              sceneReview.modelReviews.toString(),
+              _chipGreen,
+              _chipGreenBorder,
+            ),
+            _metricPill(
+              'Metadata Fallback',
+              sceneReview.metadataFallbackReviews.toString(),
+              _chipAmber,
+              _chipAmberBorder,
+            ),
+            _metricPill(
+              'Suppressed',
+              sceneReview.suppressedActions.toString(),
+              _chipSlate,
+              _chipSlateBorder,
+            ),
+            _metricPill(
+              'Alerts',
+              sceneReview.incidentAlerts.toString(),
+              _chipBlue,
+              _chipBlueBorder,
+            ),
+            _metricPill(
+              'Repeat Updates',
+              sceneReview.repeatUpdates.toString(),
+              _chipAmber,
+              _chipAmberBorder,
+            ),
+            _metricPill(
+              'Escalation Candidates',
+              sceneReview.escalationCandidates.toString(),
+              _chipRed,
+              _chipRedBorder,
+            ),
+            _metricPill(
+              'Top Posture',
+              sceneReview.topPosture,
+              _chipBlue,
+              _chipBlueBorder,
+            ),
+          ],
+        ),
+        if (sceneReview.latestActionTaken.trim().isNotEmpty) ...[
+          pw.SizedBox(height: 10),
+          _buildInfoCard(
+            'Latest action taken: ${sceneReview.latestActionTaken}',
+          ),
+        ],
+        if (sceneReview.latestSuppressedPattern.trim().isNotEmpty) ...[
+          pw.SizedBox(height: 10),
+          _buildInfoCard(
+            'Latest filtered pattern: ${sceneReview.latestSuppressedPattern}',
+          ),
+        ],
+        if (sceneReview.highlights.isNotEmpty) ...[
+          pw.SizedBox(height: 10),
+          pw.Text(
+            'Notable Findings',
+            style: pw.TextStyle(
+              fontSize: 11.5,
+              fontWeight: pw.FontWeight.bold,
+              color: _inkPrimary,
+            ),
+          ),
+          pw.SizedBox(height: 4),
+          ...sceneReview.highlights.map(
+            (highlight) {
+              final actionDetail = highlight.decisionSummary.trim().isNotEmpty
+                  ? ' • ${highlight.decisionSummary.trim()}'
+                  : '';
+              return pw.Bullet(
+                text:
+                    '${highlight.detectedAt} • ${highlight.cameraLabel} • ${highlight.postureLabel} • ${highlight.decisionLabel.isEmpty ? 'Unspecified action' : highlight.decisionLabel}$actionDetail • ${highlight.summary}',
+                style: pw.TextStyle(fontSize: 10.8, color: _inkPrimary),
+              );
+            },
+          ),
+        ],
       ],
     );
   }
@@ -338,15 +483,40 @@ class PDFReportExporter {
       spacing: 8,
       runSpacing: 8,
       children: [
-        _metricPill('Scheduled Patrols', patrol.scheduledPatrols.toString(), _chipBlue, _chipBlueBorder),
-        _metricPill('Completed Patrols', patrol.completedPatrols.toString(), _chipGreen, _chipGreenBorder),
-        _metricPill('Missed Patrols', patrol.missedPatrols.toString(), _chipAmber, _chipAmberBorder),
-        _metricPill('Patrol Compliance', '$completionRate%', _chipBlue, _chipBlueBorder),
+        _metricPill(
+          'Scheduled Patrols',
+          patrol.scheduledPatrols.toString(),
+          _chipBlue,
+          _chipBlueBorder,
+        ),
+        _metricPill(
+          'Completed Patrols',
+          patrol.completedPatrols.toString(),
+          _chipGreen,
+          _chipGreenBorder,
+        ),
+        _metricPill(
+          'Missed Patrols',
+          patrol.missedPatrols.toString(),
+          _chipAmber,
+          _chipAmberBorder,
+        ),
+        _metricPill(
+          'Patrol Compliance',
+          '$completionRate%',
+          _chipBlue,
+          _chipBlueBorder,
+        ),
       ],
     );
   }
 
-  static pw.Widget _metricPill(String label, String value, PdfColor bg, PdfColor border) {
+  static pw.Widget _metricPill(
+    String label,
+    String value,
+    PdfColor bg,
+    PdfColor border,
+  ) {
     return pw.Container(
       padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: pw.BoxDecoration(
@@ -383,20 +553,31 @@ class PDFReportExporter {
     final guards = bundle.guardPerformance;
 
     if (guards.isEmpty) {
-      return _buildInfoCard('No guard performance data recorded for this period.');
+      return _buildInfoCard(
+        'No guard performance data recorded for this period.',
+      );
     }
 
     final topGuard = guards.reduce(
       (a, b) => a.compliancePercentage > b.compliancePercentage ? a : b,
     );
 
-    final riskGuards = guards.where((g) => g.compliancePercentage < 80).toList();
+    final riskGuards = guards
+        .where((g) => g.compliancePercentage < 80)
+        .toList();
 
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         pw.TableHelper.fromTextArray(
-          headers: const ['Name', 'ID', 'PSIRA', 'Rank', 'Compliance %', 'Escalations'],
+          headers: const [
+            'Name',
+            'ID',
+            'PSIRA',
+            'Rank',
+            'Compliance %',
+            'Escalations',
+          ],
           data: guards.map((g) {
             return [
               g.guardName,
@@ -413,10 +594,17 @@ class PDFReportExporter {
             fontSize: 10.5,
           ),
           cellStyle: pw.TextStyle(fontSize: 10, color: _inkPrimary),
-          headerDecoration: pw.BoxDecoration(color: PdfColor.fromHex('#EAF1F8')),
-          oddRowDecoration: pw.BoxDecoration(color: PdfColor.fromHex('#F8FBFF')),
+          headerDecoration: pw.BoxDecoration(
+            color: PdfColor.fromHex('#EAF1F8'),
+          ),
+          oddRowDecoration: pw.BoxDecoration(
+            color: PdfColor.fromHex('#F8FBFF'),
+          ),
           border: pw.TableBorder.all(color: _line, width: 0.7),
-          cellPadding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+          cellPadding: const pw.EdgeInsets.symmetric(
+            horizontal: 6,
+            vertical: 5,
+          ),
         ),
         pw.SizedBox(height: 10),
         _buildInfoCard(
@@ -456,7 +644,9 @@ class PDFReportExporter {
         pw.SizedBox(height: 8),
         _buildInfoCard('Risk Trend: ${bundle.supervisorAssessment.riskTrend}'),
         pw.SizedBox(height: 8),
-        _buildInfoCard('Recommendations: ${bundle.supervisorAssessment.recommendations}'),
+        _buildInfoCard(
+          'Recommendations: ${bundle.supervisorAssessment.recommendations}',
+        ),
         if (highlights.isNotEmpty) ...[
           pw.SizedBox(height: 10),
           pw.Text(
@@ -468,10 +658,14 @@ class PDFReportExporter {
             ),
           ),
           pw.SizedBox(height: 4),
-          ...highlights.take(4).map((line) => pw.Bullet(
-                text: line,
-                style: pw.TextStyle(fontSize: 10.8, color: _inkPrimary),
-              )),
+          ...highlights
+              .take(4)
+              .map(
+                (line) => pw.Bullet(
+                  text: line,
+                  style: pw.TextStyle(fontSize: 10.8, color: _inkPrimary),
+                ),
+              ),
         ],
         if (threats.isNotEmpty) ...[
           pw.SizedBox(height: 8),
@@ -484,10 +678,14 @@ class PDFReportExporter {
             ),
           ),
           pw.SizedBox(height: 4),
-          ...threats.take(4).map((line) => pw.Bullet(
-                text: line,
-                style: pw.TextStyle(fontSize: 10.8, color: _inkPrimary),
-              )),
+          ...threats
+              .take(4)
+              .map(
+                (line) => pw.Bullet(
+                  text: line,
+                  style: pw.TextStyle(fontSize: 10.8, color: _inkPrimary),
+                ),
+              ),
         ],
       ],
     );

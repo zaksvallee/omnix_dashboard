@@ -22,8 +22,8 @@ class ReportBundleAssembler {
     required List<IncidentEvent> incidentEvents,
     required List<CRMEvent> crmEvents,
     required List<DispatchEvent> dispatchEvents,
+    required SceneReviewSnapshot sceneReview,
   }) {
-
     ClientAggregate aggregate;
 
     if (crmEvents.isEmpty) {
@@ -59,17 +59,14 @@ class ReportBundleAssembler {
       slaTierName: aggregate.slaTier?.name.toUpperCase() ?? "PROTECT",
     );
 
-    final executiveSummary =
-        ExecutiveSummaryGenerator.generate(monthlyReport);
+    final executiveSummary = ExecutiveSummaryGenerator.generate(monthlyReport);
 
-    final siteComparisons =
-        MultiSiteComparisonProjection.build(
+    final siteComparisons = MultiSiteComparisonProjection.build(
       month: currentMonth,
       incidentEvents: incidentEvents,
     );
 
-    final escalationTrend =
-        EscalationTrendProjection.build(
+    final escalationTrend = EscalationTrendProjection.build(
       clientId: clientId,
       currentMonth: currentMonth,
       previousMonth: previousMonth,
@@ -92,17 +89,17 @@ class ReportBundleAssembler {
 
     final guardPerformance =
         DispatchPerformanceProjection.buildGuardPerformance(
-      clientId: clientId,
-      month: currentMonth,
-      events: dispatchEvents,
-    );
+          clientId: clientId,
+          month: currentMonth,
+          events: dispatchEvents,
+        );
 
     final patrolPerformance =
         DispatchPerformanceProjection.buildPatrolPerformance(
-      clientId: clientId,
-      month: currentMonth,
-      events: dispatchEvents,
-    );
+          clientId: clientId,
+          month: currentMonth,
+          events: dispatchEvents,
+        );
 
     final incidentDetails = incidentEvents.map((e) {
       return IncidentDetailSnapshot(
@@ -118,10 +115,9 @@ class ReportBundleAssembler {
     final supervisorAssessment = SupervisorAssessment(
       operationalSummary:
           "Operational stability maintained under structured event review.",
-      riskTrend:
-          monthlyReport.totalSlaBreaches == 0
-              ? "No negative SLA trend detected."
-              : "Elevated SLA pressure observed.",
+      riskTrend: monthlyReport.totalSlaBreaches == 0
+          ? "No negative SLA trend detected."
+          : "Elevated SLA pressure observed.",
       recommendations:
           "Continue structured patrol execution and escalation discipline.",
     );
@@ -150,6 +146,7 @@ class ReportBundleAssembler {
       guardPerformance: guardPerformance,
       patrolPerformance: patrolPerformance,
       incidentDetails: incidentDetails,
+      sceneReview: sceneReview,
       supervisorAssessment: supervisorAssessment,
       companyAchievements: companyAchievements,
       emergingThreats: emergingThreats,

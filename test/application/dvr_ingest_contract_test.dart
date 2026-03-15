@@ -11,7 +11,7 @@ void main() {
       'test/fixtures/dvr_hikvision_isapi_event_notification_alert_sample.json',
     ).readAsStringSync();
     final normalizer = DvrFixtureContractNormalizer(
-      profile: DvrProviderProfile.hikvisionIsapi,
+      profile: DvrProviderProfile.hikvisionMonitorOnly,
       baseUri: Uri.parse('https://dvr.example.com'),
     );
 
@@ -23,21 +23,29 @@ void main() {
     );
 
     expect(contract, isNotNull);
-    expect(contract!.provider, 'hikvision_dvr');
+    expect(contract!.provider, 'hikvision_dvr_monitor_only');
     expect(contract.sourceType, 'dvr');
     expect(contract.externalId, 'DVR-EVT-1001');
-    expect(contract.cameraId, 'DVR-001');
+    expect(contract.cameraId, 'channel-3');
     expect(contract.channelId, '3');
     expect(contract.zone, 'loading_bay');
     expect(contract.faceMatchId, 'PERSON-44');
     expect(contract.plateNumber, 'CA123456');
-    expect(contract.headline, 'HIKVISION_DVR LINE_CROSSING');
+    expect(contract.headline, 'HIKVISION_DVR_MONITOR_ONLY LINE_CROSSING');
     expect(contract.buildSummary(), contains('channel:3'));
-    expect(contract.buildSummary(), contains('FR:PERSON-44 91.2%'));
-    expect(contract.buildSummary(), contains('LPR:CA123456 96.4%'));
-    expect(contract.evidence.snapshotUrl, contains('/DVR-EVT-1001/snapshot'));
-    expect(contract.evidence.clipUrl, contains('/DVR-EVT-1001/clip'));
+    expect(contract.buildSummary(), contains('snapshot:private-fetch'));
+    expect(contract.buildSummary(), contains('clip:not_expected'));
+    expect(contract.buildSummary(), isNot(contains('FR:PERSON-44')));
+    expect(contract.buildSummary(), isNot(contains('LPR:CA123456')));
+    expect(
+      contract.evidence.snapshotUrl,
+      'https://dvr.example.com/ISAPI/Streaming/channels/301/picture',
+    );
+    expect(contract.evidence.clipUrl, isNull);
     expect(contract.toNormalizedIntelRecord().sourceType, 'dvr');
+    expect(contract.toNormalizedIntelRecord().faceMatchId, 'PERSON-44');
+    expect(contract.toNormalizedIntelRecord().plateNumber, 'CA123456');
+    expect(contract.toNormalizedIntelRecord().clipUrl, isNull);
   });
 
   test('generic DVR fixture normalizes into shared contract', () {

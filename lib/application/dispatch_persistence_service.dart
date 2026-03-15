@@ -6,8 +6,11 @@ import '../infrastructure/intelligence/news_intelligence_service.dart';
 import '../domain/guard/guard_mobile_ops.dart';
 import 'radio_bridge_service.dart';
 import 'offline_incident_spool_service.dart';
+import 'monitoring_identity_policy_service.dart';
 import '../ui/client_app_page.dart';
+import '../ui/admin_page.dart';
 import '../ui/dispatch_models.dart';
+import '../ui/video_fleet_scope_health_sections.dart';
 
 class DispatchPersistenceService {
   static const intakeTelemetryKey = 'onyx_dispatch_intake_telemetry_v1';
@@ -17,6 +20,17 @@ class DispatchPersistenceService {
   static const newsSourceDiagnosticsKey =
       'onyx_dispatch_news_source_diagnostics_v1';
   static const radioIntentPhrasesJsonKey = 'onyx_radio_intent_phrases_json_v1';
+  static const monitoringIdentityRulesJsonKey =
+      'onyx_monitoring_identity_rules_json_v1';
+  static const monitoringIdentityRuleAuditHistoryKey =
+      'onyx_monitoring_identity_rule_audit_history_v1';
+  static const monitoringIdentityRuleAuditSourceFilterKey =
+      'onyx_monitoring_identity_rule_audit_source_filter_v1';
+  static const monitoringIdentityRuleAuditExpandedKey =
+      'onyx_monitoring_identity_rule_audit_expanded_v1';
+  static const adminWatchActionDrilldownKey =
+      'onyx_admin_watch_action_drilldown_v1';
+  static const adminPageTabKey = 'onyx_admin_page_tab_v1';
   static const pendingRadioAutomatedResponsesKey =
       'onyx_pending_radio_automated_responses_v1';
   static const pendingRadioAutomatedResponsesRetryStateKey =
@@ -38,6 +52,16 @@ class DispatchPersistenceService {
   static const clientAppPushSyncStateKey = 'onyx_client_app_push_sync_state_v1';
   static const telegramAdminRuntimeStateKey =
       'onyx_telegram_admin_runtime_state_v1';
+  static const monitoringWatchRuntimeStateKey =
+      'onyx_monitoring_watch_runtime_state_v1';
+  static const monitoringWatchAuditSummaryKey =
+      'onyx_monitoring_watch_audit_summary_v1';
+  static const monitoringWatchAuditHistoryKey =
+      'onyx_monitoring_watch_audit_history_v1';
+  static const monitoringWatchRecoveryStateKey =
+      'onyx_monitoring_watch_recovery_state_v1';
+  static const monitoringSceneReviewStateKey =
+      'onyx_monitoring_scene_review_state_v1';
   static const offlineIncidentSpoolEntriesKey =
       'onyx_offline_incident_spool_entries_v1';
   static const offlineIncidentSpoolSyncStateKey =
@@ -62,6 +86,8 @@ class DispatchPersistenceService {
   static const guardSyncReportAuditKey = 'onyx_guard_sync_report_audit_v1';
   static const guardExportAuditClearMetaKey =
       'onyx_guard_export_audit_clear_meta_v1';
+  static const offlineIncidentSpoolReplayAuditKey =
+      'onyx_offline_incident_spool_replay_audit_v1';
   static const morningSovereignReportKey = 'onyx_morning_sovereign_report_v1';
   static const morningSovereignReportAutoRunKey =
       'onyx_morning_sovereign_report_auto_run_key_v1';
@@ -145,6 +171,31 @@ class DispatchPersistenceService {
     await prefs.remove(livePollSummaryKey);
   }
 
+  Future<Map<String, Object?>> readMonitoringSceneReviewState() async {
+    final raw = prefs.getString(monitoringSceneReviewStateKey);
+    if (raw == null || raw.isEmpty) return const {};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return const {};
+      return decoded.map(
+        (key, value) => MapEntry(key.toString(), value as Object?),
+      );
+    } catch (_) {
+      await clearMonitoringSceneReviewState();
+      return const {};
+    }
+  }
+
+  Future<void> saveMonitoringSceneReviewState(
+    Map<String, Object?> state,
+  ) async {
+    await prefs.setString(monitoringSceneReviewStateKey, jsonEncode(state));
+  }
+
+  Future<void> clearMonitoringSceneReviewState() async {
+    await prefs.remove(monitoringSceneReviewStateKey);
+  }
+
   Future<List<NewsSourceDiagnostic>> readNewsSourceDiagnostics() async {
     final raw = prefs.getString(newsSourceDiagnosticsKey);
     if (raw == null || raw.isEmpty) return const [];
@@ -193,6 +244,148 @@ class DispatchPersistenceService {
 
   Future<void> clearRadioIntentPhrasesJson() async {
     await prefs.remove(radioIntentPhrasesJsonKey);
+  }
+
+  Future<String?> readMonitoringIdentityRulesJson() async {
+    final raw = prefs.getString(monitoringIdentityRulesJsonKey);
+    if (raw == null || raw.trim().isEmpty) return null;
+    return raw.trim();
+  }
+
+  Future<void> saveMonitoringIdentityRulesJson(String rawJson) async {
+    await prefs.setString(monitoringIdentityRulesJsonKey, rawJson.trim());
+  }
+
+  Future<void> clearMonitoringIdentityRulesJson() async {
+    await prefs.remove(monitoringIdentityRulesJsonKey);
+  }
+
+  Future<List<MonitoringIdentityPolicyAuditRecord>>
+  readMonitoringIdentityRuleAuditHistory() async {
+    final raw = prefs.getString(monitoringIdentityRuleAuditHistoryKey);
+    if (raw == null || raw.isEmpty) return const <MonitoringIdentityPolicyAuditRecord>[];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) {
+        return const <MonitoringIdentityPolicyAuditRecord>[];
+      }
+      return decoded
+          .map(MonitoringIdentityPolicyAuditRecord.fromJson)
+          .whereType<MonitoringIdentityPolicyAuditRecord>()
+          .toList(growable: false);
+    } catch (_) {
+      await clearMonitoringIdentityRuleAuditHistory();
+      return const <MonitoringIdentityPolicyAuditRecord>[];
+    }
+  }
+
+  Future<void> saveMonitoringIdentityRuleAuditHistory(
+    List<MonitoringIdentityPolicyAuditRecord> history,
+  ) async {
+    final normalized = history
+        .where((item) => item.message.trim().isNotEmpty)
+        .toList(growable: false);
+    if (normalized.isEmpty) {
+      await clearMonitoringIdentityRuleAuditHistory();
+      return;
+    }
+    await prefs.setString(
+      monitoringIdentityRuleAuditHistoryKey,
+      jsonEncode(normalized.map((item) => item.toJson()).toList()),
+    );
+  }
+
+  Future<void> clearMonitoringIdentityRuleAuditHistory() async {
+    await prefs.remove(monitoringIdentityRuleAuditHistoryKey);
+  }
+
+  Future<MonitoringIdentityPolicyAuditSource?>
+  readMonitoringIdentityRuleAuditSourceFilter() async {
+    final raw = prefs.getString(monitoringIdentityRuleAuditSourceFilterKey);
+    if (raw == null || raw.trim().isEmpty) return null;
+    return MonitoringIdentityPolicyAuditSourceX.fromPersistenceKey(raw.trim());
+  }
+
+  Future<void> saveMonitoringIdentityRuleAuditSourceFilter(
+    MonitoringIdentityPolicyAuditSource? source,
+  ) async {
+    if (source == null) {
+      await clearMonitoringIdentityRuleAuditSourceFilter();
+      return;
+    }
+    await prefs.setString(
+      monitoringIdentityRuleAuditSourceFilterKey,
+      source.persistenceKey,
+    );
+  }
+
+  Future<void> clearMonitoringIdentityRuleAuditSourceFilter() async {
+    await prefs.remove(monitoringIdentityRuleAuditSourceFilterKey);
+  }
+
+  Future<bool?> readMonitoringIdentityRuleAuditExpanded() async {
+    if (!prefs.containsKey(monitoringIdentityRuleAuditExpandedKey)) return null;
+    return prefs.getBool(monitoringIdentityRuleAuditExpandedKey);
+  }
+
+  Future<void> saveMonitoringIdentityRuleAuditExpanded(bool expanded) async {
+    await prefs.setBool(monitoringIdentityRuleAuditExpandedKey, expanded);
+  }
+
+  Future<void> clearMonitoringIdentityRuleAuditExpanded() async {
+    await prefs.remove(monitoringIdentityRuleAuditExpandedKey);
+  }
+
+  Future<VideoFleetWatchActionDrilldown?> readAdminWatchActionDrilldown() async {
+    final raw = prefs.getString(adminWatchActionDrilldownKey);
+    if (raw == null || raw.trim().isEmpty) return null;
+    final normalized = raw.trim();
+    for (final value in VideoFleetWatchActionDrilldown.values) {
+      if (value.name == normalized) {
+        return value;
+      }
+    }
+    await clearAdminWatchActionDrilldown();
+    return null;
+  }
+
+  Future<void> saveAdminWatchActionDrilldown(
+    VideoFleetWatchActionDrilldown? drilldown,
+  ) async {
+    if (drilldown == null) {
+      await clearAdminWatchActionDrilldown();
+      return;
+    }
+    await prefs.setString(adminWatchActionDrilldownKey, drilldown.name);
+  }
+
+  Future<void> clearAdminWatchActionDrilldown() async {
+    await prefs.remove(adminWatchActionDrilldownKey);
+  }
+
+  Future<AdministrationPageTab?> readAdminPageTab() async {
+    final raw = prefs.getString(adminPageTabKey);
+    if (raw == null || raw.trim().isEmpty) return null;
+    final normalized = raw.trim();
+    for (final value in AdministrationPageTab.values) {
+      if (value.name == normalized) {
+        return value;
+      }
+    }
+    await clearAdminPageTab();
+    return null;
+  }
+
+  Future<void> saveAdminPageTab(AdministrationPageTab? tab) async {
+    if (tab == null) {
+      await clearAdminPageTab();
+      return;
+    }
+    await prefs.setString(adminPageTabKey, tab.name);
+  }
+
+  Future<void> clearAdminPageTab() async {
+    await prefs.remove(adminPageTabKey);
   }
 
   Future<List<RadioAutomatedResponse>>
@@ -543,9 +736,7 @@ class DispatchPersistenceService {
     }
   }
 
-  Future<void> saveTelegramAdminRuntimeState(
-    Map<String, Object?> state,
-  ) async {
+  Future<void> saveTelegramAdminRuntimeState(Map<String, Object?> state) async {
     await prefs.setString(telegramAdminRuntimeStateKey, jsonEncode(state));
   }
 
@@ -553,7 +744,132 @@ class DispatchPersistenceService {
     await prefs.remove(telegramAdminRuntimeStateKey);
   }
 
-  Future<List<OfflineIncidentSpoolEntry>> readOfflineIncidentSpoolEntries() async {
+  Future<Map<String, Object?>> readMonitoringWatchRuntimeState() async {
+    final raw = prefs.getString(monitoringWatchRuntimeStateKey);
+    if (raw == null || raw.isEmpty) return const {};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return const {};
+      return decoded.map(
+        (key, value) => MapEntry(key.toString(), value as Object?),
+      );
+    } catch (_) {
+      await clearMonitoringWatchRuntimeState();
+      return const {};
+    }
+  }
+
+  Future<void> saveMonitoringWatchRuntimeState(
+    Map<String, Object?> state,
+  ) async {
+    await prefs.setString(monitoringWatchRuntimeStateKey, jsonEncode(state));
+  }
+
+  Future<void> clearMonitoringWatchRuntimeState() async {
+    await prefs.remove(monitoringWatchRuntimeStateKey);
+  }
+
+  Future<String?> readMonitoringWatchAuditSummary() async {
+    final raw = prefs.getString(monitoringWatchAuditSummaryKey);
+    if (raw == null) {
+      return null;
+    }
+    final normalized = raw.trim();
+    if (normalized.isEmpty) {
+      await clearMonitoringWatchAuditSummary();
+      return null;
+    }
+    return normalized;
+  }
+
+  Future<void> saveMonitoringWatchAuditSummary(String summary) async {
+    final normalized = summary.trim();
+    if (normalized.isEmpty) {
+      await clearMonitoringWatchAuditSummary();
+      return;
+    }
+    await prefs.setString(monitoringWatchAuditSummaryKey, normalized);
+  }
+
+  Future<void> clearMonitoringWatchAuditSummary() async {
+    await prefs.remove(monitoringWatchAuditSummaryKey);
+  }
+
+  Future<List<String>> readMonitoringWatchAuditHistory() async {
+    final raw = prefs.getString(monitoringWatchAuditHistoryKey);
+    if (raw == null || raw.isEmpty) {
+      return const [];
+    }
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) {
+        return const [];
+      }
+      return decoded
+          .map((item) => item?.toString() ?? '')
+          .where((item) => item.trim().isNotEmpty)
+          .map((item) => item.trim())
+          .toList(growable: false);
+    } catch (_) {
+      await clearMonitoringWatchAuditHistory();
+      return const [];
+    }
+  }
+
+  Future<void> saveMonitoringWatchAuditHistory(List<String> history) async {
+    final normalized = history
+        .map((entry) => entry.trim())
+        .where((entry) => entry.isNotEmpty)
+        .toList(growable: false);
+    if (normalized.isEmpty) {
+      await clearMonitoringWatchAuditHistory();
+      return;
+    }
+    await prefs.setString(
+      monitoringWatchAuditHistoryKey,
+      jsonEncode(normalized),
+    );
+  }
+
+  Future<void> clearMonitoringWatchAuditHistory() async {
+    await prefs.remove(monitoringWatchAuditHistoryKey);
+  }
+
+  Future<Map<String, Object?>> readMonitoringWatchRecoveryState() async {
+    final raw = prefs.getString(monitoringWatchRecoveryStateKey);
+    if (raw == null || raw.isEmpty) {
+      return const {};
+    }
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) {
+        return const {};
+      }
+      return decoded.map(
+        (key, value) => MapEntry(key.toString(), value as Object?),
+      );
+    } catch (_) {
+      await clearMonitoringWatchRecoveryState();
+      return const {};
+    }
+  }
+
+  Future<void> saveMonitoringWatchRecoveryState(
+    Map<String, Object?> state,
+  ) async {
+    if (state.isEmpty) {
+      await clearMonitoringWatchRecoveryState();
+      return;
+    }
+    await prefs.setString(monitoringWatchRecoveryStateKey, jsonEncode(state));
+  }
+
+  Future<void> clearMonitoringWatchRecoveryState() async {
+    await prefs.remove(monitoringWatchRecoveryStateKey);
+  }
+
+  Future<List<OfflineIncidentSpoolEntry>>
+  readOfflineIncidentSpoolEntries() async {
     final raw = prefs.getString(offlineIncidentSpoolEntriesKey);
     if (raw == null || raw.isEmpty) return const [];
     try {
@@ -592,7 +908,8 @@ class DispatchPersistenceService {
     await prefs.remove(offlineIncidentSpoolEntriesKey);
   }
 
-  Future<OfflineIncidentSpoolSyncState> readOfflineIncidentSpoolSyncState() async {
+  Future<OfflineIncidentSpoolSyncState>
+  readOfflineIncidentSpoolSyncState() async {
     final raw = prefs.getString(offlineIncidentSpoolSyncStateKey);
     if (raw == null || raw.isEmpty) {
       return const OfflineIncidentSpoolSyncState();
@@ -622,6 +939,34 @@ class DispatchPersistenceService {
 
   Future<void> clearOfflineIncidentSpoolSyncState() async {
     await prefs.remove(offlineIncidentSpoolSyncStateKey);
+  }
+
+  Future<Map<String, Object?>> readOfflineIncidentSpoolReplayAudit() async {
+    final raw = prefs.getString(offlineIncidentSpoolReplayAuditKey);
+    if (raw == null || raw.isEmpty) return const {};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return const {};
+      return decoded.map(
+        (key, value) => MapEntry(key.toString(), value as Object?),
+      );
+    } catch (_) {
+      await clearOfflineIncidentSpoolReplayAudit();
+      return const {};
+    }
+  }
+
+  Future<void> saveOfflineIncidentSpoolReplayAudit(
+    Map<String, Object?> audit,
+  ) async {
+    await prefs.setString(
+      offlineIncidentSpoolReplayAuditKey,
+      jsonEncode(audit),
+    );
+  }
+
+  Future<void> clearOfflineIncidentSpoolReplayAudit() async {
+    await prefs.remove(offlineIncidentSpoolReplayAuditKey);
   }
 
   Future<List<GuardAssignment>> readGuardAssignments() async {

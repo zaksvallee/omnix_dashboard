@@ -18,6 +18,10 @@ class NormalizedIntelRecord {
   final String? zone;
   final String? objectLabel;
   final double? objectConfidence;
+  final String? faceMatchId;
+  final double? faceConfidence;
+  final String? plateNumber;
+  final double? plateConfidence;
   final String headline;
   final String summary;
   final int riskScore;
@@ -36,6 +40,10 @@ class NormalizedIntelRecord {
     this.zone,
     this.objectLabel,
     this.objectConfidence,
+    this.faceMatchId,
+    this.faceConfidence,
+    this.plateNumber,
+    this.plateConfidence,
     required this.headline,
     required this.summary,
     required this.riskScore,
@@ -126,6 +134,10 @@ class DeterministicIntelligenceIngestionService {
           zone: record.zone,
           objectLabel: record.objectLabel,
           objectConfidence: record.objectConfidence,
+          faceMatchId: record.faceMatchId,
+          faceConfidence: record.faceConfidence,
+          plateNumber: record.plateNumber,
+          plateConfidence: record.plateConfidence,
           headline: record.headline,
           summary: record.summary,
           riskScore: record.riskScore,
@@ -164,6 +176,10 @@ class DeterministicIntelligenceIngestionService {
       'zone': record.zone,
       'objectLabel': record.objectLabel,
       'objectConfidence': record.objectConfidence,
+      'faceMatchId': record.faceMatchId,
+      'faceConfidence': record.faceConfidence,
+      'plateNumber': record.plateNumber,
+      'plateConfidence': record.plateConfidence,
       'headline': record.headline,
       'summary': record.summary,
       'riskScore': record.riskScore,

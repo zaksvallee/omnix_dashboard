@@ -52,6 +52,223 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
     return '${hash.substring(0, 20)}...';
   }
 
+  Widget _sceneReviewPane() {
+    final sceneReview = widget.bundle.sceneReview;
+    final highlights = sceneReview.highlights;
+    return OnyxSectionCard(
+      title: 'Scene Review Brief',
+      subtitle:
+          'CCTV review posture used to shape this report before PDF distribution.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _chip(
+                'Reviews',
+                '${sceneReview.totalReviews}',
+                const Color(0xFF63BDFF),
+              ),
+              _chip(
+                'Model',
+                '${sceneReview.modelReviews}',
+                const Color(0xFF79D89A),
+              ),
+              _chip(
+                'Fallback',
+                '${sceneReview.metadataFallbackReviews}',
+                const Color(0xFFF6C067),
+              ),
+              _chip(
+                'Suppressed',
+                '${sceneReview.suppressedActions}',
+                const Color(0xFF9AA7BA),
+              ),
+              _chip(
+                'Alerts',
+                '${sceneReview.incidentAlerts}',
+                const Color(0xFF63BDFF),
+              ),
+              _chip(
+                'Repeat',
+                '${sceneReview.repeatUpdates}',
+                const Color(0xFFF6C067),
+              ),
+              _chip(
+                'Escalations',
+                '${sceneReview.escalationCandidates}',
+                sceneReview.escalationCandidates > 0
+                    ? const Color(0xFFFF7A7A)
+                    : const Color(0xFF8AA4C9),
+              ),
+              _chip(
+                'Top Posture',
+                sceneReview.topPosture.toUpperCase(),
+                const Color(0xFF8AA4C9),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (sceneReview.totalReviews == 0)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0E1A2B),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFF17324F)),
+              ),
+              child: Text(
+                'No AI-reviewed CCTV scene assessments were recorded for this reporting period.',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF94ABCB),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  height: 1.4,
+                ),
+              ),
+            )
+          else
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (sceneReview.latestActionTaken.trim().isNotEmpty) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0E1A2B),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFF17324F)),
+                    ),
+                    child: Text(
+                      'Latest action taken: ${sceneReview.latestActionTaken}',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFB9C8DA),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                if (sceneReview.latestSuppressedPattern.trim().isNotEmpty) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0E1A2B),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFF17324F)),
+                    ),
+                    child: Text(
+                      'Latest filtered pattern: ${sceneReview.latestSuppressedPattern}',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFB9C8DA),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                Text(
+                  'Notable Findings',
+                  style: GoogleFonts.rajdhani(
+                    color: const Color(0xFFE8F1FF),
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                for (final highlight in highlights)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0E1A2B),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFF17324F)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _chip(
+                                'Camera',
+                                highlight.cameraLabel,
+                                const Color(0xFF63BDFF),
+                              ),
+                              _chip(
+                                'Posture',
+                                highlight.postureLabel.toUpperCase(),
+                                const Color(0xFFF6C067),
+                              ),
+                              _chip(
+                                'Action',
+                                highlight.decisionLabel.trim().isEmpty
+                                    ? 'Unspecified action'
+                                    : highlight.decisionLabel,
+                                _decisionColor(highlight.decisionLabel),
+                              ),
+                              _chip(
+                                'Source',
+                                highlight.sourceLabel,
+                                const Color(0xFF8AA4C9),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          if (highlight.decisionSummary.trim().isNotEmpty) ...[
+                            Text(
+                              'ONYX action: ${highlight.decisionSummary}',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFFB9C8DA),
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                                height: 1.4,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+                          Text(
+                            highlight.summary,
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFD9E7FA),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              height: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Detected ${highlight.detectedAt}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF8EA4C2),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -298,6 +515,8 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
                       ),
                     ],
                     const SizedBox(height: 14),
+                    _sceneReviewPane(),
+                    const SizedBox(height: 14),
                     previewPane,
                   ],
                 ),
@@ -426,11 +645,30 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
                     ),
                   ],
                   const SizedBox(height: 14),
+                  _sceneReviewPane(),
+                  const SizedBox(height: 14),
                   Expanded(child: previewPane),
                 ],
               ),
       ),
     );
+  }
+
+  Color _decisionColor(String decisionLabel) {
+    final normalized = decisionLabel.trim().toLowerCase();
+    if (normalized.contains('escalation')) {
+      return const Color(0xFFFF7A7A);
+    }
+    if (normalized.contains('repeat')) {
+      return const Color(0xFFF6C067);
+    }
+    if (normalized.contains('alert') || normalized.contains('incident')) {
+      return const Color(0xFF63BDFF);
+    }
+    if (normalized.contains('suppress')) {
+      return const Color(0xFF9AA7BA);
+    }
+    return const Color(0xFF8AA4C9);
   }
 
   Widget _chip(String label, String value, Color color) {

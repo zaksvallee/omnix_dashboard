@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 
+import 'monitoring_scene_review_store.dart';
+import 'report_scene_review_snapshot_builder.dart';
 import '../domain/crm/crm_event.dart';
 import '../domain/crm/export/pdf_report_exporter.dart';
 import '../domain/crm/reporting/report_bundle.dart';
@@ -12,6 +14,7 @@ import '../domain/events/decision_created.dart';
 import '../domain/events/execution_completed.dart';
 import '../domain/events/execution_denied.dart';
 import '../domain/events/guard_checked_in.dart';
+import '../domain/events/intelligence_received.dart';
 import '../domain/events/incident_closed.dart';
 import '../domain/events/patrol_completed.dart';
 import '../domain/events/report_generated.dart';
@@ -39,18 +42,56 @@ class GeneratedReportResult {
   });
 }
 
+class ReportReceiptSceneReviewSummary {
+  final bool includedInReceipt;
+  final int totalReviews;
+  final int modelReviews;
+  final int suppressedActions;
+  final int incidentAlerts;
+  final int repeatUpdates;
+  final int escalationCandidates;
+  final String topPosture;
+  final ReportReceiptLatestActionBucket latestActionBucket;
+  final String latestActionTaken;
+  final String latestSuppressedPattern;
+
+  const ReportReceiptSceneReviewSummary({
+    required this.includedInReceipt,
+    required this.totalReviews,
+    required this.modelReviews,
+    this.suppressedActions = 0,
+    this.incidentAlerts = 0,
+    this.repeatUpdates = 0,
+    required this.escalationCandidates,
+    required this.topPosture,
+    this.latestActionBucket = ReportReceiptLatestActionBucket.none,
+    this.latestActionTaken = '',
+    this.latestSuppressedPattern = '',
+  });
+}
+
+enum ReportReceiptLatestActionBucket {
+  none,
+  alerts,
+  repeat,
+  escalation,
+  suppressed,
+}
+
 class ReportGenerationService {
-  static const int reportSchemaVersion = 1;
+  static const int reportSchemaVersion = 2;
   static const int projectionVersion = 1;
 
   final EventStore store;
   final IncidentEventsProvider? incidentEventsProvider;
   final CRMEventsProvider? crmEventsProvider;
+  final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
 
   const ReportGenerationService({
     required this.store,
     this.incidentEventsProvider,
     this.crmEventsProvider,
+    this.sceneReviewByIntelligenceId = const {},
   });
 
   Future<GeneratedReportResult> generatePdfReport({
@@ -82,6 +123,9 @@ class ReportGenerationService {
           if (event is IncidentClosed) {
             return event.clientId == clientId && event.siteId == siteId;
           }
+          if (event is IntelligenceReceived) {
+            return event.clientId == clientId && event.siteId == siteId;
+          }
           if (event is ExecutionCompleted) {
             return event.clientId == clientId && event.siteId == siteId;
           }
@@ -97,6 +141,11 @@ class ReportGenerationService {
         const <IncidentEvent>[];
     final crmEvents =
         crmEventsProvider?.call(clientId: clientId) ?? const <CRMEvent>[];
+    final sceneReview = const ReportSceneReviewSnapshotBuilder().build(
+      month: currentMonth,
+      intelligenceEvents: tenantEvents.whereType<IntelligenceReceived>(),
+      sceneReviewByIntelligenceId: sceneReviewByIntelligenceId,
+    );
 
     final bundle = ReportBundleAssembler.build(
       clientId: clientId,
@@ -105,6 +154,7 @@ class ReportGenerationService {
       incidentEvents: incidentEvents,
       crmEvents: crmEvents,
       dispatchEvents: tenantEvents,
+      sceneReview: sceneReview,
     );
 
     final monthEvents = tenantEvents
@@ -193,6 +243,74 @@ class ReportGenerationService {
     );
   }
 
+  ReportReceiptSceneReviewSummary summarizeSceneReviewForReceipt(
+    ReportGenerated receipt,
+  ) {
+    if (receipt.reportSchemaVersion < 2) {
+      return const ReportReceiptSceneReviewSummary(
+        includedInReceipt: false,
+        totalReviews: 0,
+        modelReviews: 0,
+        suppressedActions: 0,
+        incidentAlerts: 0,
+        repeatUpdates: 0,
+        escalationCandidates: 0,
+        topPosture: 'none',
+        latestActionBucket: ReportReceiptLatestActionBucket.none,
+        latestActionTaken: '',
+        latestSuppressedPattern: '',
+      );
+    }
+    final bundle = _buildBundleForReceipt(receipt);
+    return ReportReceiptSceneReviewSummary(
+      includedInReceipt: true,
+      totalReviews: bundle.sceneReview.totalReviews,
+      modelReviews: bundle.sceneReview.modelReviews,
+      suppressedActions: bundle.sceneReview.suppressedActions,
+      incidentAlerts: bundle.sceneReview.incidentAlerts,
+      repeatUpdates: bundle.sceneReview.repeatUpdates,
+      escalationCandidates: bundle.sceneReview.escalationCandidates,
+      topPosture: bundle.sceneReview.topPosture,
+      latestActionBucket: _latestActionBucket(bundle),
+      latestActionTaken: bundle.sceneReview.latestActionTaken,
+      latestSuppressedPattern: bundle.sceneReview.latestSuppressedPattern,
+    );
+  }
+
+  ReportReceiptLatestActionBucket _latestActionBucket(ReportBundle bundle) {
+    if (bundle.sceneReview.highlights.isEmpty) {
+      return ReportReceiptLatestActionBucket.none;
+    }
+    final latest = bundle.sceneReview.highlights.first;
+    final decision = latest.decisionLabel.trim().toLowerCase();
+    final posture = latest.postureLabel.trim().toLowerCase();
+    if (decision.contains('suppress')) {
+      return ReportReceiptLatestActionBucket.suppressed;
+    }
+    if (decision.contains('repeat')) {
+      return ReportReceiptLatestActionBucket.repeat;
+    }
+    if (decision.contains('escalation')) {
+      return ReportReceiptLatestActionBucket.escalation;
+    }
+    if (decision.contains('alert') || decision.contains('incident')) {
+      return ReportReceiptLatestActionBucket.alerts;
+    }
+    if (posture.contains('escalation')) {
+      return ReportReceiptLatestActionBucket.escalation;
+    }
+    if (posture.contains('repeat')) {
+      return ReportReceiptLatestActionBucket.repeat;
+    }
+    if (bundle.sceneReview.latestSuppressedPattern.trim().isNotEmpty) {
+      return ReportReceiptLatestActionBucket.suppressed;
+    }
+    if (posture.isNotEmpty) {
+      return ReportReceiptLatestActionBucket.alerts;
+    }
+    return ReportReceiptLatestActionBucket.none;
+  }
+
   ReportBundle _buildBundleForReceipt(ReportGenerated receipt) {
     final allEvents = store.allEvents();
     final scopedEvents = allEvents
@@ -222,6 +340,10 @@ class ReportGenerationService {
             return event.clientId == receipt.clientId &&
                 event.siteId == receipt.siteId;
           }
+          if (event is IntelligenceReceived) {
+            return event.clientId == receipt.clientId &&
+                event.siteId == receipt.siteId;
+          }
           if (event is ExecutionCompleted) {
             return event.clientId == receipt.clientId &&
                 event.siteId == receipt.siteId;
@@ -243,6 +365,11 @@ class ReportGenerationService {
     final crmEvents =
         crmEventsProvider?.call(clientId: receipt.clientId) ??
         const <CRMEvent>[];
+    final sceneReview = const ReportSceneReviewSnapshotBuilder().build(
+      month: receipt.month,
+      intelligenceEvents: scopedEvents.whereType<IntelligenceReceived>(),
+      sceneReviewByIntelligenceId: sceneReviewByIntelligenceId,
+    );
 
     final bundle = ReportBundleAssembler.build(
       clientId: receipt.clientId,
@@ -256,6 +383,7 @@ class ReportGenerationService {
       incidentEvents: incidentEvents,
       crmEvents: crmEvents,
       dispatchEvents: scopedEvents,
+      sceneReview: sceneReview,
     );
     return bundle;
   }

@@ -18,6 +18,12 @@ enum _VigilanceStatus { green, orange, red }
 
 enum _ComplianceSeverity { critical, warning, info }
 
+enum GovernanceSceneActionFocus {
+  latestAction,
+  recentActions,
+  filteredPattern,
+}
+
 class _GuardVigilance {
   final String callsign;
   final int checkInScheduleMinutes;
@@ -84,6 +90,18 @@ class _GovernanceReportView {
   final int psiraExpired;
   final int pdpExpired;
   final int totalBlocked;
+  final int sceneReviews;
+  final int modelSceneReviews;
+  final int metadataSceneReviews;
+  final int sceneSuppressedActions;
+  final int sceneIncidentAlerts;
+  final int sceneRepeatUpdates;
+  final int sceneEscalations;
+  final String topScenePosture;
+  final String sceneActionMixSummary;
+  final String latestActionTaken;
+  final String recentActionsSummary;
+  final String latestSuppressedPattern;
   final String overrideReasonSummary;
   final DateTime? generatedAtUtc;
   final DateTime? shiftWindowStartUtc;
@@ -104,6 +122,18 @@ class _GovernanceReportView {
     required this.psiraExpired,
     required this.pdpExpired,
     required this.totalBlocked,
+    required this.sceneReviews,
+    required this.modelSceneReviews,
+    required this.metadataSceneReviews,
+    required this.sceneSuppressedActions,
+    required this.sceneIncidentAlerts,
+    required this.sceneRepeatUpdates,
+    required this.sceneEscalations,
+    required this.topScenePosture,
+    required this.sceneActionMixSummary,
+    required this.latestActionTaken,
+    required this.recentActionsSummary,
+    required this.latestSuppressedPattern,
     required this.overrideReasonSummary,
     required this.generatedAtUtc,
     required this.shiftWindowStartUtc,
@@ -117,6 +147,8 @@ class GovernancePage extends StatefulWidget {
   final SovereignReport? morningSovereignReport;
   final String? morningSovereignReportAutoRunKey;
   final Future<void> Function()? onGenerateMorningSovereignReport;
+  final GovernanceSceneActionFocus? initialSceneActionFocus;
+  final ValueChanged<GovernanceSceneActionFocus?>? onSceneActionFocusChanged;
 
   const GovernancePage({
     super.key,
@@ -124,6 +156,8 @@ class GovernancePage extends StatefulWidget {
     this.morningSovereignReport,
     this.morningSovereignReportAutoRunKey,
     this.onGenerateMorningSovereignReport,
+    this.initialSceneActionFocus,
+    this.onSceneActionFocusChanged,
   });
 
   @override
@@ -136,6 +170,49 @@ class _GovernancePageState extends State<GovernancePage> {
   static const _emailBridge = EmailBridgeService();
 
   bool _generatingMorningReport = false;
+  GovernanceSceneActionFocus? _activeSceneActionFocus;
+
+  @override
+  void initState() {
+    super.initState();
+    _activeSceneActionFocus = _validatedIncomingSceneActionFocus(
+      widget.initialSceneActionFocus,
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant GovernancePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final validatedIncomingFocus = _validatedIncomingSceneActionFocus(
+      widget.initialSceneActionFocus,
+    );
+    if (widget.initialSceneActionFocus != oldWidget.initialSceneActionFocus &&
+        validatedIncomingFocus != _activeSceneActionFocus) {
+      _activeSceneActionFocus = validatedIncomingFocus;
+    }
+    if (widget.morningSovereignReport != oldWidget.morningSovereignReport ||
+        widget.events != oldWidget.events) {
+      final report = _currentGovernanceReportForFocusValidation();
+      final effectiveFocus = widget.initialSceneActionFocus != null
+          ? _effectiveSceneActionFocus(
+              report,
+              candidate: widget.initialSceneActionFocus,
+            )
+          : _effectiveSceneActionFocus(report);
+      if (effectiveFocus != _activeSceneActionFocus) {
+        _activeSceneActionFocus = effectiveFocus;
+        if (widget.onSceneActionFocusChanged != null &&
+            effectiveFocus != widget.initialSceneActionFocus) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) {
+              return;
+            }
+            widget.onSceneActionFocusChanged!.call(effectiveFocus);
+          });
+        }
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -764,7 +841,7 @@ class _GovernancePageState extends State<GovernancePage> {
     );
     return _card(
       title: 'MORNING SOVEREIGN REPORT (06:00)',
-      subtitle: 'Forensic replay of combat window (22:00-06:00)',
+      subtitle: _morningReportSubtitle(report),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -815,203 +892,13 @@ class _GovernancePageState extends State<GovernancePage> {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: [
-              TextButton(
-                onPressed: () async {
-                  await Clipboard.setData(
-                    ClipboardData(text: _morningReportJson(report)),
-                  );
-                  _showSnack('Morning report JSON copied');
-                },
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  minimumSize: const Size(0, 0),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(
-                  'Copy Morning JSON',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFFF5C27A),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: () async {
-                  await Clipboard.setData(
-                    ClipboardData(text: _morningReportCsv(report)),
-                  );
-                  _showSnack('Morning report CSV copied');
-                },
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  minimumSize: const Size(0, 0),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(
-                  'Copy Morning CSV',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFFF5C27A),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: () async {
-                  if (!_snapshotFiles.supported) {
-                    _showSnack('File export is only available on web');
-                    return;
-                  }
-                  await _snapshotFiles.downloadJsonFile(
-                    filename: 'morning-sovereign-report.json',
-                    contents: _morningReportJson(report),
-                  );
-                  _showSnack('Morning report JSON download started');
-                },
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  minimumSize: const Size(0, 0),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(
-                  'Download Morning JSON',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFFF5C27A),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: () async {
-                  if (!_snapshotFiles.supported) {
-                    _showSnack('File export is only available on web');
-                    return;
-                  }
-                  await _snapshotFiles.downloadTextFile(
-                    filename: 'morning-sovereign-report.csv',
-                    contents: _morningReportCsv(report),
-                  );
-                  _showSnack('Morning report CSV download started');
-                },
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  minimumSize: const Size(0, 0),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(
-                  'Download Morning CSV',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFFF5C27A),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: () async {
-                  if (!_textShare.supported) {
-                    _showSnack('Share is not available in this environment');
-                    return;
-                  }
-                  final shared = await _textShare.shareText(
-                    title: 'ONYX Morning Sovereign Report',
-                    text: _morningReportJson(report),
-                  );
-                  _showSnack(
-                    shared
-                        ? 'Morning report share started'
-                        : 'Morning report share unavailable',
-                  );
-                },
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  minimumSize: const Size(0, 0),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(
-                  'Share Morning Pack',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFFF5C27A),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: () async {
-                  if (!_emailBridge.supported) {
-                    _showSnack('Email bridge is only available on web');
-                    return;
-                  }
-                  final opened = await _emailBridge.openMailDraft(
-                    subject: 'ONYX Morning Sovereign Report',
-                    body: _morningReportJson(report),
-                  );
-                  _showSnack(
-                    opened
-                        ? 'Email draft opened for morning report'
-                        : 'Email bridge unavailable',
-                  );
-                },
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  minimumSize: const Size(0, 0),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(
-                  'Email Morning Report',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFFF5C27A),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
+            children: _morningReportActionChildren(report),
           ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: [
-              _reportMetric(
-                label: 'Ledger Integrity',
-                value: report.hashVerified ? 'VERIFIED' : 'COMPROMISED',
-                detail:
-                    '${report.totalEvents} events • ${report.integrityScore}% score',
-                color: report.hashVerified
-                    ? const Color(0xFF10B981)
-                    : const Color(0xFFEF4444),
-              ),
-              _reportMetric(
-                label: 'AI/Human Delta',
-                value: '${report.humanOverrides} overrides',
-                detail:
-                    '${interventionRate.toStringAsFixed(1)}% intervention • AI ${report.aiDecisions}',
-                color: const Color(0xFF22D3EE),
-              ),
-              _reportMetric(
-                label: 'Norm Drift',
-                value: '${report.driftDetected} sites',
-                detail:
-                    'Avg match ${report.avgMatchScore}% of ${report.sitesMonitored}',
-                color: report.avgMatchScore < 80
-                    ? const Color(0xFFF59E0B)
-                    : const Color(0xFF10B981),
-              ),
-              _reportMetric(
-                label: 'Compliance Blockage',
-                value: '${report.totalBlocked} blocked',
-                detail:
-                    'PSIRA ${report.psiraExpired} • PDP ${report.pdpExpired}',
-                color: report.totalBlocked > 0
-                    ? const Color(0xFFEF4444)
-                    : const Color(0xFF10B981),
-              ),
-            ],
+            children: _summaryMetricChildren(report, interventionRate),
           ),
           const SizedBox(height: 8),
           Text(
@@ -1035,18 +922,722 @@ class _GovernancePageState extends State<GovernancePage> {
               ),
             ),
           ],
+          if (report.sceneActionMixSummary.trim().isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Action mix: ${report.sceneActionMixSummary}',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          if (_hasSceneActionFocusOptions(report)) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _sceneActionFocusChipChildren(report),
+            ),
+          ],
+          if (_activeSceneActionFocus != null &&
+              _focusedSceneActionLabel(report) != null) ...[
+            const SizedBox(height: 6),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0x1422D3EE),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0x4422D3EE)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Focused scene action: ${_focusedSceneActionLabel(report)!}',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFEAF4FF),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        if (_focusedSceneActionDetailValue(report) != null) ...[
+                          const SizedBox(height: 3),
+                          InkWell(
+                            key: const ValueKey(
+                              'governance-focused-scene-detail-copy',
+                            ),
+                            onTap: () async {
+                              final text = _focusedSceneActionClipboardText(
+                                report,
+                              );
+                              if (text == null) {
+                                return;
+                              }
+                              await Clipboard.setData(
+                                ClipboardData(text: text),
+                              );
+                              _showSnack(
+                                '${_focusedSceneActionLabel(report)!} detail copied',
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(6),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 2,
+                              ),
+                              child: Text(
+                                _focusedSceneActionDetailValue(report)!,
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF9FD8E8),
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      _setActiveSceneActionFocus(null);
+                    },
+                    child: Text(
+                      'Clear',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF67E8F9),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          ..._sceneActionDetailChildren(report),
         ],
       ),
     );
   }
 
+  bool _hasSceneActionFocusOptions(_GovernanceReportView report) {
+    return report.latestActionTaken.trim().isNotEmpty ||
+        report.recentActionsSummary.trim().isNotEmpty ||
+        report.latestSuppressedPattern.trim().isNotEmpty;
+  }
+
+  String _sceneReviewMetricDetail(_GovernanceReportView report) {
+    final focusedDetail = _focusedSceneActionMetricDetail(report);
+    if (focusedDetail != null) {
+      return focusedDetail;
+    }
+    return 'Model ${report.modelSceneReviews} • Alerts ${report.sceneIncidentAlerts} • Repeat ${report.sceneRepeatUpdates} • Escalations ${report.sceneEscalations} • Top ${report.topScenePosture}';
+  }
+
+  String? _focusedSceneActionMetricDetail(_GovernanceReportView report) {
+    switch (_activeSceneActionFocus) {
+      case GovernanceSceneActionFocus.latestAction:
+        final value = report.latestActionTaken.trim();
+        return value.isEmpty ? null : 'Focused latest action • $value';
+      case GovernanceSceneActionFocus.recentActions:
+        final value = report.recentActionsSummary.trim();
+        return value.isEmpty ? null : 'Focused recent actions • $value';
+      case GovernanceSceneActionFocus.filteredPattern:
+        final value = report.latestSuppressedPattern.trim();
+        return value.isEmpty ? null : 'Focused filtered pattern • $value';
+      case null:
+        return null;
+    }
+  }
+
+  String _copyMorningJsonActionLabel(_GovernanceReportView report) {
+    final focusLabel = _focusedSceneActionActionLabel(report);
+    return focusLabel == null
+        ? 'Copy Morning JSON'
+        : 'Copy Morning JSON ($focusLabel)';
+  }
+
+  String _copyMorningCsvActionLabel(_GovernanceReportView report) {
+    final focusLabel = _focusedSceneActionActionLabel(report);
+    return focusLabel == null
+        ? 'Copy Morning CSV'
+        : 'Copy Morning CSV ($focusLabel)';
+  }
+
+  String _downloadMorningJsonActionLabel(_GovernanceReportView report) {
+    final focusLabel = _focusedSceneActionActionLabel(report);
+    return focusLabel == null
+        ? 'Download Morning JSON'
+        : 'Download Morning JSON ($focusLabel)';
+  }
+
+  String _downloadMorningCsvActionLabel(_GovernanceReportView report) {
+    final focusLabel = _focusedSceneActionActionLabel(report);
+    return focusLabel == null
+        ? 'Download Morning CSV'
+        : 'Download Morning CSV ($focusLabel)';
+  }
+
+  String _shareMorningPackActionLabel(_GovernanceReportView report) {
+    final focusLabel = _focusedSceneActionActionLabel(report);
+    return focusLabel == null
+        ? 'Share Morning Pack'
+        : 'Share Morning Pack ($focusLabel)';
+  }
+
+  String _emailMorningReportActionLabel(_GovernanceReportView report) {
+    final focusLabel = _focusedSceneActionActionLabel(report);
+    return focusLabel == null
+        ? 'Email Morning Report'
+        : 'Email Morning Report ($focusLabel)';
+  }
+
+  String _morningJsonFilename(_GovernanceReportView report) {
+    final suffix = _focusedSceneActionFilenameSuffix(report);
+    return suffix == null
+        ? 'morning-sovereign-report.json'
+        : 'morning-sovereign-report-$suffix-focus.json';
+  }
+
+  String _morningCsvFilename(_GovernanceReportView report) {
+    final suffix = _focusedSceneActionFilenameSuffix(report);
+    return suffix == null
+        ? 'morning-sovereign-report.csv'
+        : 'morning-sovereign-report-$suffix-focus.csv';
+  }
+
+  String _morningShareTitle(_GovernanceReportView report) {
+    final focusLabel = _focusedSceneActionActionLabel(report);
+    return focusLabel == null
+        ? 'ONYX Morning Sovereign Report'
+        : 'ONYX Morning Sovereign Report ($focusLabel)';
+  }
+
+  String _morningEmailSubject(_GovernanceReportView report) {
+    final focusLabel = _focusedSceneActionActionLabel(report);
+    return focusLabel == null
+        ? 'ONYX Morning Sovereign Report'
+        : 'ONYX Morning Sovereign Report ($focusLabel)';
+  }
+
+  String? _focusedSceneActionActionLabel(_GovernanceReportView report) {
+    switch (_activeSceneActionFocus) {
+      case GovernanceSceneActionFocus.latestAction:
+        return report.latestActionTaken.trim().isEmpty ? null : 'Latest Action';
+      case GovernanceSceneActionFocus.recentActions:
+        return report.recentActionsSummary.trim().isEmpty
+            ? null
+            : 'Recent Actions';
+      case GovernanceSceneActionFocus.filteredPattern:
+        return report.latestSuppressedPattern.trim().isEmpty
+            ? null
+            : 'Filtered Pattern';
+      case null:
+        return null;
+    }
+  }
+
+  String? _focusedSceneActionFilenameSuffix(_GovernanceReportView report) {
+    switch (_activeSceneActionFocus) {
+      case GovernanceSceneActionFocus.latestAction:
+        return report.latestActionTaken.trim().isEmpty ? null : 'latest-action';
+      case GovernanceSceneActionFocus.recentActions:
+        return report.recentActionsSummary.trim().isEmpty
+            ? null
+            : 'recent-actions';
+      case GovernanceSceneActionFocus.filteredPattern:
+        return report.latestSuppressedPattern.trim().isEmpty
+            ? null
+            : 'filtered-pattern';
+      case null:
+        return null;
+    }
+  }
+
+  String? _focusedSceneActionClipboardText(_GovernanceReportView report) {
+    final label = _focusedSceneActionLabel(report);
+    final detail = _focusedSceneActionDetailValue(report);
+    if (label == null || detail == null) {
+      return null;
+    }
+    return '$label: $detail';
+  }
+
+  String? _focusedSceneActionDetailValue(_GovernanceReportView report) {
+    switch (_activeSceneActionFocus) {
+      case GovernanceSceneActionFocus.latestAction:
+        final value = report.latestActionTaken.trim();
+        return value.isEmpty ? null : value;
+      case GovernanceSceneActionFocus.recentActions:
+        final value = report.recentActionsSummary.trim();
+        return value.isEmpty ? null : value;
+      case GovernanceSceneActionFocus.filteredPattern:
+        final value = report.latestSuppressedPattern.trim();
+        return value.isEmpty ? null : value;
+      case null:
+        return null;
+    }
+  }
+
+  List<Widget> _morningReportActionChildren(_GovernanceReportView report) {
+    return [
+      if (_focusedSceneActionClipboardText(report) != null)
+        _morningReportActionButton(
+          key: const ValueKey('governance-copy-focused-detail-action'),
+          label: _copyFocusedDetailActionLabel(report),
+          onPressed: () async {
+            final text = _focusedSceneActionClipboardText(report);
+            if (text == null) {
+              return;
+            }
+            await Clipboard.setData(ClipboardData(text: text));
+            _showSnack('${_focusedSceneActionLabel(report)!} detail copied');
+          },
+        ),
+      _morningReportActionButton(
+        label: _copyMorningJsonActionLabel(report),
+        onPressed: () async {
+          await Clipboard.setData(ClipboardData(text: _morningReportJson(report)));
+          _showSnack(_copyMorningJsonSnackLabel(report));
+        },
+      ),
+      _morningReportActionButton(
+        label: _copyMorningCsvActionLabel(report),
+        onPressed: () async {
+          await Clipboard.setData(ClipboardData(text: _morningReportCsv(report)));
+          _showSnack(_copyMorningCsvSnackLabel(report));
+        },
+      ),
+      _morningReportActionButton(
+        label: _downloadMorningJsonActionLabel(report),
+        onPressed: () async {
+          if (!_snapshotFiles.supported) {
+            _showSnack('File export is only available on web');
+            return;
+          }
+          await _snapshotFiles.downloadJsonFile(
+            filename: _morningJsonFilename(report),
+            contents: _morningReportJson(report),
+          );
+          _showSnack('Morning report JSON download started');
+        },
+      ),
+      _morningReportActionButton(
+        label: _downloadMorningCsvActionLabel(report),
+        onPressed: () async {
+          if (!_snapshotFiles.supported) {
+            _showSnack('File export is only available on web');
+            return;
+          }
+          await _snapshotFiles.downloadTextFile(
+            filename: _morningCsvFilename(report),
+            contents: _morningReportCsv(report),
+          );
+          _showSnack('Morning report CSV download started');
+        },
+      ),
+      _morningReportActionButton(
+        label: _shareMorningPackActionLabel(report),
+        onPressed: () async {
+          if (!_textShare.supported) {
+            _showSnack('Share is not available in this environment');
+            return;
+          }
+          final shared = await _textShare.shareText(
+            title: _morningShareTitle(report),
+            text: _morningReportJson(report),
+          );
+          _showSnack(
+            shared
+                ? 'Morning report share started'
+                : 'Morning report share unavailable',
+          );
+        },
+      ),
+      _morningReportActionButton(
+        label: _emailMorningReportActionLabel(report),
+        onPressed: () async {
+          if (!_emailBridge.supported) {
+            _showSnack('Email bridge is only available on web');
+            return;
+          }
+          final opened = await _emailBridge.openMailDraft(
+            subject: _morningEmailSubject(report),
+            body: _morningReportJson(report),
+          );
+          _showSnack(
+            opened
+                ? 'Email draft opened for morning report'
+                : 'Email bridge unavailable',
+          );
+        },
+      ),
+    ];
+  }
+
+  String _copyFocusedDetailActionLabel(_GovernanceReportView report) {
+    final focusLabel = _focusedSceneActionActionLabel(report);
+    return focusLabel == null
+        ? 'Copy Focused Detail'
+        : 'Copy $focusLabel Detail';
+  }
+
+  String _morningReportSubtitle(_GovernanceReportView report) {
+    const base = 'Forensic replay of combat window (22:00-06:00)';
+    final focusLabel = _focusedSceneActionActionLabel(report);
+    return focusLabel == null ? base : '$base • Focused $focusLabel';
+  }
+
+  Widget _morningReportActionButton({
+    Key? key,
+    required String label,
+    required Future<void> Function() onPressed,
+  }) {
+    return TextButton(
+      key: key,
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        padding: EdgeInsets.zero,
+        minimumSize: const Size(0, 0),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          color: const Color(0xFFF5C27A),
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  String _copyMorningJsonSnackLabel(_GovernanceReportView report) {
+    final focusLabel = _focusedSceneActionLabel(report);
+    return focusLabel == null
+        ? 'Morning report JSON copied'
+        : 'Morning report JSON copied with $focusLabel focus';
+  }
+
+  String _copyMorningCsvSnackLabel(_GovernanceReportView report) {
+    final focusLabel = _focusedSceneActionLabel(report);
+    return focusLabel == null
+        ? 'Morning report CSV copied'
+        : 'Morning report CSV copied with $focusLabel focus';
+  }
+
+  GovernanceSceneActionFocus? _effectiveSceneActionFocus(
+    _GovernanceReportView report, {
+    GovernanceSceneActionFocus? candidate,
+  }) {
+    final focus = candidate ?? _activeSceneActionFocus;
+    switch (focus) {
+      case GovernanceSceneActionFocus.latestAction:
+        return report.latestActionTaken.trim().isEmpty ? null : focus;
+      case GovernanceSceneActionFocus.recentActions:
+        return report.recentActionsSummary.trim().isEmpty ? null : focus;
+      case GovernanceSceneActionFocus.filteredPattern:
+        return report.latestSuppressedPattern.trim().isEmpty ? null : focus;
+      case null:
+        return null;
+    }
+  }
+
+  GovernanceSceneActionFocus? _validatedIncomingSceneActionFocus(
+    GovernanceSceneActionFocus? candidate,
+  ) {
+    if (candidate == null) {
+      return null;
+    }
+    final report = _currentGovernanceReportForFocusValidation();
+    return _effectiveSceneActionFocus(report, candidate: candidate);
+  }
+
+  _GovernanceReportView _currentGovernanceReportForFocusValidation() {
+    return _resolveReport(_buildCompliance(DateTime.now()));
+  }
+
+  void _setActiveSceneActionFocus(GovernanceSceneActionFocus? value) {
+    if (_activeSceneActionFocus == value) {
+      return;
+    }
+    setState(() {
+      _activeSceneActionFocus = value;
+    });
+    widget.onSceneActionFocusChanged?.call(value);
+  }
+
+  List<Widget> _summaryMetricChildren(
+    _GovernanceReportView report,
+    double interventionRate,
+  ) {
+    final sceneReviewMetric = _reportMetric(
+      key: const ValueKey('governance-metric-scene-review'),
+      label: 'Scene Review',
+      value: '${report.sceneReviews} reviews',
+      detail: _sceneReviewMetricDetail(report),
+      color: report.sceneEscalations > 0
+          ? const Color(0xFFF59E0B)
+          : const Color(0xFF22D3EE),
+    );
+    final remainingMetrics = <Widget>[
+      _reportMetric(
+        key: const ValueKey('governance-metric-ledger-integrity'),
+        label: 'Ledger Integrity',
+        value: report.hashVerified ? 'VERIFIED' : 'COMPROMISED',
+        detail: '${report.totalEvents} events • ${report.integrityScore}% score',
+        color: report.hashVerified
+            ? const Color(0xFF10B981)
+            : const Color(0xFFEF4444),
+      ),
+      _reportMetric(
+        key: const ValueKey('governance-metric-ai-human-delta'),
+        label: 'AI/Human Delta',
+        value: '${report.humanOverrides} overrides',
+        detail:
+            '${interventionRate.toStringAsFixed(1)}% intervention • AI ${report.aiDecisions}',
+        color: const Color(0xFF22D3EE),
+      ),
+      _reportMetric(
+        key: const ValueKey('governance-metric-norm-drift'),
+        label: 'Norm Drift',
+        value: '${report.driftDetected} sites',
+        detail:
+            'Avg match ${report.avgMatchScore}% of ${report.sitesMonitored}',
+        color: report.avgMatchScore < 80
+            ? const Color(0xFFF59E0B)
+            : const Color(0xFF10B981),
+      ),
+      _reportMetric(
+        key: const ValueKey('governance-metric-compliance-blockage'),
+        label: 'Compliance Blockage',
+        value: '${report.totalBlocked} blocked',
+        detail: 'PSIRA ${report.psiraExpired} • PDP ${report.pdpExpired}',
+        color: report.totalBlocked > 0
+            ? const Color(0xFFEF4444)
+            : const Color(0xFF10B981),
+      ),
+    ];
+    if (_effectiveSceneActionFocus(report) != null) {
+      return [sceneReviewMetric, ...remainingMetrics];
+    }
+    return [...remainingMetrics, sceneReviewMetric];
+  }
+
+  String? _focusedSceneActionLabel(_GovernanceReportView report) {
+    switch (_activeSceneActionFocus) {
+      case GovernanceSceneActionFocus.latestAction:
+        return report.latestActionTaken.trim().isEmpty ? null : 'Latest action';
+      case GovernanceSceneActionFocus.recentActions:
+        return report.recentActionsSummary.trim().isEmpty
+            ? null
+            : 'Recent actions';
+      case GovernanceSceneActionFocus.filteredPattern:
+        return report.latestSuppressedPattern.trim().isEmpty
+            ? null
+            : 'Filtered pattern';
+      case null:
+        return null;
+    }
+  }
+
+  List<Widget> _sceneActionFocusChipChildren(_GovernanceReportView report) {
+    final entries = <_SceneActionFocusChipEntry>[
+      if (report.latestActionTaken.trim().isNotEmpty)
+        const _SceneActionFocusChipEntry(
+          key: ValueKey('governance-scene-focus-latest-action'),
+          label: 'Latest Action',
+          focus: GovernanceSceneActionFocus.latestAction,
+          color: Color(0xFF67E8F9),
+        ),
+      if (report.recentActionsSummary.trim().isNotEmpty)
+        const _SceneActionFocusChipEntry(
+          key: ValueKey('governance-scene-focus-recent-actions'),
+          label: 'Recent Actions',
+          focus: GovernanceSceneActionFocus.recentActions,
+          color: Color(0xFFFDE68A),
+        ),
+      if (report.latestSuppressedPattern.trim().isNotEmpty)
+        const _SceneActionFocusChipEntry(
+          key: ValueKey('governance-scene-focus-filtered-pattern'),
+          label: 'Filtered Pattern',
+          focus: GovernanceSceneActionFocus.filteredPattern,
+          color: Color(0xFF9CB2D1),
+        ),
+    ];
+    final activeFocus = _activeSceneActionFocus;
+    if (activeFocus != null) {
+      entries.sort((left, right) {
+        final leftPriority = left.focus == activeFocus ? 0 : 1;
+        final rightPriority = right.focus == activeFocus ? 0 : 1;
+        return leftPriority.compareTo(rightPriority);
+      });
+    }
+    return [
+      for (final entry in entries)
+        _sceneActionFocusChip(
+          key: entry.key,
+          label: entry.label,
+          focus: entry.focus,
+          color: entry.color,
+        ),
+    ];
+  }
+
+  Widget _sceneActionFocusChip({
+    required Key key,
+    required String label,
+    required GovernanceSceneActionFocus focus,
+    required Color color,
+  }) {
+    final isActive = _activeSceneActionFocus == focus;
+    return InkWell(
+      key: key,
+      onTap: () {
+        _setActiveSceneActionFocus(isActive ? null : focus);
+      },
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isActive
+              ? color.withValues(alpha: 0.16)
+              : const Color(0x14000000),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: isActive ? color : color.withValues(alpha: 0.55),
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            color: color,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _sceneActionDetail({
+    required String label,
+    required String value,
+    required GovernanceSceneActionFocus focus,
+  }) {
+    final isActive = _activeSceneActionFocus == focus;
+    final decoration = isActive
+        ? BoxDecoration(
+            color: const Color(0x1422D3EE),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0x4422D3EE)),
+          )
+        : null;
+    return InkWell(
+      key: ValueKey<String>('governance-scene-detail-row-${focus.name}'),
+      onTap: () {
+        _setActiveSceneActionFocus(isActive ? null : focus);
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        key: isActive
+            ? ValueKey<String>('governance-scene-detail-${focus.name}')
+            : null,
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: decoration,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '$label: $value',
+              style: GoogleFonts.inter(
+                color: isActive
+                    ? const Color(0xFFEAF4FF)
+                    : const Color(0xFF8EA4C2),
+                fontSize: 10,
+                fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                isActive ? 'Tap to clear' : 'Tap to focus',
+                style: GoogleFonts.inter(
+                  color: isActive
+                      ? const Color(0xFF67E8F9)
+                      : const Color(0xFF6F86A6),
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _sceneActionDetailChildren(_GovernanceReportView report) {
+    final details = <_SceneActionDetailEntry>[
+      if (report.latestActionTaken.trim().isNotEmpty)
+        _SceneActionDetailEntry(
+          label: 'Latest action taken',
+          value: report.latestActionTaken,
+          focus: GovernanceSceneActionFocus.latestAction,
+        ),
+      if (report.recentActionsSummary.trim().isNotEmpty)
+        _SceneActionDetailEntry(
+          label: 'Recent actions',
+          value: report.recentActionsSummary,
+          focus: GovernanceSceneActionFocus.recentActions,
+        ),
+      if (report.latestSuppressedPattern.trim().isNotEmpty)
+        _SceneActionDetailEntry(
+          label: 'Latest filtered pattern',
+          value: report.latestSuppressedPattern,
+          focus: GovernanceSceneActionFocus.filteredPattern,
+        ),
+    ];
+    final activeFocus = _activeSceneActionFocus;
+    if (activeFocus != null) {
+      details.sort((left, right) {
+        final leftPriority = left.focus == activeFocus ? 0 : 1;
+        final rightPriority = right.focus == activeFocus ? 0 : 1;
+        return leftPriority.compareTo(rightPriority);
+      });
+    }
+    return [
+      for (final detail in details) ...[
+        const SizedBox(height: 4),
+        _sceneActionDetail(
+          label: detail.label,
+          value: detail.value,
+          focus: detail.focus,
+        ),
+      ],
+    ];
+  }
+
   Widget _reportMetric({
+    Key? key,
     required String label,
     required String value,
     required String detail,
     required Color color,
   }) {
     return SizedBox(
+      key: key,
       width: 255,
       child: Container(
         padding: const EdgeInsets.all(10),
@@ -1225,6 +1816,19 @@ class _GovernancePageState extends State<GovernancePage> {
         psiraExpired: canonical.complianceBlockage.psiraExpired,
         pdpExpired: canonical.complianceBlockage.pdpExpired,
         totalBlocked: canonical.complianceBlockage.totalBlocked,
+        sceneReviews: canonical.sceneReview.totalReviews,
+        modelSceneReviews: canonical.sceneReview.modelReviews,
+        metadataSceneReviews: canonical.sceneReview.metadataFallbackReviews,
+        sceneSuppressedActions: canonical.sceneReview.suppressedActions,
+        sceneIncidentAlerts: canonical.sceneReview.incidentAlerts,
+        sceneRepeatUpdates: canonical.sceneReview.repeatUpdates,
+        sceneEscalations: canonical.sceneReview.escalationCandidates,
+        topScenePosture: canonical.sceneReview.topPosture,
+        sceneActionMixSummary: canonical.sceneReview.actionMixSummary,
+        latestActionTaken: canonical.sceneReview.latestActionTaken,
+        recentActionsSummary: canonical.sceneReview.recentActionsSummary,
+        latestSuppressedPattern:
+            canonical.sceneReview.latestSuppressedPattern,
         overrideReasonSummary: reasonSummary,
         generatedAtUtc: canonical.generatedAtUtc,
         shiftWindowStartUtc: canonical.shiftWindowStartUtc,
@@ -1273,6 +1877,18 @@ class _GovernancePageState extends State<GovernancePage> {
       psiraExpired: psiraExpired,
       pdpExpired: pdpExpired,
       totalBlocked: totalBlocked,
+      sceneReviews: 0,
+      modelSceneReviews: 0,
+      metadataSceneReviews: 0,
+      sceneSuppressedActions: 0,
+      sceneIncidentAlerts: 0,
+      sceneRepeatUpdates: 0,
+      sceneEscalations: 0,
+      topScenePosture: 'none',
+      sceneActionMixSummary: '',
+      latestActionTaken: '',
+      recentActionsSummary: '',
+      latestSuppressedPattern: '',
       overrideReasonSummary: reasonSummary.isEmpty
           ? 'none'
           : reasonSummary
@@ -1287,6 +1903,24 @@ class _GovernancePageState extends State<GovernancePage> {
   }
 
   String _morningReportJson(_GovernanceReportView report) {
+    final focusedSceneAction = _focusedSceneActionExport(report);
+    final sceneReview = <String, Object?>{
+      'totalReviews': report.sceneReviews,
+      'modelReviews': report.modelSceneReviews,
+      'metadataFallbackReviews': report.metadataSceneReviews,
+      'suppressedActions': report.sceneSuppressedActions,
+      'incidentAlerts': report.sceneIncidentAlerts,
+      'repeatUpdates': report.sceneRepeatUpdates,
+      'escalationCandidates': report.sceneEscalations,
+      'topPosture': report.topScenePosture,
+      'actionMixSummary': report.sceneActionMixSummary,
+      'latestActionTaken': report.latestActionTaken,
+      'recentActionsSummary': report.recentActionsSummary,
+      'latestSuppressedPattern': report.latestSuppressedPattern,
+    };
+    if (focusedSceneAction != null) {
+      sceneReview['focusedLens'] = focusedSceneAction;
+    }
     final payload = <String, Object?>{
       'date': report.reportDate,
       'generatedAtUtc': report.generatedAtUtc?.toIso8601String(),
@@ -1308,6 +1942,7 @@ class _GovernancePageState extends State<GovernancePage> {
         'driftDetected': report.driftDetected,
         'avgMatchScore': report.avgMatchScore,
       },
+      'sceneReview': sceneReview,
       'complianceBlockage': {
         'psiraExpired': report.psiraExpired,
         'pdpExpired': report.pdpExpired,
@@ -1318,6 +1953,7 @@ class _GovernancePageState extends State<GovernancePage> {
   }
 
   String _morningReportCsv(_GovernanceReportView report) {
+    final focusedSceneAction = _focusedSceneActionExport(report);
     final reasons = report.overrideReasons.entries.toList(growable: false)
       ..sort((a, b) => b.value.compareTo(a.value));
     final lines = <String>[
@@ -1335,6 +1971,24 @@ class _GovernancePageState extends State<GovernancePage> {
       'norm_sites_monitored,${report.sitesMonitored}',
       'norm_drift_detected,${report.driftDetected}',
       'norm_avg_match_score,${report.avgMatchScore}',
+      'scene_total_reviews,${report.sceneReviews}',
+      'scene_model_reviews,${report.modelSceneReviews}',
+      'scene_metadata_fallback_reviews,${report.metadataSceneReviews}',
+      'scene_suppressed_actions,${report.sceneSuppressedActions}',
+      'scene_incident_alerts,${report.sceneIncidentAlerts}',
+      'scene_repeat_updates,${report.sceneRepeatUpdates}',
+      'scene_escalation_candidates,${report.sceneEscalations}',
+      'scene_top_posture,"${report.topScenePosture.replaceAll('"', '""')}"',
+      'scene_action_mix_summary,"${report.sceneActionMixSummary.replaceAll('"', '""')}"',
+      'scene_latest_action_taken,"${report.latestActionTaken.replaceAll('"', '""')}"',
+      'scene_recent_actions_summary,"${report.recentActionsSummary.replaceAll('"', '""')}"',
+      'scene_latest_suppressed_pattern,"${report.latestSuppressedPattern.replaceAll('"', '""')}"',
+      if (focusedSceneAction != null)
+        'scene_focused_lens_key,${focusedSceneAction['key']}',
+      if (focusedSceneAction != null)
+        'scene_focused_lens_label,"${(focusedSceneAction['label'] as String).replaceAll('"', '""')}"',
+      if (focusedSceneAction != null)
+        'scene_focused_lens_detail,"${(focusedSceneAction['detail'] as String).replaceAll('"', '""')}"',
       'compliance_psira_expired,${report.psiraExpired}',
       'compliance_pdp_expired,${report.pdpExpired}',
       'compliance_total_blocked,${report.totalBlocked}',
@@ -1344,6 +1998,31 @@ class _GovernancePageState extends State<GovernancePage> {
       ),
     ];
     return lines.join('\n');
+  }
+
+  Map<String, String>? _focusedSceneActionExport(_GovernanceReportView report) {
+    final focus = _effectiveSceneActionFocus(report);
+    if (focus == null) {
+      return null;
+    }
+    final detail = switch (focus) {
+      GovernanceSceneActionFocus.latestAction => report.latestActionTaken.trim(),
+      GovernanceSceneActionFocus.recentActions => report.recentActionsSummary.trim(),
+      GovernanceSceneActionFocus.filteredPattern => report.latestSuppressedPattern.trim(),
+    };
+    if (detail.isEmpty) {
+      return null;
+    }
+    final label = switch (focus) {
+      GovernanceSceneActionFocus.latestAction => 'Latest action',
+      GovernanceSceneActionFocus.recentActions => 'Recent actions',
+      GovernanceSceneActionFocus.filteredPattern => 'Filtered pattern',
+    };
+    return <String, String>{
+      'key': focus.name,
+      'label': label,
+      'detail': detail,
+    };
   }
 
   _ComplianceSeverity _severityFor(int daysRemaining) {
@@ -1437,4 +2116,30 @@ class _GovernancePageState extends State<GovernancePage> {
     }
     return 'Auto generated for shift ending $key. Next generation runs at 06:00 local.';
   }
+}
+
+class _SceneActionDetailEntry {
+  final String label;
+  final String value;
+  final GovernanceSceneActionFocus focus;
+
+  const _SceneActionDetailEntry({
+    required this.label,
+    required this.value,
+    required this.focus,
+  });
+}
+
+class _SceneActionFocusChipEntry {
+  final ValueKey<String> key;
+  final String label;
+  final GovernanceSceneActionFocus focus;
+  final Color color;
+
+  const _SceneActionFocusChipEntry({
+    required this.key,
+    required this.label,
+    required this.focus,
+    required this.color,
+  });
 }

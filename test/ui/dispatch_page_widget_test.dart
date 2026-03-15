@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 import 'package:omnix_dashboard/infrastructure/intelligence/news_intelligence_service.dart';
 import 'package:omnix_dashboard/ui/dispatch_page.dart';
+import 'package:omnix_dashboard/ui/video_fleet_scope_health_sections.dart';
+import 'package:omnix_dashboard/ui/video_fleet_scope_health_view.dart';
 
 void main() {
   Widget buildPage({
@@ -18,9 +21,27 @@ void main() {
     String? radioOpsQueueHealth,
     String? radioQueueIntentMix,
     String? radioAckRecentSummary,
+    String focusIncidentReference = '',
     String videoOpsLabel = 'CCTV',
     String? cctvCapabilitySummary,
     String? cctvRecentSignalSummary,
+    List<VideoFleetScopeHealthView> fleetScopeHealth = const [],
+    Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId =
+        const {},
+    VideoFleetWatchActionDrilldown? initialWatchActionDrilldown,
+    ValueChanged<VideoFleetWatchActionDrilldown?>?
+    onWatchActionDrilldownChanged,
+    String? initialSelectedDispatchId,
+    ValueChanged<String?>? onSelectedDispatchChanged,
+    void Function(String clientId, String siteId, String? incidentReference)?
+    onOpenFleetTacticalScope,
+    void Function(String clientId, String siteId, String? incidentReference)?
+    onOpenFleetDispatchScope,
+    void Function(String clientId, String siteId)? onRecoverFleetWatchScope,
+    Future<String> Function(VideoFleetScopeHealthView scope)?
+    onExtendTemporaryIdentityApproval,
+    Future<String> Function(VideoFleetScopeHealthView scope)?
+    onExpireTemporaryIdentityApproval,
     bool radioQueueHasPending = false,
     String? radioQueueFailureDetail,
     String? radioQueueManualActionDetail,
@@ -31,6 +52,7 @@ void main() {
         clientId: 'CLIENT-001',
         regionId: 'REGION-GAUTENG',
         siteId: 'SITE-SANDTON',
+        focusIncidentReference: focusIncidentReference,
         onGenerate: onGenerate,
         onIngestFeeds: onIngestFeeds,
         onIngestRadioOps: onIngestRadioOps,
@@ -54,6 +76,17 @@ void main() {
         cctvRecentSignalSummary:
             cctvRecentSignalSummary ??
             'recent video intel 0 (6h) • intrusion 0 • line_crossing 0 • motion 0 • fr 0 • lpr 0',
+        fleetScopeHealth: fleetScopeHealth,
+        sceneReviewByIntelligenceId: sceneReviewByIntelligenceId,
+        initialWatchActionDrilldown: initialWatchActionDrilldown,
+        onWatchActionDrilldownChanged: onWatchActionDrilldownChanged,
+        initialSelectedDispatchId: initialSelectedDispatchId,
+        onSelectedDispatchChanged: onSelectedDispatchChanged,
+        onOpenFleetTacticalScope: onOpenFleetTacticalScope,
+        onOpenFleetDispatchScope: onOpenFleetDispatchScope,
+        onRecoverFleetWatchScope: onRecoverFleetWatchScope,
+        onExtendTemporaryIdentityApproval: onExtendTemporaryIdentityApproval,
+        onExpireTemporaryIdentityApproval: onExpireTemporaryIdentityApproval,
         radioQueueHasPending: radioQueueHasPending,
         radioQueueFailureDetail:
             radioQueueFailureDetail ??
@@ -127,6 +160,135 @@ void main() {
     expect(find.text('ACTIVE DISPATCH QUEUE'), findsOneWidget);
     expect(find.text('SYSTEM STATUS'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'dispatch page syncs parent selection to focused dispatch on first projection',
+    (tester) async {
+      String? selectedDispatchId = 'DSP-2441';
+
+      await tester.pumpWidget(
+        buildPage(
+          onGenerate: () {},
+          onIngestFeeds: () {},
+          onExecute: (_) {},
+          focusIncidentReference: 'DSP-2442',
+          initialSelectedDispatchId: selectedDispatchId,
+          onSelectedDispatchChanged: (value) {
+            selectedDispatchId = value;
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(selectedDispatchId, 'DSP-2442');
+      expect(find.text('Focus Linked: DSP-2442'), findsOneWidget);
+    },
+  );
+
+  testWidgets('dispatch page restores watch action focus from parent state', (
+    tester,
+  ) async {
+    var showPage = true;
+    VideoFleetWatchActionDrilldown? persistedDrilldown;
+    String? persistedSelectedDispatchId;
+    late StateSetter hostSetState;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            hostSetState = setState;
+            if (!showPage) {
+              return const Scaffold(body: Center(child: Text('Away')));
+            }
+            return DispatchPage(
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-SANDTON',
+              onGenerate: () {},
+              onIngestFeeds: () {},
+              onTelemetryImported: (_) {},
+              onRunStress: (_) async {},
+              onRunSoak: (_) async {},
+              onRunBenchmarkSuite: () async {},
+              initialProfile: IntakeStressPreset.light.profile,
+              onProfileChanged: (_) {},
+              onScenarioChanged: (scenarioLabel, tags) {},
+              onRunNoteChanged: (_) {},
+              onCancelStress: () {},
+              onResetTelemetry: () {},
+              onClearTelemetryPersistence: () {},
+              onClearProfilePersistence: () {},
+              stressRunning: false,
+              intakeTelemetry: IntakeTelemetry.zero,
+              events: const [],
+              onExecute: (_) {},
+              initialWatchActionDrilldown: persistedDrilldown,
+              onWatchActionDrilldownChanged: (value) {
+                hostSetState(() {
+                  persistedDrilldown = value;
+                });
+              },
+              initialSelectedDispatchId: persistedSelectedDispatchId,
+              onSelectedDispatchChanged: (value) {
+                hostSetState(() {
+                  persistedSelectedDispatchId = value;
+                });
+              },
+              fleetScopeHealth: const [
+                VideoFleetScopeHealthView(
+                  clientId: 'CLIENT-B',
+                  siteId: 'SITE-B',
+                  siteName: 'Beta Watch',
+                  endpointLabel: '192.168.8.106',
+                  statusLabel: 'WATCH READY',
+                  watchLabel: 'SCHEDULED',
+                  recentEvents: 1,
+                  lastSeenLabel: '21:14 UTC',
+                  freshnessLabel: 'Recent',
+                  isStale: false,
+                  alertCount: 1,
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('DSP-2442'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('DSP-2442'));
+    await tester.pumpAndSettle();
+    expect(persistedSelectedDispatchId, 'DSP-2442');
+
+    await tester.ensureVisible(find.text('Alerts 1'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Alerts 1'));
+    await tester.pumpAndSettle();
+    expect(persistedDrilldown, VideoFleetWatchActionDrilldown.alerts);
+    expect(find.text('Focused watch action: Alert actions'), findsOneWidget);
+
+    hostSetState(() {
+      showPage = false;
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('Away'), findsOneWidget);
+
+    hostSetState(() {
+      showPage = true;
+    });
+    await tester.pumpAndSettle();
+
+    expect(persistedDrilldown, VideoFleetWatchActionDrilldown.alerts);
+    expect(persistedSelectedDispatchId, 'DSP-2442');
+    expect(find.text('Focused watch action: Alert actions'), findsOneWidget);
+    expect(
+      find.text('WATCH-ONLY (1) • Watch scopes with client alert actions'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('dispatch command actions invoke callbacks', (tester) async {
@@ -377,4 +539,554 @@ void main() {
 
     expect(clearCalls, 0);
   });
+
+  testWidgets('dispatch page shows actionable empty state for watch-only fleet', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      buildPage(
+        onGenerate: () {},
+        onIngestFeeds: () {},
+        fleetScopeHealth: const [
+          VideoFleetScopeHealthView(
+            clientId: 'CLIENT-B',
+            siteId: 'SITE-B',
+            siteName: 'Beta Watch',
+            endpointLabel: '192.168.8.106',
+            statusLabel: 'WATCH READY',
+            watchLabel: 'SCHEDULED',
+            recentEvents: 0,
+            lastSeenLabel: 'idle',
+            freshnessLabel: 'Idle',
+            isStale: false,
+            watchWindowLabel: '18:00-06:00',
+            watchWindowStateLabel: 'IN WINDOW',
+            alertCount: 1,
+            repeatCount: 2,
+            escalationCount: 1,
+            suppressedCount: 3,
+            lastRecoveryLabel: 'ADMIN • Resynced • 21:08 UTC',
+            latestSceneDecisionLabel: 'Suppressed',
+            latestSceneDecisionSummary:
+                'Suppressed because the activity remained below the client notification threshold.',
+            watchActivationGapLabel: 'MISSED START',
+          ),
+        ],
+        onExecute: (_) {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('ACTIONABLE (0) • No incident-backed fleet scopes right now'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('WATCH-ONLY (1) • Watch scopes awaiting incident context'),
+      findsOneWidget,
+    );
+    expect(find.text('Gap 1'), findsOneWidget);
+    expect(find.text('Recovered 6h 1'), findsOneWidget);
+    expect(find.text('Suppressed 1'), findsOneWidget);
+    expect(find.text('Alerts 1'), findsOneWidget);
+    expect(find.text('Repeat 2'), findsOneWidget);
+    expect(find.text('Escalated 1'), findsOneWidget);
+    expect(find.text('Filtered 3'), findsOneWidget);
+    expect(find.text('Recovery ADMIN • Resynced • 21:08 UTC'), findsOneWidget);
+    await tester.ensureVisible(find.text('Alerts 1'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Alerts 1'));
+    await tester.pumpAndSettle();
+    expect(find.text('Focused watch action: Alert actions'), findsOneWidget);
+    expect(
+      find.text('Showing fleet scopes where ONYX sent a client alert.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('ACTIONABLE (0) • No incident-backed alert scopes right now'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('WATCH-ONLY (1) • Watch scopes with client alert actions'),
+      findsOneWidget,
+    );
+    expect(find.text('Beta Watch'), findsOneWidget);
+    expect(find.text('Gap MISSED START'), findsOneWidget);
+  });
+
+  testWidgets('dispatch page shows suppressed scene review panel', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 520));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      buildPage(
+        onGenerate: () {},
+        onIngestFeeds: () {},
+        fleetScopeHealth: const [
+          VideoFleetScopeHealthView(
+            clientId: 'CLIENT-B',
+            siteId: 'SITE-B',
+            siteName: 'Beta Watch',
+            endpointLabel: '192.168.8.106',
+            statusLabel: 'WATCH READY',
+            watchLabel: 'SCHEDULED',
+            recentEvents: 1,
+            lastSeenLabel: '21:14 UTC',
+            freshnessLabel: 'Recent',
+            isStale: false,
+            suppressedCount: 1,
+            latestIncidentReference: 'INT-BETA-1',
+            latestCameraLabel: 'Camera 2',
+            latestSceneDecisionLabel: 'Suppressed',
+            latestSceneDecisionSummary:
+                'Suppressed because the activity remained below the client notification threshold.',
+          ),
+        ],
+        sceneReviewByIntelligenceId: {
+          'INT-BETA-1': MonitoringSceneReviewRecord(
+            intelligenceId: 'INT-BETA-1',
+            sourceLabel: 'openai:gpt-4.1-mini',
+            postureLabel: 'reviewed',
+            decisionLabel: 'Suppressed',
+            decisionSummary:
+                'Suppressed because the activity remained below the client notification threshold.',
+            summary: 'Vehicle remained below escalation threshold.',
+            reviewedAtUtc: DateTime.utc(2026, 3, 13, 21, 14),
+          ),
+        },
+        onExecute: (_) {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final scrollable = tester.state<ScrollableState>(
+      find.byType(Scrollable).first,
+    );
+    await tester.ensureVisible(find.text('Filtered 1'));
+    await tester.pumpAndSettle();
+    final beforeTapOffset = scrollable.position.pixels;
+    await tester.tap(find.text('Filtered 1'));
+    await tester.pumpAndSettle();
+
+    expect(scrollable.position.pixels, greaterThan(beforeTapOffset));
+    expect(find.text('Focused watch action: Filtered reviews'), findsOneWidget);
+    final textWidgets = tester.widgetList<Text>(find.byType(Text)).toList();
+    expect(
+      textWidgets.indexWhere(
+        (widget) => widget.data == 'Suppressed CCTV Reviews',
+      ),
+      lessThan(
+        textWidgets.indexWhere((widget) => widget.data == 'CCTV Fleet Health'),
+      ),
+    );
+    expect(find.text('Suppressed CCTV Reviews'), findsOneWidget);
+    expect(find.text('Internal 1'), findsOneWidget);
+    expect(find.text('Beta Watch'), findsWidgets);
+    expect(find.text('Action Suppressed'), findsOneWidget);
+    expect(find.text('Camera Camera 2'), findsWidgets);
+    expect(find.text('Posture reviewed'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Suppressed because the activity remained below the client notification threshold.',
+      ),
+      findsWidgets,
+    );
+    expect(
+      find.text('Scene review: Vehicle remained below escalation threshold.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
+    'dispatch fleet actions pass incident reference and ignore watch-only scopes',
+    (tester) async {
+      String? tappedTacticalClientId;
+      String? tappedTacticalSiteId;
+      String? tappedTacticalReference;
+      String? tappedDispatchClientId;
+      String? tappedDispatchSiteId;
+      String? tappedDispatchReference;
+      String? recoveredClientId;
+      String? recoveredSiteId;
+
+      await tester.pumpWidget(
+        buildPage(
+          onGenerate: () {},
+          onIngestFeeds: () {},
+          fleetScopeHealth: const [
+            VideoFleetScopeHealthView(
+              clientId: 'CLIENT-A',
+              siteId: 'SITE-A',
+              siteName: 'MS Vallee Residence',
+              endpointLabel: '192.168.8.105',
+              statusLabel: 'LIVE',
+              watchLabel: 'ACTIVE',
+              recentEvents: 2,
+              lastSeenLabel: '21:14 UTC',
+              freshnessLabel: 'Fresh',
+              isStale: false,
+              escalationCount: 1,
+              actionHistory: [
+                '21:13 UTC • Camera 2 • Monitoring Alert • Client alert sent because vehicle activity was detected and confidence remained medium.',
+                '21:12 UTC • Camera 3 • Escalation Candidate • Escalated for urgent review because perimeter activity remained high confidence.',
+                '21:10 UTC • Camera 4 • Escalation Candidate • Escalated for urgent review because the vehicle remained in a restricted zone.',
+              ],
+              watchWindowLabel: '18:00-06:00',
+              watchWindowStateLabel: 'IN WINDOW',
+              latestEventLabel: 'Vehicle motion',
+              latestIncidentReference: 'INT-VALLEE-1',
+              latestEventTimeLabel: '21:14 UTC',
+              latestCameraLabel: 'Camera 1',
+              latestRiskScore: 84,
+              latestFaceMatchId: 'PERSON-44',
+              latestFaceConfidence: 91.2,
+              latestPlateNumber: 'CA123456',
+              latestPlateConfidence: 96.4,
+              latestSceneReviewLabel:
+                  'openai:gpt-4.1-mini • identity match concern • 21:14 UTC',
+              latestSceneDecisionSummary:
+                  'Escalated for urgent review because face match PERSON-44 was flagged and the event metadata suggested an unauthorized or watchlist context.',
+            ),
+            VideoFleetScopeHealthView(
+              clientId: 'CLIENT-B',
+              siteId: 'SITE-B',
+              siteName: 'Beta Watch',
+              endpointLabel: '192.168.8.106',
+              statusLabel: 'WATCH READY',
+              watchLabel: 'SCHEDULED',
+              recentEvents: 0,
+              lastSeenLabel: 'idle',
+              freshnessLabel: 'Idle',
+              isStale: false,
+              watchWindowLabel: '18:00-06:00',
+              watchWindowStateLabel: 'IN WINDOW',
+              watchActivationGapLabel: 'MISSED START',
+            ),
+          ],
+          onOpenFleetTacticalScope: (clientId, siteId, incidentReference) {
+            tappedTacticalClientId = clientId;
+            tappedTacticalSiteId = siteId;
+            tappedTacticalReference = incidentReference;
+          },
+          onOpenFleetDispatchScope: (clientId, siteId, incidentReference) {
+            tappedDispatchClientId = clientId;
+            tappedDispatchSiteId = siteId;
+            tappedDispatchReference = incidentReference;
+          },
+          onRecoverFleetWatchScope: (clientId, siteId) {
+            recoveredClientId = clientId;
+            recoveredSiteId = siteId;
+          },
+          onExecute: (_) {},
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Window 18:00-06:00'), findsNWidgets(2));
+      expect(find.text('Phase IN WINDOW'), findsNWidgets(2));
+      expect(
+        find.textContaining('Identity policy: Flagged match'),
+        findsOneWidget,
+      );
+      expect(find.text('Identity Flagged'), findsOneWidget);
+      expect(find.text('Flagged ID 1'), findsOneWidget);
+      expect(find.text('Allowed ID 0'), findsOneWidget);
+      expect(
+        find.textContaining(
+          'Identity match: Face PERSON-44 91.2% • Plate CA123456 96.4%',
+        ),
+        findsOneWidget,
+      );
+      await tester.ensureVisible(find.text('Flagged ID 1'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Flagged ID 1'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Focused identity policy: Flagged identity matches'),
+        findsOneWidget,
+      );
+      tappedDispatchClientId = null;
+      tappedDispatchSiteId = null;
+      tappedDispatchReference = null;
+      await tester.tap(
+        find.textContaining(
+          'Flagged identity: Face PERSON-44 91.2% • Plate CA123456 96.4%',
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tappedDispatchClientId, 'CLIENT-A');
+      expect(tappedDispatchSiteId, 'SITE-A');
+      expect(tappedDispatchReference, 'INT-VALLEE-1');
+      await tester.tap(find.text('Clear'));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('MS Vallee Residence').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('MS Vallee Residence').first);
+      await tester.pumpAndSettle();
+      expect(tappedDispatchClientId, 'CLIENT-A');
+      expect(tappedDispatchSiteId, 'SITE-A');
+      expect(tappedDispatchReference, 'INT-VALLEE-1');
+
+      await tester.ensureVisible(find.text('Tactical').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Tactical').first);
+      await tester.pumpAndSettle();
+      expect(tappedTacticalClientId, 'CLIENT-A');
+      expect(tappedTacticalSiteId, 'SITE-A');
+      expect(tappedTacticalReference, 'INT-VALLEE-1');
+
+      await tester.ensureVisible(find.text('Escalated 1'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Escalated 1'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Focused watch action: Escalated reviews'),
+        findsOneWidget,
+      );
+      final textWidgets = tester.widgetList<Text>(find.byType(Text)).toList();
+      expect(
+        textWidgets.indexWhere((widget) => widget.data == 'CCTV Fleet Health'),
+        lessThan(
+          textWidgets.indexWhere(
+            (widget) => widget.data == 'Radio Ops • UNCONFIGURED',
+          ),
+        ),
+      );
+      expect(find.text('Beta Watch'), findsNothing);
+      expect(find.text('MS Vallee Residence'), findsOneWidget);
+      expect(
+        find.textContaining(
+          'Recent escalations: 21:12 UTC • Camera 3 • Escalation Candidate',
+        ),
+        findsOneWidget,
+      );
+      tappedDispatchClientId = null;
+      tappedDispatchSiteId = null;
+      tappedDispatchReference = null;
+      await tester.ensureVisible(
+        find.textContaining(
+          'Recent escalations: 21:12 UTC • Camera 3 • Escalation Candidate',
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.textContaining(
+          'Recent escalations: 21:12 UTC • Camera 3 • Escalation Candidate',
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tappedDispatchClientId, 'CLIENT-A');
+      expect(tappedDispatchSiteId, 'SITE-A');
+      expect(tappedDispatchReference, 'INT-VALLEE-1');
+      expect(
+        find.textContaining('Recent action: 21:13 UTC • Camera 2'),
+        findsNothing,
+      );
+      expect(find.text('Latest: 21:14 UTC • Vehicle motion'), findsNothing);
+      await tester.ensureVisible(find.text('Clear'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Clear'));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('Resync').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Resync').first);
+      await tester.pumpAndSettle();
+      expect(recoveredClientId, 'CLIENT-B');
+      expect(recoveredSiteId, 'SITE-B');
+
+      tappedDispatchClientId = null;
+      tappedDispatchSiteId = null;
+      tappedDispatchReference = null;
+      await tester.ensureVisible(find.text('Beta Watch').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Beta Watch').first);
+      await tester.pumpAndSettle();
+      expect(tappedDispatchClientId, isNull);
+      expect(tappedDispatchSiteId, isNull);
+      expect(tappedDispatchReference, isNull);
+    },
+  );
+
+  testWidgets('temporary identity summary opens incident-backed dispatch scope detail', (
+    tester,
+  ) async {
+    String? tappedDispatchClientId;
+    String? tappedDispatchSiteId;
+    String? tappedDispatchReference;
+    String? extendedSite;
+    String? expiredSite;
+
+    await tester.pumpWidget(
+      buildPage(
+        onGenerate: () {},
+        onIngestFeeds: () {},
+        onOpenFleetDispatchScope: (clientId, siteId, incidentReference) {
+          tappedDispatchClientId = clientId;
+          tappedDispatchSiteId = siteId;
+          tappedDispatchReference = incidentReference;
+        },
+        onExtendTemporaryIdentityApproval: (scope) async {
+          extendedSite = scope.siteName;
+          return 'Extended ${scope.siteName}.';
+        },
+        onExpireTemporaryIdentityApproval: (scope) async {
+          expiredSite = scope.siteName;
+          return 'Expired ${scope.siteName}.';
+        },
+        fleetScopeHealth: const [
+          VideoFleetScopeHealthView(
+            clientId: 'CLIENT-A',
+            siteId: 'SITE-A',
+            siteName: 'MS Vallee Residence',
+            endpointLabel: '192.168.8.105',
+            statusLabel: 'LIVE',
+            watchLabel: 'ACTIVE',
+            recentEvents: 1,
+            lastSeenLabel: '21:14 UTC',
+            freshnessLabel: 'Fresh',
+            isStale: false,
+            latestIncidentReference: 'INT-VALLEE-1',
+            latestEventTimeLabel: '21:14 UTC',
+            latestCameraLabel: 'Camera 1',
+            latestFaceMatchId: 'VISITOR-01',
+            latestFaceConfidence: 93.1,
+            latestPlateNumber: 'CA777777',
+            latestPlateConfidence: 97.4,
+            latestSceneReviewLabel:
+                'openai:gpt-4.1-mini • known allowed identity • 21:14 UTC',
+            latestSceneDecisionSummary:
+                'Suppressed because the matched identity has a one-time approval until 2026-03-15 18:00 UTC and the activity remained below the client notification threshold.',
+          ),
+        ],
+        onExecute: (_) {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Temporary ID 1'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Identity policy: Temporary approval until 2026-03-15 18:00 UTC',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Identity Temporary'), findsOneWidget);
+    await tester.ensureVisible(find.text('Temporary ID 1'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Temporary ID 1'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Focused identity policy: Temporary identity approvals'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'Showing fleet scopes where ONYX matched a one-time approved face or plate. Each scope shows the approval expiry when available. Soonest expiry: MS Vallee Residence Temporary approval expires in',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Extend 2h'), findsOneWidget);
+    expect(find.text('Expire now'), findsOneWidget);
+    await tester.tap(find.text('Extend 2h'));
+    await tester.pumpAndSettle();
+    expect(extendedSite, 'MS Vallee Residence');
+    await tester.tap(find.text('Expire now'));
+    await tester.pumpAndSettle();
+    expect(find.text('Expire Temporary Approval?'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'This immediately removes the temporary identity approval for MS Vallee Residence.',
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Expire now'));
+    await tester.pumpAndSettle();
+    expect(expiredSite, 'MS Vallee Residence');
+    await tester.ensureVisible(
+      find.textContaining(
+        'Temporary identity until 2026-03-15 18:00 UTC: Face VISITOR-01 93.1% • Plate CA777777 97.4%',
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.textContaining(
+        'Temporary identity until 2026-03-15 18:00 UTC: Face VISITOR-01 93.1% • Plate CA777777 97.4%',
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tappedDispatchClientId, 'CLIENT-A');
+    expect(tappedDispatchSiteId, 'SITE-A');
+    expect(tappedDispatchReference, 'INT-VALLEE-1');
+  });
+
+  testWidgets(
+    'allowlisted identity summary opens incident-backed dispatch scope detail',
+    (tester) async {
+      String? tappedDispatchClientId;
+      String? tappedDispatchSiteId;
+      String? tappedDispatchReference;
+
+      await tester.pumpWidget(
+        buildPage(
+          onGenerate: () {},
+          onIngestFeeds: () {},
+          onOpenFleetDispatchScope: (clientId, siteId, incidentReference) {
+            tappedDispatchClientId = clientId;
+            tappedDispatchSiteId = siteId;
+            tappedDispatchReference = incidentReference;
+          },
+          fleetScopeHealth: const [
+            VideoFleetScopeHealthView(
+              clientId: 'CLIENT-A',
+              siteId: 'SITE-A',
+              siteName: 'MS Vallee Residence',
+              endpointLabel: '192.168.8.105',
+              statusLabel: 'LIVE',
+              watchLabel: 'ACTIVE',
+              recentEvents: 1,
+              lastSeenLabel: '21:14 UTC',
+              freshnessLabel: 'Fresh',
+              isStale: false,
+              latestIncidentReference: 'INT-VALLEE-1',
+              latestEventTimeLabel: '21:14 UTC',
+              latestCameraLabel: 'Camera 1',
+              latestFaceMatchId: 'RESIDENT-01',
+              latestFaceConfidence: 94.1,
+              latestPlateNumber: 'CA111111',
+              latestPlateConfidence: 98.0,
+              latestSceneReviewLabel:
+                  'openai:gpt-4.1-mini • known allowed identity • 21:14 UTC',
+              latestSceneDecisionSummary:
+                  'Suppressed because RESIDENT-01 and plate CA111111 are allowlisted for this site.',
+            ),
+          ],
+          onExecute: (_) {},
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Allowed ID 1'), findsOneWidget);
+      expect(find.text('Identity Allowlisted'), findsOneWidget);
+      await tester.ensureVisible(find.text('Allowed ID 1'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Allowed ID 1'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Focused identity policy: Allowlisted identity matches'),
+        findsOneWidget,
+      );
+      await tester.tap(
+        find.textContaining(
+          'Allowlisted identity: Face RESIDENT-01 94.1% • Plate CA111111 98.0%',
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tappedDispatchClientId, 'CLIENT-A');
+      expect(tappedDispatchSiteId, 'SITE-A');
+      expect(tappedDispatchReference, 'INT-VALLEE-1');
+    },
+  );
 }

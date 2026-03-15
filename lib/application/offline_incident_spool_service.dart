@@ -211,12 +211,14 @@ class OfflineIncidentSpoolSyncResult {
   final int failedCount;
   final int pendingCount;
   final String? failureReason;
+  final List<OfflineIncidentSpoolEntry> syncedEntries;
 
   const OfflineIncidentSpoolSyncResult({
     required this.syncedCount,
     required this.failedCount,
     required this.pendingCount,
     this.failureReason,
+    this.syncedEntries = const <OfflineIncidentSpoolEntry>[],
   });
 }
 
@@ -452,6 +454,7 @@ class OfflineIncidentSpoolService {
         syncedCount: batch.length,
         failedCount: 0,
         pendingCount: pendingCount,
+        syncedEntries: batch,
       );
     } catch (error) {
       final updated = syncingEntries
