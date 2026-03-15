@@ -495,6 +495,112 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return visitEvents;
   }
 
+  _VisitTimelineStatus _visitTimelineStatus(List<DispatchEvent> visitEvents) {
+    if (visitEvents.isEmpty) {
+      return _VisitTimelineStatus.active;
+    }
+    final hasExit = visitEvents.any(
+      (event) =>
+          _visitTimelineStageForEvent(
+            event,
+            eventIndex: visitEvents.indexOf(event),
+          ) ==
+          _VisitTimelineStage.exit,
+    );
+    if (hasExit) {
+      return _VisitTimelineStatus.completed;
+    }
+    final lastSeenAtUtc = visitEvents.last.occurredAt.toUtc();
+    if (DateTime.now().toUtc().difference(lastSeenAtUtc) >
+        const Duration(minutes: 45)) {
+      return _VisitTimelineStatus.incomplete;
+    }
+    return _VisitTimelineStatus.active;
+  }
+
+  _VisitTimelineStage _visitTimelineStageForEvent(
+    DispatchEvent event, {
+    required int eventIndex,
+  }) {
+    final text = <String>[
+      if (event is IntelligenceReceived) event.zone ?? '',
+      _eventSummary(event),
+      if (event is IntelligenceReceived) event.summary,
+    ].join(' ').toLowerCase();
+    if (_containsAny(text, const [
+      'entry',
+      'ingress',
+      'entrance',
+      'gate in',
+      'arrival lane',
+      'arrivals',
+      'boom in',
+    ])) {
+      return _VisitTimelineStage.entry;
+    }
+    if (_containsAny(text, const [
+      'exit',
+      'egress',
+      'departure',
+      'gate out',
+      'exit lane',
+      'boom out',
+      'outbound',
+    ])) {
+      return _VisitTimelineStage.exit;
+    }
+    if (_containsAny(text, const [
+      'wash',
+      'bay',
+      'service',
+      'vacuum',
+      'processing',
+      'queue',
+      'loading',
+      'yard',
+    ])) {
+      return _VisitTimelineStage.service;
+    }
+    if (eventIndex == 0) {
+      return _VisitTimelineStage.entry;
+    }
+    return _VisitTimelineStage.observed;
+  }
+
+  String _visitTimelineStageLabel(_VisitTimelineStage stage) {
+    return switch (stage) {
+      _VisitTimelineStage.entry => 'ENTRY',
+      _VisitTimelineStage.service => 'SERVICE',
+      _VisitTimelineStage.exit => 'EXIT',
+      _VisitTimelineStage.observed => 'OBSERVED',
+    };
+  }
+
+  String _visitTimelineStatusLabel(_VisitTimelineStatus status) {
+    return switch (status) {
+      _VisitTimelineStatus.completed => 'COMPLETED',
+      _VisitTimelineStatus.active => 'ACTIVE',
+      _VisitTimelineStatus.incomplete => 'INCOMPLETE',
+    };
+  }
+
+  Color _visitTimelineStatusColor(_VisitTimelineStatus status) {
+    return switch (status) {
+      _VisitTimelineStatus.completed => const Color(0xFF10B981),
+      _VisitTimelineStatus.active => const Color(0xFF22D3EE),
+      _VisitTimelineStatus.incomplete => const Color(0xFFF59E0B),
+    };
+  }
+
+  bool _containsAny(String text, List<String> needles) {
+    for (final needle in needles) {
+      if (text.contains(needle)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   Widget _metricCard({
     required double width,
     required String label,
@@ -879,6 +985,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     final sceneReview = selected is IntelligenceReceived
         ? widget.sceneReviewByIntelligenceId[selected.intelligenceId.trim()]
         : null;
+    final visitStatus = _visitTimelineStatus(visitScopedEvents);
     final linkedIntelligenceIds = visitScopedEvents
         .whereType<IntelligenceReceived>()
         .map((event) => event.intelligenceId.trim())
@@ -928,6 +1035,32 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         '${linkedIntelligenceIds.length}',
                       ),
                     ),
+                    const SizedBox(width: 12),
+                    Container(
+                      key: const ValueKey('events-visit-status-pill'),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _visitTimelineStatusColor(
+                          visitStatus,
+                        ).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: _visitTimelineStatusColor(visitStatus),
+                        ),
+                      ),
+                      child: Text(
+                        _visitTimelineStatusLabel(visitStatus),
+                        style: GoogleFonts.inter(
+                          color: _visitTimelineStatusColor(visitStatus),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -943,6 +1076,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 for (var i = 0; i < visitScopedEvents.length; i++) ...[
                   _visitTimelineStep(
                     event: visitScopedEvents[i],
+                    stage: _visitTimelineStageForEvent(
+                      visitScopedEvents[i],
+                      eventIndex: i,
+                    ),
                     selected: visitScopedEvents[i].eventId == selected.eventId,
                     showConnector: i < visitScopedEvents.length - 1,
                   ),
@@ -1317,6 +1454,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
 
   Widget _visitTimelineStep({
     required DispatchEvent event,
+    required _VisitTimelineStage stage,
     required bool selected,
     required bool showConnector,
   }) {
@@ -1382,6 +1520,14 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 children: [
                   Row(
                     children: [
+                      _visitBadge(
+                        _visitTimelineStageLabel(stage),
+                        key: ValueKey<String>(
+                          'events-visit-stage-${event.eventId}',
+                        ),
+                        textColor: _eventColor(event),
+                      ),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           '${_eventTypeLabel(event)} • ${event.eventId}',
@@ -1432,8 +1578,13 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     );
   }
 
-  Widget _visitBadge(String label) {
+  Widget _visitBadge(
+    String label, {
+    Key? key,
+    Color textColor = const Color(0xFF9BB0CE),
+  }) {
     return Container(
+      key: key,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: const Color(0xFF111822),
@@ -1443,7 +1594,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       child: Text(
         label,
         style: GoogleFonts.inter(
-          color: const Color(0xFF9BB0CE),
+          color: textColor,
           fontSize: 10,
           fontWeight: FontWeight.w700,
         ),
@@ -1633,6 +1784,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return null;
   }
 }
+
+enum _VisitTimelineStage { entry, service, exit, observed }
+
+enum _VisitTimelineStatus { completed, active, incomplete }
 
 Map<String, dynamic> _eventPayload(DispatchEvent event) {
   return {

@@ -402,9 +402,9 @@ void main() {
     final events = <DispatchEvent>[
       IntelligenceReceived(
         eventId: 'VISIT-EVT-1',
-        sequence: 3,
+        sequence: 4,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 11, 12),
+        occurredAt: DateTime.utc(2026, 3, 6, 11, 8),
         intelligenceId: 'INTEL-VISIT-001',
         provider: 'hikvision-dvr',
         sourceType: 'dvr',
@@ -412,14 +412,15 @@ void main() {
         clientId: 'CLIENT-001',
         regionId: 'REGION-GAUTENG',
         siteId: 'SITE-SANDTON',
+        zone: 'entry_lane',
         headline: 'Vehicle entered lane',
-        summary: 'Vehicle entered the service lane.',
+        summary: 'Vehicle entered the gate lane.',
         riskScore: 71,
         canonicalHash: 'hash-visit-1',
       ),
       IntelligenceReceived(
         eventId: 'VISIT-EVT-2',
-        sequence: 2,
+        sequence: 3,
         version: 1,
         occurredAt: DateTime.utc(2026, 3, 6, 11, 10),
         intelligenceId: 'INTEL-VISIT-002',
@@ -429,10 +430,29 @@ void main() {
         clientId: 'CLIENT-001',
         regionId: 'REGION-GAUTENG',
         siteId: 'SITE-SANDTON',
-        headline: 'Vehicle exited lane',
-        summary: 'Vehicle exited the service lane.',
+        zone: 'wash_bay',
+        headline: 'Vehicle entered wash bay',
+        summary: 'Vehicle remained in the wash bay.',
         riskScore: 69,
         canonicalHash: 'hash-visit-2',
+      ),
+      IntelligenceReceived(
+        eventId: 'VISIT-EVT-3',
+        sequence: 2,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 6, 11, 12),
+        intelligenceId: 'INTEL-VISIT-003',
+        provider: 'hikvision-dvr',
+        sourceType: 'dvr',
+        externalId: 'visit-3',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        zone: 'exit_lane',
+        headline: 'Vehicle exited lane',
+        summary: 'Vehicle exited the gate lane.',
+        riskScore: 67,
+        canonicalHash: 'hash-visit-3',
       ),
       IntelligenceReceived(
         eventId: 'OTHER-EVT-1',
@@ -457,8 +477,12 @@ void main() {
       MaterialApp(
         home: EventsReviewPage(
           events: events,
-          initialSelectedEventId: 'VISIT-EVT-2',
-          initialScopedEventIds: const ['VISIT-EVT-1', 'VISIT-EVT-2'],
+          initialSelectedEventId: 'VISIT-EVT-3',
+          initialScopedEventIds: const [
+            'VISIT-EVT-1',
+            'VISIT-EVT-2',
+            'VISIT-EVT-3',
+          ],
         ),
       ),
     );
@@ -470,12 +494,22 @@ void main() {
     await tester.ensureVisible(visitTimelineCard);
     expect(visitTimelineCard, findsOneWidget);
     expect(find.text('Vehicle entered lane'), findsWidgets);
+    expect(find.text('Vehicle entered wash bay'), findsWidgets);
     expect(find.text('Vehicle exited lane'), findsWidgets);
     expect(find.text('Unrelated vehicle pass'), findsNothing);
     expect(find.text('LINKED EVENTS'), findsOneWidget);
     expect(find.text('LINKED INTEL'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('events-visit-status-pill')),
+      findsOneWidget,
+    );
+    expect(find.text('COMPLETED'), findsOneWidget);
+    expect(find.text('ENTRY'), findsWidgets);
+    expect(find.text('SERVICE'), findsWidgets);
+    expect(find.text('EXIT'), findsWidgets);
     expect(find.textContaining('VISIT-EVT-1'), findsWidgets);
     expect(find.textContaining('VISIT-EVT-2'), findsWidgets);
+    expect(find.textContaining('VISIT-EVT-3'), findsWidgets);
     expect(
       find.byKey(const ValueKey('events-selected-event-id')),
       findsOneWidget,
@@ -484,11 +518,11 @@ void main() {
       tester
           .widget<Text>(find.byKey(const ValueKey('events-selected-event-id')))
           .data,
-      'VISIT-EVT-2',
+      'VISIT-EVT-3',
     );
 
     await tester.tap(
-      find.byKey(const ValueKey('events-visit-step-VISIT-EVT-1')),
+      find.byKey(const ValueKey('events-visit-step-VISIT-EVT-2')),
     );
     await tester.pumpAndSettle();
 
@@ -496,7 +530,7 @@ void main() {
       tester
           .widget<Text>(find.byKey(const ValueKey('events-selected-event-id')))
           .data,
-      'VISIT-EVT-1',
+      'VISIT-EVT-2',
     );
   });
 
