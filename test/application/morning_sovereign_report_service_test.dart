@@ -272,6 +272,10 @@ void main() {
         'ENTRY -> SERVICE -> EXIT (COMPLETED)',
       );
       expect(
+        report.vehicleThroughput.workflowHeadline,
+        '1 completed visit reached EXIT',
+      );
+      expect(
         report.vehicleThroughput.exceptionVisits.first.primaryEventId,
         'INT-5',
       );
@@ -315,6 +319,10 @@ void main() {
       expect(
         restored.vehicleThroughput.exceptionVisits.first.workflowSummary,
         'ENTRY -> SERVICE -> EXIT (COMPLETED)',
+      );
+      expect(
+        restored.vehicleThroughput.workflowHeadline,
+        '1 completed visit reached EXIT',
       );
     });
   });

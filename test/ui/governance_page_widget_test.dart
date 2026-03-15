@@ -106,6 +106,8 @@ void main() {
         averageCompletedDwellMinutes: 17.4,
         suspiciousShortVisitCount: 1,
         loiteringVisitCount: 0,
+        workflowHeadline:
+            '15 completed visits reached EXIT • 1 incomplete visit stalled at SERVICE',
         summaryLine:
             'Visits 18 • Entry 18 • Completed 15 • Active 2 • Incomplete 1 • Unique 16 • Repeat 2 • Avg dwell 17.4m • Peak 23:00-00:00 (6) • Short visits 1 • Unknown vehicle events 1',
         scopeBreakdowns: const [
@@ -207,7 +209,9 @@ void main() {
     );
     expect(find.text('Vehicle Throughput'), findsOneWidget);
     expect(
-      find.textContaining('Visits 18 • Entry 18 • Completed 15'),
+      find.text(
+        '15 completed visits reached EXIT • 1 incomplete visit stalled at SERVICE',
+      ),
       findsOneWidget,
     );
     expect(find.text('Vehicle site ledger'), findsOneWidget);

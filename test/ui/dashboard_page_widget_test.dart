@@ -147,6 +147,8 @@ void main() {
               averageCompletedDwellMinutes: 18.5,
               suspiciousShortVisitCount: 0,
               loiteringVisitCount: 0,
+              workflowHeadline:
+                  '5 completed visits reached EXIT • 1 active visit remains in SERVICE',
               summaryLine:
                   'Visits 6 • Entry 6 • Completed 5 • Active 1 • Incomplete 0 • Unique 6 • Avg dwell 18.5m • Peak 23:00-00:00 (3)',
             ),
@@ -173,6 +175,12 @@ void main() {
     expect(find.text('Stale Sync'), findsOneWidget);
     expect(find.text('Local Only'), findsOneWidget);
     expect(find.text('Policy Denied'), findsOneWidget);
+    expect(
+      find.text(
+        '5 completed visits reached EXIT • 1 active visit remains in SERVICE',
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Diagnostics and coaching telemetry'), findsOneWidget);
     await tester.ensureVisible(find.text('Diagnostics and coaching telemetry'));
     await tester.tap(find.text('Diagnostics and coaching telemetry'));
@@ -195,10 +203,6 @@ void main() {
     expect(find.text('Advanced export and share'), findsOneWidget);
     expect(find.text('Morning Sovereign Report'), findsOneWidget);
     expect(find.text('Vehicle throughput'), findsOneWidget);
-    expect(
-      find.textContaining('Visits 6 • Entry 6 • Completed 5'),
-      findsOneWidget,
-    );
     await tester.ensureVisible(find.text('Advanced export and share'));
     await tester.tap(find.text('Advanced export and share'));
     await tester.pumpAndSettle();

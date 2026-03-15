@@ -245,6 +245,7 @@ class SovereignReport {
       averageCompletedDwellMinutes: 0,
       suspiciousShortVisitCount: 0,
       loiteringVisitCount: 0,
+      workflowHeadline: '',
       summaryLine: '',
       scopeBreakdowns: <SovereignReportVehicleScopeBreakdown>[],
       exceptionVisits: <SovereignReportVehicleVisitException>[],
@@ -366,6 +367,7 @@ class SovereignReport {
               averageCompletedDwellMinutes: 0,
               suspiciousShortVisitCount: 0,
               loiteringVisitCount: 0,
+              workflowHeadline: '',
               summaryLine: '',
               scopeBreakdowns: <SovereignReportVehicleScopeBreakdown>[],
               exceptionVisits: <SovereignReportVehicleVisitException>[],
@@ -387,6 +389,7 @@ class SovereignReportVehicleThroughput {
   final double averageCompletedDwellMinutes;
   final int suspiciousShortVisitCount;
   final int loiteringVisitCount;
+  final String workflowHeadline;
   final String summaryLine;
   final List<SovereignReportVehicleScopeBreakdown> scopeBreakdowns;
   final List<SovereignReportVehicleVisitException> exceptionVisits;
@@ -404,6 +407,7 @@ class SovereignReportVehicleThroughput {
     required this.averageCompletedDwellMinutes,
     required this.suspiciousShortVisitCount,
     required this.loiteringVisitCount,
+    this.workflowHeadline = '',
     required this.summaryLine,
     this.scopeBreakdowns = const <SovereignReportVehicleScopeBreakdown>[],
     this.exceptionVisits = const <SovereignReportVehicleVisitException>[],
@@ -423,6 +427,7 @@ class SovereignReportVehicleThroughput {
       'averageCompletedDwellMinutes': averageCompletedDwellMinutes,
       'suspiciousShortVisitCount': suspiciousShortVisitCount,
       'loiteringVisitCount': loiteringVisitCount,
+      'workflowHeadline': workflowHeadline,
       'summaryLine': summaryLine,
       'scopeBreakdowns': scopeBreakdowns
           .map((scope) => scope.toJson())
@@ -474,6 +479,7 @@ class SovereignReportVehicleThroughput {
       suspiciousShortVisitCount:
           (json['suspiciousShortVisitCount'] as num?)?.toInt() ?? 0,
       loiteringVisitCount: (json['loiteringVisitCount'] as num?)?.toInt() ?? 0,
+      workflowHeadline: (json['workflowHeadline'] as String? ?? '').trim(),
       summaryLine: (json['summaryLine'] as String? ?? '').trim(),
       scopeBreakdowns: scopeBreakdowns,
       exceptionVisits: exceptionVisits,
@@ -825,6 +831,7 @@ class MorningSovereignReportService {
         averageCompletedDwellMinutes: 0,
         suspiciousShortVisitCount: 0,
         loiteringVisitCount: 0,
+        workflowHeadline: '',
         summaryLine: '',
         scopeBreakdowns: <SovereignReportVehicleScopeBreakdown>[],
         exceptionVisits: <SovereignReportVehicleVisitException>[],
@@ -949,6 +956,7 @@ class MorningSovereignReportService {
       averageCompletedDwellMinutes: summary.averageCompletedDwellMinutes,
       suspiciousShortVisitCount: summary.suspiciousShortVisitCount,
       loiteringVisitCount: summary.loiteringVisitCount,
+      workflowHeadline: _vehicleWorkflowHeadline(visits, nowUtc),
       summaryLine: const VehicleThroughputSummaryFormatter().format(summary),
       scopeBreakdowns: scopeBreakdowns,
       exceptionVisits: exceptionVisits,
@@ -1042,6 +1050,84 @@ class MorningSovereignReportService {
       if (!visit.sawEntry && !visit.sawService && !visit.sawExit) 'OBSERVED',
     ];
     return '${stages.join(' -> ')} (${status.name.toUpperCase()})';
+  }
+
+  String _vehicleWorkflowHeadline(
+    List<VehicleVisitRecord> visits,
+    DateTime nowUtc,
+  ) {
+    if (visits.isEmpty) {
+      return '';
+    }
+    var completed = 0;
+    var incompleteService = 0;
+    var activeService = 0;
+    var incompleteEntry = 0;
+    var activeEntry = 0;
+    var incompleteObserved = 0;
+    var activeObserved = 0;
+    for (final visit in visits) {
+      final status = visit.statusAt(nowUtc);
+      if (status == VehicleVisitStatus.completed) {
+        completed += 1;
+        continue;
+      }
+      final stage = visit.sawService
+          ? 'service'
+          : visit.sawEntry
+          ? 'entry'
+          : 'observed';
+      switch ((status, stage)) {
+        case (VehicleVisitStatus.incomplete, 'service'):
+          incompleteService += 1;
+        case (VehicleVisitStatus.active, 'service'):
+          activeService += 1;
+        case (VehicleVisitStatus.incomplete, 'entry'):
+          incompleteEntry += 1;
+        case (VehicleVisitStatus.active, 'entry'):
+          activeEntry += 1;
+        case (VehicleVisitStatus.incomplete, _):
+          incompleteObserved += 1;
+        case (VehicleVisitStatus.active, _):
+          activeObserved += 1;
+        case (VehicleVisitStatus.completed, _):
+          break;
+      }
+    }
+    final clauses = <String>[];
+    if (completed > 0) {
+      clauses.add(
+        '$completed completed ${completed == 1 ? 'visit' : 'visits'} reached EXIT',
+      );
+    }
+    if (incompleteService > 0) {
+      clauses.add(
+        '$incompleteService incomplete ${incompleteService == 1 ? 'visit' : 'visits'} stalled at SERVICE',
+      );
+    } else if (activeService > 0) {
+      clauses.add(
+        '$activeService active ${activeService == 1 ? 'visit' : 'visits'} remain${activeService == 1 ? 's' : ''} in SERVICE',
+      );
+    }
+    if (clauses.length < 2 && incompleteEntry > 0) {
+      clauses.add(
+        '$incompleteEntry incomplete ${incompleteEntry == 1 ? 'visit' : 'visits'} stopped at ENTRY',
+      );
+    } else if (clauses.length < 2 && activeEntry > 0) {
+      clauses.add(
+        '$activeEntry active ${activeEntry == 1 ? 'visit' : 'visits'} remain${activeEntry == 1 ? 's' : ''} at ENTRY',
+      );
+    }
+    if (clauses.length < 2 && incompleteObserved > 0) {
+      clauses.add(
+        '$incompleteObserved incomplete ${incompleteObserved == 1 ? 'visit' : 'visits'} remained OBSERVED',
+      );
+    } else if (clauses.length < 2 && activeObserved > 0) {
+      clauses.add(
+        '$activeObserved active ${activeObserved == 1 ? 'visit' : 'visits'} remain${activeObserved == 1 ? 's' : ''} OBSERVED',
+      );
+    }
+    return clauses.join(' • ');
   }
 
   ({String clientId, String siteId}) _vehicleScopeFromKey(String scopeKey) {

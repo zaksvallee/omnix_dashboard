@@ -103,6 +103,7 @@ class _GovernanceReportView {
   final int vehicleUnknownEvents;
   final String vehiclePeakHourLabel;
   final int vehiclePeakHourVisitCount;
+  final String vehicleWorkflowHeadline;
   final String vehicleSummary;
   final List<SovereignReportVehicleScopeBreakdown> vehicleScopeBreakdowns;
   final List<SovereignReportVehicleVisitException> vehicleExceptionVisits;
@@ -146,6 +147,7 @@ class _GovernanceReportView {
     required this.vehicleUnknownEvents,
     required this.vehiclePeakHourLabel,
     required this.vehiclePeakHourVisitCount,
+    required this.vehicleWorkflowHeadline,
     required this.vehicleSummary,
     required this.vehicleScopeBreakdowns,
     required this.vehicleExceptionVisits,
@@ -1510,7 +1512,9 @@ class _GovernancePageState extends State<GovernancePage> {
         key: const ValueKey('governance-metric-vehicle-throughput'),
         label: 'Vehicle Throughput',
         value: '${report.vehicleVisits} visits',
-        detail: report.vehicleSummary.trim().isNotEmpty
+        detail: report.vehicleWorkflowHeadline.trim().isNotEmpty
+            ? report.vehicleWorkflowHeadline
+            : report.vehicleSummary.trim().isNotEmpty
             ? report.vehicleSummary
             : 'Completed ${report.vehicleCompletedVisits} • Active ${report.vehicleActiveVisits} • Incomplete ${report.vehicleIncompleteVisits}',
         color: report.vehicleUnknownEvents > 0
@@ -2197,6 +2201,7 @@ class _GovernancePageState extends State<GovernancePage> {
         vehiclePeakHourLabel: canonical.vehicleThroughput.peakHourLabel,
         vehiclePeakHourVisitCount:
             canonical.vehicleThroughput.peakHourVisitCount,
+        vehicleWorkflowHeadline: canonical.vehicleThroughput.workflowHeadline,
         vehicleSummary: canonical.vehicleThroughput.summaryLine,
         vehicleScopeBreakdowns: canonical.vehicleThroughput.scopeBreakdowns,
         vehicleExceptionVisits: canonical.vehicleThroughput.exceptionVisits,
@@ -2268,6 +2273,7 @@ class _GovernancePageState extends State<GovernancePage> {
       vehicleUnknownEvents: 0,
       vehiclePeakHourLabel: 'none',
       vehiclePeakHourVisitCount: 0,
+      vehicleWorkflowHeadline: '',
       vehicleSummary: '',
       vehicleScopeBreakdowns: const <SovereignReportVehicleScopeBreakdown>[],
       vehicleExceptionVisits: const <SovereignReportVehicleVisitException>[],
@@ -2337,6 +2343,7 @@ class _GovernancePageState extends State<GovernancePage> {
         'unknownVehicleEvents': report.vehicleUnknownEvents,
         'peakHourLabel': report.vehiclePeakHourLabel,
         'peakHourVisitCount': report.vehiclePeakHourVisitCount,
+        'workflowHeadline': report.vehicleWorkflowHeadline,
         'summaryLine': report.vehicleSummary,
         'scopeBreakdowns': report.vehicleScopeBreakdowns
             .map((scope) => scope.toJson())
@@ -2393,6 +2400,7 @@ class _GovernancePageState extends State<GovernancePage> {
       'vehicle_unknown_events,${report.vehicleUnknownEvents}',
       'vehicle_peak_hour_label,${report.vehiclePeakHourLabel}',
       'vehicle_peak_hour_visit_count,${report.vehiclePeakHourVisitCount}',
+      'vehicle_workflow_headline,"${report.vehicleWorkflowHeadline.replaceAll('"', '""')}"',
       'vehicle_summary,"${report.vehicleSummary.replaceAll('"', '""')}"',
       for (var i = 0; i < report.vehicleScopeBreakdowns.length; i++)
         'vehicle_scope_${i + 1},"${_vehicleScopeCsvSummary(report.vehicleScopeBreakdowns[i]).replaceAll('"', '""')}"',
