@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:printing/printing.dart';
 
+import '../../domain/crm/reporting/report_branding_configuration.dart';
 import '../../domain/crm/export/pdf_report_exporter.dart';
 import '../../domain/crm/reporting/report_bundle.dart';
 import '../../domain/events/report_generated.dart';
@@ -50,6 +51,68 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
   String _shortHash(String hash) {
     if (hash.length <= 20) return hash;
     return '${hash.substring(0, 20)}...';
+  }
+
+  ReportBrandingConfiguration get _brandingConfiguration =>
+      widget.receiptEvent?.brandingConfiguration ??
+      widget.bundle.brandingConfiguration;
+
+  String get _pdfFileName {
+    final primaryLabel = _brandingConfiguration.primaryLabel
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+        .replaceAll(RegExp(r'_+'), '_')
+        .replaceAll(RegExp(r'^_|_$'), '');
+    if (primaryLabel.isEmpty) {
+      return 'onyx_intelligence_report.pdf';
+    }
+    return '${primaryLabel}_intelligence_report.pdf';
+  }
+
+  Widget _brandingPane() {
+    final branding = _brandingConfiguration;
+    if (!branding.isConfigured) {
+      return const SizedBox.shrink();
+    }
+    return OnyxSectionCard(
+      title: 'Branding',
+      subtitle:
+          'Client-facing cover identity that will be stamped onto this generated PDF.',
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0E1A2B),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFF17324F)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              branding.primaryLabel,
+              style: GoogleFonts.rajdhani(
+                color: const Color(0xFFE8F1FF),
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (branding.endorsementLine.trim().isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                branding.endorsementLine,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF8FD1FF),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _sceneReviewPane() {
@@ -426,7 +489,7 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(14),
                 child: PdfPreview(
-                  pdfFileName: 'onyx_intelligence_report.pdf',
+                  pdfFileName: _pdfFileName,
                   canDebug: false,
                   useActions: false,
                   allowPrinting: false,
@@ -438,7 +501,7 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
           : ClipRRect(
               borderRadius: BorderRadius.circular(14),
               child: PdfPreview(
-                pdfFileName: 'onyx_intelligence_report.pdf',
+                pdfFileName: _pdfFileName,
                 canDebug: false,
                 useActions: false,
                 allowPrinting: false,
@@ -457,7 +520,9 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     OnyxPageHeader(
-                      title: 'Operational Intelligence PDF',
+                      title: _brandingConfiguration.isConfigured
+                          ? '${_brandingConfiguration.primaryLabel} PDF'
+                          : 'Operational Intelligence PDF',
                       subtitle:
                           'Preview, verify, print, and distribute deterministic report output.',
                       actions: [
@@ -493,7 +558,7 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
                           onPressed: () async {
                             await Printing.sharePdf(
                               bytes: _pdfBytes!,
-                              filename: 'onyx_intelligence_report.pdf',
+                              filename: _pdfFileName,
                             );
                           },
                           style: ElevatedButton.styleFrom(
@@ -512,6 +577,10 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
                         ),
                       ],
                     ),
+                    if (_brandingConfiguration.isConfigured) ...[
+                      const SizedBox(height: 14),
+                      _brandingPane(),
+                    ],
                     if (receipt != null) ...[
                       const SizedBox(height: 14),
                       receiptSummary,
@@ -589,7 +658,9 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   OnyxPageHeader(
-                    title: 'Operational Intelligence PDF',
+                    title: _brandingConfiguration.isConfigured
+                        ? '${_brandingConfiguration.primaryLabel} PDF'
+                        : 'Operational Intelligence PDF',
                     subtitle:
                         'Preview, verify, print, and distribute deterministic report output.',
                     actions: [
@@ -625,7 +696,7 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
                         onPressed: () async {
                           await Printing.sharePdf(
                             bytes: _pdfBytes!,
-                            filename: 'onyx_intelligence_report.pdf',
+                            filename: _pdfFileName,
                           );
                         },
                         style: ElevatedButton.styleFrom(
@@ -644,6 +715,10 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
                       ),
                     ],
                   ),
+                  if (_brandingConfiguration.isConfigured) ...[
+                    const SizedBox(height: 14),
+                    _brandingPane(),
+                  ],
                   if (receipt != null) ...[
                     const SizedBox(height: 14),
                     receiptSummary,

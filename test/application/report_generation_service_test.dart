@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 import 'package:omnix_dashboard/application/report_generation_service.dart';
+import 'package:omnix_dashboard/domain/crm/reporting/report_branding_configuration.dart';
 import 'package:omnix_dashboard/domain/crm/reporting/report_section_configuration.dart';
 import 'package:omnix_dashboard/domain/store/in_memory_event_store.dart';
 
@@ -18,6 +19,10 @@ void main() {
         clientId: 'CLIENT-MS-VALLEE',
         siteId: 'SITE-MS-VALLEE-RESIDENCE',
         nowUtc: DateTime.utc(2026, 3, 15, 6, 0),
+        brandingConfiguration: const ReportBrandingConfiguration(
+          primaryLabel: 'VISION Tactical',
+          endorsementLine: 'Powered by ONYX',
+        ),
         sectionConfiguration: const ReportSectionConfiguration(
           includeTimeline: true,
           includeDispatchSummary: false,
@@ -28,6 +33,8 @@ void main() {
       );
 
       expect(generated.receiptEvent.reportSchemaVersion, 3);
+      expect(generated.receiptEvent.primaryBrandLabel, 'VISION Tactical');
+      expect(generated.receiptEvent.endorsementLine, 'Powered by ONYX');
       expect(generated.receiptEvent.includeTimeline, isTrue);
       expect(generated.receiptEvent.includeDispatchSummary, isFalse);
       expect(generated.receiptEvent.includeCheckpointCompliance, isTrue);
@@ -47,6 +54,14 @@ void main() {
         isFalse,
       );
       expect(generated.bundle.sectionConfiguration.includeGuardMetrics, isTrue);
+      expect(
+        generated.bundle.brandingConfiguration.primaryLabel,
+        'VISION Tactical',
+      );
+      expect(
+        generated.bundle.brandingConfiguration.endorsementLine,
+        'Powered by ONYX',
+      );
     });
 
     test('returns embedded scene review metrics for schema v2 receipts', () {

@@ -23,6 +23,7 @@ class ReportReceiptExportEntry {
       'eventCount': receiptEvent.eventCount,
       'reportSchemaVersion': receiptEvent.reportSchemaVersion,
       'projectionVersion': receiptEvent.projectionVersion,
+      'brandingConfiguration': receiptEvent.brandingConfiguration.toJson(),
       'sceneReviewIncluded':
           receiptEvent.reportSchemaVersion >= 2 &&
           receiptEvent.includeAiDecisionLog,

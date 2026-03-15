@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 
 import 'monitoring_scene_review_store.dart';
 import 'report_scene_review_snapshot_builder.dart';
+import '../domain/crm/reporting/report_branding_configuration.dart';
 import '../domain/crm/reporting/report_section_configuration.dart';
 import '../domain/crm/crm_event.dart';
 import '../domain/crm/export/pdf_report_exporter.dart';
@@ -99,6 +100,8 @@ class ReportGenerationService {
     required String clientId,
     required String siteId,
     required DateTime nowUtc,
+    ReportBrandingConfiguration brandingConfiguration =
+        const ReportBrandingConfiguration(),
     ReportSectionConfiguration sectionConfiguration =
         const ReportSectionConfiguration(),
   }) async {
@@ -158,6 +161,7 @@ class ReportGenerationService {
       crmEvents: crmEvents,
       dispatchEvents: tenantEvents,
       sceneReview: sceneReview,
+      brandingConfiguration: brandingConfiguration,
       sectionConfiguration: sectionConfiguration,
     );
 
@@ -205,6 +209,8 @@ class ReportGenerationService {
       eventCount: monthEvents.length,
       reportSchemaVersion: reportSchemaVersion,
       projectionVersion: projectionVersion,
+      primaryBrandLabel: brandingConfiguration.primaryLabel,
+      endorsementLine: brandingConfiguration.endorsementLine,
       includeTimeline: sectionConfiguration.includeTimeline,
       includeDispatchSummary: sectionConfiguration.includeDispatchSummary,
       includeCheckpointCompliance:
@@ -409,6 +415,7 @@ class ReportGenerationService {
       crmEvents: crmEvents,
       dispatchEvents: scopedEvents,
       sceneReview: sceneReview,
+      brandingConfiguration: receipt.brandingConfiguration,
       sectionConfiguration: receipt.sectionConfiguration,
     );
     return bundle;

@@ -96,6 +96,8 @@ void main() {
         eventId: 'RPT-CONFIG-1',
         occurredAt: DateTime.utc(2026, 3, 14, 22, 0),
         reportSchemaVersion: 3,
+        primaryBrandLabel: 'VISION Tactical',
+        endorsementLine: 'Powered by ONYX',
         includeDispatchSummary: false,
         includeAiDecisionLog: false,
       );
@@ -122,12 +124,16 @@ void main() {
           context['activeSectionConfiguration']! as Map<String, Object?>;
       final receiptConfig =
           firstReceipt['sectionConfiguration']! as Map<String, Object?>;
+      final brandingConfig =
+          firstReceipt['brandingConfiguration']! as Map<String, Object?>;
 
       expect(activeConfig['includeDispatchSummary'], false);
       expect(activeConfig['includeAiDecisionLog'], false);
       expect(firstReceipt['sceneReviewIncluded'], false);
       expect(receiptConfig['includeDispatchSummary'], false);
       expect(receiptConfig['includeAiDecisionLog'], false);
+      expect(brandingConfig['primaryLabel'], 'VISION Tactical');
+      expect(brandingConfig['endorsementLine'], 'Powered by ONYX');
     },
   );
 

@@ -19,6 +19,7 @@ import '../application/report_preview_surface.dart';
 import '../application/report_generation_service.dart';
 import '../application/report_receipt_scene_filter.dart';
 import '../application/report_shell_state.dart';
+import '../domain/crm/reporting/report_branding_configuration.dart';
 import '../domain/crm/reporting/report_section_configuration.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/partner_dispatch_status_declared.dart';
@@ -161,6 +162,7 @@ class _ClientIntelligenceReportsPageState
       clientId: widget.selectedClient,
       siteId: widget.selectedSite,
       nowUtc: DateTime.now().toUtc(),
+      brandingConfiguration: _currentBrandingConfiguration,
       sectionConfiguration: _currentSectionConfiguration,
     );
     final replayMatches = await _service.verifyReportHash(
@@ -395,6 +397,61 @@ class _ClientIntelligenceReportsPageState
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                if (_currentBrandingConfiguration
+                                    .isConfigured) ...[
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF102337),
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: const Color(0xFF29425F),
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Client-facing branding',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFF8FD1FF),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: 0.8,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          _currentBrandingConfiguration
+                                              .primaryLabel,
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFE8F1FF),
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        if (_currentBrandingConfiguration
+                                            .endorsementLine
+                                            .trim()
+                                            .isNotEmpty) ...[
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            _currentBrandingConfiguration
+                                                .endorsementLine,
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFF9CB2D1),
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                ],
                                 _toggle(
                                   label: 'Include incident timeline',
                                   value: _includeTimeline,
@@ -2601,6 +2658,11 @@ class _ClientIntelligenceReportsPageState
                   spacing: 8,
                   runSpacing: 8,
                   children: [
+                    if (row.event.brandingConfiguration.isConfigured)
+                      _receiptSceneReviewPill(
+                        row.event.brandingConfiguration.primaryLabel,
+                        const Color(0xFF63BDFF),
+                      ),
                     _receiptSceneReviewPill(
                       hasTrackedSectionConfiguration
                           ? 'Tracked Config'
@@ -2620,7 +2682,9 @@ class _ClientIntelligenceReportsPageState
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  sectionSummary,
+                  row.event.brandingConfiguration.isConfigured
+                      ? '${row.event.brandingConfiguration.primaryLabel}${row.event.endorsementLine.trim().isNotEmpty ? ' • ${row.event.endorsementLine.trim()}' : ''}\n$sectionSummary'
+                      : sectionSummary,
                   style: GoogleFonts.inter(
                     color: const Color(0xFF9CB2D1),
                     fontSize: 10,
@@ -2969,6 +3033,14 @@ class _ClientIntelligenceReportsPageState
         includeAiDecisionLog: _includeAiDecisionLog,
         includeGuardMetrics: _includeGuardMetrics,
       );
+
+  ReportBrandingConfiguration get _currentBrandingConfiguration =>
+      _hasPartnerScopeFocus
+      ? ReportBrandingConfiguration(
+          primaryLabel: _partnerScopePartnerLabel!,
+          endorsementLine: 'Powered by ONYX',
+        )
+      : const ReportBrandingConfiguration();
 
   bool get _includeTimeline => _shellBinding.includeTimeline;
 

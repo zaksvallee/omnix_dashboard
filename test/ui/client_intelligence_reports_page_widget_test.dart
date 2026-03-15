@@ -325,10 +325,12 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('PARTNER SCOPE ACTIVE'), findsOneWidget);
+    expect(find.text('Client-facing branding'), findsOneWidget);
     expect(
       find.text('CLIENT-001/SITE-SANDTON • PARTNER • Alpha'),
       findsOneWidget,
     );
+    expect(find.text('Powered by ONYX'), findsOneWidget);
     expect(find.text('IMPROVING'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('reports-partner-scope-chain-DSP-9001')),

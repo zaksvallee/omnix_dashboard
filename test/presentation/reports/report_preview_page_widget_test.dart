@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:omnix_dashboard/domain/crm/reporting/report_branding_configuration.dart';
 import 'package:omnix_dashboard/domain/crm/reporting/report_section_configuration.dart';
 import 'package:omnix_dashboard/domain/crm/reporting/report_sections.dart';
 import 'package:omnix_dashboard/presentation/reports/report_preview_page.dart';
@@ -28,6 +29,10 @@ void main() {
       MaterialApp(
         home: ReportPreviewPage(
           bundle: buildTestReportBundle(
+            brandingConfiguration: const ReportBrandingConfiguration(
+              primaryLabel: 'VISION Tactical',
+              endorsementLine: 'Powered by ONYX',
+            ),
             sceneReview: const SceneReviewSnapshot(
               totalReviews: 2,
               modelReviews: 1,
@@ -67,6 +72,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 250));
 
     expect(find.text('Scene Review Brief'), findsOneWidget);
+    expect(find.text('Branding'), findsOneWidget);
+    expect(find.text('VISION Tactical'), findsOneWidget);
+    expect(find.text('Powered by ONYX'), findsOneWidget);
     expect(find.text('Report Configuration'), findsOneWidget);
     expect(
       _findRichTextContaining('AI Decision Log: INCLUDED'),

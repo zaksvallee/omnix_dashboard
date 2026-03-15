@@ -79,6 +79,8 @@ class ReportBundleCanonicalizer {
         'reportingPeriod': bundle.clientSnapshot.reportingPeriod,
       },
       if (reportSchemaVersion >= 3)
+        'brandingConfiguration': bundle.brandingConfiguration.toJson(),
+      if (reportSchemaVersion >= 3)
         'sectionConfiguration': bundle.sectionConfiguration.toJson(),
       'guardPerformance': bundle.guardPerformance
           .map(

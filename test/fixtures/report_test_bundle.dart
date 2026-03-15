@@ -1,6 +1,7 @@
 import 'package:omnix_dashboard/domain/crm/reporting/escalation_trend.dart';
 import 'package:omnix_dashboard/domain/crm/reporting/executive_summary.dart';
 import 'package:omnix_dashboard/domain/crm/reporting/monthly_report.dart';
+import 'package:omnix_dashboard/domain/crm/reporting/report_branding_configuration.dart';
 import 'package:omnix_dashboard/domain/crm/reporting/report_bundle.dart';
 import 'package:omnix_dashboard/domain/crm/reporting/report_section_configuration.dart';
 import 'package:omnix_dashboard/domain/crm/reporting/report_sections.dart';
@@ -84,6 +85,8 @@ ReportBundle buildTestReportBundle({
       ),
     ],
   ),
+  ReportBrandingConfiguration brandingConfiguration =
+      const ReportBrandingConfiguration(),
   ReportSectionConfiguration sectionConfiguration =
       const ReportSectionConfiguration(),
   SupervisorAssessment supervisorAssessment = const SupervisorAssessment(
@@ -107,6 +110,7 @@ ReportBundle buildTestReportBundle({
     patrolPerformance: patrolPerformance,
     incidentDetails: incidentDetails,
     sceneReview: sceneReview,
+    brandingConfiguration: brandingConfiguration,
     sectionConfiguration: sectionConfiguration,
     supervisorAssessment: supervisorAssessment,
     companyAchievements: companyAchievements,

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import '../reporting/report_branding_configuration.dart';
 import '../reporting/report_bundle.dart';
 
 class PDFReportExporter {
@@ -40,7 +41,8 @@ class PDFReportExporter {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.fromLTRB(38, 34, 38, 34),
-        footer: (context) => _buildFooter(context),
+        footer: (context) =>
+            _buildFooter(context, bundle.brandingConfiguration),
         build: (context) => [
           _buildCoverHeader(bundle, logoImage),
           pw.SizedBox(height: 16),
@@ -92,14 +94,23 @@ class PDFReportExporter {
     return pdf.save();
   }
 
-  static pw.Widget _buildFooter(pw.Context context) {
+  static pw.Widget _buildFooter(
+    pw.Context context,
+    ReportBrandingConfiguration branding,
+  ) {
+    final footerLabel = branding.primaryLabel.trim().isNotEmpty
+        ? branding.primaryLabel.trim()
+        : 'ONYX SECURITY';
+    final footerDetail = branding.endorsementLine.trim().isNotEmpty
+        ? '$footerLabel • ${branding.endorsementLine.trim()}'
+        : '$footerLabel - Operational Intelligence Brief';
     return pw.Container(
       margin: const pw.EdgeInsets.only(top: 8),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
           pw.Text(
-            'ONYX SECURITY - Operational Intelligence Brief',
+            footerDetail,
             style: pw.TextStyle(fontSize: 9.5, color: _inkSecondary),
           ),
           pw.Text(
@@ -112,6 +123,9 @@ class PDFReportExporter {
   }
 
   static pw.Widget _buildCoverHeader(ReportBundle bundle, pw.MemoryImage logo) {
+    final branding = bundle.brandingConfiguration;
+    final hasPrimaryBrand = branding.primaryLabel.trim().isNotEmpty;
+    final hasEndorsement = branding.endorsementLine.trim().isNotEmpty;
     return pw.Container(
       padding: const pw.EdgeInsets.all(20),
       decoration: pw.BoxDecoration(
@@ -146,6 +160,28 @@ class PDFReportExporter {
                   ),
                 ),
                 pw.SizedBox(height: 7),
+                if (hasPrimaryBrand) ...[
+                  pw.Text(
+                    branding.primaryLabel.trim().toUpperCase(),
+                    style: pw.TextStyle(
+                      color: PdfColors.white,
+                      fontSize: 24,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.SizedBox(height: 6),
+                ],
+                if (hasEndorsement) ...[
+                  pw.Text(
+                    branding.endorsementLine.trim(),
+                    style: pw.TextStyle(
+                      color: PdfColor.fromHex('#BFD5EA'),
+                      fontSize: 12.5,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.SizedBox(height: 8),
+                ],
                 pw.Text(
                   'OPERATIONAL INTELLIGENCE BRIEF',
                   style: pw.TextStyle(

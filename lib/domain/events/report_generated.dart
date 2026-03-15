@@ -1,4 +1,5 @@
 import 'dispatch_event.dart';
+import '../crm/reporting/report_branding_configuration.dart';
 import '../crm/reporting/report_section_configuration.dart';
 
 class ReportGenerated extends DispatchEvent {
@@ -12,6 +13,8 @@ class ReportGenerated extends DispatchEvent {
   final int eventCount;
   final int reportSchemaVersion;
   final int projectionVersion;
+  final String primaryBrandLabel;
+  final String endorsementLine;
   final bool includeTimeline;
   final bool includeDispatchSummary;
   final bool includeCheckpointCompliance;
@@ -33,6 +36,8 @@ class ReportGenerated extends DispatchEvent {
     required this.eventCount,
     required this.reportSchemaVersion,
     required this.projectionVersion,
+    this.primaryBrandLabel = '',
+    this.endorsementLine = '',
     this.includeTimeline = true,
     this.includeDispatchSummary = true,
     this.includeCheckpointCompliance = true,
@@ -47,6 +52,12 @@ class ReportGenerated extends DispatchEvent {
         includeCheckpointCompliance: includeCheckpointCompliance,
         includeAiDecisionLog: includeAiDecisionLog,
         includeGuardMetrics: includeGuardMetrics,
+      );
+
+  ReportBrandingConfiguration get brandingConfiguration =>
+      ReportBrandingConfiguration(
+        primaryLabel: primaryBrandLabel,
+        endorsementLine: endorsementLine,
       );
 
   @override
@@ -66,6 +77,8 @@ class ReportGenerated extends DispatchEvent {
       eventCount: eventCount,
       reportSchemaVersion: reportSchemaVersion,
       projectionVersion: projectionVersion,
+      primaryBrandLabel: primaryBrandLabel,
+      endorsementLine: endorsementLine,
       includeTimeline: includeTimeline,
       includeDispatchSummary: includeDispatchSummary,
       includeCheckpointCompliance: includeCheckpointCompliance,
