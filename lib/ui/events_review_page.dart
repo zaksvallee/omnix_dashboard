@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../application/morning_sovereign_report_service.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_completed.dart';
@@ -26,6 +27,7 @@ class EventsReviewPage extends StatefulWidget {
   final String? initialProviderFilter;
   final String? initialSelectedEventId;
   final List<String> initialScopedEventIds;
+  final List<SovereignReport> morningSovereignReportHistory;
 
   const EventsReviewPage({
     super.key,
@@ -35,6 +37,7 @@ class EventsReviewPage extends StatefulWidget {
     this.initialProviderFilter,
     this.initialSelectedEventId,
     this.initialScopedEventIds = const <String>[],
+    this.morningSovereignReportHistory = const <SovereignReport>[],
   });
 
   @override
@@ -578,6 +581,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return _PartnerScopeDetail(
       events: partnerEvents,
       dispatchId: firstEvent.dispatchId,
+      clientId: firstEvent.clientId,
       partnerLabel: firstEvent.partnerLabel,
       siteId: firstEvent.siteId,
       latestStatus: partnerEvents.last.status,
@@ -1077,6 +1081,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         ? widget.sceneReviewByIntelligenceId[selected.intelligenceId.trim()]
         : null;
     final partnerScopeDetail = _partnerScopeDetail(visitScopedEvents);
+    final partnerTrend = partnerScopeDetail == null
+        ? null
+        : _partnerTrendSummary(partnerScopeDetail);
     final visitStatus = _visitTimelineStatus(visitScopedEvents);
     final linkedIntelligenceIds = visitScopedEvents
         .whereType<IntelligenceReceived>()
@@ -1163,6 +1170,23 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   'Latest',
                   '${_partnerStatusLabel(partnerScopeDetail.latestStatus)} • ${_fullTimestamp(partnerScopeDetail.latestOccurredAt)}',
                 ),
+                if (partnerTrend != null) ...[
+                  const SizedBox(height: 6),
+                  _contextRow(
+                    '7D Trend',
+                    '${partnerTrend.trendLabel} • ${partnerTrend.reportDays}d • ${partnerTrend.currentScoreLabel}',
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    partnerTrend.trendReason,
+                    key: const ValueKey('events-partner-trend-reason'),
+                    style: GoogleFonts.inter(
+                      color: _partnerTrendColor(partnerTrend.trendLabel),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 8,
@@ -2007,6 +2031,181 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     }
     return null;
   }
+
+  _PartnerTrendSummary? _partnerTrendSummary(_PartnerScopeDetail detail) {
+    final clientId = detail.clientId.trim();
+    final siteId = detail.siteId.trim();
+    final partnerLabel = detail.partnerLabel.trim().toUpperCase();
+    if (clientId.isEmpty ||
+        siteId.isEmpty ||
+        partnerLabel.isEmpty ||
+        widget.morningSovereignReportHistory.isEmpty) {
+      return null;
+    }
+    final reports = [...widget.morningSovereignReportHistory]
+      ..sort(
+        (a, b) => b.generatedAtUtc.toUtc().compareTo(a.generatedAtUtc.toUtc()),
+      );
+    if (reports.isEmpty) {
+      return null;
+    }
+    final latestDate = reports.first.date.trim();
+    final matchingRows = <SovereignReportPartnerScoreboardRow>[];
+    SovereignReportPartnerScoreboardRow? currentRow;
+    for (final report in reports) {
+      final reportDate = report.date.trim();
+      for (final row in report.partnerProgression.scoreboardRows) {
+        if (row.clientId.trim() != clientId ||
+            row.siteId.trim() != siteId ||
+            row.partnerLabel.trim().toUpperCase() != partnerLabel) {
+          continue;
+        }
+        matchingRows.add(row);
+        if (reportDate == latestDate) {
+          currentRow = row;
+        }
+      }
+    }
+    currentRow ??= matchingRows.isEmpty ? null : matchingRows.first;
+    if (currentRow == null) {
+      return null;
+    }
+    final priorSeverityScores = <double>[];
+    final priorAcceptedDelayMinutes = <double>[];
+    final priorOnSiteDelayMinutes = <double>[];
+    for (final report in reports) {
+      if (report.date.trim() == latestDate) {
+        continue;
+      }
+      for (final row in report.partnerProgression.scoreboardRows) {
+        if (row.clientId.trim() != clientId ||
+            row.siteId.trim() != siteId ||
+            row.partnerLabel.trim().toUpperCase() != partnerLabel) {
+          continue;
+        }
+        priorSeverityScores.add(_partnerSeverityScore(row));
+        if (row.averageAcceptedDelayMinutes > 0) {
+          priorAcceptedDelayMinutes.add(row.averageAcceptedDelayMinutes);
+        }
+        if (row.averageOnSiteDelayMinutes > 0) {
+          priorOnSiteDelayMinutes.add(row.averageOnSiteDelayMinutes);
+        }
+      }
+    }
+    return _PartnerTrendSummary(
+      reportDays: matchingRows.length,
+      currentScoreLabel: _partnerDominantScoreLabel(currentRow),
+      trendLabel: _partnerTrendLabel(currentRow, priorSeverityScores),
+      trendReason: _partnerTrendReason(
+        currentRow: currentRow,
+        priorSeverityScores: priorSeverityScores,
+        priorAcceptedDelayMinutes: priorAcceptedDelayMinutes,
+        priorOnSiteDelayMinutes: priorOnSiteDelayMinutes,
+      ),
+    );
+  }
+
+  double _partnerSeverityScore(SovereignReportPartnerScoreboardRow row) {
+    final dispatchCount = row.dispatchCount <= 0 ? 1 : row.dispatchCount;
+    final rawScore = (row.criticalCount * 3) + row.watchCount - row.strongCount;
+    return rawScore / dispatchCount;
+  }
+
+  String _partnerDominantScoreLabel(SovereignReportPartnerScoreboardRow row) {
+    if (row.criticalCount > 0) {
+      return 'CRITICAL';
+    }
+    if (row.watchCount > 0) {
+      return 'WATCH';
+    }
+    if (row.onTrackCount > 0) {
+      return 'ON TRACK';
+    }
+    if (row.strongCount > 0) {
+      return 'STRONG';
+    }
+    return '';
+  }
+
+  String _partnerTrendLabel(
+    SovereignReportPartnerScoreboardRow currentRow,
+    List<double> priorSeverityScores,
+  ) {
+    if (priorSeverityScores.isEmpty) {
+      return 'NEW';
+    }
+    final priorAverage =
+        priorSeverityScores.reduce((left, right) => left + right) /
+        priorSeverityScores.length;
+    final currentScore = _partnerSeverityScore(currentRow);
+    if (currentScore <= priorAverage - 0.35) {
+      return 'IMPROVING';
+    }
+    if (currentScore >= priorAverage + 0.35) {
+      return 'SLIPPING';
+    }
+    return 'STABLE';
+  }
+
+  String _partnerTrendReason({
+    required SovereignReportPartnerScoreboardRow currentRow,
+    required List<double> priorSeverityScores,
+    required List<double> priorAcceptedDelayMinutes,
+    required List<double> priorOnSiteDelayMinutes,
+  }) {
+    if (priorSeverityScores.isEmpty) {
+      return 'First recorded shift in the 7-day partner window.';
+    }
+    final trendLabel = _partnerTrendLabel(currentRow, priorSeverityScores);
+    final priorAcceptedAverage = priorAcceptedDelayMinutes.isEmpty
+        ? null
+        : priorAcceptedDelayMinutes.reduce((left, right) => left + right) /
+              priorAcceptedDelayMinutes.length;
+    final priorOnSiteAverage = priorOnSiteDelayMinutes.isEmpty
+        ? null
+        : priorOnSiteDelayMinutes.reduce((left, right) => left + right) /
+              priorOnSiteDelayMinutes.length;
+    switch (trendLabel) {
+      case 'IMPROVING':
+        if (priorAcceptedAverage != null &&
+            currentRow.averageAcceptedDelayMinutes > 0 &&
+            currentRow.averageAcceptedDelayMinutes <=
+                priorAcceptedAverage - 2.0) {
+          return 'Acceptance timing improved against the prior 7-day average.';
+        }
+        if (priorOnSiteAverage != null &&
+            currentRow.averageOnSiteDelayMinutes > 0 &&
+            currentRow.averageOnSiteDelayMinutes <= priorOnSiteAverage - 2.0) {
+          return 'On-site timing improved against the prior 7-day average.';
+        }
+        return 'Current shift severity improved against the prior 7-day average.';
+      case 'SLIPPING':
+        if (priorAcceptedAverage != null &&
+            currentRow.averageAcceptedDelayMinutes >=
+                priorAcceptedAverage + 2.0) {
+          return 'Acceptance timing slipped beyond the prior 7-day average.';
+        }
+        if (priorOnSiteAverage != null &&
+            currentRow.averageOnSiteDelayMinutes >= priorOnSiteAverage + 2.0) {
+          return 'On-site timing slipped beyond the prior 7-day average.';
+        }
+        return 'Current shift severity slipped against the prior 7-day average.';
+      case 'STABLE':
+      case 'NEW':
+        return 'Current shift is holding close to the prior 7-day performance.';
+    }
+    return '';
+  }
+
+  Color _partnerTrendColor(String trendLabel) {
+    return switch (trendLabel) {
+      'IMPROVING' => const Color(0xFF34D399),
+      'STABLE' => const Color(0xFF8FA7C8),
+      'SLIPPING' => const Color(0xFFF97316),
+      'NEW' => const Color(0xFF38BDF8),
+      _ => const Color(0xFF8FA7C8),
+    };
+  }
 }
 
 enum _VisitTimelineStage { entry, service, exit, observed }
@@ -2043,6 +2242,7 @@ class _PartnerScopeSummary {
 class _PartnerScopeDetail {
   final List<PartnerDispatchStatusDeclared> events;
   final String dispatchId;
+  final String clientId;
   final String partnerLabel;
   final String siteId;
   final PartnerDispatchStatus latestStatus;
@@ -2052,11 +2252,26 @@ class _PartnerScopeDetail {
   const _PartnerScopeDetail({
     required this.events,
     required this.dispatchId,
+    required this.clientId,
     required this.partnerLabel,
     required this.siteId,
     required this.latestStatus,
     required this.latestOccurredAt,
     required this.firstOccurrenceByStatus,
+  });
+}
+
+class _PartnerTrendSummary {
+  final int reportDays;
+  final String currentScoreLabel;
+  final String trendLabel;
+  final String trendReason;
+
+  const _PartnerTrendSummary({
+    required this.reportDays,
+    required this.currentScoreLabel,
+    required this.trendLabel,
+    required this.trendReason,
   });
 }
 

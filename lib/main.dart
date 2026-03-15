@@ -16957,6 +16957,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case OnyxRoute.events:
         return EventsReviewPage(
           events: events,
+          morningSovereignReportHistory: _morningSovereignReportHistory,
           sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
           initialSourceFilter: _eventsSourceFilter.trim().isEmpty
               ? null
