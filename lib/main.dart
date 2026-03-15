@@ -4725,6 +4725,54 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
   }
 
+  void _handleMorningSovereignReportChanged(SovereignReport report) {
+    if (mounted) {
+      setState(() {
+        _morningSovereignReport = report;
+      });
+    } else {
+      _morningSovereignReport = report;
+    }
+    unawaited(_persistMorningSovereignReport());
+  }
+
+  SovereignReport _mergeMorningSovereignReportVehicleReviews(
+    SovereignReport report,
+  ) {
+    final previous = _morningSovereignReport;
+    if (previous == null) {
+      return report;
+    }
+    final previousByKey = <String, SovereignReportVehicleVisitException>{
+      for (final exception in previous.vehicleThroughput.exceptionVisits)
+        sovereignReportVehicleVisitExceptionKey(exception): exception,
+    };
+    final mergedExceptions = report.vehicleThroughput.exceptionVisits
+        .map((exception) {
+          final previousException = previousByKey[
+              sovereignReportVehicleVisitExceptionKey(exception)];
+          if (previousException == null) {
+            return exception;
+          }
+          return exception.copyWith(
+            operatorReviewed: previousException.operatorReviewed,
+            operatorReviewedAtUtc:
+                previousException.operatorReviewedAtUtc?.toUtc(),
+            clearOperatorReviewedAtUtc:
+                !previousException.operatorReviewed &&
+                previousException.operatorReviewedAtUtc == null,
+            operatorStatusOverride:
+                previousException.operatorStatusOverride.trim().toUpperCase(),
+          );
+        })
+        .toList(growable: false);
+    return report.copyWith(
+      vehicleThroughput: report.vehicleThroughput.copyWith(
+        exceptionVisits: mergedExceptions,
+      ),
+    );
+  }
+
   Future<void> _maybeAutoGenerateMorningSovereignReport() async {
     final nowLocal = DateTime.now();
     if (nowLocal.hour < 6) return;
@@ -4744,14 +4792,16 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }) async {
     final nowUtc = DateTime.now().toUtc();
     final service = const MorningSovereignReportService();
-    final report = service.generate(
-      nowUtc: nowUtc,
-      events: store.allEvents(),
-      recentMedia: _guardOpsRecentMedia,
-      guardOutcomePolicyDenied24h: _guardOutcomeDeniedInWindow(
-        const Duration(hours: 24),
+    final report = _mergeMorningSovereignReportVehicleReviews(
+      service.generate(
+        nowUtc: nowUtc,
+        events: store.allEvents(),
+        recentMedia: _guardOpsRecentMedia,
+        guardOutcomePolicyDenied24h: _guardOutcomeDeniedInWindow(
+          const Duration(hours: 24),
+        ),
+        sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
       ),
-      sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
     );
     final nextAutoRunKey = (autoRunKey ?? '').trim().isNotEmpty
         ? autoRunKey!.trim()
@@ -16179,6 +16229,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           events: events,
           morningSovereignReport: _morningSovereignReport,
           morningSovereignReportAutoRunKey: _morningSovereignReportAutoRunKey,
+          onMorningSovereignReportChanged: _handleMorningSovereignReportChanged,
           onOpenVehicleExceptionEvent: _openEventsForEventId,
           onOpenVehicleExceptionVisit: _openEventsForVehicleVisit,
           initialSceneActionFocus: _governanceSceneActionFocus,

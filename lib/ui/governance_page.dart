@@ -191,6 +191,7 @@ class GovernancePage extends StatefulWidget {
   final SovereignReport? morningSovereignReport;
   final String? morningSovereignReportAutoRunKey;
   final Future<void> Function()? onGenerateMorningSovereignReport;
+  final ValueChanged<SovereignReport>? onMorningSovereignReportChanged;
   final ValueChanged<String>? onOpenVehicleExceptionEvent;
   final ValueChanged<SovereignReportVehicleVisitException>?
   onOpenVehicleExceptionVisit;
@@ -203,6 +204,7 @@ class GovernancePage extends StatefulWidget {
     this.morningSovereignReport,
     this.morningSovereignReportAutoRunKey,
     this.onGenerateMorningSovereignReport,
+    this.onMorningSovereignReportChanged,
     this.onOpenVehicleExceptionEvent,
     this.onOpenVehicleExceptionVisit,
     this.initialSceneActionFocus,
@@ -1481,51 +1483,41 @@ class _GovernancePageState extends State<GovernancePage> {
 
   String _vehicleExceptionReviewKey(
     SovereignReportVehicleVisitException exception,
-  ) {
-    final primaryEventId = exception.primaryEventId.trim();
-    if (primaryEventId.isNotEmpty) {
-      return primaryEventId;
-    }
-    return [
-      exception.clientId.trim(),
-      exception.siteId.trim(),
-      exception.vehicleLabel.trim(),
-      exception.startedAtUtc.toUtc().toIso8601String(),
-    ].join('|');
-  }
+  ) => sovereignReportVehicleVisitExceptionKey(exception);
 
   SovereignReportVehicleVisitException _applyVehicleExceptionReviewOverlay(
     SovereignReportVehicleVisitException exception,
   ) {
     final override = _vehicleExceptionReviewOverrides[
         _vehicleExceptionReviewKey(exception)];
-    if (override == null) {
+    final storedStatusOverride = exception.operatorStatusOverride.trim()
+        .toUpperCase();
+    final overrideStatus = override?.statusOverride.trim().toUpperCase() ?? '';
+    final effectiveStatusOverride = overrideStatus.isNotEmpty
+        ? overrideStatus
+        : storedStatusOverride;
+    final effectiveReviewed = override?.reviewed ?? exception.operatorReviewed;
+    final effectiveReviewedAtUtc = override?.reviewedAtUtc.toUtc() ??
+        exception.operatorReviewedAtUtc?.toUtc();
+    if (override == null &&
+        storedStatusOverride.isEmpty &&
+        !exception.operatorReviewed) {
       return exception;
     }
-    final effectiveStatus = override.statusOverride.trim().isEmpty
+    final effectiveStatus = effectiveStatusOverride.isEmpty
         ? exception.statusLabel.trim()
-        : override.statusOverride.trim().toUpperCase();
+        : effectiveStatusOverride;
     final effectiveWorkflow = _applyStatusToWorkflowSummary(
       exception.workflowSummary,
       effectiveStatus,
     );
-    return SovereignReportVehicleVisitException(
-      clientId: exception.clientId,
-      siteId: exception.siteId,
-      vehicleLabel: exception.vehicleLabel,
+    return exception.copyWith(
       statusLabel: effectiveStatus,
-      reasonLabel: exception.reasonLabel,
       workflowSummary: effectiveWorkflow,
-      operatorReviewed: override.reviewed,
-      operatorReviewedAtUtc: override.reviewedAtUtc.toUtc(),
-      operatorStatusOverride: override.statusOverride.trim().toUpperCase(),
-      primaryEventId: exception.primaryEventId,
-      startedAtUtc: exception.startedAtUtc,
-      lastSeenAtUtc: exception.lastSeenAtUtc,
-      dwellMinutes: exception.dwellMinutes,
-      eventIds: exception.eventIds,
-      zoneLabels: exception.zoneLabels,
-      intelligenceIds: exception.intelligenceIds,
+      operatorReviewed: effectiveReviewed,
+      operatorReviewedAtUtc: effectiveReviewed ? effectiveReviewedAtUtc : null,
+      clearOperatorReviewedAtUtc: !effectiveReviewed,
+      operatorStatusOverride: effectiveStatusOverride,
     );
   }
 
@@ -1549,25 +1541,37 @@ class _GovernancePageState extends State<GovernancePage> {
     SovereignReportVehicleVisitException exception, {
     String? statusOverride,
   }) {
+    final reviewedAtUtc = DateTime.now().toUtc();
     final key = _vehicleExceptionReviewKey(exception);
     final existing = _vehicleExceptionReviewOverrides[key];
-    final nextStatus = statusOverride ?? existing?.statusOverride ?? '';
+    final nextStatus = statusOverride ??
+        existing?.statusOverride ??
+        exception.operatorStatusOverride;
     setState(() {
       _vehicleExceptionReviewOverrides = Map<String, _VehicleExceptionReviewOverride>.from(
         _vehicleExceptionReviewOverrides,
       )..[key] = _VehicleExceptionReviewOverride(
           reviewed: true,
-          reviewedAtUtc: DateTime.now().toUtc(),
+          reviewedAtUtc: reviewedAtUtc,
           statusOverride: nextStatus.trim().toUpperCase(),
         );
     });
+    _publishCanonicalVehicleExceptionReview(
+      exception,
+      reviewed: true,
+      reviewedAtUtc: reviewedAtUtc,
+      statusOverride: nextStatus.trim().toUpperCase(),
+    );
   }
 
   void _clearVehicleExceptionReview(
     SovereignReportVehicleVisitException exception,
   ) {
     final key = _vehicleExceptionReviewKey(exception);
-    if (!_vehicleExceptionReviewOverrides.containsKey(key)) {
+    final hasLocalOverride = _vehicleExceptionReviewOverrides.containsKey(key);
+    final hasStoredReview =
+        exception.operatorReviewed || exception.operatorStatusOverride.trim().isNotEmpty;
+    if (!hasLocalOverride && !hasStoredReview) {
       return;
     }
     setState(() {
@@ -1575,6 +1579,46 @@ class _GovernancePageState extends State<GovernancePage> {
         _vehicleExceptionReviewOverrides,
       )..remove(key);
     });
+    _publishCanonicalVehicleExceptionReview(
+      exception,
+      reviewed: false,
+      reviewedAtUtc: null,
+      statusOverride: '',
+    );
+  }
+
+  void _publishCanonicalVehicleExceptionReview(
+    SovereignReportVehicleVisitException exception, {
+    required bool reviewed,
+    required DateTime? reviewedAtUtc,
+    required String statusOverride,
+  }) {
+    final canonical = widget.morningSovereignReport;
+    final callback = widget.onMorningSovereignReportChanged;
+    if (canonical == null || callback == null) {
+      return;
+    }
+    final exceptionKey = _vehicleExceptionReviewKey(exception);
+    final updatedExceptions = canonical.vehicleThroughput.exceptionVisits
+        .map((candidate) {
+          if (_vehicleExceptionReviewKey(candidate) != exceptionKey) {
+            return candidate;
+          }
+          return candidate.copyWith(
+            operatorReviewed: reviewed,
+            operatorReviewedAtUtc: reviewedAtUtc?.toUtc(),
+            clearOperatorReviewedAtUtc: !reviewed,
+            operatorStatusOverride: statusOverride.trim().toUpperCase(),
+          );
+        })
+        .toList(growable: false);
+    callback(
+      canonical.copyWith(
+        vehicleThroughput: canonical.vehicleThroughput.copyWith(
+          exceptionVisits: updatedExceptions,
+        ),
+      ),
+    );
   }
 
   void _setActiveSceneActionFocus(GovernanceSceneActionFocus? value) {

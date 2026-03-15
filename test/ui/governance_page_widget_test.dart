@@ -1975,6 +1975,7 @@ void main() {
     'governance page lets operators review and override vehicle visits',
     (tester) async {
       String? copiedPayload;
+      SovereignReport? updatedReport;
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         SystemChannels.platform,
         (call) async {
@@ -2072,6 +2073,9 @@ void main() {
             events: const [],
             morningSovereignReport: report,
             morningSovereignReportAutoRunKey: '2026-03-10',
+            onMorningSovereignReportChanged: (value) {
+              updatedReport = value;
+            },
           ),
         ),
       );
@@ -2100,6 +2104,32 @@ void main() {
       await tester.ensureVisible(markReviewedAction);
       await tester.tap(markReviewedAction);
       await tester.pumpAndSettle();
+      expect(find.text('REVIEWED'), findsOneWidget);
+      expect(updatedReport, isNotNull);
+      final persistedException =
+          updatedReport!.vehicleThroughput.exceptionVisits.single;
+      expect(persistedException.operatorReviewed, isTrue);
+      expect(persistedException.operatorStatusOverride, 'COMPLETED');
+      expect(persistedException.statusLabel, 'INCOMPLETE');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GovernancePage(
+            events: const [],
+            morningSovereignReport: updatedReport,
+            morningSovereignReportAutoRunKey: '2026-03-10',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final restoredExceptionRow = find.byKey(
+        const ValueKey('governance-vehicle-exception-CA123456-SITE-42'),
+      );
+      await tester.ensureVisible(restoredExceptionRow);
+      await tester.tap(restoredExceptionRow);
+      await tester.pumpAndSettle();
+      expect(find.text('Workflow: ENTRY -> SERVICE (COMPLETED)'), findsWidgets);
       expect(find.text('REVIEWED'), findsOneWidget);
 
       await tester.ensureVisible(find.text('Copy Morning JSON'));

@@ -252,6 +252,32 @@ class SovereignReport {
     ),
   });
 
+  SovereignReport copyWith({
+    String? date,
+    DateTime? generatedAtUtc,
+    DateTime? shiftWindowStartUtc,
+    DateTime? shiftWindowEndUtc,
+    SovereignReportLedgerIntegrity? ledgerIntegrity,
+    SovereignReportAiHumanDelta? aiHumanDelta,
+    SovereignReportNormDrift? normDrift,
+    SovereignReportComplianceBlockage? complianceBlockage,
+    SovereignReportSceneReview? sceneReview,
+    SovereignReportVehicleThroughput? vehicleThroughput,
+  }) {
+    return SovereignReport(
+      date: date ?? this.date,
+      generatedAtUtc: generatedAtUtc ?? this.generatedAtUtc,
+      shiftWindowStartUtc: shiftWindowStartUtc ?? this.shiftWindowStartUtc,
+      shiftWindowEndUtc: shiftWindowEndUtc ?? this.shiftWindowEndUtc,
+      ledgerIntegrity: ledgerIntegrity ?? this.ledgerIntegrity,
+      aiHumanDelta: aiHumanDelta ?? this.aiHumanDelta,
+      normDrift: normDrift ?? this.normDrift,
+      complianceBlockage: complianceBlockage ?? this.complianceBlockage,
+      sceneReview: sceneReview ?? this.sceneReview,
+      vehicleThroughput: vehicleThroughput ?? this.vehicleThroughput,
+    );
+  }
+
   Map<String, Object?> toJson() {
     return {
       'date': date,
@@ -412,6 +438,46 @@ class SovereignReportVehicleThroughput {
     this.scopeBreakdowns = const <SovereignReportVehicleScopeBreakdown>[],
     this.exceptionVisits = const <SovereignReportVehicleVisitException>[],
   });
+
+  SovereignReportVehicleThroughput copyWith({
+    int? totalVisits,
+    int? completedVisits,
+    int? activeVisits,
+    int? incompleteVisits,
+    int? uniqueVehicles,
+    int? repeatVehicles,
+    int? unknownVehicleEvents,
+    String? peakHourLabel,
+    int? peakHourVisitCount,
+    double? averageCompletedDwellMinutes,
+    int? suspiciousShortVisitCount,
+    int? loiteringVisitCount,
+    String? workflowHeadline,
+    String? summaryLine,
+    List<SovereignReportVehicleScopeBreakdown>? scopeBreakdowns,
+    List<SovereignReportVehicleVisitException>? exceptionVisits,
+  }) {
+    return SovereignReportVehicleThroughput(
+      totalVisits: totalVisits ?? this.totalVisits,
+      completedVisits: completedVisits ?? this.completedVisits,
+      activeVisits: activeVisits ?? this.activeVisits,
+      incompleteVisits: incompleteVisits ?? this.incompleteVisits,
+      uniqueVehicles: uniqueVehicles ?? this.uniqueVehicles,
+      repeatVehicles: repeatVehicles ?? this.repeatVehicles,
+      unknownVehicleEvents: unknownVehicleEvents ?? this.unknownVehicleEvents,
+      peakHourLabel: peakHourLabel ?? this.peakHourLabel,
+      peakHourVisitCount: peakHourVisitCount ?? this.peakHourVisitCount,
+      averageCompletedDwellMinutes:
+          averageCompletedDwellMinutes ?? this.averageCompletedDwellMinutes,
+      suspiciousShortVisitCount:
+          suspiciousShortVisitCount ?? this.suspiciousShortVisitCount,
+      loiteringVisitCount: loiteringVisitCount ?? this.loiteringVisitCount,
+      workflowHeadline: workflowHeadline ?? this.workflowHeadline,
+      summaryLine: summaryLine ?? this.summaryLine,
+      scopeBreakdowns: scopeBreakdowns ?? this.scopeBreakdowns,
+      exceptionVisits: exceptionVisits ?? this.exceptionVisits,
+    );
+  }
 
   Map<String, Object?> toJson() {
     return {
@@ -575,6 +641,48 @@ class SovereignReportVehicleVisitException {
     this.intelligenceIds = const <String>[],
   });
 
+  SovereignReportVehicleVisitException copyWith({
+    String? clientId,
+    String? siteId,
+    String? vehicleLabel,
+    String? statusLabel,
+    String? reasonLabel,
+    String? workflowSummary,
+    bool? operatorReviewed,
+    DateTime? operatorReviewedAtUtc,
+    bool clearOperatorReviewedAtUtc = false,
+    String? operatorStatusOverride,
+    String? primaryEventId,
+    DateTime? startedAtUtc,
+    DateTime? lastSeenAtUtc,
+    double? dwellMinutes,
+    List<String>? eventIds,
+    List<String>? zoneLabels,
+    List<String>? intelligenceIds,
+  }) {
+    return SovereignReportVehicleVisitException(
+      clientId: clientId ?? this.clientId,
+      siteId: siteId ?? this.siteId,
+      vehicleLabel: vehicleLabel ?? this.vehicleLabel,
+      statusLabel: statusLabel ?? this.statusLabel,
+      reasonLabel: reasonLabel ?? this.reasonLabel,
+      workflowSummary: workflowSummary ?? this.workflowSummary,
+      operatorReviewed: operatorReviewed ?? this.operatorReviewed,
+      operatorReviewedAtUtc: clearOperatorReviewedAtUtc
+          ? null
+          : (operatorReviewedAtUtc ?? this.operatorReviewedAtUtc),
+      operatorStatusOverride:
+          operatorStatusOverride ?? this.operatorStatusOverride,
+      primaryEventId: primaryEventId ?? this.primaryEventId,
+      startedAtUtc: startedAtUtc ?? this.startedAtUtc,
+      lastSeenAtUtc: lastSeenAtUtc ?? this.lastSeenAtUtc,
+      dwellMinutes: dwellMinutes ?? this.dwellMinutes,
+      eventIds: eventIds ?? this.eventIds,
+      zoneLabels: zoneLabels ?? this.zoneLabels,
+      intelligenceIds: intelligenceIds ?? this.intelligenceIds,
+    );
+  }
+
   Map<String, Object?> toJson() {
     return {
       'clientId': clientId,
@@ -643,6 +751,21 @@ class SovereignReportVehicleVisitException {
       intelligenceIds: intelligenceIds,
     );
   }
+}
+
+String sovereignReportVehicleVisitExceptionKey(
+  SovereignReportVehicleVisitException exception,
+) {
+  final primaryEventId = exception.primaryEventId.trim();
+  if (primaryEventId.isNotEmpty) {
+    return primaryEventId;
+  }
+  return [
+    exception.clientId.trim(),
+    exception.siteId.trim(),
+    exception.vehicleLabel.trim(),
+    exception.startedAtUtc.toUtc().toIso8601String(),
+  ].join('|');
 }
 
 class MorningSovereignReportService {
