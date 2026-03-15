@@ -268,6 +268,10 @@ void main() {
         'Loitering visit',
       );
       expect(
+        report.vehicleThroughput.exceptionVisits.first.primaryEventId,
+        'INT-5',
+      );
+      expect(
         report.vehicleThroughput.exceptionVisits.first.vehicleLabel,
         'CA123456',
       );

@@ -165,6 +165,7 @@ class GovernancePage extends StatefulWidget {
   final SovereignReport? morningSovereignReport;
   final String? morningSovereignReportAutoRunKey;
   final Future<void> Function()? onGenerateMorningSovereignReport;
+  final ValueChanged<String>? onOpenVehicleExceptionEvent;
   final GovernanceSceneActionFocus? initialSceneActionFocus;
   final ValueChanged<GovernanceSceneActionFocus?>? onSceneActionFocusChanged;
 
@@ -174,6 +175,7 @@ class GovernancePage extends StatefulWidget {
     this.morningSovereignReport,
     this.morningSovereignReportAutoRunKey,
     this.onGenerateMorningSovereignReport,
+    this.onOpenVehicleExceptionEvent,
     this.initialSceneActionFocus,
     this.onSceneActionFocusChanged,
   });
@@ -1802,61 +1804,86 @@ class _GovernancePageState extends State<GovernancePage> {
     final zones = exception.zoneLabels.isEmpty
         ? 'no zones captured'
         : exception.zoneLabels.join(' -> ');
-    return Container(
+    final canOpenEvent =
+        widget.onOpenVehicleExceptionEvent != null &&
+        exception.primaryEventId.trim().isNotEmpty;
+    return InkWell(
       key: ValueKey<String>(
         'governance-vehicle-exception-${exception.vehicleLabel}-${exception.siteId}',
       ),
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: const Color(0x14151F2F),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0x335C728F)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '${exception.reasonLabel} • ${exception.vehicleLabel}',
+      onTap: canOpenEvent
+          ? () => widget.onOpenVehicleExceptionEvent!.call(
+              exception.primaryEventId.trim(),
+            )
+          : null,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: const Color(0x14151F2F),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0x335C728F)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${exception.reasonLabel} • ${exception.vehicleLabel}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFEAF4FF),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Text(
+                  exception.statusLabel,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFEAF4FF),
-                    fontSize: 10,
+                    color: const Color(0xFFFDE68A),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '$scopeLabel • dwell ${exception.dwellMinutes.toStringAsFixed(1)}m • last seen ${_timestampLabel(exception.lastSeenAtUtc)}',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF9CB2D1),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Zones: $zones',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (canOpenEvent) ...[
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  'Open in Events Review',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF67E8F9),
+                    fontSize: 9,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-              Text(
-                exception.statusLabel,
-                style: GoogleFonts.inter(
-                  color: const Color(0xFFFDE68A),
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
             ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '$scopeLabel • dwell ${exception.dwellMinutes.toStringAsFixed(1)}m • last seen ${_timestampLabel(exception.lastSeenAtUtc)}',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF9CB2D1),
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            'Zones: $zones',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

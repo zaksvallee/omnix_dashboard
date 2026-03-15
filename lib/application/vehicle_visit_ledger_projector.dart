@@ -16,6 +16,7 @@ class VehicleVisitRecord {
   final bool sawService;
   final bool sawExit;
   final int eventCount;
+  final List<String> eventIds;
   final List<String> intelligenceIds;
   final List<String> zoneLabels;
 
@@ -31,6 +32,7 @@ class VehicleVisitRecord {
     required this.sawService,
     required this.sawExit,
     required this.eventCount,
+    this.eventIds = const <String>[],
     this.intelligenceIds = const <String>[],
     this.zoneLabels = const <String>[],
   });
@@ -372,6 +374,7 @@ class _MutableVehicleVisit {
   bool sawService;
   bool sawExit;
   int eventCount;
+  final List<String> eventIds;
   final List<String> intelligenceIds;
   final List<String> zoneLabels;
 
@@ -387,6 +390,7 @@ class _MutableVehicleVisit {
     required this.sawService,
     required this.sawExit,
     required this.eventCount,
+    required this.eventIds,
     required this.intelligenceIds,
     required this.zoneLabels,
   });
@@ -412,6 +416,7 @@ class _MutableVehicleVisit {
       sawService: zoneStage == VehicleVisitZoneStage.service,
       sawExit: zoneStage == VehicleVisitZoneStage.exit,
       eventCount: 1,
+      eventIds: <String>[event.eventId],
       intelligenceIds: <String>[event.intelligenceId],
       zoneLabels: <String>[
         if ((event.zone ?? '').trim().isNotEmpty) event.zone!.trim(),
@@ -436,6 +441,7 @@ class _MutableVehicleVisit {
       completedAtUtc = atUtc;
     }
     eventCount += 1;
+    eventIds.add(event.eventId);
     intelligenceIds.add(event.intelligenceId);
     final zone = (event.zone ?? '').trim();
     if (zone.isNotEmpty && !zoneLabels.contains(zone)) {
@@ -456,6 +462,7 @@ class _MutableVehicleVisit {
       sawService: sawService,
       sawExit: sawExit,
       eventCount: eventCount,
+      eventIds: List<String>.unmodifiable(eventIds),
       intelligenceIds: List<String>.unmodifiable(intelligenceIds),
       zoneLabels: List<String>.unmodifiable(zoneLabels),
     );

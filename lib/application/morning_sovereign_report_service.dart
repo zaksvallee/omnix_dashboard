@@ -538,9 +538,11 @@ class SovereignReportVehicleVisitException {
   final String vehicleLabel;
   final String statusLabel;
   final String reasonLabel;
+  final String primaryEventId;
   final DateTime startedAtUtc;
   final DateTime lastSeenAtUtc;
   final double dwellMinutes;
+  final List<String> eventIds;
   final List<String> zoneLabels;
   final List<String> intelligenceIds;
 
@@ -550,9 +552,11 @@ class SovereignReportVehicleVisitException {
     required this.vehicleLabel,
     required this.statusLabel,
     required this.reasonLabel,
+    required this.primaryEventId,
     required this.startedAtUtc,
     required this.lastSeenAtUtc,
     required this.dwellMinutes,
+    this.eventIds = const <String>[],
     this.zoneLabels = const <String>[],
     this.intelligenceIds = const <String>[],
   });
@@ -564,9 +568,11 @@ class SovereignReportVehicleVisitException {
       'vehicleLabel': vehicleLabel,
       'statusLabel': statusLabel,
       'reasonLabel': reasonLabel,
+      'primaryEventId': primaryEventId,
       'startedAtUtc': startedAtUtc.toIso8601String(),
       'lastSeenAtUtc': lastSeenAtUtc.toIso8601String(),
       'dwellMinutes': dwellMinutes,
+      'eventIds': eventIds,
       'zoneLabels': zoneLabels,
       'intelligenceIds': intelligenceIds,
     };
@@ -575,6 +581,10 @@ class SovereignReportVehicleVisitException {
   factory SovereignReportVehicleVisitException.fromJson(
     Map<String, Object?> json,
   ) {
+    final eventIds = <String>[
+      for (final item in (json['eventIds'] as List?) ?? const <Object?>[])
+        item.toString().trim(),
+    ].where((item) => item.isNotEmpty).toList(growable: false);
     final zoneLabels = <String>[
       for (final item in (json['zoneLabels'] as List?) ?? const <Object?>[])
         item.toString().trim(),
@@ -590,6 +600,7 @@ class SovereignReportVehicleVisitException {
       vehicleLabel: (json['vehicleLabel'] as String? ?? '').trim(),
       statusLabel: (json['statusLabel'] as String? ?? '').trim(),
       reasonLabel: (json['reasonLabel'] as String? ?? '').trim(),
+      primaryEventId: (json['primaryEventId'] as String? ?? '').trim(),
       startedAtUtc:
           DateTime.tryParse(
             (json['startedAtUtc'] as String? ?? '').trim(),
@@ -601,6 +612,7 @@ class SovereignReportVehicleVisitException {
           )?.toUtc() ??
           DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
       dwellMinutes: (json['dwellMinutes'] as num?)?.toDouble() ?? 0,
+      eventIds: eventIds,
       zoneLabels: zoneLabels,
       intelligenceIds: intelligenceIds,
     );
@@ -990,6 +1002,10 @@ class MorningSovereignReportService {
         .map((id) => id.trim())
         .where((id) => id.isNotEmpty)
         .toList(growable: false);
+    final eventIds = visit.eventIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toList(growable: false);
     return SovereignReportVehicleVisitException(
       clientId: scope.clientId,
       siteId: scope.siteId,
@@ -998,11 +1014,13 @@ class MorningSovereignReportService {
           : visit.plateNumber,
       statusLabel: status.name.toUpperCase(),
       reasonLabel: reasonLabel,
+      primaryEventId: eventIds.isEmpty ? '' : eventIds.last,
       startedAtUtc: visit.startedAtUtc.toUtc(),
       lastSeenAtUtc: visit.lastSeenAtUtc.toUtc(),
       dwellMinutes: double.parse(
         (visit.dwell.inSeconds / 60.0).toStringAsFixed(1),
       ),
+      eventIds: eventIds,
       zoneLabels: zoneLabels,
       intelligenceIds: intelligenceIds,
     );
