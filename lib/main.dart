@@ -1090,6 +1090,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       const <SovereignReport>[];
   String? _morningSovereignReportAutoRunKey;
   GovernanceSceneActionFocus? _governanceSceneActionFocus;
+  String _governancePartnerScopeClientId = '';
+  String _governancePartnerScopeSiteId = '';
+  String _governancePartnerScopePartnerLabel = '';
   Map<String, DateTime> _guardCoachingPromptSnoozedUntilByRule = const {};
   final Set<String> _guardCoachingSnoozeExpiryEventInFlightRules = {};
   int _guardCoachingAckCount = 0;
@@ -15745,6 +15748,32 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   void _openGovernanceFromAdmin() {
     _cancelDemoAutopilot();
     setState(() {
+      _governancePartnerScopeClientId = '';
+      _governancePartnerScopeSiteId = '';
+      _governancePartnerScopePartnerLabel = '';
+      _route = OnyxRoute.governance;
+    });
+  }
+
+  void _openGovernanceForPartnerScope(
+    String clientId,
+    String siteId,
+    String partnerLabel,
+  ) {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    final normalizedPartnerLabel = partnerLabel.trim();
+    if (normalizedClientId.isEmpty ||
+        normalizedSiteId.isEmpty ||
+        normalizedPartnerLabel.isEmpty) {
+      _openGovernanceFromAdmin();
+      return;
+    }
+    _cancelDemoAutopilot();
+    setState(() {
+      _governancePartnerScopeClientId = normalizedClientId;
+      _governancePartnerScopeSiteId = normalizedSiteId;
+      _governancePartnerScopePartnerLabel = normalizedPartnerLabel;
       _route = OnyxRoute.governance;
     });
   }
@@ -16732,6 +16761,18 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           morningSovereignReport: _morningSovereignReport,
           morningSovereignReportHistory: _morningSovereignReportHistory,
           morningSovereignReportAutoRunKey: _morningSovereignReportAutoRunKey,
+          initialPartnerScopeClientId:
+              _governancePartnerScopeClientId.trim().isEmpty
+              ? null
+              : _governancePartnerScopeClientId,
+          initialPartnerScopeSiteId:
+              _governancePartnerScopeSiteId.trim().isEmpty
+              ? null
+              : _governancePartnerScopeSiteId,
+          initialPartnerScopePartnerLabel:
+              _governancePartnerScopePartnerLabel.trim().isEmpty
+              ? null
+              : _governancePartnerScopePartnerLabel,
           onMorningSovereignReportChanged: _handleMorningSovereignReportChanged,
           onOpenVehicleExceptionEvent: _openEventsForEventId,
           onOpenVehicleExceptionVisit: _openEventsForVehicleVisit,
@@ -17070,6 +17111,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           onRunFullDemoAutopilotForIncident:
               _startFullDemoAutopilotFromAdminIncident,
           onOpenGovernance: _openGovernanceFromAdmin,
+          onOpenGovernanceForPartnerScope: _openGovernanceForPartnerScope,
           onOpenDispatches: _openDispatchesFromAdmin,
           onOpenClientView: _openClientViewFromAdmin,
           onOpenReports: _openReportsFromAdmin,

@@ -455,7 +455,9 @@ void main() {
     expect(copiedPayload, contains('"IMPROVING"'));
 
     final scorecardFinder = find.byKey(
-      const ValueKey('admin-partner-scorecard-CLT-001-WTF-MAIN-PARTNER • Alpha'),
+      const ValueKey(
+        'admin-partner-scorecard-CLT-001-WTF-MAIN-PARTNER • Alpha',
+      ),
     );
     await tester.ensureVisible(scorecardFinder);
     await tester.tap(scorecardFinder);
@@ -531,6 +533,7 @@ void main() {
     String? openedDispatchReference;
     List<String>? openedEventIds;
     String? openedSelectedEventId;
+    Map<String, String>? openedGovernanceScope;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -723,6 +726,13 @@ void main() {
             openedEventIds = eventIds;
             openedSelectedEventId = selectedEventId;
           },
+          onOpenGovernanceForPartnerScope: (clientId, siteId, partnerLabel) {
+            openedGovernanceScope = <String, String>{
+              'clientId': clientId,
+              'siteId': siteId,
+              'partnerLabel': partnerLabel,
+            };
+          },
         ),
       ),
     );
@@ -774,6 +784,7 @@ void main() {
       find.text('Acceptance timing improved against the prior 7-day average.'),
       findsOneWidget,
     );
+    expect(find.text('Open Governance Scope'), findsOneWidget);
     expect(find.text('Pending'), findsOneWidget);
 
     await tester.tap(find.text('Check lane'));
@@ -794,6 +805,21 @@ void main() {
     expect(openedDispatchClientId, 'CLT-001');
     expect(openedDispatchSiteId, 'WTF-MAIN');
     expect(openedDispatchReference, isNull);
+
+    await tester.tap(find.text('Waterfall Estate Main (WTF-MAIN)'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open Governance Scope'));
+    await tester.pumpAndSettle();
+
+    expect(openedGovernanceScope, <String, String>{
+      'clientId': 'CLT-001',
+      'siteId': 'WTF-MAIN',
+      'partnerLabel': 'PARTNER • Alpha',
+    });
+    expect(
+      find.textContaining('Opening Governance for WTF-MAIN'),
+      findsOneWidget,
+    );
 
     await tester.tap(find.text('Waterfall Estate Main (WTF-MAIN)'));
     await tester.pumpAndSettle();

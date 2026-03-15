@@ -457,6 +457,8 @@ class AdministrationPage extends StatefulWidget {
   final ValueChanged<String>? onRunDemoAutopilotForIncident;
   final ValueChanged<String>? onRunFullDemoAutopilotForIncident;
   final VoidCallback? onOpenGovernance;
+  final void Function(String clientId, String siteId, String partnerLabel)?
+  onOpenGovernanceForPartnerScope;
   final VoidCallback? onOpenDispatches;
   final VoidCallback? onOpenClientView;
   final VoidCallback? onOpenReports;
@@ -610,6 +612,7 @@ class AdministrationPage extends StatefulWidget {
     this.onRunDemoAutopilotForIncident,
     this.onRunFullDemoAutopilotForIncident,
     this.onOpenGovernance,
+    this.onOpenGovernanceForPartnerScope,
     this.onOpenDispatches,
     this.onOpenClientView,
     this.onOpenReports,
@@ -3915,10 +3918,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       if (split.length != 3) {
         continue;
       }
-      final scopedRows = _partnerTrendRowsForScope(
-        split[0],
-        siteId: split[1],
-      );
+      final scopedRows = _partnerTrendRowsForScope(split[0], siteId: split[1]);
       final match = scopedRows.where(
         (row) =>
             row.clientId.trim() == split[0].trim() &&
@@ -4186,6 +4186,37 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               _adminPartnerTrendCard(row),
                           ],
                         ),
+                        if (widget.onOpenGovernanceForPartnerScope != null &&
+                            trendRows.length == 1) ...[
+                          const SizedBox(height: 8),
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              widget.onOpenGovernanceForPartnerScope!(
+                                normalizedClientId,
+                                trendRows.first.siteId,
+                                trendRows.first.partnerLabel,
+                              );
+                              Navigator.of(dialogContext).pop();
+                              _snack(
+                                'Opening Governance for ${trendRows.first.siteId} • ${trendRows.first.partnerLabel}',
+                              );
+                            },
+                            icon: const Icon(
+                              Icons.verified_user_rounded,
+                              size: 16,
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF8FD1FF),
+                              side: const BorderSide(color: Color(0xFF35506F)),
+                            ),
+                            label: Text(
+                              'Open Governance Scope',
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                       if (partnerActionSummary != null) ...[
                         const SizedBox(height: 12),
@@ -4646,9 +4677,15 @@ class _AdministrationPageState extends State<AdministrationPage> {
 
   Widget _partnerScorecardSummaryCard() {
     final rows = _partnerTrendRowsGlobal().take(6).toList(growable: false);
-    final slippingCount = rows.where((row) => row.trendLabel == 'SLIPPING').length;
-    final criticalCount = rows.where((row) => row.currentScoreLabel == 'CRITICAL').length;
-    final improvingCount = rows.where((row) => row.trendLabel == 'IMPROVING').length;
+    final slippingCount = rows
+        .where((row) => row.trendLabel == 'SLIPPING')
+        .length;
+    final criticalCount = rows
+        .where((row) => row.currentScoreLabel == 'CRITICAL')
+        .length;
+    final improvingCount = rows
+        .where((row) => row.trendLabel == 'IMPROVING')
+        .length;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
@@ -4785,13 +4822,14 @@ class _AdministrationPageState extends State<AdministrationPage> {
     final rows = _partnerTrendRowsGlobal();
     final latestGeneratedAtUtc = widget.morningSovereignReportHistory.isEmpty
         ? null
-        : ([...widget.morningSovereignReportHistory]
-              ..sort(
-                (a, b) => b.generatedAtUtc.toUtc().compareTo(a.generatedAtUtc.toUtc()),
+        : ([...widget.morningSovereignReportHistory]..sort(
+                (a, b) => b.generatedAtUtc.toUtc().compareTo(
+                  a.generatedAtUtc.toUtc(),
+                ),
               ))
-            .first
-            .generatedAtUtc
-            .toIso8601String();
+              .first
+              .generatedAtUtc
+              .toIso8601String();
     final payload = <String, Object?>{
       'generatedAtUtc': latestGeneratedAtUtc,
       'scorecardRows': rows

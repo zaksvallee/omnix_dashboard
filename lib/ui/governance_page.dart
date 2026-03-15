@@ -192,11 +192,7 @@ class _PartnerScoreboardHistoryPoint {
   });
 
   Map<String, Object?> toJson() {
-    return {
-      'reportDate': reportDate,
-      'current': current,
-      'row': row.toJson(),
-    };
+    return {'reportDate': reportDate, 'current': current, 'row': row.toJson()};
   }
 }
 
@@ -325,6 +321,9 @@ class GovernancePage extends StatefulWidget {
   final SovereignReport? morningSovereignReport;
   final List<SovereignReport> morningSovereignReportHistory;
   final String? morningSovereignReportAutoRunKey;
+  final String? initialPartnerScopeClientId;
+  final String? initialPartnerScopeSiteId;
+  final String? initialPartnerScopePartnerLabel;
   final Future<void> Function()? onGenerateMorningSovereignReport;
   final ValueChanged<SovereignReport>? onMorningSovereignReportChanged;
   final ValueChanged<String>? onOpenVehicleExceptionEvent;
@@ -339,6 +338,9 @@ class GovernancePage extends StatefulWidget {
     this.morningSovereignReport,
     this.morningSovereignReportHistory = const <SovereignReport>[],
     this.morningSovereignReportAutoRunKey,
+    this.initialPartnerScopeClientId,
+    this.initialPartnerScopeSiteId,
+    this.initialPartnerScopePartnerLabel,
     this.onGenerateMorningSovereignReport,
     this.onMorningSovereignReportChanged,
     this.onOpenVehicleExceptionEvent,
@@ -1093,6 +1095,41 @@ class _GovernancePageState extends State<GovernancePage> {
                 ),
             ],
           ),
+          if (_hasPartnerScopeFocus) ...[
+            const SizedBox(height: 8),
+            Container(
+              key: const ValueKey('governance-partner-scope-banner'),
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0x141C3C57),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0x4435506F)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Partner scope focus active',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF8FD1FF),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${_partnerScopeClientId!}/${_partnerScopeSiteId!} • ${_partnerScopePartnerLabel!}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFEAF4FF),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -1736,6 +1773,185 @@ class _GovernancePageState extends State<GovernancePage> {
 
   _GovernanceReportView _currentGovernanceReportForFocusValidation() {
     return _resolveReport(_buildCompliance(DateTime.now()));
+  }
+
+  String? get _partnerScopeClientId {
+    final value = widget.initialPartnerScopeClientId?.trim() ?? '';
+    return value.isEmpty ? null : value;
+  }
+
+  String? get _partnerScopeSiteId {
+    final value = widget.initialPartnerScopeSiteId?.trim() ?? '';
+    return value.isEmpty ? null : value;
+  }
+
+  String? get _partnerScopePartnerLabel {
+    final value = widget.initialPartnerScopePartnerLabel?.trim() ?? '';
+    return value.isEmpty ? null : value;
+  }
+
+  bool get _hasPartnerScopeFocus =>
+      _partnerScopeClientId != null &&
+      _partnerScopeSiteId != null &&
+      _partnerScopePartnerLabel != null;
+
+  bool _partnerScopeMatches({
+    required String clientId,
+    required String siteId,
+    required String partnerLabel,
+  }) {
+    return clientId.trim() == _partnerScopeClientId &&
+        siteId.trim() == _partnerScopeSiteId &&
+        partnerLabel.trim().toUpperCase() ==
+            (_partnerScopePartnerLabel ?? '').toUpperCase();
+  }
+
+  bool _partnerScopeBreakdownMatches(
+    SovereignReportPartnerScopeBreakdown scope,
+  ) {
+    return scope.clientId.trim() == _partnerScopeClientId &&
+        scope.siteId.trim() == _partnerScopeSiteId;
+  }
+
+  _GovernanceReportView _applyPartnerScopeFilter(_GovernanceReportView report) {
+    if (!_hasPartnerScopeFocus) {
+      return report;
+    }
+    final filteredScopeBreakdowns = report.partnerScopeBreakdowns
+        .where(_partnerScopeBreakdownMatches)
+        .toList(growable: false);
+    final filteredScoreboardRows = report.partnerScoreboardRows
+        .where(
+          (row) => _partnerScopeMatches(
+            clientId: row.clientId,
+            siteId: row.siteId,
+            partnerLabel: row.partnerLabel,
+          ),
+        )
+        .toList(growable: false);
+    final filteredDispatchChains = report.partnerDispatchChains
+        .where(
+          (chain) => _partnerScopeMatches(
+            clientId: chain.clientId,
+            siteId: chain.siteId,
+            partnerLabel: chain.partnerLabel,
+          ),
+        )
+        .toList(growable: false);
+    final filteredScoreboardHistory = _partnerScoreboardHistoryRows(
+      currentReportDate: report.reportDate,
+      currentRows: filteredScoreboardRows,
+    );
+    final filteredTrendRows = _partnerTrendRows(
+      currentReportDate: report.reportDate,
+      currentRows: filteredScoreboardRows,
+    );
+    final acceptedDelayMinutes = [
+      for (final chain in filteredDispatchChains)
+        if (chain.acceptedDelayMinutes != null) chain.acceptedDelayMinutes!,
+    ];
+    final onSiteDelayMinutes = [
+      for (final chain in filteredDispatchChains)
+        if (chain.onSiteDelayMinutes != null) chain.onSiteDelayMinutes!,
+    ];
+    final dispatchCount = filteredDispatchChains.isNotEmpty
+        ? filteredDispatchChains.length
+        : filteredScoreboardRows.fold<int>(
+            0,
+            (sum, row) => sum + row.dispatchCount,
+          );
+    final declarationCount = filteredDispatchChains.isNotEmpty
+        ? filteredDispatchChains.fold<int>(
+            0,
+            (sum, chain) => sum + chain.declarationCount,
+          )
+        : filteredScopeBreakdowns.fold<int>(
+            0,
+            (sum, scope) => sum + scope.declarationCount,
+          );
+    final acceptedCount = filteredDispatchChains
+        .where((chain) => chain.acceptedAtUtc != null)
+        .length;
+    final onSiteCount = filteredDispatchChains
+        .where((chain) => chain.onSiteAtUtc != null)
+        .length;
+    final allClearCount = filteredDispatchChains
+        .where((chain) => chain.allClearAtUtc != null)
+        .length;
+    final cancelledCount = filteredDispatchChains
+        .where((chain) => chain.cancelledAtUtc != null)
+        .length;
+    final performanceHeadline = filteredDispatchChains.isNotEmpty
+        ? _partnerPerformanceHeadline(filteredDispatchChains)
+        : _partnerPerformanceHeadlineFromScoreboardRows(filteredScoreboardRows);
+    final slaHeadline = filteredDispatchChains.isNotEmpty
+        ? _partnerSlaHeadline(
+            acceptedDelayMinutes: acceptedDelayMinutes,
+            onSiteDelayMinutes: onSiteDelayMinutes,
+          )
+        : _partnerSlaHeadlineFromScoreboardRows(filteredScoreboardRows);
+    return _GovernanceReportView(
+      reportDate: report.reportDate,
+      totalEvents: report.totalEvents,
+      hashVerified: report.hashVerified,
+      integrityScore: report.integrityScore,
+      aiDecisions: report.aiDecisions,
+      humanOverrides: report.humanOverrides,
+      overrideReasons: report.overrideReasons,
+      sitesMonitored: report.sitesMonitored,
+      driftDetected: report.driftDetected,
+      avgMatchScore: report.avgMatchScore,
+      psiraExpired: report.psiraExpired,
+      pdpExpired: report.pdpExpired,
+      totalBlocked: report.totalBlocked,
+      sceneReviews: report.sceneReviews,
+      modelSceneReviews: report.modelSceneReviews,
+      metadataSceneReviews: report.metadataSceneReviews,
+      sceneSuppressedActions: report.sceneSuppressedActions,
+      sceneIncidentAlerts: report.sceneIncidentAlerts,
+      sceneRepeatUpdates: report.sceneRepeatUpdates,
+      sceneEscalations: report.sceneEscalations,
+      topScenePosture: report.topScenePosture,
+      sceneActionMixSummary: report.sceneActionMixSummary,
+      vehicleVisits: report.vehicleVisits,
+      vehicleCompletedVisits: report.vehicleCompletedVisits,
+      vehicleActiveVisits: report.vehicleActiveVisits,
+      vehicleIncompleteVisits: report.vehicleIncompleteVisits,
+      vehicleUniqueVehicles: report.vehicleUniqueVehicles,
+      vehicleUnknownEvents: report.vehicleUnknownEvents,
+      vehiclePeakHourLabel: report.vehiclePeakHourLabel,
+      vehiclePeakHourVisitCount: report.vehiclePeakHourVisitCount,
+      vehicleWorkflowHeadline: report.vehicleWorkflowHeadline,
+      vehicleSummary: report.vehicleSummary,
+      vehicleScopeBreakdowns: report.vehicleScopeBreakdowns,
+      vehicleExceptionVisits: report.vehicleExceptionVisits,
+      partnerDispatches: dispatchCount,
+      partnerDeclarations: declarationCount,
+      partnerAccepted: acceptedCount,
+      partnerOnSite: onSiteCount,
+      partnerAllClear: allClearCount,
+      partnerCancelled: cancelledCount,
+      partnerWorkflowHeadline: filteredDispatchChains.isEmpty
+          ? ''
+          : _partnerWorkflowHeadline(filteredDispatchChains),
+      partnerPerformanceHeadline: performanceHeadline,
+      partnerSlaHeadline: slaHeadline,
+      partnerSummary:
+          'Dispatches $dispatchCount • Declarations $declarationCount • Accept $acceptedCount • On site $onSiteCount • All clear $allClearCount • Cancelled $cancelledCount',
+      partnerScopeBreakdowns: filteredScopeBreakdowns,
+      partnerScoreboardRows: filteredScoreboardRows,
+      partnerScoreboardHistory: filteredScoreboardHistory,
+      partnerTrendRows: filteredTrendRows,
+      partnerDispatchChains: filteredDispatchChains,
+      latestActionTaken: report.latestActionTaken,
+      recentActionsSummary: report.recentActionsSummary,
+      latestSuppressedPattern: report.latestSuppressedPattern,
+      overrideReasonSummary: report.overrideReasonSummary,
+      generatedAtUtc: report.generatedAtUtc,
+      shiftWindowStartUtc: report.shiftWindowStartUtc,
+      shiftWindowEndUtc: report.shiftWindowEndUtc,
+      fromCanonicalReport: report.fromCanonicalReport,
+    );
   }
 
   String _vehicleExceptionReviewKey(
@@ -2960,15 +3176,20 @@ class _GovernancePageState extends State<GovernancePage> {
         if (!scopeKeys.contains(scopeKey)) {
           continue;
         }
-        byDateAndScope['$reportDate::$scopeKey'] = _PartnerScoreboardHistoryPoint(
-          reportDate: reportDate,
-          row: row,
-          current: false,
-        );
+        byDateAndScope['$reportDate::$scopeKey'] =
+            _PartnerScoreboardHistoryPoint(
+              reportDate: reportDate,
+              row: row,
+              current: false,
+            );
       }
     }
     for (final row in currentRows) {
-      final scopeKey = _partnerTrendKey(row.clientId, row.siteId, row.partnerLabel);
+      final scopeKey = _partnerTrendKey(
+        row.clientId,
+        row.siteId,
+        row.partnerLabel,
+      );
       final reportDate = currentReportDate.trim();
       if (reportDate.isEmpty) {
         continue;
@@ -3995,68 +4216,73 @@ class _GovernancePageState extends State<GovernancePage> {
         currentReportDate: canonical.date,
         currentRows: canonical.partnerProgression.scoreboardRows,
       );
-      return _GovernanceReportView(
-        reportDate: canonical.date,
-        totalEvents: canonical.ledgerIntegrity.totalEvents,
-        hashVerified: canonical.ledgerIntegrity.hashVerified,
-        integrityScore: canonical.ledgerIntegrity.integrityScore,
-        aiDecisions: canonical.aiHumanDelta.aiDecisions,
-        humanOverrides: canonical.aiHumanDelta.humanOverrides,
-        overrideReasons: Map<String, int>.from(
-          canonical.aiHumanDelta.overrideReasons,
+      return _applyPartnerScopeFilter(
+        _GovernanceReportView(
+          reportDate: canonical.date,
+          totalEvents: canonical.ledgerIntegrity.totalEvents,
+          hashVerified: canonical.ledgerIntegrity.hashVerified,
+          integrityScore: canonical.ledgerIntegrity.integrityScore,
+          aiDecisions: canonical.aiHumanDelta.aiDecisions,
+          humanOverrides: canonical.aiHumanDelta.humanOverrides,
+          overrideReasons: Map<String, int>.from(
+            canonical.aiHumanDelta.overrideReasons,
+          ),
+          sitesMonitored: canonical.normDrift.sitesMonitored,
+          driftDetected: canonical.normDrift.driftDetected,
+          avgMatchScore: canonical.normDrift.avgMatchScore.round(),
+          psiraExpired: canonical.complianceBlockage.psiraExpired,
+          pdpExpired: canonical.complianceBlockage.pdpExpired,
+          totalBlocked: canonical.complianceBlockage.totalBlocked,
+          sceneReviews: canonical.sceneReview.totalReviews,
+          modelSceneReviews: canonical.sceneReview.modelReviews,
+          metadataSceneReviews: canonical.sceneReview.metadataFallbackReviews,
+          sceneSuppressedActions: canonical.sceneReview.suppressedActions,
+          sceneIncidentAlerts: canonical.sceneReview.incidentAlerts,
+          sceneRepeatUpdates: canonical.sceneReview.repeatUpdates,
+          sceneEscalations: canonical.sceneReview.escalationCandidates,
+          topScenePosture: canonical.sceneReview.topPosture,
+          sceneActionMixSummary: canonical.sceneReview.actionMixSummary,
+          vehicleVisits: canonical.vehicleThroughput.totalVisits,
+          vehicleCompletedVisits: canonical.vehicleThroughput.completedVisits,
+          vehicleActiveVisits: canonical.vehicleThroughput.activeVisits,
+          vehicleIncompleteVisits: canonical.vehicleThroughput.incompleteVisits,
+          vehicleUniqueVehicles: canonical.vehicleThroughput.uniqueVehicles,
+          vehicleUnknownEvents:
+              canonical.vehicleThroughput.unknownVehicleEvents,
+          vehiclePeakHourLabel: canonical.vehicleThroughput.peakHourLabel,
+          vehiclePeakHourVisitCount:
+              canonical.vehicleThroughput.peakHourVisitCount,
+          vehicleWorkflowHeadline: canonical.vehicleThroughput.workflowHeadline,
+          vehicleSummary: canonical.vehicleThroughput.summaryLine,
+          vehicleScopeBreakdowns: canonical.vehicleThroughput.scopeBreakdowns,
+          vehicleExceptionVisits: reviewedExceptions,
+          partnerDispatches: canonical.partnerProgression.dispatchCount,
+          partnerDeclarations: canonical.partnerProgression.declarationCount,
+          partnerAccepted: canonical.partnerProgression.acceptedCount,
+          partnerOnSite: canonical.partnerProgression.onSiteCount,
+          partnerAllClear: canonical.partnerProgression.allClearCount,
+          partnerCancelled: canonical.partnerProgression.cancelledCount,
+          partnerWorkflowHeadline:
+              canonical.partnerProgression.workflowHeadline,
+          partnerPerformanceHeadline:
+              canonical.partnerProgression.performanceHeadline,
+          partnerSlaHeadline: canonical.partnerProgression.slaHeadline,
+          partnerSummary: canonical.partnerProgression.summaryLine,
+          partnerScopeBreakdowns: canonical.partnerProgression.scopeBreakdowns,
+          partnerScoreboardRows: canonical.partnerProgression.scoreboardRows,
+          partnerScoreboardHistory: partnerScoreboardHistory,
+          partnerTrendRows: partnerTrendRows,
+          partnerDispatchChains: canonical.partnerProgression.dispatchChains,
+          latestActionTaken: canonical.sceneReview.latestActionTaken,
+          recentActionsSummary: canonical.sceneReview.recentActionsSummary,
+          latestSuppressedPattern:
+              canonical.sceneReview.latestSuppressedPattern,
+          overrideReasonSummary: reasonSummary,
+          generatedAtUtc: canonical.generatedAtUtc,
+          shiftWindowStartUtc: canonical.shiftWindowStartUtc,
+          shiftWindowEndUtc: canonical.shiftWindowEndUtc,
+          fromCanonicalReport: true,
         ),
-        sitesMonitored: canonical.normDrift.sitesMonitored,
-        driftDetected: canonical.normDrift.driftDetected,
-        avgMatchScore: canonical.normDrift.avgMatchScore.round(),
-        psiraExpired: canonical.complianceBlockage.psiraExpired,
-        pdpExpired: canonical.complianceBlockage.pdpExpired,
-        totalBlocked: canonical.complianceBlockage.totalBlocked,
-        sceneReviews: canonical.sceneReview.totalReviews,
-        modelSceneReviews: canonical.sceneReview.modelReviews,
-        metadataSceneReviews: canonical.sceneReview.metadataFallbackReviews,
-        sceneSuppressedActions: canonical.sceneReview.suppressedActions,
-        sceneIncidentAlerts: canonical.sceneReview.incidentAlerts,
-        sceneRepeatUpdates: canonical.sceneReview.repeatUpdates,
-        sceneEscalations: canonical.sceneReview.escalationCandidates,
-        topScenePosture: canonical.sceneReview.topPosture,
-        sceneActionMixSummary: canonical.sceneReview.actionMixSummary,
-        vehicleVisits: canonical.vehicleThroughput.totalVisits,
-        vehicleCompletedVisits: canonical.vehicleThroughput.completedVisits,
-        vehicleActiveVisits: canonical.vehicleThroughput.activeVisits,
-        vehicleIncompleteVisits: canonical.vehicleThroughput.incompleteVisits,
-        vehicleUniqueVehicles: canonical.vehicleThroughput.uniqueVehicles,
-        vehicleUnknownEvents: canonical.vehicleThroughput.unknownVehicleEvents,
-        vehiclePeakHourLabel: canonical.vehicleThroughput.peakHourLabel,
-        vehiclePeakHourVisitCount:
-            canonical.vehicleThroughput.peakHourVisitCount,
-        vehicleWorkflowHeadline: canonical.vehicleThroughput.workflowHeadline,
-        vehicleSummary: canonical.vehicleThroughput.summaryLine,
-        vehicleScopeBreakdowns: canonical.vehicleThroughput.scopeBreakdowns,
-        vehicleExceptionVisits: reviewedExceptions,
-        partnerDispatches: canonical.partnerProgression.dispatchCount,
-        partnerDeclarations: canonical.partnerProgression.declarationCount,
-        partnerAccepted: canonical.partnerProgression.acceptedCount,
-        partnerOnSite: canonical.partnerProgression.onSiteCount,
-        partnerAllClear: canonical.partnerProgression.allClearCount,
-        partnerCancelled: canonical.partnerProgression.cancelledCount,
-        partnerWorkflowHeadline: canonical.partnerProgression.workflowHeadline,
-        partnerPerformanceHeadline:
-            canonical.partnerProgression.performanceHeadline,
-        partnerSlaHeadline: canonical.partnerProgression.slaHeadline,
-        partnerSummary: canonical.partnerProgression.summaryLine,
-        partnerScopeBreakdowns: canonical.partnerProgression.scopeBreakdowns,
-        partnerScoreboardRows: canonical.partnerProgression.scoreboardRows,
-        partnerScoreboardHistory: partnerScoreboardHistory,
-        partnerTrendRows: partnerTrendRows,
-        partnerDispatchChains: canonical.partnerProgression.dispatchChains,
-        latestActionTaken: canonical.sceneReview.latestActionTaken,
-        recentActionsSummary: canonical.sceneReview.recentActionsSummary,
-        latestSuppressedPattern: canonical.sceneReview.latestSuppressedPattern,
-        overrideReasonSummary: reasonSummary,
-        generatedAtUtc: canonical.generatedAtUtc,
-        shiftWindowStartUtc: canonical.shiftWindowStartUtc,
-        shiftWindowEndUtc: canonical.shiftWindowEndUtc,
-        fromCanonicalReport: true,
       );
     }
     return _fallbackReport(compliance);
@@ -4099,69 +4325,71 @@ class _GovernancePageState extends State<GovernancePage> {
     final integrityScore = widget.events.isEmpty
         ? 100
         : (99 - (widget.events.length % 3));
-    return _GovernanceReportView(
-      reportDate: fallbackReportDate,
-      totalEvents: widget.events.length,
-      hashVerified: true,
-      integrityScore: integrityScore.clamp(92, 100),
-      aiDecisions: aiDecisions,
-      humanOverrides: humanOverrides,
-      overrideReasons: Map<String, int>.from(overrideReasons),
-      sitesMonitored: 14,
-      driftDetected: 2,
-      avgMatchScore: 84,
-      psiraExpired: psiraExpired,
-      pdpExpired: pdpExpired,
-      totalBlocked: totalBlocked,
-      sceneReviews: 0,
-      modelSceneReviews: 0,
-      metadataSceneReviews: 0,
-      sceneSuppressedActions: 0,
-      sceneIncidentAlerts: 0,
-      sceneRepeatUpdates: 0,
-      sceneEscalations: 0,
-      topScenePosture: 'none',
-      sceneActionMixSummary: '',
-      vehicleVisits: 0,
-      vehicleCompletedVisits: 0,
-      vehicleActiveVisits: 0,
-      vehicleIncompleteVisits: 0,
-      vehicleUniqueVehicles: 0,
-      vehicleUnknownEvents: 0,
-      vehiclePeakHourLabel: 'none',
-      vehiclePeakHourVisitCount: 0,
-      vehicleWorkflowHeadline: '',
-      vehicleSummary: '',
-      vehicleScopeBreakdowns: const <SovereignReportVehicleScopeBreakdown>[],
-      vehicleExceptionVisits: const <SovereignReportVehicleVisitException>[],
-      partnerDispatches: partnerSummary.dispatchCount,
-      partnerDeclarations: partnerSummary.declarationCount,
-      partnerAccepted: partnerSummary.acceptedCount,
-      partnerOnSite: partnerSummary.onSiteCount,
-      partnerAllClear: partnerSummary.allClearCount,
-      partnerCancelled: partnerSummary.cancelledCount,
-      partnerWorkflowHeadline: partnerSummary.workflowHeadline,
-      partnerPerformanceHeadline: partnerSummary.performanceHeadline,
-      partnerSlaHeadline: partnerSummary.slaHeadline,
-      partnerSummary: partnerSummary.summaryLine,
-      partnerScopeBreakdowns: partnerSummary.scopeBreakdowns,
-      partnerScoreboardRows: partnerSummary.scoreboardRows,
-      partnerScoreboardHistory: partnerScoreboardHistory,
-      partnerTrendRows: partnerTrendRows,
-      partnerDispatchChains: partnerSummary.dispatchChains,
-      latestActionTaken: '',
-      recentActionsSummary: '',
-      latestSuppressedPattern: '',
-      overrideReasonSummary: reasonSummary.isEmpty
-          ? 'none'
-          : reasonSummary
-                .take(3)
-                .map((entry) => '${entry.key} (${entry.value})')
-                .join(', '),
-      generatedAtUtc: null,
-      shiftWindowStartUtc: null,
-      shiftWindowEndUtc: null,
-      fromCanonicalReport: false,
+    return _applyPartnerScopeFilter(
+      _GovernanceReportView(
+        reportDate: fallbackReportDate,
+        totalEvents: widget.events.length,
+        hashVerified: true,
+        integrityScore: integrityScore.clamp(92, 100),
+        aiDecisions: aiDecisions,
+        humanOverrides: humanOverrides,
+        overrideReasons: Map<String, int>.from(overrideReasons),
+        sitesMonitored: 14,
+        driftDetected: 2,
+        avgMatchScore: 84,
+        psiraExpired: psiraExpired,
+        pdpExpired: pdpExpired,
+        totalBlocked: totalBlocked,
+        sceneReviews: 0,
+        modelSceneReviews: 0,
+        metadataSceneReviews: 0,
+        sceneSuppressedActions: 0,
+        sceneIncidentAlerts: 0,
+        sceneRepeatUpdates: 0,
+        sceneEscalations: 0,
+        topScenePosture: 'none',
+        sceneActionMixSummary: '',
+        vehicleVisits: 0,
+        vehicleCompletedVisits: 0,
+        vehicleActiveVisits: 0,
+        vehicleIncompleteVisits: 0,
+        vehicleUniqueVehicles: 0,
+        vehicleUnknownEvents: 0,
+        vehiclePeakHourLabel: 'none',
+        vehiclePeakHourVisitCount: 0,
+        vehicleWorkflowHeadline: '',
+        vehicleSummary: '',
+        vehicleScopeBreakdowns: const <SovereignReportVehicleScopeBreakdown>[],
+        vehicleExceptionVisits: const <SovereignReportVehicleVisitException>[],
+        partnerDispatches: partnerSummary.dispatchCount,
+        partnerDeclarations: partnerSummary.declarationCount,
+        partnerAccepted: partnerSummary.acceptedCount,
+        partnerOnSite: partnerSummary.onSiteCount,
+        partnerAllClear: partnerSummary.allClearCount,
+        partnerCancelled: partnerSummary.cancelledCount,
+        partnerWorkflowHeadline: partnerSummary.workflowHeadline,
+        partnerPerformanceHeadline: partnerSummary.performanceHeadline,
+        partnerSlaHeadline: partnerSummary.slaHeadline,
+        partnerSummary: partnerSummary.summaryLine,
+        partnerScopeBreakdowns: partnerSummary.scopeBreakdowns,
+        partnerScoreboardRows: partnerSummary.scoreboardRows,
+        partnerScoreboardHistory: partnerScoreboardHistory,
+        partnerTrendRows: partnerTrendRows,
+        partnerDispatchChains: partnerSummary.dispatchChains,
+        latestActionTaken: '',
+        recentActionsSummary: '',
+        latestSuppressedPattern: '',
+        overrideReasonSummary: reasonSummary.isEmpty
+            ? 'none'
+            : reasonSummary
+                  .take(3)
+                  .map((entry) => '${entry.key} (${entry.value})')
+                  .join(', '),
+        generatedAtUtc: null,
+        shiftWindowStartUtc: null,
+        shiftWindowEndUtc: null,
+        fromCanonicalReport: false,
+      ),
     );
   }
 
@@ -4479,6 +4707,52 @@ class _GovernancePageState extends State<GovernancePage> {
     return parts.join(' • ');
   }
 
+  String _partnerPerformanceHeadlineFromScoreboardRows(
+    List<SovereignReportPartnerScoreboardRow> rows,
+  ) {
+    if (rows.isEmpty) {
+      return '';
+    }
+    var strongCount = 0;
+    var onTrackCount = 0;
+    var watchCount = 0;
+    var criticalCount = 0;
+    for (final row in rows) {
+      strongCount += row.strongCount;
+      onTrackCount += row.onTrackCount;
+      watchCount += row.watchCount;
+      criticalCount += row.criticalCount;
+    }
+    final parts = <String>[];
+    if (strongCount > 0) {
+      parts.add(
+        strongCount == 1
+            ? '1 strong response'
+            : '$strongCount strong responses',
+      );
+    }
+    if (onTrackCount > 0) {
+      parts.add(
+        onTrackCount == 1
+            ? '1 on-track response'
+            : '$onTrackCount on-track responses',
+      );
+    }
+    if (watchCount > 0) {
+      parts.add(
+        watchCount == 1 ? '1 watch response' : '$watchCount watch responses',
+      );
+    }
+    if (criticalCount > 0) {
+      parts.add(
+        criticalCount == 1
+            ? '1 critical response'
+            : '$criticalCount critical responses',
+      );
+    }
+    return parts.join(' • ');
+  }
+
   List<SovereignReportPartnerScoreboardRow> _partnerScoreboardRows(
     List<SovereignReportPartnerDispatchChain> chains,
   ) {
@@ -4587,6 +4861,44 @@ class _GovernancePageState extends State<GovernancePage> {
     final parts = <String>[];
     final acceptedAverage = _averageMinutes(acceptedDelayMinutes);
     final onSiteAverage = _averageMinutes(onSiteDelayMinutes);
+    if (acceptedAverage != null) {
+      parts.add('Avg accept ${acceptedAverage.toStringAsFixed(1)}m');
+    }
+    if (onSiteAverage != null) {
+      parts.add('Avg on site ${onSiteAverage.toStringAsFixed(1)}m');
+    }
+    return parts.join(' • ');
+  }
+
+  String _partnerSlaHeadlineFromScoreboardRows(
+    List<SovereignReportPartnerScoreboardRow> rows,
+  ) {
+    if (rows.isEmpty) {
+      return '';
+    }
+    var acceptedDelayWeight = 0;
+    var acceptedDelayWeightedSum = 0.0;
+    var onSiteDelayWeight = 0;
+    var onSiteDelayWeightedSum = 0.0;
+    for (final row in rows) {
+      if (row.averageAcceptedDelayMinutes > 0 && row.dispatchCount > 0) {
+        acceptedDelayWeight += row.dispatchCount;
+        acceptedDelayWeightedSum +=
+            row.averageAcceptedDelayMinutes * row.dispatchCount;
+      }
+      if (row.averageOnSiteDelayMinutes > 0 && row.dispatchCount > 0) {
+        onSiteDelayWeight += row.dispatchCount;
+        onSiteDelayWeightedSum +=
+            row.averageOnSiteDelayMinutes * row.dispatchCount;
+      }
+    }
+    final acceptedAverage = acceptedDelayWeight == 0
+        ? null
+        : acceptedDelayWeightedSum / acceptedDelayWeight;
+    final onSiteAverage = onSiteDelayWeight == 0
+        ? null
+        : onSiteDelayWeightedSum / onSiteDelayWeight;
+    final parts = <String>[];
     if (acceptedAverage != null) {
       parts.add('Avg accept ${acceptedAverage.toStringAsFixed(1)}m');
     }
