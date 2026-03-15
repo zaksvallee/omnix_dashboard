@@ -1037,6 +1037,8 @@ class _ClientIntelligenceReportsPageState
             ),
           ],
           const SizedBox(height: 10),
+          _receiptPolicyInvestigationLensCard(),
+          const SizedBox(height: 10),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -1060,6 +1062,77 @@ class _ClientIntelligenceReportsPageState
             _receiptPolicyHistoryRow(rows[index], current: index == 0),
             if (index < rows.length - 1 && index < 3) const SizedBox(height: 8),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _receiptPolicyInvestigationLensCard() {
+    final governanceContext =
+        _entryContext == ReportEntryContext.governanceBrandingDrift;
+    final activeLabel = governanceContext
+        ? 'OVERSIGHT HANDOFF'
+        : 'ROUTINE REVIEW';
+    final activeColor = governanceContext
+        ? const Color(0xFF5DC8FF)
+        : const Color(0xFF8EA4C2);
+    final activeDetail = governanceContext
+        ? 'This receipt investigation was opened from Governance branding drift, so operators can compare the current lane against the normal Reports receipt baseline.'
+        : 'This receipt investigation was opened directly in Reports without a Governance oversight handoff.';
+    final baselineDetail = governanceContext
+        ? 'Routine review is the default receipt-policy baseline when operators enter Reports without an oversight handoff.'
+        : 'Governance-launched investigations will be labeled separately when a branding-drift handoff opens this lane.';
+    return Container(
+      key: const ValueKey('reports-receipt-policy-investigation-lens'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F1E31),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF253B57)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Investigation Lens',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8FD1FF),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _partnerScopeChip(label: activeLabel, color: activeColor),
+              _partnerScopeChip(
+                label: 'ROUTINE BASELINE',
+                color: const Color(0xFF8EA4C2),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            activeDetail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFE8F1FF),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            baselineDetail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
@@ -4031,6 +4104,21 @@ class _ClientIntelligenceReportsPageState
           'title': _entryContext!.bannerTitle,
           'detail': _entryContext!.bannerDetail,
         },
+      'investigationLens': <String, Object?>{
+        'modeKey': _entryContext?.storageValue ?? 'routine_review',
+        'modeLabel': _entryContext == ReportEntryContext.governanceBrandingDrift
+            ? 'OVERSIGHT HANDOFF'
+            : 'ROUTINE REVIEW',
+        'modeDetail':
+            _entryContext == ReportEntryContext.governanceBrandingDrift
+            ? 'This receipt investigation was opened from Governance branding drift, so operators can compare the current lane against the normal Reports receipt baseline.'
+            : 'This receipt investigation was opened directly in Reports without a Governance oversight handoff.',
+        'baselineLabel': 'ROUTINE BASELINE',
+        'baselineDetail':
+            _entryContext == ReportEntryContext.governanceBrandingDrift
+            ? 'Routine review is the default receipt-policy baseline when operators enter Reports without an oversight handoff.'
+            : 'Governance-launched investigations will be labeled separately when a branding-drift handoff opens this lane.',
+      },
       'trendLabel': _receiptPolicyTrendLabel(rows),
       'trendReason': _receiptPolicyTrendReason(rows),
       'receipts': rows
@@ -4111,6 +4199,9 @@ class _ClientIntelligenceReportsPageState
         'entry_context_title,"${_entryContext!.bannerTitle.replaceAll('"', '""')}"',
       if (_entryContext != null)
         'entry_context_detail,"${_entryContext!.bannerDetail.replaceAll('"', '""')}"',
+      'investigation_mode,${_entryContext?.storageValue ?? 'routine_review'}',
+      'investigation_mode_label,"${(_entryContext == ReportEntryContext.governanceBrandingDrift ? 'OVERSIGHT HANDOFF' : 'ROUTINE REVIEW').replaceAll('"', '""')}"',
+      'investigation_baseline_label,"ROUTINE BASELINE"',
       'trend_label,${_receiptPolicyTrendLabel(rows)}',
       'trend_reason,"${_receiptPolicyTrendReason(rows).replaceAll('"', '""')}"',
     ];

@@ -786,6 +786,12 @@ void main() {
     expect(find.text('Receipt Policy History'), findsOneWidget);
     expect(find.text('SLIPPING'), findsOneWidget);
     expect(
+      find.byKey(const ValueKey('reports-receipt-policy-investigation-lens')),
+      findsOneWidget,
+    );
+    expect(find.text('ROUTINE REVIEW'), findsOneWidget);
+    expect(find.text('ROUTINE BASELINE'), findsOneWidget);
+    expect(
       find.text('Omitted AI Decision Log, Guard Metrics • Custom branding'),
       findsWidgets,
     );
@@ -815,6 +821,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(clipboardText, isNotNull);
+    expect(clipboardText, contains('"investigationLens": {'));
+    expect(clipboardText, contains('"modeKey": "routine_review"'));
+    expect(clipboardText, contains('"modeLabel": "ROUTINE REVIEW"'));
     expect(clipboardText, contains('"trendLabel": "SLIPPING"'));
     expect(clipboardText, contains('"eventId": "RPT-3"'));
     expect(clipboardText, contains('"brandingMode": "CUSTOM BRANDING"'));
@@ -834,6 +843,11 @@ void main() {
     await tester.tap(copyCsvButton);
     await tester.pumpAndSettle();
 
+    expect(clipboardText, contains('investigation_mode,routine_review'));
+    expect(
+      clipboardText,
+      contains('investigation_mode_label,"ROUTINE REVIEW"'),
+    );
     expect(clipboardText, contains('trend_label,SLIPPING'));
     expect(
       clipboardText,
@@ -935,6 +949,9 @@ void main() {
         clipboardText,
         contains('"title": "OPENED FROM GOVERNANCE BRANDING DRIFT"'),
       );
+      expect(clipboardText, contains('"investigationLens": {'));
+      expect(clipboardText, contains('"modeKey": "governance_branding_drift"'));
+      expect(clipboardText, contains('"modeLabel": "OVERSIGHT HANDOFF"'));
 
       expect(
         find.byKey(
@@ -952,6 +969,12 @@ void main() {
         ),
         findsOneWidget,
       );
+      expect(
+        find.byKey(const ValueKey('reports-receipt-policy-investigation-lens')),
+        findsOneWidget,
+      );
+      expect(find.text('OVERSIGHT HANDOFF'), findsOneWidget);
+      expect(find.text('ROUTINE BASELINE'), findsOneWidget);
       expect(find.text('Receipt • RPT-CTX-1'), findsOneWidget);
       expect(find.text('GOVERNANCE TARGET'), findsOneWidget);
 
