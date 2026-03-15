@@ -1815,6 +1815,9 @@ class _GovernancePageState extends State<GovernancePage> {
     final zones = exception.zoneLabels.isEmpty
         ? 'no zones captured'
         : exception.zoneLabels.join(' -> ');
+    final workflow = exception.workflowSummary.trim().isEmpty
+        ? 'OBSERVED (${exception.statusLabel})'
+        : exception.workflowSummary;
     final exceptionEventId = exception.primaryEventId.trim();
     final isActive =
         exceptionEventId.isNotEmpty &&
@@ -1883,6 +1886,15 @@ class _GovernancePageState extends State<GovernancePage> {
                 color: const Color(0xFF8EA4C2),
                 fontSize: 9,
                 fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Workflow: $workflow',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 4),
@@ -1973,6 +1985,7 @@ class _GovernancePageState extends State<GovernancePage> {
                           ? 'none'
                           : exception.intelligenceIds.join(', '),
                     ),
+                    _vehicleExceptionDetailLine('Workflow', workflow),
                   ],
                 ),
               ),
@@ -2025,7 +2038,10 @@ class _GovernancePageState extends State<GovernancePage> {
     final zones = exception.zoneLabels.isEmpty
         ? 'no zones captured'
         : exception.zoneLabels.join(' -> ');
-    return '${exception.reasonLabel} • ${exception.statusLabel} • ${exception.vehicleLabel} • ${exception.clientId}/${exception.siteId} • dwell ${exception.dwellMinutes.toStringAsFixed(1)}m • zones $zones';
+    final workflow = exception.workflowSummary.trim().isEmpty
+        ? 'OBSERVED (${exception.statusLabel})'
+        : exception.workflowSummary;
+    return '${exception.reasonLabel} • ${exception.statusLabel} • ${exception.vehicleLabel} • ${exception.clientId}/${exception.siteId} • dwell ${exception.dwellMinutes.toStringAsFixed(1)}m • workflow $workflow • zones $zones';
   }
 
   Widget _card({

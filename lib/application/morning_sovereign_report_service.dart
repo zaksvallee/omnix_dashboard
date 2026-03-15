@@ -538,6 +538,7 @@ class SovereignReportVehicleVisitException {
   final String vehicleLabel;
   final String statusLabel;
   final String reasonLabel;
+  final String workflowSummary;
   final String primaryEventId;
   final DateTime startedAtUtc;
   final DateTime lastSeenAtUtc;
@@ -552,6 +553,7 @@ class SovereignReportVehicleVisitException {
     required this.vehicleLabel,
     required this.statusLabel,
     required this.reasonLabel,
+    this.workflowSummary = '',
     required this.primaryEventId,
     required this.startedAtUtc,
     required this.lastSeenAtUtc,
@@ -568,6 +570,7 @@ class SovereignReportVehicleVisitException {
       'vehicleLabel': vehicleLabel,
       'statusLabel': statusLabel,
       'reasonLabel': reasonLabel,
+      'workflowSummary': workflowSummary,
       'primaryEventId': primaryEventId,
       'startedAtUtc': startedAtUtc.toIso8601String(),
       'lastSeenAtUtc': lastSeenAtUtc.toIso8601String(),
@@ -600,6 +603,7 @@ class SovereignReportVehicleVisitException {
       vehicleLabel: (json['vehicleLabel'] as String? ?? '').trim(),
       statusLabel: (json['statusLabel'] as String? ?? '').trim(),
       reasonLabel: (json['reasonLabel'] as String? ?? '').trim(),
+      workflowSummary: (json['workflowSummary'] as String? ?? '').trim(),
       primaryEventId: (json['primaryEventId'] as String? ?? '').trim(),
       startedAtUtc:
           DateTime.tryParse(
@@ -1014,6 +1018,7 @@ class MorningSovereignReportService {
           : visit.plateNumber,
       statusLabel: status.name.toUpperCase(),
       reasonLabel: reasonLabel,
+      workflowSummary: _vehicleVisitWorkflowSummary(visit, status),
       primaryEventId: eventIds.isEmpty ? '' : eventIds.last,
       startedAtUtc: visit.startedAtUtc.toUtc(),
       lastSeenAtUtc: visit.lastSeenAtUtc.toUtc(),
@@ -1024,6 +1029,19 @@ class MorningSovereignReportService {
       zoneLabels: zoneLabels,
       intelligenceIds: intelligenceIds,
     );
+  }
+
+  String _vehicleVisitWorkflowSummary(
+    VehicleVisitRecord visit,
+    VehicleVisitStatus status,
+  ) {
+    final stages = <String>[
+      if (visit.sawEntry) 'ENTRY',
+      if (visit.sawService) 'SERVICE',
+      if (visit.sawExit) 'EXIT',
+      if (!visit.sawEntry && !visit.sawService && !visit.sawExit) 'OBSERVED',
+    ];
+    return '${stages.join(' -> ')} (${status.name.toUpperCase()})';
   }
 
   ({String clientId, String siteId}) _vehicleScopeFromKey(String scopeKey) {

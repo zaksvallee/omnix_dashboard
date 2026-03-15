@@ -139,6 +139,7 @@ void main() {
             vehicleLabel: 'CA123456',
             statusLabel: 'INCOMPLETE',
             reasonLabel: 'Incomplete visit',
+            workflowSummary: 'ENTRY -> SERVICE (INCOMPLETE)',
             primaryEventId: 'EVT-201',
             startedAtUtc: DateTime.utc(2026, 3, 10, 0, 40),
             lastSeenAtUtc: DateTime.utc(2026, 3, 10, 1, 22),
@@ -213,6 +214,10 @@ void main() {
     expect(find.text('Vehicle exception review'), findsOneWidget);
     expect(find.textContaining('CLIENT-1/SITE-42'), findsWidgets);
     expect(find.textContaining('Incomplete visit • CA123456'), findsOneWidget);
+    expect(
+      find.text('Workflow: ENTRY -> SERVICE (INCOMPLETE)'),
+      findsOneWidget,
+    );
     expect(find.text('Copy Morning JSON'), findsOneWidget);
     expect(find.text('Download Morning CSV'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -1911,6 +1916,7 @@ void main() {
               vehicleLabel: 'CA123456',
               statusLabel: 'INCOMPLETE',
               reasonLabel: 'Incomplete visit',
+              workflowSummary: 'ENTRY -> SERVICE (INCOMPLETE)',
               primaryEventId: 'EVT-201',
               startedAtUtc: DateTime.utc(2026, 3, 10, 0, 40),
               lastSeenAtUtc: DateTime.utc(2026, 3, 10, 1, 22),
@@ -1947,6 +1953,10 @@ void main() {
       expect(openedEventId, isNull);
       expect(find.text('Visit timeline'), findsOneWidget);
       expect(find.textContaining('Linked events: EVT-201'), findsOneWidget);
+      expect(
+        find.textContaining('Workflow: ENTRY -> SERVICE (INCOMPLETE)'),
+        findsWidgets,
+      );
       await tester.tap(
         find.byKey(const ValueKey('governance-vehicle-exception-open-EVT-201')),
       );

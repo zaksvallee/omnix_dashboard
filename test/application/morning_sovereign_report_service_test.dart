@@ -268,6 +268,10 @@ void main() {
         'Loitering visit',
       );
       expect(
+        report.vehicleThroughput.exceptionVisits.first.workflowSummary,
+        'ENTRY -> SERVICE -> EXIT (COMPLETED)',
+      );
+      expect(
         report.vehicleThroughput.exceptionVisits.first.primaryEventId,
         'INT-5',
       );
@@ -308,6 +312,10 @@ void main() {
       );
       expect(restored.vehicleThroughput.scopeBreakdowns, hasLength(1));
       expect(restored.vehicleThroughput.exceptionVisits, hasLength(1));
+      expect(
+        restored.vehicleThroughput.exceptionVisits.first.workflowSummary,
+        'ENTRY -> SERVICE -> EXIT (COMPLETED)',
+      );
     });
   });
 }
