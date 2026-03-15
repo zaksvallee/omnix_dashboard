@@ -400,6 +400,9 @@ class _ClientIntelligenceReportsPageState
                                 if (_currentBrandingConfiguration
                                     .isConfigured) ...[
                                   Container(
+                                    key: const ValueKey(
+                                      'reports-branding-summary-card',
+                                    ),
                                     width: double.infinity,
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
@@ -432,6 +435,21 @@ class _ClientIntelligenceReportsPageState
                                             fontWeight: FontWeight.w700,
                                           ),
                                         ),
+                                        const SizedBox(height: 8),
+                                        Wrap(
+                                          spacing: 8,
+                                          runSpacing: 8,
+                                          children: [
+                                            _receiptSceneReviewPill(
+                                              _hasBrandingOverride
+                                                  ? 'Brand Override Active'
+                                                  : 'Default Partner Branding',
+                                              _hasBrandingOverride
+                                                  ? const Color(0xFFF6C067)
+                                                  : const Color(0xFF63BDFF),
+                                            ),
+                                          ],
+                                        ),
                                         if (_currentBrandingConfiguration
                                             .endorsementLine
                                             .trim()
@@ -447,6 +465,30 @@ class _ClientIntelligenceReportsPageState
                                             ),
                                           ),
                                         ],
+                                        const SizedBox(height: 10),
+                                        Wrap(
+                                          spacing: 8,
+                                          runSpacing: 8,
+                                          children: [
+                                            _actionButton(
+                                              key: const ValueKey(
+                                                'reports-branding-edit-button',
+                                              ),
+                                              label: 'Edit Branding',
+                                              icon: Icons.edit_rounded,
+                                              onTap: _editBrandingOverrides,
+                                            ),
+                                            if (_hasBrandingOverride)
+                                              _actionButton(
+                                                key: const ValueKey(
+                                                  'reports-branding-reset-button',
+                                                ),
+                                                label: 'Reset Branding',
+                                                icon: Icons.restore_rounded,
+                                                onTap: _resetBrandingOverrides,
+                                              ),
+                                          ],
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -2882,6 +2924,21 @@ class _ClientIntelligenceReportsPageState
       _partnerScopeSiteId != null &&
       _partnerScopePartnerLabel != null;
 
+  String? get _brandingPrimaryLabelOverride {
+    final value = _shellBinding.brandingPrimaryLabelOverride?.trim();
+    if (value == null || value.isEmpty) {
+      return null;
+    }
+    return value;
+  }
+
+  String? get _brandingEndorsementLineOverride =>
+      _shellBinding.brandingEndorsementLineOverride;
+
+  bool get _hasBrandingOverride =>
+      _brandingPrimaryLabelOverride != null ||
+      _brandingEndorsementLineOverride != null;
+
   List<SovereignReportPartnerScoreboardRow> get _sitePartnerScoreboardRows {
     final reports = [...widget.morningSovereignReportHistory]
       ..sort((a, b) {
@@ -2966,6 +3023,114 @@ class _ClientIntelligenceReportsPageState
     _showReceiptActionFeedback('Partner scorecard focus cleared.');
   }
 
+  Future<void> _editBrandingOverrides() async {
+    if (!_hasPartnerScopeFocus) {
+      return;
+    }
+    final defaults = _defaultBrandingConfiguration;
+    var draftPrimary = _currentBrandingConfiguration.primaryLabel;
+    var draftEndorsement = _currentBrandingConfiguration.endorsementLine;
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF08111F),
+          title: Text(
+            'Edit Client Branding',
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFE8F1FF),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Default partner branding uses ${defaults.primaryLabel} with ${defaults.endorsementLine}.',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF9CB2D1),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  key: const ValueKey('reports-branding-primary-field'),
+                  initialValue: draftPrimary,
+                  onChanged: (value) => draftPrimary = value,
+                  decoration: const InputDecoration(
+                    labelText: 'Primary client-facing label',
+                    hintText: 'VISION Tactical',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  key: const ValueKey('reports-branding-endorsement-field'),
+                  initialValue: draftEndorsement,
+                  onChanged: (value) => draftEndorsement = value,
+                  decoration: const InputDecoration(
+                    labelText: 'Endorsement line',
+                    hintText: 'Powered by ONYX',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              key: const ValueKey('reports-branding-save-button'),
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+    if (saved != true) {
+      return;
+    }
+    final nextPrimary = draftPrimary.trim();
+    final nextEndorsement = draftEndorsement.trim();
+
+    final primaryOverride =
+        nextPrimary.isEmpty || nextPrimary == defaults.primaryLabel
+        ? null
+        : nextPrimary;
+    final endorsementOverride = nextEndorsement == defaults.endorsementLine
+        ? null
+        : nextEndorsement;
+    setReportBrandingOverrides(
+      primaryLabelOverride: primaryOverride,
+      clearPrimaryLabelOverride: primaryOverride == null,
+      endorsementLineOverride: endorsementOverride,
+      clearEndorsementLineOverride: endorsementOverride == null,
+    );
+    _showReceiptActionFeedback(
+      primaryOverride == null && endorsementOverride == null
+          ? 'Partner branding reset to defaults.'
+          : 'Client-facing report branding updated.',
+    );
+  }
+
+  void _resetBrandingOverrides() {
+    if (!_hasBrandingOverride) {
+      return;
+    }
+    setReportBrandingOverrides(
+      clearPrimaryLabelOverride: true,
+      clearEndorsementLineOverride: true,
+    );
+    _showReceiptActionFeedback('Partner branding reset to defaults.');
+  }
+
   String get _receiptHistorySubtitle {
     return ReportReceiptHistoryCopy.historySubtitle(
       base:
@@ -3034,13 +3199,25 @@ class _ClientIntelligenceReportsPageState
         includeGuardMetrics: _includeGuardMetrics,
       );
 
-  ReportBrandingConfiguration get _currentBrandingConfiguration =>
+  ReportBrandingConfiguration get _defaultBrandingConfiguration =>
       _hasPartnerScopeFocus
       ? ReportBrandingConfiguration(
           primaryLabel: _partnerScopePartnerLabel!,
           endorsementLine: 'Powered by ONYX',
         )
       : const ReportBrandingConfiguration();
+
+  ReportBrandingConfiguration get _currentBrandingConfiguration {
+    final defaults = _defaultBrandingConfiguration;
+    if (!defaults.isConfigured) {
+      return defaults;
+    }
+    return ReportBrandingConfiguration(
+      primaryLabel: _brandingPrimaryLabelOverride ?? defaults.primaryLabel,
+      endorsementLine:
+          _brandingEndorsementLineOverride ?? defaults.endorsementLine,
+    );
+  }
 
   bool get _includeTimeline => _shellBinding.includeTimeline;
 

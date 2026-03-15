@@ -13,6 +13,8 @@ class ReportShellState {
   final String? partnerScopeClientId;
   final String? partnerScopeSiteId;
   final String? partnerScopePartnerLabel;
+  final String? brandingPrimaryLabelOverride;
+  final String? brandingEndorsementLineOverride;
   final bool includeTimeline;
   final bool includeDispatchSummary;
   final bool includeCheckpointCompliance;
@@ -29,6 +31,8 @@ class ReportShellState {
     this.partnerScopeClientId,
     this.partnerScopeSiteId,
     this.partnerScopePartnerLabel,
+    this.brandingPrimaryLabelOverride,
+    this.brandingEndorsementLineOverride,
     this.includeTimeline = true,
     this.includeDispatchSummary = true,
     this.includeCheckpointCompliance = true,
@@ -49,6 +53,10 @@ class ReportShellState {
     String? partnerScopeSiteId,
     String? partnerScopePartnerLabel,
     bool clearPartnerScopeFocus = false,
+    String? brandingPrimaryLabelOverride,
+    bool clearBrandingPrimaryLabelOverride = false,
+    String? brandingEndorsementLineOverride,
+    bool clearBrandingEndorsementLineOverride = false,
     bool? includeTimeline,
     bool? includeDispatchSummary,
     bool? includeCheckpointCompliance,
@@ -60,6 +68,10 @@ class ReportShellState {
     final normalizedPartnerScopeClientId = partnerScopeClientId?.trim();
     final normalizedPartnerScopeSiteId = partnerScopeSiteId?.trim();
     final normalizedPartnerScopePartnerLabel = partnerScopePartnerLabel?.trim();
+    final normalizedBrandingPrimaryLabelOverride = brandingPrimaryLabelOverride
+        ?.trim();
+    final normalizedBrandingEndorsementLineOverride =
+        brandingEndorsementLineOverride?.trim();
     final nextPartnerScopeClientId = clearPartnerScopeFocus
         ? null
         : normalizedPartnerScopeClientId == null
@@ -114,6 +126,19 @@ class ReportShellState {
       partnerScopePartnerLabel: hasCompletePartnerScope
           ? nextPartnerScopePartnerLabel
           : null,
+      brandingPrimaryLabelOverride:
+          clearPartnerScopeFocus || clearBrandingPrimaryLabelOverride
+          ? null
+          : normalizedBrandingPrimaryLabelOverride == null
+          ? this.brandingPrimaryLabelOverride
+          : normalizedBrandingPrimaryLabelOverride.isEmpty
+          ? null
+          : normalizedBrandingPrimaryLabelOverride,
+      brandingEndorsementLineOverride:
+          clearPartnerScopeFocus || clearBrandingEndorsementLineOverride
+          ? null
+          : normalizedBrandingEndorsementLineOverride ??
+                this.brandingEndorsementLineOverride,
       includeTimeline: includeTimeline ?? this.includeTimeline,
       includeDispatchSummary:
           includeDispatchSummary ?? this.includeDispatchSummary,

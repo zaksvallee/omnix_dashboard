@@ -110,6 +110,22 @@ mixin ReportShellBindingHost<T extends StatefulWidget> on State<T> {
     );
   }
 
+  void setReportBrandingOverrides({
+    String? primaryLabelOverride,
+    bool clearPrimaryLabelOverride = false,
+    String? endorsementLineOverride,
+    bool clearEndorsementLineOverride = false,
+  }) {
+    mutateReportShellBinding(
+      (binding) => binding.withBrandingOverrides(
+        primaryLabelOverride: primaryLabelOverride,
+        clearPrimaryLabelOverride: clearPrimaryLabelOverride,
+        endorsementLineOverride: endorsementLineOverride,
+        clearEndorsementLineOverride: clearEndorsementLineOverride,
+      ),
+    );
+  }
+
   void focusReportReceiptWorkspace(String? eventId) {
     mutateReportShellBinding(
       (binding) => binding.withReceiptWorkspaceFocus(eventId),

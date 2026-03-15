@@ -14,6 +14,8 @@ class ReportShellBinding {
   final String? partnerScopeClientId;
   final String? partnerScopeSiteId;
   final String? partnerScopePartnerLabel;
+  final String? brandingPrimaryLabelOverride;
+  final String? brandingEndorsementLineOverride;
   final bool includeTimeline;
   final bool includeDispatchSummary;
   final bool includeCheckpointCompliance;
@@ -21,20 +23,22 @@ class ReportShellBinding {
   final bool includeGuardMetrics;
 
   const ReportShellBinding({
-    required this.receiptFilter,
-    required this.outputMode,
-    required this.selectedReceiptEventId,
-    required this.previewReceiptEventId,
-    required this.previewSurface,
-    required this.partnerComparisonWindow,
-    required this.partnerScopeClientId,
-    required this.partnerScopeSiteId,
-    required this.partnerScopePartnerLabel,
-    required this.includeTimeline,
-    required this.includeDispatchSummary,
-    required this.includeCheckpointCompliance,
-    required this.includeAiDecisionLog,
-    required this.includeGuardMetrics,
+    this.receiptFilter = ReportReceiptSceneFilter.all,
+    this.outputMode = ReportOutputMode.pdf,
+    this.selectedReceiptEventId,
+    this.previewReceiptEventId,
+    this.previewSurface = ReportPreviewSurface.route,
+    this.partnerComparisonWindow = ReportPartnerComparisonWindow.latestShift,
+    this.partnerScopeClientId,
+    this.partnerScopeSiteId,
+    this.partnerScopePartnerLabel,
+    this.brandingPrimaryLabelOverride,
+    this.brandingEndorsementLineOverride,
+    this.includeTimeline = true,
+    this.includeDispatchSummary = true,
+    this.includeCheckpointCompliance = true,
+    this.includeAiDecisionLog = false,
+    this.includeGuardMetrics = false,
   });
 
   factory ReportShellBinding.fromShellState(ReportShellState shellState) {
@@ -47,6 +51,12 @@ class ReportShellBinding {
     final normalizedPartnerScopeSiteId = shellState.partnerScopeSiteId?.trim();
     final normalizedPartnerScopePartnerLabel = shellState
         .partnerScopePartnerLabel
+        ?.trim();
+    final normalizedBrandingPrimaryLabelOverride = shellState
+        .brandingPrimaryLabelOverride
+        ?.trim();
+    final normalizedBrandingEndorsementLineOverride = shellState
+        .brandingEndorsementLineOverride
         ?.trim();
     final hasCompletePartnerScope =
         normalizedPartnerScopeClientId != null &&
@@ -79,6 +89,13 @@ class ReportShellBinding {
       partnerScopePartnerLabel: hasCompletePartnerScope
           ? normalizedPartnerScopePartnerLabel
           : null,
+      brandingPrimaryLabelOverride:
+          normalizedBrandingPrimaryLabelOverride == null ||
+              normalizedBrandingPrimaryLabelOverride.isEmpty
+          ? null
+          : normalizedBrandingPrimaryLabelOverride,
+      brandingEndorsementLineOverride:
+          normalizedBrandingEndorsementLineOverride,
       includeTimeline: shellState.includeTimeline,
       includeDispatchSummary: shellState.includeDispatchSummary,
       includeCheckpointCompliance: shellState.includeCheckpointCompliance,
@@ -100,6 +117,10 @@ class ReportShellBinding {
     String? partnerScopeSiteId,
     String? partnerScopePartnerLabel,
     bool clearPartnerScopeFocus = false,
+    String? brandingPrimaryLabelOverride,
+    bool clearBrandingPrimaryLabelOverride = false,
+    String? brandingEndorsementLineOverride,
+    bool clearBrandingEndorsementLineOverride = false,
     bool? includeTimeline,
     bool? includeDispatchSummary,
     bool? includeCheckpointCompliance,
@@ -111,6 +132,10 @@ class ReportShellBinding {
     final normalizedPartnerScopeClientId = partnerScopeClientId?.trim();
     final normalizedPartnerScopeSiteId = partnerScopeSiteId?.trim();
     final normalizedPartnerScopePartnerLabel = partnerScopePartnerLabel?.trim();
+    final normalizedBrandingPrimaryLabelOverride = brandingPrimaryLabelOverride
+        ?.trim();
+    final normalizedBrandingEndorsementLineOverride =
+        brandingEndorsementLineOverride?.trim();
     final nextPartnerScopeClientId = clearPartnerScopeFocus
         ? null
         : normalizedPartnerScopeClientId == null
@@ -165,6 +190,19 @@ class ReportShellBinding {
       partnerScopePartnerLabel: hasCompletePartnerScope
           ? nextPartnerScopePartnerLabel
           : null,
+      brandingPrimaryLabelOverride:
+          clearPartnerScopeFocus || clearBrandingPrimaryLabelOverride
+          ? null
+          : normalizedBrandingPrimaryLabelOverride == null
+          ? this.brandingPrimaryLabelOverride
+          : normalizedBrandingPrimaryLabelOverride.isEmpty
+          ? null
+          : normalizedBrandingPrimaryLabelOverride,
+      brandingEndorsementLineOverride:
+          clearPartnerScopeFocus || clearBrandingEndorsementLineOverride
+          ? null
+          : normalizedBrandingEndorsementLineOverride ??
+                this.brandingEndorsementLineOverride,
       includeTimeline: includeTimeline ?? this.includeTimeline,
       includeDispatchSummary:
           includeDispatchSummary ?? this.includeDispatchSummary,
@@ -235,6 +273,28 @@ class ReportShellBinding {
               newShellState.partnerScopePartnerLabel
           ? newShellState.partnerScopePartnerLabel
           : null,
+      brandingPrimaryLabelOverride:
+          oldShellState.brandingPrimaryLabelOverride !=
+                  newShellState.brandingPrimaryLabelOverride &&
+              newShellState.brandingPrimaryLabelOverride !=
+                  brandingPrimaryLabelOverride
+          ? newShellState.brandingPrimaryLabelOverride
+          : null,
+      clearBrandingPrimaryLabelOverride:
+          oldShellState.brandingPrimaryLabelOverride !=
+              newShellState.brandingPrimaryLabelOverride &&
+          newShellState.brandingPrimaryLabelOverride == null,
+      brandingEndorsementLineOverride:
+          oldShellState.brandingEndorsementLineOverride !=
+                  newShellState.brandingEndorsementLineOverride &&
+              newShellState.brandingEndorsementLineOverride !=
+                  brandingEndorsementLineOverride
+          ? newShellState.brandingEndorsementLineOverride
+          : null,
+      clearBrandingEndorsementLineOverride:
+          oldShellState.brandingEndorsementLineOverride !=
+              newShellState.brandingEndorsementLineOverride &&
+          newShellState.brandingEndorsementLineOverride == null,
       clearPartnerScopeFocus:
           (oldShellState.partnerScopeClientId !=
                   newShellState.partnerScopeClientId ||
@@ -311,10 +371,19 @@ class ReportShellBinding {
     required String siteId,
     required String partnerLabel,
   }) {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    final normalizedPartnerLabel = partnerLabel.trim();
+    final scopeChanged =
+        normalizedClientId != partnerScopeClientId ||
+        normalizedSiteId != partnerScopeSiteId ||
+        normalizedPartnerLabel != partnerScopePartnerLabel;
     return copyWith(
-      partnerScopeClientId: clientId,
-      partnerScopeSiteId: siteId,
-      partnerScopePartnerLabel: partnerLabel,
+      partnerScopeClientId: normalizedClientId,
+      partnerScopeSiteId: normalizedSiteId,
+      partnerScopePartnerLabel: normalizedPartnerLabel,
+      clearBrandingPrimaryLabelOverride: scopeChanged,
+      clearBrandingEndorsementLineOverride: scopeChanged,
     );
   }
 
@@ -335,6 +404,20 @@ class ReportShellBinding {
       includeCheckpointCompliance: includeCheckpointCompliance,
       includeAiDecisionLog: includeAiDecisionLog,
       includeGuardMetrics: includeGuardMetrics,
+    );
+  }
+
+  ReportShellBinding withBrandingOverrides({
+    String? primaryLabelOverride,
+    bool clearPrimaryLabelOverride = false,
+    String? endorsementLineOverride,
+    bool clearEndorsementLineOverride = false,
+  }) {
+    return copyWith(
+      brandingPrimaryLabelOverride: primaryLabelOverride,
+      clearBrandingPrimaryLabelOverride: clearPrimaryLabelOverride,
+      brandingEndorsementLineOverride: endorsementLineOverride,
+      clearBrandingEndorsementLineOverride: clearEndorsementLineOverride,
     );
   }
 
@@ -390,6 +473,11 @@ class ReportShellBinding {
       partnerScopeClientId: partnerScopeClientId,
       partnerScopeSiteId: partnerScopeSiteId,
       partnerScopePartnerLabel: partnerScopePartnerLabel,
+      brandingPrimaryLabelOverride: brandingPrimaryLabelOverride,
+      clearBrandingPrimaryLabelOverride: brandingPrimaryLabelOverride == null,
+      brandingEndorsementLineOverride: brandingEndorsementLineOverride,
+      clearBrandingEndorsementLineOverride:
+          brandingEndorsementLineOverride == null,
       clearPartnerScopeFocus:
           partnerScopeClientId == null ||
           partnerScopeSiteId == null ||
@@ -417,6 +505,9 @@ class ReportShellBinding {
         other.partnerScopeClientId == partnerScopeClientId &&
         other.partnerScopeSiteId == partnerScopeSiteId &&
         other.partnerScopePartnerLabel == partnerScopePartnerLabel &&
+        other.brandingPrimaryLabelOverride == brandingPrimaryLabelOverride &&
+        other.brandingEndorsementLineOverride ==
+            brandingEndorsementLineOverride &&
         other.includeTimeline == includeTimeline &&
         other.includeDispatchSummary == includeDispatchSummary &&
         other.includeCheckpointCompliance == includeCheckpointCompliance &&
@@ -435,6 +526,8 @@ class ReportShellBinding {
     partnerScopeClientId,
     partnerScopeSiteId,
     partnerScopePartnerLabel,
+    brandingPrimaryLabelOverride,
+    brandingEndorsementLineOverride,
     includeTimeline,
     includeDispatchSummary,
     includeCheckpointCompliance,

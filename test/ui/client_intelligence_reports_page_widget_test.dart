@@ -1222,6 +1222,81 @@ void main() {
     },
   );
 
+  testWidgets('client reports persists branding overrides through remount', (
+    tester,
+  ) async {
+    final shellState = ValueNotifier(
+      const ReportShellState(
+        partnerScopeClientId: 'CLIENT-001',
+        partnerScopeSiteId: 'SITE-SANDTON',
+        partnerScopePartnerLabel: 'PARTNER • Alpha',
+      ),
+    );
+    addTearDown(shellState.dispose);
+
+    Widget buildReports() {
+      return MaterialApp(
+        home: ValueListenableBuilder<ReportShellState>(
+          valueListenable: shellState,
+          builder: (context, value, _) {
+            return ClientIntelligenceReportsPage(
+              key: ValueKey(
+                '${value.brandingPrimaryLabelOverride}|${value.brandingEndorsementLineOverride}',
+              ),
+              store: InMemoryEventStore(),
+              selectedClient: 'CLIENT-001',
+              selectedSite: 'SITE-SANDTON',
+              reportShellState: value,
+              onReportShellStateChanged: (next) => shellState.value = next,
+            );
+          },
+        ),
+      );
+    }
+
+    await tester.pumpWidget(buildReports());
+    await tester.pumpAndSettle();
+
+    expect(find.text('PARTNER • Alpha'), findsWidgets);
+    expect(find.text('Powered by ONYX'), findsOneWidget);
+
+    final editBrandingButton = find.byKey(
+      const ValueKey('reports-branding-edit-button'),
+    );
+    await tester.ensureVisible(editBrandingButton);
+    await tester.tap(editBrandingButton);
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('reports-branding-primary-field')),
+      'VISION Tactical',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('reports-branding-endorsement-field')),
+      'Intelligence by ONYX',
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('reports-branding-save-button')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(shellState.value.brandingPrimaryLabelOverride, 'VISION Tactical');
+    expect(
+      shellState.value.brandingEndorsementLineOverride,
+      'Intelligence by ONYX',
+    );
+
+    await tester.pumpWidget(buildReports());
+    await tester.pumpAndSettle();
+
+    expect(find.text('VISION Tactical'), findsWidgets);
+    expect(find.text('Intelligence by ONYX'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('reports-branding-reset-button')),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('client reports export all includes latest-action lens context', (
     tester,
   ) async {
@@ -3669,6 +3744,69 @@ void main() {
       );
       expect(find.text('2 Sections Omitted'), findsWidgets);
       expect(previewRequests, hasLength(1));
+    },
+  );
+
+  testWidgets(
+    'client reports stamps branding overrides onto generated receipts',
+    (tester) async {
+      final fixture = buildReviewedReportGenerationFixture(
+        intelligenceEventId: 'INTEL-GENERATE-BRANDING-1',
+        intelligenceId: 'intel-generate-branding-1',
+      );
+      final store = fixture.store;
+      final shellState = ValueNotifier(
+        const ReportShellState(
+          partnerScopeClientId: 'CLIENT-001',
+          partnerScopeSiteId: 'SITE-SANDTON',
+          partnerScopePartnerLabel: 'PARTNER • Alpha',
+          brandingPrimaryLabelOverride: 'VISION Tactical',
+          brandingEndorsementLineOverride: 'Intelligence by ONYX',
+        ),
+      );
+      final previewRequests = <ReportPreviewRequest>[];
+      addTearDown(shellState.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ValueListenableBuilder<ReportShellState>(
+            valueListenable: shellState,
+            builder: (context, value, _) {
+              return ClientIntelligenceReportsPage(
+                store: store,
+                selectedClient: 'CLIENT-001',
+                selectedSite: 'SITE-SANDTON',
+                sceneReviewByIntelligenceId:
+                    fixture.sceneReviewByIntelligenceId,
+                reportShellState: value,
+                onReportShellStateChanged: (next) => shellState.value = next,
+                onRequestPreview: previewRequests.add,
+              );
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final previewReportAction = find.text('Preview Report').first;
+      await tester.ensureVisible(previewReportAction);
+      await tester.tap(previewReportAction);
+      await tester.pumpAndSettle();
+
+      final generatedReceipt = store
+          .allEvents()
+          .whereType<ReportGenerated>()
+          .single;
+      expect(generatedReceipt.primaryBrandLabel, 'VISION Tactical');
+      expect(generatedReceipt.endorsementLine, 'Intelligence by ONYX');
+      expect(
+        previewRequests.single.bundle.brandingConfiguration.primaryLabel,
+        'VISION Tactical',
+      );
+      expect(
+        previewRequests.single.bundle.brandingConfiguration.endorsementLine,
+        'Intelligence by ONYX',
+      );
     },
   );
 
