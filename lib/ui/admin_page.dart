@@ -388,6 +388,8 @@ class AdministrationPage extends StatefulWidget {
   final ValueChanged<String>? onOpenOperationsForIncident;
   final ValueChanged<String>? onOpenTacticalForIncident;
   final ValueChanged<String>? onOpenEventsForIncident;
+  final void Function(List<String> eventIds, String? selectedEventId)?
+  onOpenEventsForScope;
   final ValueChanged<String>? onOpenLedgerForIncident;
   final ValueChanged<String>? onOpenDispatchesForIncident;
   final ValueChanged<String>? onRunDemoAutopilotForIncident;
@@ -539,6 +541,7 @@ class AdministrationPage extends StatefulWidget {
     this.onOpenOperationsForIncident,
     this.onOpenTacticalForIncident,
     this.onOpenEventsForIncident,
+    this.onOpenEventsForScope,
     this.onOpenLedgerForIncident,
     this.onOpenDispatchesForIncident,
     this.onRunDemoAutopilotForIncident,
@@ -3628,6 +3631,31 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       checking ? 'Checking...' : 'Check lane',
                       style: GoogleFonts.inter(
                         color: const Color(0xFFEAF4FF),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                if (recentActions.isNotEmpty &&
+                    widget.onOpenEventsForScope != null)
+                  TextButton(
+                    onPressed: () {
+                      final eventIds = recentActions
+                          .map((event) => event.eventId.trim())
+                          .where((id) => id.isNotEmpty)
+                          .toList(growable: false);
+                      if (eventIds.isEmpty) {
+                        return;
+                      }
+                      Navigator.of(dialogContext).pop();
+                      widget.onOpenEventsForScope!.call(
+                        eventIds,
+                        eventIds.first,
+                      );
+                    },
+                    child: Text(
+                      'Open Events Review',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF8FD1FF),
                         fontWeight: FontWeight.w700,
                       ),
                     ),

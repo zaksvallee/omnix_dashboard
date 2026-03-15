@@ -15595,6 +15595,30 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     });
   }
 
+  void _openEventsForScopedEventIds(
+    List<String> eventIds, {
+    String? selectedEventId,
+  }) {
+    final scopedIds = eventIds
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    if (scopedIds.isEmpty) return;
+    final selected = (selectedEventId ?? '').trim();
+    _cancelDemoAutopilot();
+    setState(() {
+      _eventsSourceFilter = '';
+      _eventsProviderFilter = '';
+      _eventsSelectedEventId =
+          selected.isNotEmpty && scopedIds.contains(selected)
+          ? selected
+          : scopedIds.first;
+      _eventsScopedEventIds = scopedIds;
+      _route = OnyxRoute.events;
+    });
+  }
+
   void _openEventsForVehicleVisit(
     SovereignReportVehicleVisitException exception,
   ) {
@@ -16936,6 +16960,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           onOpenOperationsForIncident: _openOperationsFromAdminIncident,
           onOpenTacticalForIncident: _openTacticalFromAdminIncident,
           onOpenEventsForIncident: _openEventsFromAdminIncident,
+          onOpenEventsForScope: (eventIds, selectedEventId) {
+            _openEventsForScopedEventIds(
+              eventIds,
+              selectedEventId: selectedEventId,
+            );
+          },
           onOpenLedgerForIncident: _openLedgerFromAdminIncident,
           onOpenDispatchesForIncident: _openDispatchesFromAdminIncident,
           onRunDemoAutopilotForIncident: _startDemoAutopilotFromAdminIncident,

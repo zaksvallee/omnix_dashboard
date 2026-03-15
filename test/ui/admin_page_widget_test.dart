@@ -321,6 +321,8 @@ void main() {
     String? openedDispatchClientId;
     String? openedDispatchSiteId;
     String? openedDispatchReference;
+    List<String>? openedEventIds;
+    String? openedSelectedEventId;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -355,24 +357,29 @@ void main() {
               'PARTNER • Alpha • chat=-1001234567890 • thread=77',
             ],
           },
-          onCheckPartnerTelegramEndpoint: ({
-            required clientId,
-            required siteId,
-            required chatId,
-            int? threadId,
-          }) async {
-            checkedPayload = <String, Object?>{
-              'clientId': clientId,
-              'siteId': siteId,
-              'chatId': chatId,
-              'threadId': threadId,
-            };
-            return 'PASS (partner lane linked)';
-          },
+          onCheckPartnerTelegramEndpoint:
+              ({
+                required clientId,
+                required siteId,
+                required chatId,
+                int? threadId,
+              }) async {
+                checkedPayload = <String, Object?>{
+                  'clientId': clientId,
+                  'siteId': siteId,
+                  'chatId': chatId,
+                  'threadId': threadId,
+                };
+                return 'PASS (partner lane linked)';
+              },
           onOpenFleetDispatchScope: (clientId, siteId, incidentReference) {
             openedDispatchClientId = clientId;
             openedDispatchSiteId = siteId;
             openedDispatchReference = incidentReference;
+          },
+          onOpenEventsForScope: (eventIds, selectedEventId) {
+            openedEventIds = eventIds;
+            openedSelectedEventId = selectedEventId;
           },
         ),
       ),
@@ -401,7 +408,10 @@ void main() {
     expect(checkedPayload['siteId'], 'WTF-MAIN');
     expect(checkedPayload['chatId'], '-1001234567890');
     expect(checkedPayload['threadId'], 77);
-    expect(find.text('Current health: PASS (partner lane linked)'), findsOneWidget);
+    expect(
+      find.text('Current health: PASS (partner lane linked)'),
+      findsOneWidget,
+    );
 
     await tester.tap(find.text('Open Dispatch Scope'));
     await tester.pumpAndSettle();
@@ -409,6 +419,14 @@ void main() {
     expect(openedDispatchClientId, 'CLT-001');
     expect(openedDispatchSiteId, 'WTF-MAIN');
     expect(openedDispatchReference, isNull);
+
+    await tester.tap(find.text('Waterfall Estate Main (WTF-MAIN)'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open Events Review'));
+    await tester.pumpAndSettle();
+
+    expect(openedEventIds, <String>['evt-partner-1']);
+    expect(openedSelectedEventId, 'evt-partner-1');
   });
 
   testWidgets('administration page reports tab changes to parent state', (
