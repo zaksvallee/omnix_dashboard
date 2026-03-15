@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:omnix_dashboard/application/morning_sovereign_report_service.dart';
 import 'package:omnix_dashboard/domain/events/decision_created.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
+import 'package:omnix_dashboard/domain/events/partner_dispatch_status_declared.dart';
 import 'package:omnix_dashboard/domain/guard/guard_ops_event.dart';
 import 'package:omnix_dashboard/domain/store/in_memory_event_store.dart';
 import 'package:omnix_dashboard/ui/dashboard_page.dart';
@@ -152,6 +153,46 @@ void main() {
               summaryLine:
                   'Visits 6 • Entry 6 • Completed 5 • Active 1 • Incomplete 0 • Unique 6 • Avg dwell 18.5m • Peak 23:00-00:00 (3)',
             ),
+            partnerProgression: SovereignReportPartnerProgression(
+              dispatchCount: 2,
+              declarationCount: 5,
+              acceptedCount: 2,
+              onSiteCount: 1,
+              allClearCount: 1,
+              cancelledCount: 0,
+              workflowHeadline:
+                  '1 partner dispatch reached ALL CLEAR • 1 partner dispatch remains ON SITE',
+              summaryLine:
+                  'Dispatches 2 • Declarations 5 • Accept 2 • On site 1 • All clear 1 • Cancelled 0',
+              scopeBreakdowns: [
+                SovereignReportPartnerScopeBreakdown(
+                  clientId: 'CLIENT-1',
+                  siteId: 'SITE-1',
+                  dispatchCount: 2,
+                  declarationCount: 5,
+                  latestStatus: PartnerDispatchStatus.onSite,
+                  latestOccurredAtUtc: DateTime.utc(2026, 3, 9, 23, 44),
+                  summaryLine:
+                      'Dispatches 2 • Declarations 5 • Latest ON SITE @ 2026-03-09T23:44:00.000Z',
+                ),
+              ],
+              dispatchChains: [
+                SovereignReportPartnerDispatchChain(
+                  dispatchId: 'DSP-1',
+                  clientId: 'CLIENT-1',
+                  siteId: 'SITE-1',
+                  partnerLabel: 'Partner Alpha',
+                  declarationCount: 3,
+                  latestStatus: PartnerDispatchStatus.allClear,
+                  latestOccurredAtUtc: DateTime.utc(2026, 3, 9, 23, 20),
+                  acceptedAtUtc: DateTime.utc(2026, 3, 9, 23, 5),
+                  onSiteAtUtc: DateTime.utc(2026, 3, 9, 23, 12),
+                  allClearAtUtc: DateTime.utc(2026, 3, 9, 23, 20),
+                  workflowSummary:
+                      'ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)',
+                ),
+              ],
+            ),
           ),
           morningSovereignReportAutoStatusLabel:
               'Auto generated for shift ending 2026-03-09. Next generation runs at 06:00 local.',
@@ -178,6 +219,13 @@ void main() {
     expect(
       find.text(
         '5 completed visits reached EXIT • 1 active visit remains in SERVICE',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Partner progression'), findsOneWidget);
+    expect(
+      find.text(
+        '1 partner dispatch reached ALL CLEAR • 1 partner dispatch remains ON SITE',
       ),
       findsOneWidget,
     );

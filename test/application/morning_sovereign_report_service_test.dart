@@ -5,6 +5,7 @@ import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 import 'package:omnix_dashboard/domain/events/decision_created.dart';
 import 'package:omnix_dashboard/domain/events/execution_denied.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
+import 'package:omnix_dashboard/domain/events/partner_dispatch_status_declared.dart';
 import 'package:omnix_dashboard/domain/events/vehicle_visit_review_recorded.dart';
 import 'package:omnix_dashboard/domain/guard/guard_ops_event.dart';
 
@@ -153,6 +154,36 @@ void main() {
             plateNumber: 'CA 123 456',
             zone: 'Exit Lane',
           ),
+          PartnerDispatchStatusDeclared(
+            eventId: 'PARTNER-1',
+            sequence: 17,
+            version: 1,
+            occurredAt: DateTime.utc(2026, 3, 10, 1, 45),
+            dispatchId: 'DSP-1',
+            clientId: 'CLIENT-1',
+            regionId: 'REGION-1',
+            siteId: 'SITE-1',
+            partnerLabel: 'Partner Alpha',
+            actorLabel: 'controller-1',
+            status: PartnerDispatchStatus.accepted,
+            sourceChannel: 'telegram',
+            sourceMessageKey: 'msg-1',
+          ),
+          PartnerDispatchStatusDeclared(
+            eventId: 'PARTNER-2',
+            sequence: 18,
+            version: 1,
+            occurredAt: DateTime.utc(2026, 3, 10, 1, 52),
+            dispatchId: 'DSP-1',
+            clientId: 'CLIENT-1',
+            regionId: 'REGION-1',
+            siteId: 'SITE-1',
+            partnerLabel: 'Partner Alpha',
+            actorLabel: 'controller-1',
+            status: PartnerDispatchStatus.onSite,
+            sourceChannel: 'telegram',
+            sourceMessageKey: 'msg-2',
+          ),
         ],
         recentMedia: [
           GuardOpsMediaUpload(
@@ -217,7 +248,7 @@ void main() {
       expect(report.date, '2026-03-10');
       expect(report.shiftWindowStartUtc, expectedWindowStartUtc);
       expect(report.shiftWindowEndUtc, expectedWindowEndUtc);
-      expect(report.ledgerIntegrity.totalEvents, 7);
+      expect(report.ledgerIntegrity.totalEvents, 9);
       expect(report.ledgerIntegrity.hashVerified, isTrue);
       expect(report.aiHumanDelta.aiDecisions, 1);
       expect(report.aiHumanDelta.humanOverrides, 1);
@@ -288,10 +319,29 @@ void main() {
         report.vehicleThroughput.summaryLine,
         'Visits 1 • Entry 1 • Completed 1 • Active 0 • Incomplete 0 • Unique 1 • Avg dwell 30.0m • Peak 01:00-02:00 (1) • Loitering 1',
       );
+      expect(report.partnerProgression.dispatchCount, 1);
+      expect(report.partnerProgression.declarationCount, 2);
+      expect(report.partnerProgression.acceptedCount, 1);
+      expect(report.partnerProgression.onSiteCount, 1);
+      expect(report.partnerProgression.allClearCount, 0);
+      expect(
+        report.partnerProgression.workflowHeadline,
+        '1 partner dispatch remains ON SITE',
+      );
+      expect(
+        report.partnerProgression.summaryLine,
+        'Dispatches 1 • Declarations 2 • Accept 1 • On site 1 • All clear 0 • Cancelled 0',
+      );
+      expect(report.partnerProgression.scopeBreakdowns, hasLength(1));
+      expect(report.partnerProgression.dispatchChains, hasLength(1));
+      expect(
+        report.partnerProgression.dispatchChains.first.workflowSummary,
+        'ACCEPT -> ON SITE (LATEST ON SITE)',
+      );
 
       final restored = SovereignReport.fromJson(report.toJson());
       expect(restored.date, report.date);
-      expect(restored.ledgerIntegrity.totalEvents, 7);
+      expect(restored.ledgerIntegrity.totalEvents, 9);
       expect(restored.aiHumanDelta.humanOverrides, 1);
       expect(restored.sceneReview.totalReviews, 3);
       expect(restored.sceneReview.escalationCandidates, 1);
@@ -325,91 +375,101 @@ void main() {
         restored.vehicleThroughput.workflowHeadline,
         '1 completed visit reached EXIT',
       );
-    });
-
-    test('applies latest vehicle visit review events to throughput exceptions', () {
-      final service = const MorningSovereignReportService();
-      final report = service.generate(
-        nowUtc: DateTime.utc(2026, 3, 10, 8, 30),
-        events: [
-          IntelligenceReceived(
-            eventId: 'INT-ENTRY',
-            sequence: 20,
-            version: 1,
-            occurredAt: DateTime.utc(2026, 3, 10, 0, 10),
-            intelligenceId: 'INT-ENTRY',
-            provider: 'feed',
-            sourceType: 'dvr',
-            externalId: 'EXT-ENTRY',
-            clientId: 'CLIENT-9',
-            regionId: 'REGION-9',
-            siteId: 'SITE-9',
-            headline: 'Vehicle entered entry lane',
-            summary: 'Vehicle entered the monitored lane.',
-            riskScore: 22,
-            canonicalHash: 'hash-entry',
-            cameraId: 'lane-1',
-            objectLabel: 'vehicle',
-            plateNumber: 'ND 987 654',
-            zone: 'Entry Lane',
-          ),
-          IntelligenceReceived(
-            eventId: 'INT-SERVICE',
-            sequence: 21,
-            version: 1,
-            occurredAt: DateTime.utc(2026, 3, 10, 0, 24),
-            intelligenceId: 'INT-SERVICE',
-            provider: 'feed',
-            sourceType: 'dvr',
-            externalId: 'EXT-SERVICE',
-            clientId: 'CLIENT-9',
-            regionId: 'REGION-9',
-            siteId: 'SITE-9',
-            headline: 'Vehicle entered wash bay',
-            summary: 'Vehicle moved into the service zone.',
-            riskScore: 18,
-            canonicalHash: 'hash-service',
-            cameraId: 'lane-2',
-            objectLabel: 'vehicle',
-            plateNumber: 'ND 987 654',
-            zone: 'Wash Bay',
-          ),
-          VehicleVisitReviewRecorded(
-            eventId: 'VR-1',
-            sequence: 22,
-            version: 1,
-            occurredAt: DateTime.utc(2026, 3, 10, 8, 5),
-            vehicleVisitKey: 'INT-SERVICE',
-            primaryEventId: 'INT-SERVICE',
-            clientId: 'CLIENT-9',
-            regionId: 'REGION-9',
-            siteId: 'SITE-9',
-            vehicleLabel: 'ND987654',
-            actorLabel: 'GOVERNANCE_OPERATOR',
-            reviewed: true,
-            statusOverride: 'COMPLETED',
-            effectiveStatusLabel: 'COMPLETED',
-            reasonLabel: 'Incomplete visit',
-            workflowSummary: 'ENTRY -> SERVICE (COMPLETED)',
-            sourceSurface: 'governance',
-          ),
-        ],
-        recentMedia: const [],
-        guardOutcomePolicyDenied24h: 0,
-        sceneReviewByIntelligenceId: const {},
-      );
-
-      expect(report.vehicleThroughput.exceptionVisits, hasLength(1));
-      final exception = report.vehicleThroughput.exceptionVisits.single;
-      expect(exception.primaryEventId, 'INT-SERVICE');
-      expect(exception.statusLabel, 'COMPLETED');
-      expect(exception.workflowSummary, 'ENTRY -> SERVICE (COMPLETED)');
-      expect(exception.operatorReviewed, isTrue);
-      expect(exception.operatorStatusOverride, 'COMPLETED');
+      expect(restored.partnerProgression.dispatchCount, 1);
+      expect(restored.partnerProgression.scopeBreakdowns, hasLength(1));
+      expect(restored.partnerProgression.dispatchChains, hasLength(1));
       expect(
-        exception.operatorReviewedAtUtc,
-        DateTime.utc(2026, 3, 10, 8, 5),
+        restored.partnerProgression.dispatchChains.first.workflowSummary,
+        'ACCEPT -> ON SITE (LATEST ON SITE)',
       );
     });
+
+    test(
+      'applies latest vehicle visit review events to throughput exceptions',
+      () {
+        final service = const MorningSovereignReportService();
+        final report = service.generate(
+          nowUtc: DateTime.utc(2026, 3, 10, 8, 30),
+          events: [
+            IntelligenceReceived(
+              eventId: 'INT-ENTRY',
+              sequence: 20,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 10, 0, 10),
+              intelligenceId: 'INT-ENTRY',
+              provider: 'feed',
+              sourceType: 'dvr',
+              externalId: 'EXT-ENTRY',
+              clientId: 'CLIENT-9',
+              regionId: 'REGION-9',
+              siteId: 'SITE-9',
+              headline: 'Vehicle entered entry lane',
+              summary: 'Vehicle entered the monitored lane.',
+              riskScore: 22,
+              canonicalHash: 'hash-entry',
+              cameraId: 'lane-1',
+              objectLabel: 'vehicle',
+              plateNumber: 'ND 987 654',
+              zone: 'Entry Lane',
+            ),
+            IntelligenceReceived(
+              eventId: 'INT-SERVICE',
+              sequence: 21,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 10, 0, 24),
+              intelligenceId: 'INT-SERVICE',
+              provider: 'feed',
+              sourceType: 'dvr',
+              externalId: 'EXT-SERVICE',
+              clientId: 'CLIENT-9',
+              regionId: 'REGION-9',
+              siteId: 'SITE-9',
+              headline: 'Vehicle entered wash bay',
+              summary: 'Vehicle moved into the service zone.',
+              riskScore: 18,
+              canonicalHash: 'hash-service',
+              cameraId: 'lane-2',
+              objectLabel: 'vehicle',
+              plateNumber: 'ND 987 654',
+              zone: 'Wash Bay',
+            ),
+            VehicleVisitReviewRecorded(
+              eventId: 'VR-1',
+              sequence: 22,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 10, 8, 5),
+              vehicleVisitKey: 'INT-SERVICE',
+              primaryEventId: 'INT-SERVICE',
+              clientId: 'CLIENT-9',
+              regionId: 'REGION-9',
+              siteId: 'SITE-9',
+              vehicleLabel: 'ND987654',
+              actorLabel: 'GOVERNANCE_OPERATOR',
+              reviewed: true,
+              statusOverride: 'COMPLETED',
+              effectiveStatusLabel: 'COMPLETED',
+              reasonLabel: 'Incomplete visit',
+              workflowSummary: 'ENTRY -> SERVICE (COMPLETED)',
+              sourceSurface: 'governance',
+            ),
+          ],
+          recentMedia: const [],
+          guardOutcomePolicyDenied24h: 0,
+          sceneReviewByIntelligenceId: const {},
+        );
+
+        expect(report.vehicleThroughput.exceptionVisits, hasLength(1));
+        final exception = report.vehicleThroughput.exceptionVisits.single;
+        expect(exception.primaryEventId, 'INT-SERVICE');
+        expect(exception.statusLabel, 'COMPLETED');
+        expect(exception.workflowSummary, 'ENTRY -> SERVICE (COMPLETED)');
+        expect(exception.operatorReviewed, isTrue);
+        expect(exception.operatorStatusOverride, 'COMPLETED');
+        expect(
+          exception.operatorReviewedAtUtc,
+          DateTime.utc(2026, 3, 10, 8, 5),
+        );
+      },
+    );
   });
 }

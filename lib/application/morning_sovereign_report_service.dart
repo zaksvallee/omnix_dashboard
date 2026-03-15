@@ -7,6 +7,7 @@ import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_denied.dart';
 import '../domain/events/intelligence_received.dart';
+import '../domain/events/partner_dispatch_status_declared.dart';
 import '../domain/events/vehicle_visit_review_recorded.dart';
 import '../domain/guard/guard_ops_event.dart';
 import '../domain/testing/replay_consistency_verifier.dart';
@@ -213,6 +214,7 @@ class SovereignReport {
   final SovereignReportComplianceBlockage complianceBlockage;
   final SovereignReportSceneReview sceneReview;
   final SovereignReportVehicleThroughput vehicleThroughput;
+  final SovereignReportPartnerProgression partnerProgression;
 
   const SovereignReport({
     required this.date,
@@ -251,6 +253,18 @@ class SovereignReport {
       scopeBreakdowns: <SovereignReportVehicleScopeBreakdown>[],
       exceptionVisits: <SovereignReportVehicleVisitException>[],
     ),
+    this.partnerProgression = const SovereignReportPartnerProgression(
+      dispatchCount: 0,
+      declarationCount: 0,
+      acceptedCount: 0,
+      onSiteCount: 0,
+      allClearCount: 0,
+      cancelledCount: 0,
+      workflowHeadline: '',
+      summaryLine: '',
+      scopeBreakdowns: <SovereignReportPartnerScopeBreakdown>[],
+      dispatchChains: <SovereignReportPartnerDispatchChain>[],
+    ),
   });
 
   SovereignReport copyWith({
@@ -264,6 +278,7 @@ class SovereignReport {
     SovereignReportComplianceBlockage? complianceBlockage,
     SovereignReportSceneReview? sceneReview,
     SovereignReportVehicleThroughput? vehicleThroughput,
+    SovereignReportPartnerProgression? partnerProgression,
   }) {
     return SovereignReport(
       date: date ?? this.date,
@@ -276,6 +291,7 @@ class SovereignReport {
       complianceBlockage: complianceBlockage ?? this.complianceBlockage,
       sceneReview: sceneReview ?? this.sceneReview,
       vehicleThroughput: vehicleThroughput ?? this.vehicleThroughput,
+      partnerProgression: partnerProgression ?? this.partnerProgression,
     );
   }
 
@@ -291,6 +307,7 @@ class SovereignReport {
       'complianceBlockage': complianceBlockage.toJson(),
       'sceneReview': sceneReview.toJson(),
       'vehicleThroughput': vehicleThroughput.toJson(),
+      'partnerProgression': partnerProgression.toJson(),
     };
   }
 
@@ -301,6 +318,7 @@ class SovereignReport {
     final complianceRaw = json['complianceBlockage'];
     final sceneReviewRaw = json['sceneReview'];
     final vehicleThroughputRaw = json['vehicleThroughput'];
+    final partnerProgressionRaw = json['partnerProgression'];
     return SovereignReport(
       date: (json['date'] as String? ?? '').trim(),
       generatedAtUtc:
@@ -399,6 +417,268 @@ class SovereignReport {
               scopeBreakdowns: <SovereignReportVehicleScopeBreakdown>[],
               exceptionVisits: <SovereignReportVehicleVisitException>[],
             ),
+      partnerProgression: partnerProgressionRaw is Map
+          ? SovereignReportPartnerProgression.fromJson(
+              partnerProgressionRaw.map(
+                (key, value) => MapEntry(key.toString(), value),
+              ),
+            )
+          : const SovereignReportPartnerProgression(
+              dispatchCount: 0,
+              declarationCount: 0,
+              acceptedCount: 0,
+              onSiteCount: 0,
+              allClearCount: 0,
+              cancelledCount: 0,
+              workflowHeadline: '',
+              summaryLine: '',
+              scopeBreakdowns: <SovereignReportPartnerScopeBreakdown>[],
+              dispatchChains: <SovereignReportPartnerDispatchChain>[],
+            ),
+    );
+  }
+}
+
+class SovereignReportPartnerProgression {
+  final int dispatchCount;
+  final int declarationCount;
+  final int acceptedCount;
+  final int onSiteCount;
+  final int allClearCount;
+  final int cancelledCount;
+  final String workflowHeadline;
+  final String summaryLine;
+  final List<SovereignReportPartnerScopeBreakdown> scopeBreakdowns;
+  final List<SovereignReportPartnerDispatchChain> dispatchChains;
+
+  const SovereignReportPartnerProgression({
+    required this.dispatchCount,
+    required this.declarationCount,
+    required this.acceptedCount,
+    required this.onSiteCount,
+    required this.allClearCount,
+    required this.cancelledCount,
+    this.workflowHeadline = '',
+    required this.summaryLine,
+    this.scopeBreakdowns = const <SovereignReportPartnerScopeBreakdown>[],
+    this.dispatchChains = const <SovereignReportPartnerDispatchChain>[],
+  });
+
+  SovereignReportPartnerProgression copyWith({
+    int? dispatchCount,
+    int? declarationCount,
+    int? acceptedCount,
+    int? onSiteCount,
+    int? allClearCount,
+    int? cancelledCount,
+    String? workflowHeadline,
+    String? summaryLine,
+    List<SovereignReportPartnerScopeBreakdown>? scopeBreakdowns,
+    List<SovereignReportPartnerDispatchChain>? dispatchChains,
+  }) {
+    return SovereignReportPartnerProgression(
+      dispatchCount: dispatchCount ?? this.dispatchCount,
+      declarationCount: declarationCount ?? this.declarationCount,
+      acceptedCount: acceptedCount ?? this.acceptedCount,
+      onSiteCount: onSiteCount ?? this.onSiteCount,
+      allClearCount: allClearCount ?? this.allClearCount,
+      cancelledCount: cancelledCount ?? this.cancelledCount,
+      workflowHeadline: workflowHeadline ?? this.workflowHeadline,
+      summaryLine: summaryLine ?? this.summaryLine,
+      scopeBreakdowns: scopeBreakdowns ?? this.scopeBreakdowns,
+      dispatchChains: dispatchChains ?? this.dispatchChains,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'dispatchCount': dispatchCount,
+      'declarationCount': declarationCount,
+      'acceptedCount': acceptedCount,
+      'onSiteCount': onSiteCount,
+      'allClearCount': allClearCount,
+      'cancelledCount': cancelledCount,
+      'workflowHeadline': workflowHeadline,
+      'summaryLine': summaryLine,
+      'scopeBreakdowns': scopeBreakdowns
+          .map((scope) => scope.toJson())
+          .toList(growable: false),
+      'dispatchChains': dispatchChains
+          .map((chain) => chain.toJson())
+          .toList(growable: false),
+    };
+  }
+
+  factory SovereignReportPartnerProgression.fromJson(
+    Map<String, Object?> json,
+  ) {
+    final scopeBreakdowns = <SovereignReportPartnerScopeBreakdown>[];
+    final scopeBreakdownsRaw = json['scopeBreakdowns'];
+    if (scopeBreakdownsRaw is List) {
+      for (final item in scopeBreakdownsRaw) {
+        if (item is! Map) continue;
+        scopeBreakdowns.add(
+          SovereignReportPartnerScopeBreakdown.fromJson(
+            item.map((key, value) => MapEntry(key.toString(), value)),
+          ),
+        );
+      }
+    }
+    final dispatchChains = <SovereignReportPartnerDispatchChain>[];
+    final dispatchChainsRaw = json['dispatchChains'];
+    if (dispatchChainsRaw is List) {
+      for (final item in dispatchChainsRaw) {
+        if (item is! Map) continue;
+        dispatchChains.add(
+          SovereignReportPartnerDispatchChain.fromJson(
+            item.map((key, value) => MapEntry(key.toString(), value)),
+          ),
+        );
+      }
+    }
+    return SovereignReportPartnerProgression(
+      dispatchCount: (json['dispatchCount'] as num?)?.toInt() ?? 0,
+      declarationCount: (json['declarationCount'] as num?)?.toInt() ?? 0,
+      acceptedCount: (json['acceptedCount'] as num?)?.toInt() ?? 0,
+      onSiteCount: (json['onSiteCount'] as num?)?.toInt() ?? 0,
+      allClearCount: (json['allClearCount'] as num?)?.toInt() ?? 0,
+      cancelledCount: (json['cancelledCount'] as num?)?.toInt() ?? 0,
+      workflowHeadline: (json['workflowHeadline'] as String? ?? '').trim(),
+      summaryLine: (json['summaryLine'] as String? ?? '').trim(),
+      scopeBreakdowns: scopeBreakdowns,
+      dispatchChains: dispatchChains,
+    );
+  }
+}
+
+class SovereignReportPartnerScopeBreakdown {
+  final String clientId;
+  final String siteId;
+  final int dispatchCount;
+  final int declarationCount;
+  final PartnerDispatchStatus latestStatus;
+  final DateTime latestOccurredAtUtc;
+  final String summaryLine;
+
+  const SovereignReportPartnerScopeBreakdown({
+    required this.clientId,
+    required this.siteId,
+    required this.dispatchCount,
+    required this.declarationCount,
+    required this.latestStatus,
+    required this.latestOccurredAtUtc,
+    required this.summaryLine,
+  });
+
+  Map<String, Object?> toJson() {
+    return {
+      'clientId': clientId,
+      'siteId': siteId,
+      'dispatchCount': dispatchCount,
+      'declarationCount': declarationCount,
+      'latestStatus': latestStatus.name,
+      'latestOccurredAtUtc': latestOccurredAtUtc.toIso8601String(),
+      'summaryLine': summaryLine,
+    };
+  }
+
+  factory SovereignReportPartnerScopeBreakdown.fromJson(
+    Map<String, Object?> json,
+  ) {
+    return SovereignReportPartnerScopeBreakdown(
+      clientId: (json['clientId'] as String? ?? '').trim(),
+      siteId: (json['siteId'] as String? ?? '').trim(),
+      dispatchCount: (json['dispatchCount'] as num?)?.toInt() ?? 0,
+      declarationCount: (json['declarationCount'] as num?)?.toInt() ?? 0,
+      latestStatus: _partnerDispatchStatusFromName(
+        (json['latestStatus'] as String? ?? '').trim(),
+      ),
+      latestOccurredAtUtc:
+          DateTime.tryParse(
+            (json['latestOccurredAtUtc'] as String? ?? '').trim(),
+          )?.toUtc() ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      summaryLine: (json['summaryLine'] as String? ?? '').trim(),
+    );
+  }
+}
+
+class SovereignReportPartnerDispatchChain {
+  final String dispatchId;
+  final String clientId;
+  final String siteId;
+  final String partnerLabel;
+  final int declarationCount;
+  final PartnerDispatchStatus latestStatus;
+  final DateTime latestOccurredAtUtc;
+  final DateTime? acceptedAtUtc;
+  final DateTime? onSiteAtUtc;
+  final DateTime? allClearAtUtc;
+  final DateTime? cancelledAtUtc;
+  final String workflowSummary;
+
+  const SovereignReportPartnerDispatchChain({
+    required this.dispatchId,
+    required this.clientId,
+    required this.siteId,
+    required this.partnerLabel,
+    required this.declarationCount,
+    required this.latestStatus,
+    required this.latestOccurredAtUtc,
+    this.acceptedAtUtc,
+    this.onSiteAtUtc,
+    this.allClearAtUtc,
+    this.cancelledAtUtc,
+    this.workflowSummary = '',
+  });
+
+  Map<String, Object?> toJson() {
+    return {
+      'dispatchId': dispatchId,
+      'clientId': clientId,
+      'siteId': siteId,
+      'partnerLabel': partnerLabel,
+      'declarationCount': declarationCount,
+      'latestStatus': latestStatus.name,
+      'latestOccurredAtUtc': latestOccurredAtUtc.toIso8601String(),
+      'acceptedAtUtc': acceptedAtUtc?.toIso8601String(),
+      'onSiteAtUtc': onSiteAtUtc?.toIso8601String(),
+      'allClearAtUtc': allClearAtUtc?.toIso8601String(),
+      'cancelledAtUtc': cancelledAtUtc?.toIso8601String(),
+      'workflowSummary': workflowSummary,
+    };
+  }
+
+  factory SovereignReportPartnerDispatchChain.fromJson(
+    Map<String, Object?> json,
+  ) {
+    return SovereignReportPartnerDispatchChain(
+      dispatchId: (json['dispatchId'] as String? ?? '').trim(),
+      clientId: (json['clientId'] as String? ?? '').trim(),
+      siteId: (json['siteId'] as String? ?? '').trim(),
+      partnerLabel: (json['partnerLabel'] as String? ?? '').trim(),
+      declarationCount: (json['declarationCount'] as num?)?.toInt() ?? 0,
+      latestStatus: _partnerDispatchStatusFromName(
+        (json['latestStatus'] as String? ?? '').trim(),
+      ),
+      latestOccurredAtUtc:
+          DateTime.tryParse(
+            (json['latestOccurredAtUtc'] as String? ?? '').trim(),
+          )?.toUtc() ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      acceptedAtUtc: DateTime.tryParse(
+        (json['acceptedAtUtc'] as String? ?? '').trim(),
+      )?.toUtc(),
+      onSiteAtUtc: DateTime.tryParse(
+        (json['onSiteAtUtc'] as String? ?? '').trim(),
+      )?.toUtc(),
+      allClearAtUtc: DateTime.tryParse(
+        (json['allClearAtUtc'] as String? ?? '').trim(),
+      )?.toUtc(),
+      cancelledAtUtc: DateTime.tryParse(
+        (json['cancelledAtUtc'] as String? ?? '').trim(),
+      )?.toUtc(),
+      workflowSummary: (json['workflowSummary'] as String? ?? '').trim(),
     );
   }
 }
@@ -729,12 +1009,11 @@ class SovereignReportVehicleVisitException {
       reasonLabel: (json['reasonLabel'] as String? ?? '').trim(),
       workflowSummary: (json['workflowSummary'] as String? ?? '').trim(),
       operatorReviewed: json['operatorReviewed'] == true,
-      operatorReviewedAtUtc:
-          DateTime.tryParse(
-            (json['operatorReviewedAtUtc'] as String? ?? '').trim(),
-          )?.toUtc(),
-      operatorStatusOverride:
-          (json['operatorStatusOverride'] as String? ?? '').trim(),
+      operatorReviewedAtUtc: DateTime.tryParse(
+        (json['operatorReviewedAtUtc'] as String? ?? '').trim(),
+      )?.toUtc(),
+      operatorStatusOverride: (json['operatorStatusOverride'] as String? ?? '')
+          .trim(),
       primaryEventId: (json['primaryEventId'] as String? ?? '').trim(),
       startedAtUtc:
           DateTime.tryParse(
@@ -909,6 +1188,11 @@ class MorningSovereignReportService {
           .where((event) => !event.occurredAt.toUtc().isAfter(nowUtc))
           .toList(growable: false),
     );
+    final partnerProgression = _buildPartnerProgression(
+      events: nightEvents.whereType<PartnerDispatchStatusDeclared>().toList(
+        growable: false,
+      ),
+    );
 
     return SovereignReport(
       date: _dateKey(shiftEndLocal),
@@ -950,6 +1234,166 @@ class MorningSovereignReportService {
         latestSuppressedPattern: latestSuppressedPattern,
       ),
       vehicleThroughput: vehicleThroughput,
+      partnerProgression: partnerProgression,
+    );
+  }
+
+  SovereignReportPartnerProgression _buildPartnerProgression({
+    required List<PartnerDispatchStatusDeclared> events,
+  }) {
+    if (events.isEmpty) {
+      return const SovereignReportPartnerProgression(
+        dispatchCount: 0,
+        declarationCount: 0,
+        acceptedCount: 0,
+        onSiteCount: 0,
+        allClearCount: 0,
+        cancelledCount: 0,
+        workflowHeadline: '',
+        summaryLine: '',
+        scopeBreakdowns: <SovereignReportPartnerScopeBreakdown>[],
+        dispatchChains: <SovereignReportPartnerDispatchChain>[],
+      );
+    }
+    final groupedByDispatch = <String, List<PartnerDispatchStatusDeclared>>{};
+    for (final event in events) {
+      final dispatchId = event.dispatchId.trim();
+      if (dispatchId.isEmpty) {
+        continue;
+      }
+      groupedByDispatch
+          .putIfAbsent(dispatchId, () => <PartnerDispatchStatusDeclared>[])
+          .add(event);
+    }
+    if (groupedByDispatch.isEmpty) {
+      return const SovereignReportPartnerProgression(
+        dispatchCount: 0,
+        declarationCount: 0,
+        acceptedCount: 0,
+        onSiteCount: 0,
+        allClearCount: 0,
+        cancelledCount: 0,
+        workflowHeadline: '',
+        summaryLine: '',
+        scopeBreakdowns: <SovereignReportPartnerScopeBreakdown>[],
+        dispatchChains: <SovereignReportPartnerDispatchChain>[],
+      );
+    }
+    var acceptedCount = 0;
+    var onSiteCount = 0;
+    var allClearCount = 0;
+    var cancelledCount = 0;
+    final chains = <SovereignReportPartnerDispatchChain>[];
+    final groupedByScope = <String, List<PartnerDispatchStatusDeclared>>{};
+    for (final entry in groupedByDispatch.entries) {
+      final ordered = [...entry.value]..sort(_compareOccurredAtThenSequence);
+      final first = ordered.first;
+      final latest = ordered.last;
+      final firstOccurrenceByStatus = <PartnerDispatchStatus, DateTime>{};
+      for (final event in ordered) {
+        firstOccurrenceByStatus.putIfAbsent(
+          event.status,
+          () => event.occurredAt.toUtc(),
+        );
+        final scopeKey = _partnerScopeKey(event.clientId, event.siteId);
+        groupedByScope
+            .putIfAbsent(scopeKey, () => <PartnerDispatchStatusDeclared>[])
+            .add(event);
+      }
+      if (firstOccurrenceByStatus.containsKey(PartnerDispatchStatus.accepted)) {
+        acceptedCount += 1;
+      }
+      if (firstOccurrenceByStatus.containsKey(PartnerDispatchStatus.onSite)) {
+        onSiteCount += 1;
+      }
+      if (firstOccurrenceByStatus.containsKey(PartnerDispatchStatus.allClear)) {
+        allClearCount += 1;
+      }
+      if (firstOccurrenceByStatus.containsKey(
+        PartnerDispatchStatus.cancelled,
+      )) {
+        cancelledCount += 1;
+      }
+      chains.add(
+        SovereignReportPartnerDispatchChain(
+          dispatchId: entry.key,
+          clientId: first.clientId,
+          siteId: first.siteId,
+          partnerLabel: first.partnerLabel,
+          declarationCount: ordered.length,
+          latestStatus: latest.status,
+          latestOccurredAtUtc: latest.occurredAt.toUtc(),
+          acceptedAtUtc:
+              firstOccurrenceByStatus[PartnerDispatchStatus.accepted],
+          onSiteAtUtc: firstOccurrenceByStatus[PartnerDispatchStatus.onSite],
+          allClearAtUtc:
+              firstOccurrenceByStatus[PartnerDispatchStatus.allClear],
+          cancelledAtUtc:
+              firstOccurrenceByStatus[PartnerDispatchStatus.cancelled],
+          workflowSummary: _partnerDispatchWorkflowSummary(
+            firstOccurrenceByStatus,
+            latest.status,
+          ),
+        ),
+      );
+    }
+    chains.sort(
+      (a, b) => b.latestOccurredAtUtc.compareTo(a.latestOccurredAtUtc),
+    );
+    final scopeBreakdowns = <SovereignReportPartnerScopeBreakdown>[];
+    for (final entry in groupedByScope.entries) {
+      final declarations = [...entry.value]
+        ..sort(_compareOccurredAtThenSequence);
+      final latest = declarations.last;
+      final scope = _partnerScopeFromKey(entry.key);
+      final dispatchIds = declarations
+          .map((event) => event.dispatchId.trim())
+          .where((id) => id.isNotEmpty)
+          .toSet();
+      scopeBreakdowns.add(
+        SovereignReportPartnerScopeBreakdown(
+          clientId: scope.clientId,
+          siteId: scope.siteId,
+          dispatchCount: dispatchIds.length,
+          declarationCount: declarations.length,
+          latestStatus: latest.status,
+          latestOccurredAtUtc: latest.occurredAt.toUtc(),
+          summaryLine: _partnerScopeSummaryLine(
+            dispatchCount: dispatchIds.length,
+            declarationCount: declarations.length,
+            latestStatus: latest.status,
+            latestOccurredAtUtc: latest.occurredAt.toUtc(),
+          ),
+        ),
+      );
+    }
+    scopeBreakdowns.sort((a, b) {
+      final dispatchCompare = b.dispatchCount.compareTo(a.dispatchCount);
+      if (dispatchCompare != 0) {
+        return dispatchCompare;
+      }
+      return b.latestOccurredAtUtc.compareTo(a.latestOccurredAtUtc);
+    });
+    final dispatchCount = chains.length;
+    final declarationCount = events.length;
+    return SovereignReportPartnerProgression(
+      dispatchCount: dispatchCount,
+      declarationCount: declarationCount,
+      acceptedCount: acceptedCount,
+      onSiteCount: onSiteCount,
+      allClearCount: allClearCount,
+      cancelledCount: cancelledCount,
+      workflowHeadline: _partnerWorkflowHeadline(chains),
+      summaryLine: _partnerSummaryLine(
+        dispatchCount: dispatchCount,
+        declarationCount: declarationCount,
+        acceptedCount: acceptedCount,
+        onSiteCount: onSiteCount,
+        allClearCount: allClearCount,
+        cancelledCount: cancelledCount,
+      ),
+      scopeBreakdowns: scopeBreakdowns,
+      dispatchChains: chains,
     );
   }
 
@@ -1136,30 +1580,35 @@ class MorningSovereignReportService {
         latestByVisitKey[key] = event;
       }
     }
-    return exceptions.map((exception) {
-      final reviewEvent = latestByVisitKey[
-          sovereignReportVehicleVisitExceptionKey(exception)];
-      if (reviewEvent == null) {
-        return exception;
-      }
-      final overrideLabel = reviewEvent.statusOverride.trim().toUpperCase();
-      final effectiveStatus = overrideLabel.isEmpty
-          ? exception.statusLabel.trim()
-          : overrideLabel;
-      final effectiveWorkflow = _applyStatusToWorkflowSummary(
-        exception.workflowSummary,
-        effectiveStatus,
-      );
-      return exception.copyWith(
-        statusLabel: effectiveStatus,
-        workflowSummary: effectiveWorkflow,
-        operatorReviewed: reviewEvent.reviewed,
-        operatorReviewedAtUtc:
-            reviewEvent.reviewed ? reviewEvent.occurredAt.toUtc() : null,
-        clearOperatorReviewedAtUtc: !reviewEvent.reviewed,
-        operatorStatusOverride: overrideLabel,
-      );
-    }).toList(growable: false);
+    return exceptions
+        .map((exception) {
+          final reviewEvent =
+              latestByVisitKey[sovereignReportVehicleVisitExceptionKey(
+                exception,
+              )];
+          if (reviewEvent == null) {
+            return exception;
+          }
+          final overrideLabel = reviewEvent.statusOverride.trim().toUpperCase();
+          final effectiveStatus = overrideLabel.isEmpty
+              ? exception.statusLabel.trim()
+              : overrideLabel;
+          final effectiveWorkflow = _applyStatusToWorkflowSummary(
+            exception.workflowSummary,
+            effectiveStatus,
+          );
+          return exception.copyWith(
+            statusLabel: effectiveStatus,
+            workflowSummary: effectiveWorkflow,
+            operatorReviewed: reviewEvent.reviewed,
+            operatorReviewedAtUtc: reviewEvent.reviewed
+                ? reviewEvent.occurredAt.toUtc()
+                : null,
+            clearOperatorReviewedAtUtc: !reviewEvent.reviewed,
+            operatorStatusOverride: overrideLabel,
+          );
+        })
+        .toList(growable: false);
   }
 
   String _applyStatusToWorkflowSummary(String summary, String statusLabel) {
@@ -1581,11 +2030,149 @@ class MorningSovereignReportService {
       });
     return sorted.first.key;
   }
+
+  String _partnerWorkflowHeadline(
+    List<SovereignReportPartnerDispatchChain> chains,
+  ) {
+    if (chains.isEmpty) {
+      return '';
+    }
+    final latestByStatus = <PartnerDispatchStatus, int>{};
+    for (final chain in chains) {
+      latestByStatus.update(
+        chain.latestStatus,
+        (count) => count + 1,
+        ifAbsent: () => 1,
+      );
+    }
+    final parts = <String>[];
+    final allClearCount = latestByStatus[PartnerDispatchStatus.allClear] ?? 0;
+    final onSiteCount = latestByStatus[PartnerDispatchStatus.onSite] ?? 0;
+    final acceptedCount = latestByStatus[PartnerDispatchStatus.accepted] ?? 0;
+    final cancelledCount = latestByStatus[PartnerDispatchStatus.cancelled] ?? 0;
+    if (allClearCount > 0) {
+      parts.add(
+        allClearCount == 1
+            ? '1 partner dispatch reached ALL CLEAR'
+            : '$allClearCount partner dispatches reached ALL CLEAR',
+      );
+    }
+    if (onSiteCount > 0) {
+      parts.add(
+        onSiteCount == 1
+            ? '1 partner dispatch remains ON SITE'
+            : '$onSiteCount partner dispatches remain ON SITE',
+      );
+    }
+    if (acceptedCount > 0) {
+      parts.add(
+        acceptedCount == 1
+            ? '1 partner dispatch is ACCEPTED'
+            : '$acceptedCount partner dispatches are ACCEPTED',
+      );
+    }
+    if (cancelledCount > 0) {
+      parts.add(
+        cancelledCount == 1
+            ? '1 partner dispatch was CANCELLED'
+            : '$cancelledCount partner dispatches were CANCELLED',
+      );
+    }
+    return parts.join(' • ');
+  }
+
+  String _partnerSummaryLine({
+    required int dispatchCount,
+    required int declarationCount,
+    required int acceptedCount,
+    required int onSiteCount,
+    required int allClearCount,
+    required int cancelledCount,
+  }) {
+    return 'Dispatches $dispatchCount • Declarations $declarationCount • Accept $acceptedCount • On site $onSiteCount • All clear $allClearCount • Cancelled $cancelledCount';
+  }
+
+  String _partnerScopeSummaryLine({
+    required int dispatchCount,
+    required int declarationCount,
+    required PartnerDispatchStatus latestStatus,
+    required DateTime latestOccurredAtUtc,
+  }) {
+    return 'Dispatches $dispatchCount • Declarations $declarationCount • Latest ${_partnerDispatchStatusLabel(latestStatus)} @ ${latestOccurredAtUtc.toIso8601String()}';
+  }
+
+  String _partnerDispatchWorkflowSummary(
+    Map<PartnerDispatchStatus, DateTime> firstOccurrenceByStatus,
+    PartnerDispatchStatus latestStatus,
+  ) {
+    final steps = <String>[];
+    if (firstOccurrenceByStatus.containsKey(PartnerDispatchStatus.accepted)) {
+      steps.add('ACCEPT');
+    }
+    if (firstOccurrenceByStatus.containsKey(PartnerDispatchStatus.onSite)) {
+      steps.add('ON SITE');
+    }
+    if (firstOccurrenceByStatus.containsKey(PartnerDispatchStatus.allClear)) {
+      steps.add('ALL CLEAR');
+    }
+    if (firstOccurrenceByStatus.containsKey(PartnerDispatchStatus.cancelled)) {
+      steps.add('CANCELLED');
+    }
+    if (steps.isEmpty) {
+      steps.add(_partnerDispatchStatusLabel(latestStatus));
+    }
+    return '${steps.join(' -> ')} (LATEST ${_partnerDispatchStatusLabel(latestStatus)})';
+  }
 }
 
 enum _SceneReviewDecisionBucket { suppressed, incident, repeat, escalation }
 
+int _compareOccurredAtThenSequence(DispatchEvent a, DispatchEvent b) {
+  final occurredAtCompare = a.occurredAt.compareTo(b.occurredAt);
+  if (occurredAtCompare != 0) {
+    return occurredAtCompare;
+  }
+  return a.sequence.compareTo(b.sequence);
+}
+
 String _dateKey(DateTime localDate) {
   String two(int value) => value.toString().padLeft(2, '0');
   return '${localDate.year}-${two(localDate.month)}-${two(localDate.day)}';
+}
+
+String _partnerScopeKey(String clientId, String siteId) {
+  return '${clientId.trim()}::${siteId.trim()}';
+}
+
+({String clientId, String siteId}) _partnerScopeFromKey(String scopeKey) {
+  final separator = scopeKey.indexOf('::');
+  if (separator == -1) {
+    return (clientId: '', siteId: '');
+  }
+  return (
+    clientId: scopeKey.substring(0, separator).trim(),
+    siteId: scopeKey.substring(separator + 2).trim(),
+  );
+}
+
+PartnerDispatchStatus _partnerDispatchStatusFromName(String raw) {
+  return switch (raw.trim().toLowerCase()) {
+    'accepted' => PartnerDispatchStatus.accepted,
+    'onsite' => PartnerDispatchStatus.onSite,
+    'on_site' => PartnerDispatchStatus.onSite,
+    'allclear' => PartnerDispatchStatus.allClear,
+    'all_clear' => PartnerDispatchStatus.allClear,
+    'cancelled' => PartnerDispatchStatus.cancelled,
+    'canceled' => PartnerDispatchStatus.cancelled,
+    _ => PartnerDispatchStatus.accepted,
+  };
+}
+
+String _partnerDispatchStatusLabel(PartnerDispatchStatus status) {
+  return switch (status) {
+    PartnerDispatchStatus.accepted => 'ACCEPT',
+    PartnerDispatchStatus.onSite => 'ON SITE',
+    PartnerDispatchStatus.allClear => 'ALL CLEAR',
+    PartnerDispatchStatus.cancelled => 'CANCELLED',
+  };
 }

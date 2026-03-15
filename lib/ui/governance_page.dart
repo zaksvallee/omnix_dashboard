@@ -11,6 +11,7 @@ import '../application/text_share_service.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_denied.dart';
+import '../domain/events/partner_dispatch_status_declared.dart';
 import '../domain/events/vehicle_visit_review_recorded.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
@@ -132,6 +133,16 @@ class _GovernanceReportView {
   final String vehicleSummary;
   final List<SovereignReportVehicleScopeBreakdown> vehicleScopeBreakdowns;
   final List<SovereignReportVehicleVisitException> vehicleExceptionVisits;
+  final int partnerDispatches;
+  final int partnerDeclarations;
+  final int partnerAccepted;
+  final int partnerOnSite;
+  final int partnerAllClear;
+  final int partnerCancelled;
+  final String partnerWorkflowHeadline;
+  final String partnerSummary;
+  final List<SovereignReportPartnerScopeBreakdown> partnerScopeBreakdowns;
+  final List<SovereignReportPartnerDispatchChain> partnerDispatchChains;
   final String latestActionTaken;
   final String recentActionsSummary;
   final String latestSuppressedPattern;
@@ -176,6 +187,16 @@ class _GovernanceReportView {
     required this.vehicleSummary,
     required this.vehicleScopeBreakdowns,
     required this.vehicleExceptionVisits,
+    required this.partnerDispatches,
+    required this.partnerDeclarations,
+    required this.partnerAccepted,
+    required this.partnerOnSite,
+    required this.partnerAllClear,
+    required this.partnerCancelled,
+    required this.partnerWorkflowHeadline,
+    required this.partnerSummary,
+    required this.partnerScopeBreakdowns,
+    required this.partnerDispatchChains,
     required this.latestActionTaken,
     required this.recentActionsSummary,
     required this.latestSuppressedPattern,
@@ -224,7 +245,8 @@ class _GovernancePageState extends State<GovernancePage> {
   bool _generatingMorningReport = false;
   GovernanceSceneActionFocus? _activeSceneActionFocus;
   String? _activeVehicleExceptionEventId;
-  Map<String, _VehicleExceptionReviewOverride> _vehicleExceptionReviewOverrides =
+  Map<String, _VehicleExceptionReviewOverride>
+  _vehicleExceptionReviewOverrides =
       const <String, _VehicleExceptionReviewOverride>{};
 
   @override
@@ -276,9 +298,10 @@ class _GovernancePageState extends State<GovernancePage> {
       final validExceptionKeys = report.vehicleExceptionVisits
           .map(_vehicleExceptionReviewKey)
           .toSet();
-      _vehicleExceptionReviewOverrides = Map<String, _VehicleExceptionReviewOverride>.from(
-        _vehicleExceptionReviewOverrides,
-      )..removeWhere((key, _) => !validExceptionKeys.contains(key));
+      _vehicleExceptionReviewOverrides =
+          Map<String, _VehicleExceptionReviewOverride>.from(
+            _vehicleExceptionReviewOverrides,
+          )..removeWhere((key, _) => !validExceptionKeys.contains(key));
     }
   }
 
@@ -1047,6 +1070,52 @@ class _GovernancePageState extends State<GovernancePage> {
               ),
             ),
           ],
+          if (report.partnerScopeBreakdowns.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Partner dispatch sites',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFEAF4FF),
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final scope in report.partnerScopeBreakdowns)
+                  _partnerScopeCard(scope),
+              ],
+            ),
+          ],
+          if (report.partnerDispatchChains.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Partner dispatch progression',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFEAF4FF),
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            for (final chain in report.partnerDispatchChains.take(6)) ...[
+              _partnerDispatchChainRow(chain),
+              const SizedBox(height: 6),
+            ],
+          ] else if (report.partnerDispatches > 0) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Partner dispatch progression is available, but no chain details were retained in this report.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
           if (_hasSceneActionFocusOptions(report)) ...[
             const SizedBox(height: 8),
             Wrap(
@@ -1489,16 +1558,18 @@ class _GovernancePageState extends State<GovernancePage> {
   SovereignReportVehicleVisitException _applyVehicleExceptionReviewOverlay(
     SovereignReportVehicleVisitException exception,
   ) {
-    final override = _vehicleExceptionReviewOverrides[
-        _vehicleExceptionReviewKey(exception)];
-    final storedStatusOverride = exception.operatorStatusOverride.trim()
+    final override =
+        _vehicleExceptionReviewOverrides[_vehicleExceptionReviewKey(exception)];
+    final storedStatusOverride = exception.operatorStatusOverride
+        .trim()
         .toUpperCase();
     final overrideStatus = override?.statusOverride.trim().toUpperCase() ?? '';
     final effectiveStatusOverride = overrideStatus.isNotEmpty
         ? overrideStatus
         : storedStatusOverride;
     final effectiveReviewed = override?.reviewed ?? exception.operatorReviewed;
-    final effectiveReviewedAtUtc = override?.reviewedAtUtc.toUtc() ??
+    final effectiveReviewedAtUtc =
+        override?.reviewedAtUtc.toUtc() ??
         exception.operatorReviewedAtUtc?.toUtc();
     if (override == null &&
         storedStatusOverride.isEmpty &&
@@ -1545,17 +1616,20 @@ class _GovernancePageState extends State<GovernancePage> {
     final reviewedAtUtc = DateTime.now().toUtc();
     final key = _vehicleExceptionReviewKey(exception);
     final existing = _vehicleExceptionReviewOverrides[key];
-    final nextStatus = statusOverride ??
+    final nextStatus =
+        statusOverride ??
         existing?.statusOverride ??
         exception.operatorStatusOverride;
     setState(() {
-      _vehicleExceptionReviewOverrides = Map<String, _VehicleExceptionReviewOverride>.from(
-        _vehicleExceptionReviewOverrides,
-      )..[key] = _VehicleExceptionReviewOverride(
-          reviewed: true,
-          reviewedAtUtc: reviewedAtUtc,
-          statusOverride: nextStatus.trim().toUpperCase(),
-        );
+      _vehicleExceptionReviewOverrides =
+          Map<String, _VehicleExceptionReviewOverride>.from(
+              _vehicleExceptionReviewOverrides,
+            )
+            ..[key] = _VehicleExceptionReviewOverride(
+              reviewed: true,
+              reviewedAtUtc: reviewedAtUtc,
+              statusOverride: nextStatus.trim().toUpperCase(),
+            );
     });
     _publishCanonicalVehicleExceptionReview(
       exception,
@@ -1571,14 +1645,16 @@ class _GovernancePageState extends State<GovernancePage> {
     final key = _vehicleExceptionReviewKey(exception);
     final hasLocalOverride = _vehicleExceptionReviewOverrides.containsKey(key);
     final hasStoredReview =
-        exception.operatorReviewed || exception.operatorStatusOverride.trim().isNotEmpty;
+        exception.operatorReviewed ||
+        exception.operatorStatusOverride.trim().isNotEmpty;
     if (!hasLocalOverride && !hasStoredReview) {
       return;
     }
     setState(() {
-      _vehicleExceptionReviewOverrides = Map<String, _VehicleExceptionReviewOverride>.from(
-        _vehicleExceptionReviewOverrides,
-      )..remove(key);
+      _vehicleExceptionReviewOverrides =
+          Map<String, _VehicleExceptionReviewOverride>.from(
+            _vehicleExceptionReviewOverrides,
+          )..remove(key);
     });
     _publishCanonicalVehicleExceptionReview(
       exception,
@@ -1694,6 +1770,21 @@ class _GovernancePageState extends State<GovernancePage> {
             : 'Completed ${report.vehicleCompletedVisits} • Active ${report.vehicleActiveVisits} • Incomplete ${report.vehicleIncompleteVisits}',
         color: report.vehicleUnknownEvents > 0
             ? const Color(0xFFF59E0B)
+            : const Color(0xFF10B981),
+      ),
+      _reportMetric(
+        key: const ValueKey('governance-metric-partner-progression'),
+        label: 'Partner Progression',
+        value: '${report.partnerDispatches} dispatches',
+        detail: report.partnerWorkflowHeadline.trim().isNotEmpty
+            ? report.partnerWorkflowHeadline
+            : report.partnerSummary.trim().isNotEmpty
+            ? report.partnerSummary
+            : 'Accept ${report.partnerAccepted} • On site ${report.partnerOnSite} • All clear ${report.partnerAllClear}',
+        color: report.partnerCancelled > 0
+            ? const Color(0xFFF59E0B)
+            : report.partnerDispatches > 0
+            ? const Color(0xFF22D3EE)
             : const Color(0xFF10B981),
       ),
     ];
@@ -2004,7 +2095,9 @@ class _GovernancePageState extends State<GovernancePage> {
     final canOpenEvent =
         widget.onOpenVehicleExceptionEvent != null &&
         exceptionEventId.isNotEmpty;
-    final hasStatusOverride = exception.operatorStatusOverride.trim().isNotEmpty;
+    final hasStatusOverride = exception.operatorStatusOverride
+        .trim()
+        .isNotEmpty;
     final reviewAuditEvents = _vehicleReviewAuditEventsFor(exception);
     final reviewAuditSummary = _vehicleReviewAuditSummary(reviewAuditEvents);
     return InkWell(
@@ -2338,7 +2431,8 @@ class _GovernancePageState extends State<GovernancePage> {
                             ),
                             label: 'Clear Review',
                             active: false,
-                            onTap: () => _clearVehicleExceptionReview(exception),
+                            onTap: () =>
+                                _clearVehicleExceptionReview(exception),
                           ),
                       ],
                     ),
@@ -2415,17 +2509,18 @@ class _GovernancePageState extends State<GovernancePage> {
     SovereignReportVehicleVisitException exception,
   ) {
     final exceptionKey = _vehicleExceptionReviewKey(exception);
-    final history = widget.events
-        .whereType<VehicleVisitReviewRecorded>()
-        .where((event) => event.vehicleVisitKey.trim() == exceptionKey)
-        .toList(growable: false)
-      ..sort((a, b) {
-        final occurredCompare = b.occurredAt.compareTo(a.occurredAt);
-        if (occurredCompare != 0) {
-          return occurredCompare;
-        }
-        return b.sequence.compareTo(a.sequence);
-      });
+    final history =
+        widget.events
+            .whereType<VehicleVisitReviewRecorded>()
+            .where((event) => event.vehicleVisitKey.trim() == exceptionKey)
+            .toList(growable: false)
+          ..sort((a, b) {
+            final occurredCompare = b.occurredAt.compareTo(a.occurredAt);
+            if (occurredCompare != 0) {
+              return occurredCompare;
+            }
+            return b.sequence.compareTo(a.sequence);
+          });
     return history;
   }
 
@@ -2435,7 +2530,9 @@ class _GovernancePageState extends State<GovernancePage> {
     }
     final latest = history.first;
     final action = _vehicleReviewAuditActionLabel(latest);
-    final countLabel = history.length == 1 ? '1 action' : '${history.length} actions';
+    final countLabel = history.length == 1
+        ? '1 action'
+        : '${history.length} actions';
     return '$countLabel • latest ${_timestampLabel(latest.occurredAt)} • $action';
   }
 
@@ -2502,6 +2599,18 @@ class _GovernancePageState extends State<GovernancePage> {
     return '${_vehicleScopeLabel(scope)} • ${scope.summaryLine}';
   }
 
+  String _partnerScopeLabel(SovereignReportPartnerScopeBreakdown scope) {
+    return '${scope.clientId}/${scope.siteId}';
+  }
+
+  String _partnerScopeCsvSummary(SovereignReportPartnerScopeBreakdown scope) {
+    return '${_partnerScopeLabel(scope)} • ${scope.summaryLine}';
+  }
+
+  String _partnerChainCsvSummary(SovereignReportPartnerDispatchChain chain) {
+    return '${chain.partnerLabel} • ${chain.dispatchId} • ${chain.clientId}/${chain.siteId} • ${chain.workflowSummary} • latest ${_partnerStatusLabel(chain.latestStatus)} @ ${_timestampLabel(chain.latestOccurredAtUtc)}';
+  }
+
   String _vehicleExceptionCsvSummary(
     SovereignReportVehicleVisitException exception,
   ) {
@@ -2515,6 +2624,116 @@ class _GovernancePageState extends State<GovernancePage> {
         ? ' • reviewed ${exception.operatorReviewedAtUtc == null ? 'session' : _timestampLabel(exception.operatorReviewedAtUtc!)}${exception.operatorStatusOverride.trim().isNotEmpty ? ' • override ${exception.operatorStatusOverride}' : ''}'
         : '';
     return '${exception.reasonLabel} • ${exception.statusLabel} • ${exception.vehicleLabel} • ${exception.clientId}/${exception.siteId} • dwell ${exception.dwellMinutes.toStringAsFixed(1)}m • workflow $workflow • zones $zones$review';
+  }
+
+  Widget _partnerScopeCard(SovereignReportPartnerScopeBreakdown scope) {
+    final scopeLabel = _partnerScopeLabel(scope);
+    return SizedBox(
+      width: 280,
+      child: Container(
+        key: ValueKey<String>('governance-partner-scope-$scopeLabel'),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: const Color(0x14000000),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0x22FFFFFF)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              scopeLabel,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFEAF4FF),
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              scope.summaryLine,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF9CB2D1),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _partnerDispatchChainRow(SovereignReportPartnerDispatchChain chain) {
+    return Container(
+      key: ValueKey<String>('governance-partner-chain-${chain.dispatchId}'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0x14151F2F),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0x335C728F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${chain.partnerLabel} • ${chain.dispatchId}',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFEAF4FF),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: _partnerStatusColor(
+                    chain.latestStatus,
+                  ).withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: _partnerStatusColor(
+                      chain.latestStatus,
+                    ).withValues(alpha: 0.5),
+                  ),
+                ),
+                child: Text(
+                  _partnerStatusLabel(chain.latestStatus),
+                  style: GoogleFonts.inter(
+                    color: _partnerStatusColor(chain.latestStatus),
+                    fontSize: 8,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${chain.clientId}/${chain.siteId} • ${chain.declarationCount} declarations • latest ${_timestampLabel(chain.latestOccurredAtUtc)}',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9CB2D1),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Workflow: ${chain.workflowSummary}',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _card({
@@ -2677,6 +2896,16 @@ class _GovernancePageState extends State<GovernancePage> {
         vehicleSummary: canonical.vehicleThroughput.summaryLine,
         vehicleScopeBreakdowns: canonical.vehicleThroughput.scopeBreakdowns,
         vehicleExceptionVisits: reviewedExceptions,
+        partnerDispatches: canonical.partnerProgression.dispatchCount,
+        partnerDeclarations: canonical.partnerProgression.declarationCount,
+        partnerAccepted: canonical.partnerProgression.acceptedCount,
+        partnerOnSite: canonical.partnerProgression.onSiteCount,
+        partnerAllClear: canonical.partnerProgression.allClearCount,
+        partnerCancelled: canonical.partnerProgression.cancelledCount,
+        partnerWorkflowHeadline: canonical.partnerProgression.workflowHeadline,
+        partnerSummary: canonical.partnerProgression.summaryLine,
+        partnerScopeBreakdowns: canonical.partnerProgression.scopeBreakdowns,
+        partnerDispatchChains: canonical.partnerProgression.dispatchChains,
         latestActionTaken: canonical.sceneReview.latestActionTaken,
         recentActionsSummary: canonical.sceneReview.recentActionsSummary,
         latestSuppressedPattern: canonical.sceneReview.latestSuppressedPattern,
@@ -2711,6 +2940,7 @@ class _GovernancePageState extends State<GovernancePage> {
     final pdpExpired = compliance
         .where((issue) => issue.type == 'PDP' && issue.daysRemaining <= 0)
         .length;
+    final partnerSummary = _fallbackPartnerProgression(widget.events);
     final integrityScore = widget.events.isEmpty
         ? 100
         : (99 - (widget.events.length % 3));
@@ -2749,6 +2979,16 @@ class _GovernancePageState extends State<GovernancePage> {
       vehicleSummary: '',
       vehicleScopeBreakdowns: const <SovereignReportVehicleScopeBreakdown>[],
       vehicleExceptionVisits: const <SovereignReportVehicleVisitException>[],
+      partnerDispatches: partnerSummary.dispatchCount,
+      partnerDeclarations: partnerSummary.declarationCount,
+      partnerAccepted: partnerSummary.acceptedCount,
+      partnerOnSite: partnerSummary.onSiteCount,
+      partnerAllClear: partnerSummary.allClearCount,
+      partnerCancelled: partnerSummary.cancelledCount,
+      partnerWorkflowHeadline: partnerSummary.workflowHeadline,
+      partnerSummary: partnerSummary.summaryLine,
+      partnerScopeBreakdowns: partnerSummary.scopeBreakdowns,
+      partnerDispatchChains: partnerSummary.dispatchChains,
       latestActionTaken: '',
       recentActionsSummary: '',
       latestSuppressedPattern: '',
@@ -2763,6 +3003,260 @@ class _GovernancePageState extends State<GovernancePage> {
       shiftWindowEndUtc: null,
       fromCanonicalReport: false,
     );
+  }
+
+  SovereignReportPartnerProgression _fallbackPartnerProgression(
+    List<DispatchEvent> events,
+  ) {
+    final declarations = events
+        .whereType<PartnerDispatchStatusDeclared>()
+        .toList(growable: false);
+    if (declarations.isEmpty) {
+      return const SovereignReportPartnerProgression(
+        dispatchCount: 0,
+        declarationCount: 0,
+        acceptedCount: 0,
+        onSiteCount: 0,
+        allClearCount: 0,
+        cancelledCount: 0,
+        workflowHeadline: '',
+        summaryLine: '',
+        scopeBreakdowns: <SovereignReportPartnerScopeBreakdown>[],
+        dispatchChains: <SovereignReportPartnerDispatchChain>[],
+      );
+    }
+    final groupedByDispatch = <String, List<PartnerDispatchStatusDeclared>>{};
+    for (final declaration in declarations) {
+      final dispatchId = declaration.dispatchId.trim();
+      if (dispatchId.isEmpty) {
+        continue;
+      }
+      groupedByDispatch
+          .putIfAbsent(dispatchId, () => <PartnerDispatchStatusDeclared>[])
+          .add(declaration);
+    }
+    if (groupedByDispatch.isEmpty) {
+      return const SovereignReportPartnerProgression(
+        dispatchCount: 0,
+        declarationCount: 0,
+        acceptedCount: 0,
+        onSiteCount: 0,
+        allClearCount: 0,
+        cancelledCount: 0,
+        workflowHeadline: '',
+        summaryLine: '',
+        scopeBreakdowns: <SovereignReportPartnerScopeBreakdown>[],
+        dispatchChains: <SovereignReportPartnerDispatchChain>[],
+      );
+    }
+    var acceptedCount = 0;
+    var onSiteCount = 0;
+    var allClearCount = 0;
+    var cancelledCount = 0;
+    final scopeDeclarations = <String, List<PartnerDispatchStatusDeclared>>{};
+    final chains = <SovereignReportPartnerDispatchChain>[];
+    for (final entry in groupedByDispatch.entries) {
+      final ordered = [...entry.value]
+        ..sort((a, b) {
+          final occurredAtCompare = a.occurredAt.compareTo(b.occurredAt);
+          if (occurredAtCompare != 0) {
+            return occurredAtCompare;
+          }
+          return a.sequence.compareTo(b.sequence);
+        });
+      final first = ordered.first;
+      final latest = ordered.last;
+      final firstOccurrenceByStatus = <PartnerDispatchStatus, DateTime>{};
+      for (final declaration in ordered) {
+        firstOccurrenceByStatus.putIfAbsent(
+          declaration.status,
+          () => declaration.occurredAt.toUtc(),
+        );
+        final scopeKey = _partnerScopeKey(
+          declaration.clientId,
+          declaration.siteId,
+        );
+        scopeDeclarations
+            .putIfAbsent(scopeKey, () => <PartnerDispatchStatusDeclared>[])
+            .add(declaration);
+      }
+      if (firstOccurrenceByStatus.containsKey(PartnerDispatchStatus.accepted)) {
+        acceptedCount += 1;
+      }
+      if (firstOccurrenceByStatus.containsKey(PartnerDispatchStatus.onSite)) {
+        onSiteCount += 1;
+      }
+      if (firstOccurrenceByStatus.containsKey(PartnerDispatchStatus.allClear)) {
+        allClearCount += 1;
+      }
+      if (firstOccurrenceByStatus.containsKey(
+        PartnerDispatchStatus.cancelled,
+      )) {
+        cancelledCount += 1;
+      }
+      chains.add(
+        SovereignReportPartnerDispatchChain(
+          dispatchId: entry.key,
+          clientId: first.clientId,
+          siteId: first.siteId,
+          partnerLabel: first.partnerLabel,
+          declarationCount: ordered.length,
+          latestStatus: latest.status,
+          latestOccurredAtUtc: latest.occurredAt.toUtc(),
+          acceptedAtUtc:
+              firstOccurrenceByStatus[PartnerDispatchStatus.accepted],
+          onSiteAtUtc: firstOccurrenceByStatus[PartnerDispatchStatus.onSite],
+          allClearAtUtc:
+              firstOccurrenceByStatus[PartnerDispatchStatus.allClear],
+          cancelledAtUtc:
+              firstOccurrenceByStatus[PartnerDispatchStatus.cancelled],
+          workflowSummary: _partnerWorkflowSummary(
+            firstOccurrenceByStatus: firstOccurrenceByStatus,
+            latestStatus: latest.status,
+          ),
+        ),
+      );
+    }
+    chains.sort(
+      (a, b) => b.latestOccurredAtUtc.compareTo(a.latestOccurredAtUtc),
+    );
+    final scopeBreakdowns = <SovereignReportPartnerScopeBreakdown>[];
+    for (final entry in scopeDeclarations.entries) {
+      final ordered = [...entry.value]
+        ..sort((a, b) {
+          final occurredAtCompare = a.occurredAt.compareTo(b.occurredAt);
+          if (occurredAtCompare != 0) {
+            return occurredAtCompare;
+          }
+          return a.sequence.compareTo(b.sequence);
+        });
+      final latest = ordered.last;
+      final split = _partnerScopeSplit(entry.key);
+      final dispatchIds = ordered
+          .map((declaration) => declaration.dispatchId.trim())
+          .where((id) => id.isNotEmpty)
+          .toSet();
+      scopeBreakdowns.add(
+        SovereignReportPartnerScopeBreakdown(
+          clientId: split.$1,
+          siteId: split.$2,
+          dispatchCount: dispatchIds.length,
+          declarationCount: ordered.length,
+          latestStatus: latest.status,
+          latestOccurredAtUtc: latest.occurredAt.toUtc(),
+          summaryLine:
+              'Dispatches ${dispatchIds.length} • Declarations ${ordered.length} • Latest ${_partnerStatusLabel(latest.status)} @ ${_timestampLabel(latest.occurredAt.toUtc())}',
+        ),
+      );
+    }
+    scopeBreakdowns.sort((a, b) {
+      final dispatchCompare = b.dispatchCount.compareTo(a.dispatchCount);
+      if (dispatchCompare != 0) {
+        return dispatchCompare;
+      }
+      return b.latestOccurredAtUtc.compareTo(a.latestOccurredAtUtc);
+    });
+    return SovereignReportPartnerProgression(
+      dispatchCount: chains.length,
+      declarationCount: declarations.length,
+      acceptedCount: acceptedCount,
+      onSiteCount: onSiteCount,
+      allClearCount: allClearCount,
+      cancelledCount: cancelledCount,
+      workflowHeadline: _partnerWorkflowHeadline(chains),
+      summaryLine:
+          'Dispatches ${chains.length} • Declarations ${declarations.length} • Accept $acceptedCount • On site $onSiteCount • All clear $allClearCount • Cancelled $cancelledCount',
+      scopeBreakdowns: scopeBreakdowns,
+      dispatchChains: chains,
+    );
+  }
+
+  String _partnerScopeKey(String clientId, String siteId) {
+    return '${clientId.trim()}::${siteId.trim()}';
+  }
+
+  (String, String) _partnerScopeSplit(String scopeKey) {
+    final separator = scopeKey.indexOf('::');
+    if (separator == -1) {
+      return ('', '');
+    }
+    return (
+      scopeKey.substring(0, separator).trim(),
+      scopeKey.substring(separator + 2).trim(),
+    );
+  }
+
+  String _partnerWorkflowHeadline(
+    List<SovereignReportPartnerDispatchChain> chains,
+  ) {
+    if (chains.isEmpty) {
+      return '';
+    }
+    final counts = <PartnerDispatchStatus, int>{};
+    for (final chain in chains) {
+      counts.update(
+        chain.latestStatus,
+        (value) => value + 1,
+        ifAbsent: () => 1,
+      );
+    }
+    final parts = <String>[];
+    final allClearCount = counts[PartnerDispatchStatus.allClear] ?? 0;
+    final onSiteCount = counts[PartnerDispatchStatus.onSite] ?? 0;
+    final acceptedCount = counts[PartnerDispatchStatus.accepted] ?? 0;
+    final cancelledCount = counts[PartnerDispatchStatus.cancelled] ?? 0;
+    if (allClearCount > 0) {
+      parts.add(
+        allClearCount == 1
+            ? '1 partner dispatch reached ALL CLEAR'
+            : '$allClearCount partner dispatches reached ALL CLEAR',
+      );
+    }
+    if (onSiteCount > 0) {
+      parts.add(
+        onSiteCount == 1
+            ? '1 partner dispatch remains ON SITE'
+            : '$onSiteCount partner dispatches remain ON SITE',
+      );
+    }
+    if (acceptedCount > 0) {
+      parts.add(
+        acceptedCount == 1
+            ? '1 partner dispatch is ACCEPTED'
+            : '$acceptedCount partner dispatches are ACCEPTED',
+      );
+    }
+    if (cancelledCount > 0) {
+      parts.add(
+        cancelledCount == 1
+            ? '1 partner dispatch was CANCELLED'
+            : '$cancelledCount partner dispatches were CANCELLED',
+      );
+    }
+    return parts.join(' • ');
+  }
+
+  String _partnerWorkflowSummary({
+    required Map<PartnerDispatchStatus, DateTime> firstOccurrenceByStatus,
+    required PartnerDispatchStatus latestStatus,
+  }) {
+    final steps = <String>[];
+    if (firstOccurrenceByStatus.containsKey(PartnerDispatchStatus.accepted)) {
+      steps.add('ACCEPT');
+    }
+    if (firstOccurrenceByStatus.containsKey(PartnerDispatchStatus.onSite)) {
+      steps.add('ON SITE');
+    }
+    if (firstOccurrenceByStatus.containsKey(PartnerDispatchStatus.allClear)) {
+      steps.add('ALL CLEAR');
+    }
+    if (firstOccurrenceByStatus.containsKey(PartnerDispatchStatus.cancelled)) {
+      steps.add('CANCELLED');
+    }
+    if (steps.isEmpty) {
+      steps.add(_partnerStatusLabel(latestStatus));
+    }
+    return '${steps.join(' -> ')} (LATEST ${_partnerStatusLabel(latestStatus)})';
   }
 
   String _morningReportJson(_GovernanceReportView report) {
@@ -2824,6 +3318,22 @@ class _GovernancePageState extends State<GovernancePage> {
             .map((exception) => exception.toJson())
             .toList(growable: false),
       },
+      'partnerProgression': {
+        'dispatchCount': report.partnerDispatches,
+        'declarationCount': report.partnerDeclarations,
+        'acceptedCount': report.partnerAccepted,
+        'onSiteCount': report.partnerOnSite,
+        'allClearCount': report.partnerAllClear,
+        'cancelledCount': report.partnerCancelled,
+        'workflowHeadline': report.partnerWorkflowHeadline,
+        'summaryLine': report.partnerSummary,
+        'scopeBreakdowns': report.partnerScopeBreakdowns
+            .map((scope) => scope.toJson())
+            .toList(growable: false),
+        'dispatchChains': report.partnerDispatchChains
+            .map((chain) => chain.toJson())
+            .toList(growable: false),
+      },
       'complianceBlockage': {
         'psiraExpired': report.psiraExpired,
         'pdpExpired': report.pdpExpired,
@@ -2878,6 +3388,18 @@ class _GovernancePageState extends State<GovernancePage> {
         'vehicle_scope_${i + 1},"${_vehicleScopeCsvSummary(report.vehicleScopeBreakdowns[i]).replaceAll('"', '""')}"',
       for (var i = 0; i < report.vehicleExceptionVisits.length; i++)
         'vehicle_exception_${i + 1},"${_vehicleExceptionCsvSummary(report.vehicleExceptionVisits[i]).replaceAll('"', '""')}"',
+      'partner_dispatch_count,${report.partnerDispatches}',
+      'partner_declaration_count,${report.partnerDeclarations}',
+      'partner_accepted_count,${report.partnerAccepted}',
+      'partner_on_site_count,${report.partnerOnSite}',
+      'partner_all_clear_count,${report.partnerAllClear}',
+      'partner_cancelled_count,${report.partnerCancelled}',
+      'partner_workflow_headline,"${report.partnerWorkflowHeadline.replaceAll('"', '""')}"',
+      'partner_summary,"${report.partnerSummary.replaceAll('"', '""')}"',
+      for (var i = 0; i < report.partnerScopeBreakdowns.length; i++)
+        'partner_scope_${i + 1},"${_partnerScopeCsvSummary(report.partnerScopeBreakdowns[i]).replaceAll('"', '""')}"',
+      for (var i = 0; i < report.partnerDispatchChains.length; i++)
+        'partner_chain_${i + 1},"${_partnerChainCsvSummary(report.partnerDispatchChains[i]).replaceAll('"', '""')}"',
       if (focusedSceneAction != null)
         'scene_focused_lens_key,${focusedSceneAction['key']}',
       if (focusedSceneAction != null)
@@ -3026,6 +3548,24 @@ class _SceneActionDetailEntry {
     required this.value,
     required this.focus,
   });
+}
+
+String _partnerStatusLabel(PartnerDispatchStatus status) {
+  return switch (status) {
+    PartnerDispatchStatus.accepted => 'ACCEPT',
+    PartnerDispatchStatus.onSite => 'ON SITE',
+    PartnerDispatchStatus.allClear => 'ALL CLEAR',
+    PartnerDispatchStatus.cancelled => 'CANCELLED',
+  };
+}
+
+Color _partnerStatusColor(PartnerDispatchStatus status) {
+  return switch (status) {
+    PartnerDispatchStatus.accepted => const Color(0xFF38BDF8),
+    PartnerDispatchStatus.onSite => const Color(0xFFF59E0B),
+    PartnerDispatchStatus.allClear => const Color(0xFF10B981),
+    PartnerDispatchStatus.cancelled => const Color(0xFFEF4444),
+  };
 }
 
 class _SceneActionFocusChipEntry {
