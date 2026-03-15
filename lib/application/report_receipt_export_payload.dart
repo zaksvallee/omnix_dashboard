@@ -1,5 +1,6 @@
 import '../domain/events/report_generated.dart';
 import 'report_generation_service.dart';
+import 'report_entry_context.dart';
 import 'report_receipt_scene_filter.dart';
 
 class ReportReceiptExportEntry {
@@ -72,6 +73,7 @@ class ReportReceiptExportPayload {
     String? selectedReceiptEventId,
     String? previewReceiptEventId,
     Map<String, Object?>? activeSectionConfiguration,
+    ReportEntryContext? entryContext,
   }) {
     return build(
       entries: [entry],
@@ -79,6 +81,7 @@ class ReportReceiptExportPayload {
       selectedReceiptEventId: selectedReceiptEventId,
       previewReceiptEventId: previewReceiptEventId,
       activeSectionConfiguration: activeSectionConfiguration,
+      entryContext: entryContext,
     );
   }
 
@@ -89,6 +92,7 @@ class ReportReceiptExportPayload {
     String? previewReceiptEventId,
     ReportReceiptExportEntry? focusedReceipt,
     Map<String, Object?>? activeSectionConfiguration,
+    ReportEntryContext? entryContext,
   }) {
     final context = <String, Object?>{
       'filter': <String, Object?>{
@@ -107,6 +111,15 @@ class ReportReceiptExportPayload {
           ? null
           : <String, Object?>{
               'activeSectionConfiguration': activeSectionConfiguration,
+            },
+      ...?entryContext == null
+          ? null
+          : <String, Object?>{
+              'entryContext': <String, Object?>{
+                'key': entryContext.storageValue,
+                'title': entryContext.bannerTitle,
+                'detail': entryContext.bannerDetail,
+              },
             },
     };
     if (filter.isLatestActionFilter && focusedReceipt != null) {

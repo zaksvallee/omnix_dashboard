@@ -857,6 +857,24 @@ void main() {
   testWidgets(
     'client reports shows and clears governance branding drift entry context',
     (tester) async {
+      String? clipboardText;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final args = call.arguments as Map<dynamic, dynamic>;
+            clipboardText = args['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+
       final store = InMemoryEventStore();
       store.append(
         ReportGenerated(
@@ -902,6 +920,21 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+
+      final policyCopyJson = find.byKey(
+        const ValueKey('reports-receipt-policy-copy-json'),
+      );
+      await tester.ensureVisible(policyCopyJson);
+      await tester.tap(policyCopyJson);
+      await tester.pumpAndSettle();
+
+      expect(clipboardText, isNotNull);
+      expect(clipboardText, contains('"entryContext": {'));
+      expect(clipboardText, contains('"key": "governance_branding_drift"'));
+      expect(
+        clipboardText,
+        contains('"title": "OPENED FROM GOVERNANCE BRANDING DRIFT"'),
+      );
 
       expect(
         find.byKey(
@@ -3321,6 +3354,7 @@ void main() {
           selectedSite: 'SITE-SANDTON',
           reportShellState: const ReportShellState(
             selectedReceiptEventId: 'RPT-LIVE-LANE-COPY-1',
+            entryContext: ReportEntryContext.governanceBrandingDrift,
           ),
         ),
       ),
@@ -3340,6 +3374,12 @@ void main() {
     expect(clipboardText, contains('"context"'));
     expect(clipboardText, contains('"receipts"'));
     expect(clipboardText, contains('"eventId": "RPT-LIVE-LANE-COPY-1"'));
+    expect(clipboardText, contains('"entryContext": {'));
+    expect(clipboardText, contains('"key": "governance_branding_drift"'));
+    expect(
+      clipboardText,
+      contains('"title": "OPENED FROM GOVERNANCE BRANDING DRIFT"'),
+    );
   });
 
   testWidgets(

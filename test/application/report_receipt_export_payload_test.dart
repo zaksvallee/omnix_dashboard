@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:omnix_dashboard/application/report_entry_context.dart';
 import 'package:omnix_dashboard/application/report_generation_service.dart';
 import 'package:omnix_dashboard/application/report_receipt_export_payload.dart';
 import 'package:omnix_dashboard/application/report_receipt_scene_filter.dart';
@@ -146,6 +147,31 @@ void main() {
     },
   );
 
+  test('build carries governance entry context when provided', () {
+    final receipt = buildTestReportGenerated(
+      eventId: 'RPT-CONTEXT-1',
+      occurredAt: DateTime.utc(2026, 3, 14, 22, 0),
+      reportSchemaVersion: 3,
+    );
+
+    final payload = ReportReceiptExportPayload.build(
+      entries: [ReportReceiptExportEntry(receiptEvent: receipt)],
+      filter: ReportReceiptSceneFilter.all,
+      selectedReceiptEventId: 'RPT-CONTEXT-1',
+      entryContext: ReportEntryContext.governanceBrandingDrift,
+    );
+
+    final context = payload['context']! as Map<String, Object?>;
+    final entryContext = context['entryContext']! as Map<String, Object?>;
+
+    expect(entryContext['key'], 'governance_branding_drift');
+    expect(entryContext['title'], 'OPENED FROM GOVERNANCE BRANDING DRIFT');
+    expect(
+      entryContext['detail'],
+      'This receipt scope was opened from Governance so operators can inspect the generated-report history behind a branding-drift shift.',
+    );
+  });
+
   test(
     'buildSingle returns the same envelope shape for single receipt exports',
     () {
@@ -159,13 +185,16 @@ void main() {
         entry: ReportReceiptExportEntry(receiptEvent: receipt),
         filter: ReportReceiptSceneFilter.all,
         selectedReceiptEventId: 'RPT-SINGLE-1',
+        entryContext: ReportEntryContext.governanceBrandingDrift,
       );
 
       final context = payload['context']! as Map<String, Object?>;
       final receipts = payload['receipts']! as List<Object?>;
+      final entryContext = context['entryContext']! as Map<String, Object?>;
 
       expect((context['filter']! as Map<String, Object?>)['key'], 'all');
       expect(context['selectedReceiptEventId'], 'RPT-SINGLE-1');
+      expect(entryContext['key'], 'governance_branding_drift');
       expect(receipts, hasLength(1));
       expect(
         (receipts.first! as Map<String, Object?>)['eventId'],

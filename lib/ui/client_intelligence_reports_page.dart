@@ -3851,6 +3851,7 @@ class _ClientIntelligenceReportsPageState
       selectedReceiptEventId: _selectedReceiptEventId,
       previewReceiptEventId: _previewReceiptEventId,
       activeSectionConfiguration: _currentSectionConfiguration.toJson(),
+      entryContext: _entryContext,
       focusedReceipt: focusedReceipt == null
           ? null
           : ReportReceiptExportEntry(
@@ -4024,6 +4025,12 @@ class _ClientIntelligenceReportsPageState
         'clientId': widget.selectedClient,
         'siteId': widget.selectedSite,
       },
+      if (_entryContext != null)
+        'entryContext': <String, Object?>{
+          'key': _entryContext!.storageValue,
+          'title': _entryContext!.bannerTitle,
+          'detail': _entryContext!.bannerDetail,
+        },
       'trendLabel': _receiptPolicyTrendLabel(rows),
       'trendReason': _receiptPolicyTrendReason(rows),
       'receipts': rows
@@ -4099,6 +4106,11 @@ class _ClientIntelligenceReportsPageState
       'metric,value',
       'client_id,${widget.selectedClient}',
       'site_id,${widget.selectedSite}',
+      if (_entryContext != null) 'entry_context,${_entryContext!.storageValue}',
+      if (_entryContext != null)
+        'entry_context_title,"${_entryContext!.bannerTitle.replaceAll('"', '""')}"',
+      if (_entryContext != null)
+        'entry_context_detail,"${_entryContext!.bannerDetail.replaceAll('"', '""')}"',
       'trend_label,${_receiptPolicyTrendLabel(rows)}',
       'trend_reason,"${_receiptPolicyTrendReason(rows).replaceAll('"', '""')}"',
     ];
@@ -4148,6 +4160,7 @@ class _ClientIntelligenceReportsPageState
       selectedReceiptEventId: _selectedReceiptEventId,
       previewReceiptEventId: _previewReceiptEventId,
       activeSectionConfiguration: _currentSectionConfiguration.toJson(),
+      entryContext: _entryContext,
     );
     final encoded = const JsonEncoder.withIndent('  ').convert(payload);
     Clipboard.setData(ClipboardData(text: encoded));
@@ -4189,6 +4202,7 @@ class _ClientIntelligenceReportsPageState
         selectedReceiptEventId: _selectedReceiptEventId,
         previewReceiptEventId: _previewReceiptEventId,
         activeSectionConfiguration: _currentSectionConfiguration.toJson(),
+        entryContext: _entryContext,
       );
       final encoded = const JsonEncoder.withIndent('  ').convert(payload);
       Clipboard.setData(ClipboardData(text: encoded));
