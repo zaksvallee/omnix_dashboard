@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../application/morning_sovereign_report_service.dart';
 import '../application/monitoring_scene_review_store.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
@@ -89,6 +90,8 @@ class _SuppressedDispatchReviewEntry {
 
 class _PartnerDispatchProgressSummary {
   final String dispatchId;
+  final String clientId;
+  final String siteId;
   final String partnerLabel;
   final PartnerDispatchStatus latestStatus;
   final DateTime latestOccurredAt;
@@ -97,11 +100,27 @@ class _PartnerDispatchProgressSummary {
 
   const _PartnerDispatchProgressSummary({
     required this.dispatchId,
+    required this.clientId,
+    required this.siteId,
     required this.partnerLabel,
     required this.latestStatus,
     required this.latestOccurredAt,
     required this.declarationCount,
     required this.firstOccurrenceByStatus,
+  });
+}
+
+class _PartnerTrendSummary {
+  final int reportDays;
+  final String currentScoreLabel;
+  final String trendLabel;
+  final String trendReason;
+
+  const _PartnerTrendSummary({
+    required this.reportDays,
+    required this.currentScoreLabel,
+    required this.trendLabel,
+    required this.trendReason,
   });
 }
 
@@ -225,6 +244,7 @@ class DispatchPage extends StatefulWidget {
   final String? stressStatus;
   final IntakeTelemetry? intakeTelemetry;
   final List<DispatchEvent> events;
+  final List<SovereignReport> morningSovereignReportHistory;
   final void Function(String dispatchId) onExecute;
   final String focusIncidentReference;
 
@@ -333,6 +353,7 @@ class DispatchPage extends StatefulWidget {
     this.stressStatus,
     this.intakeTelemetry,
     required this.events,
+    this.morningSovereignReportHistory = const <SovereignReport>[],
     required this.onExecute,
     this.focusIncidentReference = '',
   });
@@ -910,6 +931,9 @@ class _DispatchPageState extends State<DispatchPage> {
     final statusStyle = _statusStyle(dispatch.status);
     final priorityStyle = _priorityStyle(dispatch.priority);
     final partnerProgress = _partnerDispatchProgressSummary(dispatch.id);
+    final partnerTrend = partnerProgress == null
+        ? null
+        : _partnerTrendSummary(partnerProgress);
 
     return InkWell(
       onTap: () => _setSelectedDispatchId(dispatch.id),
@@ -1060,8 +1084,32 @@ class _DispatchPageState extends State<DispatchPage> {
                                 '$dispatch.id',
                                 color: const Color(0xFF8FD1FF),
                               ),
+                              if (partnerTrend != null)
+                                _metaItem(
+                                  '7D Trend',
+                                  '${partnerTrend.trendLabel} • ${partnerTrend.reportDays}d',
+                                  color: _partnerTrendColor(
+                                    partnerTrend.trendLabel,
+                                  ),
+                                ),
                             ],
                           ),
+                          if (partnerTrend != null) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              partnerTrend.trendReason,
+                              key: ValueKey<String>(
+                                'dispatch-partner-trend-reason-${dispatch.id}',
+                              ),
+                              style: GoogleFonts.inter(
+                                color: _partnerTrendColor(
+                                  partnerTrend.trendLabel,
+                                ),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 8),
                           Wrap(
                             spacing: 8,
@@ -1231,6 +1279,16 @@ class _DispatchPageState extends State<DispatchPage> {
         const Color(0x1AF87171),
         const Color(0x66F87171),
       ),
+    };
+  }
+
+  Color _partnerTrendColor(String trendLabel) {
+    return switch (trendLabel.trim().toUpperCase()) {
+      'IMPROVING' => const Color(0xFF34D399),
+      'STABLE' => const Color(0xFF38BDF8),
+      'SLIPPING' => const Color(0xFFF97316),
+      'NEW' => const Color(0xFFFDE68A),
+      _ => const Color(0xFF9CB4D0),
     };
   }
 
@@ -2707,7 +2765,6 @@ class _DispatchPageState extends State<DispatchPage> {
           final response = arrivedByDispatchId[decision.dispatchId];
           final partnerDeclaration =
               partnerStatusByDispatchId[decision.dispatchId];
-
           final status = closedDispatchIds.contains(decision.dispatchId)
               ? _DispatchStatus.cleared
               : response != null
@@ -2804,12 +2861,181 @@ class _DispatchPageState extends State<DispatchPage> {
     }
     return _PartnerDispatchProgressSummary(
       dispatchId: normalizedDispatchId,
+      clientId: first.clientId,
+      siteId: first.siteId,
       partnerLabel: first.partnerLabel,
       latestStatus: latest.status,
       latestOccurredAt: latest.occurredAt,
       declarationCount: ordered.length,
       firstOccurrenceByStatus: firstOccurrenceByStatus,
     );
+  }
+
+  _PartnerTrendSummary? _partnerTrendSummary(
+    _PartnerDispatchProgressSummary progress,
+  ) {
+    final clientId = progress.clientId.trim();
+    final siteId = progress.siteId.trim();
+    final partnerLabel = progress.partnerLabel.trim().toUpperCase();
+    if (clientId.isEmpty ||
+        siteId.isEmpty ||
+        partnerLabel.isEmpty ||
+        widget.morningSovereignReportHistory.isEmpty) {
+      return null;
+    }
+    final reports = [...widget.morningSovereignReportHistory]
+      ..sort(
+        (a, b) => b.generatedAtUtc.toUtc().compareTo(a.generatedAtUtc.toUtc()),
+      );
+    if (reports.isEmpty) {
+      return null;
+    }
+    final latestDate = reports.first.date.trim();
+    final matchingRows = <SovereignReportPartnerScoreboardRow>[];
+    SovereignReportPartnerScoreboardRow? currentRow;
+    for (final report in reports) {
+      final reportDate = report.date.trim();
+      for (final row in report.partnerProgression.scoreboardRows) {
+        if (row.clientId.trim() != clientId ||
+            row.siteId.trim() != siteId ||
+            row.partnerLabel.trim().toUpperCase() != partnerLabel) {
+          continue;
+        }
+        matchingRows.add(row);
+        if (reportDate == latestDate) {
+          currentRow = row;
+        }
+      }
+    }
+    currentRow ??= matchingRows.isEmpty ? null : matchingRows.first;
+    if (currentRow == null) {
+      return null;
+    }
+    final priorSeverityScores = <double>[];
+    final priorAcceptedDelayMinutes = <double>[];
+    final priorOnSiteDelayMinutes = <double>[];
+    for (final report in reports) {
+      if (report.date.trim() == latestDate) {
+        continue;
+      }
+      for (final row in report.partnerProgression.scoreboardRows) {
+        if (row.clientId.trim() != clientId ||
+            row.siteId.trim() != siteId ||
+            row.partnerLabel.trim().toUpperCase() != partnerLabel) {
+          continue;
+        }
+        priorSeverityScores.add(_partnerSeverityScore(row));
+        if (row.averageAcceptedDelayMinutes > 0) {
+          priorAcceptedDelayMinutes.add(row.averageAcceptedDelayMinutes);
+        }
+        if (row.averageOnSiteDelayMinutes > 0) {
+          priorOnSiteDelayMinutes.add(row.averageOnSiteDelayMinutes);
+        }
+      }
+    }
+    return _PartnerTrendSummary(
+      reportDays: matchingRows.length,
+      currentScoreLabel: _partnerDominantScoreLabel(currentRow),
+      trendLabel: _partnerTrendLabel(currentRow, priorSeverityScores),
+      trendReason: _partnerTrendReason(
+        currentRow: currentRow,
+        priorSeverityScores: priorSeverityScores,
+        priorAcceptedDelayMinutes: priorAcceptedDelayMinutes,
+        priorOnSiteDelayMinutes: priorOnSiteDelayMinutes,
+      ),
+    );
+  }
+
+  double _partnerSeverityScore(SovereignReportPartnerScoreboardRow row) {
+    final dispatchCount = row.dispatchCount <= 0 ? 1 : row.dispatchCount;
+    final rawScore = (row.criticalCount * 3) + row.watchCount - row.strongCount;
+    return rawScore / dispatchCount;
+  }
+
+  String _partnerDominantScoreLabel(SovereignReportPartnerScoreboardRow row) {
+    if (row.criticalCount > 0) {
+      return 'CRITICAL';
+    }
+    if (row.watchCount > 0) {
+      return 'WATCH';
+    }
+    if (row.onTrackCount > 0) {
+      return 'ON TRACK';
+    }
+    if (row.strongCount > 0) {
+      return 'STRONG';
+    }
+    return '';
+  }
+
+  String _partnerTrendLabel(
+    SovereignReportPartnerScoreboardRow currentRow,
+    List<double> priorSeverityScores,
+  ) {
+    if (priorSeverityScores.isEmpty) {
+      return 'NEW';
+    }
+    final priorAverage =
+        priorSeverityScores.reduce((left, right) => left + right) /
+        priorSeverityScores.length;
+    final currentScore = _partnerSeverityScore(currentRow);
+    if (currentScore <= priorAverage - 0.35) {
+      return 'IMPROVING';
+    }
+    if (currentScore >= priorAverage + 0.35) {
+      return 'SLIPPING';
+    }
+    return 'STABLE';
+  }
+
+  String _partnerTrendReason({
+    required SovereignReportPartnerScoreboardRow currentRow,
+    required List<double> priorSeverityScores,
+    required List<double> priorAcceptedDelayMinutes,
+    required List<double> priorOnSiteDelayMinutes,
+  }) {
+    if (priorSeverityScores.isEmpty) {
+      return 'First recorded shift in the 7-day partner window.';
+    }
+    final trendLabel = _partnerTrendLabel(currentRow, priorSeverityScores);
+    final priorAcceptedAverage = priorAcceptedDelayMinutes.isEmpty
+        ? null
+        : priorAcceptedDelayMinutes.reduce((left, right) => left + right) /
+              priorAcceptedDelayMinutes.length;
+    final priorOnSiteAverage = priorOnSiteDelayMinutes.isEmpty
+        ? null
+        : priorOnSiteDelayMinutes.reduce((left, right) => left + right) /
+              priorOnSiteDelayMinutes.length;
+    switch (trendLabel) {
+      case 'IMPROVING':
+        if (priorAcceptedAverage != null &&
+            currentRow.averageAcceptedDelayMinutes > 0 &&
+            currentRow.averageAcceptedDelayMinutes <=
+                priorAcceptedAverage - 2.0) {
+          return 'Acceptance timing improved against the prior 7-day average.';
+        }
+        if (priorOnSiteAverage != null &&
+            currentRow.averageOnSiteDelayMinutes > 0 &&
+            currentRow.averageOnSiteDelayMinutes <= priorOnSiteAverage - 2.0) {
+          return 'On-site timing improved against the prior 7-day average.';
+        }
+        return 'Current shift severity improved against the prior 7-day average.';
+      case 'SLIPPING':
+        if (priorAcceptedAverage != null &&
+            currentRow.averageAcceptedDelayMinutes >=
+                priorAcceptedAverage + 2.0) {
+          return 'Acceptance timing slipped beyond the prior 7-day average.';
+        }
+        if (priorOnSiteAverage != null &&
+            currentRow.averageOnSiteDelayMinutes >= priorOnSiteAverage + 2.0) {
+          return 'On-site timing slipped beyond the prior 7-day average.';
+        }
+        return 'Current shift severity slipped against the prior 7-day average.';
+      case 'STABLE':
+      case 'NEW':
+        return 'Current shift is holding close to the prior 7-day performance.';
+    }
+    return '';
   }
 
   String _averageResponseTimeLabel(List<DispatchEvent> events) {

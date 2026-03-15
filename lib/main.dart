@@ -16681,6 +16681,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case OnyxRoute.dashboard:
         return LiveOperationsPage(
           events: events,
+          morningSovereignReportHistory: _morningSovereignReportHistory,
           focusIncidentReference: _operationsFocusIncidentReference,
           videoOpsLabel: _activeVideoOpsLabel,
           sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
@@ -16947,6 +16948,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           stressStatus: _lastStressStatus,
           intakeTelemetry: _intakeTelemetry,
           events: events,
+          morningSovereignReportHistory: _morningSovereignReportHistory,
           onExecute: (dispatchId) {
             unawaited(_executeDispatchAndNotifyPartner(dispatchId));
           },

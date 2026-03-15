@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:omnix_dashboard/application/morning_sovereign_report_service.dart';
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 import 'package:omnix_dashboard/domain/events/decision_created.dart';
 import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
@@ -48,6 +49,7 @@ void main() {
     bool radioQueueHasPending = false,
     String? radioQueueFailureDetail,
     String? radioQueueManualActionDetail,
+    List<SovereignReport> morningSovereignReportHistory = const [],
     List<DispatchEvent> events = const [],
     required ValueChanged<String> onExecute,
   }) {
@@ -98,6 +100,7 @@ void main() {
         radioQueueManualActionDetail:
             radioQueueManualActionDetail ??
             'No manual radio queue action in current session.',
+        morningSovereignReportHistory: morningSovereignReportHistory,
         configuredNewsSources: const ['newsapi.org'],
         newsSourceDiagnostics: const [
           NewsSourceDiagnostic(
@@ -394,6 +397,110 @@ void main() {
         onGenerate: () {},
         onIngestFeeds: () {},
         initialSelectedDispatchId: 'DSP-8821',
+        morningSovereignReportHistory: [
+          SovereignReport(
+            date: '2026-03-14',
+            generatedAtUtc: DateTime.utc(2026, 3, 14, 6, 0),
+            shiftWindowStartUtc: DateTime.utc(2026, 3, 13, 22, 0),
+            shiftWindowEndUtc: DateTime.utc(2026, 3, 14, 6, 0),
+            ledgerIntegrity: const SovereignReportLedgerIntegrity(
+              totalEvents: 10,
+              hashVerified: true,
+              integrityScore: 99,
+            ),
+            aiHumanDelta: const SovereignReportAiHumanDelta(
+              aiDecisions: 1,
+              humanOverrides: 0,
+              overrideReasons: <String, int>{},
+            ),
+            normDrift: const SovereignReportNormDrift(
+              sitesMonitored: 1,
+              driftDetected: 0,
+              avgMatchScore: 100,
+            ),
+            complianceBlockage: const SovereignReportComplianceBlockage(
+              psiraExpired: 0,
+              pdpExpired: 0,
+              totalBlocked: 0,
+            ),
+            partnerProgression: SovereignReportPartnerProgression(
+              dispatchCount: 1,
+              declarationCount: 1,
+              acceptedCount: 1,
+              onSiteCount: 0,
+              allClearCount: 0,
+              cancelledCount: 1,
+              summaryLine: '',
+              scoreboardRows: [
+                SovereignReportPartnerScoreboardRow(
+                  clientId: 'CLIENT-001',
+                  siteId: 'SITE-SANDTON',
+                  partnerLabel: 'PARTNER • Alpha',
+                  dispatchCount: 1,
+                  strongCount: 0,
+                  onTrackCount: 0,
+                  watchCount: 0,
+                  criticalCount: 1,
+                  averageAcceptedDelayMinutes: 12.0,
+                  averageOnSiteDelayMinutes: 22.0,
+                  summaryLine:
+                      'Dispatches 1 • Strong 0 • On track 0 • Watch 0 • Critical 1 • Avg accept 12.0m • Avg on site 22.0m',
+                ),
+              ],
+            ),
+          ),
+          SovereignReport(
+            date: '2026-03-15',
+            generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
+            shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
+            shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
+            ledgerIntegrity: const SovereignReportLedgerIntegrity(
+              totalEvents: 10,
+              hashVerified: true,
+              integrityScore: 99,
+            ),
+            aiHumanDelta: const SovereignReportAiHumanDelta(
+              aiDecisions: 1,
+              humanOverrides: 0,
+              overrideReasons: <String, int>{},
+            ),
+            normDrift: const SovereignReportNormDrift(
+              sitesMonitored: 1,
+              driftDetected: 0,
+              avgMatchScore: 100,
+            ),
+            complianceBlockage: const SovereignReportComplianceBlockage(
+              psiraExpired: 0,
+              pdpExpired: 0,
+              totalBlocked: 0,
+            ),
+            partnerProgression: SovereignReportPartnerProgression(
+              dispatchCount: 1,
+              declarationCount: 3,
+              acceptedCount: 1,
+              onSiteCount: 1,
+              allClearCount: 1,
+              cancelledCount: 0,
+              summaryLine: '',
+              scoreboardRows: [
+                SovereignReportPartnerScoreboardRow(
+                  clientId: 'CLIENT-001',
+                  siteId: 'SITE-SANDTON',
+                  partnerLabel: 'PARTNER • Alpha',
+                  dispatchCount: 1,
+                  strongCount: 1,
+                  onTrackCount: 0,
+                  watchCount: 0,
+                  criticalCount: 0,
+                  averageAcceptedDelayMinutes: 4.0,
+                  averageOnSiteDelayMinutes: 10.0,
+                  summaryLine:
+                      'Dispatches 1 • Strong 1 • On track 0 • Watch 0 • Critical 0 • Avg accept 4.0m • Avg on site 10.0m',
+                ),
+              ],
+            ),
+          ),
+        ],
         events: [
           DecisionCreated(
             eventId: 'decision-1',
@@ -464,6 +571,16 @@ void main() {
     expect(find.text('PARTNER PROGRESSION'), findsOneWidget);
     expect(
       find.textContaining('PARTNER • Alpha • Latest ALL CLEAR'),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey('dispatch-partner-trend-reason-DSP-8821'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Acceptance timing improved against the prior 7-day average.'),
       findsOneWidget,
     );
     expect(
