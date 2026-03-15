@@ -219,6 +219,16 @@ class _GovernanceReportView {
   final int sceneEscalations;
   final String topScenePosture;
   final String sceneActionMixSummary;
+  final int generatedReports;
+  final int trackedConfigurationReports;
+  final int legacyConfigurationReports;
+  final int fullyIncludedReports;
+  final int reportsWithOmittedSections;
+  final int omittedAiDecisionLogReports;
+  final int omittedGuardMetricsReports;
+  final String receiptPolicyHeadline;
+  final String receiptPolicySummary;
+  final String latestReceiptPolicySummary;
   final int vehicleVisits;
   final int vehicleCompletedVisits;
   final int vehicleActiveVisits;
@@ -278,6 +288,16 @@ class _GovernanceReportView {
     required this.sceneEscalations,
     required this.topScenePosture,
     required this.sceneActionMixSummary,
+    required this.generatedReports,
+    required this.trackedConfigurationReports,
+    required this.legacyConfigurationReports,
+    required this.fullyIncludedReports,
+    required this.reportsWithOmittedSections,
+    required this.omittedAiDecisionLogReports,
+    required this.omittedGuardMetricsReports,
+    required this.receiptPolicyHeadline,
+    required this.receiptPolicySummary,
+    required this.latestReceiptPolicySummary,
     required this.vehicleVisits,
     required this.vehicleCompletedVisits,
     required this.vehicleActiveVisits,
@@ -1916,6 +1936,16 @@ class _GovernancePageState extends State<GovernancePage> {
       sceneEscalations: report.sceneEscalations,
       topScenePosture: report.topScenePosture,
       sceneActionMixSummary: report.sceneActionMixSummary,
+      generatedReports: report.generatedReports,
+      trackedConfigurationReports: report.trackedConfigurationReports,
+      legacyConfigurationReports: report.legacyConfigurationReports,
+      fullyIncludedReports: report.fullyIncludedReports,
+      reportsWithOmittedSections: report.reportsWithOmittedSections,
+      omittedAiDecisionLogReports: report.omittedAiDecisionLogReports,
+      omittedGuardMetricsReports: report.omittedGuardMetricsReports,
+      receiptPolicyHeadline: report.receiptPolicyHeadline,
+      receiptPolicySummary: report.receiptPolicySummary,
+      latestReceiptPolicySummary: report.latestReceiptPolicySummary,
       vehicleVisits: report.vehicleVisits,
       vehicleCompletedVisits: report.vehicleCompletedVisits,
       vehicleActiveVisits: report.vehicleActiveVisits,
@@ -2164,6 +2194,22 @@ class _GovernancePageState extends State<GovernancePage> {
         color: report.totalBlocked > 0
             ? const Color(0xFFEF4444)
             : const Color(0xFF10B981),
+      ),
+      _reportMetric(
+        key: const ValueKey('governance-metric-receipt-policy'),
+        label: 'Receipt Policy',
+        value: '${report.generatedReports} reports',
+        detail: report.receiptPolicyHeadline.trim().isNotEmpty
+            ? '${report.receiptPolicyHeadline} • ${report.latestReceiptPolicySummary.trim().isNotEmpty ? report.latestReceiptPolicySummary : report.receiptPolicySummary}'
+            : report.receiptPolicySummary.trim().isNotEmpty
+            ? report.receiptPolicySummary
+            : 'No generated report receipts recorded in this shift window.',
+        color: report.reportsWithOmittedSections > 0 ||
+                report.legacyConfigurationReports > 0
+            ? const Color(0xFFF59E0B)
+            : report.generatedReports > 0
+            ? const Color(0xFF10B981)
+            : const Color(0xFF22D3EE),
       ),
       _reportMetric(
         key: const ValueKey('governance-metric-vehicle-throughput'),
@@ -4276,6 +4322,22 @@ class _GovernancePageState extends State<GovernancePage> {
           sceneEscalations: canonical.sceneReview.escalationCandidates,
           topScenePosture: canonical.sceneReview.topPosture,
           sceneActionMixSummary: canonical.sceneReview.actionMixSummary,
+          generatedReports: canonical.receiptPolicy.generatedReports,
+          trackedConfigurationReports:
+              canonical.receiptPolicy.trackedConfigurationReports,
+          legacyConfigurationReports:
+              canonical.receiptPolicy.legacyConfigurationReports,
+          fullyIncludedReports: canonical.receiptPolicy.fullyIncludedReports,
+          reportsWithOmittedSections:
+              canonical.receiptPolicy.reportsWithOmittedSections,
+          omittedAiDecisionLogReports:
+              canonical.receiptPolicy.omittedAiDecisionLogReports,
+          omittedGuardMetricsReports:
+              canonical.receiptPolicy.omittedGuardMetricsReports,
+          receiptPolicyHeadline: canonical.receiptPolicy.headline,
+          receiptPolicySummary: canonical.receiptPolicy.summaryLine,
+          latestReceiptPolicySummary:
+              canonical.receiptPolicy.latestReportSummary,
           vehicleVisits: canonical.vehicleThroughput.totalVisits,
           vehicleCompletedVisits: canonical.vehicleThroughput.completedVisits,
           vehicleActiveVisits: canonical.vehicleThroughput.activeVisits,
@@ -4383,6 +4445,16 @@ class _GovernancePageState extends State<GovernancePage> {
         sceneEscalations: 0,
         topScenePosture: 'none',
         sceneActionMixSummary: '',
+        generatedReports: 0,
+        trackedConfigurationReports: 0,
+        legacyConfigurationReports: 0,
+        fullyIncludedReports: 0,
+        reportsWithOmittedSections: 0,
+        omittedAiDecisionLogReports: 0,
+        omittedGuardMetricsReports: 0,
+        receiptPolicyHeadline: '',
+        receiptPolicySummary: '',
+        latestReceiptPolicySummary: '',
         vehicleVisits: 0,
         vehicleCompletedVisits: 0,
         vehicleActiveVisits: 0,
@@ -5051,6 +5123,18 @@ class _GovernancePageState extends State<GovernancePage> {
         'avgMatchScore': report.avgMatchScore,
       },
       'sceneReview': sceneReview,
+      'receiptPolicy': {
+        'generatedReports': report.generatedReports,
+        'trackedConfigurationReports': report.trackedConfigurationReports,
+        'legacyConfigurationReports': report.legacyConfigurationReports,
+        'fullyIncludedReports': report.fullyIncludedReports,
+        'reportsWithOmittedSections': report.reportsWithOmittedSections,
+        'omittedAiDecisionLogReports': report.omittedAiDecisionLogReports,
+        'omittedGuardMetricsReports': report.omittedGuardMetricsReports,
+        'headline': report.receiptPolicyHeadline,
+        'summaryLine': report.receiptPolicySummary,
+        'latestReportSummary': report.latestReceiptPolicySummary,
+      },
       'vehicleThroughput': {
         'totalVisits': report.vehicleVisits,
         'completedVisits': report.vehicleCompletedVisits,
@@ -5136,6 +5220,16 @@ class _GovernancePageState extends State<GovernancePage> {
       'scene_latest_action_taken,"${report.latestActionTaken.replaceAll('"', '""')}"',
       'scene_recent_actions_summary,"${report.recentActionsSummary.replaceAll('"', '""')}"',
       'scene_latest_suppressed_pattern,"${report.latestSuppressedPattern.replaceAll('"', '""')}"',
+      'receipt_generated_reports,${report.generatedReports}',
+      'receipt_tracked_configuration_reports,${report.trackedConfigurationReports}',
+      'receipt_legacy_configuration_reports,${report.legacyConfigurationReports}',
+      'receipt_fully_included_reports,${report.fullyIncludedReports}',
+      'receipt_reports_with_omitted_sections,${report.reportsWithOmittedSections}',
+      'receipt_omitted_ai_decision_log_reports,${report.omittedAiDecisionLogReports}',
+      'receipt_omitted_guard_metrics_reports,${report.omittedGuardMetricsReports}',
+      'receipt_headline,"${report.receiptPolicyHeadline.replaceAll('"', '""')}"',
+      'receipt_summary,"${report.receiptPolicySummary.replaceAll('"', '""')}"',
+      'receipt_latest_report_summary,"${report.latestReceiptPolicySummary.replaceAll('"', '""')}"',
       'vehicle_total_visits,${report.vehicleVisits}',
       'vehicle_completed_visits,${report.vehicleCompletedVisits}',
       'vehicle_active_visits,${report.vehicleActiveVisits}',

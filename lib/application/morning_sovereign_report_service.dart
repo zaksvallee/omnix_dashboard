@@ -8,6 +8,7 @@ import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_denied.dart';
 import '../domain/events/intelligence_received.dart';
 import '../domain/events/partner_dispatch_status_declared.dart';
+import '../domain/events/report_generated.dart';
 import '../domain/events/vehicle_visit_review_recorded.dart';
 import '../domain/guard/guard_ops_event.dart';
 import '../domain/testing/replay_consistency_verifier.dart';
@@ -203,6 +204,69 @@ class SovereignReportSceneReview {
   }
 }
 
+class SovereignReportReceiptPolicy {
+  final int generatedReports;
+  final int trackedConfigurationReports;
+  final int legacyConfigurationReports;
+  final int fullyIncludedReports;
+  final int reportsWithOmittedSections;
+  final int omittedAiDecisionLogReports;
+  final int omittedGuardMetricsReports;
+  final String headline;
+  final String summaryLine;
+  final String latestReportSummary;
+
+  const SovereignReportReceiptPolicy({
+    required this.generatedReports,
+    required this.trackedConfigurationReports,
+    required this.legacyConfigurationReports,
+    required this.fullyIncludedReports,
+    required this.reportsWithOmittedSections,
+    required this.omittedAiDecisionLogReports,
+    required this.omittedGuardMetricsReports,
+    this.headline = '',
+    this.summaryLine = '',
+    this.latestReportSummary = '',
+  });
+
+  Map<String, Object?> toJson() {
+    return {
+      'generatedReports': generatedReports,
+      'trackedConfigurationReports': trackedConfigurationReports,
+      'legacyConfigurationReports': legacyConfigurationReports,
+      'fullyIncludedReports': fullyIncludedReports,
+      'reportsWithOmittedSections': reportsWithOmittedSections,
+      'omittedAiDecisionLogReports': omittedAiDecisionLogReports,
+      'omittedGuardMetricsReports': omittedGuardMetricsReports,
+      'headline': headline,
+      'summaryLine': summaryLine,
+      'latestReportSummary': latestReportSummary,
+    };
+  }
+
+  factory SovereignReportReceiptPolicy.fromJson(Map<String, Object?> json) {
+    return SovereignReportReceiptPolicy(
+      generatedReports: (json['generatedReports'] as num?)?.toInt() ?? 0,
+      trackedConfigurationReports:
+          (json['trackedConfigurationReports'] as num?)?.toInt() ?? 0,
+      legacyConfigurationReports:
+          (json['legacyConfigurationReports'] as num?)?.toInt() ?? 0,
+      fullyIncludedReports:
+          (json['fullyIncludedReports'] as num?)?.toInt() ?? 0,
+      reportsWithOmittedSections:
+          (json['reportsWithOmittedSections'] as num?)?.toInt() ?? 0,
+      omittedAiDecisionLogReports:
+          (json['omittedAiDecisionLogReports'] as num?)?.toInt() ?? 0,
+      omittedGuardMetricsReports:
+          (json['omittedGuardMetricsReports'] as num?)?.toInt() ?? 0,
+      headline: (json['headline'] as String? ?? '').trim(),
+      summaryLine: (json['summaryLine'] as String? ?? '').trim(),
+      latestReportSummary: (json['latestReportSummary'] as String? ?? '')
+          .trim(),
+    );
+  }
+}
+
 class SovereignReport {
   final String date;
   final DateTime generatedAtUtc;
@@ -213,6 +277,7 @@ class SovereignReport {
   final SovereignReportNormDrift normDrift;
   final SovereignReportComplianceBlockage complianceBlockage;
   final SovereignReportSceneReview sceneReview;
+  final SovereignReportReceiptPolicy receiptPolicy;
   final SovereignReportVehicleThroughput vehicleThroughput;
   final SovereignReportPartnerProgression partnerProgression;
 
@@ -234,6 +299,18 @@ class SovereignReport {
       repeatUpdates: 0,
       escalationCandidates: 0,
       topPosture: 'none',
+    ),
+    this.receiptPolicy = const SovereignReportReceiptPolicy(
+      generatedReports: 0,
+      trackedConfigurationReports: 0,
+      legacyConfigurationReports: 0,
+      fullyIncludedReports: 0,
+      reportsWithOmittedSections: 0,
+      omittedAiDecisionLogReports: 0,
+      omittedGuardMetricsReports: 0,
+      headline: '',
+      summaryLine: '',
+      latestReportSummary: '',
     ),
     this.vehicleThroughput = const SovereignReportVehicleThroughput(
       totalVisits: 0,
@@ -280,6 +357,7 @@ class SovereignReport {
     SovereignReportNormDrift? normDrift,
     SovereignReportComplianceBlockage? complianceBlockage,
     SovereignReportSceneReview? sceneReview,
+    SovereignReportReceiptPolicy? receiptPolicy,
     SovereignReportVehicleThroughput? vehicleThroughput,
     SovereignReportPartnerProgression? partnerProgression,
   }) {
@@ -293,6 +371,7 @@ class SovereignReport {
       normDrift: normDrift ?? this.normDrift,
       complianceBlockage: complianceBlockage ?? this.complianceBlockage,
       sceneReview: sceneReview ?? this.sceneReview,
+      receiptPolicy: receiptPolicy ?? this.receiptPolicy,
       vehicleThroughput: vehicleThroughput ?? this.vehicleThroughput,
       partnerProgression: partnerProgression ?? this.partnerProgression,
     );
@@ -309,6 +388,7 @@ class SovereignReport {
       'normDrift': normDrift.toJson(),
       'complianceBlockage': complianceBlockage.toJson(),
       'sceneReview': sceneReview.toJson(),
+      'receiptPolicy': receiptPolicy.toJson(),
       'vehicleThroughput': vehicleThroughput.toJson(),
       'partnerProgression': partnerProgression.toJson(),
     };
@@ -320,6 +400,7 @@ class SovereignReport {
     final normDriftRaw = json['normDrift'];
     final complianceRaw = json['complianceBlockage'];
     final sceneReviewRaw = json['sceneReview'];
+    final receiptPolicyRaw = json['receiptPolicy'];
     final vehicleThroughputRaw = json['vehicleThroughput'];
     final partnerProgressionRaw = json['partnerProgression'];
     return SovereignReport(
@@ -395,6 +476,24 @@ class SovereignReport {
               actionMixSummary: '',
               latestActionTaken: '',
               latestSuppressedPattern: '',
+            ),
+      receiptPolicy: receiptPolicyRaw is Map
+          ? SovereignReportReceiptPolicy.fromJson(
+              receiptPolicyRaw.map(
+                (key, value) => MapEntry(key.toString(), value),
+              ),
+            )
+          : const SovereignReportReceiptPolicy(
+              generatedReports: 0,
+              trackedConfigurationReports: 0,
+              legacyConfigurationReports: 0,
+              fullyIncludedReports: 0,
+              reportsWithOmittedSections: 0,
+              omittedAiDecisionLogReports: 0,
+              omittedGuardMetricsReports: 0,
+              headline: '',
+              summaryLine: '',
+              latestReportSummary: '',
             ),
       vehicleThroughput: vehicleThroughputRaw is Map
           ? SovereignReportVehicleThroughput.fromJson(
@@ -1305,6 +1404,9 @@ class MorningSovereignReportService {
     final latestSuppressedPattern = _latestSuppressedPattern(
       reviewedSceneEvents,
     );
+    final receiptPolicy = _buildReceiptPolicy(
+      events: nightEvents.whereType<ReportGenerated>().toList(growable: false),
+    );
     final vehicleThroughput = _buildVehicleThroughput(
       nowUtc: nowUtc,
       events: nightIntel,
@@ -1361,8 +1463,109 @@ class MorningSovereignReportService {
         recentActionsSummary: recentActionsSummary,
         latestSuppressedPattern: latestSuppressedPattern,
       ),
+      receiptPolicy: receiptPolicy,
       vehicleThroughput: vehicleThroughput,
       partnerProgression: partnerProgression,
+    );
+  }
+
+  SovereignReportReceiptPolicy _buildReceiptPolicy({
+    required List<ReportGenerated> events,
+  }) {
+    if (events.isEmpty) {
+      return const SovereignReportReceiptPolicy(
+        generatedReports: 0,
+        trackedConfigurationReports: 0,
+        legacyConfigurationReports: 0,
+        fullyIncludedReports: 0,
+        reportsWithOmittedSections: 0,
+        omittedAiDecisionLogReports: 0,
+        omittedGuardMetricsReports: 0,
+        headline: '',
+        summaryLine: '',
+        latestReportSummary: '',
+      );
+    }
+
+    final ordered = [...events]..sort((a, b) {
+      final occurredCompare = b.occurredAt.compareTo(a.occurredAt);
+      if (occurredCompare != 0) {
+        return occurredCompare;
+      }
+      return b.sequence.compareTo(a.sequence);
+    });
+
+    var trackedConfigurationReports = 0;
+    var legacyConfigurationReports = 0;
+    var fullyIncludedReports = 0;
+    var reportsWithOmittedSections = 0;
+    var omittedAiDecisionLogReports = 0;
+    var omittedGuardMetricsReports = 0;
+
+    for (final event in ordered) {
+      final tracked = event.reportSchemaVersion >= 3;
+      if (!tracked) {
+        legacyConfigurationReports += 1;
+        continue;
+      }
+      trackedConfigurationReports += 1;
+      final omitted = <String>[
+        if (!event.includeTimeline) 'Incident Timeline',
+        if (!event.includeDispatchSummary) 'Dispatch Summary',
+        if (!event.includeCheckpointCompliance) 'Checkpoint Compliance',
+        if (!event.includeAiDecisionLog) 'AI Decision Log',
+        if (!event.includeGuardMetrics) 'Guard Metrics',
+      ];
+      if (omitted.isEmpty) {
+        fullyIncludedReports += 1;
+      } else {
+        reportsWithOmittedSections += 1;
+      }
+      if (!event.includeAiDecisionLog) {
+        omittedAiDecisionLogReports += 1;
+      }
+      if (!event.includeGuardMetrics) {
+        omittedGuardMetricsReports += 1;
+      }
+    }
+
+    final latest = ordered.first;
+    final latestTracked = latest.reportSchemaVersion >= 3;
+    final latestOmitted = <String>[
+      if (!latest.includeTimeline) 'Incident Timeline',
+      if (!latest.includeDispatchSummary) 'Dispatch Summary',
+      if (!latest.includeCheckpointCompliance) 'Checkpoint Compliance',
+      if (!latest.includeAiDecisionLog) 'AI Decision Log',
+      if (!latest.includeGuardMetrics) 'Guard Metrics',
+    ];
+    final latestReportSummary = !latestTracked
+        ? '${latest.clientId}/${latest.siteId} ${latest.month} used legacy receipt configuration.'
+        : latestOmitted.isEmpty
+        ? '${latest.clientId}/${latest.siteId} ${latest.month} included all report sections.'
+        : '${latest.clientId}/${latest.siteId} ${latest.month} omitted ${latestOmitted.join(', ')}.';
+
+    final headline = reportsWithOmittedSections > 0
+        ? '$reportsWithOmittedSections generated reports omitted sections'
+        : fullyIncludedReports > 0
+        ? '$fullyIncludedReports generated reports kept full policy'
+        : legacyConfigurationReports > 0
+        ? '$legacyConfigurationReports generated reports used legacy policy'
+        : '${events.length} generated reports recorded';
+
+    final summaryLine =
+        'Reports ${events.length} • Tracked $trackedConfigurationReports • Legacy $legacyConfigurationReports • Full $fullyIncludedReports • Omitted $reportsWithOmittedSections • AI log omitted $omittedAiDecisionLogReports • Guard metrics omitted $omittedGuardMetricsReports';
+
+    return SovereignReportReceiptPolicy(
+      generatedReports: events.length,
+      trackedConfigurationReports: trackedConfigurationReports,
+      legacyConfigurationReports: legacyConfigurationReports,
+      fullyIncludedReports: fullyIncludedReports,
+      reportsWithOmittedSections: reportsWithOmittedSections,
+      omittedAiDecisionLogReports: omittedAiDecisionLogReports,
+      omittedGuardMetricsReports: omittedGuardMetricsReports,
+      headline: headline,
+      summaryLine: summaryLine,
+      latestReportSummary: latestReportSummary,
     );
   }
 

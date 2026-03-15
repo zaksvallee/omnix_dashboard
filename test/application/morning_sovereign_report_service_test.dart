@@ -6,6 +6,7 @@ import 'package:omnix_dashboard/domain/events/decision_created.dart';
 import 'package:omnix_dashboard/domain/events/execution_denied.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/domain/events/partner_dispatch_status_declared.dart';
+import 'package:omnix_dashboard/domain/events/report_generated.dart';
 import 'package:omnix_dashboard/domain/events/vehicle_visit_review_recorded.dart';
 import 'package:omnix_dashboard/domain/guard/guard_ops_event.dart';
 
@@ -184,6 +185,40 @@ void main() {
             sourceChannel: 'telegram',
             sourceMessageKey: 'msg-2',
           ),
+          ReportGenerated(
+            eventId: 'RPT-1',
+            sequence: 19,
+            version: 1,
+            occurredAt: DateTime.utc(2026, 3, 10, 2, 20),
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-2',
+            month: '2026-03',
+            contentHash: 'content-hash-1',
+            pdfHash: 'pdf-hash-1',
+            eventRangeStart: 10,
+            eventRangeEnd: 18,
+            eventCount: 9,
+            reportSchemaVersion: 3,
+            projectionVersion: 1,
+            includeAiDecisionLog: false,
+            includeGuardMetrics: false,
+          ),
+          ReportGenerated(
+            eventId: 'RPT-2',
+            sequence: 20,
+            version: 1,
+            occurredAt: DateTime.utc(2026, 3, 10, 2, 40),
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-1',
+            month: '2026-03',
+            contentHash: 'content-hash-2',
+            pdfHash: 'pdf-hash-2',
+            eventRangeStart: 10,
+            eventRangeEnd: 19,
+            eventCount: 10,
+            reportSchemaVersion: 1,
+            projectionVersion: 1,
+          ),
         ],
         recentMedia: [
           GuardOpsMediaUpload(
@@ -248,7 +283,7 @@ void main() {
       expect(report.date, '2026-03-10');
       expect(report.shiftWindowStartUtc, expectedWindowStartUtc);
       expect(report.shiftWindowEndUtc, expectedWindowEndUtc);
-      expect(report.ledgerIntegrity.totalEvents, 9);
+      expect(report.ledgerIntegrity.totalEvents, 11);
       expect(report.ledgerIntegrity.hashVerified, isTrue);
       expect(report.aiHumanDelta.aiDecisions, 1);
       expect(report.aiHumanDelta.humanOverrides, 1);
@@ -280,6 +315,25 @@ void main() {
       expect(
         report.sceneReview.latestSuppressedPattern,
         '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
+      );
+      expect(report.receiptPolicy.generatedReports, 2);
+      expect(report.receiptPolicy.trackedConfigurationReports, 1);
+      expect(report.receiptPolicy.legacyConfigurationReports, 1);
+      expect(report.receiptPolicy.fullyIncludedReports, 0);
+      expect(report.receiptPolicy.reportsWithOmittedSections, 1);
+      expect(report.receiptPolicy.omittedAiDecisionLogReports, 1);
+      expect(report.receiptPolicy.omittedGuardMetricsReports, 1);
+      expect(
+        report.receiptPolicy.headline,
+        '1 generated reports omitted sections',
+      );
+      expect(
+        report.receiptPolicy.summaryLine,
+        'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
+      );
+      expect(
+        report.receiptPolicy.latestReportSummary,
+        'CLIENT-1/SITE-1 2026-03 used legacy receipt configuration.',
       );
       expect(report.vehicleThroughput.totalVisits, 1);
       expect(report.vehicleThroughput.completedVisits, 1);
@@ -372,9 +426,15 @@ void main() {
 
       final restored = SovereignReport.fromJson(report.toJson());
       expect(restored.date, report.date);
-      expect(restored.ledgerIntegrity.totalEvents, 9);
+      expect(restored.ledgerIntegrity.totalEvents, 11);
       expect(restored.aiHumanDelta.humanOverrides, 1);
       expect(restored.sceneReview.totalReviews, 3);
+      expect(restored.receiptPolicy.generatedReports, 2);
+      expect(restored.receiptPolicy.headline, report.receiptPolicy.headline);
+      expect(
+        restored.receiptPolicy.latestReportSummary,
+        report.receiptPolicy.latestReportSummary,
+      );
       expect(restored.sceneReview.escalationCandidates, 1);
       expect(
         restored.sceneReview.actionMixSummary,

@@ -77,6 +77,20 @@ void main() {
         pdpExpired: 1,
         totalBlocked: 3,
       ),
+      receiptPolicy: const SovereignReportReceiptPolicy(
+        generatedReports: 2,
+        trackedConfigurationReports: 1,
+        legacyConfigurationReports: 1,
+        fullyIncludedReports: 0,
+        reportsWithOmittedSections: 1,
+        omittedAiDecisionLogReports: 1,
+        omittedGuardMetricsReports: 1,
+        headline: '1 generated reports omitted sections',
+        summaryLine:
+            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
+        latestReportSummary:
+            'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
+      ),
       sceneReview: const SovereignReportSceneReview(
         totalReviews: 7,
         modelReviews: 5,
@@ -258,6 +272,18 @@ void main() {
     );
     expect(
       find.textContaining('Override Reasons: PSIRA expired (2)'),
+      findsOneWidget,
+    );
+    expect(find.text('Receipt Policy'), findsOneWidget);
+    expect(find.text('2 reports'), findsOneWidget);
+    expect(
+      find.textContaining('1 generated reports omitted sections'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
+      ),
       findsOneWidget,
     );
     expect(
@@ -952,6 +978,20 @@ void main() {
         pdpExpired: 1,
         totalBlocked: 3,
       ),
+      receiptPolicy: const SovereignReportReceiptPolicy(
+        generatedReports: 2,
+        trackedConfigurationReports: 1,
+        legacyConfigurationReports: 1,
+        fullyIncludedReports: 0,
+        reportsWithOmittedSections: 1,
+        omittedAiDecisionLogReports: 1,
+        omittedGuardMetricsReports: 1,
+        headline: '1 generated reports omitted sections',
+        summaryLine:
+            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
+        latestReportSummary:
+            'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
+      ),
       sceneReview: const SovereignReportSceneReview(
         totalReviews: 7,
         modelReviews: 5,
@@ -1293,6 +1333,20 @@ void main() {
         pdpExpired: 1,
         totalBlocked: 3,
       ),
+      receiptPolicy: const SovereignReportReceiptPolicy(
+        generatedReports: 2,
+        trackedConfigurationReports: 1,
+        legacyConfigurationReports: 1,
+        fullyIncludedReports: 0,
+        reportsWithOmittedSections: 1,
+        omittedAiDecisionLogReports: 1,
+        omittedGuardMetricsReports: 1,
+        headline: '1 generated reports omitted sections',
+        summaryLine:
+            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
+        latestReportSummary:
+            'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
+      ),
       sceneReview: const SovereignReportSceneReview(
         totalReviews: 7,
         modelReviews: 5,
@@ -1515,6 +1569,20 @@ void main() {
         pdpExpired: 1,
         totalBlocked: 3,
       ),
+      receiptPolicy: const SovereignReportReceiptPolicy(
+        generatedReports: 2,
+        trackedConfigurationReports: 1,
+        legacyConfigurationReports: 1,
+        fullyIncludedReports: 0,
+        reportsWithOmittedSections: 1,
+        omittedAiDecisionLogReports: 1,
+        omittedGuardMetricsReports: 1,
+        headline: '1 generated reports omitted sections',
+        summaryLine:
+            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
+        latestReportSummary:
+            'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
+      ),
       sceneReview: const SovereignReportSceneReview(
         totalReviews: 7,
         modelReviews: 5,
@@ -1688,6 +1756,20 @@ void main() {
         pdpExpired: 1,
         totalBlocked: 3,
       ),
+      receiptPolicy: const SovereignReportReceiptPolicy(
+        generatedReports: 2,
+        trackedConfigurationReports: 1,
+        legacyConfigurationReports: 1,
+        fullyIncludedReports: 0,
+        reportsWithOmittedSections: 1,
+        omittedAiDecisionLogReports: 1,
+        omittedGuardMetricsReports: 1,
+        headline: '1 generated reports omitted sections',
+        summaryLine:
+            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
+        latestReportSummary:
+            'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
+      ),
       sceneReview: const SovereignReportSceneReview(
         totalReviews: 7,
         modelReviews: 5,
@@ -1793,6 +1875,20 @@ void main() {
         pdpExpired: 1,
         totalBlocked: 3,
       ),
+      receiptPolicy: const SovereignReportReceiptPolicy(
+        generatedReports: 2,
+        trackedConfigurationReports: 1,
+        legacyConfigurationReports: 1,
+        fullyIncludedReports: 0,
+        reportsWithOmittedSections: 1,
+        omittedAiDecisionLogReports: 1,
+        omittedGuardMetricsReports: 1,
+        headline: '1 generated reports omitted sections',
+        summaryLine:
+            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
+        latestReportSummary:
+            'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
+      ),
       sceneReview: const SovereignReportSceneReview(
         totalReviews: 7,
         modelReviews: 5,
@@ -1870,6 +1966,20 @@ void main() {
         psiraExpired: 2,
         pdpExpired: 1,
         totalBlocked: 3,
+      ),
+      receiptPolicy: const SovereignReportReceiptPolicy(
+        generatedReports: 2,
+        trackedConfigurationReports: 1,
+        legacyConfigurationReports: 1,
+        fullyIncludedReports: 0,
+        reportsWithOmittedSections: 1,
+        omittedAiDecisionLogReports: 1,
+        omittedGuardMetricsReports: 1,
+        headline: '1 generated reports omitted sections',
+        summaryLine:
+            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
+        latestReportSummary:
+            'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
       ),
       sceneReview: const SovereignReportSceneReview(
         totalReviews: 7,
@@ -2375,6 +2485,20 @@ void main() {
         pdpExpired: 1,
         totalBlocked: 3,
       ),
+      receiptPolicy: const SovereignReportReceiptPolicy(
+        generatedReports: 2,
+        trackedConfigurationReports: 1,
+        legacyConfigurationReports: 1,
+        fullyIncludedReports: 0,
+        reportsWithOmittedSections: 1,
+        omittedAiDecisionLogReports: 1,
+        omittedGuardMetricsReports: 1,
+        headline: '1 generated reports omitted sections',
+        summaryLine:
+            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
+        latestReportSummary:
+            'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
+      ),
       sceneReview: const SovereignReportSceneReview(
         totalReviews: 7,
         modelReviews: 5,
@@ -2554,6 +2678,12 @@ void main() {
     expect(copiedPayload, contains('"focusedLens"'));
     expect(copiedPayload, contains('"key": "recentActions"'));
     expect(copiedPayload, contains('"label": "Recent actions"'));
+    expect(copiedPayload, contains('"receiptPolicy"'));
+    expect(copiedPayload, contains('"generatedReports": 2'));
+    expect(
+      copiedPayload,
+      contains('"headline": "1 generated reports omitted sections"'),
+    );
     expect(copiedPayload, contains('"vehicleThroughput"'));
     expect(copiedPayload, contains('"totalVisits": 18'));
     expect(
@@ -2582,6 +2712,11 @@ void main() {
 
     expect(copiedPayload, isNotNull);
     expect(copiedPayload, contains('scene_focused_lens_key,recentActions'));
+    expect(copiedPayload, contains('receipt_generated_reports,2'));
+    expect(
+      copiedPayload,
+      contains('receipt_headline,"1 generated reports omitted sections"'),
+    );
     expect(copiedPayload, contains('vehicle_total_visits,18'));
     expect(copiedPayload, contains('vehicle_completed_visits,15'));
     expect(

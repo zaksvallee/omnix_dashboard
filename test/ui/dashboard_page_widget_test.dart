@@ -135,6 +135,20 @@ void main() {
               pdpExpired: 1,
               totalBlocked: 2,
             ),
+            receiptPolicy: const SovereignReportReceiptPolicy(
+              generatedReports: 2,
+              trackedConfigurationReports: 1,
+              legacyConfigurationReports: 1,
+              fullyIncludedReports: 0,
+              reportsWithOmittedSections: 1,
+              omittedAiDecisionLogReports: 1,
+              omittedGuardMetricsReports: 1,
+              headline: '1 generated reports omitted sections',
+              summaryLine:
+                  'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
+              latestReportSummary:
+                  'CLIENT-1/SITE-1 2026-03 omitted AI Decision Log, Guard Metrics.',
+            ),
             vehicleThroughput: const SovereignReportVehicleThroughput(
               totalVisits: 6,
               completedVisits: 5,
@@ -230,6 +244,8 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(find.text('Receipt policy'), findsOneWidget);
+    expect(find.text('1 generated reports omitted sections'), findsOneWidget);
     expect(find.text('Partner progression'), findsOneWidget);
     expect(
       find.text('1 strong response • 1 on-track response'),
