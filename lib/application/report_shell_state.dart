@@ -1,3 +1,4 @@
+import 'report_partner_comparison_window.dart';
 import 'report_output_mode.dart';
 import 'report_preview_surface.dart';
 import 'report_receipt_scene_filter.dart';
@@ -8,6 +9,7 @@ class ReportShellState {
   final String? selectedReceiptEventId;
   final String? previewReceiptEventId;
   final ReportPreviewSurface previewSurface;
+  final ReportPartnerComparisonWindow partnerComparisonWindow;
 
   const ReportShellState({
     this.receiptFilter = ReportReceiptSceneFilter.all,
@@ -15,6 +17,7 @@ class ReportShellState {
     this.selectedReceiptEventId,
     this.previewReceiptEventId,
     this.previewSurface = ReportPreviewSurface.route,
+    this.partnerComparisonWindow = ReportPartnerComparisonWindow.latestShift,
   });
 
   ReportShellState copyWith({
@@ -25,6 +28,7 @@ class ReportShellState {
     String? previewReceiptEventId,
     bool clearPreviewReceiptEventId = false,
     ReportPreviewSurface? previewSurface,
+    ReportPartnerComparisonWindow? partnerComparisonWindow,
   }) {
     final normalizedSelectedReceiptEventId = selectedReceiptEventId?.trim();
     final normalizedPreviewReceiptEventId = previewReceiptEventId?.trim();
@@ -46,6 +50,8 @@ class ReportShellState {
           ? null
           : normalizedPreviewReceiptEventId,
       previewSurface: previewSurface ?? this.previewSurface,
+      partnerComparisonWindow:
+          partnerComparisonWindow ?? this.partnerComparisonWindow,
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../application/report_shell_binding.dart';
 import '../../application/report_output_mode.dart';
+import '../../application/report_partner_comparison_window.dart';
 import '../../application/report_preview_request.dart';
 import '../../application/report_preview_surface.dart';
 import '../../application/report_receipt_scene_filter.dart';
@@ -65,6 +66,12 @@ mixin ReportShellBindingHost<T extends StatefulWidget> on State<T> {
 
   void setReportPreviewSurface(ReportPreviewSurface value) {
     mutateReportShellBinding((binding) => binding.withPreviewSurface(value));
+  }
+
+  void setReportPartnerComparisonWindow(ReportPartnerComparisonWindow value) {
+    mutateReportShellBinding(
+      (binding) => binding.withPartnerComparisonWindow(value),
+    );
   }
 
   void focusReportReceiptWorkspace(String? eventId) {

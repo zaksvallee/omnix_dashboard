@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/application/morning_sovereign_report_service.dart';
 import 'package:omnix_dashboard/application/report_output_mode.dart';
+import 'package:omnix_dashboard/application/report_partner_comparison_window.dart';
 import 'package:omnix_dashboard/application/report_preview_request.dart';
 import 'package:omnix_dashboard/application/report_preview_surface.dart';
 import 'package:omnix_dashboard/application/report_receipt_scene_filter.dart';
@@ -674,6 +675,196 @@ void main() {
     );
     expect(
       find.textContaining('Partner scorecard focus cleared.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('client reports persists comparison window through remount', (
+    tester,
+  ) async {
+    final shellState = ValueNotifier(const ReportShellState());
+    addTearDown(shellState.dispose);
+
+    final priorReport = SovereignReport(
+      date: '2026-03-14',
+      generatedAtUtc: DateTime.utc(2026, 3, 14, 6, 0),
+      shiftWindowStartUtc: DateTime.utc(2026, 3, 13, 22, 0),
+      shiftWindowEndUtc: DateTime.utc(2026, 3, 14, 6, 0),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 10,
+        hashVerified: true,
+        integrityScore: 99,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 1,
+        humanOverrides: 0,
+        overrideReasons: <String, int>{},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 1,
+        driftDetected: 0,
+        avgMatchScore: 100,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 0,
+        pdpExpired: 0,
+        totalBlocked: 0,
+      ),
+      partnerProgression: SovereignReportPartnerProgression(
+        dispatchCount: 2,
+        declarationCount: 4,
+        acceptedCount: 2,
+        onSiteCount: 1,
+        allClearCount: 1,
+        cancelledCount: 1,
+        summaryLine: '',
+        scoreboardRows: [
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            partnerLabel: 'PARTNER • Alpha',
+            dispatchCount: 1,
+            strongCount: 0,
+            onTrackCount: 1,
+            watchCount: 0,
+            criticalCount: 0,
+            averageAcceptedDelayMinutes: 7.0,
+            averageOnSiteDelayMinutes: 14.0,
+            summaryLine:
+                'Dispatches 1 • Strong 0 • On track 1 • Watch 0 • Critical 0 • Avg accept 7.0m • Avg on site 14.0m',
+          ),
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            partnerLabel: 'PARTNER • Beta',
+            dispatchCount: 1,
+            strongCount: 0,
+            onTrackCount: 0,
+            watchCount: 1,
+            criticalCount: 0,
+            averageAcceptedDelayMinutes: 9.0,
+            averageOnSiteDelayMinutes: 18.0,
+            summaryLine:
+                'Dispatches 1 • Strong 0 • On track 0 • Watch 1 • Critical 0 • Avg accept 9.0m • Avg on site 18.0m',
+          ),
+        ],
+      ),
+    );
+    final currentReport = SovereignReport(
+      date: '2026-03-15',
+      generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
+      shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 10,
+        hashVerified: true,
+        integrityScore: 99,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 1,
+        humanOverrides: 0,
+        overrideReasons: <String, int>{},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 1,
+        driftDetected: 0,
+        avgMatchScore: 100,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 0,
+        pdpExpired: 0,
+        totalBlocked: 0,
+      ),
+      partnerProgression: SovereignReportPartnerProgression(
+        dispatchCount: 2,
+        declarationCount: 6,
+        acceptedCount: 2,
+        onSiteCount: 2,
+        allClearCount: 1,
+        cancelledCount: 0,
+        summaryLine: '',
+        scoreboardRows: [
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            partnerLabel: 'PARTNER • Alpha',
+            dispatchCount: 1,
+            strongCount: 1,
+            onTrackCount: 0,
+            watchCount: 0,
+            criticalCount: 0,
+            averageAcceptedDelayMinutes: 4.0,
+            averageOnSiteDelayMinutes: 10.0,
+            summaryLine:
+                'Dispatches 1 • Strong 1 • On track 0 • Watch 0 • Critical 0 • Avg accept 4.0m • Avg on site 10.0m',
+          ),
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            partnerLabel: 'PARTNER • Beta',
+            dispatchCount: 1,
+            strongCount: 0,
+            onTrackCount: 1,
+            watchCount: 0,
+            criticalCount: 0,
+            averageAcceptedDelayMinutes: 6.0,
+            averageOnSiteDelayMinutes: 12.0,
+            summaryLine:
+                'Dispatches 1 • Strong 0 • On track 1 • Watch 0 • Critical 0 • Avg accept 6.0m • Avg on site 12.0m',
+          ),
+        ],
+      ),
+    );
+
+    Widget buildReports() {
+      return MaterialApp(
+        home: ValueListenableBuilder<ReportShellState>(
+          valueListenable: shellState,
+          builder: (context, value, _) {
+            return ClientIntelligenceReportsPage(
+              key: ValueKey(value.partnerComparisonWindow),
+              store: InMemoryEventStore(),
+              selectedClient: 'CLIENT-001',
+              selectedSite: 'SITE-SANDTON',
+              morningSovereignReportHistory: [priorReport, currentReport],
+              reportShellState: value,
+              onReportShellStateChanged: (next) => shellState.value = next,
+            );
+          },
+        ),
+      );
+    }
+
+    await tester.pumpWidget(buildReports());
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('reports-partner-comparison-window-baseline')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      shellState.value.partnerComparisonWindow,
+      ReportPartnerComparisonWindow.baseline3Shift,
+    );
+    expect(
+      find.text(
+        '3-shift baseline • Strong 1 • On track 1 • Watch 0 • Critical 0 • Avg accept 5.5m • Avg on site 12.0m',
+      ),
+      findsOneWidget,
+    );
+
+    await tester.pumpWidget(buildReports());
+    await tester.pumpAndSettle();
+
+    expect(
+      shellState.value.partnerComparisonWindow,
+      ReportPartnerComparisonWindow.baseline3Shift,
+    );
+    expect(
+      find.text(
+        '3-shift baseline • Strong 1 • On track 1 • Watch 0 • Critical 0 • Avg accept 5.5m • Avg on site 12.0m',
+      ),
       findsOneWidget,
     );
   });

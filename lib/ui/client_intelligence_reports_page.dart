@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../application/morning_sovereign_report_service.dart';
 import '../application/monitoring_scene_review_store.dart';
 import '../application/report_output_mode.dart';
+import '../application/report_partner_comparison_window.dart';
 import '../application/report_receipt_export_payload.dart';
 import '../application/report_receipt_history_copy.dart';
 import '../application/report_receipt_history_lookup.dart';
@@ -86,8 +87,6 @@ class _ClientIntelligenceReportsPageState
   String? _focusedPartnerScopeClientId;
   String? _focusedPartnerScopeSiteId;
   String? _focusedPartnerScopePartnerLabel;
-  _PartnerComparisonWindow _partnerComparisonWindow =
-      _PartnerComparisonWindow.latestShift;
 
   bool _includeTimeline = true;
   bool _includeDispatchSummary = true;
@@ -796,7 +795,8 @@ class _ClientIntelligenceReportsPageState
     final comparisons = _sitePartnerComparisonRows;
     return OnyxSectionCard(
       title: 'Partner Comparison',
-      subtitle: _partnerComparisonWindow == _PartnerComparisonWindow.latestShift
+      subtitle:
+          _partnerComparisonWindow == ReportPartnerComparisonWindow.latestShift
           ? 'Current-shift comparison for responder lanes on this site, ranked against the strongest scorecard.'
           : 'Three-shift baseline comparison for responder lanes on this site, using recent scorecard history.',
       child: Column(
@@ -814,15 +814,14 @@ class _ClientIntelligenceReportsPageState
                 icon: Icons.bolt_rounded,
                 filled:
                     _partnerComparisonWindow ==
-                    _PartnerComparisonWindow.latestShift,
+                    ReportPartnerComparisonWindow.latestShift,
                 onTap:
                     _partnerComparisonWindow ==
-                        _PartnerComparisonWindow.latestShift
+                        ReportPartnerComparisonWindow.latestShift
                     ? null
-                    : () => setState(() {
-                        _partnerComparisonWindow =
-                            _PartnerComparisonWindow.latestShift;
-                      }),
+                    : () => setReportPartnerComparisonWindow(
+                        ReportPartnerComparisonWindow.latestShift,
+                      ),
               ),
               _pillActionButton(
                 buttonKey: const ValueKey(
@@ -832,15 +831,14 @@ class _ClientIntelligenceReportsPageState
                 icon: Icons.timeline_rounded,
                 filled:
                     _partnerComparisonWindow ==
-                    _PartnerComparisonWindow.baseline3Shift,
+                    ReportPartnerComparisonWindow.baseline3Shift,
                 onTap:
                     _partnerComparisonWindow ==
-                        _PartnerComparisonWindow.baseline3Shift
+                        ReportPartnerComparisonWindow.baseline3Shift
                     ? null
-                    : () => setState(() {
-                        _partnerComparisonWindow =
-                            _PartnerComparisonWindow.baseline3Shift;
-                      }),
+                    : () => setReportPartnerComparisonWindow(
+                        ReportPartnerComparisonWindow.baseline3Shift,
+                      ),
               ),
             ],
           ),
@@ -1106,7 +1104,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             comparison.isLeader
                 ? _partnerComparisonWindow ==
-                          _PartnerComparisonWindow.latestShift
+                          ReportPartnerComparisonWindow.latestShift
                       ? 'Best current scorecard for this site.'
                       : 'Best recent baseline for this site.'
                 : (deltaParts.isEmpty
@@ -1777,7 +1775,7 @@ class _ClientIntelligenceReportsPageState
     SovereignReportPartnerScoreboardRow row, {
     required List<_PartnerScopeHistoryPoint> historyPoints,
   }) {
-    if (_partnerComparisonWindow == _PartnerComparisonWindow.latestShift) {
+    if (_partnerComparisonWindow == ReportPartnerComparisonWindow.latestShift) {
       return _partnerSeverityScore(row);
     }
     final sample = historyPoints.take(3).map((point) => point.row).toList();
@@ -1794,7 +1792,7 @@ class _ClientIntelligenceReportsPageState
     SovereignReportPartnerScoreboardRow row, {
     required List<_PartnerScopeHistoryPoint> historyPoints,
   }) {
-    if (_partnerComparisonWindow == _PartnerComparisonWindow.latestShift) {
+    if (_partnerComparisonWindow == ReportPartnerComparisonWindow.latestShift) {
       return row.averageAcceptedDelayMinutes;
     }
     final sample = historyPoints.take(3).map((point) => point.row).toList();
@@ -1811,7 +1809,7 @@ class _ClientIntelligenceReportsPageState
     SovereignReportPartnerScoreboardRow row, {
     required List<_PartnerScopeHistoryPoint> historyPoints,
   }) {
-    if (_partnerComparisonWindow == _PartnerComparisonWindow.latestShift) {
+    if (_partnerComparisonWindow == ReportPartnerComparisonWindow.latestShift) {
       return row.averageOnSiteDelayMinutes;
     }
     final sample = historyPoints.take(3).map((point) => point.row).toList();
@@ -1828,7 +1826,7 @@ class _ClientIntelligenceReportsPageState
     SovereignReportPartnerScoreboardRow row, {
     required List<_PartnerScopeHistoryPoint> historyPoints,
   }) {
-    if (_partnerComparisonWindow == _PartnerComparisonWindow.latestShift) {
+    if (_partnerComparisonWindow == ReportPartnerComparisonWindow.latestShift) {
       return row.summaryLine;
     }
     final sample = historyPoints.take(3).map((point) => point.row).toList();
@@ -2545,6 +2543,9 @@ class _ClientIntelligenceReportsPageState
   ReportReceiptSceneFilter get _receiptFilter => _shellBinding.receiptFilter;
 
   ReportOutputMode get _outputMode => _shellBinding.outputMode;
+
+  ReportPartnerComparisonWindow get _partnerComparisonWindow =>
+      _shellBinding.partnerComparisonWindow;
 
   String? get _selectedReceiptEventId => _shellBinding.selectedReceiptEventId;
 
@@ -3444,8 +3445,6 @@ class _PartnerComparisonRow {
     );
   }
 }
-
-enum _PartnerComparisonWindow { latestShift, baseline3Shift }
 
 int _compareDispatchEventsByOccurredAtThenSequence(
   DispatchEvent a,
