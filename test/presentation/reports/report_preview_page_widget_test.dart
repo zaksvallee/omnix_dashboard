@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:omnix_dashboard/domain/crm/reporting/report_section_configuration.dart';
 import 'package:omnix_dashboard/domain/crm/reporting/report_sections.dart';
 import 'package:omnix_dashboard/presentation/reports/report_preview_page.dart';
 
@@ -66,6 +67,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 250));
 
     expect(find.text('Scene Review Brief'), findsOneWidget);
+    expect(find.text('Report Configuration'), findsOneWidget);
+    expect(
+      _findRichTextContaining('AI Decision Log: INCLUDED'),
+      findsOneWidget,
+    );
     expect(find.textContaining('Latest action taken:'), findsOneWidget);
     expect(find.textContaining('Latest filtered pattern:'), findsOneWidget);
     expect(find.text('Notable Findings'), findsOneWidget);
@@ -81,13 +87,21 @@ void main() {
     );
   });
 
-  testWidgets('report preview hides receipt integrity when no receipt is provided', (
+  testWidgets('report preview shows omitted ai configuration note', (
     tester,
   ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: ReportPreviewPage(
-          bundle: buildTestReportBundle(),
+          bundle: buildTestReportBundle(
+            sectionConfiguration: const ReportSectionConfiguration(
+              includeTimeline: true,
+              includeDispatchSummary: true,
+              includeCheckpointCompliance: true,
+              includeAiDecisionLog: false,
+              includeGuardMetrics: false,
+            ),
+          ),
           initialPdfBytes: Uint8List.fromList(
             '%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF'.codeUnits,
           ),
@@ -97,10 +111,36 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
 
-    expect(find.text('Receipt Integrity'), findsNothing);
-    expect(find.text('Receipt'), findsNothing);
-    expect(find.text('Replay'), findsNothing);
+    expect(find.text('Report Configuration'), findsOneWidget);
+    expect(_findRichTextContaining('AI Decision Log: OMITTED'), findsOneWidget);
+    expect(_findRichTextContaining('Guard Metrics: OMITTED'), findsOneWidget);
+    expect(
+      find.textContaining('AI decision log was disabled for this report.'),
+      findsOneWidget,
+    );
   });
+
+  testWidgets(
+    'report preview hides receipt integrity when no receipt is provided',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ReportPreviewPage(
+            bundle: buildTestReportBundle(),
+            initialPdfBytes: Uint8List.fromList(
+              '%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF'.codeUnits,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      expect(find.text('Receipt Integrity'), findsNothing);
+      expect(find.text('Receipt'), findsNothing);
+      expect(find.text('Replay'), findsNothing);
+    },
+  );
 
   testWidgets('report preview shows receipt integrity details when provided', (
     tester,
@@ -212,7 +252,9 @@ void main() {
           initialPdfBytes: Uint8List.fromList(
             '%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF'.codeUnits,
           ),
-          receiptEvent: buildTestReportGenerated(eventId: 'RPT-PREVIEW-PRINT-1'),
+          receiptEvent: buildTestReportGenerated(
+            eventId: 'RPT-PREVIEW-PRINT-1',
+          ),
         ),
       ),
     );
@@ -287,5 +329,14 @@ void main() {
     expect(args['name'], 'onyx_intelligence_report.pdf');
     expect(args['doc'], isA<Uint8List>());
     expect((args['doc'] as Uint8List).isNotEmpty, isTrue);
+  });
+}
+
+Finder _findRichTextContaining(String text) {
+  return find.byWidgetPredicate((widget) {
+    if (widget is! RichText) {
+      return false;
+    }
+    return widget.text.toPlainText().contains(text);
   });
 }
