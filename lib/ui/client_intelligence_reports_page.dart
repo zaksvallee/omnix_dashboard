@@ -86,6 +86,8 @@ class _ClientIntelligenceReportsPageState
   String? _focusedPartnerScopeClientId;
   String? _focusedPartnerScopeSiteId;
   String? _focusedPartnerScopePartnerLabel;
+  _PartnerComparisonWindow _partnerComparisonWindow =
+      _PartnerComparisonWindow.latestShift;
 
   bool _includeTimeline = true;
   bool _includeDispatchSummary = true;
@@ -794,11 +796,55 @@ class _ClientIntelligenceReportsPageState
     final comparisons = _sitePartnerComparisonRows;
     return OnyxSectionCard(
       title: 'Partner Comparison',
-      subtitle:
-          'Current-shift comparison for responder lanes on this site, ranked against the strongest scorecard.',
+      subtitle: _partnerComparisonWindow == _PartnerComparisonWindow.latestShift
+          ? 'Current-shift comparison for responder lanes on this site, ranked against the strongest scorecard.'
+          : 'Three-shift baseline comparison for responder lanes on this site, using recent scorecard history.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _pillActionButton(
+                buttonKey: const ValueKey(
+                  'reports-partner-comparison-window-latest',
+                ),
+                label: 'Latest Shift',
+                icon: Icons.bolt_rounded,
+                filled:
+                    _partnerComparisonWindow ==
+                    _PartnerComparisonWindow.latestShift,
+                onTap:
+                    _partnerComparisonWindow ==
+                        _PartnerComparisonWindow.latestShift
+                    ? null
+                    : () => setState(() {
+                        _partnerComparisonWindow =
+                            _PartnerComparisonWindow.latestShift;
+                      }),
+              ),
+              _pillActionButton(
+                buttonKey: const ValueKey(
+                  'reports-partner-comparison-window-baseline',
+                ),
+                label: '3-Shift Baseline',
+                icon: Icons.timeline_rounded,
+                filled:
+                    _partnerComparisonWindow ==
+                    _PartnerComparisonWindow.baseline3Shift,
+                onTap:
+                    _partnerComparisonWindow ==
+                        _PartnerComparisonWindow.baseline3Shift
+                    ? null
+                    : () => setState(() {
+                        _partnerComparisonWindow =
+                            _PartnerComparisonWindow.baseline3Shift;
+                      }),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -1025,7 +1071,7 @@ class _ClientIntelligenceReportsPageState
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      row.summaryLine,
+                      comparison.summaryLine,
                       style: GoogleFonts.inter(
                         color: const Color(0xFF9CB2D1),
                         fontSize: 10,
@@ -1059,7 +1105,10 @@ class _ClientIntelligenceReportsPageState
           const SizedBox(height: 8),
           Text(
             comparison.isLeader
-                ? 'Best current scorecard for this site.'
+                ? _partnerComparisonWindow ==
+                          _PartnerComparisonWindow.latestShift
+                      ? 'Best current scorecard for this site.'
+                      : 'Best recent baseline for this site.'
                 : (deltaParts.isEmpty
                       ? comparison.trendReason
                       : '${deltaParts.join(' • ')} vs leader'),
@@ -1437,53 +1486,78 @@ class _ClientIntelligenceReportsPageState
   }
 
   List<_PartnerComparisonRow> get _sitePartnerComparisonRows {
-    final rows = [..._sitePartnerScoreboardRows]
-      ..sort((a, b) {
-        final severityCompare = _partnerSeverityScore(
-          a,
-        ).compareTo(_partnerSeverityScore(b));
-        if (severityCompare != 0) {
-          return severityCompare;
-        }
-        final acceptedCompare = a.averageAcceptedDelayMinutes.compareTo(
-          b.averageAcceptedDelayMinutes,
-        );
-        if (acceptedCompare != 0) {
-          return acceptedCompare;
-        }
-        final onSiteCompare = a.averageOnSiteDelayMinutes.compareTo(
-          b.averageOnSiteDelayMinutes,
-        );
-        if (onSiteCompare != 0) {
-          return onSiteCompare;
-        }
-        return a.partnerLabel.compareTo(b.partnerLabel);
-      });
+    final rows =
+        _sitePartnerScoreboardRows
+            .map((row) {
+              final historyPoints = _partnerScopeHistoryPointsFor(
+                clientId: row.clientId,
+                siteId: row.siteId,
+                partnerLabel: row.partnerLabel,
+              );
+              return _PartnerComparisonRow(
+                row: row,
+                trendLabel: _partnerScopeTrendLabel(historyPoints),
+                trendReason: _partnerScopeTrendReason(historyPoints),
+                historyPoints: historyPoints,
+                summaryLine: _partnerComparisonSummaryLine(
+                  row,
+                  historyPoints: historyPoints,
+                ),
+                metricAcceptedDelayMinutes: _partnerComparisonAcceptedDelay(
+                  row,
+                  historyPoints: historyPoints,
+                ),
+                metricOnSiteDelayMinutes: _partnerComparisonOnSiteDelay(
+                  row,
+                  historyPoints: historyPoints,
+                ),
+                metricSeverityScore: _partnerComparisonSeverityScore(
+                  row,
+                  historyPoints: historyPoints,
+                ),
+                isLeader: false,
+                acceptDeltaMinutes: null,
+                onSiteDeltaMinutes: null,
+              );
+            })
+            .toList(growable: true)
+          ..sort((a, b) {
+            final severityCompare = a.metricSeverityScore.compareTo(
+              b.metricSeverityScore,
+            );
+            if (severityCompare != 0) {
+              return severityCompare;
+            }
+            final acceptedCompare = a.metricAcceptedDelayMinutes.compareTo(
+              b.metricAcceptedDelayMinutes,
+            );
+            if (acceptedCompare != 0) {
+              return acceptedCompare;
+            }
+            final onSiteCompare = a.metricOnSiteDelayMinutes.compareTo(
+              b.metricOnSiteDelayMinutes,
+            );
+            if (onSiteCompare != 0) {
+              return onSiteCompare;
+            }
+            return a.row.partnerLabel.compareTo(b.row.partnerLabel);
+          });
     if (rows.isEmpty) {
       return const <_PartnerComparisonRow>[];
     }
     final leader = rows.first;
     return rows
-        .map((row) {
-          final historyPoints = _partnerScopeHistoryPointsFor(
-            clientId: row.clientId,
-            siteId: row.siteId,
-            partnerLabel: row.partnerLabel,
-          );
-          final acceptDelta = row == leader
+        .map((comparison) {
+          final acceptDelta = identical(comparison, leader)
               ? null
-              : (row.averageAcceptedDelayMinutes -
-                    leader.averageAcceptedDelayMinutes);
-          final onSiteDelta = row == leader
+              : (comparison.metricAcceptedDelayMinutes -
+                    leader.metricAcceptedDelayMinutes);
+          final onSiteDelta = identical(comparison, leader)
               ? null
-              : (row.averageOnSiteDelayMinutes -
-                    leader.averageOnSiteDelayMinutes);
-          return _PartnerComparisonRow(
-            row: row,
-            isLeader: identical(row, leader),
-            trendLabel: _partnerScopeTrendLabel(historyPoints),
-            trendReason: _partnerScopeTrendReason(historyPoints),
-            historyPoints: historyPoints,
+              : (comparison.metricOnSiteDelayMinutes -
+                    leader.metricOnSiteDelayMinutes);
+          return comparison.copyWith(
+            isLeader: identical(comparison, leader),
             acceptDeltaMinutes: acceptDelta != null && acceptDelta > 0
                 ? double.parse(acceptDelta.toStringAsFixed(1))
                 : null,
@@ -1697,6 +1771,91 @@ class _ClientIntelligenceReportsPageState
     final dispatchCount = row.dispatchCount <= 0 ? 1 : row.dispatchCount;
     final rawScore = (row.criticalCount * 3) + row.watchCount - row.strongCount;
     return rawScore / dispatchCount;
+  }
+
+  double _partnerComparisonSeverityScore(
+    SovereignReportPartnerScoreboardRow row, {
+    required List<_PartnerScopeHistoryPoint> historyPoints,
+  }) {
+    if (_partnerComparisonWindow == _PartnerComparisonWindow.latestShift) {
+      return _partnerSeverityScore(row);
+    }
+    final sample = historyPoints.take(3).map((point) => point.row).toList();
+    if (sample.isEmpty) {
+      return _partnerSeverityScore(row);
+    }
+    final total = sample
+        .map((item) => _partnerSeverityScore(item))
+        .reduce((left, right) => left + right);
+    return total / sample.length;
+  }
+
+  double _partnerComparisonAcceptedDelay(
+    SovereignReportPartnerScoreboardRow row, {
+    required List<_PartnerScopeHistoryPoint> historyPoints,
+  }) {
+    if (_partnerComparisonWindow == _PartnerComparisonWindow.latestShift) {
+      return row.averageAcceptedDelayMinutes;
+    }
+    final sample = historyPoints.take(3).map((point) => point.row).toList();
+    if (sample.isEmpty) {
+      return row.averageAcceptedDelayMinutes;
+    }
+    return sample
+            .map((item) => item.averageAcceptedDelayMinutes)
+            .reduce((left, right) => left + right) /
+        sample.length;
+  }
+
+  double _partnerComparisonOnSiteDelay(
+    SovereignReportPartnerScoreboardRow row, {
+    required List<_PartnerScopeHistoryPoint> historyPoints,
+  }) {
+    if (_partnerComparisonWindow == _PartnerComparisonWindow.latestShift) {
+      return row.averageOnSiteDelayMinutes;
+    }
+    final sample = historyPoints.take(3).map((point) => point.row).toList();
+    if (sample.isEmpty) {
+      return row.averageOnSiteDelayMinutes;
+    }
+    return sample
+            .map((item) => item.averageOnSiteDelayMinutes)
+            .reduce((left, right) => left + right) /
+        sample.length;
+  }
+
+  String _partnerComparisonSummaryLine(
+    SovereignReportPartnerScoreboardRow row, {
+    required List<_PartnerScopeHistoryPoint> historyPoints,
+  }) {
+    if (_partnerComparisonWindow == _PartnerComparisonWindow.latestShift) {
+      return row.summaryLine;
+    }
+    final sample = historyPoints.take(3).map((point) => point.row).toList();
+    if (sample.isEmpty) {
+      return row.summaryLine;
+    }
+    final averageAccept = _partnerComparisonAcceptedDelay(
+      row,
+      historyPoints: historyPoints,
+    );
+    final averageOnSite = _partnerComparisonOnSiteDelay(
+      row,
+      historyPoints: historyPoints,
+    );
+    final strongCount = sample
+        .map((item) => item.strongCount)
+        .reduce((left, right) => left + right);
+    final onTrackCount = sample
+        .map((item) => item.onTrackCount)
+        .reduce((left, right) => left + right);
+    final watchCount = sample
+        .map((item) => item.watchCount)
+        .reduce((left, right) => left + right);
+    final criticalCount = sample
+        .map((item) => item.criticalCount)
+        .reduce((left, right) => left + right);
+    return '3-shift baseline • Strong $strongCount • On track $onTrackCount • Watch $watchCount • Critical $criticalCount • Avg accept ${averageAccept.toStringAsFixed(1)}m • Avg on site ${averageOnSite.toStringAsFixed(1)}m';
   }
 
   String _partnerComparisonHistorySummary(
@@ -2847,6 +3006,7 @@ class _ClientIntelligenceReportsPageState
         'clientId': widget.selectedClient,
         'siteId': widget.selectedSite,
       },
+      'comparisonWindow': _partnerComparisonWindow.name,
       'activePartnerLabel': _partnerScopePartnerLabel,
       'comparisons': comparisons
           .map(
@@ -2855,6 +3015,11 @@ class _ClientIntelligenceReportsPageState
               'isLeader': comparison.isLeader,
               'trendLabel': comparison.trendLabel,
               'trendReason': comparison.trendReason,
+              'summaryLine': comparison.summaryLine,
+              'metricAcceptedDelayMinutes':
+                  comparison.metricAcceptedDelayMinutes,
+              'metricOnSiteDelayMinutes': comparison.metricOnSiteDelayMinutes,
+              'metricSeverityScore': comparison.metricSeverityScore,
               'acceptDeltaMinutes': comparison.acceptDeltaMinutes,
               'onSiteDeltaMinutes': comparison.onSiteDeltaMinutes,
               'row': comparison.row.toJson(),
@@ -2891,13 +3056,14 @@ class _ClientIntelligenceReportsPageState
       'metric,value',
       'client_id,${widget.selectedClient}',
       'site_id,${widget.selectedSite}',
+      'comparison_window,${_partnerComparisonWindow.name}',
       'active_partner_label,"${(_partnerScopePartnerLabel ?? '').replaceAll('"', '""')}"',
     ];
     for (var index = 0; index < comparisons.length; index++) {
       final comparison = comparisons[index];
       final prefix = 'comparison_${index + 1}';
       lines.add(
-        '$prefix,"${comparison.row.partnerLabel.replaceAll('"', '""')}",leader=${comparison.isLeader},trend=${comparison.trendLabel},accept_delta=${comparison.acceptDeltaMinutes?.toStringAsFixed(1) ?? ''},on_site_delta=${comparison.onSiteDeltaMinutes?.toStringAsFixed(1) ?? ''}',
+        '$prefix,"${comparison.row.partnerLabel.replaceAll('"', '""')}",leader=${comparison.isLeader},trend=${comparison.trendLabel},metric_accept=${comparison.metricAcceptedDelayMinutes.toStringAsFixed(1)},metric_on_site=${comparison.metricOnSiteDelayMinutes.toStringAsFixed(1)},accept_delta=${comparison.acceptDeltaMinutes?.toStringAsFixed(1) ?? ''},on_site_delta=${comparison.onSiteDeltaMinutes?.toStringAsFixed(1) ?? ''}',
       );
       for (
         var historyIndex = 0;
@@ -3237,6 +3403,10 @@ class _PartnerComparisonRow {
   final String trendLabel;
   final String trendReason;
   final List<_PartnerScopeHistoryPoint> historyPoints;
+  final String summaryLine;
+  final double metricAcceptedDelayMinutes;
+  final double metricOnSiteDelayMinutes;
+  final double metricSeverityScore;
   final double? acceptDeltaMinutes;
   final double? onSiteDeltaMinutes;
 
@@ -3246,10 +3416,36 @@ class _PartnerComparisonRow {
     required this.trendLabel,
     required this.trendReason,
     required this.historyPoints,
+    required this.summaryLine,
+    required this.metricAcceptedDelayMinutes,
+    required this.metricOnSiteDelayMinutes,
+    required this.metricSeverityScore,
     required this.acceptDeltaMinutes,
     required this.onSiteDeltaMinutes,
   });
+
+  _PartnerComparisonRow copyWith({
+    bool? isLeader,
+    double? acceptDeltaMinutes,
+    double? onSiteDeltaMinutes,
+  }) {
+    return _PartnerComparisonRow(
+      row: row,
+      isLeader: isLeader ?? this.isLeader,
+      trendLabel: trendLabel,
+      trendReason: trendReason,
+      historyPoints: historyPoints,
+      summaryLine: summaryLine,
+      metricAcceptedDelayMinutes: metricAcceptedDelayMinutes,
+      metricOnSiteDelayMinutes: metricOnSiteDelayMinutes,
+      metricSeverityScore: metricSeverityScore,
+      acceptDeltaMinutes: acceptDeltaMinutes,
+      onSiteDeltaMinutes: onSiteDeltaMinutes,
+    );
+  }
 }
+
+enum _PartnerComparisonWindow { latestShift, baseline3Shift }
 
 int _compareDispatchEventsByOccurredAtThenSequence(
   DispatchEvent a,

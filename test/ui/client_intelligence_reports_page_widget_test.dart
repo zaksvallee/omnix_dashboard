@@ -608,6 +608,37 @@ void main() {
       ),
     );
 
+    final baselineWindowButton = find.byKey(
+      const ValueKey('reports-partner-comparison-window-baseline'),
+    );
+    await tester.ensureVisible(baselineWindowButton);
+    await tester.tap(baselineWindowButton);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        '3-shift baseline • Strong 1 • On track 1 • Watch 0 • Critical 0 • Avg accept 5.5m • Avg on site 12.0m',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Accept +2.0m • On site +3.0m vs leader'), findsOneWidget);
+
+    await tester.ensureVisible(copyComparisonJsonButton);
+    await tester.tap(copyComparisonJsonButton);
+    await tester.pumpAndSettle();
+
+    expect(clipboardText, contains('"comparisonWindow": "baseline3Shift"'));
+    expect(clipboardText, contains('"metricAcceptedDelayMinutes": 5.5'));
+    expect(clipboardText, contains('"metricOnSiteDelayMinutes": 12.0'));
+
+    await tester.ensureVisible(copyComparisonCsvButton);
+    await tester.tap(copyComparisonCsvButton);
+    await tester.pumpAndSettle();
+
+    expect(clipboardText, contains('comparison_window,baseline3Shift'));
+    expect(clipboardText, contains('metric_accept=5.5'));
+    expect(clipboardText, contains('metric_on_site=15.0'));
+
     final focusLaneButton = find.byKey(
       const ValueKey(
         'reports-partner-lane-focus-CLIENT-001/SITE-SANDTON/PARTNER • Beta',
