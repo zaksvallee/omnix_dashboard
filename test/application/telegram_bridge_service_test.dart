@@ -58,6 +58,7 @@ void main() {
     expect(payload['disable_web_page_preview'], isTrue);
     expect(result.sentCount, 1);
     expect(result.failedCount, 0);
+    expect(result.telegramMessageIdsByMessageKey['m-ok'], 11);
   });
 
   test('http bridge includes reply markup when provided', () async {

@@ -309,6 +309,68 @@ class _TelegramInboundPartnerTarget {
   });
 }
 
+class _TelegramPartnerDispatchBinding {
+  final String chatId;
+  final int? threadId;
+  final int telegramMessageId;
+  final String dispatchId;
+  final String clientId;
+  final String siteId;
+  final DateTime sentAtUtc;
+
+  const _TelegramPartnerDispatchBinding({
+    required this.chatId,
+    this.threadId,
+    required this.telegramMessageId,
+    required this.dispatchId,
+    required this.clientId,
+    required this.siteId,
+    required this.sentAtUtc,
+  });
+
+  Map<String, Object?> toJson() {
+    return {
+      'chat_id': chatId,
+      'thread_id': threadId,
+      'telegram_message_id': telegramMessageId,
+      'dispatch_id': dispatchId,
+      'client_id': clientId,
+      'site_id': siteId,
+      'sent_at_utc': sentAtUtc.toIso8601String(),
+    };
+  }
+
+  factory _TelegramPartnerDispatchBinding.fromJson(Map<String, Object?> json) {
+    final messageRaw = json['telegram_message_id'];
+    final messageId = switch (messageRaw) {
+      int value => value,
+      num value => value.round(),
+      String value => int.tryParse(value.trim()) ?? 0,
+      _ => 0,
+    };
+    final threadRaw = json['thread_id'];
+    final threadId = switch (threadRaw) {
+      int value => value,
+      num value => value.round(),
+      String value => int.tryParse(value.trim()),
+      _ => null,
+    };
+    final sentRaw = (json['sent_at_utc'] ?? '').toString().trim();
+    final sentAt = sentRaw.isEmpty
+        ? DateTime.now().toUtc()
+        : DateTime.tryParse(sentRaw)?.toUtc() ?? DateTime.now().toUtc();
+    return _TelegramPartnerDispatchBinding(
+      chatId: (json['chat_id'] ?? '').toString().trim(),
+      threadId: threadId,
+      telegramMessageId: messageId < 0 ? 0 : messageId,
+      dispatchId: (json['dispatch_id'] ?? '').toString().trim(),
+      clientId: (json['client_id'] ?? '').toString().trim(),
+      siteId: (json['site_id'] ?? '').toString().trim(),
+      sentAtUtc: sentAt,
+    );
+  }
+}
+
 class _MonitoringWatchTarget {
   final String clientId;
   final String siteId;
@@ -958,6 +1020,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   bool? _telegramAiAssistantEnabledOverride;
   bool? _telegramAiApprovalRequiredOverride;
   List<_TelegramAiPendingDraft> _telegramAiPendingDrafts = const [];
+  List<_TelegramPartnerDispatchBinding> _telegramPartnerDispatchBindings =
+      const [];
   DateTime? _telegramAiLastHandledAtUtc;
   String? _telegramAiLastHandledSummary;
   String _clientAppBackendProbeStatusLabel = 'idle';
@@ -2350,6 +2414,28 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             )
             .take(100)
             .toList(growable: false);
+    final partnerBindingsRaw = state['partner_dispatch_bindings'];
+    final partnerBindings =
+        <_TelegramPartnerDispatchBinding>[
+              if (partnerBindingsRaw is List)
+                for (final entry in partnerBindingsRaw)
+                  if (entry is Map)
+                    _TelegramPartnerDispatchBinding.fromJson(
+                      entry.cast<Object?, Object?>().map(
+                        (key, value) => MapEntry(key.toString(), value),
+                      ),
+                    ),
+            ]
+            .where(
+              (entry) =>
+                  entry.chatId.trim().isNotEmpty &&
+                  entry.telegramMessageId > 0 &&
+                  entry.dispatchId.trim().isNotEmpty &&
+                  entry.clientId.trim().isNotEmpty &&
+                  entry.siteId.trim().isNotEmpty,
+            )
+            .take(200)
+            .toList(growable: false);
     if (!mounted) {
       _telegramAdminPollIntervalSecondsOverride = pollOverride;
       _telegramAdminCriticalReminderSecondsOverride = reminderOverride;
@@ -2369,6 +2455,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _telegramAiAssistantEnabledOverride = aiAssistantEnabledOverride;
       _telegramAiApprovalRequiredOverride = aiApprovalRequiredOverride;
       _telegramAiPendingDrafts = aiPendingDrafts;
+      _telegramPartnerDispatchBindings = partnerBindings;
       return;
     }
     setState(() {
@@ -2390,6 +2477,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _telegramAiAssistantEnabledOverride = aiAssistantEnabledOverride;
       _telegramAiApprovalRequiredOverride = aiApprovalRequiredOverride;
       _telegramAiPendingDrafts = aiPendingDrafts;
+      _telegramPartnerDispatchBindings = partnerBindings;
     });
   }
 
@@ -2585,6 +2673,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'ai_approval_required_override': _telegramAiApprovalRequiredOverride,
       if (_telegramAiPendingDrafts.isNotEmpty)
         'ai_pending_drafts': _telegramAiPendingDrafts
+            .map((entry) => entry.toJson())
+            .toList(growable: false),
+      if (_telegramPartnerDispatchBindings.isNotEmpty)
+        'partner_dispatch_bindings': _telegramPartnerDispatchBindings
             .map((entry) => entry.toJson())
             .toList(growable: false),
     };
@@ -7714,7 +7806,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       return true;
     }
-    final requestedDispatchId = _dispatchIdFromPartnerUpdate(update);
+    final requestedDispatchId = _dispatchIdFromPartnerUpdate(
+      update,
+      clientId: target.clientId,
+      siteId: siteId,
+    );
     final matchingContexts = requestedDispatchId == null
         ? openContexts
         : openContexts
@@ -8137,10 +8233,86 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return match?.group(0)?.trim();
   }
 
-  String? _dispatchIdFromPartnerUpdate(TelegramBridgeInboundMessage update) {
+  void _rememberPartnerDispatchBinding({
+    required String chatId,
+    required int? threadId,
+    required int telegramMessageId,
+    required TelegramPartnerDispatchContext context,
+    required DateTime sentAtUtc,
+  }) {
+    final normalizedChatId = chatId.trim();
+    if (normalizedChatId.isEmpty || telegramMessageId <= 0) {
+      return;
+    }
+    final nowUtc = sentAtUtc.toUtc();
+    final fresh = <_TelegramPartnerDispatchBinding>[
+      _TelegramPartnerDispatchBinding(
+        chatId: normalizedChatId,
+        threadId: threadId,
+        telegramMessageId: telegramMessageId,
+        dispatchId: context.dispatchId,
+        clientId: context.clientId,
+        siteId: context.siteId,
+        sentAtUtc: nowUtc,
+      ),
+      ..._telegramPartnerDispatchBindings.where((entry) {
+        final age = nowUtc.difference(entry.sentAtUtc.toUtc());
+        if (age > const Duration(days: 7)) {
+          return false;
+        }
+        return !(
+            entry.chatId.trim() == normalizedChatId &&
+            entry.threadId == threadId &&
+            entry.telegramMessageId == telegramMessageId);
+      }),
+    ].take(200).toList(growable: false);
+    _telegramPartnerDispatchBindings = fresh;
+    unawaited(_persistTelegramAdminRuntimeState());
+  }
+
+  String? _dispatchIdFromPartnerBinding(
+    TelegramBridgeInboundMessage update, {
+    required String clientId,
+    required String siteId,
+  }) {
+    final replyToMessageId = update.replyToMessageId;
+    if (replyToMessageId == null || replyToMessageId <= 0) {
+      return null;
+    }
+    for (final entry in _telegramPartnerDispatchBindings) {
+      if (entry.chatId.trim() != update.chatId.trim()) {
+        continue;
+      }
+      if (entry.threadId != update.messageThreadId) {
+        continue;
+      }
+      if (entry.telegramMessageId != replyToMessageId) {
+        continue;
+      }
+      if (entry.clientId != clientId.trim() || entry.siteId != siteId.trim()) {
+        continue;
+      }
+      return entry.dispatchId.trim().isEmpty ? null : entry.dispatchId.trim();
+    }
+    return null;
+  }
+
+  String? _dispatchIdFromPartnerUpdate(
+    TelegramBridgeInboundMessage update, {
+    required String clientId,
+    required String siteId,
+  }) {
     final direct = _dispatchIdFromTelegramText(update.text);
     if (direct != null) {
       return direct;
+    }
+    final bound = _dispatchIdFromPartnerBinding(
+      update,
+      clientId: clientId,
+      siteId: siteId,
+    );
+    if (bound != null) {
+      return bound;
     }
     final replyText = (update.replyToText ?? '').trim();
     if (replyText.isEmpty) {
@@ -8275,17 +8447,46 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       return false;
     }
     var deliveredAny = false;
+    final sentAtUtc = DateTime.now().toUtc();
     for (final target in targets) {
-      final delivered = await _sendTelegramMessageWithChunks(
-        messageKeyPrefix: context.messageKey,
+      final message = TelegramBridgeMessage(
+        messageKey:
+            '${context.messageKey}:${target.chatId}:${target.threadId ?? ''}',
         chatId: target.chatId,
         messageThreadId: target.threadId,
-        responseText: _telegramPartnerDispatchService.buildDispatchMessage(
-          context,
-        ),
-        failureContext: 'Partner dispatch relay',
+        text: _telegramPartnerDispatchService.buildDispatchMessage(context),
         replyMarkup: _telegramPartnerDispatchService.replyKeyboardMarkup(),
       );
+      final result = await _telegramBridge.sendMessages(messages: [message]);
+      final delivered = result.failedCount <= 0;
+      if (!delivered) {
+        final reasons = result.failureReasonsByMessageKey.values
+            .map((value) => value.trim())
+            .where((value) => value.isNotEmpty)
+            .take(2)
+            .join(' | ');
+        if (mounted) {
+          setState(() {
+            _telegramBridgeHealthLabel = 'degraded';
+            _telegramBridgeHealthDetail = reasons.isEmpty
+                ? 'Partner dispatch relay delivery failed.'
+                : 'Partner dispatch relay delivery failed: $reasons';
+            _telegramBridgeHealthUpdatedAtUtc = DateTime.now().toUtc();
+          });
+        }
+      } else {
+        final telegramMessageId =
+            result.telegramMessageIdsByMessageKey[message.messageKey];
+        if (telegramMessageId != null && telegramMessageId > 0) {
+          _rememberPartnerDispatchBinding(
+            chatId: target.chatId,
+            threadId: target.threadId,
+            telegramMessageId: telegramMessageId,
+            context: context,
+            sentAtUtc: sentAtUtc,
+          );
+        }
+      }
       deliveredAny = deliveredAny || delivered;
     }
     if (deliveredAny || forceResend) {

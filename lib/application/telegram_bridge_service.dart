@@ -56,11 +56,13 @@ class TelegramBridgeSendResult {
   final List<TelegramBridgeMessage> sent;
   final List<TelegramBridgeMessage> failed;
   final Map<String, String> failureReasonsByMessageKey;
+  final Map<String, int> telegramMessageIdsByMessageKey;
 
   const TelegramBridgeSendResult({
     required this.sent,
     required this.failed,
     this.failureReasonsByMessageKey = const <String, String>{},
+    this.telegramMessageIdsByMessageKey = const <String, int>{},
   });
 
   int get sentCount => sent.length;
@@ -144,6 +146,7 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
     final sent = <TelegramBridgeMessage>[];
     final failed = <TelegramBridgeMessage>[];
     final failureReasons = <String, String>{};
+    final telegramMessageIds = <String, int>{};
     for (final message in messages) {
       final chatId = message.chatId.trim();
       if (chatId.isEmpty) {
@@ -187,6 +190,13 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
               'Telegram response invalid';
           continue;
         }
+        final resultPayload = decoded['result'];
+        if (resultPayload is Map) {
+          final messageId = _asInt(resultPayload['message_id']);
+          if (messageId != null && messageId > 0) {
+            telegramMessageIds[message.messageKey] = messageId;
+          }
+        }
         sent.add(message);
       } catch (error) {
         failed.add(message);
@@ -197,6 +207,7 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
       sent: sent,
       failed: failed,
       failureReasonsByMessageKey: failureReasons,
+      telegramMessageIdsByMessageKey: telegramMessageIds,
     );
   }
 
