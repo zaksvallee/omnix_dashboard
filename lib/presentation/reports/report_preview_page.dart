@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:printing/printing.dart';
 
+import '../../application/report_entry_context.dart';
 import '../../domain/crm/reporting/report_branding_configuration.dart';
 import '../../domain/crm/export/pdf_report_exporter.dart';
 import '../../domain/crm/reporting/report_bundle.dart';
@@ -15,6 +16,7 @@ class ReportPreviewPage extends StatefulWidget {
   final Uint8List? initialPdfBytes;
   final ReportGenerated? receiptEvent;
   final bool? replayMatches;
+  final ReportEntryContext? entryContext;
 
   const ReportPreviewPage({
     super.key,
@@ -22,6 +24,7 @@ class ReportPreviewPage extends StatefulWidget {
     this.initialPdfBytes,
     this.receiptEvent,
     this.replayMatches,
+    this.entryContext,
   });
 
   @override
@@ -68,6 +71,66 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
       return 'onyx_intelligence_report.pdf';
     }
     return '${primaryLabel}_intelligence_report.pdf';
+  }
+
+  Widget _entryContextPane() {
+    final entryContext = widget.entryContext;
+    if (entryContext == null) {
+      return const SizedBox.shrink();
+    }
+    return OnyxSectionCard(
+      title: 'Preview Context',
+      subtitle:
+          'Why this receipt preview was opened and which oversight lane handed it off.',
+      child: Container(
+        key: const ValueKey('report-preview-entry-context-banner'),
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0E1A2B),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFF17324F)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              entryContext.bannerTitle,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8FD1FF),
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              entryContext.bannerDetail,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFE8F1FF),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
+            ),
+            if (widget.receiptEvent != null) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _chip(
+                    'Receipt',
+                    widget.receiptEvent!.eventId,
+                    const Color(0xFF8FD1FF),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _brandingPane() {
@@ -577,6 +640,10 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
                         ),
                       ],
                     ),
+                    if (widget.entryContext != null) ...[
+                      const SizedBox(height: 14),
+                      _entryContextPane(),
+                    ],
                     if (_brandingConfiguration.isConfigured) ...[
                       const SizedBox(height: 14),
                       _brandingPane(),
@@ -715,6 +782,10 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
                       ),
                     ],
                   ),
+                  if (widget.entryContext != null) ...[
+                    const SizedBox(height: 14),
+                    _entryContextPane(),
+                  ],
                   if (_brandingConfiguration.isConfigured) ...[
                     const SizedBox(height: 14),
                     _brandingPane(),

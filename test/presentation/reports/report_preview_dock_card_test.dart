@@ -37,6 +37,45 @@ void main() {
     expect(find.text('Open Full Preview'), findsOneWidget);
   });
 
+  testWidgets('report preview dock card shows entry context when provided', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ReportPreviewDockCard(
+            eventId: 'RPT-CTX-DOCK-1',
+            detail: 'MS Vallee Residence • Mar 2026',
+            contextTitle: 'OPENED FROM GOVERNANCE BRANDING DRIFT',
+            contextDetail:
+                'This receipt scope was opened from Governance so operators can inspect the generated-report history behind a branding-drift shift.',
+            statusPills: const [Chip(label: Text('Replay Verified'))],
+            primaryAction: ElevatedButton(
+              onPressed: () {},
+              child: const Text('Open Full Preview'),
+            ),
+            secondaryAction: OutlinedButton(
+              onPressed: () {},
+              child: const Text('Clear Dock Target'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('report-preview-dock-context-banner')),
+      findsOneWidget,
+    );
+    expect(find.text('OPENED FROM GOVERNANCE BRANDING DRIFT'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'This receipt scope was opened from Governance so operators can inspect the generated-report history behind a branding-drift shift.',
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('report preview dock card trims copy and falls back when blank', (
     tester,
   ) async {
@@ -103,32 +142,34 @@ void main() {
     );
   });
 
-  testWidgets('scene review narrative box trims narrative and falls back when blank', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: Column(
-            children: [
-              ReportSceneReviewNarrativeBox(
-                narrative: '  Reviewed vehicle movement remained below threshold.  ',
-                accent: Color(0xFFF6C067),
-              ),
-              ReportSceneReviewNarrativeBox(
-                narrative: '   ',
-                accent: Color(0xFFF6C067),
-              ),
-            ],
+  testWidgets(
+    'scene review narrative box trims narrative and falls back when blank',
+    (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                ReportSceneReviewNarrativeBox(
+                  narrative:
+                      '  Reviewed vehicle movement remained below threshold.  ',
+                  accent: Color(0xFFF6C067),
+                ),
+                ReportSceneReviewNarrativeBox(
+                  narrative: '   ',
+                  accent: Color(0xFFF6C067),
+                ),
+              ],
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    expect(
-      find.text('Reviewed vehicle movement remained below threshold.'),
-      findsOneWidget,
-    );
-    expect(find.text('Scene review detail pending.'), findsOneWidget);
-  });
+      expect(
+        find.text('Reviewed vehicle movement remained below threshold.'),
+        findsOneWidget,
+      );
+      expect(find.text('Scene review detail pending.'), findsOneWidget);
+    },
+  );
 }

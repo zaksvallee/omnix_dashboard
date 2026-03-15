@@ -181,6 +181,7 @@ class _ClientIntelligenceReportsPageState
         initialPdfBytes: generated.pdfBytes,
         receiptEvent: generated.receiptEvent,
         replayMatches: replayMatches,
+        entryContext: _entryContext,
       ),
     );
   }
@@ -198,6 +199,7 @@ class _ClientIntelligenceReportsPageState
         initialPdfBytes: regenerated.pdfBytes,
         receiptEvent: row.event,
         replayMatches: replayMatches,
+        entryContext: _entryContext,
       ),
     );
   }
@@ -3481,6 +3483,8 @@ class _ClientIntelligenceReportsPageState
     return ReportPreviewDockCard(
       eventId: row.event.eventId,
       detail: '$siteName • $period',
+      contextTitle: _entryContext?.bannerTitle,
+      contextDetail: _entryContext?.bannerDetail,
       statusPills: [
         _receiptSceneReviewPill(
           row.replayVerified ? 'Replay Verified' : 'Replay Pending',

@@ -17,6 +17,7 @@ class ReportPreviewPresenter {
           initialPdfBytes: request.initialPdfBytes,
           receiptEvent: request.receiptEvent,
           replayMatches: request.replayMatches,
+          entryContext: request.entryContext,
         ),
       ),
     );

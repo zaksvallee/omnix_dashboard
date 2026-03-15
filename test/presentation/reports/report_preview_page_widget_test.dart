@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:omnix_dashboard/application/report_entry_context.dart';
 import 'package:omnix_dashboard/domain/crm/reporting/report_branding_configuration.dart';
 import 'package:omnix_dashboard/domain/crm/reporting/report_section_configuration.dart';
 import 'package:omnix_dashboard/domain/crm/reporting/report_sections.dart';
@@ -93,6 +94,43 @@ void main() {
       find.textContaining('Person visible near the boundary'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('report preview shows governance entry context when provided', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReportPreviewPage(
+          bundle: buildTestReportBundle(),
+          initialPdfBytes: Uint8List.fromList(
+            '%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF'.codeUnits,
+          ),
+          receiptEvent: buildTestReportGenerated(
+            eventId: 'RPT-PREVIEW-GOV-1',
+            reportSchemaVersion: 2,
+            projectionVersion: 2,
+          ),
+          entryContext: ReportEntryContext.governanceBrandingDrift,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(find.text('Preview Context'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('report-preview-entry-context-banner')),
+      findsOneWidget,
+    );
+    expect(find.text('OPENED FROM GOVERNANCE BRANDING DRIFT'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'This receipt scope was opened from Governance so operators can inspect the generated-report history behind a branding-drift shift.',
+      ),
+      findsOneWidget,
+    );
+    expect(_findRichTextContaining('Receipt: RPT-PREVIEW-GOV-1'), findsWidgets);
   });
 
   testWidgets('report preview shows omitted ai configuration note', (
