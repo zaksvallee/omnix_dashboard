@@ -2343,13 +2343,23 @@ class _RightRail extends StatelessWidget {
                   value:
                       '${sovereignReport.complianceBlockage.totalBlocked} blocked',
                 ),
-                if ((sovereignReport.receiptPolicy.headline.trim().isNotEmpty) ||
-                    sovereignReport.receiptPolicy.summaryLine
+                if ((sovereignReport.receiptPolicy.headline
                         .trim()
-                        .isNotEmpty)
+                        .isNotEmpty) ||
+                    sovereignReport.receiptPolicy.executiveSummary
+                        .trim()
+                        .isNotEmpty ||
+                    sovereignReport.receiptPolicy.summaryLine.trim().isNotEmpty)
                   _RailMetricRow(
                     label: 'Receipt policy',
-                    value: sovereignReport.receiptPolicy.headline.trim().isNotEmpty
+                    value:
+                        sovereignReport.receiptPolicy.executiveSummary
+                            .trim()
+                            .isNotEmpty
+                        ? sovereignReport.receiptPolicy.executiveSummary
+                        : sovereignReport.receiptPolicy.headline
+                              .trim()
+                              .isNotEmpty
                         ? sovereignReport.receiptPolicy.headline
                         : sovereignReport.receiptPolicy.summaryLine,
                   ),

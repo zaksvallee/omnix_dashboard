@@ -212,6 +212,7 @@ class SovereignReportReceiptPolicy {
   final int reportsWithOmittedSections;
   final int omittedAiDecisionLogReports;
   final int omittedGuardMetricsReports;
+  final String executiveSummary;
   final String headline;
   final String summaryLine;
   final String latestReportSummary;
@@ -224,6 +225,7 @@ class SovereignReportReceiptPolicy {
     required this.reportsWithOmittedSections,
     required this.omittedAiDecisionLogReports,
     required this.omittedGuardMetricsReports,
+    this.executiveSummary = '',
     this.headline = '',
     this.summaryLine = '',
     this.latestReportSummary = '',
@@ -238,6 +240,7 @@ class SovereignReportReceiptPolicy {
       'reportsWithOmittedSections': reportsWithOmittedSections,
       'omittedAiDecisionLogReports': omittedAiDecisionLogReports,
       'omittedGuardMetricsReports': omittedGuardMetricsReports,
+      'executiveSummary': executiveSummary,
       'headline': headline,
       'summaryLine': summaryLine,
       'latestReportSummary': latestReportSummary,
@@ -259,6 +262,7 @@ class SovereignReportReceiptPolicy {
           (json['omittedAiDecisionLogReports'] as num?)?.toInt() ?? 0,
       omittedGuardMetricsReports:
           (json['omittedGuardMetricsReports'] as num?)?.toInt() ?? 0,
+      executiveSummary: (json['executiveSummary'] as String? ?? '').trim(),
       headline: (json['headline'] as String? ?? '').trim(),
       summaryLine: (json['summaryLine'] as String? ?? '').trim(),
       latestReportSummary: (json['latestReportSummary'] as String? ?? '')
@@ -308,6 +312,7 @@ class SovereignReport {
       reportsWithOmittedSections: 0,
       omittedAiDecisionLogReports: 0,
       omittedGuardMetricsReports: 0,
+      executiveSummary: '',
       headline: '',
       summaryLine: '',
       latestReportSummary: '',
@@ -491,6 +496,7 @@ class SovereignReport {
               reportsWithOmittedSections: 0,
               omittedAiDecisionLogReports: 0,
               omittedGuardMetricsReports: 0,
+              executiveSummary: '',
               headline: '',
               summaryLine: '',
               latestReportSummary: '',
@@ -1487,13 +1493,14 @@ class MorningSovereignReportService {
       );
     }
 
-    final ordered = [...events]..sort((a, b) {
-      final occurredCompare = b.occurredAt.compareTo(a.occurredAt);
-      if (occurredCompare != 0) {
-        return occurredCompare;
-      }
-      return b.sequence.compareTo(a.sequence);
-    });
+    final ordered = [...events]
+      ..sort((a, b) {
+        final occurredCompare = b.occurredAt.compareTo(a.occurredAt);
+        if (occurredCompare != 0) {
+          return occurredCompare;
+        }
+        return b.sequence.compareTo(a.sequence);
+      });
 
     var trackedConfigurationReports = 0;
     var legacyConfigurationReports = 0;
@@ -1544,6 +1551,20 @@ class MorningSovereignReportService {
         ? '${latest.clientId}/${latest.siteId} ${latest.month} included all report sections.'
         : '${latest.clientId}/${latest.siteId} ${latest.month} omitted ${latestOmitted.join(', ')}.';
 
+    final executiveParts = <String>[
+      if (reportsWithOmittedSections > 0)
+        '$reportsWithOmittedSections ${reportsWithOmittedSections == 1 ? 'client-facing receipt omitted sections' : 'client-facing receipts omitted sections'}',
+      if (legacyConfigurationReports > 0)
+        '$legacyConfigurationReports ${legacyConfigurationReports == 1 ? 'legacy receipt lacked tracked policy' : 'legacy receipts lacked tracked policy'}',
+      if (reportsWithOmittedSections == 0 &&
+          fullyIncludedReports > 0 &&
+          trackedConfigurationReports > 0)
+        '$fullyIncludedReports ${fullyIncludedReports == 1 ? 'client-facing receipt kept full policy' : 'client-facing receipts kept full policy'}',
+    ];
+    final executiveSummary = executiveParts.isEmpty
+        ? '${events.length} generated receipts recorded'
+        : executiveParts.join(' • ');
+
     final headline = reportsWithOmittedSections > 0
         ? '$reportsWithOmittedSections generated reports omitted sections'
         : fullyIncludedReports > 0
@@ -1563,6 +1584,7 @@ class MorningSovereignReportService {
       reportsWithOmittedSections: reportsWithOmittedSections,
       omittedAiDecisionLogReports: omittedAiDecisionLogReports,
       omittedGuardMetricsReports: omittedGuardMetricsReports,
+      executiveSummary: executiveSummary,
       headline: headline,
       summaryLine: summaryLine,
       latestReportSummary: latestReportSummary,

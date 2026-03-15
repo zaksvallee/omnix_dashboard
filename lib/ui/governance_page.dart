@@ -226,6 +226,7 @@ class _GovernanceReportView {
   final int reportsWithOmittedSections;
   final int omittedAiDecisionLogReports;
   final int omittedGuardMetricsReports;
+  final String receiptPolicyExecutiveSummary;
   final String receiptPolicyHeadline;
   final String receiptPolicySummary;
   final String latestReceiptPolicySummary;
@@ -295,6 +296,7 @@ class _GovernanceReportView {
     required this.reportsWithOmittedSections,
     required this.omittedAiDecisionLogReports,
     required this.omittedGuardMetricsReports,
+    required this.receiptPolicyExecutiveSummary,
     required this.receiptPolicyHeadline,
     required this.receiptPolicySummary,
     required this.latestReceiptPolicySummary,
@@ -1943,6 +1945,7 @@ class _GovernancePageState extends State<GovernancePage> {
       reportsWithOmittedSections: report.reportsWithOmittedSections,
       omittedAiDecisionLogReports: report.omittedAiDecisionLogReports,
       omittedGuardMetricsReports: report.omittedGuardMetricsReports,
+      receiptPolicyExecutiveSummary: report.receiptPolicyExecutiveSummary,
       receiptPolicyHeadline: report.receiptPolicyHeadline,
       receiptPolicySummary: report.receiptPolicySummary,
       latestReceiptPolicySummary: report.latestReceiptPolicySummary,
@@ -2199,12 +2202,15 @@ class _GovernancePageState extends State<GovernancePage> {
         key: const ValueKey('governance-metric-receipt-policy'),
         label: 'Receipt Policy',
         value: '${report.generatedReports} reports',
-        detail: report.receiptPolicyHeadline.trim().isNotEmpty
+        detail: report.receiptPolicyExecutiveSummary.trim().isNotEmpty
+            ? '${report.receiptPolicyExecutiveSummary} • ${report.latestReceiptPolicySummary.trim().isNotEmpty ? report.latestReceiptPolicySummary : report.receiptPolicySummary}'
+            : report.receiptPolicyHeadline.trim().isNotEmpty
             ? '${report.receiptPolicyHeadline} • ${report.latestReceiptPolicySummary.trim().isNotEmpty ? report.latestReceiptPolicySummary : report.receiptPolicySummary}'
             : report.receiptPolicySummary.trim().isNotEmpty
             ? report.receiptPolicySummary
             : 'No generated report receipts recorded in this shift window.',
-        color: report.reportsWithOmittedSections > 0 ||
+        color:
+            report.reportsWithOmittedSections > 0 ||
                 report.legacyConfigurationReports > 0
             ? const Color(0xFFF59E0B)
             : report.generatedReports > 0
@@ -4334,6 +4340,8 @@ class _GovernancePageState extends State<GovernancePage> {
               canonical.receiptPolicy.omittedAiDecisionLogReports,
           omittedGuardMetricsReports:
               canonical.receiptPolicy.omittedGuardMetricsReports,
+          receiptPolicyExecutiveSummary:
+              canonical.receiptPolicy.executiveSummary,
           receiptPolicyHeadline: canonical.receiptPolicy.headline,
           receiptPolicySummary: canonical.receiptPolicy.summaryLine,
           latestReceiptPolicySummary:
@@ -4452,6 +4460,7 @@ class _GovernancePageState extends State<GovernancePage> {
         reportsWithOmittedSections: 0,
         omittedAiDecisionLogReports: 0,
         omittedGuardMetricsReports: 0,
+        receiptPolicyExecutiveSummary: '',
         receiptPolicyHeadline: '',
         receiptPolicySummary: '',
         latestReceiptPolicySummary: '',
@@ -5131,6 +5140,7 @@ class _GovernancePageState extends State<GovernancePage> {
         'reportsWithOmittedSections': report.reportsWithOmittedSections,
         'omittedAiDecisionLogReports': report.omittedAiDecisionLogReports,
         'omittedGuardMetricsReports': report.omittedGuardMetricsReports,
+        'executiveSummary': report.receiptPolicyExecutiveSummary,
         'headline': report.receiptPolicyHeadline,
         'summaryLine': report.receiptPolicySummary,
         'latestReportSummary': report.latestReceiptPolicySummary,
@@ -5227,6 +5237,7 @@ class _GovernancePageState extends State<GovernancePage> {
       'receipt_reports_with_omitted_sections,${report.reportsWithOmittedSections}',
       'receipt_omitted_ai_decision_log_reports,${report.omittedAiDecisionLogReports}',
       'receipt_omitted_guard_metrics_reports,${report.omittedGuardMetricsReports}',
+      'receipt_executive_summary,"${report.receiptPolicyExecutiveSummary.replaceAll('"', '""')}"',
       'receipt_headline,"${report.receiptPolicyHeadline.replaceAll('"', '""')}"',
       'receipt_summary,"${report.receiptPolicySummary.replaceAll('"', '""')}"',
       'receipt_latest_report_summary,"${report.latestReceiptPolicySummary.replaceAll('"', '""')}"',

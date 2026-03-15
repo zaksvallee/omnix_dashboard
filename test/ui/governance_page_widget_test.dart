@@ -85,6 +85,8 @@ void main() {
         reportsWithOmittedSections: 1,
         omittedAiDecisionLogReports: 1,
         omittedGuardMetricsReports: 1,
+        executiveSummary:
+            '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
         headline: '1 generated reports omitted sections',
         summaryLine:
             'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
@@ -277,7 +279,9 @@ void main() {
     expect(find.text('Receipt Policy'), findsOneWidget);
     expect(find.text('2 reports'), findsOneWidget);
     expect(
-      find.textContaining('1 generated reports omitted sections'),
+      find.textContaining(
+        '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
+      ),
       findsOneWidget,
     );
     expect(
@@ -986,6 +990,8 @@ void main() {
         reportsWithOmittedSections: 1,
         omittedAiDecisionLogReports: 1,
         omittedGuardMetricsReports: 1,
+        executiveSummary:
+            '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
         headline: '1 generated reports omitted sections',
         summaryLine:
             'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
@@ -2493,6 +2499,8 @@ void main() {
         reportsWithOmittedSections: 1,
         omittedAiDecisionLogReports: 1,
         omittedGuardMetricsReports: 1,
+        executiveSummary:
+            '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
         headline: '1 generated reports omitted sections',
         summaryLine:
             'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
@@ -2682,6 +2690,12 @@ void main() {
     expect(copiedPayload, contains('"generatedReports": 2'));
     expect(
       copiedPayload,
+      contains(
+        '"executiveSummary": "1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy"',
+      ),
+    );
+    expect(
+      copiedPayload,
       contains('"headline": "1 generated reports omitted sections"'),
     );
     expect(copiedPayload, contains('"vehicleThroughput"'));
@@ -2713,6 +2727,12 @@ void main() {
     expect(copiedPayload, isNotNull);
     expect(copiedPayload, contains('scene_focused_lens_key,recentActions'));
     expect(copiedPayload, contains('receipt_generated_reports,2'));
+    expect(
+      copiedPayload,
+      contains(
+        'receipt_executive_summary,"1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy"',
+      ),
+    );
     expect(
       copiedPayload,
       contains('receipt_headline,"1 generated reports omitted sections"'),

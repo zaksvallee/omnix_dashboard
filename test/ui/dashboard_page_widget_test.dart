@@ -143,6 +143,8 @@ void main() {
               reportsWithOmittedSections: 1,
               omittedAiDecisionLogReports: 1,
               omittedGuardMetricsReports: 1,
+              executiveSummary:
+                  '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
               headline: '1 generated reports omitted sections',
               summaryLine:
                   'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
@@ -245,7 +247,12 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Receipt policy'), findsOneWidget);
-    expect(find.text('1 generated reports omitted sections'), findsOneWidget);
+    expect(
+      find.text(
+        '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Partner progression'), findsOneWidget);
     expect(
       find.text('1 strong response • 1 on-track response'),

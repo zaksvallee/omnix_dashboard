@@ -324,6 +324,10 @@ void main() {
       expect(report.receiptPolicy.omittedAiDecisionLogReports, 1);
       expect(report.receiptPolicy.omittedGuardMetricsReports, 1);
       expect(
+        report.receiptPolicy.executiveSummary,
+        '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
+      );
+      expect(
         report.receiptPolicy.headline,
         '1 generated reports omitted sections',
       );
@@ -430,6 +434,10 @@ void main() {
       expect(restored.aiHumanDelta.humanOverrides, 1);
       expect(restored.sceneReview.totalReviews, 3);
       expect(restored.receiptPolicy.generatedReports, 2);
+      expect(
+        restored.receiptPolicy.executiveSummary,
+        report.receiptPolicy.executiveSummary,
+      );
       expect(restored.receiptPolicy.headline, report.receiptPolicy.headline);
       expect(
         restored.receiptPolicy.latestReportSummary,
