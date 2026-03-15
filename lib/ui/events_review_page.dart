@@ -129,12 +129,27 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       final normalizedProvider = _normalizeProviderFilter(
         widget.initialProviderFilter,
       );
+      final nextSelectedId = (widget.initialSelectedEventId ?? '').trim();
+      final nextSelectedEvent = nextSelectedId.isEmpty
+          ? null
+          : widget.events
+                .where((event) => event.eventId == nextSelectedId)
+                .fold<DispatchEvent?>(
+                  null,
+                  (current, event) => current ?? event,
+                );
       if (normalizedSource != _activeSourceFilter ||
-          normalizedProvider != _activeProviderFilter) {
+          normalizedProvider != _activeProviderFilter ||
+          selectedChanged) {
         setState(() {
           _activeSourceFilter = normalizedSource;
           _activeProviderFilter = normalizedProvider;
+          if (selectedChanged) {
+            _selectedEvent = nextSelectedEvent;
+          }
         });
+      } else if (selectedChanged) {
+        _selectedEvent = nextSelectedEvent;
       }
       if (selectedChanged &&
           (widget.initialSelectedEventId ?? '').trim().isNotEmpty) {
@@ -214,13 +229,15 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
 
     final selected = identityPolicyFiltered.isEmpty
         ? null
-        : requestedSelectionFound
-        ? requestedSelectedEvent
         : _selectedEvent != null
         ? identityPolicyFiltered.firstWhere(
             (event) => event.eventId == _selectedEvent!.eventId,
-            orElse: () => identityPolicyFiltered.first,
+            orElse: () => requestedSelectionFound
+                ? requestedSelectedEvent!
+                : identityPolicyFiltered.first,
           )
+        : requestedSelectionFound
+        ? requestedSelectedEvent
         : identityPolicyFiltered.first;
     _selectedEvent = selected;
     if (selected != null && requestedSelectionFound) {
@@ -369,7 +386,11 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             bounded: false,
                           ),
                           const SizedBox(height: 8),
-                          _detailPane(selected: selected, bounded: false),
+                          _detailPane(
+                            selected: selected,
+                            bounded: false,
+                            visitScopedEvents: _visitScopedEvents(timeline),
+                          ),
                         ],
                       );
                     }
@@ -391,6 +412,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             child: _detailPane(
                               selected: selected,
                               bounded: true,
+                              visitScopedEvents: _visitScopedEvents(timeline),
                             ),
                           ),
                         ],
@@ -436,10 +458,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   }
 
   Set<String> _normalizedScopedEventIds(Iterable<String> eventIds) {
-    return eventIds
-        .map((id) => id.trim())
-        .where((id) => id.isNotEmpty)
-        .toSet();
+    return eventIds.map((id) => id.trim()).where((id) => id.isNotEmpty).toSet();
   }
 
   bool _sameStringSet(Iterable<String> left, Iterable<String> right) {
@@ -454,6 +473,26 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       }
     }
     return true;
+  }
+
+  List<DispatchEvent> _visitScopedEvents(List<DispatchEvent> timeline) {
+    final scopedEventIds = _normalizedScopedEventIds(
+      widget.initialScopedEventIds,
+    );
+    if (scopedEventIds.isEmpty) {
+      return const <DispatchEvent>[];
+    }
+    final visitEvents = timeline
+        .where((event) => scopedEventIds.contains(event.eventId.trim()))
+        .toList(growable: false);
+    visitEvents.sort((a, b) {
+      final occurredAtCompare = a.occurredAt.compareTo(b.occurredAt);
+      if (occurredAtCompare != 0) {
+        return occurredAtCompare;
+      }
+      return a.sequence.compareTo(b.sequence);
+    });
+    return visitEvents;
   }
 
   Widget _metricCard({
@@ -812,10 +851,11 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   Widget _detailPane({
     required DispatchEvent? selected,
     required bool bounded,
+    required List<DispatchEvent> visitScopedEvents,
   }) {
     final content = selected == null
         ? const OnyxEmptyState(label: 'Select an event to view details.')
-        : _detailBody(selected);
+        : _detailBody(selected, visitScopedEvents: visitScopedEvents);
 
     return Container(
       decoration: BoxDecoration(
@@ -832,10 +872,18 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     );
   }
 
-  Widget _detailBody(DispatchEvent selected) {
+  Widget _detailBody(
+    DispatchEvent selected, {
+    required List<DispatchEvent> visitScopedEvents,
+  }) {
     final sceneReview = selected is IntelligenceReceived
         ? widget.sceneReviewByIntelligenceId[selected.intelligenceId.trim()]
         : null;
+    final linkedIntelligenceIds = visitScopedEvents
+        .whereType<IntelligenceReceived>()
+        .map((event) => event.intelligenceId.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -848,6 +896,63 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             letterSpacing: 0.8,
           ),
         ),
+        if (visitScopedEvents.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _detailCard(
+            child: Column(
+              key: const ValueKey('events-visit-timeline-card'),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'VISIT TIMELINE',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF9BB0CE),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.7,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _kvMini(
+                        'LINKED EVENTS',
+                        '${visitScopedEvents.length}',
+                      ),
+                    ),
+                    const SizedBox(width: 18),
+                    Expanded(
+                      child: _kvMini(
+                        'LINKED INTEL',
+                        '${linkedIntelligenceIds.length}',
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                _contextRow(
+                  'Start',
+                  _fullTimestamp(visitScopedEvents.first.occurredAt),
+                ),
+                _contextRow(
+                  'Last Seen',
+                  _fullTimestamp(visitScopedEvents.last.occurredAt),
+                ),
+                const SizedBox(height: 6),
+                for (var i = 0; i < visitScopedEvents.length; i++) ...[
+                  _visitTimelineStep(
+                    event: visitScopedEvents[i],
+                    selected: visitScopedEvents[i].eventId == selected.eventId,
+                    showConnector: i < visitScopedEvents.length - 1,
+                  ),
+                  if (i < visitScopedEvents.length - 1)
+                    const SizedBox(height: 8),
+                ],
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 8),
         _detailCard(
           child: Column(
@@ -1205,6 +1310,142 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             fontWeight: FontWeight.w700,
             letterSpacing: 0.3,
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _visitTimelineStep({
+    required DispatchEvent event,
+    required bool selected,
+    required bool showConnector,
+  }) {
+    final typeColor = _eventColor(event);
+    final zoneLabel = event is IntelligenceReceived
+        ? (event.zone ?? '').trim()
+        : '';
+    final signalLabel = event is IntelligenceReceived
+        ? _eventSignalLabel(event.objectLabel, event.objectConfidence)
+        : '';
+    return InkWell(
+      key: ValueKey<String>('events-visit-step-${event.eventId}'),
+      onTap: () => setState(() => _selectedEvent = event),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF10222F) : const Color(0xFF0A0E14),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: selected ? const Color(0xFF22D3EE) : const Color(0xFF223244),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 38,
+              child: Column(
+                children: [
+                  Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF162232),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '${event.sequence}',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFD9E7FA),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  if (showConnector)
+                    Container(
+                      margin: const EdgeInsets.only(top: 5),
+                      width: 1,
+                      height: 22,
+                      color: const Color(0x332A374A),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${_eventTypeLabel(event)} • ${event.eventId}',
+                          style: GoogleFonts.inter(
+                            color: typeColor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        _clock12(event.occurredAt),
+                        style: GoogleFonts.inter(
+                          color: const Color(0x808EA4C2),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _eventSummary(event),
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFEAF1FB),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _visitBadge(_eventSiteId(event)),
+                      if (zoneLabel.isNotEmpty) _visitBadge(zoneLabel),
+                      if (signalLabel.isNotEmpty &&
+                          signalLabel.toLowerCase() != 'unknown')
+                        _visitBadge(signalLabel),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _visitBadge(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111822),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFF2A374A)),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          color: const Color(0xFF9BB0CE),
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );

@@ -464,9 +464,40 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    final visitTimelineCard = find.byKey(
+      const ValueKey('events-visit-timeline-card'),
+    );
+    await tester.ensureVisible(visitTimelineCard);
+    expect(visitTimelineCard, findsOneWidget);
     expect(find.text('Vehicle entered lane'), findsWidgets);
     expect(find.text('Vehicle exited lane'), findsWidgets);
     expect(find.text('Unrelated vehicle pass'), findsNothing);
+    expect(find.text('LINKED EVENTS'), findsOneWidget);
+    expect(find.text('LINKED INTEL'), findsOneWidget);
+    expect(find.textContaining('VISIT-EVT-1'), findsWidgets);
+    expect(find.textContaining('VISIT-EVT-2'), findsWidgets);
+    expect(
+      find.byKey(const ValueKey('events-selected-event-id')),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('events-selected-event-id')))
+          .data,
+      'VISIT-EVT-2',
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('events-visit-step-VISIT-EVT-1')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('events-selected-event-id')))
+          .data,
+      'VISIT-EVT-1',
+    );
   });
 
   testWidgets('events review surfaces FR and LPR context for DVR events', (
