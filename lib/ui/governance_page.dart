@@ -12,6 +12,7 @@ import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_denied.dart';
 import '../domain/events/partner_dispatch_status_declared.dart';
+import '../domain/events/report_generated.dart';
 import '../domain/events/vehicle_visit_review_recorded.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
@@ -2216,6 +2217,9 @@ class _GovernancePageState extends State<GovernancePage> {
             : report.generatedReports > 0
             ? const Color(0xFF10B981)
             : const Color(0xFF22D3EE),
+        onTap: report.generatedReports > 0
+            ? () => _showReceiptPolicyDrillIn(report)
+            : null,
       ),
       _reportMetric(
         key: const ValueKey('governance-metric-vehicle-throughput'),
@@ -2458,49 +2462,401 @@ class _GovernancePageState extends State<GovernancePage> {
     required String value,
     required String detail,
     required Color color,
+    VoidCallback? onTap,
   }) {
-    return SizedBox(
-      key: key,
-      width: 255,
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: const Color(0x14000000),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0x22FFFFFF)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    final content = Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0x14000000),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0x22FFFFFF)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              color: color,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            detail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9CB2D1),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (onTap != null) ...[
+            const SizedBox(height: 6),
             Text(
-              label,
+              'Tap to drill in',
               style: GoogleFonts.inter(
-                color: const Color(0xFF8EA4C2),
+                color: const Color(0xFF8FD1FF),
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: GoogleFonts.inter(
-                color: color,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              detail,
-              style: GoogleFonts.inter(
-                color: const Color(0xFF9CB2D1),
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
               ),
             ),
           ],
-        ),
+        ],
       ),
+    );
+    return SizedBox(
+      key: key,
+      width: 255,
+      child: onTap == null
+          ? content
+          : InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(8),
+              child: content,
+            ),
+    );
+  }
+
+  List<ReportGenerated> _currentShiftReportGeneratedEvents() {
+    final canonical = widget.morningSovereignReport;
+    if (canonical == null) {
+      return const <ReportGenerated>[];
+    }
+    final events = widget.events
+        .whereType<ReportGenerated>()
+        .where((event) {
+          return !event.occurredAt.isBefore(canonical.shiftWindowStartUtc) &&
+              !event.occurredAt.isAfter(canonical.shiftWindowEndUtc);
+        })
+        .toList(growable: false);
+    events.sort((a, b) {
+      final occurredCompare = b.occurredAt.compareTo(a.occurredAt);
+      if (occurredCompare != 0) {
+        return occurredCompare;
+      }
+      return b.sequence.compareTo(a.sequence);
+    });
+    return events;
+  }
+
+  bool _hasTrackedReportSectionConfiguration(ReportGenerated event) {
+    return event.reportSchemaVersion >= 3;
+  }
+
+  List<String> _includedReceiptSectionLabels(ReportGenerated event) {
+    return <String>[
+      if (event.includeTimeline) 'Incident Timeline',
+      if (event.includeDispatchSummary) 'Dispatch Summary',
+      if (event.includeCheckpointCompliance) 'Checkpoint Compliance',
+      if (event.includeAiDecisionLog) 'AI Decision Log',
+      if (event.includeGuardMetrics) 'Guard Metrics',
+    ];
+  }
+
+  List<String> _omittedReceiptSectionLabels(ReportGenerated event) {
+    return <String>[
+      if (!event.includeTimeline) 'Incident Timeline',
+      if (!event.includeDispatchSummary) 'Dispatch Summary',
+      if (!event.includeCheckpointCompliance) 'Checkpoint Compliance',
+      if (!event.includeAiDecisionLog) 'AI Decision Log',
+      if (!event.includeGuardMetrics) 'Guard Metrics',
+    ];
+  }
+
+  String _receiptPolicyEventHeadline(ReportGenerated event) {
+    if (!_hasTrackedReportSectionConfiguration(event)) {
+      return 'Legacy receipt configuration';
+    }
+    final omitted = _omittedReceiptSectionLabels(event);
+    if (omitted.isEmpty) {
+      return 'All sections included';
+    }
+    return '${omitted.length} sections omitted';
+  }
+
+  String _receiptPolicyEventDetail(ReportGenerated event) {
+    if (!_hasTrackedReportSectionConfiguration(event)) {
+      return 'Per-section report configuration was not captured for this generated receipt.';
+    }
+    final included = _includedReceiptSectionLabels(event);
+    final omitted = _omittedReceiptSectionLabels(event);
+    final includedLabel = included.isEmpty ? 'None' : included.join(', ');
+    final omittedLabel = omitted.isEmpty ? 'None' : omitted.join(', ');
+    return 'Included: $includedLabel. Omitted: $omittedLabel.';
+  }
+
+  Color _receiptPolicyEventAccent(ReportGenerated event) {
+    if (!_hasTrackedReportSectionConfiguration(event)) {
+      return const Color(0xFF8EA5C6);
+    }
+    return _omittedReceiptSectionLabels(event).isEmpty
+        ? const Color(0xFF59D79B)
+        : const Color(0xFFF6C067);
+  }
+
+  void _showReceiptPolicyDrillIn(_GovernanceReportView report) {
+    final events = _currentShiftReportGeneratedEvents();
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: const Color(0xFF08111B),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 24,
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760, maxHeight: 720),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                key: const ValueKey('governance-receipt-policy-dialog'),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'RECEIPT POLICY DRILL-IN',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFFEAF4FF),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              report.receiptPolicyExecutiveSummary
+                                      .trim()
+                                      .isNotEmpty
+                                  ? report.receiptPolicyExecutiveSummary
+                                  : report.receiptPolicyHeadline
+                                        .trim()
+                                        .isNotEmpty
+                                  ? report.receiptPolicyHeadline
+                                  : 'No receipt-policy summary available.',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF9CB2D1),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        icon: const Icon(Icons.close, color: Color(0xFFEAF4FF)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _partnerTrendMetricChip(
+                        label: 'Generated',
+                        value: '${report.generatedReports}',
+                        color: const Color(0xFF8FD1FF),
+                      ),
+                      _partnerTrendMetricChip(
+                        label: 'Tracked',
+                        value: '${report.trackedConfigurationReports}',
+                        color: const Color(0xFF59D79B),
+                      ),
+                      _partnerTrendMetricChip(
+                        label: 'Legacy',
+                        value: '${report.legacyConfigurationReports}',
+                        color: const Color(0xFF8EA5C6),
+                      ),
+                      _partnerTrendMetricChip(
+                        label: 'Omitted',
+                        value: '${report.reportsWithOmittedSections}',
+                        color: const Color(0xFFF6C067),
+                      ),
+                    ],
+                  ),
+                  if (report.latestReceiptPolicySummary.trim().isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0x14000000),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0x22FFFFFF)),
+                      ),
+                      child: Text(
+                        report.latestReceiptPolicySummary,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFEAF4FF),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Shift receipts',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFEAF4FF),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          if (events.isEmpty)
+                            Text(
+                              'No generated receipt events were captured for this shift window.',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF9CB2D1),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            )
+                          else
+                            for (final event in events) ...[
+                              Container(
+                                key: ValueKey<String>(
+                                  'governance-receipt-policy-entry-${event.eventId}',
+                                ),
+                                width: double.infinity,
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0x14000000),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: const Color(0x22FFFFFF),
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                '${event.clientId}/${event.siteId} • ${event.month}',
+                                                style: GoogleFonts.inter(
+                                                  color: const Color(
+                                                    0xFFEAF4FF,
+                                                  ),
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                _receiptPolicyEventHeadline(
+                                                  event,
+                                                ),
+                                                style: GoogleFonts.inter(
+                                                  color:
+                                                      _receiptPolicyEventAccent(
+                                                        event,
+                                                      ),
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 7,
+                                            vertical: 3,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: _receiptPolicyEventAccent(
+                                              event,
+                                            ).withValues(alpha: 0.14),
+                                            borderRadius: BorderRadius.circular(
+                                              999,
+                                            ),
+                                            border: Border.all(
+                                              color: _receiptPolicyEventAccent(
+                                                event,
+                                              ).withValues(alpha: 0.5),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            _hasTrackedReportSectionConfiguration(
+                                                  event,
+                                                )
+                                                ? 'TRACKED'
+                                                : 'LEGACY',
+                                            style: GoogleFonts.inter(
+                                              color: _receiptPolicyEventAccent(
+                                                event,
+                                              ),
+                                              fontSize: 8,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      '${_timestampLabel(event.occurredAt)} • Events ${event.eventRangeStart}-${event.eventRangeEnd} • ${event.eventCount} source events',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF9CB2D1),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      _receiptPolicyEventDetail(event),
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF9CB2D1),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 

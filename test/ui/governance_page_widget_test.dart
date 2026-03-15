@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/application/morning_sovereign_report_service.dart';
 import 'package:omnix_dashboard/domain/events/partner_dispatch_status_declared.dart';
+import 'package:omnix_dashboard/domain/events/report_generated.dart';
 import 'package:omnix_dashboard/domain/events/vehicle_visit_review_recorded.dart';
 import 'package:omnix_dashboard/ui/app_shell.dart';
 import 'package:omnix_dashboard/ui/governance_page.dart';
@@ -547,6 +548,180 @@ void main() {
     expect(find.textContaining('DSP-200 • STRONG'), findsOneWidget);
     expect(
       find.text('ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('governance receipt policy metric drills into shift receipts', (
+    tester,
+  ) async {
+    final report = SovereignReport(
+      date: '2026-03-10',
+      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
+      shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 184,
+        hashVerified: true,
+        integrityScore: 98,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 24,
+        humanOverrides: 3,
+        overrideReasons: {'PSIRA expired': 2},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 14,
+        driftDetected: 2,
+        avgMatchScore: 84,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 2,
+        pdpExpired: 1,
+        totalBlocked: 3,
+      ),
+      receiptPolicy: const SovereignReportReceiptPolicy(
+        generatedReports: 2,
+        trackedConfigurationReports: 1,
+        legacyConfigurationReports: 1,
+        fullyIncludedReports: 0,
+        reportsWithOmittedSections: 1,
+        omittedAiDecisionLogReports: 1,
+        omittedGuardMetricsReports: 1,
+        executiveSummary:
+            '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
+        headline: '1 generated reports omitted sections',
+        summaryLine:
+            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
+        latestReportSummary:
+            'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
+      ),
+      sceneReview: const SovereignReportSceneReview(
+        totalReviews: 7,
+        modelReviews: 5,
+        metadataFallbackReviews: 2,
+        suppressedActions: 1,
+        incidentAlerts: 2,
+        repeatUpdates: 2,
+        escalationCandidates: 2,
+        topPosture: 'escalation candidate',
+        actionMixSummary:
+            '2 alerts • 2 repeat updates • 2 escalations • 1 suppressed review',
+        latestActionTaken:
+            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line.',
+        recentActionsSummary:
+            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
+        latestSuppressedPattern:
+            '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GovernancePage(
+          events: [
+            ReportGenerated(
+              eventId: 'RPT-TRACKED',
+              sequence: 40,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 10, 2, 20),
+              clientId: 'CLIENT-1',
+              siteId: 'SITE-42',
+              month: '2026-03',
+              contentHash: 'content-hash-1',
+              pdfHash: 'pdf-hash-1',
+              eventRangeStart: 10,
+              eventRangeEnd: 18,
+              eventCount: 9,
+              reportSchemaVersion: 3,
+              projectionVersion: 1,
+              includeAiDecisionLog: false,
+              includeGuardMetrics: false,
+            ),
+            ReportGenerated(
+              eventId: 'RPT-LEGACY',
+              sequence: 41,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 10, 2, 40),
+              clientId: 'CLIENT-1',
+              siteId: 'SITE-7',
+              month: '2026-03',
+              contentHash: 'content-hash-2',
+              pdfHash: 'pdf-hash-2',
+              eventRangeStart: 19,
+              eventRangeEnd: 25,
+              eventCount: 7,
+              reportSchemaVersion: 1,
+              projectionVersion: 1,
+            ),
+            ReportGenerated(
+              eventId: 'RPT-OLD',
+              sequence: 42,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 10, 8, 0),
+              clientId: 'CLIENT-1',
+              siteId: 'SITE-OLD',
+              month: '2026-03',
+              contentHash: 'content-hash-3',
+              pdfHash: 'pdf-hash-3',
+              eventRangeStart: 26,
+              eventRangeEnd: 30,
+              eventCount: 5,
+              reportSchemaVersion: 3,
+              projectionVersion: 1,
+            ),
+          ],
+          morningSovereignReport: report,
+          morningSovereignReportAutoRunKey: '2026-03-10',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('governance-metric-receipt-policy')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('governance-metric-receipt-policy')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('governance-receipt-policy-dialog')),
+      findsOneWidget,
+    );
+    expect(find.text('RECEIPT POLICY DRILL-IN'), findsOneWidget);
+    expect(
+      find.text(
+        '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
+      ),
+      findsWidgets,
+    );
+    expect(
+      find.byKey(const ValueKey('governance-receipt-policy-entry-RPT-TRACKED')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('governance-receipt-policy-entry-RPT-LEGACY')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('governance-receipt-policy-entry-RPT-OLD')),
+      findsNothing,
+    );
+    expect(find.text('All sections included'), findsNothing);
+    expect(find.text('2 sections omitted'), findsOneWidget);
+    expect(find.text('Legacy receipt configuration'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Included: Incident Timeline, Dispatch Summary, Checkpoint Compliance. Omitted: AI Decision Log, Guard Metrics.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'Per-section report configuration was not captured for this generated receipt.',
+      ),
       findsOneWidget,
     );
   });
