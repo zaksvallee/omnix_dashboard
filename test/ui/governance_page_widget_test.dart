@@ -521,6 +521,125 @@ void main() {
     );
   });
 
+  testWidgets('governance partner scorecard drill-in can open scoped reports', (
+    tester,
+  ) async {
+    Map<String, String>? openedScope;
+    final report = SovereignReport(
+      date: '2026-03-10',
+      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
+      shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 10,
+        hashVerified: true,
+        integrityScore: 99,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 1,
+        humanOverrides: 0,
+        overrideReasons: <String, int>{},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 1,
+        driftDetected: 0,
+        avgMatchScore: 100,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 0,
+        pdpExpired: 0,
+        totalBlocked: 0,
+      ),
+      partnerProgression: SovereignReportPartnerProgression(
+        dispatchCount: 1,
+        declarationCount: 3,
+        acceptedCount: 1,
+        onSiteCount: 1,
+        allClearCount: 1,
+        cancelledCount: 0,
+        summaryLine: '',
+        scoreboardRows: [
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            partnerLabel: 'Partner Alpha',
+            dispatchCount: 1,
+            strongCount: 1,
+            onTrackCount: 0,
+            watchCount: 0,
+            criticalCount: 0,
+            averageAcceptedDelayMinutes: 4.0,
+            averageOnSiteDelayMinutes: 10.0,
+            summaryLine:
+                'Dispatches 1 • Strong 1 • On track 0 • Watch 0 • Critical 0 • Avg accept 4.0m • Avg on site 10.0m',
+          ),
+        ],
+        dispatchChains: [
+          SovereignReportPartnerDispatchChain(
+            dispatchId: 'DSP-200',
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            partnerLabel: 'Partner Alpha',
+            declarationCount: 3,
+            latestStatus: PartnerDispatchStatus.allClear,
+            latestOccurredAtUtc: DateTime.utc(2026, 3, 10, 1, 30),
+            dispatchCreatedAtUtc: DateTime.utc(2026, 3, 10, 1, 0),
+            acceptedAtUtc: DateTime.utc(2026, 3, 10, 1, 4),
+            onSiteAtUtc: DateTime.utc(2026, 3, 10, 1, 10),
+            allClearAtUtc: DateTime.utc(2026, 3, 10, 1, 30),
+            acceptedDelayMinutes: 4.0,
+            onSiteDelayMinutes: 10.0,
+            scoreLabel: 'STRONG',
+            scoreReason:
+                'Partner reached ALL CLEAR inside target acceptance and on-site windows.',
+            workflowSummary:
+                'ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)',
+          ),
+        ],
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GovernancePage(
+          events: const [],
+          morningSovereignReport: report,
+          onOpenReportsForPartnerScope: (clientId, siteId, partnerLabel) {
+            openedScope = <String, String>{
+              'clientId': clientId,
+              'siteId': siteId,
+              'partnerLabel': partnerLabel,
+            };
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final scoreboardFinder = find.byKey(
+      const ValueKey(
+        'governance-partner-scoreboard-CLIENT-1/SITE-42-Partner Alpha',
+      ),
+    );
+    await tester.ensureVisible(scoreboardFinder);
+    await tester.tap(scoreboardFinder);
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(
+        const ValueKey('governance-partner-scorecard-open-reports-scope'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(openedScope, <String, String>{
+      'clientId': 'CLIENT-1',
+      'siteId': 'SITE-42',
+      'partnerLabel': 'Partner Alpha',
+    });
+    expect(find.textContaining('Opening Reports for SITE-42'), findsOneWidget);
+  });
+
   testWidgets('governance page scopes partner reporting to a selected site and partner', (
     tester,
   ) async {

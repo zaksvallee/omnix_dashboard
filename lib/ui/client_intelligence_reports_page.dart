@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../application/morning_sovereign_report_service.dart';
 import '../application/monitoring_scene_review_store.dart';
 import '../application/report_output_mode.dart';
 import '../application/report_receipt_export_payload.dart';
@@ -35,20 +36,31 @@ class ClientIntelligenceReportsPage extends StatefulWidget {
   final InMemoryEventStore store;
   final String selectedClient;
   final String selectedSite;
+  final List<SovereignReport> morningSovereignReportHistory;
+  final String? initialPartnerScopeClientId;
+  final String? initialPartnerScopeSiteId;
+  final String? initialPartnerScopePartnerLabel;
   final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
   final ReportShellState reportShellState;
   final ValueChanged<ReportShellState>? onReportShellStateChanged;
   final ValueChanged<ReportPreviewRequest>? onRequestPreview;
+  final void Function(String clientId, String siteId, String partnerLabel)?
+  onOpenGovernanceForPartnerScope;
 
   const ClientIntelligenceReportsPage({
     super.key,
     required this.store,
     required this.selectedClient,
     required this.selectedSite,
+    this.morningSovereignReportHistory = const <SovereignReport>[],
+    this.initialPartnerScopeClientId,
+    this.initialPartnerScopeSiteId,
+    this.initialPartnerScopePartnerLabel,
     this.sceneReviewByIntelligenceId = const {},
     this.reportShellState = const ReportShellState(),
     this.onReportShellStateChanged,
     this.onRequestPreview,
+    this.onOpenGovernanceForPartnerScope,
   });
 
   @override
@@ -244,6 +256,10 @@ class _ClientIntelligenceReportsPageState
                       row: previewTargetReceipt,
                       hasLiveReceipts: _receipts.isNotEmpty,
                     ),
+                  ],
+                  if (_hasPartnerScopeFocus) ...[
+                    const SizedBox(height: 8),
+                    _partnerScopeCard(),
                   ],
                   const SizedBox(height: 8),
                   _kpiBand(
@@ -453,7 +469,8 @@ class _ClientIntelligenceReportsPageState
             accent: const Color(0xFF63BDFF),
             icon: Icons.description_rounded,
             isActive: _receiptFilter == ReportReceiptSceneFilter.all,
-            onTap: () => toggleReportReceiptFilter(ReportReceiptSceneFilter.all),
+            onTap: () =>
+                toggleReportReceiptFilter(ReportReceiptSceneFilter.all),
           ),
           _kpiCard(
             label: 'VERIFIED REPORTS',
@@ -484,7 +501,8 @@ class _ClientIntelligenceReportsPageState
             accent: const Color(0xFF63BDFF),
             icon: Icons.notifications_active_rounded,
             isActive: _receiptFilter == ReportReceiptSceneFilter.alerts,
-            onTap: () => toggleReportReceiptFilter(ReportReceiptSceneFilter.alerts),
+            onTap: () =>
+                toggleReportReceiptFilter(ReportReceiptSceneFilter.alerts),
           ),
           _kpiCard(
             key: const ValueKey('reports-kpi-repeat'),
@@ -493,7 +511,8 @@ class _ClientIntelligenceReportsPageState
             accent: const Color(0xFFF6C067),
             icon: Icons.repeat_rounded,
             isActive: _receiptFilter == ReportReceiptSceneFilter.repeat,
-            onTap: () => toggleReportReceiptFilter(ReportReceiptSceneFilter.repeat),
+            onTap: () =>
+                toggleReportReceiptFilter(ReportReceiptSceneFilter.repeat),
           ),
           _kpiCard(
             key: const ValueKey('reports-kpi-escalation'),
@@ -546,6 +565,152 @@ class _ClientIntelligenceReportsPageState
           ],
         );
       },
+    );
+  }
+
+  Widget _partnerScopeCard() {
+    final historyPoints = _partnerScopeHistoryPoints();
+    final latestPoint = historyPoints.isEmpty ? null : historyPoints.first;
+    final currentChains = _partnerScopeDispatchChains();
+    final trendLabel = _partnerScopeTrendLabel(historyPoints);
+    final trendReason = _partnerScopeTrendReason(historyPoints);
+    return OnyxSectionCard(
+      title: 'Partner Scorecard Focus',
+      subtitle:
+          'Scoped responder reporting for the active partner lane in Reports.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            key: const ValueKey('reports-partner-scope-banner'),
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF102337),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFF29425F)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'PARTNER SCOPE ACTIVE',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF8FD1FF),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${_partnerScopeClientId!}/${_partnerScopeSiteId!} • ${_partnerScopePartnerLabel!}',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFE8F1FF),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  latestPoint?.row.summaryLine ??
+                      'No morning partner scorecard data has been recorded yet for this scope.',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF9CB2D1),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (trendLabel.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _partnerScopeChip(
+                        label: trendLabel,
+                        color: _partnerTrendColor(trendLabel),
+                      ),
+                      _partnerScopeChip(
+                        label:
+                            '${historyPoints.length} day${historyPoints.length == 1 ? '' : 's'}',
+                      ),
+                      _partnerScopeChip(
+                        label:
+                            '${currentChains.length} chain${currentChains.length == 1 ? '' : 's'}',
+                      ),
+                    ],
+                  ),
+                ],
+                if (trendReason.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    trendReason,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF8EA4C2),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _actionButton(
+                key: const ValueKey('reports-partner-scorecard-copy-json'),
+                label: 'Copy Partner JSON',
+                icon: Icons.copy_all_rounded,
+                onTap: _copyPartnerScopeJson,
+              ),
+              _actionButton(
+                key: const ValueKey('reports-partner-scorecard-copy-csv'),
+                label: 'Copy Partner CSV',
+                icon: Icons.table_chart_rounded,
+                onTap: _copyPartnerScopeCsv,
+              ),
+              if (widget.onOpenGovernanceForPartnerScope != null)
+                _actionButton(
+                  key: const ValueKey(
+                    'reports-partner-scorecard-open-governance',
+                  ),
+                  label: 'Open Governance Scope',
+                  icon: Icons.verified_user_rounded,
+                  onTap: () {
+                    widget.onOpenGovernanceForPartnerScope!(
+                      _partnerScopeClientId!,
+                      _partnerScopeSiteId!,
+                      _partnerScopePartnerLabel!,
+                    );
+                    _showReceiptActionFeedback(
+                      'Opening Governance for ${_partnerScopeSiteId!} • ${_partnerScopePartnerLabel!}.',
+                    );
+                  },
+                ),
+            ],
+          ),
+          if (historyPoints.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Scorecard history',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFE8F1FF),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            for (final point in historyPoints.take(4)) ...[
+              _partnerScopeHistoryRow(point),
+              const SizedBox(height: 6),
+            ],
+          ],
+        ],
+      ),
     );
   }
 
@@ -638,6 +803,262 @@ class _ClientIntelligenceReportsPageState
       borderRadius: BorderRadius.circular(14),
       child: card,
     );
+  }
+
+  Widget _partnerScopeChip({
+    required String label,
+    Color color = const Color(0xFF8FD1FF),
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Widget _partnerScopeHistoryRow(_PartnerScopeHistoryPoint point) {
+    return Container(
+      key: ValueKey<String>(
+        'reports-partner-scope-history-${point.reportDate}',
+      ),
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: point.current
+            ? const Color(0x1A0EA5E9)
+            : const Color(0xFF0E1A2B),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: point.current
+              ? const Color(0x550EA5E9)
+              : const Color(0xFF223244),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            point.current ? '${point.reportDate} • CURRENT' : point.reportDate,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFE8F1FF),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            point.row.summaryLine,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9CB2D1),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<_PartnerScopeHistoryPoint> _partnerScopeHistoryPoints() {
+    if (!_hasPartnerScopeFocus) {
+      return const <_PartnerScopeHistoryPoint>[];
+    }
+    final reports = [...widget.morningSovereignReportHistory]
+      ..sort((a, b) {
+        final generatedCompare = b.generatedAtUtc.compareTo(a.generatedAtUtc);
+        if (generatedCompare != 0) {
+          return generatedCompare;
+        }
+        return b.date.compareTo(a.date);
+      });
+    if (reports.isEmpty) {
+      return const <_PartnerScopeHistoryPoint>[];
+    }
+    final latestDate = reports.first.date.trim();
+    final rows = <_PartnerScopeHistoryPoint>[];
+    for (final report in reports) {
+      final reportDate = report.date.trim();
+      if (reportDate.isEmpty) {
+        continue;
+      }
+      for (final row in report.partnerProgression.scoreboardRows) {
+        if (!_partnerScoreboardMatchesScope(row)) {
+          continue;
+        }
+        rows.add(
+          _PartnerScopeHistoryPoint(
+            reportDate: reportDate,
+            row: row,
+            current: reportDate == latestDate,
+          ),
+        );
+      }
+    }
+    return rows;
+  }
+
+  List<SovereignReportPartnerDispatchChain> _partnerScopeDispatchChains() {
+    if (!_hasPartnerScopeFocus) {
+      return const <SovereignReportPartnerDispatchChain>[];
+    }
+    final reports = [...widget.morningSovereignReportHistory]
+      ..sort((a, b) {
+        final generatedCompare = b.generatedAtUtc.compareTo(a.generatedAtUtc);
+        if (generatedCompare != 0) {
+          return generatedCompare;
+        }
+        return b.date.compareTo(a.date);
+      });
+    if (reports.isEmpty) {
+      return const <SovereignReportPartnerDispatchChain>[];
+    }
+    return reports.first.partnerProgression.dispatchChains
+        .where((chain) => _partnerDispatchChainMatchesScope(chain))
+        .toList(growable: false);
+  }
+
+  bool _partnerScoreboardMatchesScope(SovereignReportPartnerScoreboardRow row) {
+    return row.clientId.trim() == _partnerScopeClientId &&
+        row.siteId.trim() == _partnerScopeSiteId &&
+        row.partnerLabel.trim().toUpperCase() ==
+            (_partnerScopePartnerLabel ?? '').toUpperCase();
+  }
+
+  bool _partnerDispatchChainMatchesScope(
+    SovereignReportPartnerDispatchChain chain,
+  ) {
+    return chain.clientId.trim() == _partnerScopeClientId &&
+        chain.siteId.trim() == _partnerScopeSiteId &&
+        chain.partnerLabel.trim().toUpperCase() ==
+            (_partnerScopePartnerLabel ?? '').toUpperCase();
+  }
+
+  String _partnerScopeTrendLabel(List<_PartnerScopeHistoryPoint> points) {
+    if (points.isEmpty) {
+      return '';
+    }
+    final current = points.firstWhere(
+      (point) => point.current,
+      orElse: () => points.first,
+    );
+    final priorRows = points
+        .where((point) => !point.current)
+        .map((point) => point.row)
+        .toList(growable: false);
+    if (priorRows.isEmpty) {
+      return 'NEW';
+    }
+    final priorAverage =
+        priorRows
+            .map((row) => _partnerSeverityScore(row))
+            .reduce((left, right) => left + right) /
+        priorRows.length;
+    final currentScore = _partnerSeverityScore(current.row);
+    if (currentScore <= priorAverage - 0.35) {
+      return 'IMPROVING';
+    }
+    if (currentScore >= priorAverage + 0.35) {
+      return 'SLIPPING';
+    }
+    return 'STABLE';
+  }
+
+  String _partnerScopeTrendReason(List<_PartnerScopeHistoryPoint> points) {
+    if (points.isEmpty) {
+      return '';
+    }
+    final current = points.firstWhere(
+      (point) => point.current,
+      orElse: () => points.first,
+    );
+    final priorRows = points
+        .where((point) => !point.current)
+        .map((point) => point.row)
+        .toList(growable: false);
+    if (priorRows.isEmpty) {
+      return 'First recorded shift in the available scorecard history.';
+    }
+    final trendLabel = _partnerScopeTrendLabel(points);
+    final priorAcceptedRows = priorRows
+        .where((row) => row.averageAcceptedDelayMinutes > 0)
+        .toList(growable: false);
+    final priorOnSiteRows = priorRows
+        .where((row) => row.averageOnSiteDelayMinutes > 0)
+        .toList(growable: false);
+    final priorAcceptedAverage = priorAcceptedRows.isEmpty
+        ? null
+        : priorAcceptedRows
+                  .map((row) => row.averageAcceptedDelayMinutes)
+                  .reduce((left, right) => left + right) /
+              priorAcceptedRows.length;
+    final priorOnSiteAverage = priorOnSiteRows.isEmpty
+        ? null
+        : priorOnSiteRows
+                  .map((row) => row.averageOnSiteDelayMinutes)
+                  .reduce((left, right) => left + right) /
+              priorOnSiteRows.length;
+    switch (trendLabel) {
+      case 'IMPROVING':
+        if (priorAcceptedAverage != null &&
+            current.row.averageAcceptedDelayMinutes > 0 &&
+            current.row.averageAcceptedDelayMinutes <=
+                priorAcceptedAverage - 2.0) {
+          return 'Acceptance timing improved against the prior scorecard average.';
+        }
+        if (priorOnSiteAverage != null &&
+            current.row.averageOnSiteDelayMinutes > 0 &&
+            current.row.averageOnSiteDelayMinutes <= priorOnSiteAverage - 2.0) {
+          return 'On-site timing improved against the prior scorecard average.';
+        }
+        return 'Current shift severity improved against prior scorecards.';
+      case 'SLIPPING':
+        if (priorAcceptedAverage != null &&
+            current.row.averageAcceptedDelayMinutes >=
+                priorAcceptedAverage + 2.0) {
+          return 'Acceptance timing slipped beyond the prior scorecard average.';
+        }
+        if (priorOnSiteAverage != null &&
+            current.row.averageOnSiteDelayMinutes >= priorOnSiteAverage + 2.0) {
+          return 'On-site timing slipped beyond the prior scorecard average.';
+        }
+        return 'Current shift severity slipped against prior scorecards.';
+      case 'STABLE':
+      case 'NEW':
+        return 'Current shift is holding close to the recent scorecard baseline.';
+    }
+    return '';
+  }
+
+  double _partnerSeverityScore(SovereignReportPartnerScoreboardRow row) {
+    final dispatchCount = row.dispatchCount <= 0 ? 1 : row.dispatchCount;
+    final rawScore = (row.criticalCount * 3) + row.watchCount - row.strongCount;
+    return rawScore / dispatchCount;
+  }
+
+  Color _partnerTrendColor(String label) {
+    switch (label.trim().toUpperCase()) {
+      case 'IMPROVING':
+        return const Color(0xFF59D79B);
+      case 'SLIPPING':
+        return const Color(0xFFFF7A7A);
+      case 'STABLE':
+        return const Color(0xFF8FD1FF);
+      case 'NEW':
+        return const Color(0xFFF6C067);
+      default:
+        return const Color(0xFF8EA4C2);
+    }
   }
 
   Widget _buildDeterministicControls() {
@@ -1147,9 +1568,32 @@ class _ClientIntelligenceReportsPageState
     );
   }
 
+  String? get _partnerScopeClientId {
+    final value = widget.initialPartnerScopeClientId?.trim() ?? '';
+    return value.isEmpty ? null : value;
+  }
+
+  String? get _partnerScopeSiteId {
+    final value = widget.initialPartnerScopeSiteId?.trim() ?? '';
+    return value.isEmpty ? null : value;
+  }
+
+  String? get _partnerScopePartnerLabel {
+    final value = widget.initialPartnerScopePartnerLabel?.trim() ?? '';
+    return value.isEmpty ? null : value;
+  }
+
+  bool get _hasPartnerScopeFocus =>
+      _partnerScopeClientId != null &&
+      _partnerScopeSiteId != null &&
+      _partnerScopePartnerLabel != null;
+
   String get _pageSubtitle {
+    final scopeLabel = _hasPartnerScopeFocus
+        ? '${widget.selectedClient} • ${widget.selectedSite} • ${_partnerScopePartnerLabel!}'
+        : '${widget.selectedClient} • ${widget.selectedSite}';
     return ReportReceiptHistoryCopy.pageSubtitle(
-      scopeLabel: '${widget.selectedClient} • ${widget.selectedSite}',
+      scopeLabel: scopeLabel,
       filter: _receiptFilter,
     );
   }
@@ -1176,7 +1620,9 @@ class _ClientIntelligenceReportsPageState
       onOpenFocusedReceipt: openRow == null
           ? null
           : () => _previewReceipt(openRow, hasLiveReceipts),
-      onCopyFocusedReceipt: openRow == null ? null : () => _copyReceipt(openRow),
+      onCopyFocusedReceipt: openRow == null
+          ? null
+          : () => _copyReceipt(openRow),
       onShowAll: () => setReportReceiptFilter(ReportReceiptSceneFilter.all),
     );
   }
@@ -1568,6 +2014,94 @@ class _ClientIntelligenceReportsPageState
     );
   }
 
+  void _copyPartnerScopeJson() {
+    final payload = _partnerScopeExportPayload();
+    final encoded = const JsonEncoder.withIndent('  ').convert(payload);
+    Clipboard.setData(ClipboardData(text: encoded));
+    logUiAction(
+      'reports.copy_partner_scorecard_json',
+      context: <String, Object?>{
+        'client_id': _partnerScopeClientId,
+        'site_id': _partnerScopeSiteId,
+        'partner_label': _partnerScopePartnerLabel,
+      },
+    );
+    _showReceiptActionFeedback('Partner scorecard JSON copied.');
+  }
+
+  void _copyPartnerScopeCsv() {
+    final encoded = _partnerScopeExportCsv();
+    Clipboard.setData(ClipboardData(text: encoded));
+    logUiAction(
+      'reports.copy_partner_scorecard_csv',
+      context: <String, Object?>{
+        'client_id': _partnerScopeClientId,
+        'site_id': _partnerScopeSiteId,
+        'partner_label': _partnerScopePartnerLabel,
+      },
+    );
+    _showReceiptActionFeedback('Partner scorecard CSV copied.');
+  }
+
+  Map<String, Object?> _partnerScopeExportPayload() {
+    final historyPoints = _partnerScopeHistoryPoints();
+    _PartnerScopeHistoryPoint? currentPoint;
+    for (final point in historyPoints) {
+      if (point.current) {
+        currentPoint = point;
+        break;
+      }
+    }
+    currentPoint ??= historyPoints.isEmpty ? null : historyPoints.first;
+    final chains = _partnerScopeDispatchChains();
+    return <String, Object?>{
+      'scope': <String, Object?>{
+        'clientId': _partnerScopeClientId,
+        'siteId': _partnerScopeSiteId,
+        'partnerLabel': _partnerScopePartnerLabel,
+      },
+      'trendLabel': _partnerScopeTrendLabel(historyPoints),
+      'trendReason': _partnerScopeTrendReason(historyPoints),
+      'currentRow': currentPoint?.toJson(),
+      'historyRows': historyPoints
+          .map((point) => point.toJson())
+          .toList(growable: false),
+      'dispatchChains': chains
+          .map((chain) => chain.toJson())
+          .toList(growable: false),
+    };
+  }
+
+  String _partnerScopeExportCsv() {
+    final historyPoints = _partnerScopeHistoryPoints();
+    final chains = _partnerScopeDispatchChains();
+    final lines = <String>[
+      'metric,value',
+      'client_id,${_partnerScopeClientId ?? ''}',
+      'site_id,${_partnerScopeSiteId ?? ''}',
+      'partner_label,"${(_partnerScopePartnerLabel ?? '').replaceAll('"', '""')}"',
+      'trend_label,${_partnerScopeTrendLabel(historyPoints)}',
+      'trend_reason,"${_partnerScopeTrendReason(historyPoints).replaceAll('"', '""')}"',
+      for (var i = 0; i < historyPoints.length; i++)
+        'history_row_${i + 1},"${historyPoints[i].toCsvSummary().replaceAll('"', '""')}"',
+      for (var i = 0; i < chains.length; i++)
+        'dispatch_chain_${i + 1},"${_partnerScopeChainCsvSummary(chains[i]).replaceAll('"', '""')}"',
+    ];
+    return lines.join('\n');
+  }
+
+  String _partnerScopeChainCsvSummary(
+    SovereignReportPartnerDispatchChain chain,
+  ) {
+    final parts = <String>[
+      chain.dispatchId,
+      chain.workflowSummary,
+      if (chain.scoreLabel.trim().isNotEmpty) chain.scoreLabel.trim(),
+      if (chain.scoreReason.trim().isNotEmpty) chain.scoreReason.trim(),
+    ];
+    return parts.join(' • ');
+  }
+
   void _showReceiptActionFeedback(String message) {
     final messenger = ScaffoldMessenger.maybeOf(context);
     if (messenger == null) {
@@ -1592,8 +2126,13 @@ class _ClientIntelligenceReportsPageState
     );
     final encoded = const JsonEncoder.withIndent('  ').convert(payload);
     Clipboard.setData(ClipboardData(text: encoded));
-    logUiAction('reports.copy_receipt', context: {'event_id': row.event.eventId});
-    _showReceiptActionFeedback('Receipt export copied for ${row.event.eventId}.');
+    logUiAction(
+      'reports.copy_receipt',
+      context: {'event_id': row.event.eventId},
+    );
+    _showReceiptActionFeedback(
+      'Receipt export copied for ${row.event.eventId}.',
+    );
   }
 
   Future<void> _previewReceipt(_ReceiptRow row, bool hasLiveReceipts) async {
@@ -1644,11 +2183,13 @@ class _ClientIntelligenceReportsPageState
   }
 
   Widget _actionButton({
+    Key? key,
     required String label,
     required IconData icon,
     required VoidCallback? onTap,
   }) {
     return TextButton.icon(
+      key: key,
       onPressed: onTap,
       style: TextButton.styleFrom(
         backgroundColor: const Color(0xFF194E87),
@@ -1840,4 +2381,29 @@ class _ReceiptRow {
     required this.replayVerified,
     this.sceneReviewSummary,
   });
+}
+
+class _PartnerScopeHistoryPoint {
+  final String reportDate;
+  final SovereignReportPartnerScoreboardRow row;
+  final bool current;
+
+  const _PartnerScopeHistoryPoint({
+    required this.reportDate,
+    required this.row,
+    required this.current,
+  });
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'reportDate': reportDate,
+      'current': current,
+      'row': row.toJson(),
+    };
+  }
+
+  String toCsvSummary() {
+    final currentLabel = current ? 'CURRENT' : 'HISTORY';
+    return '$reportDate • $currentLabel • ${row.clientId}/${row.siteId} • ${row.partnerLabel} • ${row.summaryLine}';
+  }
 }

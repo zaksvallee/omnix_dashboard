@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:omnix_dashboard/application/morning_sovereign_report_service.dart';
 import 'package:omnix_dashboard/application/report_output_mode.dart';
 import 'package:omnix_dashboard/application/report_preview_request.dart';
 import 'package:omnix_dashboard/application/report_preview_surface.dart';
 import 'package:omnix_dashboard/application/report_receipt_scene_filter.dart';
 import 'package:omnix_dashboard/application/report_shell_state.dart';
+import 'package:omnix_dashboard/domain/events/partner_dispatch_status_declared.dart';
 import 'package:omnix_dashboard/domain/events/report_generated.dart';
 import 'package:omnix_dashboard/domain/store/in_memory_event_store.dart';
 import 'package:omnix_dashboard/ui/client_intelligence_reports_page.dart';
@@ -75,65 +77,290 @@ void main() {
     expect(clipboardText, contains('"sceneReviewIncluded": false'));
   });
 
-  testWidgets(
-    'client reports export all includes latest-action lens context',
-    (tester) async {
-      String? clipboardText;
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+  testWidgets('client reports shows partner scope card and exports scoped scorecard', (
+    tester,
+  ) async {
+    String? clipboardText;
+    Map<String, String>? openedGovernanceScope;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final args = call.arguments as Map<dynamic, dynamic>;
+          clipboardText = args['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         SystemChannels.platform,
-        (call) async {
-          if (call.method == 'Clipboard.setData') {
-            final args = call.arguments as Map<dynamic, dynamic>;
-            clipboardText = args['text'] as String?;
-          }
-          return null;
-        },
-      );
-      addTearDown(
-        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-          SystemChannels.platform,
-          null,
+        null,
+      ),
+    );
+
+    final priorReport = SovereignReport(
+      date: '2026-03-14',
+      generatedAtUtc: DateTime.utc(2026, 3, 14, 6, 0),
+      shiftWindowStartUtc: DateTime.utc(2026, 3, 13, 22, 0),
+      shiftWindowEndUtc: DateTime.utc(2026, 3, 14, 6, 0),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 10,
+        hashVerified: true,
+        integrityScore: 99,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 1,
+        humanOverrides: 0,
+        overrideReasons: <String, int>{},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 2,
+        driftDetected: 0,
+        avgMatchScore: 100,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 0,
+        pdpExpired: 0,
+        totalBlocked: 0,
+      ),
+      partnerProgression: SovereignReportPartnerProgression(
+        dispatchCount: 1,
+        declarationCount: 2,
+        acceptedCount: 1,
+        onSiteCount: 0,
+        allClearCount: 0,
+        cancelledCount: 1,
+        summaryLine: '',
+        scoreboardRows: [
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            partnerLabel: 'PARTNER • Alpha',
+            dispatchCount: 1,
+            strongCount: 0,
+            onTrackCount: 0,
+            watchCount: 0,
+            criticalCount: 1,
+            averageAcceptedDelayMinutes: 12.0,
+            averageOnSiteDelayMinutes: 0.0,
+            summaryLine:
+                'Dispatches 1 • Strong 0 • On track 0 • Watch 0 • Critical 1 • Avg accept 12.0m • Avg on site 0.0m',
+          ),
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-002',
+            siteId: 'SITE-OTHER',
+            partnerLabel: 'PARTNER • Beta',
+            dispatchCount: 1,
+            strongCount: 1,
+            onTrackCount: 0,
+            watchCount: 0,
+            criticalCount: 0,
+            averageAcceptedDelayMinutes: 5.0,
+            averageOnSiteDelayMinutes: 11.0,
+            summaryLine:
+                'Dispatches 1 • Strong 1 • On track 0 • Watch 0 • Critical 0 • Avg accept 5.0m • Avg on site 11.0m',
+          ),
+        ],
+      ),
+    );
+    final currentReport = SovereignReport(
+      date: '2026-03-15',
+      generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
+      shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 10,
+        hashVerified: true,
+        integrityScore: 99,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 1,
+        humanOverrides: 0,
+        overrideReasons: <String, int>{},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 2,
+        driftDetected: 0,
+        avgMatchScore: 100,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 0,
+        pdpExpired: 0,
+        totalBlocked: 0,
+      ),
+      partnerProgression: SovereignReportPartnerProgression(
+        dispatchCount: 1,
+        declarationCount: 3,
+        acceptedCount: 1,
+        onSiteCount: 1,
+        allClearCount: 1,
+        cancelledCount: 0,
+        summaryLine: '',
+        scoreboardRows: [
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            partnerLabel: 'PARTNER • Alpha',
+            dispatchCount: 1,
+            strongCount: 1,
+            onTrackCount: 0,
+            watchCount: 0,
+            criticalCount: 0,
+            averageAcceptedDelayMinutes: 4.0,
+            averageOnSiteDelayMinutes: 10.0,
+            summaryLine:
+                'Dispatches 1 • Strong 1 • On track 0 • Watch 0 • Critical 0 • Avg accept 4.0m • Avg on site 10.0m',
+          ),
+        ],
+        dispatchChains: [
+          SovereignReportPartnerDispatchChain(
+            dispatchId: 'DSP-9001',
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            partnerLabel: 'PARTNER • Alpha',
+            declarationCount: 3,
+            latestStatus: PartnerDispatchStatus.allClear,
+            latestOccurredAtUtc: DateTime.utc(2026, 3, 15, 1, 18),
+            dispatchCreatedAtUtc: DateTime.utc(2026, 3, 15, 1, 0),
+            acceptedAtUtc: DateTime.utc(2026, 3, 15, 1, 4),
+            onSiteAtUtc: DateTime.utc(2026, 3, 15, 1, 10),
+            allClearAtUtc: DateTime.utc(2026, 3, 15, 1, 18),
+            acceptedDelayMinutes: 4.0,
+            onSiteDelayMinutes: 10.0,
+            scoreLabel: 'STRONG',
+            scoreReason:
+                'Partner reached ALL CLEAR inside target acceptance and on-site windows.',
+            workflowSummary:
+                'ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)',
+          ),
+        ],
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ClientIntelligenceReportsPage(
+          store: InMemoryEventStore(),
+          selectedClient: 'CLIENT-001',
+          selectedSite: 'SITE-SANDTON',
+          morningSovereignReportHistory: [priorReport, currentReport],
+          initialPartnerScopeClientId: 'CLIENT-001',
+          initialPartnerScopeSiteId: 'SITE-SANDTON',
+          initialPartnerScopePartnerLabel: 'PARTNER • Alpha',
+          onOpenGovernanceForPartnerScope: (clientId, siteId, partnerLabel) {
+            openedGovernanceScope = <String, String>{
+              'clientId': clientId,
+              'siteId': siteId,
+              'partnerLabel': partnerLabel,
+            };
+          },
         ),
-      );
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      final fixture = buildReviewedReportWorkspaceFixture();
+    expect(
+      find.byKey(const ValueKey('reports-partner-scope-banner')),
+      findsOneWidget,
+    );
+    expect(find.text('PARTNER SCOPE ACTIVE'), findsOneWidget);
+    expect(
+      find.text('CLIENT-001/SITE-SANDTON • PARTNER • Alpha'),
+      findsOneWidget,
+    );
+    expect(find.text('IMPROVING'), findsOneWidget);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: ClientIntelligenceReportsPage(
-            store: fixture.store,
-            selectedClient: 'CLIENT-001',
-            selectedSite: 'SITE-SANDTON',
-            sceneReviewByIntelligenceId: fixture.sceneReviewByIntelligenceId,
-            reportShellState: const ReportShellState(
-              receiptFilter: ReportReceiptSceneFilter.latestAlerts,
-            ),
+    await tester.tap(
+      find.byKey(const ValueKey('reports-partner-scorecard-copy-json')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(clipboardText, isNotNull);
+    expect(clipboardText, contains('"partnerLabel": "PARTNER • Alpha"'));
+    expect(clipboardText, contains('"trendLabel": "IMPROVING"'));
+    expect(clipboardText, contains('"dispatchId": "DSP-9001"'));
+    expect(clipboardText, isNot(contains('CLIENT-002')));
+
+    await tester.tap(
+      find.byKey(const ValueKey('reports-partner-scorecard-copy-csv')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(clipboardText, contains('partner_label,"PARTNER • Alpha"'));
+    expect(clipboardText, contains('trend_label,IMPROVING'));
+    expect(clipboardText, contains('dispatch_chain_1,"DSP-9001'));
+
+    await tester.tap(
+      find.byKey(const ValueKey('reports-partner-scorecard-open-governance')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(openedGovernanceScope, <String, String>{
+      'clientId': 'CLIENT-001',
+      'siteId': 'SITE-SANDTON',
+      'partnerLabel': 'PARTNER • Alpha',
+    });
+  });
+
+  testWidgets('client reports export all includes latest-action lens context', (
+    tester,
+  ) async {
+    String? clipboardText;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final args = call.arguments as Map<dynamic, dynamic>;
+          clipboardText = args['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+
+    final fixture = buildReviewedReportWorkspaceFixture();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ClientIntelligenceReportsPage(
+          store: fixture.store,
+          selectedClient: 'CLIENT-001',
+          selectedSite: 'SITE-SANDTON',
+          sceneReviewByIntelligenceId: fixture.sceneReviewByIntelligenceId,
+          reportShellState: const ReportShellState(
+            receiptFilter: ReportReceiptSceneFilter.latestAlerts,
           ),
         ),
-      );
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      final exportAllButton = find.byKey(
-        const ValueKey('reports-export-all-button'),
-      );
-      await tester.ensureVisible(exportAllButton);
-      await tester.tap(exportAllButton);
-      await tester.pumpAndSettle();
+    final exportAllButton = find.byKey(
+      const ValueKey('reports-export-all-button'),
+    );
+    await tester.ensureVisible(exportAllButton);
+    await tester.tap(exportAllButton);
+    await tester.pumpAndSettle();
 
-      expect(clipboardText, isNotNull);
-      expect(clipboardText, contains('"key": "latestAlerts"'));
-      expect(clipboardText, contains('"statusLabel": "Latest Alert receipts"'));
-      expect(clipboardText, contains('"focusedReceipt"'));
-      expect(
-        clipboardText,
-        contains('"eventId": "${fixture.reviewedReceiptEventId}"'),
-      );
-      expect(clipboardText, contains('"latestActionBucket": "alerts"'));
-      expect(clipboardText, contains('"latestActionTaken": "'));
-      expect(clipboardText, contains('Monitoring Alert'));
-      expect(clipboardText, contains('Camera 1'));
-    },
-  );
+    expect(clipboardText, isNotNull);
+    expect(clipboardText, contains('"key": "latestAlerts"'));
+    expect(clipboardText, contains('"statusLabel": "Latest Alert receipts"'));
+    expect(clipboardText, contains('"focusedReceipt"'));
+    expect(
+      clipboardText,
+      contains('"eventId": "${fixture.reviewedReceiptEventId}"'),
+    );
+    expect(clipboardText, contains('"latestActionBucket": "alerts"'));
+    expect(clipboardText, contains('"latestActionTaken": "'));
+    expect(clipboardText, contains('Monitoring Alert'));
+    expect(clipboardText, contains('Camera 1'));
+  });
 
   testWidgets('client reports row copy exports single receipt payload', (
     tester,
@@ -178,7 +405,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final copyButton = find.byKey(const ValueKey('report-receipt-copy-RPT-COPY-1'));
+    final copyButton = find.byKey(
+      const ValueKey('report-receipt-copy-RPT-COPY-1'),
+    );
     await tester.ensureVisible(copyButton);
     await tester.tap(copyButton);
     await tester.pumpAndSettle();
@@ -395,37 +624,38 @@ void main() {
     expect(find.text('No receipts match the selected filter.'), findsNothing);
   });
 
-  testWidgets('client reports latest alert dropdown filter applies receipt filter', (
-    tester,
-  ) async {
-    final fixture = buildReviewedReportWorkspaceFixture();
+  testWidgets(
+    'client reports latest alert dropdown filter applies receipt filter',
+    (tester) async {
+      final fixture = buildReviewedReportWorkspaceFixture();
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: ClientIntelligenceReportsPage(
-          store: fixture.store,
-          selectedClient: 'CLIENT-001',
-          selectedSite: 'SITE-SANDTON',
-          sceneReviewByIntelligenceId: fixture.sceneReviewByIntelligenceId,
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ClientIntelligenceReportsPage(
+            store: fixture.store,
+            selectedClient: 'CLIENT-001',
+            selectedSite: 'SITE-SANDTON',
+            sceneReviewByIntelligenceId: fixture.sceneReviewByIntelligenceId,
+          ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    final filter = find.byKey(const ValueKey('reports-receipt-filter'));
-    await tester.ensureVisible(filter);
-    await tester.tap(filter);
-    await tester.pumpAndSettle();
-    await tester.tap(find.textContaining('Latest Alert').last);
-    await tester.pumpAndSettle();
+      final filter = find.byKey(const ValueKey('reports-receipt-filter'));
+      await tester.ensureVisible(filter);
+      await tester.tap(filter);
+      await tester.pumpAndSettle();
+      await tester.tap(find.textContaining('Latest Alert').last);
+      await tester.pumpAndSettle();
 
-    expect(
-      find.text('CLIENT-001 • SITE-SANDTON • Latest Alert receipts'),
-      findsOneWidget,
-    );
-    expect(find.text('Viewing Latest Alert receipts (1/2)'), findsOneWidget);
-    expect(find.text('No receipts match the selected filter.'), findsNothing);
-  });
+      expect(
+        find.text('CLIENT-001 • SITE-SANDTON • Latest Alert receipts'),
+        findsOneWidget,
+      );
+      expect(find.text('Viewing Latest Alert receipts (1/2)'), findsOneWidget);
+      expect(find.text('No receipts match the selected filter.'), findsNothing);
+    },
+  );
 
   testWidgets('client reports latest action pill applies receipt filter', (
     tester,
@@ -460,7 +690,9 @@ void main() {
     (tester) async {
       final fixture = buildReviewedReportWorkspaceFixture();
       final shellState = ValueNotifier(
-        const ReportShellState(receiptFilter: ReportReceiptSceneFilter.latestAlerts),
+        const ReportShellState(
+          receiptFilter: ReportReceiptSceneFilter.latestAlerts,
+        ),
       );
       final previewRequests = <ReportPreviewRequest>[];
       addTearDown(shellState.dispose);
@@ -474,7 +706,8 @@ void main() {
                 store: fixture.store,
                 selectedClient: 'CLIENT-001',
                 selectedSite: 'SITE-SANDTON',
-                sceneReviewByIntelligenceId: fixture.sceneReviewByIntelligenceId,
+                sceneReviewByIntelligenceId:
+                    fixture.sceneReviewByIntelligenceId,
                 reportShellState: value,
                 onReportShellStateChanged: (next) => shellState.value = next,
                 onRequestPreview: previewRequests.add,
@@ -495,8 +728,14 @@ void main() {
         previewRequests.single.receiptEvent?.eventId,
         fixture.reviewedReceiptEventId,
       );
-      expect(shellState.value.selectedReceiptEventId, fixture.reviewedReceiptEventId);
-      expect(shellState.value.previewReceiptEventId, fixture.reviewedReceiptEventId);
+      expect(
+        shellState.value.selectedReceiptEventId,
+        fixture.reviewedReceiptEventId,
+      );
+      expect(
+        shellState.value.previewReceiptEventId,
+        fixture.reviewedReceiptEventId,
+      );
     },
   );
 
@@ -523,7 +762,9 @@ void main() {
 
       final fixture = buildReviewedReportWorkspaceFixture();
       final shellState = ValueNotifier(
-        const ReportShellState(receiptFilter: ReportReceiptSceneFilter.latestAlerts),
+        const ReportShellState(
+          receiptFilter: ReportReceiptSceneFilter.latestAlerts,
+        ),
       );
       addTearDown(shellState.dispose);
 
@@ -536,7 +777,8 @@ void main() {
                 store: fixture.store,
                 selectedClient: 'CLIENT-001',
                 selectedSite: 'SITE-SANDTON',
-                sceneReviewByIntelligenceId: fixture.sceneReviewByIntelligenceId,
+                sceneReviewByIntelligenceId:
+                    fixture.sceneReviewByIntelligenceId,
                 reportShellState: value,
                 onReportShellStateChanged: (next) => shellState.value = next,
               );
@@ -560,7 +802,10 @@ void main() {
       expect(clipboardText, isNotNull);
       expect(clipboardText, contains('"context"'));
       expect(clipboardText, contains('"receipts"'));
-      expect(clipboardText, contains('"eventId": "${fixture.reviewedReceiptEventId}"'));
+      expect(
+        clipboardText,
+        contains('"eventId": "${fixture.reviewedReceiptEventId}"'),
+      );
     },
   );
 
@@ -569,7 +814,9 @@ void main() {
     (tester) async {
       final fixture = buildReviewedReportWorkspaceFixture();
       final shellState = ValueNotifier(
-        const ReportShellState(receiptFilter: ReportReceiptSceneFilter.latestAlerts),
+        const ReportShellState(
+          receiptFilter: ReportReceiptSceneFilter.latestAlerts,
+        ),
       );
       final previewRequests = <ReportPreviewRequest>[];
       addTearDown(shellState.dispose);
@@ -583,7 +830,8 @@ void main() {
                 store: fixture.store,
                 selectedClient: 'CLIENT-001',
                 selectedSite: 'SITE-SANDTON',
-                sceneReviewByIntelligenceId: fixture.sceneReviewByIntelligenceId,
+                sceneReviewByIntelligenceId:
+                    fixture.sceneReviewByIntelligenceId,
                 reportShellState: value,
                 onReportShellStateChanged: (next) => shellState.value = next,
                 onRequestPreview: previewRequests.add,
@@ -595,11 +843,15 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.ensureVisible(
-        find.byKey(const ValueKey('report-receipt-filter-control-open-focused')),
+        find.byKey(
+          const ValueKey('report-receipt-filter-control-open-focused'),
+        ),
       );
       await tester.pumpAndSettle();
       await tester.tap(
-        find.byKey(const ValueKey('report-receipt-filter-control-open-focused')),
+        find.byKey(
+          const ValueKey('report-receipt-filter-control-open-focused'),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -608,8 +860,14 @@ void main() {
         previewRequests.single.receiptEvent?.eventId,
         fixture.reviewedReceiptEventId,
       );
-      expect(shellState.value.selectedReceiptEventId, fixture.reviewedReceiptEventId);
-      expect(shellState.value.previewReceiptEventId, fixture.reviewedReceiptEventId);
+      expect(
+        shellState.value.selectedReceiptEventId,
+        fixture.reviewedReceiptEventId,
+      );
+      expect(
+        shellState.value.previewReceiptEventId,
+        fixture.reviewedReceiptEventId,
+      );
     },
   );
 
@@ -618,7 +876,9 @@ void main() {
     (tester) async {
       final fixture = buildReviewedReportWorkspaceFixture();
       final shellState = ValueNotifier(
-        const ReportShellState(receiptFilter: ReportReceiptSceneFilter.latestAlerts),
+        const ReportShellState(
+          receiptFilter: ReportReceiptSceneFilter.latestAlerts,
+        ),
       );
       final previewRequests = <ReportPreviewRequest>[];
       addTearDown(shellState.dispose);
@@ -632,7 +892,8 @@ void main() {
                 store: fixture.store,
                 selectedClient: 'CLIENT-001',
                 selectedSite: 'SITE-SANDTON',
-                sceneReviewByIntelligenceId: fixture.sceneReviewByIntelligenceId,
+                sceneReviewByIntelligenceId:
+                    fixture.sceneReviewByIntelligenceId,
                 reportShellState: value,
                 onReportShellStateChanged: (next) => shellState.value = next,
                 onRequestPreview: previewRequests.add,
@@ -652,8 +913,14 @@ void main() {
         previewRequests.single.receiptEvent?.eventId,
         fixture.reviewedReceiptEventId,
       );
-      expect(shellState.value.selectedReceiptEventId, fixture.reviewedReceiptEventId);
-      expect(shellState.value.previewReceiptEventId, fixture.reviewedReceiptEventId);
+      expect(
+        shellState.value.selectedReceiptEventId,
+        fixture.reviewedReceiptEventId,
+      );
+      expect(
+        shellState.value.previewReceiptEventId,
+        fixture.reviewedReceiptEventId,
+      );
     },
   );
 
@@ -751,9 +1018,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final jsonControl = find.byKey(
-      const ValueKey('reports-output-mode-json'),
-    );
+    final jsonControl = find.byKey(const ValueKey('reports-output-mode-json'));
     await tester.ensureVisible(jsonControl);
     await tester.tap(jsonControl);
     await tester.pumpAndSettle();
@@ -790,7 +1055,8 @@ void main() {
                 store: fixture.store,
                 selectedClient: 'CLIENT-001',
                 selectedSite: 'SITE-SANDTON',
-                sceneReviewByIntelligenceId: fixture.sceneReviewByIntelligenceId,
+                sceneReviewByIntelligenceId:
+                    fixture.sceneReviewByIntelligenceId,
                 reportShellState: value,
                 onReportShellStateChanged: (next) => shellState.value = next,
               );
@@ -800,7 +1066,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Preview target: $reviewedReceiptEventId'), findsOneWidget);
+      expect(
+        find.text('Preview target: $reviewedReceiptEventId'),
+        findsOneWidget,
+      );
       expect(find.text('Open Preview Target'), findsOneWidget);
 
       final jsonControl = find.byKey(
@@ -815,7 +1084,10 @@ void main() {
       expect(shellState.value.previewReceiptEventId, reviewedReceiptEventId);
       expect(find.text('JSON'), findsWidgets);
       expect(find.text('Viewing Reviewed receipts (1/2)'), findsOneWidget);
-      expect(find.text('Preview target: $reviewedReceiptEventId'), findsOneWidget);
+      expect(
+        find.text('Preview target: $reviewedReceiptEventId'),
+        findsOneWidget,
+      );
       expect(find.text('Open Preview Target'), findsOneWidget);
     },
   );
@@ -880,7 +1152,8 @@ void main() {
                 store: fixture.store,
                 selectedClient: 'CLIENT-001',
                 selectedSite: 'SITE-SANDTON',
-                sceneReviewByIntelligenceId: fixture.sceneReviewByIntelligenceId,
+                sceneReviewByIntelligenceId:
+                    fixture.sceneReviewByIntelligenceId,
                 reportShellState: value,
                 onReportShellStateChanged: (next) => shellState.value = next,
               );
@@ -901,7 +1174,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Viewing Escalation receipts (0/2)'), findsOneWidget);
-      expect(find.text('No receipts match the selected filter.'), findsOneWidget);
+      expect(
+        find.text('No receipts match the selected filter.'),
+        findsOneWidget,
+      );
       expect(find.text('No Receipt Selected'), findsOneWidget);
       expect(shellState.value.selectedReceiptEventId, reviewedReceiptEventId);
 
@@ -944,7 +1220,8 @@ void main() {
                 store: fixture.store,
                 selectedClient: 'CLIENT-001',
                 selectedSite: 'SITE-SANDTON',
-                sceneReviewByIntelligenceId: fixture.sceneReviewByIntelligenceId,
+                sceneReviewByIntelligenceId:
+                    fixture.sceneReviewByIntelligenceId,
                 reportShellState: value,
                 onReportShellStateChanged: (next) => shellState.value = next,
               );
@@ -954,7 +1231,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Preview target: $reviewedReceiptEventId'), findsOneWidget);
+      expect(
+        find.text('Preview target: $reviewedReceiptEventId'),
+        findsOneWidget,
+      );
       expect(find.text('Open Preview Target'), findsOneWidget);
 
       final escalationKpi = find.byKey(
@@ -965,8 +1245,14 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Viewing Escalation receipts (0/2)'), findsOneWidget);
-      expect(find.text('Preview target: $reviewedReceiptEventId'), findsOneWidget);
-      expect(find.text('No receipts match the selected filter.'), findsOneWidget);
+      expect(
+        find.text('Preview target: $reviewedReceiptEventId'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('No receipts match the selected filter.'),
+        findsOneWidget,
+      );
       expect(find.text('No Receipt Selected'), findsOneWidget);
       expect(shellState.value.previewReceiptEventId, reviewedReceiptEventId);
 
@@ -976,7 +1262,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Viewing Reviewed receipts (1/2)'), findsOneWidget);
-      expect(find.text('Preview target: $reviewedReceiptEventId'), findsOneWidget);
+      expect(
+        find.text('Preview target: $reviewedReceiptEventId'),
+        findsOneWidget,
+      );
       expect(find.text('Open Preview Target'), findsOneWidget);
       expect(shellState.value.selectedReceiptEventId, reviewedReceiptEventId);
       expect(shellState.value.previewReceiptEventId, reviewedReceiptEventId);
@@ -1012,7 +1301,8 @@ void main() {
                 store: fixture.store,
                 selectedClient: 'CLIENT-001',
                 selectedSite: 'SITE-SANDTON',
-                sceneReviewByIntelligenceId: fixture.sceneReviewByIntelligenceId,
+                sceneReviewByIntelligenceId:
+                    fixture.sceneReviewByIntelligenceId,
                 reportShellState: value,
                 onReportShellStateChanged: (next) => shellState.value = next,
               );
@@ -1022,7 +1312,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Preview target: $reviewedReceiptEventId'), findsOneWidget);
+      expect(
+        find.text('Preview target: $reviewedReceiptEventId'),
+        findsOneWidget,
+      );
       expect(find.text('Open Preview Target'), findsOneWidget);
 
       final dockControl = find.byKey(
@@ -1036,7 +1329,10 @@ void main() {
       expect(shellState.value.selectedReceiptEventId, reviewedReceiptEventId);
       expect(shellState.value.previewReceiptEventId, reviewedReceiptEventId);
       expect(find.text('Preview Dock'), findsOneWidget);
-      expect(find.text('Preview target: $reviewedReceiptEventId'), findsOneWidget);
+      expect(
+        find.text('Preview target: $reviewedReceiptEventId'),
+        findsOneWidget,
+      );
       expect(find.text('Open Full Preview'), findsWidgets);
 
       final routeControl = find.byKey(
@@ -1050,7 +1346,10 @@ void main() {
       expect(shellState.value.selectedReceiptEventId, reviewedReceiptEventId);
       expect(shellState.value.previewReceiptEventId, reviewedReceiptEventId);
       expect(find.text('Preview Dock'), findsNothing);
-      expect(find.text('Preview target: $reviewedReceiptEventId'), findsOneWidget);
+      expect(
+        find.text('Preview target: $reviewedReceiptEventId'),
+        findsOneWidget,
+      );
       expect(find.text('Open Preview Target'), findsOneWidget);
     },
   );
@@ -1253,7 +1552,8 @@ void main() {
                 store: fixture.store,
                 selectedClient: 'CLIENT-001',
                 selectedSite: 'SITE-SANDTON',
-                sceneReviewByIntelligenceId: fixture.sceneReviewByIntelligenceId,
+                sceneReviewByIntelligenceId:
+                    fixture.sceneReviewByIntelligenceId,
                 reportShellState: value,
                 onReportShellStateChanged: (next) => shellState.value = next,
               );
@@ -1263,7 +1563,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Preview target: $reviewedReceiptEventId'), findsOneWidget);
+      expect(
+        find.text('Preview target: $reviewedReceiptEventId'),
+        findsOneWidget,
+      );
 
       await tester.tap(
         find.byKey(const ValueKey('reports-preview-target-clear')),
@@ -1272,7 +1575,10 @@ void main() {
 
       expect(shellState.value.previewReceiptEventId, isNull);
       expect(shellState.value.selectedReceiptEventId, reviewedReceiptEventId);
-      expect(find.text('Preview target: $reviewedReceiptEventId'), findsNothing);
+      expect(
+        find.text('Preview target: $reviewedReceiptEventId'),
+        findsNothing,
+      );
       expect(find.text('Viewing Reviewed receipts (1/2)'), findsOneWidget);
       expect(find.text('Open Selected Receipt'), findsOneWidget);
     },
@@ -1335,63 +1641,63 @@ void main() {
     expect(find.text('Preview Dock'), findsNothing);
   });
 
-  testWidgets(
-    'client reports dock clear keeps reviewed receipt focused',
-    (tester) async {
-      final fixture = buildReviewedReportWorkspaceFixture(
-        reviewedReceiptEventId: 'RPT-LIVE-DOCK-CLEAR-REVIEWED-1',
-        pendingReceiptEventId: 'RPT-LIVE-DOCK-CLEAR-PENDING-1',
-        intelligenceEventId: 'INTEL-DOCK-CLEAR-REVIEWED-1',
-        intelligenceId: 'intel-dock-clear-reviewed-1',
-      );
-      final reviewedReceiptEventId = fixture.reviewedReceiptEventId;
-      final shellState = ValueNotifier(
-        ReportShellState(
-          receiptFilter: ReportReceiptSceneFilter.reviewed,
-          selectedReceiptEventId: reviewedReceiptEventId,
-          previewReceiptEventId: reviewedReceiptEventId,
-          previewSurface: ReportPreviewSurface.dock,
+  testWidgets('client reports dock clear keeps reviewed receipt focused', (
+    tester,
+  ) async {
+    final fixture = buildReviewedReportWorkspaceFixture(
+      reviewedReceiptEventId: 'RPT-LIVE-DOCK-CLEAR-REVIEWED-1',
+      pendingReceiptEventId: 'RPT-LIVE-DOCK-CLEAR-PENDING-1',
+      intelligenceEventId: 'INTEL-DOCK-CLEAR-REVIEWED-1',
+      intelligenceId: 'intel-dock-clear-reviewed-1',
+    );
+    final reviewedReceiptEventId = fixture.reviewedReceiptEventId;
+    final shellState = ValueNotifier(
+      ReportShellState(
+        receiptFilter: ReportReceiptSceneFilter.reviewed,
+        selectedReceiptEventId: reviewedReceiptEventId,
+        previewReceiptEventId: reviewedReceiptEventId,
+        previewSurface: ReportPreviewSurface.dock,
+      ),
+    );
+    addTearDown(shellState.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ValueListenableBuilder<ReportShellState>(
+          valueListenable: shellState,
+          builder: (context, value, _) {
+            return ClientIntelligenceReportsPage(
+              store: fixture.store,
+              selectedClient: 'CLIENT-001',
+              selectedSite: 'SITE-SANDTON',
+              sceneReviewByIntelligenceId: fixture.sceneReviewByIntelligenceId,
+              reportShellState: value,
+              onReportShellStateChanged: (next) => shellState.value = next,
+            );
+          },
         ),
-      );
-      addTearDown(shellState.dispose);
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: ValueListenableBuilder<ReportShellState>(
-            valueListenable: shellState,
-            builder: (context, value, _) {
-              return ClientIntelligenceReportsPage(
-                store: fixture.store,
-                selectedClient: 'CLIENT-001',
-                selectedSite: 'SITE-SANDTON',
-                sceneReviewByIntelligenceId: fixture.sceneReviewByIntelligenceId,
-                reportShellState: value,
-                onReportShellStateChanged: (next) => shellState.value = next,
-              );
-            },
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+    expect(find.text('Preview Dock'), findsOneWidget);
+    expect(
+      find.text('Preview target: $reviewedReceiptEventId'),
+      findsOneWidget,
+    );
 
-      expect(find.text('Preview Dock'), findsOneWidget);
-      expect(find.text('Preview target: $reviewedReceiptEventId'), findsOneWidget);
+    final dockClear = find.byKey(const ValueKey('reports-preview-dock-clear'));
+    await tester.ensureVisible(dockClear);
+    await tester.tap(dockClear);
+    await tester.pumpAndSettle();
 
-      final dockClear = find.byKey(
-        const ValueKey('reports-preview-dock-clear'),
-      );
-      await tester.ensureVisible(dockClear);
-      await tester.tap(dockClear);
-      await tester.pumpAndSettle();
-
-      expect(shellState.value.previewReceiptEventId, isNull);
-      expect(shellState.value.selectedReceiptEventId, reviewedReceiptEventId);
-      expect(find.text('Preview Dock'), findsNothing);
-      expect(find.text('Preview target: $reviewedReceiptEventId'), findsNothing);
-      expect(find.text('Viewing Reviewed receipts (1/2)'), findsOneWidget);
-      expect(find.text('Open Selected Receipt'), findsOneWidget);
-    },
-  );
+    expect(shellState.value.previewReceiptEventId, isNull);
+    expect(shellState.value.selectedReceiptEventId, reviewedReceiptEventId);
+    expect(find.text('Preview Dock'), findsNothing);
+    expect(find.text('Preview target: $reviewedReceiptEventId'), findsNothing);
+    expect(find.text('Viewing Reviewed receipts (1/2)'), findsOneWidget);
+    expect(find.text('Open Selected Receipt'), findsOneWidget);
+  });
 
   testWidgets('client reports uses shared preview callback when provided', (
     tester,
@@ -1434,7 +1740,9 @@ void main() {
     expect(changedState?.previewReceiptEventId, 'RPT-LIVE-1');
   });
 
-  testWidgets('client reports dock open triggers preview request', (tester) async {
+  testWidgets('client reports dock open triggers preview request', (
+    tester,
+  ) async {
     ReportPreviewRequest? previewRequest;
     ReportShellState? changedState;
     final store = InMemoryEventStore();
@@ -1467,9 +1775,7 @@ void main() {
 
     expect(find.text('Preview Dock'), findsOneWidget);
 
-    final dockOpen = find.byKey(
-      const ValueKey('reports-preview-dock-open'),
-    );
+    final dockOpen = find.byKey(const ValueKey('reports-preview-dock-open'));
     await tester.ensureVisible(dockOpen);
     await tester.tap(dockOpen);
     await tester.pumpAndSettle();
@@ -1514,20 +1820,23 @@ void main() {
 
       expect(find.text('Preview Dock'), findsOneWidget);
 
-      final dockOpen = find.byKey(
-        const ValueKey('reports-preview-dock-open'),
-      );
+      final dockOpen = find.byKey(const ValueKey('reports-preview-dock-open'));
       await tester.ensureVisible(dockOpen);
-    await tester.tap(dockOpen);
-    await tester.pumpAndSettle();
+      await tester.tap(dockOpen);
+      await tester.pumpAndSettle();
 
-    expect(find.text('Scene Review Brief'), findsNothing);
-    expect(find.text('Preview Dock'), findsOneWidget);
-      expect(find.text('Preview target: RPT-LIVE-DOCK-ROUTE-1'), findsOneWidget);
+      expect(find.text('Scene Review Brief'), findsNothing);
+      expect(find.text('Preview Dock'), findsOneWidget);
+      expect(
+        find.text('Preview target: RPT-LIVE-DOCK-ROUTE-1'),
+        findsOneWidget,
+      );
     },
   );
 
-  testWidgets('client reports dock copy exports targeted receipt', (tester) async {
+  testWidgets('client reports dock copy exports targeted receipt', (
+    tester,
+  ) async {
     String? clipboardText;
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       SystemChannels.platform,
@@ -1717,7 +2026,8 @@ void main() {
                 store: fixture.store,
                 selectedClient: 'CLIENT-001',
                 selectedSite: 'SITE-SANDTON',
-                sceneReviewByIntelligenceId: fixture.sceneReviewByIntelligenceId,
+                sceneReviewByIntelligenceId:
+                    fixture.sceneReviewByIntelligenceId,
                 reportShellState: value,
                 onReportShellStateChanged: (next) => shellState.value = next,
                 onRequestPreview: previewRequests.add,
@@ -1729,7 +2039,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Viewing Reviewed receipts (1/2)'), findsOneWidget);
-      expect(find.text('Preview target: $reviewedReceiptEventId'), findsOneWidget);
+      expect(
+        find.text('Preview target: $reviewedReceiptEventId'),
+        findsOneWidget,
+      );
 
       final openTarget = find.byKey(
         const ValueKey('reports-preview-target-open'),
@@ -1781,7 +2094,8 @@ void main() {
                 store: fixture.store,
                 selectedClient: 'CLIENT-001',
                 selectedSite: 'SITE-SANDTON',
-                sceneReviewByIntelligenceId: fixture.sceneReviewByIntelligenceId,
+                sceneReviewByIntelligenceId:
+                    fixture.sceneReviewByIntelligenceId,
                 reportShellState: value,
                 onReportShellStateChanged: (next) => shellState.value = next,
               );
@@ -1807,20 +2121,23 @@ void main() {
         findsOneWidget,
       );
 
-      Navigator.of(
-        tester.element(find.text('Scene Review Brief')),
-      ).pop();
+      Navigator.of(tester.element(find.text('Scene Review Brief'))).pop();
       await tester.pumpAndSettle();
 
       expect(find.text('Scene Review Brief'), findsNothing);
       expect(find.text('Viewing Reviewed receipts (1/2)'), findsOneWidget);
-      expect(find.text('Preview target: $reviewedReceiptEventId'), findsOneWidget);
+      expect(
+        find.text('Preview target: $reviewedReceiptEventId'),
+        findsOneWidget,
+      );
       expect(shellState.value.selectedReceiptEventId, reviewedReceiptEventId);
       expect(shellState.value.previewReceiptEventId, reviewedReceiptEventId);
     },
   );
 
-  testWidgets('client reports review lane opens focused receipt', (tester) async {
+  testWidgets('client reports review lane opens focused receipt', (
+    tester,
+  ) async {
     ReportPreviewRequest? previewRequest;
     ReportShellState? changedState;
     final store = InMemoryEventStore();
@@ -1905,9 +2222,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final copyAction = find.byKey(
-      const ValueKey('reports-review-copy-button'),
-    );
+    final copyAction = find.byKey(const ValueKey('reports-review-copy-button'));
     await tester.ensureVisible(copyAction);
     await tester.tap(copyAction);
     await tester.pumpAndSettle();
@@ -1950,7 +2265,8 @@ void main() {
                 store: fixture.store,
                 selectedClient: 'CLIENT-001',
                 selectedSite: 'SITE-SANDTON',
-                sceneReviewByIntelligenceId: fixture.sceneReviewByIntelligenceId,
+                sceneReviewByIntelligenceId:
+                    fixture.sceneReviewByIntelligenceId,
                 reportShellState: value,
                 onReportShellStateChanged: (next) => shellState.value = next,
                 onRequestPreview: previewRequests.add,
@@ -2012,7 +2328,8 @@ void main() {
                 store: fixture.store,
                 selectedClient: 'CLIENT-001',
                 selectedSite: 'SITE-SANDTON',
-                sceneReviewByIntelligenceId: fixture.sceneReviewByIntelligenceId,
+                sceneReviewByIntelligenceId:
+                    fixture.sceneReviewByIntelligenceId,
                 reportShellState: value,
                 onReportShellStateChanged: (next) => shellState.value = next,
               );
@@ -2036,14 +2353,15 @@ void main() {
         findsOneWidget,
       );
 
-      Navigator.of(
-        tester.element(find.text('Scene Review Brief')),
-      ).pop();
+      Navigator.of(tester.element(find.text('Scene Review Brief'))).pop();
       await tester.pumpAndSettle();
 
       expect(find.text('Scene Review Brief'), findsNothing);
       expect(find.text('Viewing Reviewed receipts (1/2)'), findsOneWidget);
-      expect(find.text('Preview target: $reviewedReceiptEventId'), findsOneWidget);
+      expect(
+        find.text('Preview target: $reviewedReceiptEventId'),
+        findsOneWidget,
+      );
       expect(shellState.value.selectedReceiptEventId, reviewedReceiptEventId);
       expect(shellState.value.previewReceiptEventId, reviewedReceiptEventId);
     },
@@ -2163,7 +2481,10 @@ void main() {
     await tester.tap(previewButton);
     await tester.pumpAndSettle();
 
-    expect(previewRequests.single.receiptEvent?.eventId, reviewedReceiptEventId);
+    expect(
+      previewRequests.single.receiptEvent?.eventId,
+      reviewedReceiptEventId,
+    );
     expect(previewRequests.single.bundle.sceneReview.totalReviews, 1);
     expect(
       previewRequests.single.bundle.sceneReview.highlights.single.summary,
@@ -2173,12 +2494,12 @@ void main() {
     expect(shellState.value.previewReceiptEventId, reviewedReceiptEventId);
     expect(find.text('Alert 1'), findsOneWidget);
     expect(find.text('Latest Alert'), findsOneWidget);
+    expect(find.textContaining('Latest action taken:'), findsOneWidget);
+    expect(find.text('Preview Dock'), findsOneWidget);
     expect(
-      find.textContaining('Latest action taken:'),
+      find.text('Preview target: $reviewedReceiptEventId'),
       findsOneWidget,
     );
-    expect(find.text('Preview Dock'), findsOneWidget);
-    expect(find.text('Preview target: $reviewedReceiptEventId'), findsOneWidget);
     expect(find.text(reviewedReceiptEventId), findsWidgets);
   });
 
@@ -2230,13 +2551,14 @@ void main() {
         findsOneWidget,
       );
 
-      Navigator.of(
-        tester.element(find.text('Scene Review Brief')),
-      ).pop();
+      Navigator.of(tester.element(find.text('Scene Review Brief'))).pop();
       await tester.pumpAndSettle();
 
       expect(find.text('Scene Review Brief'), findsNothing);
-      expect(find.text('Preview target: $reviewedReceiptEventId'), findsOneWidget);
+      expect(
+        find.text('Preview target: $reviewedReceiptEventId'),
+        findsOneWidget,
+      );
       expect(
         find.byKey(ValueKey('report-receipt-preview-$reviewedReceiptEventId')),
         findsOneWidget,
@@ -2266,7 +2588,8 @@ void main() {
                 store: store,
                 selectedClient: 'CLIENT-001',
                 selectedSite: 'SITE-SANDTON',
-                sceneReviewByIntelligenceId: fixture.sceneReviewByIntelligenceId,
+                sceneReviewByIntelligenceId:
+                    fixture.sceneReviewByIntelligenceId,
                 reportShellState: value,
                 onReportShellStateChanged: (next) => shellState.value = next,
                 onRequestPreview: previewRequests.add,
@@ -2297,7 +2620,10 @@ void main() {
       await tester.tap(previewReportAction);
       await tester.pumpAndSettle();
 
-      final reportEvents = store.allEvents().whereType<ReportGenerated>().toList();
+      final reportEvents = store
+          .allEvents()
+          .whereType<ReportGenerated>()
+          .toList();
       expect(reportEvents, hasLength(1));
 
       final generatedReceipt = reportEvents.single;
@@ -2320,9 +2646,7 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.byKey(
-          const ValueKey('report-receipt-preview-RPT-2024-03-10-001'),
-        ),
+        find.byKey(const ValueKey('report-receipt-preview-RPT-2024-03-10-001')),
         findsNothing,
       );
       expect(
@@ -2346,7 +2670,10 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.text('Preview target: ${generatedReceipt.eventId}'), findsOneWidget);
+      expect(
+        find.text('Preview target: ${generatedReceipt.eventId}'),
+        findsOneWidget,
+      );
     },
   );
 
@@ -2380,7 +2707,10 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 250));
 
-      final reportEvents = store.allEvents().whereType<ReportGenerated>().toList();
+      final reportEvents = store
+          .allEvents()
+          .whereType<ReportGenerated>()
+          .toList();
       expect(reportEvents, hasLength(1));
       expect(find.text('Scene Review Brief'), findsOneWidget);
       expect(find.text('Receipt Integrity'), findsOneWidget);
@@ -2390,13 +2720,14 @@ void main() {
       );
       expect(find.textContaining(reportEvents.single.eventId), findsWidgets);
 
-      Navigator.of(
-        tester.element(find.text('Scene Review Brief')),
-      ).pop();
+      Navigator.of(tester.element(find.text('Scene Review Brief'))).pop();
       await tester.pumpAndSettle();
 
       expect(find.text('Scene Review Brief'), findsNothing);
-      expect(find.text('Preview target: ${reportEvents.single.eventId}'), findsOneWidget);
+      expect(
+        find.text('Preview target: ${reportEvents.single.eventId}'),
+        findsOneWidget,
+      );
       expect(
         find.byKey(
           ValueKey('report-receipt-preview-${reportEvents.single.eventId}'),

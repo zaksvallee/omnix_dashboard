@@ -329,6 +329,8 @@ class GovernancePage extends StatefulWidget {
   final ValueChanged<String>? onOpenVehicleExceptionEvent;
   final ValueChanged<SovereignReportVehicleVisitException>?
   onOpenVehicleExceptionVisit;
+  final void Function(String clientId, String siteId, String partnerLabel)?
+  onOpenReportsForPartnerScope;
   final GovernanceSceneActionFocus? initialSceneActionFocus;
   final ValueChanged<GovernanceSceneActionFocus?>? onSceneActionFocusChanged;
 
@@ -345,6 +347,7 @@ class GovernancePage extends StatefulWidget {
     this.onMorningSovereignReportChanged,
     this.onOpenVehicleExceptionEvent,
     this.onOpenVehicleExceptionVisit,
+    this.onOpenReportsForPartnerScope,
     this.initialSceneActionFocus,
     this.onSceneActionFocusChanged,
   });
@@ -3740,6 +3743,37 @@ class _GovernancePageState extends State<GovernancePage> {
                             ),
                           ),
                         ],
+                      ),
+                    ),
+                  ],
+                  if (widget.onOpenReportsForPartnerScope != null) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: OutlinedButton.icon(
+                        key: const ValueKey(
+                          'governance-partner-scorecard-open-reports-scope',
+                        ),
+                        onPressed: () {
+                          widget.onOpenReportsForPartnerScope!(
+                            row.clientId,
+                            row.siteId,
+                            row.partnerLabel,
+                          );
+                          Navigator.of(dialogContext).pop();
+                          _showSnack(
+                            'Opening Reports for ${row.siteId} • ${row.partnerLabel}',
+                          );
+                        },
+                        icon: const Icon(Icons.assessment_rounded, size: 16),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFFFDDAA),
+                          side: const BorderSide(color: Color(0xFF5B3A16)),
+                        ),
+                        label: Text(
+                          'Open Reports Scope',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                        ),
                       ),
                     ),
                   ],

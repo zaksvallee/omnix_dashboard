@@ -1093,6 +1093,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   String _governancePartnerScopeClientId = '';
   String _governancePartnerScopeSiteId = '';
   String _governancePartnerScopePartnerLabel = '';
+  String _reportsScopeClientId = '';
+  String _reportsScopeSiteId = '';
+  String _reportsScopePartnerLabel = '';
   Map<String, DateTime> _guardCoachingPromptSnoozedUntilByRule = const {};
   final Set<String> _guardCoachingSnoozeExpiryEventInFlightRules = {};
   int _guardCoachingAckCount = 0;
@@ -16238,6 +16241,32 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   void _openReportsFromAdmin() {
     _cancelDemoAutopilot();
     setState(() {
+      _reportsScopeClientId = '';
+      _reportsScopeSiteId = '';
+      _reportsScopePartnerLabel = '';
+      _route = OnyxRoute.reports;
+    });
+  }
+
+  void _openReportsForPartnerScope(
+    String clientId,
+    String siteId,
+    String partnerLabel,
+  ) {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    final normalizedPartnerLabel = partnerLabel.trim();
+    if (normalizedClientId.isEmpty ||
+        normalizedSiteId.isEmpty ||
+        normalizedPartnerLabel.isEmpty) {
+      _openReportsFromAdmin();
+      return;
+    }
+    _cancelDemoAutopilot();
+    setState(() {
+      _reportsScopeClientId = normalizedClientId;
+      _reportsScopeSiteId = normalizedSiteId;
+      _reportsScopePartnerLabel = normalizedPartnerLabel;
       _route = OnyxRoute.reports;
     });
   }
@@ -16785,6 +16814,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           onGenerateMorningSovereignReport: () async {
             await _generateMorningSovereignReport();
           },
+          onOpenReportsForPartnerScope: _openReportsForPartnerScope,
         );
 
       case OnyxRoute.clients:
@@ -17023,10 +17053,26 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case OnyxRoute.reports:
         return ClientIntelligenceReportsPage(
           store: store,
-          selectedClient: _selectedClient,
-          selectedSite: _selectedSite,
+          selectedClient: _reportsScopeClientId.trim().isNotEmpty
+              ? _reportsScopeClientId
+              : _selectedClient,
+          selectedSite: _reportsScopeSiteId.trim().isNotEmpty
+              ? _reportsScopeSiteId
+              : _selectedSite,
           sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
           reportShellState: _reportShellState,
+          morningSovereignReportHistory: _morningSovereignReportHistory,
+          initialPartnerScopeClientId: _reportsScopeClientId.trim().isEmpty
+              ? null
+              : _reportsScopeClientId,
+          initialPartnerScopeSiteId: _reportsScopeSiteId.trim().isEmpty
+              ? null
+              : _reportsScopeSiteId,
+          initialPartnerScopePartnerLabel:
+              _reportsScopePartnerLabel.trim().isEmpty
+              ? null
+              : _reportsScopePartnerLabel,
+          onOpenGovernanceForPartnerScope: _openGovernanceForPartnerScope,
           onReportShellStateChanged: (value) {
             _reportShellState = value;
           },
