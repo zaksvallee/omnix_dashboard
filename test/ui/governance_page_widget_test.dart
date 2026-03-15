@@ -179,6 +179,22 @@ void main() {
                 'Dispatches 2 • Declarations 5 • Latest CANCELLED @ 2026-03-10T02:18:00.000Z',
           ),
         ],
+        scoreboardRows: [
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            partnerLabel: 'Partner Alpha',
+            dispatchCount: 2,
+            strongCount: 1,
+            onTrackCount: 0,
+            watchCount: 0,
+            criticalCount: 1,
+            averageAcceptedDelayMinutes: 5.0,
+            averageOnSiteDelayMinutes: 13.0,
+            summaryLine:
+                'Dispatches 2 • Strong 1 • On track 0 • Watch 0 • Critical 1 • Avg accept 5.0m • Avg on site 13.0m',
+          ),
+        ],
         dispatchChains: [
           SovereignReportPartnerDispatchChain(
             dispatchId: 'DSP-42',
@@ -296,7 +312,18 @@ void main() {
     expect(find.text('Vehicle site ledger'), findsOneWidget);
     expect(find.text('Vehicle exception review'), findsOneWidget);
     expect(find.text('Partner dispatch sites'), findsOneWidget);
+    expect(find.text('Partner scoreboard'), findsOneWidget);
     expect(find.text('Partner dispatch progression'), findsOneWidget);
+    expect(
+      find.textContaining('CLIENT-1/SITE-42 • Partner Alpha'),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Dispatches 2 • Strong 1 • On track 0 • Watch 0 • Critical 1 • Avg accept 5.0m • Avg on site 13.0m',
+      ),
+      findsOneWidget,
+    );
     expect(find.textContaining('Partner Alpha • DSP-42'), findsOneWidget);
     expect(
       find.text('Workflow: ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)'),

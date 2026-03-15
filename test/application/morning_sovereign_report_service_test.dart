@@ -338,7 +338,17 @@ void main() {
         'Dispatches 1 • Declarations 2 • Accept 1 • On site 1 • All clear 0 • Cancelled 0',
       );
       expect(report.partnerProgression.scopeBreakdowns, hasLength(1));
+      expect(report.partnerProgression.scoreboardRows, hasLength(1));
       expect(report.partnerProgression.dispatchChains, hasLength(1));
+      expect(
+        report.partnerProgression.scoreboardRows.first.partnerLabel,
+        'Partner Alpha',
+      );
+      expect(report.partnerProgression.scoreboardRows.first.watchCount, 1);
+      expect(
+        report.partnerProgression.scoreboardRows.first.summaryLine,
+        'Dispatches 1 • Strong 0 • On track 0 • Watch 1 • Critical 0 • Avg accept 215.0m • Avg on site 222.0m',
+      );
       expect(
         report.partnerProgression.dispatchChains.first.workflowSummary,
         'ACCEPT -> ON SITE (LATEST ON SITE)',
@@ -398,6 +408,7 @@ void main() {
       );
       expect(restored.partnerProgression.dispatchCount, 1);
       expect(restored.partnerProgression.scopeBreakdowns, hasLength(1));
+      expect(restored.partnerProgression.scoreboardRows, hasLength(1));
       expect(restored.partnerProgression.dispatchChains, hasLength(1));
       expect(
         restored.partnerProgression.performanceHeadline,

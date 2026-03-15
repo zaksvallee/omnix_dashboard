@@ -265,6 +265,7 @@ class SovereignReport {
       slaHeadline: '',
       summaryLine: '',
       scopeBreakdowns: <SovereignReportPartnerScopeBreakdown>[],
+      scoreboardRows: <SovereignReportPartnerScoreboardRow>[],
       dispatchChains: <SovereignReportPartnerDispatchChain>[],
     ),
   });
@@ -437,6 +438,7 @@ class SovereignReport {
               slaHeadline: '',
               summaryLine: '',
               scopeBreakdowns: <SovereignReportPartnerScopeBreakdown>[],
+              scoreboardRows: <SovereignReportPartnerScoreboardRow>[],
               dispatchChains: <SovereignReportPartnerDispatchChain>[],
             ),
     );
@@ -455,6 +457,7 @@ class SovereignReportPartnerProgression {
   final String slaHeadline;
   final String summaryLine;
   final List<SovereignReportPartnerScopeBreakdown> scopeBreakdowns;
+  final List<SovereignReportPartnerScoreboardRow> scoreboardRows;
   final List<SovereignReportPartnerDispatchChain> dispatchChains;
 
   const SovereignReportPartnerProgression({
@@ -469,6 +472,7 @@ class SovereignReportPartnerProgression {
     this.slaHeadline = '',
     required this.summaryLine,
     this.scopeBreakdowns = const <SovereignReportPartnerScopeBreakdown>[],
+    this.scoreboardRows = const <SovereignReportPartnerScoreboardRow>[],
     this.dispatchChains = const <SovereignReportPartnerDispatchChain>[],
   });
 
@@ -484,6 +488,7 @@ class SovereignReportPartnerProgression {
     String? slaHeadline,
     String? summaryLine,
     List<SovereignReportPartnerScopeBreakdown>? scopeBreakdowns,
+    List<SovereignReportPartnerScoreboardRow>? scoreboardRows,
     List<SovereignReportPartnerDispatchChain>? dispatchChains,
   }) {
     return SovereignReportPartnerProgression(
@@ -498,6 +503,7 @@ class SovereignReportPartnerProgression {
       slaHeadline: slaHeadline ?? this.slaHeadline,
       summaryLine: summaryLine ?? this.summaryLine,
       scopeBreakdowns: scopeBreakdowns ?? this.scopeBreakdowns,
+      scoreboardRows: scoreboardRows ?? this.scoreboardRows,
       dispatchChains: dispatchChains ?? this.dispatchChains,
     );
   }
@@ -517,6 +523,9 @@ class SovereignReportPartnerProgression {
       'scopeBreakdowns': scopeBreakdowns
           .map((scope) => scope.toJson())
           .toList(growable: false),
+      'scoreboardRows': scoreboardRows
+          .map((row) => row.toJson())
+          .toList(growable: false),
       'dispatchChains': dispatchChains
           .map((chain) => chain.toJson())
           .toList(growable: false),
@@ -533,6 +542,18 @@ class SovereignReportPartnerProgression {
         if (item is! Map) continue;
         scopeBreakdowns.add(
           SovereignReportPartnerScopeBreakdown.fromJson(
+            item.map((key, value) => MapEntry(key.toString(), value)),
+          ),
+        );
+      }
+    }
+    final scoreboardRows = <SovereignReportPartnerScoreboardRow>[];
+    final scoreboardRowsRaw = json['scoreboardRows'];
+    if (scoreboardRowsRaw is List) {
+      for (final item in scoreboardRowsRaw) {
+        if (item is! Map) continue;
+        scoreboardRows.add(
+          SovereignReportPartnerScoreboardRow.fromJson(
             item.map((key, value) => MapEntry(key.toString(), value)),
           ),
         );
@@ -563,7 +584,72 @@ class SovereignReportPartnerProgression {
       slaHeadline: (json['slaHeadline'] as String? ?? '').trim(),
       summaryLine: (json['summaryLine'] as String? ?? '').trim(),
       scopeBreakdowns: scopeBreakdowns,
+      scoreboardRows: scoreboardRows,
       dispatchChains: dispatchChains,
+    );
+  }
+}
+
+class SovereignReportPartnerScoreboardRow {
+  final String clientId;
+  final String siteId;
+  final String partnerLabel;
+  final int dispatchCount;
+  final int strongCount;
+  final int onTrackCount;
+  final int watchCount;
+  final int criticalCount;
+  final double averageAcceptedDelayMinutes;
+  final double averageOnSiteDelayMinutes;
+  final String summaryLine;
+
+  const SovereignReportPartnerScoreboardRow({
+    required this.clientId,
+    required this.siteId,
+    required this.partnerLabel,
+    required this.dispatchCount,
+    required this.strongCount,
+    required this.onTrackCount,
+    required this.watchCount,
+    required this.criticalCount,
+    required this.averageAcceptedDelayMinutes,
+    required this.averageOnSiteDelayMinutes,
+    required this.summaryLine,
+  });
+
+  Map<String, Object?> toJson() {
+    return {
+      'clientId': clientId,
+      'siteId': siteId,
+      'partnerLabel': partnerLabel,
+      'dispatchCount': dispatchCount,
+      'strongCount': strongCount,
+      'onTrackCount': onTrackCount,
+      'watchCount': watchCount,
+      'criticalCount': criticalCount,
+      'averageAcceptedDelayMinutes': averageAcceptedDelayMinutes,
+      'averageOnSiteDelayMinutes': averageOnSiteDelayMinutes,
+      'summaryLine': summaryLine,
+    };
+  }
+
+  factory SovereignReportPartnerScoreboardRow.fromJson(
+    Map<String, Object?> json,
+  ) {
+    return SovereignReportPartnerScoreboardRow(
+      clientId: (json['clientId'] as String? ?? '').trim(),
+      siteId: (json['siteId'] as String? ?? '').trim(),
+      partnerLabel: (json['partnerLabel'] as String? ?? '').trim(),
+      dispatchCount: (json['dispatchCount'] as num?)?.toInt() ?? 0,
+      strongCount: (json['strongCount'] as num?)?.toInt() ?? 0,
+      onTrackCount: (json['onTrackCount'] as num?)?.toInt() ?? 0,
+      watchCount: (json['watchCount'] as num?)?.toInt() ?? 0,
+      criticalCount: (json['criticalCount'] as num?)?.toInt() ?? 0,
+      averageAcceptedDelayMinutes:
+          (json['averageAcceptedDelayMinutes'] as num?)?.toDouble() ?? 0,
+      averageOnSiteDelayMinutes:
+          (json['averageOnSiteDelayMinutes'] as num?)?.toDouble() ?? 0,
+      summaryLine: (json['summaryLine'] as String? ?? '').trim(),
     );
   }
 }
@@ -1297,6 +1383,7 @@ class MorningSovereignReportService {
         slaHeadline: '',
         summaryLine: '',
         scopeBreakdowns: <SovereignReportPartnerScopeBreakdown>[],
+        scoreboardRows: <SovereignReportPartnerScoreboardRow>[],
         dispatchChains: <SovereignReportPartnerDispatchChain>[],
       );
     }
@@ -1323,6 +1410,7 @@ class MorningSovereignReportService {
         slaHeadline: '',
         summaryLine: '',
         scopeBreakdowns: <SovereignReportPartnerScopeBreakdown>[],
+        scoreboardRows: <SovereignReportPartnerScoreboardRow>[],
         dispatchChains: <SovereignReportPartnerDispatchChain>[],
       );
     }
@@ -1460,6 +1548,7 @@ class MorningSovereignReportService {
     });
     final dispatchCount = chains.length;
     final declarationCount = events.length;
+    final scoreboardRows = _partnerScoreboardRows(chains);
     return SovereignReportPartnerProgression(
       dispatchCount: dispatchCount,
       declarationCount: declarationCount,
@@ -1482,6 +1571,7 @@ class MorningSovereignReportService {
         cancelledCount: cancelledCount,
       ),
       scopeBreakdowns: scopeBreakdowns,
+      scoreboardRows: scoreboardRows,
       dispatchChains: chains,
     );
   }
@@ -2228,6 +2318,85 @@ class MorningSovereignReportService {
       parts.add('$count $noun');
     }
     return parts.join(' • ');
+  }
+
+  List<SovereignReportPartnerScoreboardRow> _partnerScoreboardRows(
+    List<SovereignReportPartnerDispatchChain> chains,
+  ) {
+    if (chains.isEmpty) {
+      return const <SovereignReportPartnerScoreboardRow>[];
+    }
+    final grouped = <String, List<SovereignReportPartnerDispatchChain>>{};
+    for (final chain in chains) {
+      final partnerLabel = chain.partnerLabel.trim();
+      final key =
+          '${chain.clientId.trim()}::${chain.siteId.trim()}::${partnerLabel.toUpperCase()}';
+      grouped
+          .putIfAbsent(key, () => <SovereignReportPartnerDispatchChain>[])
+          .add(chain);
+    }
+    final rows = <SovereignReportPartnerScoreboardRow>[];
+    for (final chainsForRow in grouped.values) {
+      final first = chainsForRow.first;
+      var strongCount = 0;
+      var onTrackCount = 0;
+      var watchCount = 0;
+      var criticalCount = 0;
+      final acceptedDelays = <double>[];
+      final onSiteDelays = <double>[];
+      for (final chain in chainsForRow) {
+        switch (chain.scoreLabel.trim().toUpperCase()) {
+          case 'STRONG':
+            strongCount += 1;
+          case 'ON TRACK':
+            onTrackCount += 1;
+          case 'WATCH':
+            watchCount += 1;
+          case 'CRITICAL':
+            criticalCount += 1;
+        }
+        if (chain.acceptedDelayMinutes != null) {
+          acceptedDelays.add(chain.acceptedDelayMinutes!);
+        }
+        if (chain.onSiteDelayMinutes != null) {
+          onSiteDelays.add(chain.onSiteDelayMinutes!);
+        }
+      }
+      final averageAcceptedDelayMinutes = _averageMinutes(acceptedDelays) ?? 0;
+      final averageOnSiteDelayMinutes = _averageMinutes(onSiteDelays) ?? 0;
+      rows.add(
+        SovereignReportPartnerScoreboardRow(
+          clientId: first.clientId,
+          siteId: first.siteId,
+          partnerLabel: first.partnerLabel,
+          dispatchCount: chainsForRow.length,
+          strongCount: strongCount,
+          onTrackCount: onTrackCount,
+          watchCount: watchCount,
+          criticalCount: criticalCount,
+          averageAcceptedDelayMinutes: double.parse(
+            averageAcceptedDelayMinutes.toStringAsFixed(1),
+          ),
+          averageOnSiteDelayMinutes: double.parse(
+            averageOnSiteDelayMinutes.toStringAsFixed(1),
+          ),
+          summaryLine:
+              'Dispatches ${chainsForRow.length} • Strong $strongCount • On track $onTrackCount • Watch $watchCount • Critical $criticalCount • Avg accept ${averageAcceptedDelayMinutes.toStringAsFixed(1)}m • Avg on site ${averageOnSiteDelayMinutes.toStringAsFixed(1)}m',
+        ),
+      );
+    }
+    rows.sort((a, b) {
+      final criticalCompare = b.criticalCount.compareTo(a.criticalCount);
+      if (criticalCompare != 0) {
+        return criticalCompare;
+      }
+      final dispatchCompare = b.dispatchCount.compareTo(a.dispatchCount);
+      if (dispatchCompare != 0) {
+        return dispatchCompare;
+      }
+      return a.partnerLabel.compareTo(b.partnerLabel);
+    });
+    return rows;
   }
 
   String _partnerDispatchScoreLabel({

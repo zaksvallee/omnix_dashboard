@@ -144,6 +144,7 @@ class _GovernanceReportView {
   final String partnerSlaHeadline;
   final String partnerSummary;
   final List<SovereignReportPartnerScopeBreakdown> partnerScopeBreakdowns;
+  final List<SovereignReportPartnerScoreboardRow> partnerScoreboardRows;
   final List<SovereignReportPartnerDispatchChain> partnerDispatchChains;
   final String latestActionTaken;
   final String recentActionsSummary;
@@ -200,6 +201,7 @@ class _GovernanceReportView {
     required this.partnerSlaHeadline,
     required this.partnerSummary,
     required this.partnerScopeBreakdowns,
+    required this.partnerScoreboardRows,
     required this.partnerDispatchChains,
     required this.latestActionTaken,
     required this.recentActionsSummary,
@@ -1091,6 +1093,26 @@ class _GovernancePageState extends State<GovernancePage> {
               children: [
                 for (final scope in report.partnerScopeBreakdowns)
                   _partnerScopeCard(scope),
+              ],
+            ),
+          ],
+          if (report.partnerScoreboardRows.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Partner scoreboard',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFEAF4FF),
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final row in report.partnerScoreboardRows)
+                  _partnerScoreboardCard(row),
               ],
             ),
           ],
@@ -2648,6 +2670,10 @@ class _GovernancePageState extends State<GovernancePage> {
     return '${_partnerScopeLabel(scope)} • ${scope.summaryLine}';
   }
 
+  String _partnerScoreboardCsvSummary(SovereignReportPartnerScoreboardRow row) {
+    return '${row.clientId}/${row.siteId} • ${row.partnerLabel} • ${row.summaryLine}';
+  }
+
   String _partnerChainCsvSummary(SovereignReportPartnerDispatchChain chain) {
     final timing = _partnerChainTimingLabel(chain);
     final timingSuffix = timing.isEmpty ? '' : ' • $timing';
@@ -2701,6 +2727,46 @@ class _GovernancePageState extends State<GovernancePage> {
             const SizedBox(height: 4),
             Text(
               scope.summaryLine,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF9CB2D1),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _partnerScoreboardCard(SovereignReportPartnerScoreboardRow row) {
+    final scopeLabel = '${row.clientId}/${row.siteId}';
+    return SizedBox(
+      width: 320,
+      child: Container(
+        key: ValueKey<String>(
+          'governance-partner-scoreboard-$scopeLabel-${row.partnerLabel}',
+        ),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: const Color(0x14000000),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0x22FFFFFF)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '$scopeLabel • ${row.partnerLabel}',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFEAF4FF),
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              row.summaryLine,
               style: GoogleFonts.inter(
                 color: const Color(0xFF9CB2D1),
                 fontSize: 10,
@@ -3030,6 +3096,7 @@ class _GovernancePageState extends State<GovernancePage> {
         partnerSlaHeadline: canonical.partnerProgression.slaHeadline,
         partnerSummary: canonical.partnerProgression.summaryLine,
         partnerScopeBreakdowns: canonical.partnerProgression.scopeBreakdowns,
+        partnerScoreboardRows: canonical.partnerProgression.scoreboardRows,
         partnerDispatchChains: canonical.partnerProgression.dispatchChains,
         latestActionTaken: canonical.sceneReview.latestActionTaken,
         recentActionsSummary: canonical.sceneReview.recentActionsSummary,
@@ -3118,6 +3185,7 @@ class _GovernancePageState extends State<GovernancePage> {
       partnerSlaHeadline: partnerSummary.slaHeadline,
       partnerSummary: partnerSummary.summaryLine,
       partnerScopeBreakdowns: partnerSummary.scopeBreakdowns,
+      partnerScoreboardRows: partnerSummary.scoreboardRows,
       partnerDispatchChains: partnerSummary.dispatchChains,
       latestActionTaken: '',
       recentActionsSummary: '',
@@ -3155,6 +3223,7 @@ class _GovernancePageState extends State<GovernancePage> {
         slaHeadline: '',
         summaryLine: '',
         scopeBreakdowns: <SovereignReportPartnerScopeBreakdown>[],
+        scoreboardRows: <SovereignReportPartnerScoreboardRow>[],
         dispatchChains: <SovereignReportPartnerDispatchChain>[],
       );
     }
@@ -3181,6 +3250,7 @@ class _GovernancePageState extends State<GovernancePage> {
         slaHeadline: '',
         summaryLine: '',
         scopeBreakdowns: <SovereignReportPartnerScopeBreakdown>[],
+        scoreboardRows: <SovereignReportPartnerScoreboardRow>[],
         dispatchChains: <SovereignReportPartnerDispatchChain>[],
       );
     }
@@ -3344,6 +3414,7 @@ class _GovernancePageState extends State<GovernancePage> {
       summaryLine:
           'Dispatches ${chains.length} • Declarations ${declarations.length} • Accept $acceptedCount • On site $onSiteCount • All clear $allClearCount • Cancelled $cancelledCount',
       scopeBreakdowns: scopeBreakdowns,
+      scoreboardRows: _partnerScoreboardRows(chains),
       dispatchChains: chains,
     );
   }
@@ -3444,6 +3515,84 @@ class _GovernancePageState extends State<GovernancePage> {
       parts.add('$count $noun');
     }
     return parts.join(' • ');
+  }
+
+  List<SovereignReportPartnerScoreboardRow> _partnerScoreboardRows(
+    List<SovereignReportPartnerDispatchChain> chains,
+  ) {
+    if (chains.isEmpty) {
+      return const <SovereignReportPartnerScoreboardRow>[];
+    }
+    final grouped = <String, List<SovereignReportPartnerDispatchChain>>{};
+    for (final chain in chains) {
+      final key =
+          '${chain.clientId.trim()}::${chain.siteId.trim()}::${chain.partnerLabel.trim().toUpperCase()}';
+      grouped
+          .putIfAbsent(key, () => <SovereignReportPartnerDispatchChain>[])
+          .add(chain);
+    }
+    final rows = <SovereignReportPartnerScoreboardRow>[];
+    for (final chainsForRow in grouped.values) {
+      final first = chainsForRow.first;
+      var strongCount = 0;
+      var onTrackCount = 0;
+      var watchCount = 0;
+      var criticalCount = 0;
+      final acceptedDelays = <double>[];
+      final onSiteDelays = <double>[];
+      for (final chain in chainsForRow) {
+        switch (chain.scoreLabel.trim().toUpperCase()) {
+          case 'STRONG':
+            strongCount += 1;
+          case 'ON TRACK':
+            onTrackCount += 1;
+          case 'WATCH':
+            watchCount += 1;
+          case 'CRITICAL':
+            criticalCount += 1;
+        }
+        if (chain.acceptedDelayMinutes != null) {
+          acceptedDelays.add(chain.acceptedDelayMinutes!);
+        }
+        if (chain.onSiteDelayMinutes != null) {
+          onSiteDelays.add(chain.onSiteDelayMinutes!);
+        }
+      }
+      final averageAcceptedDelayMinutes = _averageMinutes(acceptedDelays) ?? 0;
+      final averageOnSiteDelayMinutes = _averageMinutes(onSiteDelays) ?? 0;
+      rows.add(
+        SovereignReportPartnerScoreboardRow(
+          clientId: first.clientId,
+          siteId: first.siteId,
+          partnerLabel: first.partnerLabel,
+          dispatchCount: chainsForRow.length,
+          strongCount: strongCount,
+          onTrackCount: onTrackCount,
+          watchCount: watchCount,
+          criticalCount: criticalCount,
+          averageAcceptedDelayMinutes: double.parse(
+            averageAcceptedDelayMinutes.toStringAsFixed(1),
+          ),
+          averageOnSiteDelayMinutes: double.parse(
+            averageOnSiteDelayMinutes.toStringAsFixed(1),
+          ),
+          summaryLine:
+              'Dispatches ${chainsForRow.length} • Strong $strongCount • On track $onTrackCount • Watch $watchCount • Critical $criticalCount • Avg accept ${averageAcceptedDelayMinutes.toStringAsFixed(1)}m • Avg on site ${averageOnSiteDelayMinutes.toStringAsFixed(1)}m',
+        ),
+      );
+    }
+    rows.sort((a, b) {
+      final criticalCompare = b.criticalCount.compareTo(a.criticalCount);
+      if (criticalCompare != 0) {
+        return criticalCompare;
+      }
+      final dispatchCompare = b.dispatchCount.compareTo(a.dispatchCount);
+      if (dispatchCompare != 0) {
+        return dispatchCompare;
+      }
+      return a.partnerLabel.compareTo(b.partnerLabel);
+    });
+    return rows;
   }
 
   String _partnerWorkflowSummary({
@@ -3626,6 +3775,9 @@ class _GovernancePageState extends State<GovernancePage> {
         'scopeBreakdowns': report.partnerScopeBreakdowns
             .map((scope) => scope.toJson())
             .toList(growable: false),
+        'scoreboardRows': report.partnerScoreboardRows
+            .map((row) => row.toJson())
+            .toList(growable: false),
         'dispatchChains': report.partnerDispatchChains
             .map((chain) => chain.toJson())
             .toList(growable: false),
@@ -3696,6 +3848,8 @@ class _GovernancePageState extends State<GovernancePage> {
       'partner_summary,"${report.partnerSummary.replaceAll('"', '""')}"',
       for (var i = 0; i < report.partnerScopeBreakdowns.length; i++)
         'partner_scope_${i + 1},"${_partnerScopeCsvSummary(report.partnerScopeBreakdowns[i]).replaceAll('"', '""')}"',
+      for (var i = 0; i < report.partnerScoreboardRows.length; i++)
+        'partner_scoreboard_${i + 1},"${_partnerScoreboardCsvSummary(report.partnerScoreboardRows[i]).replaceAll('"', '""')}"',
       for (var i = 0; i < report.partnerDispatchChains.length; i++)
         'partner_chain_${i + 1},"${_partnerChainCsvSummary(report.partnerDispatchChains[i]).replaceAll('"', '""')}"',
       if (focusedSceneAction != null)
