@@ -4774,7 +4774,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           regionId: regionId,
           siteId: exception.siteId.trim(),
           vehicleLabel: exception.vehicleLabel.trim(),
-          actorLabel: 'GOVERNANCE_OPERATOR',
+          actorLabel: _currentGovernanceActorLabel(),
           reviewed: exception.operatorReviewed,
           statusOverride: exception.operatorStatusOverride.trim().toUpperCase(),
           effectiveStatusLabel: exception.statusLabel.trim().toUpperCase(),
@@ -4784,6 +4784,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         ),
       );
     }
+  }
+
+  String _currentGovernanceActorLabel() {
+    final operatorId = service.operator.operatorId.trim();
+    if (operatorId.isNotEmpty) {
+      return operatorId;
+    }
+    return 'OPERATOR-UNKNOWN';
   }
 
   bool _vehicleVisitReviewStateChanged(
