@@ -385,7 +385,9 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.textContaining('Reports 2 • Custom 1 • Default 0 • Standard 1'),
+      find.textContaining(
+        'Reports 2 • Shift receipts 0 • Custom 1 • Default 0 • Standard 1',
+      ),
       findsOneWidget,
     );
     expect(
@@ -991,6 +993,174 @@ void main() {
     });
     expect(find.textContaining('Opening Reports for SITE-42'), findsOneWidget);
   });
+
+  testWidgets(
+    'governance receipt branding drill-in can open reports for the selected shift',
+    (tester) async {
+      Map<String, String>? openedReceiptScope;
+      SovereignReport buildReport({
+        required String date,
+        required DateTime generatedAtUtc,
+        required DateTime shiftWindowStartUtc,
+        required DateTime shiftWindowEndUtc,
+        required int standardBrandingReports,
+        required int defaultPartnerBrandingReports,
+        required int customBrandingOverrideReports,
+        required String brandingExecutiveSummary,
+        required String latestBrandingSummary,
+      }) {
+        return SovereignReport(
+          date: date,
+          generatedAtUtc: generatedAtUtc,
+          shiftWindowStartUtc: shiftWindowStartUtc,
+          shiftWindowEndUtc: shiftWindowEndUtc,
+          ledgerIntegrity: const SovereignReportLedgerIntegrity(
+            totalEvents: 10,
+            hashVerified: true,
+            integrityScore: 99,
+          ),
+          aiHumanDelta: const SovereignReportAiHumanDelta(
+            aiDecisions: 1,
+            humanOverrides: 0,
+            overrideReasons: <String, int>{},
+          ),
+          normDrift: const SovereignReportNormDrift(
+            sitesMonitored: 1,
+            driftDetected: 0,
+            avgMatchScore: 100,
+          ),
+          complianceBlockage: const SovereignReportComplianceBlockage(
+            psiraExpired: 0,
+            pdpExpired: 0,
+            totalBlocked: 0,
+          ),
+          receiptPolicy: SovereignReportReceiptPolicy(
+            generatedReports: 1,
+            trackedConfigurationReports: 1,
+            legacyConfigurationReports: 0,
+            fullyIncludedReports: 1,
+            reportsWithOmittedSections: 0,
+            omittedAiDecisionLogReports: 0,
+            omittedGuardMetricsReports: 0,
+            standardBrandingReports: standardBrandingReports,
+            defaultPartnerBrandingReports: defaultPartnerBrandingReports,
+            customBrandingOverrideReports: customBrandingOverrideReports,
+            executiveSummary: '1 client-facing receipt kept full policy',
+            brandingExecutiveSummary: brandingExecutiveSummary,
+            headline: '1 generated report kept full policy',
+            summaryLine:
+                'Reports 1 • Tracked 1 • Legacy 0 • Full 1 • Omitted 0',
+            latestReportSummary: 'CLIENT-1/SITE-42 $date kept full policy.',
+            latestBrandingSummary: latestBrandingSummary,
+          ),
+        );
+      }
+
+      final currentReport = buildReport(
+        date: '2026-03-10',
+        generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
+        shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
+        shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+        standardBrandingReports: 0,
+        defaultPartnerBrandingReports: 0,
+        customBrandingOverrideReports: 1,
+        brandingExecutiveSummary: '1 receipt used custom branding override',
+        latestBrandingSummary:
+            'CLIENT-1/SITE-42 2026-03 used custom branding override from Partner Alpha.',
+      );
+      final priorReport = buildReport(
+        date: '2026-03-09',
+        generatedAtUtc: DateTime.utc(2026, 3, 9, 6, 0),
+        shiftWindowStartUtc: DateTime.utc(2026, 3, 8, 22, 0),
+        shiftWindowEndUtc: DateTime.utc(2026, 3, 9, 6, 0),
+        standardBrandingReports: 1,
+        defaultPartnerBrandingReports: 0,
+        customBrandingOverrideReports: 0,
+        brandingExecutiveSummary: '1 receipt used standard ONYX branding',
+        latestBrandingSummary:
+            'CLIENT-1/SITE-42 2026-03 used standard ONYX branding.',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GovernancePage(
+            events: [
+              ReportGenerated(
+                eventId: 'RPT-CURRENT',
+                sequence: 50,
+                version: 1,
+                occurredAt: DateTime.utc(2026, 3, 10, 2, 30),
+                clientId: 'CLIENT-1',
+                siteId: 'SITE-42',
+                month: '2026-03',
+                contentHash: 'content-current',
+                pdfHash: 'pdf-current',
+                eventRangeStart: 1,
+                eventRangeEnd: 10,
+                eventCount: 10,
+                reportSchemaVersion: 3,
+                projectionVersion: 1,
+                primaryBrandLabel: 'VISION Tactical',
+                endorsementLine: 'Powered by ONYX',
+                brandingSourceLabel: 'PARTNER • Alpha',
+                brandingUsesOverride: true,
+              ),
+              ReportGenerated(
+                eventId: 'RPT-PRIOR',
+                sequence: 40,
+                version: 1,
+                occurredAt: DateTime.utc(2026, 3, 9, 2, 0),
+                clientId: 'CLIENT-1',
+                siteId: 'SITE-42',
+                month: '2026-03',
+                contentHash: 'content-prior',
+                pdfHash: 'pdf-prior',
+                eventRangeStart: 11,
+                eventRangeEnd: 18,
+                eventCount: 8,
+                reportSchemaVersion: 3,
+                projectionVersion: 1,
+              ),
+            ],
+            morningSovereignReport: currentReport,
+            morningSovereignReportHistory: [priorReport],
+            onOpenReportsForReceiptEvent: (clientId, siteId, receiptEventId) {
+              openedReceiptScope = <String, String>{
+                'clientId': clientId,
+                'siteId': siteId,
+                'receiptEventId': receiptEventId,
+              };
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final trendFinder = find.byKey(
+        const ValueKey('governance-receipt-branding-trend-card'),
+      );
+      await tester.ensureVisible(trendFinder);
+      await tester.tap(trendFinder);
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(
+          const ValueKey('governance-receipt-branding-open-reports-2026-03-10'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(openedReceiptScope, <String, String>{
+        'clientId': 'CLIENT-1',
+        'siteId': 'SITE-42',
+        'receiptEventId': 'RPT-CURRENT',
+      });
+      expect(
+        find.textContaining('Opening Reports for SITE-42'),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('governance page scopes partner reporting to a selected site and partner', (
     tester,

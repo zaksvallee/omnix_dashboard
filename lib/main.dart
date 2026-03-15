@@ -16271,6 +16271,34 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     });
   }
 
+  void _openReportsForReceiptEvent(
+    String clientId,
+    String siteId,
+    String receiptEventId,
+  ) {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    final normalizedReceiptEventId = receiptEventId.trim();
+    if (normalizedClientId.isEmpty ||
+        normalizedSiteId.isEmpty ||
+        normalizedReceiptEventId.isEmpty) {
+      _openReportsFromAdmin();
+      return;
+    }
+    _cancelDemoAutopilot();
+    setState(() {
+      _reportsScopeClientId = normalizedClientId;
+      _reportsScopeSiteId = normalizedSiteId;
+      _reportsScopePartnerLabel = '';
+      _reportShellState = _reportShellState.copyWith(
+        selectedReceiptEventId: normalizedReceiptEventId,
+        previewReceiptEventId: normalizedReceiptEventId,
+        clearPartnerScopeFocus: true,
+      );
+      _route = OnyxRoute.reports;
+    });
+  }
+
   List<TelegramAiPendingDraftView> _telegramAiPendingDraftViews() {
     return _telegramAiPendingDrafts
         .map(
@@ -16805,6 +16833,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           onMorningSovereignReportChanged: _handleMorningSovereignReportChanged,
           onOpenVehicleExceptionEvent: _openEventsForEventId,
           onOpenReceiptPolicyEvent: _openEventsForEventId,
+          onOpenReportsForReceiptEvent: _openReportsForReceiptEvent,
           onOpenVehicleExceptionVisit: _openEventsForVehicleVisit,
           initialSceneActionFocus: _governanceSceneActionFocus,
           onSceneActionFocusChanged: (value) {

@@ -201,21 +201,29 @@ class _ReceiptBrandingHistoryPoint {
   final String reportDate;
   final bool current;
   final int generatedReports;
+  final int matchedReceiptCount;
   final int standardBrandingReports;
   final int defaultPartnerBrandingReports;
   final int customBrandingOverrideReports;
   final String brandingExecutiveSummary;
   final String latestBrandingSummary;
+  final String latestReceiptEventId;
+  final String latestReceiptClientId;
+  final String latestReceiptSiteId;
 
   const _ReceiptBrandingHistoryPoint({
     required this.reportDate,
     required this.current,
     required this.generatedReports,
+    required this.matchedReceiptCount,
     required this.standardBrandingReports,
     required this.defaultPartnerBrandingReports,
     required this.customBrandingOverrideReports,
     required this.brandingExecutiveSummary,
     required this.latestBrandingSummary,
+    required this.latestReceiptEventId,
+    required this.latestReceiptClientId,
+    required this.latestReceiptSiteId,
   });
 }
 
@@ -399,6 +407,8 @@ class GovernancePage extends StatefulWidget {
   final ValueChanged<SovereignReport>? onMorningSovereignReportChanged;
   final ValueChanged<String>? onOpenVehicleExceptionEvent;
   final ValueChanged<String>? onOpenReceiptPolicyEvent;
+  final void Function(String clientId, String siteId, String receiptEventId)?
+  onOpenReportsForReceiptEvent;
   final ValueChanged<SovereignReportVehicleVisitException>?
   onOpenVehicleExceptionVisit;
   final void Function(String clientId, String siteId, String partnerLabel)?
@@ -419,6 +429,7 @@ class GovernancePage extends StatefulWidget {
     this.onMorningSovereignReportChanged,
     this.onOpenVehicleExceptionEvent,
     this.onOpenReceiptPolicyEvent,
+    this.onOpenReportsForReceiptEvent,
     this.onOpenVehicleExceptionVisit,
     this.onOpenReportsForPartnerScope,
     this.initialSceneActionFocus,
@@ -2595,11 +2606,32 @@ class _GovernancePageState extends State<GovernancePage> {
     if (canonical == null) {
       return const <ReportGenerated>[];
     }
+    final events = _reportGeneratedEventsForShiftWindow(
+      canonical.shiftWindowStartUtc,
+      canonical.shiftWindowEndUtc,
+    );
+    events.sort((a, b) {
+      final occurredCompare = b.occurredAt.compareTo(a.occurredAt);
+      if (occurredCompare != 0) {
+        return occurredCompare;
+      }
+      return b.sequence.compareTo(a.sequence);
+    });
+    return events;
+  }
+
+  List<ReportGenerated> _reportGeneratedEventsForShiftWindow(
+    DateTime? startUtc,
+    DateTime? endUtc,
+  ) {
+    if (startUtc == null || endUtc == null) {
+      return const <ReportGenerated>[];
+    }
     final events = widget.events
         .whereType<ReportGenerated>()
         .where((event) {
-          return !event.occurredAt.isBefore(canonical.shiftWindowStartUtc) &&
-              !event.occurredAt.isAfter(canonical.shiftWindowEndUtc);
+          return !event.occurredAt.isBefore(startUtc) &&
+              !event.occurredAt.isAfter(endUtc);
         })
         .toList(growable: false);
     events.sort((a, b) {
@@ -4544,13 +4576,63 @@ class _GovernancePageState extends State<GovernancePage> {
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
-                                    'Reports ${point.generatedReports} • Custom ${point.customBrandingOverrideReports} • Default ${point.defaultPartnerBrandingReports} • Standard ${point.standardBrandingReports}',
+                                    'Reports ${point.generatedReports} • Shift receipts ${point.matchedReceiptCount} • Custom ${point.customBrandingOverrideReports} • Default ${point.defaultPartnerBrandingReports} • Standard ${point.standardBrandingReports}',
                                     style: GoogleFonts.inter(
                                       color: const Color(0xFF9CB2D1),
                                       fontSize: 10,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
+                                  if (widget.onOpenReportsForReceiptEvent !=
+                                          null &&
+                                      point.latestReceiptEventId
+                                          .trim()
+                                          .isNotEmpty &&
+                                      point.latestReceiptClientId
+                                          .trim()
+                                          .isNotEmpty &&
+                                      point.latestReceiptSiteId
+                                          .trim()
+                                          .isNotEmpty) ...[
+                                    const SizedBox(height: 8),
+                                    Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: OutlinedButton.icon(
+                                        key: ValueKey<String>(
+                                          'governance-receipt-branding-open-reports-${point.reportDate}',
+                                        ),
+                                        onPressed: () {
+                                          widget.onOpenReportsForReceiptEvent!(
+                                            point.latestReceiptClientId,
+                                            point.latestReceiptSiteId,
+                                            point.latestReceiptEventId,
+                                          );
+                                          Navigator.of(dialogContext).pop();
+                                          _showSnack(
+                                            'Opening Reports for ${point.latestReceiptSiteId} • ${point.reportDate}',
+                                          );
+                                        },
+                                        icon: const Icon(
+                                          Icons.assessment_rounded,
+                                          size: 16,
+                                        ),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: const Color(
+                                            0xFFFFDDAA,
+                                          ),
+                                          side: const BorderSide(
+                                            color: Color(0xFF5B3A16),
+                                          ),
+                                        ),
+                                        label: Text(
+                                          'Open Reports',
+                                          style: GoogleFonts.inter(
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                   if (point.brandingExecutiveSummary
                                       .trim()
                                       .isNotEmpty) ...[
@@ -5151,16 +5233,27 @@ class _GovernancePageState extends State<GovernancePage> {
   List<_ReceiptBrandingHistoryPoint> _receiptBrandingHistory(
     _GovernanceReportView report,
   ) {
+    final currentReceipts = _reportGeneratedEventsForShiftWindow(
+      report.shiftWindowStartUtc,
+      report.shiftWindowEndUtc,
+    );
+    final currentLatestReceipt = currentReceipts.isEmpty
+        ? null
+        : currentReceipts.first;
     final points = <_ReceiptBrandingHistoryPoint>[
       _ReceiptBrandingHistoryPoint(
         reportDate: report.reportDate,
         current: true,
         generatedReports: report.generatedReports,
+        matchedReceiptCount: currentReceipts.length,
         standardBrandingReports: report.standardBrandingReports,
         defaultPartnerBrandingReports: report.defaultPartnerBrandingReports,
         customBrandingOverrideReports: report.customBrandingOverrideReports,
         brandingExecutiveSummary: report.receiptPolicyBrandingExecutiveSummary,
         latestBrandingSummary: report.latestReceiptBrandingSummary,
+        latestReceiptEventId: currentLatestReceipt?.eventId ?? '',
+        latestReceiptClientId: currentLatestReceipt?.clientId ?? '',
+        latestReceiptSiteId: currentLatestReceipt?.siteId ?? '',
       ),
     ];
     for (final item in widget.morningSovereignReportHistory) {
@@ -5171,11 +5264,17 @@ class _GovernancePageState extends State<GovernancePage> {
           item.date == report.reportDate) {
         continue;
       }
+      final receipts = _reportGeneratedEventsForShiftWindow(
+        item.shiftWindowStartUtc,
+        item.shiftWindowEndUtc,
+      );
+      final latestReceipt = receipts.isEmpty ? null : receipts.first;
       points.add(
         _ReceiptBrandingHistoryPoint(
           reportDate: item.date,
           current: false,
           generatedReports: item.receiptPolicy.generatedReports,
+          matchedReceiptCount: receipts.length,
           standardBrandingReports: item.receiptPolicy.standardBrandingReports,
           defaultPartnerBrandingReports:
               item.receiptPolicy.defaultPartnerBrandingReports,
@@ -5183,6 +5282,9 @@ class _GovernancePageState extends State<GovernancePage> {
               item.receiptPolicy.customBrandingOverrideReports,
           brandingExecutiveSummary: item.receiptPolicy.brandingExecutiveSummary,
           latestBrandingSummary: item.receiptPolicy.latestBrandingSummary,
+          latestReceiptEventId: latestReceipt?.eventId ?? '',
+          latestReceiptClientId: latestReceipt?.clientId ?? '',
+          latestReceiptSiteId: latestReceipt?.siteId ?? '',
         ),
       );
     }
