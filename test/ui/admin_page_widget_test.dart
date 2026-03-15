@@ -163,50 +163,53 @@ void main() {
           events: const <DispatchEvent>[],
           supabaseReady: false,
           initialTab: AdministrationPageTab.system,
-          onBindPartnerTelegramEndpoint: ({
-            required clientId,
-            required siteId,
-            required endpointLabel,
-            required chatId,
-            int? threadId,
-          }) async {
-            boundPayload = <String, Object?>{
-              'clientId': clientId,
-              'siteId': siteId,
-              'endpointLabel': endpointLabel,
-              'chatId': chatId,
-              'threadId': threadId,
-            };
-            return 'PASS (partner lane bound)\nscope=$clientId/$siteId';
-          },
-          onCheckPartnerTelegramEndpoint: ({
-            required clientId,
-            required siteId,
-            required chatId,
-            int? threadId,
-          }) async {
-            checkedPayload = <String, Object?>{
-              'clientId': clientId,
-              'siteId': siteId,
-              'chatId': chatId,
-              'threadId': threadId,
-            };
-            return 'PASS (partner lane linked)\nscope=$clientId/$siteId';
-          },
-          onUnlinkPartnerTelegramEndpoint: ({
-            required clientId,
-            required siteId,
-            required chatId,
-            int? threadId,
-          }) async {
-            unlinkedPayload = <String, Object?>{
-              'clientId': clientId,
-              'siteId': siteId,
-              'chatId': chatId,
-              'threadId': threadId,
-            };
-            return 'PASS (partner lane updated)\nscope=$clientId/$siteId';
-          },
+          onBindPartnerTelegramEndpoint:
+              ({
+                required clientId,
+                required siteId,
+                required endpointLabel,
+                required chatId,
+                int? threadId,
+              }) async {
+                boundPayload = <String, Object?>{
+                  'clientId': clientId,
+                  'siteId': siteId,
+                  'endpointLabel': endpointLabel,
+                  'chatId': chatId,
+                  'threadId': threadId,
+                };
+                return 'PASS (partner lane bound)\nscope=$clientId/$siteId';
+              },
+          onCheckPartnerTelegramEndpoint:
+              ({
+                required clientId,
+                required siteId,
+                required chatId,
+                int? threadId,
+              }) async {
+                checkedPayload = <String, Object?>{
+                  'clientId': clientId,
+                  'siteId': siteId,
+                  'chatId': chatId,
+                  'threadId': threadId,
+                };
+                return 'PASS (partner lane linked)\nscope=$clientId/$siteId';
+              },
+          onUnlinkPartnerTelegramEndpoint:
+              ({
+                required clientId,
+                required siteId,
+                required chatId,
+                int? threadId,
+              }) async {
+                unlinkedPayload = <String, Object?>{
+                  'clientId': clientId,
+                  'siteId': siteId,
+                  'chatId': chatId,
+                  'threadId': threadId,
+                };
+                return 'PASS (partner lane updated)\nscope=$clientId/$siteId';
+              },
         ),
       ),
     );
@@ -259,6 +262,57 @@ void main() {
     expect(unlinkedPayload['chatId'], '-1001234567890');
     expect(unlinkedPayload['threadId'], 77);
     expect(find.textContaining('PASS (partner lane updated)'), findsOneWidget);
+  });
+
+  testWidgets('admin tables surface partner lane health summaries', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: AdministrationPage(
+          events: <DispatchEvent>[],
+          supabaseReady: false,
+          initialTab: AdministrationPageTab.clients,
+          initialClientPartnerEndpointCounts: <String, int>{
+            'CLT-001': 2,
+          },
+          initialClientPartnerLanePreview: <String, String>{
+            'CLT-001': 'PARTNER • Alpha • PARTNER • Bravo',
+          },
+          initialClientPartnerChatcheckStatus: <String, String>{
+            'CLT-001': 'PASS (partner lane linked)',
+          },
+          initialSitePartnerEndpointCounts: <String, int>{
+            'CLT-001::WTF-MAIN': 1,
+          },
+          initialSitePartnerChatcheckStatus: <String, String>{
+            'CLT-001::WTF-MAIN': 'FAIL (partner lane missing)',
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Partner Lanes: 2'), findsOneWidget);
+    expect(
+      find.text('Partner Labels: PARTNER • Alpha • PARTNER • Bravo'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Partner Dispatch: PASS (partner lane linked)'),
+      findsOneWidget,
+    );
+    expect(find.text('PARTNER PASS'), findsOneWidget);
+
+    await tester.tap(find.text('Sites').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Partner lanes: 1'), findsOneWidget);
+    expect(
+      find.text('Partner dispatch: FAIL (partner lane missing)'),
+      findsOneWidget,
+    );
+    expect(find.text('PARTNER FAIL'), findsOneWidget);
   });
 
   testWidgets('administration page reports tab changes to parent state', (
