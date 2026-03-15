@@ -163,6 +163,7 @@ void main() {
         cancelledCount: 1,
         workflowHeadline:
             '1 partner dispatch reached ALL CLEAR • 1 partner dispatch was CANCELLED',
+        slaHeadline: 'Avg accept 5.0m • Avg on site 12.0m',
         summaryLine:
             'Dispatches 2 • Declarations 5 • Accept 2 • On site 1 • All clear 1 • Cancelled 1',
         scopeBreakdowns: [
@@ -186,9 +187,12 @@ void main() {
             declarationCount: 3,
             latestStatus: PartnerDispatchStatus.allClear,
             latestOccurredAtUtc: DateTime.utc(2026, 3, 10, 1, 55),
+            dispatchCreatedAtUtc: DateTime.utc(2026, 3, 10, 1, 35),
             acceptedAtUtc: DateTime.utc(2026, 3, 10, 1, 40),
             onSiteAtUtc: DateTime.utc(2026, 3, 10, 1, 48),
             allClearAtUtc: DateTime.utc(2026, 3, 10, 1, 55),
+            acceptedDelayMinutes: 5.0,
+            onSiteDelayMinutes: 13.0,
             workflowSummary:
                 'ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)',
           ),
@@ -200,8 +204,10 @@ void main() {
             declarationCount: 2,
             latestStatus: PartnerDispatchStatus.cancelled,
             latestOccurredAtUtc: DateTime.utc(2026, 3, 10, 2, 18),
+            dispatchCreatedAtUtc: DateTime.utc(2026, 3, 10, 2, 0),
             acceptedAtUtc: DateTime.utc(2026, 3, 10, 2, 5),
             cancelledAtUtc: DateTime.utc(2026, 3, 10, 2, 18),
+            acceptedDelayMinutes: 5.0,
             workflowSummary: 'ACCEPT -> CANCELLED (LATEST CANCELLED)',
           ),
         ],
@@ -275,6 +281,7 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(find.text('Avg accept 5.0m • Avg on site 12.0m'), findsNWidgets(2));
     expect(find.text('Vehicle site ledger'), findsOneWidget);
     expect(find.text('Vehicle exception review'), findsOneWidget);
     expect(find.text('Partner dispatch sites'), findsOneWidget);
@@ -282,6 +289,10 @@ void main() {
     expect(find.textContaining('Partner Alpha • DSP-42'), findsOneWidget);
     expect(
       find.text('Workflow: ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('SLA: accepted in 5.0m • on site in 13.0m'),
       findsOneWidget,
     );
     expect(find.textContaining('CLIENT-1/SITE-42'), findsWidgets);

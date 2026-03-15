@@ -329,6 +329,10 @@ void main() {
         '1 partner dispatch remains ON SITE',
       );
       expect(
+        report.partnerProgression.slaHeadline,
+        'Avg accept 215.0m • Avg on site 222.0m',
+      );
+      expect(
         report.partnerProgression.summaryLine,
         'Dispatches 1 • Declarations 2 • Accept 1 • On site 1 • All clear 0 • Cancelled 0',
       );
@@ -337,6 +341,14 @@ void main() {
       expect(
         report.partnerProgression.dispatchChains.first.workflowSummary,
         'ACCEPT -> ON SITE (LATEST ON SITE)',
+      );
+      expect(
+        report.partnerProgression.dispatchChains.first.acceptedDelayMinutes,
+        215.0,
+      );
+      expect(
+        report.partnerProgression.dispatchChains.first.onSiteDelayMinutes,
+        222.0,
       );
 
       final restored = SovereignReport.fromJson(report.toJson());
@@ -378,6 +390,10 @@ void main() {
       expect(restored.partnerProgression.dispatchCount, 1);
       expect(restored.partnerProgression.scopeBreakdowns, hasLength(1));
       expect(restored.partnerProgression.dispatchChains, hasLength(1));
+      expect(
+        restored.partnerProgression.slaHeadline,
+        'Avg accept 215.0m • Avg on site 222.0m',
+      );
       expect(
         restored.partnerProgression.dispatchChains.first.workflowSummary,
         'ACCEPT -> ON SITE (LATEST ON SITE)',

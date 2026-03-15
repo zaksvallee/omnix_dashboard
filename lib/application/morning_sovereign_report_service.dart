@@ -261,6 +261,7 @@ class SovereignReport {
       allClearCount: 0,
       cancelledCount: 0,
       workflowHeadline: '',
+      slaHeadline: '',
       summaryLine: '',
       scopeBreakdowns: <SovereignReportPartnerScopeBreakdown>[],
       dispatchChains: <SovereignReportPartnerDispatchChain>[],
@@ -431,6 +432,7 @@ class SovereignReport {
               allClearCount: 0,
               cancelledCount: 0,
               workflowHeadline: '',
+              slaHeadline: '',
               summaryLine: '',
               scopeBreakdowns: <SovereignReportPartnerScopeBreakdown>[],
               dispatchChains: <SovereignReportPartnerDispatchChain>[],
@@ -447,6 +449,7 @@ class SovereignReportPartnerProgression {
   final int allClearCount;
   final int cancelledCount;
   final String workflowHeadline;
+  final String slaHeadline;
   final String summaryLine;
   final List<SovereignReportPartnerScopeBreakdown> scopeBreakdowns;
   final List<SovereignReportPartnerDispatchChain> dispatchChains;
@@ -459,6 +462,7 @@ class SovereignReportPartnerProgression {
     required this.allClearCount,
     required this.cancelledCount,
     this.workflowHeadline = '',
+    this.slaHeadline = '',
     required this.summaryLine,
     this.scopeBreakdowns = const <SovereignReportPartnerScopeBreakdown>[],
     this.dispatchChains = const <SovereignReportPartnerDispatchChain>[],
@@ -472,6 +476,7 @@ class SovereignReportPartnerProgression {
     int? allClearCount,
     int? cancelledCount,
     String? workflowHeadline,
+    String? slaHeadline,
     String? summaryLine,
     List<SovereignReportPartnerScopeBreakdown>? scopeBreakdowns,
     List<SovereignReportPartnerDispatchChain>? dispatchChains,
@@ -484,6 +489,7 @@ class SovereignReportPartnerProgression {
       allClearCount: allClearCount ?? this.allClearCount,
       cancelledCount: cancelledCount ?? this.cancelledCount,
       workflowHeadline: workflowHeadline ?? this.workflowHeadline,
+      slaHeadline: slaHeadline ?? this.slaHeadline,
       summaryLine: summaryLine ?? this.summaryLine,
       scopeBreakdowns: scopeBreakdowns ?? this.scopeBreakdowns,
       dispatchChains: dispatchChains ?? this.dispatchChains,
@@ -499,6 +505,7 @@ class SovereignReportPartnerProgression {
       'allClearCount': allClearCount,
       'cancelledCount': cancelledCount,
       'workflowHeadline': workflowHeadline,
+      'slaHeadline': slaHeadline,
       'summaryLine': summaryLine,
       'scopeBreakdowns': scopeBreakdowns
           .map((scope) => scope.toJson())
@@ -544,6 +551,7 @@ class SovereignReportPartnerProgression {
       allClearCount: (json['allClearCount'] as num?)?.toInt() ?? 0,
       cancelledCount: (json['cancelledCount'] as num?)?.toInt() ?? 0,
       workflowHeadline: (json['workflowHeadline'] as String? ?? '').trim(),
+      slaHeadline: (json['slaHeadline'] as String? ?? '').trim(),
       summaryLine: (json['summaryLine'] as String? ?? '').trim(),
       scopeBreakdowns: scopeBreakdowns,
       dispatchChains: dispatchChains,
@@ -611,10 +619,13 @@ class SovereignReportPartnerDispatchChain {
   final int declarationCount;
   final PartnerDispatchStatus latestStatus;
   final DateTime latestOccurredAtUtc;
+  final DateTime? dispatchCreatedAtUtc;
   final DateTime? acceptedAtUtc;
   final DateTime? onSiteAtUtc;
   final DateTime? allClearAtUtc;
   final DateTime? cancelledAtUtc;
+  final double? acceptedDelayMinutes;
+  final double? onSiteDelayMinutes;
   final String workflowSummary;
 
   const SovereignReportPartnerDispatchChain({
@@ -625,10 +636,13 @@ class SovereignReportPartnerDispatchChain {
     required this.declarationCount,
     required this.latestStatus,
     required this.latestOccurredAtUtc,
+    this.dispatchCreatedAtUtc,
     this.acceptedAtUtc,
     this.onSiteAtUtc,
     this.allClearAtUtc,
     this.cancelledAtUtc,
+    this.acceptedDelayMinutes,
+    this.onSiteDelayMinutes,
     this.workflowSummary = '',
   });
 
@@ -641,10 +655,13 @@ class SovereignReportPartnerDispatchChain {
       'declarationCount': declarationCount,
       'latestStatus': latestStatus.name,
       'latestOccurredAtUtc': latestOccurredAtUtc.toIso8601String(),
+      'dispatchCreatedAtUtc': dispatchCreatedAtUtc?.toIso8601String(),
       'acceptedAtUtc': acceptedAtUtc?.toIso8601String(),
       'onSiteAtUtc': onSiteAtUtc?.toIso8601String(),
       'allClearAtUtc': allClearAtUtc?.toIso8601String(),
       'cancelledAtUtc': cancelledAtUtc?.toIso8601String(),
+      'acceptedDelayMinutes': acceptedDelayMinutes,
+      'onSiteDelayMinutes': onSiteDelayMinutes,
       'workflowSummary': workflowSummary,
     };
   }
@@ -666,6 +683,9 @@ class SovereignReportPartnerDispatchChain {
             (json['latestOccurredAtUtc'] as String? ?? '').trim(),
           )?.toUtc() ??
           DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      dispatchCreatedAtUtc: DateTime.tryParse(
+        (json['dispatchCreatedAtUtc'] as String? ?? '').trim(),
+      )?.toUtc(),
       acceptedAtUtc: DateTime.tryParse(
         (json['acceptedAtUtc'] as String? ?? '').trim(),
       )?.toUtc(),
@@ -678,6 +698,8 @@ class SovereignReportPartnerDispatchChain {
       cancelledAtUtc: DateTime.tryParse(
         (json['cancelledAtUtc'] as String? ?? '').trim(),
       )?.toUtc(),
+      acceptedDelayMinutes: (json['acceptedDelayMinutes'] as num?)?.toDouble(),
+      onSiteDelayMinutes: (json['onSiteDelayMinutes'] as num?)?.toDouble(),
       workflowSummary: (json['workflowSummary'] as String? ?? '').trim(),
     );
   }
@@ -1192,6 +1214,9 @@ class MorningSovereignReportService {
       events: nightEvents.whereType<PartnerDispatchStatusDeclared>().toList(
         growable: false,
       ),
+      decisions: nightEvents.whereType<DecisionCreated>().toList(
+        growable: false,
+      ),
     );
 
     return SovereignReport(
@@ -1240,6 +1265,7 @@ class MorningSovereignReportService {
 
   SovereignReportPartnerProgression _buildPartnerProgression({
     required List<PartnerDispatchStatusDeclared> events,
+    required List<DecisionCreated> decisions,
   }) {
     if (events.isEmpty) {
       return const SovereignReportPartnerProgression(
@@ -1250,6 +1276,7 @@ class MorningSovereignReportService {
         allClearCount: 0,
         cancelledCount: 0,
         workflowHeadline: '',
+        slaHeadline: '',
         summaryLine: '',
         scopeBreakdowns: <SovereignReportPartnerScopeBreakdown>[],
         dispatchChains: <SovereignReportPartnerDispatchChain>[],
@@ -1274,21 +1301,30 @@ class MorningSovereignReportService {
         allClearCount: 0,
         cancelledCount: 0,
         workflowHeadline: '',
+        slaHeadline: '',
         summaryLine: '',
         scopeBreakdowns: <SovereignReportPartnerScopeBreakdown>[],
         dispatchChains: <SovereignReportPartnerDispatchChain>[],
       );
     }
+    final dispatchCreatedAtUtcByDispatchId = <String, DateTime>{
+      for (final decision in decisions)
+        if (decision.dispatchId.trim().isNotEmpty)
+          decision.dispatchId.trim(): decision.occurredAt.toUtc(),
+    };
     var acceptedCount = 0;
     var onSiteCount = 0;
     var allClearCount = 0;
     var cancelledCount = 0;
+    final acceptedDelayMinutes = <double>[];
+    final onSiteDelayMinutes = <double>[];
     final chains = <SovereignReportPartnerDispatchChain>[];
     final groupedByScope = <String, List<PartnerDispatchStatusDeclared>>{};
     for (final entry in groupedByDispatch.entries) {
       final ordered = [...entry.value]..sort(_compareOccurredAtThenSequence);
       final first = ordered.first;
       final latest = ordered.last;
+      final dispatchCreatedAtUtc = dispatchCreatedAtUtcByDispatchId[entry.key];
       final firstOccurrenceByStatus = <PartnerDispatchStatus, DateTime>{};
       for (final event in ordered) {
         firstOccurrenceByStatus.putIfAbsent(
@@ -1314,6 +1350,20 @@ class MorningSovereignReportService {
       )) {
         cancelledCount += 1;
       }
+      final acceptedDelay = _delayMinutes(
+        dispatchCreatedAtUtc,
+        firstOccurrenceByStatus[PartnerDispatchStatus.accepted],
+      );
+      final onSiteDelay = _delayMinutes(
+        dispatchCreatedAtUtc,
+        firstOccurrenceByStatus[PartnerDispatchStatus.onSite],
+      );
+      if (acceptedDelay != null) {
+        acceptedDelayMinutes.add(acceptedDelay);
+      }
+      if (onSiteDelay != null) {
+        onSiteDelayMinutes.add(onSiteDelay);
+      }
       chains.add(
         SovereignReportPartnerDispatchChain(
           dispatchId: entry.key,
@@ -1323,6 +1373,7 @@ class MorningSovereignReportService {
           declarationCount: ordered.length,
           latestStatus: latest.status,
           latestOccurredAtUtc: latest.occurredAt.toUtc(),
+          dispatchCreatedAtUtc: dispatchCreatedAtUtc,
           acceptedAtUtc:
               firstOccurrenceByStatus[PartnerDispatchStatus.accepted],
           onSiteAtUtc: firstOccurrenceByStatus[PartnerDispatchStatus.onSite],
@@ -1330,6 +1381,8 @@ class MorningSovereignReportService {
               firstOccurrenceByStatus[PartnerDispatchStatus.allClear],
           cancelledAtUtc:
               firstOccurrenceByStatus[PartnerDispatchStatus.cancelled],
+          acceptedDelayMinutes: acceptedDelay,
+          onSiteDelayMinutes: onSiteDelay,
           workflowSummary: _partnerDispatchWorkflowSummary(
             firstOccurrenceByStatus,
             latest.status,
@@ -1384,6 +1437,10 @@ class MorningSovereignReportService {
       allClearCount: allClearCount,
       cancelledCount: cancelledCount,
       workflowHeadline: _partnerWorkflowHeadline(chains),
+      slaHeadline: _partnerSlaHeadline(
+        acceptedDelayMinutes: acceptedDelayMinutes,
+        onSiteDelayMinutes: onSiteDelayMinutes,
+      ),
       summaryLine: _partnerSummaryLine(
         dispatchCount: dispatchCount,
         declarationCount: declarationCount,
@@ -2092,6 +2149,22 @@ class MorningSovereignReportService {
     return 'Dispatches $dispatchCount • Declarations $declarationCount • Accept $acceptedCount • On site $onSiteCount • All clear $allClearCount • Cancelled $cancelledCount';
   }
 
+  String _partnerSlaHeadline({
+    required List<double> acceptedDelayMinutes,
+    required List<double> onSiteDelayMinutes,
+  }) {
+    final parts = <String>[];
+    final acceptedAverage = _averageMinutes(acceptedDelayMinutes);
+    final onSiteAverage = _averageMinutes(onSiteDelayMinutes);
+    if (acceptedAverage != null) {
+      parts.add('Avg accept ${acceptedAverage.toStringAsFixed(1)}m');
+    }
+    if (onSiteAverage != null) {
+      parts.add('Avg on site ${onSiteAverage.toStringAsFixed(1)}m');
+    }
+    return parts.join(' • ');
+  }
+
   String _partnerScopeSummaryLine({
     required int dispatchCount,
     required int declarationCount,
@@ -2122,6 +2195,24 @@ class MorningSovereignReportService {
       steps.add(_partnerDispatchStatusLabel(latestStatus));
     }
     return '${steps.join(' -> ')} (LATEST ${_partnerDispatchStatusLabel(latestStatus)})';
+  }
+
+  double? _delayMinutes(DateTime? startUtc, DateTime? endUtc) {
+    if (startUtc == null || endUtc == null) {
+      return null;
+    }
+    final duration = endUtc.difference(startUtc);
+    if (duration.isNegative) {
+      return null;
+    }
+    return double.parse((duration.inSeconds / 60.0).toStringAsFixed(1));
+  }
+
+  double? _averageMinutes(List<double> values) {
+    if (values.isEmpty) {
+      return null;
+    }
+    return values.reduce((left, right) => left + right) / values.length;
   }
 }
 
