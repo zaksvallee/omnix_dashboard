@@ -731,6 +731,22 @@ class _ClientIntelligenceReportsPageState
               const SizedBox(height: 6),
             ],
           ],
+          if (currentChains.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Current dispatch chains',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFE8F1FF),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            for (var index = 0; index < currentChains.length; index++) ...[
+              _partnerScopeDispatchChainRow(currentChains[index]),
+              if (index < currentChains.length - 1) const SizedBox(height: 6),
+            ],
+          ],
         ],
       ),
     );
@@ -1040,6 +1056,90 @@ class _ClientIntelligenceReportsPageState
     );
   }
 
+  Widget _partnerScopeDispatchChainRow(
+    SovereignReportPartnerDispatchChain chain,
+  ) {
+    final acceptedDelay = chain.acceptedDelayMinutes;
+    final onSiteDelay = chain.onSiteDelayMinutes;
+    final timingParts = <String>[
+      if (acceptedDelay != null && acceptedDelay > 0)
+        'Accepted ${acceptedDelay.toStringAsFixed(1)}m',
+      if (onSiteDelay != null && onSiteDelay > 0)
+        'On site ${onSiteDelay.toStringAsFixed(1)}m',
+    ];
+    return Container(
+      key: ValueKey<String>('reports-partner-scope-chain-${chain.dispatchId}'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1A2B),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF223244)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  chain.dispatchId,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFE8F1FF),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              _partnerScopeChip(
+                label: chain.scoreLabel.trim().isEmpty
+                    ? chain.latestStatus.name.toUpperCase()
+                    : chain.scoreLabel.trim().toUpperCase(),
+                color: _partnerTrendColor(
+                  chain.scoreLabel.trim().toUpperCase(),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            chain.workflowSummary.trim().isEmpty
+                ? 'Latest ${chain.latestStatus.name.toUpperCase()}'
+                : chain.workflowSummary.trim(),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9CB2D1),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (timingParts.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              timingParts.join(' • '),
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          if (chain.scoreReason.trim().isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              chain.scoreReason.trim(),
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   List<_PartnerScopeHistoryPoint> _partnerScopeHistoryPoints() {
     return _partnerScopeHistoryPointsFor(
       clientId: _partnerScopeClientId,
@@ -1255,6 +1355,14 @@ class _ClientIntelligenceReportsPageState
 
   Color _partnerTrendColor(String label) {
     switch (label.trim().toUpperCase()) {
+      case 'STRONG':
+        return const Color(0xFF59D79B);
+      case 'ON TRACK':
+        return const Color(0xFF8FD1FF);
+      case 'WATCH':
+        return const Color(0xFFF6C067);
+      case 'CRITICAL':
+        return const Color(0xFFFF7A7A);
       case 'IMPROVING':
         return const Color(0xFF59D79B);
       case 'SLIPPING':

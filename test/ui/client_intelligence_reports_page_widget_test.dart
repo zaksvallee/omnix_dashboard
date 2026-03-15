@@ -270,6 +270,14 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('IMPROVING'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('reports-partner-scope-chain-DSP-9001')),
+      findsOneWidget,
+    );
+    expect(
+      find.text('ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)'),
+      findsOneWidget,
+    );
 
     final copyJsonButton = find.byKey(
       const ValueKey('reports-partner-scorecard-copy-json'),
