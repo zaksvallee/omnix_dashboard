@@ -197,6 +197,28 @@ class _ReceiptBrandingTrend {
   });
 }
 
+class _ReceiptBrandingHistoryPoint {
+  final String reportDate;
+  final bool current;
+  final int generatedReports;
+  final int standardBrandingReports;
+  final int defaultPartnerBrandingReports;
+  final int customBrandingOverrideReports;
+  final String brandingExecutiveSummary;
+  final String latestBrandingSummary;
+
+  const _ReceiptBrandingHistoryPoint({
+    required this.reportDate,
+    required this.current,
+    required this.generatedReports,
+    required this.standardBrandingReports,
+    required this.defaultPartnerBrandingReports,
+    required this.customBrandingOverrideReports,
+    required this.brandingExecutiveSummary,
+    required this.latestBrandingSummary,
+  });
+}
+
 class _PartnerScoreboardHistoryPoint {
   final String reportDate;
   final SovereignReportPartnerScoreboardRow row;
@@ -4206,84 +4228,96 @@ class _GovernancePageState extends State<GovernancePage> {
     final trend = _receiptBrandingTrendForReport(report);
     final trendColor = _partnerTrendColor(trend.trendLabel);
     final modeColor = _receiptBrandingModeColor(trend.currentModeLabel);
-    return Container(
+    return InkWell(
       key: const ValueKey('governance-receipt-branding-trend-card'),
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: const Color(0x14000000),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0x22FFFFFF)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  trend.summaryLine,
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFFEAF4FF),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
+      onTap: () => _showReceiptBrandingDrillIn(report),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: const Color(0x14000000),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0x22FFFFFF)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    trend.summaryLine,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFEAF4FF),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: modeColor.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: modeColor.withValues(alpha: 0.5)),
-                ),
-                child: Text(
-                  trend.currentModeLabel,
-                  style: GoogleFonts.inter(
-                    color: modeColor,
-                    fontSize: 8,
-                    fontWeight: FontWeight.w800,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: modeColor.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: modeColor.withValues(alpha: 0.5)),
+                  ),
+                  child: Text(
+                    trend.currentModeLabel,
+                    style: GoogleFonts.inter(
+                      color: modeColor,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: trendColor.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: trendColor.withValues(alpha: 0.5)),
-                ),
-                child: Text(
-                  trend.trendLabel,
-                  style: GoogleFonts.inter(
-                    color: trendColor,
-                    fontSize: 8,
-                    fontWeight: FontWeight.w800,
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: trendColor.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: trendColor.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Text(
+                    trend.trendLabel,
+                    style: GoogleFonts.inter(
+                      color: trendColor,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            trend.trendReason,
-            style: GoogleFonts.inter(
-              color: trendColor,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
+              ],
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Compared against ${trend.reportDays} recent shift${trend.reportDays == 1 ? '' : 's'}.',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
+            const SizedBox(height: 4),
+            Text(
+              trend.trendReason,
+              style: GoogleFonts.inter(
+                color: trendColor,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 4),
+            Text(
+              'Compared against ${trend.reportDays} recent shift${trend.reportDays == 1 ? '' : 's'} • Tap to drill in.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -4308,6 +4342,255 @@ class _GovernancePageState extends State<GovernancePage> {
           fontWeight: FontWeight.w700,
         ),
       ),
+    );
+  }
+
+  void _showReceiptBrandingDrillIn(_GovernanceReportView report) {
+    final history = _receiptBrandingHistory(report);
+    final trend = _receiptBrandingTrendForReport(report);
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: const Color(0xFF08111B),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 24,
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760, maxHeight: 720),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                key: const ValueKey('governance-receipt-branding-dialog'),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'RECEIPT BRANDING DRILL-IN',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFFEAF4FF),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${trend.trendLabel} • ${trend.trendReason}',
+                              style: GoogleFonts.inter(
+                                color: _partnerTrendColor(trend.trendLabel),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        icon: const Icon(Icons.close, color: Color(0xFFEAF4FF)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _partnerTrendMetricChip(
+                        label: 'Current mode',
+                        value: trend.currentModeLabel,
+                        color: _receiptBrandingModeColor(
+                          trend.currentModeLabel,
+                        ),
+                      ),
+                      _partnerTrendMetricChip(
+                        label: 'Reports',
+                        value: '${report.generatedReports}',
+                        color: const Color(0xFF8FD1FF),
+                      ),
+                      _partnerTrendMetricChip(
+                        label: 'Custom',
+                        value: '${report.customBrandingOverrideReports}',
+                        color: const Color(0xFFF6C067),
+                      ),
+                      _partnerTrendMetricChip(
+                        label: 'Default',
+                        value: '${report.defaultPartnerBrandingReports}',
+                        color: const Color(0xFF63BDFF),
+                      ),
+                      _partnerTrendMetricChip(
+                        label: 'Standard',
+                        value: '${report.standardBrandingReports}',
+                        color: const Color(0xFF8EA5C6),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          for (final point in history) ...[
+                            Container(
+                              key: ValueKey<String>(
+                                'governance-receipt-branding-history-${point.reportDate}',
+                              ),
+                              width: double.infinity,
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: point.current
+                                    ? const Color(0x1A0EA5E9)
+                                    : const Color(0x14000000),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: point.current
+                                      ? const Color(0x550EA5E9)
+                                      : const Color(0x22FFFFFF),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          point.reportDate,
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFEAF4FF),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ),
+                                      if (point.current)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 7,
+                                            vertical: 3,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: const Color(
+                                              0xFF8FD1FF,
+                                            ).withValues(alpha: 0.14),
+                                            borderRadius: BorderRadius.circular(
+                                              999,
+                                            ),
+                                            border: Border.all(
+                                              color: const Color(
+                                                0xFF8FD1FF,
+                                              ).withValues(alpha: 0.5),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            'CURRENT',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFF8FD1FF),
+                                              fontSize: 8,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ),
+                                      const SizedBox(width: 6),
+                                      Builder(
+                                        builder: (context) {
+                                          final modeLabel = _receiptBrandingModeLabel(
+                                            point.standardBrandingReports,
+                                            point.defaultPartnerBrandingReports,
+                                            point.customBrandingOverrideReports,
+                                          );
+                                          final modeColor =
+                                              _receiptBrandingModeColor(
+                                                modeLabel,
+                                              );
+                                          return Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 7,
+                                              vertical: 3,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: modeColor.withValues(
+                                                alpha: 0.14,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
+                                              border: Border.all(
+                                                color: modeColor.withValues(
+                                                  alpha: 0.5,
+                                                ),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              modeLabel,
+                                              style: GoogleFonts.inter(
+                                                color: modeColor,
+                                                fontSize: 8,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Reports ${point.generatedReports} • Custom ${point.customBrandingOverrideReports} • Default ${point.defaultPartnerBrandingReports} • Standard ${point.standardBrandingReports}',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFF9CB2D1),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  if (point.brandingExecutiveSummary
+                                      .trim()
+                                      .isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      point.brandingExecutiveSummary,
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFEAF4FF),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                  if (point.latestBrandingSummary
+                                      .trim()
+                                      .isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      point.latestBrandingSummary,
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF8EA4C2),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -4863,6 +5146,53 @@ class _GovernancePageState extends State<GovernancePage> {
       reportDays: baseline.length,
       currentModeLabel: currentModeLabel,
     );
+  }
+
+  List<_ReceiptBrandingHistoryPoint> _receiptBrandingHistory(
+    _GovernanceReportView report,
+  ) {
+    final points = <_ReceiptBrandingHistoryPoint>[
+      _ReceiptBrandingHistoryPoint(
+        reportDate: report.reportDate,
+        current: true,
+        generatedReports: report.generatedReports,
+        standardBrandingReports: report.standardBrandingReports,
+        defaultPartnerBrandingReports: report.defaultPartnerBrandingReports,
+        customBrandingOverrideReports: report.customBrandingOverrideReports,
+        brandingExecutiveSummary: report.receiptPolicyBrandingExecutiveSummary,
+        latestBrandingSummary: report.latestReceiptBrandingSummary,
+      ),
+    ];
+    for (final item in widget.morningSovereignReportHistory) {
+      if (item.receiptPolicy.generatedReports <= 0) {
+        continue;
+      }
+      if (item.generatedAtUtc == report.generatedAtUtc &&
+          item.date == report.reportDate) {
+        continue;
+      }
+      points.add(
+        _ReceiptBrandingHistoryPoint(
+          reportDate: item.date,
+          current: false,
+          generatedReports: item.receiptPolicy.generatedReports,
+          standardBrandingReports: item.receiptPolicy.standardBrandingReports,
+          defaultPartnerBrandingReports:
+              item.receiptPolicy.defaultPartnerBrandingReports,
+          customBrandingOverrideReports:
+              item.receiptPolicy.customBrandingOverrideReports,
+          brandingExecutiveSummary: item.receiptPolicy.brandingExecutiveSummary,
+          latestBrandingSummary: item.receiptPolicy.latestBrandingSummary,
+        ),
+      );
+    }
+    points.sort((left, right) {
+      if (left.current != right.current) {
+        return left.current ? -1 : 1;
+      }
+      return right.reportDate.compareTo(left.reportDate);
+    });
+    return points;
   }
 
   String _receiptBrandingModeLabel(

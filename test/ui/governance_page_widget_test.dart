@@ -359,6 +359,43 @@ void main() {
       ),
       findsOneWidget,
     );
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('governance-receipt-branding-trend-card')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('governance-receipt-branding-trend-card')),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('governance-receipt-branding-dialog')),
+      findsOneWidget,
+    );
+    expect(find.text('RECEIPT BRANDING DRILL-IN'), findsOneWidget);
+    expect(
+      find.byKey(
+        const ValueKey('governance-receipt-branding-history-2026-03-10'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey('governance-receipt-branding-history-2026-03-09'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Reports 2 • Custom 1 • Default 0 • Standard 1'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        '1 receipt used default partner branding • 1 receipt used standard ONYX branding',
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byIcon(Icons.close).last);
+    await tester.pumpAndSettle();
     expect(
       find.textContaining(
         'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
