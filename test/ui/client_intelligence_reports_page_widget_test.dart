@@ -1002,6 +1002,70 @@ void main() {
     );
   });
 
+  testWidgets(
+    'client reports persists report configuration toggles through remount',
+    (tester) async {
+      final shellState = ValueNotifier(const ReportShellState());
+      addTearDown(shellState.dispose);
+
+      Widget buildReports() {
+        return MaterialApp(
+          home: ValueListenableBuilder<ReportShellState>(
+            valueListenable: shellState,
+            builder: (context, value, _) {
+              return ClientIntelligenceReportsPage(
+                key: ValueKey(
+                  '${value.includeAiDecisionLog}|${value.includeGuardMetrics}',
+                ),
+                store: InMemoryEventStore(),
+                selectedClient: 'CLIENT-001',
+                selectedSite: 'SITE-SANDTON',
+                reportShellState: value,
+                onReportShellStateChanged: (next) => shellState.value = next,
+              );
+            },
+          ),
+        );
+      }
+
+      await tester.pumpWidget(buildReports());
+      await tester.pumpAndSettle();
+
+      final includeAiDecisionLogToggle = find.widgetWithText(
+        CheckboxListTile,
+        'Include AI decision log',
+      );
+      final includeGuardMetricsToggle = find.widgetWithText(
+        CheckboxListTile,
+        'Include guard performance metrics',
+      );
+
+      await tester.ensureVisible(includeAiDecisionLogToggle);
+      await tester.tap(includeAiDecisionLogToggle);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(includeGuardMetricsToggle);
+      await tester.tap(includeGuardMetricsToggle);
+      await tester.pumpAndSettle();
+
+      expect(shellState.value.includeAiDecisionLog, isTrue);
+      expect(shellState.value.includeGuardMetrics, isTrue);
+
+      await tester.pumpWidget(buildReports());
+      await tester.pumpAndSettle();
+
+      expect(shellState.value.includeAiDecisionLog, isTrue);
+      expect(shellState.value.includeGuardMetrics, isTrue);
+      expect(
+        tester.widget<CheckboxListTile>(includeAiDecisionLogToggle).value,
+        isTrue,
+      );
+      expect(
+        tester.widget<CheckboxListTile>(includeGuardMetricsToggle).value,
+        isTrue,
+      );
+    },
+  );
+
   testWidgets('client reports export all includes latest-action lens context', (
     tester,
   ) async {

@@ -13,6 +13,11 @@ class ReportShellState {
   final String? partnerScopeClientId;
   final String? partnerScopeSiteId;
   final String? partnerScopePartnerLabel;
+  final bool includeTimeline;
+  final bool includeDispatchSummary;
+  final bool includeCheckpointCompliance;
+  final bool includeAiDecisionLog;
+  final bool includeGuardMetrics;
 
   const ReportShellState({
     this.receiptFilter = ReportReceiptSceneFilter.all,
@@ -24,6 +29,11 @@ class ReportShellState {
     this.partnerScopeClientId,
     this.partnerScopeSiteId,
     this.partnerScopePartnerLabel,
+    this.includeTimeline = true,
+    this.includeDispatchSummary = true,
+    this.includeCheckpointCompliance = true,
+    this.includeAiDecisionLog = false,
+    this.includeGuardMetrics = false,
   });
 
   ReportShellState copyWith({
@@ -39,6 +49,11 @@ class ReportShellState {
     String? partnerScopeSiteId,
     String? partnerScopePartnerLabel,
     bool clearPartnerScopeFocus = false,
+    bool? includeTimeline,
+    bool? includeDispatchSummary,
+    bool? includeCheckpointCompliance,
+    bool? includeAiDecisionLog,
+    bool? includeGuardMetrics,
   }) {
     final normalizedSelectedReceiptEventId = selectedReceiptEventId?.trim();
     final normalizedPreviewReceiptEventId = previewReceiptEventId?.trim();
@@ -99,6 +114,13 @@ class ReportShellState {
       partnerScopePartnerLabel: hasCompletePartnerScope
           ? nextPartnerScopePartnerLabel
           : null,
+      includeTimeline: includeTimeline ?? this.includeTimeline,
+      includeDispatchSummary:
+          includeDispatchSummary ?? this.includeDispatchSummary,
+      includeCheckpointCompliance:
+          includeCheckpointCompliance ?? this.includeCheckpointCompliance,
+      includeAiDecisionLog: includeAiDecisionLog ?? this.includeAiDecisionLog,
+      includeGuardMetrics: includeGuardMetrics ?? this.includeGuardMetrics,
     );
   }
 }

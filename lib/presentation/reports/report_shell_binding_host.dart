@@ -92,6 +92,24 @@ mixin ReportShellBindingHost<T extends StatefulWidget> on State<T> {
     mutateReportShellBinding((binding) => binding.clearingPartnerScopeFocus());
   }
 
+  void setReportSectionConfiguration({
+    bool? includeTimeline,
+    bool? includeDispatchSummary,
+    bool? includeCheckpointCompliance,
+    bool? includeAiDecisionLog,
+    bool? includeGuardMetrics,
+  }) {
+    mutateReportShellBinding(
+      (binding) => binding.withReportSectionConfiguration(
+        includeTimeline: includeTimeline,
+        includeDispatchSummary: includeDispatchSummary,
+        includeCheckpointCompliance: includeCheckpointCompliance,
+        includeAiDecisionLog: includeAiDecisionLog,
+        includeGuardMetrics: includeGuardMetrics,
+      ),
+    );
+  }
+
   void focusReportReceiptWorkspace(String? eventId) {
     mutateReportShellBinding(
       (binding) => binding.withReceiptWorkspaceFocus(eventId),

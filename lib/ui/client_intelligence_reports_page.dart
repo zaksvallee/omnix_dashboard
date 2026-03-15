@@ -85,12 +85,6 @@ class _ClientIntelligenceReportsPageState
   DateTime _startDate = DateTime.utc(2024, 3, 1);
   DateTime _endDate = DateTime.utc(2024, 3, 10);
 
-  bool _includeTimeline = true;
-  bool _includeDispatchSummary = true;
-  bool _includeCheckpointCompliance = true;
-  bool _includeAiDecisionLog = false;
-  bool _includeGuardMetrics = false;
-
   ReportGenerationService get _service => ReportGenerationService(
     store: widget.store,
     sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
@@ -399,35 +393,41 @@ class _ClientIntelligenceReportsPageState
                                   label: 'Include incident timeline',
                                   value: _includeTimeline,
                                   onChanged: (value) =>
-                                      setState(() => _includeTimeline = value),
+                                      setReportSectionConfiguration(
+                                        includeTimeline: value,
+                                      ),
                                 ),
                                 _toggle(
                                   label: 'Include dispatch summary',
                                   value: _includeDispatchSummary,
-                                  onChanged: (value) => setState(
-                                    () => _includeDispatchSummary = value,
-                                  ),
+                                  onChanged: (value) =>
+                                      setReportSectionConfiguration(
+                                        includeDispatchSummary: value,
+                                      ),
                                 ),
                                 _toggle(
                                   label: 'Include checkpoint compliance',
                                   value: _includeCheckpointCompliance,
-                                  onChanged: (value) => setState(
-                                    () => _includeCheckpointCompliance = value,
-                                  ),
+                                  onChanged: (value) =>
+                                      setReportSectionConfiguration(
+                                        includeCheckpointCompliance: value,
+                                      ),
                                 ),
                                 _toggle(
                                   label: 'Include AI decision log',
                                   value: _includeAiDecisionLog,
-                                  onChanged: (value) => setState(
-                                    () => _includeAiDecisionLog = value,
-                                  ),
+                                  onChanged: (value) =>
+                                      setReportSectionConfiguration(
+                                        includeAiDecisionLog: value,
+                                      ),
                                 ),
                                 _toggle(
                                   label: 'Include guard performance metrics',
                                   value: _includeGuardMetrics,
-                                  onChanged: (value) => setState(
-                                    () => _includeGuardMetrics = value,
-                                  ),
+                                  onChanged: (value) =>
+                                      setReportSectionConfiguration(
+                                        includeGuardMetrics: value,
+                                      ),
                                 ),
                               ],
                             ),
@@ -2459,9 +2459,8 @@ class _ClientIntelligenceReportsPageState
     if (clientId.isEmpty && siteId.isEmpty && partnerLabel.isEmpty) {
       return;
     }
-    final nextBinding = clientId.isNotEmpty &&
-            siteId.isNotEmpty &&
-            partnerLabel.isNotEmpty
+    final nextBinding =
+        clientId.isNotEmpty && siteId.isNotEmpty && partnerLabel.isNotEmpty
         ? _shellBinding.withPartnerScopeFocus(
             clientId: clientId,
             siteId: siteId,
@@ -2564,6 +2563,17 @@ class _ClientIntelligenceReportsPageState
   String? get _previewReceiptEventId => _shellBinding.previewReceiptEventId;
 
   ReportPreviewSurface get _previewSurface => _shellBinding.previewSurface;
+
+  bool get _includeTimeline => _shellBinding.includeTimeline;
+
+  bool get _includeDispatchSummary => _shellBinding.includeDispatchSummary;
+
+  bool get _includeCheckpointCompliance =>
+      _shellBinding.includeCheckpointCompliance;
+
+  bool get _includeAiDecisionLog => _shellBinding.includeAiDecisionLog;
+
+  bool get _includeGuardMetrics => _shellBinding.includeGuardMetrics;
 
   _ReceiptRow? _focusedVisibleReceipt(List<_ReceiptRow> rows) {
     return ReportReceiptHistoryLookup.findByEventId<_ReceiptRow>(

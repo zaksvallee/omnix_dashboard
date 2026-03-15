@@ -14,6 +14,11 @@ class ReportShellBinding {
   final String? partnerScopeClientId;
   final String? partnerScopeSiteId;
   final String? partnerScopePartnerLabel;
+  final bool includeTimeline;
+  final bool includeDispatchSummary;
+  final bool includeCheckpointCompliance;
+  final bool includeAiDecisionLog;
+  final bool includeGuardMetrics;
 
   const ReportShellBinding({
     required this.receiptFilter,
@@ -25,6 +30,11 @@ class ReportShellBinding {
     required this.partnerScopeClientId,
     required this.partnerScopeSiteId,
     required this.partnerScopePartnerLabel,
+    required this.includeTimeline,
+    required this.includeDispatchSummary,
+    required this.includeCheckpointCompliance,
+    required this.includeAiDecisionLog,
+    required this.includeGuardMetrics,
   });
 
   factory ReportShellBinding.fromShellState(ReportShellState shellState) {
@@ -69,6 +79,11 @@ class ReportShellBinding {
       partnerScopePartnerLabel: hasCompletePartnerScope
           ? normalizedPartnerScopePartnerLabel
           : null,
+      includeTimeline: shellState.includeTimeline,
+      includeDispatchSummary: shellState.includeDispatchSummary,
+      includeCheckpointCompliance: shellState.includeCheckpointCompliance,
+      includeAiDecisionLog: shellState.includeAiDecisionLog,
+      includeGuardMetrics: shellState.includeGuardMetrics,
     );
   }
 
@@ -85,6 +100,11 @@ class ReportShellBinding {
     String? partnerScopeSiteId,
     String? partnerScopePartnerLabel,
     bool clearPartnerScopeFocus = false,
+    bool? includeTimeline,
+    bool? includeDispatchSummary,
+    bool? includeCheckpointCompliance,
+    bool? includeAiDecisionLog,
+    bool? includeGuardMetrics,
   }) {
     final normalizedSelectedReceiptEventId = selectedReceiptEventId?.trim();
     final normalizedPreviewReceiptEventId = previewReceiptEventId?.trim();
@@ -145,6 +165,13 @@ class ReportShellBinding {
       partnerScopePartnerLabel: hasCompletePartnerScope
           ? nextPartnerScopePartnerLabel
           : null,
+      includeTimeline: includeTimeline ?? this.includeTimeline,
+      includeDispatchSummary:
+          includeDispatchSummary ?? this.includeDispatchSummary,
+      includeCheckpointCompliance:
+          includeCheckpointCompliance ?? this.includeCheckpointCompliance,
+      includeAiDecisionLog: includeAiDecisionLog ?? this.includeAiDecisionLog,
+      includeGuardMetrics: includeGuardMetrics ?? this.includeGuardMetrics,
     );
   }
 
@@ -218,6 +245,36 @@ class ReportShellBinding {
           newShellState.partnerScopeClientId == null &&
           newShellState.partnerScopeSiteId == null &&
           newShellState.partnerScopePartnerLabel == null,
+      includeTimeline:
+          oldShellState.includeTimeline != newShellState.includeTimeline &&
+              newShellState.includeTimeline != includeTimeline
+          ? newShellState.includeTimeline
+          : null,
+      includeDispatchSummary:
+          oldShellState.includeDispatchSummary !=
+                  newShellState.includeDispatchSummary &&
+              newShellState.includeDispatchSummary != includeDispatchSummary
+          ? newShellState.includeDispatchSummary
+          : null,
+      includeCheckpointCompliance:
+          oldShellState.includeCheckpointCompliance !=
+                  newShellState.includeCheckpointCompliance &&
+              newShellState.includeCheckpointCompliance !=
+                  includeCheckpointCompliance
+          ? newShellState.includeCheckpointCompliance
+          : null,
+      includeAiDecisionLog:
+          oldShellState.includeAiDecisionLog !=
+                  newShellState.includeAiDecisionLog &&
+              newShellState.includeAiDecisionLog != includeAiDecisionLog
+          ? newShellState.includeAiDecisionLog
+          : null,
+      includeGuardMetrics:
+          oldShellState.includeGuardMetrics !=
+                  newShellState.includeGuardMetrics &&
+              newShellState.includeGuardMetrics != includeGuardMetrics
+          ? newShellState.includeGuardMetrics
+          : null,
     );
   }
 
@@ -263,6 +320,22 @@ class ReportShellBinding {
 
   ReportShellBinding clearingPartnerScopeFocus() {
     return copyWith(clearPartnerScopeFocus: true);
+  }
+
+  ReportShellBinding withReportSectionConfiguration({
+    bool? includeTimeline,
+    bool? includeDispatchSummary,
+    bool? includeCheckpointCompliance,
+    bool? includeAiDecisionLog,
+    bool? includeGuardMetrics,
+  }) {
+    return copyWith(
+      includeTimeline: includeTimeline,
+      includeDispatchSummary: includeDispatchSummary,
+      includeCheckpointCompliance: includeCheckpointCompliance,
+      includeAiDecisionLog: includeAiDecisionLog,
+      includeGuardMetrics: includeGuardMetrics,
+    );
   }
 
   ReportShellBinding withReceiptWorkspaceFocus(String? value) {
@@ -321,6 +394,11 @@ class ReportShellBinding {
           partnerScopeClientId == null ||
           partnerScopeSiteId == null ||
           partnerScopePartnerLabel == null,
+      includeTimeline: includeTimeline,
+      includeDispatchSummary: includeDispatchSummary,
+      includeCheckpointCompliance: includeCheckpointCompliance,
+      includeAiDecisionLog: includeAiDecisionLog,
+      includeGuardMetrics: includeGuardMetrics,
     );
   }
 
@@ -338,7 +416,12 @@ class ReportShellBinding {
         other.partnerComparisonWindow == partnerComparisonWindow &&
         other.partnerScopeClientId == partnerScopeClientId &&
         other.partnerScopeSiteId == partnerScopeSiteId &&
-        other.partnerScopePartnerLabel == partnerScopePartnerLabel;
+        other.partnerScopePartnerLabel == partnerScopePartnerLabel &&
+        other.includeTimeline == includeTimeline &&
+        other.includeDispatchSummary == includeDispatchSummary &&
+        other.includeCheckpointCompliance == includeCheckpointCompliance &&
+        other.includeAiDecisionLog == includeAiDecisionLog &&
+        other.includeGuardMetrics == includeGuardMetrics;
   }
 
   @override
@@ -352,5 +435,10 @@ class ReportShellBinding {
     partnerScopeClientId,
     partnerScopeSiteId,
     partnerScopePartnerLabel,
+    includeTimeline,
+    includeDispatchSummary,
+    includeCheckpointCompliance,
+    includeAiDecisionLog,
+    includeGuardMetrics,
   );
 }
