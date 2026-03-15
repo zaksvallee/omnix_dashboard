@@ -46,6 +46,7 @@ class DashboardPage extends StatelessWidget {
   final List<GuardOpsEvent> guardRecentEvents;
   final List<GuardOpsMediaUpload> guardRecentMedia;
   final SovereignReport? morningSovereignReport;
+  final List<SovereignReport> morningSovereignReportHistory;
   final String? morningSovereignReportAutoStatusLabel;
   final Future<void> Function()? onGenerateMorningSovereignReport;
 
@@ -79,6 +80,7 @@ class DashboardPage extends StatelessWidget {
     this.guardRecentEvents = const [],
     this.guardRecentMedia = const [],
     this.morningSovereignReport,
+    this.morningSovereignReportHistory = const [],
     this.morningSovereignReportAutoStatusLabel,
     this.onGenerateMorningSovereignReport,
   });
@@ -135,6 +137,8 @@ class DashboardPage extends StatelessWidget {
                     guardRecentEvents: guardRecentEvents,
                     guardRecentMedia: guardRecentMedia,
                     morningSovereignReport: morningSovereignReport,
+                    morningSovereignReportHistory:
+                        morningSovereignReportHistory,
                     morningSovereignReportAutoStatusLabel:
                         morningSovereignReportAutoStatusLabel,
                     onGenerateMorningSovereignReport:
@@ -177,6 +181,7 @@ class DashboardPage extends StatelessWidget {
                   guardRecentEvents: guardRecentEvents,
                   guardRecentMedia: guardRecentMedia,
                   morningSovereignReport: morningSovereignReport,
+                  morningSovereignReportHistory: morningSovereignReportHistory,
                   morningSovereignReportAutoStatusLabel:
                       morningSovereignReportAutoStatusLabel,
                   onGenerateMorningSovereignReport:
@@ -337,6 +342,7 @@ class _DesktopDashboard extends StatelessWidget {
   final List<GuardOpsEvent> guardRecentEvents;
   final List<GuardOpsMediaUpload> guardRecentMedia;
   final SovereignReport? morningSovereignReport;
+  final List<SovereignReport> morningSovereignReportHistory;
   final String? morningSovereignReportAutoStatusLabel;
   final Future<void> Function()? onGenerateMorningSovereignReport;
 
@@ -371,6 +377,7 @@ class _DesktopDashboard extends StatelessWidget {
     required this.guardRecentEvents,
     required this.guardRecentMedia,
     required this.morningSovereignReport,
+    required this.morningSovereignReportHistory,
     required this.morningSovereignReportAutoStatusLabel,
     required this.onGenerateMorningSovereignReport,
   });
@@ -407,6 +414,7 @@ class _DesktopDashboard extends StatelessWidget {
       guardRecentEvents: guardRecentEvents,
       guardRecentMedia: guardRecentMedia,
       morningSovereignReport: morningSovereignReport,
+      morningSovereignReportHistory: morningSovereignReportHistory,
       morningSovereignReportAutoStatusLabel:
           morningSovereignReportAutoStatusLabel,
       onGenerateMorningSovereignReport: onGenerateMorningSovereignReport,
@@ -499,6 +507,7 @@ class _CompactDashboard extends StatelessWidget {
   final List<GuardOpsEvent> guardRecentEvents;
   final List<GuardOpsMediaUpload> guardRecentMedia;
   final SovereignReport? morningSovereignReport;
+  final List<SovereignReport> morningSovereignReportHistory;
   final String? morningSovereignReportAutoStatusLabel;
   final Future<void> Function()? onGenerateMorningSovereignReport;
 
@@ -533,6 +542,7 @@ class _CompactDashboard extends StatelessWidget {
     required this.guardRecentEvents,
     required this.guardRecentMedia,
     required this.morningSovereignReport,
+    required this.morningSovereignReportHistory,
     required this.morningSovereignReportAutoStatusLabel,
     required this.onGenerateMorningSovereignReport,
   });
@@ -581,6 +591,7 @@ class _CompactDashboard extends StatelessWidget {
           guardRecentEvents: guardRecentEvents,
           guardRecentMedia: guardRecentMedia,
           morningSovereignReport: morningSovereignReport,
+          morningSovereignReportHistory: morningSovereignReportHistory,
           morningSovereignReportAutoStatusLabel:
               morningSovereignReportAutoStatusLabel,
           onGenerateMorningSovereignReport: onGenerateMorningSovereignReport,
@@ -1041,6 +1052,7 @@ class _RightRail extends StatelessWidget {
   final List<GuardOpsEvent> guardRecentEvents;
   final List<GuardOpsMediaUpload> guardRecentMedia;
   final SovereignReport? morningSovereignReport;
+  final List<SovereignReport> morningSovereignReportHistory;
   final String? morningSovereignReportAutoStatusLabel;
   final Future<void> Function()? onGenerateMorningSovereignReport;
 
@@ -1074,6 +1086,7 @@ class _RightRail extends StatelessWidget {
     required this.guardRecentEvents,
     required this.guardRecentMedia,
     required this.morningSovereignReport,
+    required this.morningSovereignReportHistory,
     required this.morningSovereignReportAutoStatusLabel,
     required this.onGenerateMorningSovereignReport,
   });
@@ -1093,6 +1106,129 @@ class _RightRail extends StatelessWidget {
         'No recent failure trace.',
     ];
     return lines.join('\n');
+  }
+
+  _ReceiptPolicyTrend? _receiptPolicyTrendFor(SovereignReport report) {
+    final baselineReports =
+        morningSovereignReportHistory
+            .where((item) => !_isSameSovereignReport(item, report))
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
+    if (baselineReports.isEmpty) {
+      return null;
+    }
+    final baseline = baselineReports
+        .take(3)
+        .map((item) => item.receiptPolicy)
+        .toList(growable: false);
+    if (baseline.isEmpty) {
+      return null;
+    }
+    final currentScore = _receiptPolicySeverityScore(report.receiptPolicy);
+    final baselineScore =
+        baseline
+            .map(_receiptPolicySeverityScore)
+            .reduce((left, right) => left + right) /
+        baseline.length;
+    final delta = currentScore - baselineScore;
+    if (delta >= 0.75) {
+      return _ReceiptPolicyTrend(
+        label: 'SLIPPING',
+        summary: _slippingReceiptPolicySummary(report.receiptPolicy, baseline),
+      );
+    }
+    if (delta <= -0.75) {
+      return _ReceiptPolicyTrend(
+        label: 'IMPROVING',
+        summary: _improvingReceiptPolicySummary(report.receiptPolicy, baseline),
+      );
+    }
+    return _ReceiptPolicyTrend(
+      label: 'STABLE',
+      summary: _stableReceiptPolicySummary(report.receiptPolicy, baseline),
+    );
+  }
+
+  bool _isSameSovereignReport(SovereignReport left, SovereignReport right) {
+    return left.generatedAtUtc == right.generatedAtUtc &&
+        left.shiftWindowEndUtc == right.shiftWindowEndUtc &&
+        left.date == right.date;
+  }
+
+  double _receiptPolicySeverityScore(SovereignReportReceiptPolicy policy) {
+    if (policy.generatedReports <= 0) {
+      return 0;
+    }
+    final omittedWeight =
+        policy.reportsWithOmittedSections +
+        policy.omittedAiDecisionLogReports +
+        policy.omittedGuardMetricsReports;
+    return ((policy.legacyConfigurationReports * 3) + (omittedWeight * 2)) /
+        policy.generatedReports;
+  }
+
+  String _slippingReceiptPolicySummary(
+    SovereignReportReceiptPolicy current,
+    List<SovereignReportReceiptPolicy> baseline,
+  ) {
+    final baselineLegacy = baseline.fold<int>(
+      0,
+      (value, item) => value + item.legacyConfigurationReports,
+    );
+    final baselineOmitted = baseline.fold<int>(
+      0,
+      (value, item) => value + item.reportsWithOmittedSections,
+    );
+    if (current.legacyConfigurationReports > 0 && baselineLegacy == 0) {
+      return 'Latest receipt fell back to legacy policy capture.';
+    }
+    if (current.reportsWithOmittedSections > baselineOmitted) {
+      return 'Latest receipts omitted more sections than recent baseline.';
+    }
+    return 'Latest receipt posture weakened against recent policy baseline.';
+  }
+
+  String _improvingReceiptPolicySummary(
+    SovereignReportReceiptPolicy current,
+    List<SovereignReportReceiptPolicy> baseline,
+  ) {
+    final baselineLegacy = baseline.fold<int>(
+      0,
+      (value, item) => value + item.legacyConfigurationReports,
+    );
+    final baselineOmitted = baseline.fold<int>(
+      0,
+      (value, item) => value + item.reportsWithOmittedSections,
+    );
+    if (current.legacyConfigurationReports == 0 &&
+        current.reportsWithOmittedSections == 0 &&
+        (baselineLegacy > 0 || baselineOmitted > 0)) {
+      return 'Latest receipt returned to full tracked policy.';
+    }
+    return 'Latest receipt posture improved against recent policy baseline.';
+  }
+
+  String _stableReceiptPolicySummary(
+    SovereignReportReceiptPolicy current,
+    List<SovereignReportReceiptPolicy> baseline,
+  ) {
+    final baselineGenerated = baseline.fold<int>(
+      0,
+      (value, item) => value + item.generatedReports,
+    );
+    if (baselineGenerated <= 0 && current.generatedReports <= 0) {
+      return 'No recent client-facing receipts to compare.';
+    }
+    if (current.legacyConfigurationReports > 0) {
+      return 'Legacy policy capture remains in line with recent shifts.';
+    }
+    if (current.reportsWithOmittedSections > 0) {
+      return 'Latest omission posture held close to recent policy baseline.';
+    }
+    return 'Latest receipts held close to recent policy baseline.';
   }
 
   String _guardFailureTraceText(
@@ -1217,6 +1353,9 @@ class _RightRail extends StatelessWidget {
               .take(3)
               .map((entry) => '${entry.key} ${entry.value}')
               .join(', ');
+    final receiptPolicyTrend = sovereignReport == null
+        ? null
+        : _receiptPolicyTrendFor(sovereignReport);
 
     return Column(
       children: [
@@ -2363,6 +2502,12 @@ class _RightRail extends StatelessWidget {
                         ? sovereignReport.receiptPolicy.headline
                         : sovereignReport.receiptPolicy.summaryLine,
                   ),
+                if (receiptPolicyTrend != null)
+                  _RailMetricRow(
+                    label: 'Receipt policy trend',
+                    value:
+                        '${receiptPolicyTrend.label} • ${receiptPolicyTrend.summary}',
+                  ),
                 if ((sovereignReport.vehicleThroughput.workflowHeadline
                         .trim()
                         .isNotEmpty) ||
@@ -3047,6 +3192,13 @@ class _ThreatState {
     required this.accent,
     required this.softAccent,
   });
+}
+
+class _ReceiptPolicyTrend {
+  final String label;
+  final String summary;
+
+  const _ReceiptPolicyTrend({required this.label, required this.summary});
 }
 
 String _formatTimestamp(DateTime value) {

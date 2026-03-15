@@ -218,6 +218,50 @@ void main() {
               ],
             ),
           ),
+          morningSovereignReportHistory: [
+            SovereignReport(
+              date: '2026-03-08',
+              generatedAtUtc: DateTime.utc(2026, 3, 8, 6, 0),
+              shiftWindowStartUtc: DateTime.utc(2026, 3, 7, 22, 0),
+              shiftWindowEndUtc: DateTime.utc(2026, 3, 8, 6, 0),
+              ledgerIntegrity: const SovereignReportLedgerIntegrity(
+                totalEvents: 38,
+                hashVerified: true,
+                integrityScore: 100,
+              ),
+              aiHumanDelta: const SovereignReportAiHumanDelta(
+                aiDecisions: 10,
+                humanOverrides: 2,
+                overrideReasons: {'FALSE_ALARM': 2},
+              ),
+              normDrift: const SovereignReportNormDrift(
+                sitesMonitored: 4,
+                driftDetected: 0,
+                avgMatchScore: 91.0,
+              ),
+              complianceBlockage: const SovereignReportComplianceBlockage(
+                psiraExpired: 0,
+                pdpExpired: 0,
+                totalBlocked: 0,
+              ),
+              receiptPolicy: const SovereignReportReceiptPolicy(
+                generatedReports: 1,
+                trackedConfigurationReports: 1,
+                legacyConfigurationReports: 0,
+                fullyIncludedReports: 1,
+                reportsWithOmittedSections: 0,
+                omittedAiDecisionLogReports: 0,
+                omittedGuardMetricsReports: 0,
+                executiveSummary:
+                    '1 client-facing receipt used full tracked policy',
+                headline: 'All generated reports included every section',
+                summaryLine:
+                    'Reports 1 • Tracked 1 • Legacy 0 • Full 1 • Omitted 0 • AI log omitted 0 • Guard metrics omitted 0',
+                latestReportSummary:
+                    'CLIENT-1/SITE-1 2026-03 included all configured sections.',
+              ),
+            ),
+          ],
           morningSovereignReportAutoStatusLabel:
               'Auto generated for shift ending 2026-03-09. Next generation runs at 06:00 local.',
           onGenerateMorningSovereignReport: () async {},
@@ -250,6 +294,13 @@ void main() {
     expect(
       find.text(
         '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Receipt policy trend'), findsOneWidget);
+    expect(
+      find.text(
+        'SLIPPING • Latest receipt fell back to legacy policy capture.',
       ),
       findsOneWidget,
     );
