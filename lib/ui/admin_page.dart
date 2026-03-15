@@ -3900,6 +3900,53 @@ class _AdministrationPageState extends State<AdministrationPage> {
     return rows;
   }
 
+  List<_AdminPartnerTrendRow> _partnerTrendRowsGlobal() {
+    if (widget.morningSovereignReportHistory.isEmpty) {
+      return const <_AdminPartnerTrendRow>[];
+    }
+    final scopeKeys = <String>{
+      for (final report in widget.morningSovereignReportHistory)
+        for (final row in report.partnerProgression.scoreboardRows)
+          _adminPartnerTrendKey(row.clientId, row.siteId, row.partnerLabel),
+    };
+    final rows = <_AdminPartnerTrendRow>[];
+    for (final scopeKey in scopeKeys) {
+      final split = scopeKey.split('::');
+      if (split.length != 3) {
+        continue;
+      }
+      final scopedRows = _partnerTrendRowsForScope(
+        split[0],
+        siteId: split[1],
+      );
+      final match = scopedRows.where(
+        (row) =>
+            row.clientId.trim() == split[0].trim() &&
+            row.siteId.trim() == split[1].trim() &&
+            row.partnerLabel.trim().toUpperCase() == split[2].trim(),
+      );
+      rows.addAll(match);
+    }
+    rows.sort((a, b) {
+      final priorityCompare = _adminPartnerTrendPriority(
+        b.trendLabel,
+      ).compareTo(_adminPartnerTrendPriority(a.trendLabel));
+      if (priorityCompare != 0) {
+        return priorityCompare;
+      }
+      final criticalCompare = b.criticalCount.compareTo(a.criticalCount);
+      if (criticalCompare != 0) {
+        return criticalCompare;
+      }
+      final dispatchCompare = b.dispatchCount.compareTo(a.dispatchCount);
+      if (dispatchCompare != 0) {
+        return dispatchCompare;
+      }
+      return a.partnerLabel.compareTo(b.partnerLabel);
+    });
+    return rows;
+  }
+
   String _adminPartnerTrendKey(
     String clientId,
     String siteId,
@@ -4590,8 +4637,111 @@ class _AdministrationPageState extends State<AdministrationPage> {
         const SizedBox(height: 10),
         _demoRouteCueCard(),
         const SizedBox(height: 10),
+        _partnerScorecardSummaryCard(),
+        const SizedBox(height: 10),
         _systemInfoCard(),
       ],
+    );
+  }
+
+  Widget _partnerScorecardSummaryCard() {
+    final rows = _partnerTrendRowsGlobal().take(6).toList(growable: false);
+    final slippingCount = rows.where((row) => row.trendLabel == 'SLIPPING').length;
+    final criticalCount = rows.where((row) => row.currentScoreLabel == 'CRITICAL').length;
+    final improvingCount = rows.where((row) => row.trendLabel == 'IMPROVING').length;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: _panelDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _subTitle('Partner Scorecard'),
+          const SizedBox(height: 8),
+          Text(
+            '7-day partner performance across active client/site scopes.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB1CF),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _partnerScorecardChip(
+                label: 'Slipping',
+                value: '$slippingCount',
+                color: const Color(0xFFF97316),
+              ),
+              _partnerScorecardChip(
+                label: 'Critical',
+                value: '$criticalCount',
+                color: const Color(0xFFEF4444),
+              ),
+              _partnerScorecardChip(
+                label: 'Improving',
+                value: '$improvingCount',
+                color: const Color(0xFF34D399),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (rows.isEmpty)
+            Text(
+              'No partner scorecard history is available yet.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final row in rows)
+                  InkWell(
+                    key: ValueKey<String>(
+                      'admin-partner-scorecard-${row.clientId}-${row.siteId}-${row.partnerLabel}',
+                    ),
+                    onTap: () => _showPartnerDispatchDetailDialog(
+                      clientId: row.clientId,
+                      siteId: row.siteId,
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    child: _adminPartnerTrendCard(row),
+                  ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _partnerScorecardChip({
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Text(
+        '$label: $value',
+        style: GoogleFonts.inter(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 

@@ -266,6 +266,156 @@ void main() {
     expect(find.textContaining('PASS (partner lane updated)'), findsOneWidget);
   });
 
+  testWidgets('system tab shows partner scorecard summary and opens scope drill-in', (
+    tester,
+  ) async {
+    final priorReport = SovereignReport(
+      date: '2026-03-14',
+      generatedAtUtc: DateTime.utc(2026, 3, 14, 6, 0),
+      shiftWindowStartUtc: DateTime.utc(2026, 3, 13, 22, 0),
+      shiftWindowEndUtc: DateTime.utc(2026, 3, 14, 6, 0),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 10,
+        hashVerified: true,
+        integrityScore: 99,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 1,
+        humanOverrides: 0,
+        overrideReasons: <String, int>{},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 1,
+        driftDetected: 0,
+        avgMatchScore: 100,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 0,
+        pdpExpired: 0,
+        totalBlocked: 0,
+      ),
+      partnerProgression: SovereignReportPartnerProgression(
+        dispatchCount: 1,
+        declarationCount: 1,
+        acceptedCount: 1,
+        onSiteCount: 0,
+        allClearCount: 0,
+        cancelledCount: 1,
+        summaryLine: '',
+        scoreboardRows: [
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLT-001',
+            siteId: 'WTF-MAIN',
+            partnerLabel: 'PARTNER • Alpha',
+            dispatchCount: 1,
+            strongCount: 0,
+            onTrackCount: 0,
+            watchCount: 0,
+            criticalCount: 1,
+            averageAcceptedDelayMinutes: 12.0,
+            averageOnSiteDelayMinutes: 22.0,
+            summaryLine:
+                'Dispatches 1 • Strong 0 • On track 0 • Watch 0 • Critical 1 • Avg accept 12.0m • Avg on site 22.0m',
+          ),
+        ],
+      ),
+    );
+    final currentReport = SovereignReport(
+      date: '2026-03-15',
+      generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
+      shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 12,
+        hashVerified: true,
+        integrityScore: 99,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 1,
+        humanOverrides: 0,
+        overrideReasons: <String, int>{},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 1,
+        driftDetected: 0,
+        avgMatchScore: 100,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 0,
+        pdpExpired: 0,
+        totalBlocked: 0,
+      ),
+      partnerProgression: SovereignReportPartnerProgression(
+        dispatchCount: 1,
+        declarationCount: 3,
+        acceptedCount: 1,
+        onSiteCount: 1,
+        allClearCount: 1,
+        cancelledCount: 0,
+        summaryLine: '',
+        scoreboardRows: [
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLT-001',
+            siteId: 'WTF-MAIN',
+            partnerLabel: 'PARTNER • Alpha',
+            dispatchCount: 1,
+            strongCount: 1,
+            onTrackCount: 0,
+            watchCount: 0,
+            criticalCount: 0,
+            averageAcceptedDelayMinutes: 4.0,
+            averageOnSiteDelayMinutes: 10.0,
+            summaryLine:
+                'Dispatches 1 • Strong 1 • On track 0 • Watch 0 • Critical 0 • Avg accept 4.0m • Avg on site 10.0m',
+          ),
+        ],
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AdministrationPage(
+          events: const <DispatchEvent>[],
+          supabaseReady: false,
+          initialTab: AdministrationPageTab.system,
+          morningSovereignReportHistory: [priorReport, currentReport],
+          initialSitePartnerLaneDetails: const <String, List<String>>{
+            'CLT-001::WTF-MAIN': <String>[
+              'PARTNER • Alpha • chat=-1001234567890 • thread=77',
+            ],
+          },
+          initialSitePartnerChatcheckStatus: const <String, String>{
+            'CLT-001::WTF-MAIN': 'PASS (partner lane linked)',
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Partner Scorecard'), findsOneWidget);
+    expect(find.text('Slipping: 0'), findsOneWidget);
+    expect(find.text('Critical: 0'), findsOneWidget);
+    expect(find.text('Improving: 1'), findsOneWidget);
+
+    final scorecardFinder = find.byKey(
+      const ValueKey('admin-partner-scorecard-CLT-001-WTF-MAIN-PARTNER • Alpha'),
+    );
+    await tester.ensureVisible(scorecardFinder);
+    await tester.tap(scorecardFinder);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Partner Dispatch Detail'), findsOneWidget);
+    expect(find.text('7-day trend'), findsOneWidget);
+    expect(
+      find.text('Acceptance timing improved against the prior 7-day average.'),
+      findsWidgets,
+    );
+    expect(
+      find.text('PARTNER • Alpha • chat=-1001234567890 • thread=77'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('admin tables surface partner lane health summaries', (
     tester,
   ) async {
