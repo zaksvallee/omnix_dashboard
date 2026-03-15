@@ -8,6 +8,7 @@ import '../domain/events/execution_denied.dart';
 import '../domain/events/guard_checked_in.dart';
 import '../domain/events/incident_closed.dart';
 import '../domain/events/intelligence_received.dart';
+import '../domain/events/partner_dispatch_status_declared.dart';
 import '../domain/events/response_arrived.dart';
 import '../application/monitoring_scene_review_store.dart';
 import 'layout_breakpoints.dart';
@@ -2320,14 +2321,30 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     }
     final closedIds = {
       ...events.whereType<IncidentClosed>().map((event) => event.dispatchId),
+      ...events
+          .whereType<PartnerDispatchStatusDeclared>()
+          .where(
+            (event) =>
+                event.status == PartnerDispatchStatus.allClear ||
+                event.status == PartnerDispatchStatus.cancelled,
+          )
+          .map((event) => event.dispatchId),
     };
     final arrivedIds = {
       ...events.whereType<ResponseArrived>().map((event) => event.dispatchId),
+      ...events
+          .whereType<PartnerDispatchStatusDeclared>()
+          .where((event) => event.status == PartnerDispatchStatus.onSite)
+          .map((event) => event.dispatchId),
     };
     final executedIds = {
       ...events.whereType<ExecutionCompleted>().map(
         (event) => event.dispatchId,
       ),
+      ...events
+          .whereType<PartnerDispatchStatusDeclared>()
+          .where((event) => event.status == PartnerDispatchStatus.accepted)
+          .map((event) => event.dispatchId),
     };
     final riskBySite = <String, int>{};
     final latestHardwareIntelBySite = <String, IntelligenceReceived>{};
@@ -2618,6 +2635,16 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           description: 'Response arrived for ${event.dispatchId}',
           hash: _hashFor(event.eventId),
           verified: true,
+        ),
+        PartnerDispatchStatusDeclared() => _LedgerEntry(
+          id: event.eventId,
+          timestamp: event.occurredAt,
+          type: _LedgerType.systemEvent,
+          description:
+              '${event.partnerLabel} declared ${event.status.name} for ${event.dispatchId}',
+          actor: event.actorLabel,
+          hash: _hashFor(event.eventId),
+          verified: false,
         ),
         IncidentClosed() => _LedgerEntry(
           id: event.eventId,

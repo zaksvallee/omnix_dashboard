@@ -58,6 +58,7 @@ import 'application/telegram_ai_assistant_service.dart';
 import 'application/telegram_bridge_service.dart';
 import 'application/telegram_client_approval_service.dart';
 import 'application/telegram_identity_intake_service.dart';
+import 'application/telegram_partner_dispatch_service.dart';
 import 'application/video_bridge_health_formatter.dart';
 import 'application/video_fleet_scope_presentation_service.dart';
 import 'application/video_fleet_scope_runtime_state_resolver.dart';
@@ -71,6 +72,7 @@ import 'domain/events/execution_denied.dart';
 import 'domain/events/guard_checked_in.dart';
 import 'domain/events/incident_closed.dart';
 import 'domain/events/intelligence_received.dart';
+import 'domain/events/partner_dispatch_status_declared.dart';
 import 'domain/events/patrol_completed.dart';
 import 'domain/events/response_arrived.dart';
 import 'domain/evidence/client_ledger_repository.dart';
@@ -295,6 +297,18 @@ class _TelegramInboundClientTarget {
   });
 }
 
+class _TelegramInboundPartnerTarget {
+  final String clientId;
+  final String? siteId;
+  final String displayLabel;
+
+  const _TelegramInboundPartnerTarget({
+    required this.clientId,
+    this.siteId,
+    required this.displayLabel,
+  });
+}
+
 class _MonitoringWatchTarget {
   final String clientId;
   final String siteId;
@@ -426,6 +440,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       MonitoringShiftNotificationService();
   static const _telegramClientApprovalService = TelegramClientApprovalService();
   static const _telegramIdentityIntakeService = TelegramIdentityIntakeService();
+  static const _telegramPartnerDispatchService =
+      TelegramPartnerDispatchService();
+  static const _partnerEndpointLabelPrefix = 'PARTNER';
   late final NewsIntelligenceService _newsIntel;
   static const _browserFiles = DispatchSnapshotFileService();
   static const _guardMediaCapture = FilePickerGuardMediaCaptureService();
@@ -605,6 +622,22 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   );
   static const _telegramMessageThreadIdEnv = String.fromEnvironment(
     'ONYX_TELEGRAM_MESSAGE_THREAD_ID',
+  );
+  static const _telegramPartnerChatIdEnv = String.fromEnvironment(
+    'ONYX_TELEGRAM_PARTNER_CHAT_ID',
+  );
+  static const _telegramPartnerThreadIdEnv = String.fromEnvironment(
+    'ONYX_TELEGRAM_PARTNER_THREAD_ID',
+  );
+  static const _telegramPartnerLabelEnv = String.fromEnvironment(
+    'ONYX_TELEGRAM_PARTNER_LABEL',
+    defaultValue: 'PARTNER • Response',
+  );
+  static const _telegramPartnerClientIdEnv = String.fromEnvironment(
+    'ONYX_TELEGRAM_PARTNER_CLIENT_ID',
+  );
+  static const _telegramPartnerSiteIdEnv = String.fromEnvironment(
+    'ONYX_TELEGRAM_PARTNER_SITE_ID',
   );
   static const _telegramAdminControlEnabledEnv = bool.fromEnvironment(
     'ONYX_TELEGRAM_ADMIN_CONTROL_ENABLED',
@@ -5227,6 +5260,21 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return null;
   }
 
+  bool _isPartnerEndpointLabel(String label) {
+    return label.trim().toUpperCase().startsWith(_partnerEndpointLabelPrefix);
+  }
+
+  String _normalizePartnerEndpointLabel(String label) {
+    final trimmed = label.trim();
+    if (trimmed.isEmpty) {
+      return 'PARTNER • Response';
+    }
+    if (_isPartnerEndpointLabel(trimmed)) {
+      return trimmed;
+    }
+    return 'PARTNER • $trimmed';
+  }
+
   _TelegramBridgeTarget? _telegramFallbackTarget() {
     final fallbackChatId = _telegramChatIdEnv.trim();
     if (fallbackChatId.isEmpty) {
@@ -5240,6 +5288,35 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       chatId: fallbackChatId,
       threadId: fallbackThreadId,
       label: 'env-fallback',
+    );
+  }
+
+  _TelegramBridgeTarget? _telegramPartnerFallbackTarget({
+    required String clientId,
+    required String siteId,
+  }) {
+    final fallbackChatId = _telegramPartnerChatIdEnv.trim();
+    if (fallbackChatId.isEmpty) {
+      return null;
+    }
+    final fallbackClientId = _telegramPartnerClientIdEnv.trim();
+    final fallbackSiteId = _telegramPartnerSiteIdEnv.trim();
+    if (fallbackClientId.isNotEmpty &&
+        fallbackClientId != clientId.trim()) {
+      return null;
+    }
+    if (fallbackSiteId.isNotEmpty &&
+        fallbackSiteId != siteId.trim()) {
+      return null;
+    }
+    final fallbackThreadRaw = _telegramPartnerThreadIdEnv.trim();
+    final fallbackThreadId = fallbackThreadRaw.isEmpty
+        ? null
+        : int.tryParse(fallbackThreadRaw);
+    return _TelegramBridgeTarget(
+      chatId: fallbackChatId,
+      threadId: fallbackThreadId,
+      label: _normalizePartnerEndpointLabel(_telegramPartnerLabelEnv),
     );
   }
 
@@ -5277,6 +5354,50 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               ),
             )
             .toList(growable: false);
+      }
+    } catch (_) {
+      // Fall back to environment-level target if directory lookup fails.
+    }
+    return fallbackTarget == null
+        ? const <_TelegramBridgeTarget>[]
+        : <_TelegramBridgeTarget>[fallbackTarget];
+  }
+
+  Future<List<_TelegramBridgeTarget>> _resolveTelegramPartnerTargets({
+    required String clientId,
+    required String siteId,
+  }) async {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    final fallbackTarget = _telegramPartnerFallbackTarget(
+      clientId: normalizedClientId,
+      siteId: normalizedSiteId,
+    );
+    if (!widget.supabaseReady) {
+      return fallbackTarget == null
+          ? const <_TelegramBridgeTarget>[]
+          : <_TelegramBridgeTarget>[fallbackTarget];
+    }
+    try {
+      final repository = SupabaseClientMessagingBridgeRepository(
+        Supabase.instance.client,
+      );
+      final endpoints = await repository.readActiveTelegramTargets(
+        clientId: normalizedClientId,
+        siteId: normalizedSiteId,
+      );
+      final partnerTargets = endpoints
+          .where((endpoint) => _isPartnerEndpointLabel(endpoint.displayLabel))
+          .map(
+            (endpoint) => _TelegramBridgeTarget(
+              chatId: endpoint.chatId,
+              threadId: endpoint.threadId,
+              label: endpoint.displayLabel,
+            ),
+          )
+          .toList(growable: false);
+      if (partnerTargets.isNotEmpty) {
+        return partnerTargets;
       }
     } catch (_) {
       // Fall back to environment-level target if directory lookup fails.
@@ -7368,6 +7489,18 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           }
           continue;
         }
+        final handledPartner = await _handleTelegramPartnerInboundUpdate(
+          update,
+          adminChatId: adminChatId,
+          adminThreadId: adminThreadId,
+        );
+        handled = handled || handledPartner;
+        if (handledPartner) {
+          if (mounted) {
+            setState(() {});
+          }
+          continue;
+        }
         final handledAi = await _handleTelegramAiInboundUpdate(
           update,
           adminChatId: adminChatId,
@@ -7530,6 +7663,145 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       providerLabel: aiDraft.providerLabel,
       update: update,
     );
+    return true;
+  }
+
+  Future<bool> _handleTelegramPartnerInboundUpdate(
+    TelegramBridgeInboundMessage update, {
+    required String adminChatId,
+    required int? adminThreadId,
+  }) async {
+    final target = await _resolveInboundPartnerTarget(
+      chatId: update.chatId,
+      messageThreadId: update.messageThreadId,
+    );
+    if (target == null) {
+      return false;
+    }
+    final siteId = (target.siteId ?? '').trim().isEmpty
+        ? 'default'
+        : target.siteId!.trim();
+    final action = _telegramPartnerDispatchService.parseActionText(update.text);
+    if (action == null) {
+      await _sendTelegramMessageWithChunks(
+        messageKeyPrefix: 'tg-partner-help-${update.updateId}',
+        chatId: update.chatId,
+        messageThreadId: update.messageThreadId,
+        responseText:
+            'ONYX partner lane\n'
+            'Reply with ACCEPT, ON SITE, ALL CLEAR, or CANCEL.\n'
+            'If multiple dispatches are active, include the dispatch id, for example: ON SITE DSP-1001.',
+        failureContext: 'Partner dispatch guidance',
+        replyMarkup: _telegramPartnerDispatchService.replyKeyboardMarkup(),
+      );
+      return true;
+    }
+    final openContexts = _openPartnerDispatchContextsForScope(
+      clientId: target.clientId,
+      siteId: siteId,
+    );
+    if (openContexts.isEmpty) {
+      await _sendTelegramMessageWithChunks(
+        messageKeyPrefix: 'tg-partner-none-${update.updateId}',
+        chatId: update.chatId,
+        messageThreadId: update.messageThreadId,
+        responseText:
+            'ONYX found no open partner dispatches for ${target.clientId}/$siteId. Control should resend the dispatch if needed.',
+        failureContext: 'Partner dispatch missing context',
+      );
+      return true;
+    }
+    final requestedDispatchId = _dispatchIdFromTelegramText(update.text);
+    final matchingContexts = requestedDispatchId == null
+        ? openContexts
+        : openContexts
+              .where(
+                (context) =>
+                    context.dispatchId.toUpperCase() ==
+                    requestedDispatchId.toUpperCase(),
+              )
+              .toList(growable: false);
+    if (matchingContexts.isEmpty) {
+      await _sendTelegramMessageWithChunks(
+        messageKeyPrefix: 'tg-partner-unknown-${update.updateId}',
+        chatId: update.chatId,
+        messageThreadId: update.messageThreadId,
+        responseText:
+            'ONYX could not match that dispatch id in ${target.clientId}/$siteId.\n'
+            'Open dispatches: ${openContexts.map((context) => context.dispatchId).join(', ')}',
+        failureContext: 'Partner dispatch unknown dispatch id',
+      );
+      return true;
+    }
+    if (matchingContexts.length > 1) {
+      await _sendTelegramMessageWithChunks(
+        messageKeyPrefix: 'tg-partner-ambiguous-${update.updateId}',
+        chatId: update.chatId,
+        messageThreadId: update.messageThreadId,
+        responseText:
+            'ONYX needs the dispatch id because multiple partner dispatches are active.\n'
+            'Reply like: ${action.label} ${matchingContexts.first.dispatchId}\n'
+            'Open dispatches: ${matchingContexts.map((context) => context.dispatchId).join(', ')}',
+        failureContext: 'Partner dispatch ambiguous context',
+      );
+      return true;
+    }
+    final actorLabel = update.fromUsername?.trim().isNotEmpty == true
+        ? '@${update.fromUsername!.trim()}'
+        : _telegramInboundAuthor(update);
+    final occurredAtUtc = update.sentAtUtc ?? DateTime.now().toUtc();
+    final resolution = _telegramPartnerDispatchService.resolveReply(
+      action: action,
+      context: matchingContexts.single,
+      actorLabel: actorLabel,
+      occurredAtUtc: occurredAtUtc,
+      events: store.allEvents(),
+    );
+    if (resolution == null) {
+      await _sendTelegramMessageWithChunks(
+        messageKeyPrefix: 'tg-partner-invalid-${update.updateId}',
+        chatId: update.chatId,
+        messageThreadId: update.messageThreadId,
+        responseText:
+            'ONYX could not apply ${action.label} for ${matchingContexts.single.dispatchId}.\n'
+            'The dispatch may already be closed or that transition is not allowed.',
+        failureContext: 'Partner dispatch invalid transition',
+      );
+      return true;
+    }
+    store.append(resolution.event);
+    await _sendTelegramMessageWithChunks(
+      messageKeyPrefix: 'tg-partner-confirm-${update.updateId}',
+      chatId: update.chatId,
+      messageThreadId: update.messageThreadId,
+      responseText:
+          '${_telegramPartnerDispatchService.partnerConfirmationText(action)}\n'
+          'Dispatch: ${matchingContexts.single.dispatchId}',
+      failureContext: 'Partner dispatch acknowledgement',
+      replyMarkup: _telegramPartnerDispatchService.replyKeyboardMarkup(),
+    );
+    await _appendTelegramConversationMessage(
+      clientId: target.clientId,
+      siteId: siteId,
+      author: matchingContexts.single.partnerLabel,
+      body:
+          'Partner declared ${action.label} for ${matchingContexts.single.dispatchId} via Telegram by $actorLabel.',
+      occurredAtUtc: occurredAtUtc,
+      roomKey: 'Security Desk',
+      viewerRole: ClientAppViewerRole.control.name,
+      incidentStatusLabel: resolution.clientStatusLabel,
+      messageSource: 'telegram',
+      messageProvider: 'partner_dispatch',
+    );
+    if (adminChatId.trim().isNotEmpty) {
+      await _sendTelegramMessageWithChunks(
+        messageKeyPrefix: 'tg-admin-partner-${update.updateId}',
+        chatId: adminChatId,
+        messageThreadId: adminThreadId,
+        responseText: resolution.adminAuditSummary,
+        failureContext: 'Admin partner dispatch relay',
+      );
+    }
     return true;
   }
 
@@ -7764,6 +8036,293 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _telegramAdminOffsetBootstrapped = true;
       _telegramAdminOffsetBootstrappedAtUtc = DateTime.now().toUtc();
     }
+  }
+
+  Future<_TelegramInboundPartnerTarget?> _resolveInboundPartnerTarget({
+    required String chatId,
+    required int? messageThreadId,
+  }) async {
+    final normalizedChatId = chatId.trim();
+    if (normalizedChatId.isEmpty) {
+      return null;
+    }
+    if (widget.supabaseReady) {
+      try {
+        final rowsRaw = await Supabase.instance.client
+            .from('client_messaging_endpoints')
+            .select('client_id, site_id, display_label, telegram_thread_id')
+            .eq('provider', 'telegram')
+            .eq('is_active', true)
+            .eq('telegram_chat_id', normalizedChatId)
+            .order('verified_at', ascending: false)
+            .order('created_at', ascending: false);
+        final rows = List<Map<String, dynamic>>.from(rowsRaw)
+            .where(
+              (row) => _isPartnerEndpointLabel(
+                (row['display_label'] ?? '').toString(),
+              ),
+            )
+            .toList(growable: false);
+        if (rows.isNotEmpty) {
+          Map<String, dynamic>? pick;
+
+          int? rowThread(Map<String, dynamic> row) {
+            final raw = (row['telegram_thread_id'] ?? '').toString().trim();
+            if (raw.isEmpty) return null;
+            return int.tryParse(raw);
+          }
+
+          if (messageThreadId != null) {
+            pick = rows.cast<Map<String, dynamic>?>().firstWhere(
+              (row) => row != null && rowThread(row) == messageThreadId,
+              orElse: () => null,
+            );
+          }
+          pick ??= rows.cast<Map<String, dynamic>?>().firstWhere(
+            (row) => row != null && rowThread(row) == null,
+            orElse: () => null,
+          );
+          pick ??= rows.first;
+          final clientId = (pick['client_id'] ?? '').toString().trim();
+          if (clientId.isNotEmpty) {
+            return _TelegramInboundPartnerTarget(
+              clientId: clientId,
+              siteId: (pick['site_id'] ?? '').toString().trim().isEmpty
+                  ? null
+                  : (pick['site_id'] ?? '').toString().trim(),
+              displayLabel: _normalizePartnerEndpointLabel(
+                (pick['display_label'] ?? '').toString(),
+              ),
+            );
+          }
+        }
+      } catch (_) {
+        // Fall through to environment fallback.
+      }
+    }
+    final fallbackChatId = _telegramPartnerChatIdEnv.trim();
+    if (fallbackChatId.isEmpty || fallbackChatId != normalizedChatId) {
+      return null;
+    }
+    final fallbackThreadRaw = _telegramPartnerThreadIdEnv.trim();
+    final fallbackThreadId = fallbackThreadRaw.isEmpty
+        ? null
+        : int.tryParse(fallbackThreadRaw);
+    if (fallbackThreadId != null && fallbackThreadId != messageThreadId) {
+      return null;
+    }
+    final clientId = _telegramPartnerClientIdEnv.trim().isEmpty
+        ? _selectedClient
+        : _telegramPartnerClientIdEnv.trim();
+    final siteId = _telegramPartnerSiteIdEnv.trim().isEmpty
+        ? _selectedSite
+        : _telegramPartnerSiteIdEnv.trim();
+    if (clientId.trim().isEmpty || siteId.trim().isEmpty) {
+      return null;
+    }
+    return _TelegramInboundPartnerTarget(
+      clientId: clientId,
+      siteId: siteId,
+      displayLabel: _normalizePartnerEndpointLabel(_telegramPartnerLabelEnv),
+    );
+  }
+
+  String? _dispatchIdFromTelegramText(String text) {
+    final match = RegExp(r'\bDSP-[A-Z0-9-]+\b', caseSensitive: false).firstMatch(
+      text.toUpperCase(),
+    );
+    return match?.group(0)?.trim();
+  }
+
+  String _partnerDispatchMessageKey(String dispatchId) {
+    return '${TelegramPartnerDispatchService.dispatchMessageKeyPrefix}-${dispatchId.toLowerCase()}';
+  }
+
+  TelegramPartnerDispatchContext? _partnerDispatchContextForDecision(
+    DecisionCreated decision,
+  ) {
+    final siteProfile = _monitoringSiteProfileFor(
+      clientId: decision.clientId,
+      siteId: decision.siteId,
+    );
+    final latestIntel = store
+        .allEvents()
+        .whereType<IntelligenceReceived>()
+        .where(
+          (event) =>
+              event.clientId == decision.clientId &&
+              event.siteId == decision.siteId,
+        )
+        .toList(growable: false)
+      ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    final incidentSummary = latestIntel.isEmpty
+        ? 'Dispatch execution sent to partner. Awaiting acknowledgement.'
+        : _singleLine(
+            latestIntel.first.headline.trim().isEmpty
+                ? latestIntel.first.summary
+                : '${latestIntel.first.headline} • ${latestIntel.first.summary}',
+            maxLength: 180,
+          );
+    return TelegramPartnerDispatchContext(
+      messageKey: _partnerDispatchMessageKey(decision.dispatchId),
+      dispatchId: decision.dispatchId,
+      clientId: decision.clientId,
+      regionId: decision.regionId,
+      siteId: decision.siteId,
+      siteName: siteProfile.siteName,
+      incidentSummary: incidentSummary,
+      partnerLabel: _normalizePartnerEndpointLabel(_telegramPartnerLabelEnv),
+      occurredAtUtc: decision.occurredAt.toUtc(),
+    );
+  }
+
+  List<TelegramPartnerDispatchContext> _openPartnerDispatchContextsForScope({
+    required String clientId,
+    required String siteId,
+  }) {
+    final executedIds = store
+        .allEvents()
+        .whereType<ExecutionCompleted>()
+        .where((event) => event.success)
+        .map((event) => event.dispatchId.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet();
+    final closedIds = <String>{
+      ...store
+          .allEvents()
+          .whereType<IncidentClosed>()
+          .map((event) => event.dispatchId.trim())
+          .where((value) => value.isNotEmpty),
+      ...store
+          .allEvents()
+          .whereType<ExecutionDenied>()
+          .map((event) => event.dispatchId.trim())
+          .where((value) => value.isNotEmpty),
+    };
+    final partnerDeclaredByDispatchId = <String, PartnerDispatchStatus>{};
+    for (final event in store.allEvents().whereType<PartnerDispatchStatusDeclared>()) {
+      partnerDeclaredByDispatchId[event.dispatchId.trim()] = event.status;
+    }
+    final decisions = store
+        .allEvents()
+        .whereType<DecisionCreated>()
+        .where(
+          (event) =>
+              event.clientId == clientId.trim() && event.siteId == siteId.trim(),
+        )
+        .toList(growable: false)
+      ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    final contexts = <TelegramPartnerDispatchContext>[];
+    for (final decision in decisions) {
+      final dispatchId = decision.dispatchId.trim();
+      if (dispatchId.isEmpty || closedIds.contains(dispatchId)) {
+        continue;
+      }
+      if (!executedIds.contains(dispatchId) &&
+          !partnerDeclaredByDispatchId.containsKey(dispatchId)) {
+        continue;
+      }
+      final declaredStatus = partnerDeclaredByDispatchId[dispatchId];
+      if (declaredStatus == PartnerDispatchStatus.allClear ||
+          declaredStatus == PartnerDispatchStatus.cancelled) {
+        continue;
+      }
+      final context = _partnerDispatchContextForDecision(decision);
+      if (context != null) {
+        contexts.add(context);
+      }
+    }
+    return contexts;
+  }
+
+  Future<bool> _sendPartnerDispatchForDispatchId(
+    String dispatchId, {
+    bool forceResend = false,
+  }) async {
+    final decision = store
+        .allEvents()
+        .whereType<DecisionCreated>()
+        .where((event) => event.dispatchId == dispatchId.trim())
+        .toList(growable: false)
+      ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    if (decision.isEmpty) {
+      return false;
+    }
+    final context = _partnerDispatchContextForDecision(decision.first);
+    if (context == null) {
+      return false;
+    }
+    final targets = await _resolveTelegramPartnerTargets(
+      clientId: context.clientId,
+      siteId: context.siteId,
+    );
+    if (targets.isEmpty) {
+      return false;
+    }
+    var deliveredAny = false;
+    for (final target in targets) {
+      final delivered = await _sendTelegramMessageWithChunks(
+        messageKeyPrefix: context.messageKey,
+        chatId: target.chatId,
+        messageThreadId: target.threadId,
+        responseText: _telegramPartnerDispatchService.buildDispatchMessage(
+          context,
+        ),
+        failureContext: 'Partner dispatch relay',
+        replyMarkup: _telegramPartnerDispatchService.replyKeyboardMarkup(),
+      );
+      deliveredAny = deliveredAny || delivered;
+    }
+    if (deliveredAny || forceResend) {
+      await _appendTelegramConversationMessage(
+        clientId: context.clientId,
+        siteId: context.siteId,
+        author: 'ONYX Control',
+        body:
+            'Partner dispatch relayed for ${context.dispatchId} via Telegram (${targets.length} target${targets.length == 1 ? '' : 's'}).',
+        occurredAtUtc: DateTime.now().toUtc(),
+        roomKey: 'Security Desk',
+        viewerRole: ClientAppViewerRole.control.name,
+        incidentStatusLabel: 'Partner Dispatch Sent',
+        messageSource: 'telegram',
+        messageProvider: 'partner_dispatch',
+      );
+    }
+    return deliveredAny;
+  }
+
+  DecisionCreated? _decisionByDispatchId(String dispatchId) {
+    final matches = store
+        .allEvents()
+        .whereType<DecisionCreated>()
+        .where((event) => event.dispatchId == dispatchId.trim())
+        .toList(growable: false)
+      ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    return matches.isEmpty ? null : matches.first;
+  }
+
+  Future<void> _executeDispatchAndNotifyPartner(String dispatchId) async {
+    final decision = _decisionByDispatchId(dispatchId);
+    if (decision == null) {
+      if (!mounted) return;
+      setState(() {
+        _lastIntakeStatus = 'Dispatch $dispatchId not found.';
+      });
+      return;
+    }
+    await service.execute(
+      clientId: decision.clientId,
+      regionId: decision.regionId,
+      siteId: decision.siteId,
+      dispatchId: dispatchId,
+    );
+    final delivered = await _sendPartnerDispatchForDispatchId(dispatchId);
+    if (!mounted) return;
+    setState(() {
+      _lastIntakeStatus = delivered
+          ? 'Dispatch $dispatchId executed and partner relay sent.'
+          : 'Dispatch $dispatchId executed, but no partner Telegram target was available.';
+    });
   }
 
   Future<_TelegramInboundClientTarget?> _resolveInboundClientTarget({
@@ -15304,14 +15863,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           intakeTelemetry: _intakeTelemetry,
           events: events,
           onExecute: (dispatchId) {
-            setState(() {
-              service.execute(
-                clientId: _selectedClient,
-                regionId: _selectedRegion,
-                siteId: _selectedSite,
-                dispatchId: dispatchId,
-              );
-            });
+            unawaited(_executeDispatchAndNotifyPartner(dispatchId));
           },
         );
 

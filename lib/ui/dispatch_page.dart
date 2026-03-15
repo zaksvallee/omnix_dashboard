@@ -8,6 +8,7 @@ import '../domain/events/execution_completed.dart';
 import '../domain/events/execution_denied.dart';
 import '../domain/events/incident_closed.dart';
 import '../domain/events/intelligence_received.dart';
+import '../domain/events/partner_dispatch_status_declared.dart';
 import '../domain/events/response_arrived.dart';
 import '../infrastructure/intelligence/news_intelligence_service.dart';
 import 'dispatch_models.dart';
@@ -2504,12 +2505,28 @@ class _DispatchPageState extends State<DispatchPage> {
       for (final response in events.whereType<ResponseArrived>())
         response.dispatchId: response,
     };
+    final executedDispatchIds = {
+      ...events
+          .whereType<ExecutionCompleted>()
+          .where((event) => event.success)
+          .map((event) => event.dispatchId),
+    };
+    final partnerStatusByDispatchId = {
+      for (final declaration
+          in events.whereType<PartnerDispatchStatusDeclared>())
+        declaration.dispatchId: declaration,
+    };
     final closedDispatchIds = {
-      ...events.whereType<ExecutionCompleted>().map(
-        (event) => event.dispatchId,
-      ),
       ...events.whereType<ExecutionDenied>().map((event) => event.dispatchId),
       ...events.whereType<IncidentClosed>().map((event) => event.dispatchId),
+      ...events
+          .whereType<PartnerDispatchStatusDeclared>()
+          .where(
+            (event) =>
+                event.status == PartnerDispatchStatus.allClear ||
+                event.status == PartnerDispatchStatus.cancelled,
+          )
+          .map((event) => event.dispatchId),
     };
 
     return decisions
@@ -2521,11 +2538,19 @@ class _DispatchPageState extends State<DispatchPage> {
           final index = entry.key;
           final decision = entry.value;
           final response = arrivedByDispatchId[decision.dispatchId];
+          final partnerDeclaration =
+              partnerStatusByDispatchId[decision.dispatchId];
 
           final status = closedDispatchIds.contains(decision.dispatchId)
               ? _DispatchStatus.cleared
               : response != null
               ? _DispatchStatus.onSite
+              : partnerDeclaration?.status == PartnerDispatchStatus.onSite
+              ? _DispatchStatus.onSite
+              : partnerDeclaration?.status == PartnerDispatchStatus.accepted
+              ? _DispatchStatus.enRoute
+              : executedDispatchIds.contains(decision.dispatchId)
+              ? _DispatchStatus.enRoute
               : index == 0
               ? _DispatchStatus.enRoute
               : index == 1
@@ -2540,6 +2565,8 @@ class _DispatchPageState extends State<DispatchPage> {
           final dispatchTime = _clockLabel(decision.occurredAt.toLocal());
           final officer = response != null
               ? response.guardId
+              : partnerDeclaration != null
+              ? partnerDeclaration.partnerLabel
               : status == _DispatchStatus.pending
               ? 'Unassigned'
               : 'RO-${441 + index}';
