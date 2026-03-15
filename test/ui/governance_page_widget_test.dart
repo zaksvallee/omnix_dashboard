@@ -91,8 +91,7 @@ void main() {
         customBrandingOverrideReports: 1,
         executiveSummary:
             '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
-        brandingExecutiveSummary:
-            '1 receipt used custom branding override',
+        brandingExecutiveSummary: '1 receipt used custom branding override',
         headline: '1 generated reports omitted sections',
         summaryLine:
             'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1 • Standard branding 1 • Default partner branding 0 • Custom branding 1',
@@ -261,11 +260,62 @@ void main() {
       ),
     );
 
+    final priorReport = SovereignReport(
+      date: '2026-03-09',
+      generatedAtUtc: DateTime.utc(2026, 3, 9, 6, 0),
+      shiftWindowStartUtc: DateTime.utc(2026, 3, 8, 22, 0),
+      shiftWindowEndUtc: DateTime.utc(2026, 3, 9, 6, 0),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 150,
+        hashVerified: true,
+        integrityScore: 97,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 18,
+        humanOverrides: 2,
+        overrideReasons: <String, int>{},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 12,
+        driftDetected: 1,
+        avgMatchScore: 82,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 0,
+        pdpExpired: 0,
+        totalBlocked: 0,
+      ),
+      receiptPolicy: const SovereignReportReceiptPolicy(
+        generatedReports: 2,
+        trackedConfigurationReports: 2,
+        legacyConfigurationReports: 0,
+        fullyIncludedReports: 1,
+        reportsWithOmittedSections: 1,
+        omittedAiDecisionLogReports: 1,
+        omittedGuardMetricsReports: 0,
+        standardBrandingReports: 1,
+        defaultPartnerBrandingReports: 1,
+        customBrandingOverrideReports: 0,
+        executiveSummary:
+            '1 client-facing receipt omitted sections • 1 client-facing receipt kept full policy',
+        brandingExecutiveSummary:
+            '1 receipt used default partner branding • 1 receipt used standard ONYX branding',
+        headline: '1 generated reports omitted sections',
+        summaryLine:
+            'Reports 2 • Tracked 2 • Legacy 0 • Full 1 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 0 • Standard branding 1 • Default partner branding 1 • Custom branding 0',
+        latestReportSummary:
+            'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log.',
+        latestBrandingSummary:
+            'CLIENT-1/SITE-42 2026-03 used default partner branding from Partner Alpha.',
+      ),
+    );
+
     await tester.pumpWidget(
       MaterialApp(
         home: GovernancePage(
           events: [],
           morningSovereignReport: report,
+          morningSovereignReportHistory: [priorReport],
           morningSovereignReportAutoRunKey: '2026-03-10',
         ),
       ),
@@ -294,6 +344,19 @@ void main() {
     );
     expect(
       find.textContaining('1 receipt used custom branding override'),
+      findsOneWidget,
+    );
+    expect(find.text('Receipt branding drift (7 days)'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('governance-receipt-branding-trend-card')),
+      findsOneWidget,
+    );
+    expect(find.text('CUSTOM BRANDING'), findsWidgets);
+    expect(find.text('SLIPPING'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Custom branding overrides increased against recent shifts.',
+      ),
       findsOneWidget,
     );
     expect(
@@ -605,8 +668,7 @@ void main() {
         customBrandingOverrideReports: 1,
         executiveSummary:
             '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
-        brandingExecutiveSummary:
-            '1 receipt used custom branding override',
+        brandingExecutiveSummary: '1 receipt used custom branding override',
         headline: '1 generated reports omitted sections',
         summaryLine:
             'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1 • Standard branding 1 • Default partner branding 0 • Custom branding 1',
@@ -727,7 +789,7 @@ void main() {
       find.byKey(const ValueKey('governance-receipt-policy-entry-RPT-TRACKED')),
       findsOneWidget,
     );
-    expect(find.text('CUSTOM BRANDING'), findsOneWidget);
+    expect(find.text('CUSTOM BRANDING'), findsWidgets);
     expect(find.text('2 sections omitted • Custom branding'), findsOneWidget);
     expect(
       find.text(
@@ -1218,8 +1280,7 @@ void main() {
         customBrandingOverrideReports: 1,
         executiveSummary:
             '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
-        brandingExecutiveSummary:
-            '1 receipt used custom branding override',
+        brandingExecutiveSummary: '1 receipt used custom branding override',
         headline: '1 generated reports omitted sections',
         summaryLine:
             'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1 • Standard branding 1 • Default partner branding 0 • Custom branding 1',
@@ -2734,8 +2795,7 @@ void main() {
         customBrandingOverrideReports: 1,
         executiveSummary:
             '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
-        brandingExecutiveSummary:
-            '1 receipt used custom branding override',
+        brandingExecutiveSummary: '1 receipt used custom branding override',
         headline: '1 generated reports omitted sections',
         summaryLine:
             'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1 • Standard branding 1 • Default partner branding 0 • Custom branding 1',
@@ -2933,7 +2993,9 @@ void main() {
     );
     expect(
       copiedPayload,
-      contains('"brandingExecutiveSummary": "1 receipt used custom branding override"'),
+      contains(
+        '"brandingExecutiveSummary": "1 receipt used custom branding override"',
+      ),
     );
     expect(
       copiedPayload,

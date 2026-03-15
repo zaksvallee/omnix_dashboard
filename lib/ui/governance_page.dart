@@ -181,6 +181,22 @@ class _PartnerTrendAggregate {
   });
 }
 
+class _ReceiptBrandingTrend {
+  final String trendLabel;
+  final String trendReason;
+  final String summaryLine;
+  final int reportDays;
+  final String currentModeLabel;
+
+  const _ReceiptBrandingTrend({
+    required this.trendLabel,
+    required this.trendReason,
+    required this.summaryLine,
+    required this.reportDays,
+    required this.currentModeLabel,
+  });
+}
+
 class _PartnerScoreboardHistoryPoint {
   final String reportDate;
   final SovereignReportPartnerScoreboardRow row;
@@ -1212,6 +1228,19 @@ class _GovernancePageState extends State<GovernancePage> {
                 fontWeight: FontWeight.w600,
               ),
             ),
+          ],
+          if (report.generatedReports > 0) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Receipt branding drift (7 days)',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFEAF4FF),
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            _receiptBrandingTrendCard(report),
           ],
           if (report.vehicleScopeBreakdowns.isNotEmpty) ...[
             const SizedBox(height: 8),
@@ -2627,7 +2656,8 @@ class _GovernancePageState extends State<GovernancePage> {
       if (report.receiptPolicyBrandingExecutiveSummary.trim().isNotEmpty)
         report.receiptPolicyBrandingExecutiveSummary,
     ];
-    if (summaryParts.isEmpty && report.receiptPolicyHeadline.trim().isNotEmpty) {
+    if (summaryParts.isEmpty &&
+        report.receiptPolicyHeadline.trim().isNotEmpty) {
       summaryParts.add(report.receiptPolicyHeadline);
     }
     if (summaryParts.isEmpty && report.receiptPolicySummary.trim().isNotEmpty) {
@@ -4172,6 +4202,92 @@ class _GovernancePageState extends State<GovernancePage> {
     );
   }
 
+  Widget _receiptBrandingTrendCard(_GovernanceReportView report) {
+    final trend = _receiptBrandingTrendForReport(report);
+    final trendColor = _partnerTrendColor(trend.trendLabel);
+    final modeColor = _receiptBrandingModeColor(trend.currentModeLabel);
+    return Container(
+      key: const ValueKey('governance-receipt-branding-trend-card'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0x14000000),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0x22FFFFFF)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  trend.summaryLine,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFEAF4FF),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: modeColor.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: modeColor.withValues(alpha: 0.5)),
+                ),
+                child: Text(
+                  trend.currentModeLabel,
+                  style: GoogleFonts.inter(
+                    color: modeColor,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: trendColor.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: trendColor.withValues(alpha: 0.5)),
+                ),
+                child: Text(
+                  trend.trendLabel,
+                  style: GoogleFonts.inter(
+                    color: trendColor,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            trend.trendReason,
+            style: GoogleFonts.inter(
+              color: trendColor,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Compared against ${trend.reportDays} recent shift${trend.reportDays == 1 ? '' : 's'}.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _partnerTrendMetricChip({
     required String label,
     required String value,
@@ -4681,6 +4797,93 @@ class _GovernancePageState extends State<GovernancePage> {
       'STABLE' => const Color(0xFF38BDF8),
       'SLIPPING' => const Color(0xFFF97316),
       'NEW' => const Color(0xFFFDE68A),
+      _ => const Color(0xFF9CB2D1),
+    };
+  }
+
+  _ReceiptBrandingTrend _receiptBrandingTrendForReport(
+    _GovernanceReportView report,
+  ) {
+    final baselineReports =
+        widget.morningSovereignReportHistory
+            .where((item) {
+              if (item.generatedAtUtc == report.generatedAtUtc &&
+                  item.date == report.reportDate) {
+                return false;
+              }
+              return item.receiptPolicy.generatedReports > 0;
+            })
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
+    final baseline = baselineReports.take(3).toList(growable: false);
+    final currentModeLabel = _receiptBrandingModeLabel(
+      report.standardBrandingReports,
+      report.defaultPartnerBrandingReports,
+      report.customBrandingOverrideReports,
+    );
+    final summaryLine =
+        'Current branding • Custom ${report.customBrandingOverrideReports} • Default ${report.defaultPartnerBrandingReports} • Standard ${report.standardBrandingReports}';
+    if (baseline.isEmpty) {
+      return _ReceiptBrandingTrend(
+        trendLabel: 'NEW',
+        trendReason:
+            'No prior receipt-branding snapshots are available for comparison.',
+        summaryLine: summaryLine,
+        reportDays: 1,
+        currentModeLabel: currentModeLabel,
+      );
+    }
+    final baselineCustomAverage =
+        baseline
+            .map((item) => item.receiptPolicy.customBrandingOverrideReports)
+            .reduce((left, right) => left + right) /
+        baseline.length;
+    final currentCustom = report.customBrandingOverrideReports.toDouble();
+    final trendLabel = currentCustom >= baselineCustomAverage + 0.5
+        ? 'SLIPPING'
+        : currentCustom <= baselineCustomAverage - 0.5
+        ? 'IMPROVING'
+        : 'STABLE';
+    final trendReason = switch (trendLabel) {
+      'SLIPPING' =>
+        'Custom branding overrides increased against recent shifts.',
+      'IMPROVING' =>
+        report.customBrandingOverrideReports == 0 && baselineCustomAverage > 0
+            ? 'Current shift returned to baseline branding with no custom overrides.'
+            : 'Custom branding overrides eased against recent shifts.',
+      _ => 'Receipt branding posture is holding close to the recent baseline.',
+    };
+    return _ReceiptBrandingTrend(
+      trendLabel: trendLabel,
+      trendReason: trendReason,
+      summaryLine: summaryLine,
+      reportDays: baseline.length,
+      currentModeLabel: currentModeLabel,
+    );
+  }
+
+  String _receiptBrandingModeLabel(
+    int standardBrandingReports,
+    int defaultPartnerBrandingReports,
+    int customBrandingOverrideReports,
+  ) {
+    if (customBrandingOverrideReports > 0) {
+      return 'CUSTOM BRANDING';
+    }
+    if (defaultPartnerBrandingReports > 0) {
+      return 'DEFAULT BRANDING';
+    }
+    return 'STANDARD BRANDING';
+  }
+
+  Color _receiptBrandingModeColor(String modeLabel) {
+    return switch (modeLabel.trim().toUpperCase()) {
+      'CUSTOM BRANDING' => const Color(0xFFF6C067),
+      'DEFAULT BRANDING' => const Color(0xFF63BDFF),
+      'STANDARD BRANDING' => const Color(0xFF8EA5C6),
       _ => const Color(0xFF9CB2D1),
     };
   }
@@ -5670,8 +5873,7 @@ class _GovernancePageState extends State<GovernancePage> {
         'omittedGuardMetricsReports': report.omittedGuardMetricsReports,
         'standardBrandingReports': report.standardBrandingReports,
         'defaultPartnerBrandingReports': report.defaultPartnerBrandingReports,
-        'customBrandingOverrideReports':
-            report.customBrandingOverrideReports,
+        'customBrandingOverrideReports': report.customBrandingOverrideReports,
         'executiveSummary': report.receiptPolicyExecutiveSummary,
         'brandingExecutiveSummary':
             report.receiptPolicyBrandingExecutiveSummary,
