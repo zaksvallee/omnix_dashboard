@@ -16992,6 +16992,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case OnyxRoute.admin:
         return AdministrationPage(
           events: events,
+          morningSovereignReportHistory: _morningSovereignReportHistory,
           supabaseReady: widget.supabaseReady,
           sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
           monitoringIdentityPolicyService: _watchIdentityPolicyService,

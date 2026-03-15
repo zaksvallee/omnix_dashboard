@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../application/morning_sovereign_report_service.dart';
 import '../application/client_messaging_bridge_repository.dart';
 import '../application/monitoring_identity_policy_service.dart';
 import '../application/monitoring_scene_review_store.dart';
@@ -169,6 +170,66 @@ class _DemoOperationsSeedResult {
     this.vehicleCallsign,
     this.incidentEventUid,
     this.warnings = const <String>[],
+  });
+}
+
+class _AdminPartnerTrendRow {
+  final String clientId;
+  final String siteId;
+  final String partnerLabel;
+  final int reportDays;
+  final int dispatchCount;
+  final int strongCount;
+  final int onTrackCount;
+  final int watchCount;
+  final int criticalCount;
+  final double averageAcceptedDelayMinutes;
+  final double averageOnSiteDelayMinutes;
+  final String currentScoreLabel;
+  final String trendLabel;
+  final String trendReason;
+
+  const _AdminPartnerTrendRow({
+    required this.clientId,
+    required this.siteId,
+    required this.partnerLabel,
+    required this.reportDays,
+    required this.dispatchCount,
+    required this.strongCount,
+    required this.onTrackCount,
+    required this.watchCount,
+    required this.criticalCount,
+    required this.averageAcceptedDelayMinutes,
+    required this.averageOnSiteDelayMinutes,
+    required this.currentScoreLabel,
+    required this.trendLabel,
+    required this.trendReason,
+  });
+}
+
+class _AdminPartnerTrendAggregate {
+  final String clientId;
+  final String siteId;
+  final String partnerLabel;
+  final Set<String> reportDates = <String>{};
+  int dispatchCount = 0;
+  int strongCount = 0;
+  int onTrackCount = 0;
+  int watchCount = 0;
+  int criticalCount = 0;
+  double acceptedDelayWeightedSum = 0;
+  double acceptedDelayWeight = 0;
+  double onSiteDelayWeightedSum = 0;
+  double onSiteDelayWeight = 0;
+  final List<double> priorSeverityScores = <double>[];
+  final List<double> priorAcceptedDelayMinutes = <double>[];
+  final List<double> priorOnSiteDelayMinutes = <double>[];
+  SovereignReportPartnerScoreboardRow? currentRow;
+
+  _AdminPartnerTrendAggregate({
+    required this.clientId,
+    required this.siteId,
+    required this.partnerLabel,
   });
 }
 
@@ -384,6 +445,7 @@ class TelegramAiPendingDraftView {
 
 class AdministrationPage extends StatefulWidget {
   final List<DispatchEvent> events;
+  final List<SovereignReport> morningSovereignReportHistory;
   final bool supabaseReady;
   final ValueChanged<String>? onOpenOperationsForIncident;
   final ValueChanged<String>? onOpenTacticalForIncident;
@@ -537,6 +599,7 @@ class AdministrationPage extends StatefulWidget {
   const AdministrationPage({
     super.key,
     required this.events,
+    this.morningSovereignReportHistory = const <SovereignReport>[],
     required this.supabaseReady,
     this.onOpenOperationsForIncident,
     this.onOpenTacticalForIncident,
@@ -3472,6 +3535,116 @@ class _AdministrationPageState extends State<AdministrationPage> {
     );
   }
 
+  Widget _adminPartnerTrendCard(_AdminPartnerTrendRow row) {
+    final trendColor = _adminPartnerTrendColor(row.trendLabel);
+    final currentScoreColor = _adminPartnerScoreColor(row.currentScoreLabel);
+    return SizedBox(
+      width: 320,
+      child: Container(
+        key: ValueKey<String>(
+          'admin-partner-trend-${row.clientId}-${row.siteId}-${row.partnerLabel}',
+        ),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F1722),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFF223244)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${row.siteId} • ${row.partnerLabel}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFEAF4FF),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                if (row.currentScoreLabel.trim().isNotEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: currentScoreColor.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: currentScoreColor.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    child: Text(
+                      row.currentScoreLabel,
+                      style: GoogleFonts.inter(
+                        color: currentScoreColor,
+                        fontSize: 8,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                ],
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: trendColor.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: trendColor.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Text(
+                    row.trendLabel,
+                    style: GoogleFonts.inter(
+                      color: trendColor,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Days ${row.reportDays} • Dispatches ${row.dispatchCount} • Strong ${row.strongCount} • On track ${row.onTrackCount} • Watch ${row.watchCount} • Critical ${row.criticalCount}',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFB9CCE5),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Avg accept ${row.averageAcceptedDelayMinutes.toStringAsFixed(1)}m • Avg on site ${row.averageOnSiteDelayMinutes.toStringAsFixed(1)}m',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              row.trendReason,
+              style: GoogleFonts.inter(
+                color: trendColor,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   (Color, Color, Color) _partnerProgressTone(PartnerDispatchStatus status) {
     return switch (status) {
       PartnerDispatchStatus.accepted => (
@@ -3494,6 +3667,26 @@ class _AdministrationPageState extends State<AdministrationPage> {
         const Color(0x1AF87171),
         const Color(0x66F87171),
       ),
+    };
+  }
+
+  Color _adminPartnerScoreColor(String scoreLabel) {
+    return switch (scoreLabel.trim().toUpperCase()) {
+      'STRONG' => const Color(0xFF34D399),
+      'ON TRACK' => const Color(0xFF38BDF8),
+      'WATCH' => const Color(0xFFF59E0B),
+      'CRITICAL' => const Color(0xFFF87171),
+      _ => const Color(0xFF9CB4D0),
+    };
+  }
+
+  Color _adminPartnerTrendColor(String trendLabel) {
+    return switch (trendLabel.trim().toUpperCase()) {
+      'IMPROVING' => const Color(0xFF34D399),
+      'STABLE' => const Color(0xFF38BDF8),
+      'SLIPPING' => const Color(0xFFF97316),
+      'NEW' => const Color(0xFFFDE68A),
+      _ => const Color(0xFF9CB4D0),
     };
   }
 
@@ -3572,6 +3765,258 @@ class _AdministrationPageState extends State<AdministrationPage> {
     );
   }
 
+  List<_AdminPartnerTrendRow> _partnerTrendRowsForScope(
+    String clientId, {
+    String? siteId,
+  }) {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId?.trim() ?? '';
+    if (normalizedClientId.isEmpty ||
+        widget.morningSovereignReportHistory.isEmpty) {
+      return const <_AdminPartnerTrendRow>[];
+    }
+    final reports = [...widget.morningSovereignReportHistory]
+      ..sort(
+        (a, b) => b.generatedAtUtc.toUtc().compareTo(a.generatedAtUtc.toUtc()),
+      );
+    final latestDate = reports.isEmpty ? '' : reports.first.date.trim();
+    final aggregates = <String, _AdminPartnerTrendAggregate>{};
+    for (final report in reports) {
+      final reportDate = report.date.trim();
+      if (reportDate.isEmpty) {
+        continue;
+      }
+      final isCurrent = reportDate == latestDate;
+      for (final row in report.partnerProgression.scoreboardRows) {
+        if (row.clientId.trim() != normalizedClientId) {
+          continue;
+        }
+        if (normalizedSiteId.isNotEmpty &&
+            row.siteId.trim() != normalizedSiteId) {
+          continue;
+        }
+        final key = _adminPartnerTrendKey(
+          row.clientId,
+          row.siteId,
+          row.partnerLabel,
+        );
+        final aggregate = aggregates.putIfAbsent(
+          key,
+          () => _AdminPartnerTrendAggregate(
+            clientId: row.clientId,
+            siteId: row.siteId,
+            partnerLabel: row.partnerLabel,
+          ),
+        );
+        aggregate.reportDates.add(reportDate);
+        aggregate.dispatchCount += row.dispatchCount;
+        aggregate.strongCount += row.strongCount;
+        aggregate.onTrackCount += row.onTrackCount;
+        aggregate.watchCount += row.watchCount;
+        aggregate.criticalCount += row.criticalCount;
+        if (row.averageAcceptedDelayMinutes > 0) {
+          aggregate.acceptedDelayWeightedSum +=
+              row.averageAcceptedDelayMinutes * row.dispatchCount;
+          aggregate.acceptedDelayWeight += row.dispatchCount;
+        }
+        if (row.averageOnSiteDelayMinutes > 0) {
+          aggregate.onSiteDelayWeightedSum +=
+              row.averageOnSiteDelayMinutes * row.dispatchCount;
+          aggregate.onSiteDelayWeight += row.dispatchCount;
+        }
+        if (isCurrent) {
+          aggregate.currentRow = row;
+        } else {
+          aggregate.priorSeverityScores.add(_adminPartnerSeverityScore(row));
+          if (row.averageAcceptedDelayMinutes > 0) {
+            aggregate.priorAcceptedDelayMinutes.add(
+              row.averageAcceptedDelayMinutes,
+            );
+          }
+          if (row.averageOnSiteDelayMinutes > 0) {
+            aggregate.priorOnSiteDelayMinutes.add(
+              row.averageOnSiteDelayMinutes,
+            );
+          }
+        }
+      }
+    }
+    final rows = <_AdminPartnerTrendRow>[];
+    for (final aggregate in aggregates.values) {
+      final currentRow = aggregate.currentRow;
+      if (currentRow == null) {
+        continue;
+      }
+      final acceptedAverage = aggregate.acceptedDelayWeight == 0
+          ? 0.0
+          : aggregate.acceptedDelayWeightedSum / aggregate.acceptedDelayWeight;
+      final onSiteAverage = aggregate.onSiteDelayWeight == 0
+          ? 0.0
+          : aggregate.onSiteDelayWeightedSum / aggregate.onSiteDelayWeight;
+      rows.add(
+        _AdminPartnerTrendRow(
+          clientId: aggregate.clientId,
+          siteId: aggregate.siteId,
+          partnerLabel: aggregate.partnerLabel,
+          reportDays: aggregate.reportDates.length,
+          dispatchCount: aggregate.dispatchCount,
+          strongCount: aggregate.strongCount,
+          onTrackCount: aggregate.onTrackCount,
+          watchCount: aggregate.watchCount,
+          criticalCount: aggregate.criticalCount,
+          averageAcceptedDelayMinutes: double.parse(
+            acceptedAverage.toStringAsFixed(1),
+          ),
+          averageOnSiteDelayMinutes: double.parse(
+            onSiteAverage.toStringAsFixed(1),
+          ),
+          currentScoreLabel: _adminPartnerDominantScoreLabel(currentRow),
+          trendLabel: _adminPartnerTrendLabel(
+            currentRow,
+            aggregate.priorSeverityScores,
+          ),
+          trendReason: _adminPartnerTrendReason(
+            currentRow: currentRow,
+            priorSeverityScores: aggregate.priorSeverityScores,
+            priorAcceptedDelayMinutes: aggregate.priorAcceptedDelayMinutes,
+            priorOnSiteDelayMinutes: aggregate.priorOnSiteDelayMinutes,
+          ),
+        ),
+      );
+    }
+    rows.sort((a, b) {
+      final priorityCompare = _adminPartnerTrendPriority(
+        b.trendLabel,
+      ).compareTo(_adminPartnerTrendPriority(a.trendLabel));
+      if (priorityCompare != 0) {
+        return priorityCompare;
+      }
+      final criticalCompare = b.criticalCount.compareTo(a.criticalCount);
+      if (criticalCompare != 0) {
+        return criticalCompare;
+      }
+      return a.partnerLabel.compareTo(b.partnerLabel);
+    });
+    return rows;
+  }
+
+  String _adminPartnerTrendKey(
+    String clientId,
+    String siteId,
+    String partnerLabel,
+  ) {
+    return '${clientId.trim()}::${siteId.trim()}::${partnerLabel.trim().toUpperCase()}';
+  }
+
+  double _adminPartnerSeverityScore(SovereignReportPartnerScoreboardRow row) {
+    final dispatchCount = row.dispatchCount <= 0 ? 1 : row.dispatchCount;
+    final rawScore = (row.criticalCount * 3) + row.watchCount - row.strongCount;
+    return rawScore / dispatchCount;
+  }
+
+  String _adminPartnerDominantScoreLabel(
+    SovereignReportPartnerScoreboardRow row,
+  ) {
+    if (row.criticalCount > 0) {
+      return 'CRITICAL';
+    }
+    if (row.watchCount > 0) {
+      return 'WATCH';
+    }
+    if (row.onTrackCount > 0) {
+      return 'ON TRACK';
+    }
+    if (row.strongCount > 0) {
+      return 'STRONG';
+    }
+    return '';
+  }
+
+  String _adminPartnerTrendLabel(
+    SovereignReportPartnerScoreboardRow currentRow,
+    List<double> priorSeverityScores,
+  ) {
+    if (priorSeverityScores.isEmpty) {
+      return 'NEW';
+    }
+    final priorAverage =
+        priorSeverityScores.reduce((left, right) => left + right) /
+        priorSeverityScores.length;
+    final currentScore = _adminPartnerSeverityScore(currentRow);
+    if (currentScore <= priorAverage - 0.35) {
+      return 'IMPROVING';
+    }
+    if (currentScore >= priorAverage + 0.35) {
+      return 'SLIPPING';
+    }
+    return 'STABLE';
+  }
+
+  String _adminPartnerTrendReason({
+    required SovereignReportPartnerScoreboardRow currentRow,
+    required List<double> priorSeverityScores,
+    required List<double> priorAcceptedDelayMinutes,
+    required List<double> priorOnSiteDelayMinutes,
+  }) {
+    if (priorSeverityScores.isEmpty) {
+      return 'First recorded shift in the 7-day partner window.';
+    }
+    final trendLabel = _adminPartnerTrendLabel(currentRow, priorSeverityScores);
+    final priorAcceptedAverage = priorAcceptedDelayMinutes.isEmpty
+        ? null
+        : priorAcceptedDelayMinutes.reduce((left, right) => left + right) /
+              priorAcceptedDelayMinutes.length;
+    final priorOnSiteAverage = priorOnSiteDelayMinutes.isEmpty
+        ? null
+        : priorOnSiteDelayMinutes.reduce((left, right) => left + right) /
+              priorOnSiteDelayMinutes.length;
+    switch (trendLabel) {
+      case 'IMPROVING':
+        if (priorAcceptedAverage != null &&
+            currentRow.averageAcceptedDelayMinutes > 0 &&
+            currentRow.averageAcceptedDelayMinutes <=
+                priorAcceptedAverage - 2.0) {
+          return 'Acceptance timing improved against the prior 7-day average.';
+        }
+        if (priorOnSiteAverage != null &&
+            currentRow.averageOnSiteDelayMinutes > 0 &&
+            currentRow.averageOnSiteDelayMinutes <= priorOnSiteAverage - 2.0) {
+          return 'On-site timing improved against the prior 7-day average.';
+        }
+        return 'Current shift severity improved against the prior 7-day average.';
+      case 'SLIPPING':
+        if (priorAcceptedAverage != null &&
+            currentRow.averageAcceptedDelayMinutes >=
+                priorAcceptedAverage + 2.0) {
+          return 'Acceptance timing slipped beyond the prior 7-day average.';
+        }
+        if (priorOnSiteAverage != null &&
+            currentRow.averageOnSiteDelayMinutes >= priorOnSiteAverage + 2.0) {
+          return 'On-site timing slipped beyond the prior 7-day average.';
+        }
+        return 'Current shift severity slipped against the prior 7-day average.';
+      case 'STABLE':
+      case 'NEW':
+        return 'Current shift is holding close to the prior 7-day performance.';
+    }
+    return '';
+  }
+
+  int _adminPartnerTrendPriority(String label) {
+    switch (label.trim().toUpperCase()) {
+      case 'SLIPPING':
+        return 4;
+      case 'NEW':
+        return 3;
+      case 'STABLE':
+        return 2;
+      case 'IMPROVING':
+        return 1;
+      default:
+        return 0;
+    }
+  }
+
   Future<void> _showPartnerDispatchDetailDialog({
     required String clientId,
     String? siteId,
@@ -3591,6 +4036,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   '')
               .trim();
     final recentActions = _recentPartnerActionsForScope(
+      normalizedClientId,
+      siteId: normalizedSiteId,
+    );
+    final trendRows = _partnerTrendRowsForScope(
       normalizedClientId,
       siteId: normalizedSiteId,
     );
@@ -3671,6 +4120,26 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             ),
                           ),
                         ),
+                      if (trendRows.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          '7-day trend',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFEAF4FF),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final row in trendRows)
+                              _adminPartnerTrendCard(row),
+                          ],
+                        ),
+                      ],
                       if (partnerActionSummary != null) ...[
                         const SizedBox(height: 12),
                         Text(
