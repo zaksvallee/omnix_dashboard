@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
+import 'package:omnix_dashboard/domain/events/partner_dispatch_status_declared.dart';
 import 'package:omnix_dashboard/ui/events_review_page.dart';
 
 void main() {
@@ -532,6 +533,105 @@ void main() {
           .data,
       'VISIT-EVT-2',
     );
+  });
+
+  testWidgets('events review shows partner dispatch scope banner', (
+    tester,
+  ) async {
+    final events = <DispatchEvent>[
+      PartnerDispatchStatusDeclared(
+        eventId: 'PARTNER-EVT-1',
+        sequence: 4,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 6, 23, 14),
+        dispatchId: 'INC-8821',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        partnerLabel: 'Rapid Shield',
+        actorLabel: 'RS-CTRL-01',
+        status: PartnerDispatchStatus.accepted,
+        sourceChannel: 'telegram',
+        sourceMessageKey: 'tg:partner:8821:1',
+      ),
+      PartnerDispatchStatusDeclared(
+        eventId: 'PARTNER-EVT-2',
+        sequence: 3,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 6, 23, 19),
+        dispatchId: 'INC-8821',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        partnerLabel: 'Rapid Shield',
+        actorLabel: 'RS-UNIT-04',
+        status: PartnerDispatchStatus.onSite,
+        sourceChannel: 'telegram',
+        sourceMessageKey: 'tg:partner:8821:2',
+      ),
+      PartnerDispatchStatusDeclared(
+        eventId: 'PARTNER-EVT-3',
+        sequence: 2,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 6, 23, 27),
+        dispatchId: 'INC-8821',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        partnerLabel: 'Rapid Shield',
+        actorLabel: 'RS-UNIT-04',
+        status: PartnerDispatchStatus.allClear,
+        sourceChannel: 'telegram',
+        sourceMessageKey: 'tg:partner:8821:3',
+      ),
+      IntelligenceReceived(
+        eventId: 'OTHER-EVT-2',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 6, 23, 30),
+        intelligenceId: 'INTEL-OTHER-002',
+        provider: 'hikvision-dvr',
+        sourceType: 'dvr',
+        externalId: 'other-2',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        headline: 'Unrelated perimeter movement',
+        summary: 'General motion near the outer wall.',
+        riskScore: 41,
+        canonicalHash: 'hash-other-2',
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: EventsReviewPage(
+          events: events,
+          initialSelectedEventId: 'PARTNER-EVT-3',
+          initialScopedEventIds: const [
+            'PARTNER-EVT-1',
+            'PARTNER-EVT-2',
+            'PARTNER-EVT-3',
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining(
+        'Partner dispatch review active for 3 declared actions.',
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Rapid Shield • SITE-SANDTON', skipOffstage: false),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Visit-scoped review active for'), findsNothing);
+    expect(find.textContaining('Rapid Shield declared'), findsWidgets);
+    expect(find.text('Unrelated perimeter movement'), findsNothing);
   });
 
   testWidgets('events review surfaces FR and LPR context for DVR events', (

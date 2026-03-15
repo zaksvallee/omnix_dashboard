@@ -188,6 +188,11 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     final scopedEventIds = _normalizedScopedEventIds(
       widget.initialScopedEventIds,
     );
+    final scopedTimelineEvents = _scopedTimelineEvents(
+      timeline: timeline,
+      scopedEventIds: scopedEventIds,
+    );
+    final partnerScopeSummary = _partnerScopeSummary(scopedTimelineEvents);
     final scopeFiltered = scopedEventIds.isEmpty
         ? filtered
         : filtered
@@ -351,7 +356,30 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     ),
                   ),
                 ],
-                if (scopedEventIds.isNotEmpty) ...[
+                if (partnerScopeSummary != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    key: const ValueKey('events-partner-scope-banner'),
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0x1406B6D4),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0x4406B6D4)),
+                    ),
+                    child: Text(
+                      partnerScopeSummary.bannerText,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFEAF1FB),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ] else if (scopedEventIds.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Container(
                     key: const ValueKey('events-visit-scope-banner'),
@@ -462,6 +490,18 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return eventIds.map((id) => id.trim()).where((id) => id.isNotEmpty).toSet();
   }
 
+  List<DispatchEvent> _scopedTimelineEvents({
+    required List<DispatchEvent> timeline,
+    required Set<String> scopedEventIds,
+  }) {
+    if (scopedEventIds.isEmpty) {
+      return const <DispatchEvent>[];
+    }
+    return timeline
+        .where((event) => scopedEventIds.contains(event.eventId.trim()))
+        .toList(growable: false);
+  }
+
   bool _sameStringSet(Iterable<String> left, Iterable<String> right) {
     final leftSet = _normalizedScopedEventIds(left);
     final rightSet = _normalizedScopedEventIds(right);
@@ -480,12 +520,12 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     final scopedEventIds = _normalizedScopedEventIds(
       widget.initialScopedEventIds,
     );
-    if (scopedEventIds.isEmpty) {
-      return const <DispatchEvent>[];
-    }
-    final visitEvents = timeline
-        .where((event) => scopedEventIds.contains(event.eventId.trim()))
-        .toList(growable: false);
+    final visitEvents = [
+      ..._scopedTimelineEvents(
+        timeline: timeline,
+        scopedEventIds: scopedEventIds,
+      ),
+    ];
     visitEvents.sort((a, b) {
       final occurredAtCompare = a.occurredAt.compareTo(b.occurredAt);
       if (occurredAtCompare != 0) {
@@ -494,6 +534,27 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       return a.sequence.compareTo(b.sequence);
     });
     return visitEvents;
+  }
+
+  _PartnerScopeSummary? _partnerScopeSummary(List<DispatchEvent> scopedEvents) {
+    if (scopedEvents.isEmpty ||
+        scopedEvents.any((event) => event is! PartnerDispatchStatusDeclared)) {
+      return null;
+    }
+    final partnerEvents = scopedEvents.cast<PartnerDispatchStatusDeclared>();
+    final partnerLabels = partnerEvents
+        .map((event) => event.partnerLabel.trim())
+        .where((label) => label.isNotEmpty)
+        .toSet();
+    final siteIds = partnerEvents
+        .map((event) => event.siteId.trim())
+        .where((siteId) => siteId.isNotEmpty)
+        .toSet();
+    return _PartnerScopeSummary(
+      eventCount: partnerEvents.length,
+      partnerLabel: partnerLabels.length == 1 ? partnerLabels.first : null,
+      siteId: siteIds.length == 1 ? siteIds.first : null,
+    );
   }
 
   _VisitTimelineStatus _visitTimelineStatus(List<DispatchEvent> visitEvents) {
@@ -1789,6 +1850,33 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
 enum _VisitTimelineStage { entry, service, exit, observed }
 
 enum _VisitTimelineStatus { completed, active, incomplete }
+
+class _PartnerScopeSummary {
+  final int eventCount;
+  final String? partnerLabel;
+  final String? siteId;
+
+  const _PartnerScopeSummary({
+    required this.eventCount,
+    required this.partnerLabel,
+    required this.siteId,
+  });
+
+  String get bannerText {
+    final actionWord = eventCount == 1 ? 'action' : 'actions';
+    final detailParts = <String>[];
+    if (partnerLabel != null && partnerLabel!.isNotEmpty) {
+      detailParts.add(partnerLabel!);
+    }
+    if (siteId != null && siteId!.isNotEmpty) {
+      detailParts.add(siteId!);
+    }
+    final detailSuffix = detailParts.isEmpty
+        ? ''
+        : ' ${detailParts.join(' • ')}';
+    return 'Partner dispatch review active for $eventCount declared $actionWord.$detailSuffix';
+  }
+}
 
 Map<String, dynamic> _eventPayload(DispatchEvent event) {
   return {
