@@ -163,6 +163,7 @@ void main() {
         cancelledCount: 1,
         workflowHeadline:
             '1 partner dispatch reached ALL CLEAR • 1 partner dispatch was CANCELLED',
+        performanceHeadline: '1 strong response • 1 critical response',
         slaHeadline: 'Avg accept 5.0m • Avg on site 12.0m',
         summaryLine:
             'Dispatches 2 • Declarations 5 • Accept 2 • On site 1 • All clear 1 • Cancelled 1',
@@ -193,6 +194,9 @@ void main() {
             allClearAtUtc: DateTime.utc(2026, 3, 10, 1, 55),
             acceptedDelayMinutes: 5.0,
             onSiteDelayMinutes: 13.0,
+            scoreLabel: 'STRONG',
+            scoreReason:
+                'Partner reached ALL CLEAR inside target acceptance and on-site windows.',
             workflowSummary:
                 'ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)',
           ),
@@ -208,6 +212,9 @@ void main() {
             acceptedAtUtc: DateTime.utc(2026, 3, 10, 2, 5),
             cancelledAtUtc: DateTime.utc(2026, 3, 10, 2, 18),
             acceptedDelayMinutes: 5.0,
+            scoreLabel: 'CRITICAL',
+            scoreReason:
+                'Dispatch was cancelled before the partner completed the response chain.',
             workflowSummary: 'ACCEPT -> CANCELLED (LATEST CANCELLED)',
           ),
         ],
@@ -281,7 +288,11 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('Avg accept 5.0m • Avg on site 12.0m'), findsNWidgets(2));
+    expect(
+      find.text('1 strong response • 1 critical response'),
+      findsNWidgets(2),
+    );
+    expect(find.text('Avg accept 5.0m • Avg on site 12.0m'), findsOneWidget);
     expect(find.text('Vehicle site ledger'), findsOneWidget);
     expect(find.text('Vehicle exception review'), findsOneWidget);
     expect(find.text('Partner dispatch sites'), findsOneWidget);
@@ -293,6 +304,13 @@ void main() {
     );
     expect(
       find.text('SLA: accepted in 5.0m • on site in 13.0m'),
+      findsOneWidget,
+    );
+    expect(find.text('STRONG'), findsOneWidget);
+    expect(
+      find.text(
+        'Scorecard: Partner reached ALL CLEAR inside target acceptance and on-site windows.',
+      ),
       findsOneWidget,
     );
     expect(find.textContaining('CLIENT-1/SITE-42'), findsWidgets);

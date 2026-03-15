@@ -140,6 +140,7 @@ class _GovernanceReportView {
   final int partnerAllClear;
   final int partnerCancelled;
   final String partnerWorkflowHeadline;
+  final String partnerPerformanceHeadline;
   final String partnerSlaHeadline;
   final String partnerSummary;
   final List<SovereignReportPartnerScopeBreakdown> partnerScopeBreakdowns;
@@ -195,6 +196,7 @@ class _GovernanceReportView {
     required this.partnerAllClear,
     required this.partnerCancelled,
     required this.partnerWorkflowHeadline,
+    required this.partnerPerformanceHeadline,
     required this.partnerSlaHeadline,
     required this.partnerSummary,
     required this.partnerScopeBreakdowns,
@@ -1103,6 +1105,17 @@ class _GovernancePageState extends State<GovernancePage> {
               ),
             ),
             const SizedBox(height: 6),
+            if (report.partnerPerformanceHeadline.trim().isNotEmpty) ...[
+              Text(
+                report.partnerPerformanceHeadline,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFFDE68A),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+            ],
             if (report.partnerWorkflowHeadline.trim().isNotEmpty) ...[
               Text(
                 report.partnerWorkflowHeadline,
@@ -1800,7 +1813,9 @@ class _GovernancePageState extends State<GovernancePage> {
         key: const ValueKey('governance-metric-partner-progression'),
         label: 'Partner Progression',
         value: '${report.partnerDispatches} dispatches',
-        detail: report.partnerSlaHeadline.trim().isNotEmpty
+        detail: report.partnerPerformanceHeadline.trim().isNotEmpty
+            ? report.partnerPerformanceHeadline
+            : report.partnerSlaHeadline.trim().isNotEmpty
             ? report.partnerSlaHeadline
             : report.partnerWorkflowHeadline.trim().isNotEmpty
             ? report.partnerWorkflowHeadline
@@ -2636,7 +2651,13 @@ class _GovernancePageState extends State<GovernancePage> {
   String _partnerChainCsvSummary(SovereignReportPartnerDispatchChain chain) {
     final timing = _partnerChainTimingLabel(chain);
     final timingSuffix = timing.isEmpty ? '' : ' • $timing';
-    return '${chain.partnerLabel} • ${chain.dispatchId} • ${chain.clientId}/${chain.siteId} • ${chain.workflowSummary} • latest ${_partnerStatusLabel(chain.latestStatus)} @ ${_timestampLabel(chain.latestOccurredAtUtc)}$timingSuffix';
+    final scoreLabel = chain.scoreLabel.trim().isEmpty
+        ? ''
+        : ' • ${chain.scoreLabel.trim()}';
+    final scoreReason = chain.scoreReason.trim().isEmpty
+        ? ''
+        : ' • ${chain.scoreReason.trim()}';
+    return '${chain.partnerLabel} • ${chain.dispatchId} • ${chain.clientId}/${chain.siteId} • ${chain.workflowSummary}$scoreLabel • latest ${_partnerStatusLabel(chain.latestStatus)} @ ${_timestampLabel(chain.latestOccurredAtUtc)}$timingSuffix$scoreReason';
   }
 
   String _vehicleExceptionCsvSummary(
@@ -2739,6 +2760,34 @@ class _GovernancePageState extends State<GovernancePage> {
                   ),
                 ),
               ),
+              if (chain.scoreLabel.trim().isNotEmpty) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _partnerScoreColor(
+                      chain.scoreLabel,
+                    ).withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: _partnerScoreColor(
+                        chain.scoreLabel,
+                      ).withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Text(
+                    chain.scoreLabel,
+                    style: GoogleFonts.inter(
+                      color: _partnerScoreColor(chain.scoreLabel),
+                      fontSize: 8,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 4),
@@ -2770,6 +2819,17 @@ class _GovernancePageState extends State<GovernancePage> {
               ),
             ),
           ],
+          if (chain.scoreReason.trim().isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              'Scorecard: ${chain.scoreReason}',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFFDE68A),
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -2786,6 +2846,16 @@ class _GovernancePageState extends State<GovernancePage> {
       parts.add('on site in ${chain.onSiteDelayMinutes!.toStringAsFixed(1)}m');
     }
     return parts.join(' • ');
+  }
+
+  Color _partnerScoreColor(String scoreLabel) {
+    return switch (scoreLabel.trim().toUpperCase()) {
+      'STRONG' => const Color(0xFF10B981),
+      'ON TRACK' => const Color(0xFF38BDF8),
+      'WATCH' => const Color(0xFFF59E0B),
+      'CRITICAL' => const Color(0xFFEF4444),
+      _ => const Color(0xFF9CB2D1),
+    };
   }
 
   Widget _card({
@@ -2955,6 +3025,8 @@ class _GovernancePageState extends State<GovernancePage> {
         partnerAllClear: canonical.partnerProgression.allClearCount,
         partnerCancelled: canonical.partnerProgression.cancelledCount,
         partnerWorkflowHeadline: canonical.partnerProgression.workflowHeadline,
+        partnerPerformanceHeadline:
+            canonical.partnerProgression.performanceHeadline,
         partnerSlaHeadline: canonical.partnerProgression.slaHeadline,
         partnerSummary: canonical.partnerProgression.summaryLine,
         partnerScopeBreakdowns: canonical.partnerProgression.scopeBreakdowns,
@@ -3042,6 +3114,7 @@ class _GovernancePageState extends State<GovernancePage> {
       partnerAllClear: partnerSummary.allClearCount,
       partnerCancelled: partnerSummary.cancelledCount,
       partnerWorkflowHeadline: partnerSummary.workflowHeadline,
+      partnerPerformanceHeadline: partnerSummary.performanceHeadline,
       partnerSlaHeadline: partnerSummary.slaHeadline,
       partnerSummary: partnerSummary.summaryLine,
       partnerScopeBreakdowns: partnerSummary.scopeBreakdowns,
@@ -3078,6 +3151,7 @@ class _GovernancePageState extends State<GovernancePage> {
         allClearCount: 0,
         cancelledCount: 0,
         workflowHeadline: '',
+        performanceHeadline: '',
         slaHeadline: '',
         summaryLine: '',
         scopeBreakdowns: <SovereignReportPartnerScopeBreakdown>[],
@@ -3103,6 +3177,7 @@ class _GovernancePageState extends State<GovernancePage> {
         allClearCount: 0,
         cancelledCount: 0,
         workflowHeadline: '',
+        performanceHeadline: '',
         slaHeadline: '',
         summaryLine: '',
         scopeBreakdowns: <SovereignReportPartnerScopeBreakdown>[],
@@ -3176,6 +3251,16 @@ class _GovernancePageState extends State<GovernancePage> {
       if (onSiteDelay != null) {
         onSiteDelayMinutes.add(onSiteDelay);
       }
+      final scoreLabel = _partnerDispatchScoreLabel(
+        latestStatus: latest.status,
+        acceptedDelayMinutes: acceptedDelay,
+        onSiteDelayMinutes: onSiteDelay,
+      );
+      final scoreReason = _partnerDispatchScoreReason(
+        latestStatus: latest.status,
+        acceptedDelayMinutes: acceptedDelay,
+        onSiteDelayMinutes: onSiteDelay,
+      );
       chains.add(
         SovereignReportPartnerDispatchChain(
           dispatchId: entry.key,
@@ -3195,6 +3280,8 @@ class _GovernancePageState extends State<GovernancePage> {
               firstOccurrenceByStatus[PartnerDispatchStatus.cancelled],
           acceptedDelayMinutes: acceptedDelay,
           onSiteDelayMinutes: onSiteDelay,
+          scoreLabel: scoreLabel,
+          scoreReason: scoreReason,
           workflowSummary: _partnerWorkflowSummary(
             firstOccurrenceByStatus: firstOccurrenceByStatus,
             latestStatus: latest.status,
@@ -3249,6 +3336,7 @@ class _GovernancePageState extends State<GovernancePage> {
       allClearCount: allClearCount,
       cancelledCount: cancelledCount,
       workflowHeadline: _partnerWorkflowHeadline(chains),
+      performanceHeadline: _partnerPerformanceHeadline(chains),
       slaHeadline: _partnerSlaHeadline(
         acceptedDelayMinutes: acceptedDelayMinutes,
         onSiteDelayMinutes: onSiteDelayMinutes,
@@ -3325,6 +3413,39 @@ class _GovernancePageState extends State<GovernancePage> {
     return parts.join(' • ');
   }
 
+  String _partnerPerformanceHeadline(
+    List<SovereignReportPartnerDispatchChain> chains,
+  ) {
+    if (chains.isEmpty) {
+      return '';
+    }
+    final counts = <String, int>{};
+    for (final chain in chains) {
+      final label = chain.scoreLabel.trim().toUpperCase();
+      if (label.isEmpty) {
+        continue;
+      }
+      counts.update(label, (value) => value + 1, ifAbsent: () => 1);
+    }
+    final orderedLabels = ['STRONG', 'ON TRACK', 'WATCH', 'CRITICAL'];
+    final parts = <String>[];
+    for (final label in orderedLabels) {
+      final count = counts[label] ?? 0;
+      if (count == 0) {
+        continue;
+      }
+      final noun = switch (label) {
+        'STRONG' => count == 1 ? 'strong response' : 'strong responses',
+        'ON TRACK' => count == 1 ? 'on-track response' : 'on-track responses',
+        'WATCH' => count == 1 ? 'watch response' : 'watch responses',
+        'CRITICAL' => count == 1 ? 'critical response' : 'critical responses',
+        _ => count == 1 ? 'response' : 'responses',
+      };
+      parts.add('$count $noun');
+    }
+    return parts.join(' • ');
+  }
+
   String _partnerWorkflowSummary({
     required Map<PartnerDispatchStatus, DateTime> firstOccurrenceByStatus,
     required PartnerDispatchStatus latestStatus,
@@ -3362,6 +3483,56 @@ class _GovernancePageState extends State<GovernancePage> {
       parts.add('Avg on site ${onSiteAverage.toStringAsFixed(1)}m');
     }
     return parts.join(' • ');
+  }
+
+  String _partnerDispatchScoreLabel({
+    required PartnerDispatchStatus latestStatus,
+    required double? acceptedDelayMinutes,
+    required double? onSiteDelayMinutes,
+  }) {
+    if (latestStatus == PartnerDispatchStatus.cancelled) {
+      return 'CRITICAL';
+    }
+    if (latestStatus == PartnerDispatchStatus.allClear) {
+      if ((acceptedDelayMinutes ?? double.infinity) <= 5 &&
+          (onSiteDelayMinutes ?? double.infinity) <= 15) {
+        return 'STRONG';
+      }
+      return 'WATCH';
+    }
+    if (latestStatus == PartnerDispatchStatus.onSite) {
+      if ((acceptedDelayMinutes ?? double.infinity) <= 5 &&
+          (onSiteDelayMinutes ?? double.infinity) <= 15) {
+        return 'ON TRACK';
+      }
+      return 'WATCH';
+    }
+    return 'WATCH';
+  }
+
+  String _partnerDispatchScoreReason({
+    required PartnerDispatchStatus latestStatus,
+    required double? acceptedDelayMinutes,
+    required double? onSiteDelayMinutes,
+  }) {
+    if (latestStatus == PartnerDispatchStatus.cancelled) {
+      return 'Dispatch was cancelled before the partner completed the response chain.';
+    }
+    if (latestStatus == PartnerDispatchStatus.allClear) {
+      if ((acceptedDelayMinutes ?? double.infinity) <= 5 &&
+          (onSiteDelayMinutes ?? double.infinity) <= 15) {
+        return 'Partner reached ALL CLEAR inside target acceptance and on-site windows.';
+      }
+      return 'Partner completed the response chain, but one or more response windows drifted beyond target.';
+    }
+    if (latestStatus == PartnerDispatchStatus.onSite) {
+      if ((acceptedDelayMinutes ?? double.infinity) <= 5 &&
+          (onSiteDelayMinutes ?? double.infinity) <= 15) {
+        return 'Partner is on site inside target windows and the response remains active.';
+      }
+      return 'Partner is on site, but the approach timing drifted beyond target windows.';
+    }
+    return 'Partner acknowledged the dispatch, but on-site confirmation has not been declared yet.';
   }
 
   double? _partnerDelayMinutes(DateTime? startUtc, DateTime? endUtc) {
@@ -3449,6 +3620,7 @@ class _GovernancePageState extends State<GovernancePage> {
         'allClearCount': report.partnerAllClear,
         'cancelledCount': report.partnerCancelled,
         'workflowHeadline': report.partnerWorkflowHeadline,
+        'performanceHeadline': report.partnerPerformanceHeadline,
         'slaHeadline': report.partnerSlaHeadline,
         'summaryLine': report.partnerSummary,
         'scopeBreakdowns': report.partnerScopeBreakdowns
@@ -3519,6 +3691,7 @@ class _GovernancePageState extends State<GovernancePage> {
       'partner_all_clear_count,${report.partnerAllClear}',
       'partner_cancelled_count,${report.partnerCancelled}',
       'partner_workflow_headline,"${report.partnerWorkflowHeadline.replaceAll('"', '""')}"',
+      'partner_performance_headline,"${report.partnerPerformanceHeadline.replaceAll('"', '""')}"',
       'partner_sla_headline,"${report.partnerSlaHeadline.replaceAll('"', '""')}"',
       'partner_summary,"${report.partnerSummary.replaceAll('"', '""')}"',
       for (var i = 0; i < report.partnerScopeBreakdowns.length; i++)

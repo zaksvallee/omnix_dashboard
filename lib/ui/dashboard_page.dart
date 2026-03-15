@@ -2361,6 +2361,9 @@ class _RightRail extends StatelessWidget {
                 if ((sovereignReport.partnerProgression.workflowHeadline
                         .trim()
                         .isNotEmpty) ||
+                    sovereignReport.partnerProgression.performanceHeadline
+                        .trim()
+                        .isNotEmpty ||
                     sovereignReport.partnerProgression.slaHeadline
                         .trim()
                         .isNotEmpty ||
@@ -2370,9 +2373,13 @@ class _RightRail extends StatelessWidget {
                   _RailMetricRow(
                     label: 'Partner progression',
                     value:
-                        sovereignReport.partnerProgression.slaHeadline
+                        sovereignReport.partnerProgression.performanceHeadline
                             .trim()
                             .isNotEmpty
+                        ? sovereignReport.partnerProgression.performanceHeadline
+                        : sovereignReport.partnerProgression.slaHeadline
+                              .trim()
+                              .isNotEmpty
                         ? sovereignReport.partnerProgression.slaHeadline
                         : sovereignReport.partnerProgression.workflowHeadline
                               .trim()

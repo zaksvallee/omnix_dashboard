@@ -162,6 +162,7 @@ void main() {
               cancelledCount: 0,
               workflowHeadline:
                   '1 partner dispatch reached ALL CLEAR • 1 partner dispatch remains ON SITE',
+              performanceHeadline: '1 strong response • 1 on-track response',
               slaHeadline: 'Avg accept 5.0m • Avg on site 12.0m',
               summaryLine:
                   'Dispatches 2 • Declarations 5 • Accept 2 • On site 1 • All clear 1 • Cancelled 0',
@@ -192,6 +193,9 @@ void main() {
                   allClearAtUtc: DateTime.utc(2026, 3, 9, 23, 20),
                   acceptedDelayMinutes: 5.0,
                   onSiteDelayMinutes: 12.0,
+                  scoreLabel: 'STRONG',
+                  scoreReason:
+                      'Partner reached ALL CLEAR inside target acceptance and on-site windows.',
                   workflowSummary:
                       'ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)',
                 ),
@@ -227,7 +231,10 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Partner progression'), findsOneWidget);
-    expect(find.text('Avg accept 5.0m • Avg on site 12.0m'), findsOneWidget);
+    expect(
+      find.text('1 strong response • 1 on-track response'),
+      findsOneWidget,
+    );
     expect(find.text('Diagnostics and coaching telemetry'), findsOneWidget);
     await tester.ensureVisible(find.text('Diagnostics and coaching telemetry'));
     await tester.tap(find.text('Diagnostics and coaching telemetry'));

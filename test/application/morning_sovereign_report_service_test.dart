@@ -328,6 +328,7 @@ void main() {
         report.partnerProgression.workflowHeadline,
         '1 partner dispatch remains ON SITE',
       );
+      expect(report.partnerProgression.performanceHeadline, '1 watch response');
       expect(
         report.partnerProgression.slaHeadline,
         'Avg accept 215.0m • Avg on site 222.0m',
@@ -341,6 +342,14 @@ void main() {
       expect(
         report.partnerProgression.dispatchChains.first.workflowSummary,
         'ACCEPT -> ON SITE (LATEST ON SITE)',
+      );
+      expect(
+        report.partnerProgression.dispatchChains.first.scoreLabel,
+        'WATCH',
+      );
+      expect(
+        report.partnerProgression.dispatchChains.first.scoreReason,
+        'Partner is on site, but the approach timing drifted beyond target windows.',
       );
       expect(
         report.partnerProgression.dispatchChains.first.acceptedDelayMinutes,
@@ -390,6 +399,10 @@ void main() {
       expect(restored.partnerProgression.dispatchCount, 1);
       expect(restored.partnerProgression.scopeBreakdowns, hasLength(1));
       expect(restored.partnerProgression.dispatchChains, hasLength(1));
+      expect(
+        restored.partnerProgression.performanceHeadline,
+        '1 watch response',
+      );
       expect(
         restored.partnerProgression.slaHeadline,
         'Avg accept 215.0m • Avg on site 222.0m',

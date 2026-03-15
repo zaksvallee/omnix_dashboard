@@ -261,6 +261,7 @@ class SovereignReport {
       allClearCount: 0,
       cancelledCount: 0,
       workflowHeadline: '',
+      performanceHeadline: '',
       slaHeadline: '',
       summaryLine: '',
       scopeBreakdowns: <SovereignReportPartnerScopeBreakdown>[],
@@ -432,6 +433,7 @@ class SovereignReport {
               allClearCount: 0,
               cancelledCount: 0,
               workflowHeadline: '',
+              performanceHeadline: '',
               slaHeadline: '',
               summaryLine: '',
               scopeBreakdowns: <SovereignReportPartnerScopeBreakdown>[],
@@ -449,6 +451,7 @@ class SovereignReportPartnerProgression {
   final int allClearCount;
   final int cancelledCount;
   final String workflowHeadline;
+  final String performanceHeadline;
   final String slaHeadline;
   final String summaryLine;
   final List<SovereignReportPartnerScopeBreakdown> scopeBreakdowns;
@@ -462,6 +465,7 @@ class SovereignReportPartnerProgression {
     required this.allClearCount,
     required this.cancelledCount,
     this.workflowHeadline = '',
+    this.performanceHeadline = '',
     this.slaHeadline = '',
     required this.summaryLine,
     this.scopeBreakdowns = const <SovereignReportPartnerScopeBreakdown>[],
@@ -476,6 +480,7 @@ class SovereignReportPartnerProgression {
     int? allClearCount,
     int? cancelledCount,
     String? workflowHeadline,
+    String? performanceHeadline,
     String? slaHeadline,
     String? summaryLine,
     List<SovereignReportPartnerScopeBreakdown>? scopeBreakdowns,
@@ -489,6 +494,7 @@ class SovereignReportPartnerProgression {
       allClearCount: allClearCount ?? this.allClearCount,
       cancelledCount: cancelledCount ?? this.cancelledCount,
       workflowHeadline: workflowHeadline ?? this.workflowHeadline,
+      performanceHeadline: performanceHeadline ?? this.performanceHeadline,
       slaHeadline: slaHeadline ?? this.slaHeadline,
       summaryLine: summaryLine ?? this.summaryLine,
       scopeBreakdowns: scopeBreakdowns ?? this.scopeBreakdowns,
@@ -505,6 +511,7 @@ class SovereignReportPartnerProgression {
       'allClearCount': allClearCount,
       'cancelledCount': cancelledCount,
       'workflowHeadline': workflowHeadline,
+      'performanceHeadline': performanceHeadline,
       'slaHeadline': slaHeadline,
       'summaryLine': summaryLine,
       'scopeBreakdowns': scopeBreakdowns
@@ -551,6 +558,8 @@ class SovereignReportPartnerProgression {
       allClearCount: (json['allClearCount'] as num?)?.toInt() ?? 0,
       cancelledCount: (json['cancelledCount'] as num?)?.toInt() ?? 0,
       workflowHeadline: (json['workflowHeadline'] as String? ?? '').trim(),
+      performanceHeadline: (json['performanceHeadline'] as String? ?? '')
+          .trim(),
       slaHeadline: (json['slaHeadline'] as String? ?? '').trim(),
       summaryLine: (json['summaryLine'] as String? ?? '').trim(),
       scopeBreakdowns: scopeBreakdowns,
@@ -626,6 +635,8 @@ class SovereignReportPartnerDispatchChain {
   final DateTime? cancelledAtUtc;
   final double? acceptedDelayMinutes;
   final double? onSiteDelayMinutes;
+  final String scoreLabel;
+  final String scoreReason;
   final String workflowSummary;
 
   const SovereignReportPartnerDispatchChain({
@@ -643,6 +654,8 @@ class SovereignReportPartnerDispatchChain {
     this.cancelledAtUtc,
     this.acceptedDelayMinutes,
     this.onSiteDelayMinutes,
+    this.scoreLabel = '',
+    this.scoreReason = '',
     this.workflowSummary = '',
   });
 
@@ -662,6 +675,8 @@ class SovereignReportPartnerDispatchChain {
       'cancelledAtUtc': cancelledAtUtc?.toIso8601String(),
       'acceptedDelayMinutes': acceptedDelayMinutes,
       'onSiteDelayMinutes': onSiteDelayMinutes,
+      'scoreLabel': scoreLabel,
+      'scoreReason': scoreReason,
       'workflowSummary': workflowSummary,
     };
   }
@@ -700,6 +715,8 @@ class SovereignReportPartnerDispatchChain {
       )?.toUtc(),
       acceptedDelayMinutes: (json['acceptedDelayMinutes'] as num?)?.toDouble(),
       onSiteDelayMinutes: (json['onSiteDelayMinutes'] as num?)?.toDouble(),
+      scoreLabel: (json['scoreLabel'] as String? ?? '').trim(),
+      scoreReason: (json['scoreReason'] as String? ?? '').trim(),
       workflowSummary: (json['workflowSummary'] as String? ?? '').trim(),
     );
   }
@@ -1276,6 +1293,7 @@ class MorningSovereignReportService {
         allClearCount: 0,
         cancelledCount: 0,
         workflowHeadline: '',
+        performanceHeadline: '',
         slaHeadline: '',
         summaryLine: '',
         scopeBreakdowns: <SovereignReportPartnerScopeBreakdown>[],
@@ -1301,6 +1319,7 @@ class MorningSovereignReportService {
         allClearCount: 0,
         cancelledCount: 0,
         workflowHeadline: '',
+        performanceHeadline: '',
         slaHeadline: '',
         summaryLine: '',
         scopeBreakdowns: <SovereignReportPartnerScopeBreakdown>[],
@@ -1364,6 +1383,16 @@ class MorningSovereignReportService {
       if (onSiteDelay != null) {
         onSiteDelayMinutes.add(onSiteDelay);
       }
+      final scoreLabel = _partnerDispatchScoreLabel(
+        latestStatus: latest.status,
+        acceptedDelayMinutes: acceptedDelay,
+        onSiteDelayMinutes: onSiteDelay,
+      );
+      final scoreReason = _partnerDispatchScoreReason(
+        latestStatus: latest.status,
+        acceptedDelayMinutes: acceptedDelay,
+        onSiteDelayMinutes: onSiteDelay,
+      );
       chains.add(
         SovereignReportPartnerDispatchChain(
           dispatchId: entry.key,
@@ -1383,6 +1412,8 @@ class MorningSovereignReportService {
               firstOccurrenceByStatus[PartnerDispatchStatus.cancelled],
           acceptedDelayMinutes: acceptedDelay,
           onSiteDelayMinutes: onSiteDelay,
+          scoreLabel: scoreLabel,
+          scoreReason: scoreReason,
           workflowSummary: _partnerDispatchWorkflowSummary(
             firstOccurrenceByStatus,
             latest.status,
@@ -1437,6 +1468,7 @@ class MorningSovereignReportService {
       allClearCount: allClearCount,
       cancelledCount: cancelledCount,
       workflowHeadline: _partnerWorkflowHeadline(chains),
+      performanceHeadline: _partnerPerformanceHeadline(chains),
       slaHeadline: _partnerSlaHeadline(
         acceptedDelayMinutes: acceptedDelayMinutes,
         onSiteDelayMinutes: onSiteDelayMinutes,
@@ -2163,6 +2195,89 @@ class MorningSovereignReportService {
       parts.add('Avg on site ${onSiteAverage.toStringAsFixed(1)}m');
     }
     return parts.join(' • ');
+  }
+
+  String _partnerPerformanceHeadline(
+    List<SovereignReportPartnerDispatchChain> chains,
+  ) {
+    if (chains.isEmpty) {
+      return '';
+    }
+    final counts = <String, int>{};
+    for (final chain in chains) {
+      final label = chain.scoreLabel.trim().toUpperCase();
+      if (label.isEmpty) {
+        continue;
+      }
+      counts.update(label, (value) => value + 1, ifAbsent: () => 1);
+    }
+    final orderedLabels = ['STRONG', 'ON TRACK', 'WATCH', 'CRITICAL'];
+    final parts = <String>[];
+    for (final label in orderedLabels) {
+      final count = counts[label] ?? 0;
+      if (count == 0) {
+        continue;
+      }
+      final noun = switch (label) {
+        'STRONG' => count == 1 ? 'strong response' : 'strong responses',
+        'ON TRACK' => count == 1 ? 'on-track response' : 'on-track responses',
+        'WATCH' => count == 1 ? 'watch response' : 'watch responses',
+        'CRITICAL' => count == 1 ? 'critical response' : 'critical responses',
+        _ => count == 1 ? 'response' : 'responses',
+      };
+      parts.add('$count $noun');
+    }
+    return parts.join(' • ');
+  }
+
+  String _partnerDispatchScoreLabel({
+    required PartnerDispatchStatus latestStatus,
+    required double? acceptedDelayMinutes,
+    required double? onSiteDelayMinutes,
+  }) {
+    if (latestStatus == PartnerDispatchStatus.cancelled) {
+      return 'CRITICAL';
+    }
+    if (latestStatus == PartnerDispatchStatus.allClear) {
+      if ((acceptedDelayMinutes ?? double.infinity) <= 5 &&
+          (onSiteDelayMinutes ?? double.infinity) <= 15) {
+        return 'STRONG';
+      }
+      return 'WATCH';
+    }
+    if (latestStatus == PartnerDispatchStatus.onSite) {
+      if ((acceptedDelayMinutes ?? double.infinity) <= 5 &&
+          (onSiteDelayMinutes ?? double.infinity) <= 15) {
+        return 'ON TRACK';
+      }
+      return 'WATCH';
+    }
+    return 'WATCH';
+  }
+
+  String _partnerDispatchScoreReason({
+    required PartnerDispatchStatus latestStatus,
+    required double? acceptedDelayMinutes,
+    required double? onSiteDelayMinutes,
+  }) {
+    if (latestStatus == PartnerDispatchStatus.cancelled) {
+      return 'Dispatch was cancelled before the partner completed the response chain.';
+    }
+    if (latestStatus == PartnerDispatchStatus.allClear) {
+      if ((acceptedDelayMinutes ?? double.infinity) <= 5 &&
+          (onSiteDelayMinutes ?? double.infinity) <= 15) {
+        return 'Partner reached ALL CLEAR inside target acceptance and on-site windows.';
+      }
+      return 'Partner completed the response chain, but one or more response windows drifted beyond target.';
+    }
+    if (latestStatus == PartnerDispatchStatus.onSite) {
+      if ((acceptedDelayMinutes ?? double.infinity) <= 5 &&
+          (onSiteDelayMinutes ?? double.infinity) <= 15) {
+        return 'Partner is on site inside target windows and the response remains active.';
+      }
+      return 'Partner is on site, but the approach timing drifted beyond target windows.';
+    }
+    return 'Partner acknowledged the dispatch, but on-site confirmation has not been declared yet.';
   }
 
   String _partnerScopeSummaryLine({
