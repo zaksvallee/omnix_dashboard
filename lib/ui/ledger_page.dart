@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../domain/crm/reporting/report_section_configuration.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_completed.dart';
@@ -477,6 +478,14 @@ class _LedgerPageState extends State<LedgerPage> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
+                  if (row.configurationPillLabel != null)
+                    _ledgerPill(
+                      row.configurationPillLabel!,
+                      row.configurationPillTextColor ??
+                          const Color(0xFFA8BEE0),
+                      row.configurationPillBorderColor ??
+                          const Color(0xFF2A4C7A),
+                    ),
                   _ledgerPill(
                     'Event ${row.eventId}',
                     const Color(0xFFA8BEE0),
@@ -489,6 +498,18 @@ class _LedgerPageState extends State<LedgerPage> {
                   ),
                 ],
               ),
+              if ((row.detailSummary ?? '').trim().isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  row.detailSummary!,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF9CB2D1),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                ),
+              ],
             ],
           ),
         );
@@ -640,6 +661,10 @@ class _LedgerPageState extends State<LedgerPage> {
           ),
         );
       } else if (event is ReportGenerated && event.clientId == clientId) {
+        final tracked = _hasTrackedReportSectionConfiguration(event);
+        final omittedSections = _omittedReportSectionLabels(
+          event.sectionConfiguration,
+        );
         rows.add(
           _LedgerTimelineRow(
             eventId: event.eventId,
@@ -647,8 +672,24 @@ class _LedgerPageState extends State<LedgerPage> {
             occurredAt: event.occurredAt,
             type: 'REPORT GENERATED',
             title:
-                '${event.siteId} ${event.month} range ${event.eventRangeStart}-${event.eventRangeEnd}',
+                '${event.siteId} ${event.month} • ${_reportSectionConfigurationHeadline(event)} • range ${event.eventRangeStart}-${event.eventRangeEnd}',
             color: const Color(0xFFC79CFF),
+            configurationPillLabel: tracked
+                ? omittedSections.isEmpty
+                      ? 'Tracked Config'
+                      : '${omittedSections.length} Sections Omitted'
+                : 'Legacy Config',
+            configurationPillTextColor: tracked
+                ? omittedSections.isEmpty
+                      ? const Color(0xFF8FF3C9)
+                      : const Color(0xFFFADFA4)
+                : const Color(0xFFA8BEE0),
+            configurationPillBorderColor: tracked
+                ? omittedSections.isEmpty
+                      ? const Color(0xFF2D7D63)
+                      : const Color(0xFF8A6A2A)
+                : const Color(0xFF425B80),
+            detailSummary: _reportSectionConfigurationDetail(event),
           ),
         );
       }
@@ -665,6 +706,10 @@ class _LedgerTimelineRow {
   final String type;
   final String title;
   final Color color;
+  final String? configurationPillLabel;
+  final Color? configurationPillTextColor;
+  final Color? configurationPillBorderColor;
+  final String? detailSummary;
 
   const _LedgerTimelineRow({
     required this.eventId,
@@ -673,5 +718,59 @@ class _LedgerTimelineRow {
     required this.type,
     required this.title,
     required this.color,
+    this.configurationPillLabel,
+    this.configurationPillTextColor,
+    this.configurationPillBorderColor,
+    this.detailSummary,
   });
+}
+
+bool _hasTrackedReportSectionConfiguration(ReportGenerated event) {
+  return event.reportSchemaVersion >= 3;
+}
+
+List<String> _includedReportSectionLabels(
+  ReportSectionConfiguration configuration,
+) {
+  return <String>[
+    if (configuration.includeTimeline) 'Incident Timeline',
+    if (configuration.includeDispatchSummary) 'Dispatch Summary',
+    if (configuration.includeCheckpointCompliance) 'Checkpoint Compliance',
+    if (configuration.includeAiDecisionLog) 'AI Decision Log',
+    if (configuration.includeGuardMetrics) 'Guard Metrics',
+  ];
+}
+
+List<String> _omittedReportSectionLabels(
+  ReportSectionConfiguration configuration,
+) {
+  return <String>[
+    if (!configuration.includeTimeline) 'Incident Timeline',
+    if (!configuration.includeDispatchSummary) 'Dispatch Summary',
+    if (!configuration.includeCheckpointCompliance) 'Checkpoint Compliance',
+    if (!configuration.includeAiDecisionLog) 'AI Decision Log',
+    if (!configuration.includeGuardMetrics) 'Guard Metrics',
+  ];
+}
+
+String _reportSectionConfigurationHeadline(ReportGenerated event) {
+  if (!_hasTrackedReportSectionConfiguration(event)) {
+    return 'legacy receipt config';
+  }
+  final omitted = _omittedReportSectionLabels(event.sectionConfiguration);
+  if (omitted.isEmpty) {
+    return 'all sections included';
+  }
+  return '${omitted.length} sections omitted';
+}
+
+String _reportSectionConfigurationDetail(ReportGenerated event) {
+  if (!_hasTrackedReportSectionConfiguration(event)) {
+    return 'Legacy receipt. Per-section report configuration was not captured for this generated report.';
+  }
+  final included = _includedReportSectionLabels(event.sectionConfiguration);
+  final omitted = _omittedReportSectionLabels(event.sectionConfiguration);
+  final includedLabel = included.isEmpty ? 'None' : included.join(', ');
+  final omittedLabel = omitted.isEmpty ? 'None' : omitted.join(', ');
+  return 'Included: $includedLabel. Omitted: $omittedLabel.';
 }

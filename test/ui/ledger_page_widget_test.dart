@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
 import 'package:omnix_dashboard/ui/ledger_page.dart';
+
+import '../fixtures/report_test_receipt.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -64,6 +67,84 @@ void main() {
       expect(
         find.textContaining(
           'Run with local defines: ./scripts/run_onyx_chrome_local.sh',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'ledger page shows tracked report section configuration in fallback timeline',
+    (tester) async {
+      final events = <DispatchEvent>[
+        buildTestReportGenerated(
+          eventId: 'RPT-LEDGER-PAGE-1',
+          sequence: 1,
+          occurredAt: DateTime.utc(2026, 3, 15, 6, 0),
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          month: '2026-03',
+          reportSchemaVersion: 3,
+          includeAiDecisionLog: false,
+          includeGuardMetrics: false,
+        ),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LedgerPage(
+            clientId: 'CLIENT-001',
+            supabaseEnabled: false,
+            events: events,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('REPORT GENERATED'), findsOneWidget);
+      expect(find.textContaining('2 sections omitted'), findsOneWidget);
+      expect(find.text('2 Sections Omitted'), findsOneWidget);
+      expect(
+        find.text(
+          'Included: Incident Timeline, Dispatch Summary, Checkpoint Compliance. Omitted: AI Decision Log, Guard Metrics.',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'ledger page labels legacy report receipt configuration in fallback timeline',
+    (tester) async {
+      final events = <DispatchEvent>[
+        buildTestReportGenerated(
+          eventId: 'RPT-LEDGER-PAGE-LEGACY-1',
+          sequence: 1,
+          occurredAt: DateTime.utc(2026, 3, 15, 6, 0),
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          month: '2026-03',
+          reportSchemaVersion: 1,
+        ),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LedgerPage(
+            clientId: 'CLIENT-001',
+            supabaseEnabled: false,
+            events: events,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('REPORT GENERATED'), findsOneWidget);
+      expect(find.textContaining('legacy receipt config'), findsOneWidget);
+      expect(find.text('Legacy Config'), findsOneWidget);
+      expect(
+        find.text(
+          'Legacy receipt. Per-section report configuration was not captured for this generated report.',
         ),
         findsOneWidget,
       );
