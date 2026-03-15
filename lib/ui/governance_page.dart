@@ -166,6 +166,8 @@ class GovernancePage extends StatefulWidget {
   final String? morningSovereignReportAutoRunKey;
   final Future<void> Function()? onGenerateMorningSovereignReport;
   final ValueChanged<String>? onOpenVehicleExceptionEvent;
+  final ValueChanged<SovereignReportVehicleVisitException>?
+  onOpenVehicleExceptionVisit;
   final GovernanceSceneActionFocus? initialSceneActionFocus;
   final ValueChanged<GovernanceSceneActionFocus?>? onSceneActionFocusChanged;
 
@@ -176,6 +178,7 @@ class GovernancePage extends StatefulWidget {
     this.morningSovereignReportAutoRunKey,
     this.onGenerateMorningSovereignReport,
     this.onOpenVehicleExceptionEvent,
+    this.onOpenVehicleExceptionVisit,
     this.initialSceneActionFocus,
     this.onSceneActionFocusChanged,
   });
@@ -1901,9 +1904,16 @@ class _GovernancePageState extends State<GovernancePage> {
                     key: ValueKey<String>(
                       'governance-vehicle-exception-open-$exceptionEventId',
                     ),
-                    onPressed: () => widget.onOpenVehicleExceptionEvent!.call(
-                      exceptionEventId,
-                    ),
+                    onPressed: () {
+                      final openVisit = widget.onOpenVehicleExceptionVisit;
+                      if (openVisit != null) {
+                        openVisit.call(exception);
+                        return;
+                      }
+                      widget.onOpenVehicleExceptionEvent!.call(
+                        exceptionEventId,
+                      );
+                    },
                     style: TextButton.styleFrom(
                       foregroundColor: const Color(0xFF67E8F9),
                       minimumSize: const Size(0, 0),

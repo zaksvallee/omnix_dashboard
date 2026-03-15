@@ -396,6 +396,79 @@ void main() {
     expect(find.text('Resident vehicle entry'), findsNothing);
   });
 
+  testWidgets('events review filters to visit-scoped event ids', (
+    tester,
+  ) async {
+    final events = <DispatchEvent>[
+      IntelligenceReceived(
+        eventId: 'VISIT-EVT-1',
+        sequence: 3,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 6, 11, 12),
+        intelligenceId: 'INTEL-VISIT-001',
+        provider: 'hikvision-dvr',
+        sourceType: 'dvr',
+        externalId: 'visit-1',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        headline: 'Vehicle entered lane',
+        summary: 'Vehicle entered the service lane.',
+        riskScore: 71,
+        canonicalHash: 'hash-visit-1',
+      ),
+      IntelligenceReceived(
+        eventId: 'VISIT-EVT-2',
+        sequence: 2,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 6, 11, 10),
+        intelligenceId: 'INTEL-VISIT-002',
+        provider: 'hikvision-dvr',
+        sourceType: 'dvr',
+        externalId: 'visit-2',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        headline: 'Vehicle exited lane',
+        summary: 'Vehicle exited the service lane.',
+        riskScore: 69,
+        canonicalHash: 'hash-visit-2',
+      ),
+      IntelligenceReceived(
+        eventId: 'OTHER-EVT-1',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 6, 11, 8),
+        intelligenceId: 'INTEL-OTHER-001',
+        provider: 'hikvision-dvr',
+        sourceType: 'dvr',
+        externalId: 'other-1',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        headline: 'Unrelated vehicle pass',
+        summary: 'Different vehicle crossed the outer lane.',
+        riskScore: 42,
+        canonicalHash: 'hash-other-1',
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: EventsReviewPage(
+          events: events,
+          initialSelectedEventId: 'VISIT-EVT-2',
+          initialScopedEventIds: const ['VISIT-EVT-1', 'VISIT-EVT-2'],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Vehicle entered lane'), findsWidgets);
+    expect(find.text('Vehicle exited lane'), findsWidgets);
+    expect(find.text('Unrelated vehicle pass'), findsNothing);
+  });
+
   testWidgets('events review surfaces FR and LPR context for DVR events', (
     tester,
   ) async {

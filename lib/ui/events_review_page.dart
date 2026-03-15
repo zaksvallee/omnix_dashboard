@@ -24,6 +24,7 @@ class EventsReviewPage extends StatefulWidget {
   final String? initialSourceFilter;
   final String? initialProviderFilter;
   final String? initialSelectedEventId;
+  final List<String> initialScopedEventIds;
 
   const EventsReviewPage({
     super.key,
@@ -32,6 +33,7 @@ class EventsReviewPage extends StatefulWidget {
     this.initialSourceFilter,
     this.initialProviderFilter,
     this.initialSelectedEventId,
+    this.initialScopedEventIds = const <String>[],
   });
 
   @override
@@ -113,7 +115,14 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         oldWidget.initialProviderFilter != widget.initialProviderFilter;
     final selectedChanged =
         oldWidget.initialSelectedEventId != widget.initialSelectedEventId;
-    if (sourceChanged || providerChanged || selectedChanged) {
+    final scopeChanged =
+        oldWidget.initialScopedEventIds.length !=
+            widget.initialScopedEventIds.length ||
+        !_sameStringSet(
+          oldWidget.initialScopedEventIds,
+          widget.initialScopedEventIds,
+        );
+    if (sourceChanged || providerChanged || selectedChanged || scopeChanged) {
       final normalizedSource = _normalizeSourceFilter(
         widget.initialSourceFilter,
       );
@@ -160,9 +169,17 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     _activeSourceFilter;
               })
               .toList(growable: false);
-    final providerFiltered = _activeProviderFilter == _providerFilterAll
+    final scopedEventIds = _normalizedScopedEventIds(
+      widget.initialScopedEventIds,
+    );
+    final scopeFiltered = scopedEventIds.isEmpty
         ? filtered
         : filtered
+              .where((event) => scopedEventIds.contains(event.eventId.trim()))
+              .toList(growable: false);
+    final providerFiltered = _activeProviderFilter == _providerFilterAll
+        ? scopeFiltered
+        : scopeFiltered
               .where((event) {
                 if (event is! IntelligenceReceived) return false;
                 return _normalizeProviderFilter(event.provider) ==
@@ -316,6 +333,30 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     ),
                   ),
                 ],
+                if (scopedEventIds.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    key: const ValueKey('events-visit-scope-banner'),
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0x1422D3EE),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0x4422D3EE)),
+                    ),
+                    child: Text(
+                      'Visit-scoped review active for ${scopedEventIds.length} linked event${scopedEventIds.length == 1 ? '' : 's'}.',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFEAF1FB),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 8),
                 LayoutBuilder(
                   builder: (context, constraints) {
@@ -392,6 +433,27 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       ),
       ...baseEvents,
     ];
+  }
+
+  Set<String> _normalizedScopedEventIds(Iterable<String> eventIds) {
+    return eventIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+  }
+
+  bool _sameStringSet(Iterable<String> left, Iterable<String> right) {
+    final leftSet = _normalizedScopedEventIds(left);
+    final rightSet = _normalizedScopedEventIds(right);
+    if (leftSet.length != rightSet.length) {
+      return false;
+    }
+    for (final value in leftSet) {
+      if (!rightSet.contains(value)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   Widget _metricCard({

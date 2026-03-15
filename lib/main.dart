@@ -918,6 +918,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   String _eventsSourceFilter = '';
   String _eventsProviderFilter = '';
   String _eventsSelectedEventId = '';
+  List<String> _eventsScopedEventIds = const <String>[];
   ReportShellState _reportShellState = const ReportShellState();
   String _operationsFocusIncidentReference = '';
   VideoFleetWatchActionDrilldown? _tacticalWatchActionDrilldown;
@@ -15116,6 +15117,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           _eventsSourceFilter = '';
           _eventsProviderFilter = '';
           _eventsSelectedEventId = '';
+          _eventsScopedEventIds = const <String>[];
         }),
         onIntelTickerTap: _focusEventsFromTickerItem,
         activeIncidentCount: _activeIncidentCount(events),
@@ -15279,6 +15281,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _eventsSourceFilter = source;
       _eventsProviderFilter = provider;
       _eventsSelectedEventId = selectedEventId ?? '';
+      _eventsScopedEventIds = const <String>[];
     });
   }
 
@@ -15310,6 +15313,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _eventsSourceFilter = '';
       _eventsProviderFilter = '';
       _eventsSelectedEventId = ref;
+      _eventsScopedEventIds = const <String>[];
       _route = OnyxRoute.events;
     });
   }
@@ -15322,6 +15326,27 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _eventsSourceFilter = '';
       _eventsProviderFilter = '';
       _eventsSelectedEventId = ref;
+      _eventsScopedEventIds = const <String>[];
+      _route = OnyxRoute.events;
+    });
+  }
+
+  void _openEventsForVehicleVisit(
+    SovereignReportVehicleVisitException exception,
+  ) {
+    final primaryEventId = exception.primaryEventId.trim();
+    if (primaryEventId.isEmpty) {
+      return;
+    }
+    _cancelDemoAutopilot();
+    setState(() {
+      _eventsSourceFilter = '';
+      _eventsProviderFilter = '';
+      _eventsSelectedEventId = primaryEventId;
+      _eventsScopedEventIds = exception.eventIds
+          .map((id) => id.trim())
+          .where((id) => id.isNotEmpty)
+          .toList(growable: false);
       _route = OnyxRoute.events;
     });
   }
@@ -15469,6 +15494,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _eventsSourceFilter = '';
       _eventsProviderFilter = '';
       _eventsSelectedEventId = firstRoute == OnyxRoute.events ? ref : '';
+      _eventsScopedEventIds = const <String>[];
       _demoAutopilotRunning = true;
       _demoAutopilotPaused = false;
       _demoAutopilotCurrentStep = 1;
@@ -15546,6 +15572,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         _eventsSourceFilter = '';
         _eventsProviderFilter = '';
         _eventsSelectedEventId = _demoAutopilotIncidentReference;
+        _eventsScopedEventIds = const <String>[];
       }
       _demoAutopilotCurrentStep = nextIndex + 1;
       if (!isLast) {
@@ -16153,6 +16180,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           morningSovereignReport: _morningSovereignReport,
           morningSovereignReportAutoRunKey: _morningSovereignReportAutoRunKey,
           onOpenVehicleExceptionEvent: _openEventsForEventId,
+          onOpenVehicleExceptionVisit: _openEventsForVehicleVisit,
           initialSceneActionFocus: _governanceSceneActionFocus,
           onSceneActionFocusChanged: (value) {
             setState(() {
@@ -16384,6 +16412,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           initialSelectedEventId: _eventsSelectedEventId.trim().isEmpty
               ? null
               : _eventsSelectedEventId,
+          initialScopedEventIds: _eventsScopedEventIds,
         );
 
       case OnyxRoute.ledger:
