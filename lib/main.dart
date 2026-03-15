@@ -16875,6 +16875,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           telegramAiLastHandledAtUtc: _telegramAiLastHandledAtUtc,
           telegramAiLastHandledSummary: _telegramAiLastHandledSummary,
           telegramAiPendingDrafts: _telegramAiPendingDraftViews(),
+          operatorId: service.operator.operatorId,
+          onSetOperatorId: _setOperatorIdentity,
           onSetTelegramAiAssistantEnabled:
               _setTelegramAiAssistantEnabledFromAdmin,
           onSetTelegramAiApprovalRequired:

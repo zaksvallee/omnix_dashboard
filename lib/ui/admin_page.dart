@@ -487,6 +487,8 @@ class AdministrationPage extends StatefulWidget {
   final DateTime? telegramAiLastHandledAtUtc;
   final String? telegramAiLastHandledSummary;
   final List<TelegramAiPendingDraftView> telegramAiPendingDrafts;
+  final String operatorId;
+  final Future<void> Function(String operatorId)? onSetOperatorId;
   final Future<void> Function(bool enabled)? onSetTelegramAiAssistantEnabled;
   final Future<void> Function(bool required)? onSetTelegramAiApprovalRequired;
   final Future<String> Function(int updateId)? onApproveTelegramAiDraft;
@@ -591,6 +593,8 @@ class AdministrationPage extends StatefulWidget {
     this.telegramAiLastHandledAtUtc,
     this.telegramAiLastHandledSummary,
     this.telegramAiPendingDrafts = const <TelegramAiPendingDraftView>[],
+    this.operatorId = 'OPERATOR-01',
+    this.onSetOperatorId,
     this.onSetTelegramAiAssistantEnabled,
     this.onSetTelegramAiApprovalRequired,
     this.onApproveTelegramAiDraft,
@@ -611,6 +615,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       TextEditingController(text: _resolvedInitialRadioIntentPhrasesJson());
   late final TextEditingController _demoRouteCuesController =
       TextEditingController(text: _resolvedInitialDemoRouteCuesJson());
+  late final TextEditingController _operatorIdController;
 
   _AdminTab _activeTab = _AdminTab.guards;
   String _query = '';
@@ -635,6 +640,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
   bool _demoRouteCuesSaving = false;
   String? _demoRouteCueValidation;
   bool _demoRouteCueValidationError = false;
+  bool _operatorIdSaving = false;
   bool _telegramAiSettingsBusy = false;
   Set<int> _telegramAiDraftActionBusyIds = const <int>{};
   VideoFleetWatchActionDrilldown? _activeWatchActionDrilldown;
@@ -845,6 +851,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
     if (oldWidget.initialDemoRouteCuesJson != widget.initialDemoRouteCuesJson) {
       _demoRouteCuesController.text = _resolvedInitialDemoRouteCuesJson();
     }
+    if (oldWidget.operatorId != widget.operatorId) {
+      _operatorIdController.text = widget.operatorId;
+    }
     if (!oldWidget.supabaseReady && widget.supabaseReady) {
       _loadDirectoryFromSupabase();
       _loadTelegramIdentityIntakesFromSupabase();
@@ -892,6 +901,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
     _searchController.dispose();
     _radioIntentPhrasesController.dispose();
     _demoRouteCuesController.dispose();
+    _operatorIdController.dispose();
     super.dispose();
   }
 
@@ -991,6 +1001,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
   @override
   void initState() {
     super.initState();
+    _operatorIdController = TextEditingController(text: widget.operatorId);
     _activeTab = _adminTabFromPublic(widget.initialTab);
     _activeWatchActionDrilldown = widget.initialWatchActionDrilldown;
     _monitoringIdentityPolicyService = widget.monitoringIdentityPolicyService;
@@ -3786,6 +3797,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
           const SizedBox(height: 12),
           _telegramBridgeStatusPanel(),
           const SizedBox(height: 12),
+          _operatorRuntimePanel(),
+          const SizedBox(height: 12),
           _telegramAiAssistantPanel(),
           if (_hasVideoIntegrityCertificatePreview()) ...[
             const SizedBox(height: 12),
@@ -4179,6 +4192,33 @@ class _AdministrationPageState extends State<AdministrationPage> {
     }
   }
 
+  Future<void> _saveOperatorId() async {
+    if (_operatorIdSaving || widget.onSetOperatorId == null) {
+      return;
+    }
+    final nextOperatorId = _operatorIdController.text.trim();
+    setState(() => _operatorIdSaving = true);
+    try {
+      await widget.onSetOperatorId!.call(nextOperatorId);
+      final resolved = nextOperatorId.isEmpty ? 'default operator' : nextOperatorId;
+      _snack('Operator runtime set to $resolved.');
+    } catch (_) {
+      _snack('Failed to update operator runtime.');
+    } finally {
+      if (mounted) {
+        setState(() => _operatorIdSaving = false);
+      }
+    }
+  }
+
+  Future<void> _resetOperatorId() async {
+    if (_operatorIdSaving || widget.onSetOperatorId == null) {
+      return;
+    }
+    _operatorIdController.clear();
+    await _saveOperatorId();
+  }
+
   Future<void> _approveTelegramAiDraft(TelegramAiPendingDraftView draft) async {
     if (widget.onApproveTelegramAiDraft == null ||
         _telegramAiDraftActionBusyIds.contains(draft.updateId)) {
@@ -4482,6 +4522,150 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 ),
               );
             }),
+        ],
+      ),
+    );
+  }
+
+  Widget _operatorRuntimePanel() {
+    final canSave = widget.onSetOperatorId != null;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C1117),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: const Color(0x332B425F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.badge_rounded,
+                size: 16,
+                color: Color(0xFF67E8F9),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Operator Runtime',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFEAF4FF),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Active operator: ${widget.operatorId}',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB1CF),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            key: const ValueKey('admin-operator-runtime-field'),
+            controller: _operatorIdController,
+            enabled: canSave && !_operatorIdSaving,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _saveOperatorId(),
+            style: GoogleFonts.robotoMono(
+              color: const Color(0xFFEAF4FF),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+            decoration: InputDecoration(
+              labelText: 'Operator ID',
+              hintText: 'OPERATOR-01',
+              hintStyle: GoogleFonts.robotoMono(
+                color: const Color(0xFF6A829F),
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+              labelStyle: GoogleFonts.inter(
+                color: const Color(0xFF9AB1CF),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+              filled: true,
+              fillColor: const Color(0xFF0A0F15),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0x332B425F)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0x332B425F)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0xFF4E7498)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Affects new execution and review events. Leave blank to revert to the default runtime operator.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                onPressed: (!canSave || _operatorIdSaving) ? null : _saveOperatorId,
+                icon: _operatorIdSaving
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save_rounded, size: 16),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF2B5E93),
+                  foregroundColor: const Color(0xFFEAF4FF),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                label: Text(
+                  _operatorIdSaving ? 'Saving...' : 'Save Operator',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: (!canSave || _operatorIdSaving) ? null : _resetOperatorId,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFEAF4FF),
+                  side: const BorderSide(color: Color(0xFF35506F)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                icon: const Icon(Icons.restart_alt_rounded, size: 16),
+                label: Text(
+                  'Reset Default',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

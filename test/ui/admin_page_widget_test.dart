@@ -97,6 +97,59 @@ void main() {
     expect(find.textContaining('Thabo Mokoena'), findsNothing);
   });
 
+  testWidgets('system tab can update operator runtime in app', (tester) async {
+    String operatorId = 'OPS-ALPHA';
+    final savedOperatorIds = <String>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            return AdministrationPage(
+              events: const <DispatchEvent>[],
+              supabaseReady: false,
+              initialTab: AdministrationPageTab.system,
+              operatorId: operatorId,
+              onSetOperatorId: (value) async {
+                savedOperatorIds.add(value);
+                setState(() {
+                  operatorId = value.trim().isEmpty
+                      ? 'OPERATOR-01'
+                      : value.trim();
+                });
+              },
+            );
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Operator Runtime'), findsOneWidget);
+    expect(find.text('Active operator: OPS-ALPHA'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('admin-operator-runtime-field')),
+      'OPS-BETA',
+    );
+    await tester.ensureVisible(find.text('Save Operator'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save Operator'));
+    await tester.pumpAndSettle();
+
+    expect(savedOperatorIds, <String>['OPS-BETA']);
+    expect(find.text('Active operator: OPS-BETA'), findsOneWidget);
+    expect(find.text('Operator runtime set to OPS-BETA.'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Reset Default'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Reset Default'));
+    await tester.pumpAndSettle();
+
+    expect(savedOperatorIds, <String>['OPS-BETA', '']);
+    expect(find.text('Active operator: OPERATOR-01'), findsOneWidget);
+  });
+
   testWidgets('administration page reports tab changes to parent state', (
     tester,
   ) async {
