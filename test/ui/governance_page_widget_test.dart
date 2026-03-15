@@ -1847,106 +1847,115 @@ void main() {
     expect(find.text('Recent actions detail copied'), findsOneWidget);
   });
 
-  testWidgets('governance page opens events review from vehicle exception row', (
-    tester,
-  ) async {
-    String? openedEventId;
-    final report = SovereignReport(
-      date: '2026-03-10',
-      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
-      ledgerIntegrity: const SovereignReportLedgerIntegrity(
-        totalEvents: 184,
-        hashVerified: true,
-        integrityScore: 98,
-      ),
-      aiHumanDelta: const SovereignReportAiHumanDelta(
-        aiDecisions: 24,
-        humanOverrides: 3,
-        overrideReasons: {'PSIRA expired': 2},
-      ),
-      normDrift: const SovereignReportNormDrift(
-        sitesMonitored: 14,
-        driftDetected: 2,
-        avgMatchScore: 84,
-      ),
-      complianceBlockage: const SovereignReportComplianceBlockage(
-        psiraExpired: 2,
-        pdpExpired: 1,
-        totalBlocked: 3,
-      ),
-      vehicleThroughput: SovereignReportVehicleThroughput(
-        totalVisits: 1,
-        completedVisits: 0,
-        activeVisits: 0,
-        incompleteVisits: 1,
-        uniqueVehicles: 1,
-        repeatVehicles: 0,
-        unknownVehicleEvents: 0,
-        peakHourLabel: '00:00-01:00',
-        peakHourVisitCount: 1,
-        averageCompletedDwellMinutes: 0,
-        suspiciousShortVisitCount: 0,
-        loiteringVisitCount: 0,
-        summaryLine:
-            'Visits 1 • Entry 1 • Completed 0 • Active 0 • Incomplete 1 • Unique 1',
-        scopeBreakdowns: const [
-          SovereignReportVehicleScopeBreakdown(
-            clientId: 'CLIENT-1',
-            siteId: 'SITE-42',
-            totalVisits: 1,
-            completedVisits: 0,
-            activeVisits: 0,
-            incompleteVisits: 1,
-            unknownVehicleEvents: 0,
-            summaryLine:
-                'Visits 1 • Entry 1 • Completed 0 • Active 0 • Incomplete 1 • Unique 1',
-          ),
-        ],
-        exceptionVisits: [
-          SovereignReportVehicleVisitException(
-            clientId: 'CLIENT-1',
-            siteId: 'SITE-42',
-            vehicleLabel: 'CA123456',
-            statusLabel: 'INCOMPLETE',
-            reasonLabel: 'Incomplete visit',
-            primaryEventId: 'EVT-201',
-            startedAtUtc: DateTime.utc(2026, 3, 10, 0, 40),
-            lastSeenAtUtc: DateTime.utc(2026, 3, 10, 1, 22),
-            dwellMinutes: 42.0,
-            eventIds: ['EVT-201'],
-            zoneLabels: ['Entry Lane', 'Wash Bay'],
-            intelligenceIds: ['INT-201', 'INT-202'],
-          ),
-        ],
-      ),
-    );
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: GovernancePage(
-          events: const [],
-          morningSovereignReport: report,
-          morningSovereignReportAutoRunKey: '2026-03-10',
-          onOpenVehicleExceptionEvent: (value) {
-            openedEventId = value;
-          },
+  testWidgets(
+    'governance page expands vehicle exception detail and opens events review',
+    (tester) async {
+      String? openedEventId;
+      final report = SovereignReport(
+        date: '2026-03-10',
+        generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
+        shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
+        shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+        ledgerIntegrity: const SovereignReportLedgerIntegrity(
+          totalEvents: 184,
+          hashVerified: true,
+          integrityScore: 98,
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+        aiHumanDelta: const SovereignReportAiHumanDelta(
+          aiDecisions: 24,
+          humanOverrides: 3,
+          overrideReasons: {'PSIRA expired': 2},
+        ),
+        normDrift: const SovereignReportNormDrift(
+          sitesMonitored: 14,
+          driftDetected: 2,
+          avgMatchScore: 84,
+        ),
+        complianceBlockage: const SovereignReportComplianceBlockage(
+          psiraExpired: 2,
+          pdpExpired: 1,
+          totalBlocked: 3,
+        ),
+        vehicleThroughput: SovereignReportVehicleThroughput(
+          totalVisits: 1,
+          completedVisits: 0,
+          activeVisits: 0,
+          incompleteVisits: 1,
+          uniqueVehicles: 1,
+          repeatVehicles: 0,
+          unknownVehicleEvents: 0,
+          peakHourLabel: '00:00-01:00',
+          peakHourVisitCount: 1,
+          averageCompletedDwellMinutes: 0,
+          suspiciousShortVisitCount: 0,
+          loiteringVisitCount: 0,
+          summaryLine:
+              'Visits 1 • Entry 1 • Completed 0 • Active 0 • Incomplete 1 • Unique 1',
+          scopeBreakdowns: const [
+            SovereignReportVehicleScopeBreakdown(
+              clientId: 'CLIENT-1',
+              siteId: 'SITE-42',
+              totalVisits: 1,
+              completedVisits: 0,
+              activeVisits: 0,
+              incompleteVisits: 1,
+              unknownVehicleEvents: 0,
+              summaryLine:
+                  'Visits 1 • Entry 1 • Completed 0 • Active 0 • Incomplete 1 • Unique 1',
+            ),
+          ],
+          exceptionVisits: [
+            SovereignReportVehicleVisitException(
+              clientId: 'CLIENT-1',
+              siteId: 'SITE-42',
+              vehicleLabel: 'CA123456',
+              statusLabel: 'INCOMPLETE',
+              reasonLabel: 'Incomplete visit',
+              primaryEventId: 'EVT-201',
+              startedAtUtc: DateTime.utc(2026, 3, 10, 0, 40),
+              lastSeenAtUtc: DateTime.utc(2026, 3, 10, 1, 22),
+              dwellMinutes: 42.0,
+              eventIds: ['EVT-201'],
+              zoneLabels: ['Entry Lane', 'Wash Bay'],
+              intelligenceIds: ['INT-201', 'INT-202'],
+            ),
+          ],
+        ),
+      );
 
-    final exceptionRow = find.byKey(
-      const ValueKey('governance-vehicle-exception-CA123456-SITE-42'),
-    );
-    await tester.ensureVisible(exceptionRow);
-    await tester.tap(exceptionRow);
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GovernancePage(
+            events: const [],
+            morningSovereignReport: report,
+            morningSovereignReportAutoRunKey: '2026-03-10',
+            onOpenVehicleExceptionEvent: (value) {
+              openedEventId = value;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    expect(openedEventId, 'EVT-201');
-    expect(find.text('Open in Events Review'), findsOneWidget);
-  });
+      final exceptionRow = find.byKey(
+        const ValueKey('governance-vehicle-exception-CA123456-SITE-42'),
+      );
+      await tester.ensureVisible(exceptionRow);
+      await tester.tap(exceptionRow);
+      await tester.pumpAndSettle();
+
+      expect(openedEventId, isNull);
+      expect(find.text('Visit timeline'), findsOneWidget);
+      expect(find.textContaining('Linked events: EVT-201'), findsOneWidget);
+      await tester.tap(
+        find.byKey(const ValueKey('governance-vehicle-exception-open-EVT-201')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(openedEventId, 'EVT-201');
+      expect(find.text('Open Events Review'), findsOneWidget);
+    },
+  );
 }
 
 bool _comesBefore(Offset left, Offset right) {

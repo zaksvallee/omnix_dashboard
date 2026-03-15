@@ -191,6 +191,7 @@ class _GovernancePageState extends State<GovernancePage> {
 
   bool _generatingMorningReport = false;
   GovernanceSceneActionFocus? _activeSceneActionFocus;
+  String? _activeVehicleExceptionEventId;
 
   @override
   void initState() {
@@ -230,6 +231,13 @@ class _GovernancePageState extends State<GovernancePage> {
             widget.onSceneActionFocusChanged!.call(effectiveFocus);
           });
         }
+      }
+      final activeExceptionId = _activeVehicleExceptionEventId?.trim() ?? '';
+      if (activeExceptionId.isNotEmpty &&
+          !report.vehicleExceptionVisits.any(
+            (exception) => exception.primaryEventId.trim() == activeExceptionId,
+          )) {
+        _activeVehicleExceptionEventId = null;
       }
     }
   }
@@ -1804,26 +1812,32 @@ class _GovernancePageState extends State<GovernancePage> {
     final zones = exception.zoneLabels.isEmpty
         ? 'no zones captured'
         : exception.zoneLabels.join(' -> ');
+    final exceptionEventId = exception.primaryEventId.trim();
+    final isActive =
+        exceptionEventId.isNotEmpty &&
+        _activeVehicleExceptionEventId == exceptionEventId;
     final canOpenEvent =
         widget.onOpenVehicleExceptionEvent != null &&
-        exception.primaryEventId.trim().isNotEmpty;
+        exceptionEventId.isNotEmpty;
     return InkWell(
       key: ValueKey<String>(
         'governance-vehicle-exception-${exception.vehicleLabel}-${exception.siteId}',
       ),
-      onTap: canOpenEvent
-          ? () => widget.onOpenVehicleExceptionEvent!.call(
-              exception.primaryEventId.trim(),
-            )
-          : null,
+      onTap: () {
+        setState(() {
+          _activeVehicleExceptionEventId = isActive ? null : exceptionEventId;
+        });
+      },
       borderRadius: BorderRadius.circular(8),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: const Color(0x14151F2F),
+          color: isActive ? const Color(0x1822D3EE) : const Color(0x14151F2F),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0x335C728F)),
+          border: Border.all(
+            color: isActive ? const Color(0x5522D3EE) : const Color(0x335C728F),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1868,20 +1882,119 @@ class _GovernancePageState extends State<GovernancePage> {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            if (canOpenEvent) ...[
-              const SizedBox(height: 4),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Text(
-                  'Open in Events Review',
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Text(
+                  isActive ? 'Tap to collapse' : 'Tap for visit detail',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF67E8F9),
+                    color: isActive
+                        ? const Color(0xFF67E8F9)
+                        : const Color(0xFF6F86A6),
                     fontSize: 9,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
+                const Spacer(),
+                if (canOpenEvent)
+                  TextButton(
+                    key: ValueKey<String>(
+                      'governance-vehicle-exception-open-$exceptionEventId',
+                    ),
+                    onPressed: () => widget.onOpenVehicleExceptionEvent!.call(
+                      exceptionEventId,
+                    ),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF67E8F9),
+                      minimumSize: const Size(0, 0),
+                      padding: EdgeInsets.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: Text(
+                      'Open Events Review',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF67E8F9),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            if (isActive) ...[
+              const SizedBox(height: 4),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0x14151F2F),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0x335C728F)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Visit timeline',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFEAF4FF),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    _vehicleExceptionDetailLine(
+                      'Started',
+                      _timestampLabel(exception.startedAtUtc),
+                    ),
+                    _vehicleExceptionDetailLine(
+                      'Last seen',
+                      _timestampLabel(exception.lastSeenAtUtc),
+                    ),
+                    _vehicleExceptionDetailLine(
+                      'Linked events',
+                      exception.eventIds.isEmpty
+                          ? 'none'
+                          : exception.eventIds.join(', '),
+                    ),
+                    _vehicleExceptionDetailLine(
+                      'Linked intel',
+                      exception.intelligenceIds.isEmpty
+                          ? 'none'
+                          : exception.intelligenceIds.join(', '),
+                    ),
+                  ],
+                ),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _vehicleExceptionDetailLine(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 3),
+      child: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(
+              text: '$label: ',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            TextSpan(
+              text: value,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF9CB2D1),
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
       ),
