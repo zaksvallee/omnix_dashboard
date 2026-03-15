@@ -16804,6 +16804,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               : _governancePartnerScopePartnerLabel,
           onMorningSovereignReportChanged: _handleMorningSovereignReportChanged,
           onOpenVehicleExceptionEvent: _openEventsForEventId,
+          onOpenReceiptPolicyEvent: _openEventsForEventId,
           onOpenVehicleExceptionVisit: _openEventsForVehicleVisit,
           initialSceneActionFocus: _governanceSceneActionFocus,
           onSceneActionFocusChanged: (value) {

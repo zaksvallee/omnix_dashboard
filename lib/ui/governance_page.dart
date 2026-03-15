@@ -350,6 +350,7 @@ class GovernancePage extends StatefulWidget {
   final Future<void> Function()? onGenerateMorningSovereignReport;
   final ValueChanged<SovereignReport>? onMorningSovereignReportChanged;
   final ValueChanged<String>? onOpenVehicleExceptionEvent;
+  final ValueChanged<String>? onOpenReceiptPolicyEvent;
   final ValueChanged<SovereignReportVehicleVisitException>?
   onOpenVehicleExceptionVisit;
   final void Function(String clientId, String siteId, String partnerLabel)?
@@ -369,6 +370,7 @@ class GovernancePage extends StatefulWidget {
     this.onGenerateMorningSovereignReport,
     this.onMorningSovereignReportChanged,
     this.onOpenVehicleExceptionEvent,
+    this.onOpenReceiptPolicyEvent,
     this.onOpenVehicleExceptionVisit,
     this.onOpenReportsForPartnerScope,
     this.initialSceneActionFocus,
@@ -2843,6 +2845,45 @@ class _GovernancePageState extends State<GovernancePage> {
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
+                                    if (widget.onOpenReceiptPolicyEvent !=
+                                        null) ...[
+                                      const SizedBox(height: 8),
+                                      Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: OutlinedButton.icon(
+                                          key: ValueKey<String>(
+                                            'governance-receipt-policy-open-events-${event.eventId}',
+                                          ),
+                                          onPressed: () {
+                                            widget.onOpenReceiptPolicyEvent!(
+                                              event.eventId,
+                                            );
+                                            Navigator.of(dialogContext).pop();
+                                            _showSnack(
+                                              'Opening Events Review for ${event.siteId} receipt ${event.eventId}',
+                                            );
+                                          },
+                                          icon: const Icon(
+                                            Icons.rule_folder_outlined,
+                                            size: 16,
+                                          ),
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: const Color(
+                                              0xFFFFDDAA,
+                                            ),
+                                            side: const BorderSide(
+                                              color: Color(0xFF5B3A16),
+                                            ),
+                                          ),
+                                          label: Text(
+                                            'Open Events Review',
+                                            style: GoogleFonts.inter(
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),

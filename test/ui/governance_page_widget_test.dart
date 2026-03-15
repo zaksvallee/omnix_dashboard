@@ -555,6 +555,7 @@ void main() {
   testWidgets('governance receipt policy metric drills into shift receipts', (
     tester,
   ) async {
+    String? openedReceiptEventId;
     final report = SovereignReport(
       date: '2026-03-10',
       generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
@@ -673,6 +674,9 @@ void main() {
           ],
           morningSovereignReport: report,
           morningSovereignReportAutoRunKey: '2026-03-10',
+          onOpenReceiptPolicyEvent: (eventId) {
+            openedReceiptEventId = eventId;
+          },
         ),
       ),
     );
@@ -723,6 +727,20 @@ void main() {
         'Per-section report configuration was not captured for this generated receipt.',
       ),
       findsOneWidget,
+    );
+    expect(find.text('Open Events Review'), findsNWidgets(2));
+
+    await tester.tap(
+      find.byKey(
+        const ValueKey('governance-receipt-policy-open-events-RPT-TRACKED'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(openedReceiptEventId, 'RPT-TRACKED');
+    expect(
+      find.byKey(const ValueKey('governance-receipt-policy-dialog')),
+      findsNothing,
     );
   });
 
