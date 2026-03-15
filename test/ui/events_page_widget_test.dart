@@ -8,6 +8,8 @@ import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/domain/events/response_arrived.dart';
 import 'package:omnix_dashboard/ui/events_page.dart';
 
+import '../fixtures/report_test_receipt.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -158,6 +160,91 @@ void main() {
 
     expect(find.text('Selected Event'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'events page shows tracked report section configuration for generated receipts',
+    (tester) async {
+      final reportEvent = buildTestReportGenerated(
+        eventId: 'RPT-EVT-1',
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-SANDTON',
+        month: '2026-03',
+        reportSchemaVersion: 3,
+        includeAiDecisionLog: false,
+        includeGuardMetrics: false,
+      );
+
+      await tester.binding.setSurfaceSize(const Size(390, 1200));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(home: EventsPage(events: <DispatchEvent>[reportEvent])),
+      );
+      await tester.pumpAndSettle();
+
+      final rowSummary = find.textContaining(
+        'CLIENT-001/SITE-SANDTON 2026-03',
+      );
+      await tester.ensureVisible(rowSummary.first);
+      await tester.tap(
+        find.ancestor(of: rowSummary.first, matching: find.byType(InkWell)).first,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('REPORT GENERATED'), findsWidgets);
+      expect(find.text('Tracked Config'), findsOneWidget);
+      expect(find.text('2 Sections Omitted'), findsOneWidget);
+      expect(
+        find.text(
+          'Included: Incident Timeline, Dispatch Summary, Checkpoint Compliance. Omitted: AI Decision Log, Guard Metrics.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('sectionConfigurationTracked'), findsOneWidget);
+      expect(find.text('includedSections'), findsOneWidget);
+      expect(find.text('omittedSections'), findsOneWidget);
+      expect(find.text('AI Decision Log, Guard Metrics'), findsWidgets);
+    },
+  );
+
+  testWidgets('events page labels legacy report receipt configuration', (
+    tester,
+  ) async {
+    final reportEvent = buildTestReportGenerated(
+      eventId: 'RPT-EVT-LEGACY-1',
+      clientId: 'CLIENT-001',
+      siteId: 'SITE-SANDTON',
+      month: '2026-03',
+      reportSchemaVersion: 1,
+    );
+
+    await tester.binding.setSurfaceSize(const Size(390, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(home: EventsPage(events: <DispatchEvent>[reportEvent])),
+    );
+    await tester.pumpAndSettle();
+
+    final rowSummary = find.textContaining(
+      'CLIENT-001/SITE-SANDTON 2026-03',
+    );
+    await tester.ensureVisible(rowSummary.first);
+    await tester.tap(
+      find.ancestor(of: rowSummary.first, matching: find.byType(InkWell)).first,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Legacy Config'), findsOneWidget);
+    expect(
+      find.text(
+        'Legacy receipt. Per-section report configuration was not captured for this generated report.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Legacy receipt'), findsOneWidget);
+    expect(find.text('Not captured'), findsOneWidget);
   });
 
   testWidgets('integrity certificate preview card opens certificate dialog', (

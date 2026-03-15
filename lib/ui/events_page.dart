@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../domain/crm/reporting/report_section_configuration.dart';
 import '../domain/evidence/evidence_provenance.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
@@ -1036,6 +1037,12 @@ class _EventsPageState extends State<EventsPage> {
       ];
     }
     if (event is ReportGenerated) {
+      final includedSections = _includedReportSectionLabels(
+        event.sectionConfiguration,
+      );
+      final omittedSections = _omittedReportSectionLabels(
+        event.sectionConfiguration,
+      );
       return [
         ...base,
         ("eventType", "ReportGenerated"),
@@ -1049,6 +1056,30 @@ class _EventsPageState extends State<EventsPage> {
         ("eventCount", event.eventCount.toString()),
         ("reportSchemaVersion", event.reportSchemaVersion.toString()),
         ("projectionVersion", event.projectionVersion.toString()),
+        (
+          "sectionConfigurationTracked",
+          _hasTrackedReportSectionConfiguration(event).toString(),
+        ),
+        (
+          "includedSections",
+          _hasTrackedReportSectionConfiguration(event)
+              ? (includedSections.isEmpty ? "None" : includedSections.join(", "))
+              : "Legacy receipt",
+        ),
+        (
+          "omittedSections",
+          _hasTrackedReportSectionConfiguration(event)
+              ? (omittedSections.isEmpty ? "None" : omittedSections.join(", "))
+              : "Not captured",
+        ),
+        ("includeTimeline", event.includeTimeline.toString()),
+        ("includeDispatchSummary", event.includeDispatchSummary.toString()),
+        (
+          "includeCheckpointCompliance",
+          event.includeCheckpointCompliance.toString(),
+        ),
+        ("includeAiDecisionLog", event.includeAiDecisionLog.toString()),
+        ("includeGuardMetrics", event.includeGuardMetrics.toString()),
       ];
     }
     if (event is IntelligenceReceived) {
@@ -1168,11 +1199,20 @@ class _EventsPageState extends State<EventsPage> {
       );
     }
     if (event is ReportGenerated) {
+      final hasTrackedConfig = _hasTrackedReportSectionConfiguration(event);
+      final omittedSections = _omittedReportSectionLabels(
+        event.sectionConfiguration,
+      );
+      final configurationSummary = !hasTrackedConfig
+          ? 'legacy receipt configuration'
+          : omittedSections.isEmpty
+          ? 'all sections included'
+          : '${omittedSections.length} sections omitted';
       return _EventInfo(
         label: 'REPORT GENERATED',
         color: const Color(0xFFAD8DFF),
         summary:
-            '${event.clientId}/${event.siteId} ${event.month} hash ${event.contentHash.substring(0, 12)}... range ${event.eventRangeStart}-${event.eventRangeEnd}',
+            '${event.clientId}/${event.siteId} ${event.month} • $configurationSummary • hash ${event.contentHash.substring(0, 12)}... range ${event.eventRangeStart}-${event.eventRangeEnd}',
       );
     }
     if (event is IntelligenceReceived) {
@@ -1340,6 +1380,9 @@ class _EventsPageState extends State<EventsPage> {
   }
 
   Widget _detailHero(_ForensicRow row) {
+    final reportEvent = row.event is ReportGenerated
+        ? row.event as ReportGenerated
+        : null;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -1401,6 +1444,19 @@ class _EventsPageState extends State<EventsPage> {
               _pill("v${row.event.version}"),
               if (row.siteId != null) _pill(row.siteId!),
               if (row.guardId != null) _pill(row.guardId!),
+              if (reportEvent != null)
+                _pill(
+                  _hasTrackedReportSectionConfiguration(reportEvent)
+                      ? 'Tracked Config'
+                      : 'Legacy Config',
+                  color: _reportSectionConfigurationAccent(reportEvent),
+                ),
+              if (reportEvent != null &&
+                  _hasTrackedReportSectionConfiguration(reportEvent))
+                _pill(
+                  _reportSectionConfigurationHeadline(reportEvent),
+                  color: _reportSectionConfigurationAccent(reportEvent),
+                ),
             ],
           ),
           const SizedBox(height: 10),
@@ -1413,9 +1469,79 @@ class _EventsPageState extends State<EventsPage> {
               height: 1.35,
             ),
           ),
+          if (reportEvent != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _reportSectionConfigurationDetail(reportEvent),
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA5C6),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                height: 1.35,
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  bool _hasTrackedReportSectionConfiguration(ReportGenerated event) {
+    return event.reportSchemaVersion >= 3;
+  }
+
+  List<String> _includedReportSectionLabels(
+    ReportSectionConfiguration configuration,
+  ) {
+    return <String>[
+      if (configuration.includeTimeline) 'Incident Timeline',
+      if (configuration.includeDispatchSummary) 'Dispatch Summary',
+      if (configuration.includeCheckpointCompliance)
+        'Checkpoint Compliance',
+      if (configuration.includeAiDecisionLog) 'AI Decision Log',
+      if (configuration.includeGuardMetrics) 'Guard Metrics',
+    ];
+  }
+
+  List<String> _omittedReportSectionLabels(
+    ReportSectionConfiguration configuration,
+  ) {
+    return <String>[
+      if (!configuration.includeTimeline) 'Incident Timeline',
+      if (!configuration.includeDispatchSummary) 'Dispatch Summary',
+      if (!configuration.includeCheckpointCompliance)
+        'Checkpoint Compliance',
+      if (!configuration.includeAiDecisionLog) 'AI Decision Log',
+      if (!configuration.includeGuardMetrics) 'Guard Metrics',
+    ];
+  }
+
+  String _reportSectionConfigurationHeadline(ReportGenerated event) {
+    final omitted = _omittedReportSectionLabels(event.sectionConfiguration);
+    if (omitted.isEmpty) {
+      return 'All Sections Included';
+    }
+    return '${omitted.length} Sections Omitted';
+  }
+
+  String _reportSectionConfigurationDetail(ReportGenerated event) {
+    if (!_hasTrackedReportSectionConfiguration(event)) {
+      return 'Legacy receipt. Per-section report configuration was not captured for this generated report.';
+    }
+    final included = _includedReportSectionLabels(event.sectionConfiguration);
+    final omitted = _omittedReportSectionLabels(event.sectionConfiguration);
+    final includedLabel = included.isEmpty ? 'None' : included.join(', ');
+    final omittedLabel = omitted.isEmpty ? 'None' : omitted.join(', ');
+    return 'Included: $includedLabel. Omitted: $omittedLabel.';
+  }
+
+  Color _reportSectionConfigurationAccent(ReportGenerated event) {
+    if (!_hasTrackedReportSectionConfiguration(event)) {
+      return const Color(0xFF8EA5C6);
+    }
+    return _omittedReportSectionLabels(event.sectionConfiguration).isEmpty
+        ? const Color(0xFF59D79B)
+        : const Color(0xFFF6C067);
   }
 }
 
