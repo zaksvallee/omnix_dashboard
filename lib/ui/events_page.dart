@@ -16,6 +16,7 @@ import '../domain/events/partner_dispatch_status_declared.dart';
 import '../domain/events/patrol_completed.dart';
 import '../domain/events/report_generated.dart';
 import '../domain/events/response_arrived.dart';
+import '../domain/events/vehicle_visit_review_recorded.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 
@@ -891,6 +892,9 @@ class _EventsPageState extends State<EventsPage> {
     } else if (event is PartnerDispatchStatusDeclared) {
       siteId = event.siteId;
       guardId = event.actorLabel;
+    } else if (event is VehicleVisitReviewRecorded) {
+      siteId = event.siteId;
+      guardId = event.actorLabel;
     } else if (event is IncidentClosed) {
       siteId = event.siteId;
     } else if (event is ReportGenerated) {
@@ -1012,6 +1016,25 @@ class _EventsPageState extends State<EventsPage> {
         ("siteId", event.siteId),
       ];
     }
+    if (event is VehicleVisitReviewRecorded) {
+      return [
+        ...base,
+        ("eventType", "VehicleVisitReviewRecorded"),
+        ("vehicleVisitKey", event.vehicleVisitKey),
+        ("primaryEventId", event.primaryEventId),
+        ("clientId", event.clientId),
+        ("regionId", event.regionId),
+        ("siteId", event.siteId),
+        ("vehicleLabel", event.vehicleLabel),
+        ("actorLabel", event.actorLabel),
+        ("reviewed", event.reviewed.toString()),
+        ("statusOverride", event.statusOverride),
+        ("effectiveStatusLabel", event.effectiveStatusLabel),
+        ("reasonLabel", event.reasonLabel),
+        ("workflowSummary", event.workflowSummary),
+        ("sourceSurface", event.sourceSurface),
+      ];
+    }
     if (event is ReportGenerated) {
       return [
         ...base,
@@ -1122,6 +1145,18 @@ class _EventsPageState extends State<EventsPage> {
         color: const Color(0xFF22C55E),
         summary:
             '${event.partnerLabel} declared ${event.status.name} for ${event.dispatchId} at ${event.siteId}',
+      );
+    }
+    if (event is VehicleVisitReviewRecorded) {
+      final summary = !event.reviewed && event.statusOverride.trim().isEmpty
+          ? '${event.vehicleLabel} review cleared at ${event.siteId}'
+          : event.statusOverride.trim().isNotEmpty
+          ? '${event.vehicleLabel} marked ${event.effectiveStatusLabel} at ${event.siteId}'
+          : '${event.vehicleLabel} marked reviewed at ${event.siteId}';
+      return _EventInfo(
+        label: 'VISIT REVIEW',
+        color: const Color(0xFF38BDF8),
+        summary: summary,
       );
     }
     if (event is IncidentClosed) {

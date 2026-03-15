@@ -14,6 +14,7 @@ import '../domain/events/intelligence_received.dart';
 import '../domain/events/partner_dispatch_status_declared.dart';
 import '../domain/events/patrol_completed.dart';
 import '../domain/events/response_arrived.dart';
+import '../domain/events/vehicle_visit_review_recorded.dart';
 import '../application/monitoring_scene_review_store.dart';
 import 'onyx_surface.dart';
 import 'ui_action_logger.dart';
@@ -1862,6 +1863,7 @@ String _eventTypeLabel(DispatchEvent event) {
   if (event is DecisionCreated) return 'INCIDENT CREATED';
   if (event is ResponseArrived) return 'OFFICER ARRIVED';
   if (event is PartnerDispatchStatusDeclared) return 'PARTNER DECLARED';
+  if (event is VehicleVisitReviewRecorded) return 'VISIT REVIEW';
   if (event is GuardCheckedIn) return 'CHECKPOINT COMPLETED';
   if (event is ExecutionDenied) return 'ALARM TRIGGERED';
   if (event is ExecutionCompleted) return 'DISPATCH SENT';
@@ -1881,6 +1883,15 @@ String _eventSummary(DispatchEvent event) {
   }
   if (event is PartnerDispatchStatusDeclared) {
     return '${event.partnerLabel} declared ${event.status.name} for ${event.dispatchId}';
+  }
+  if (event is VehicleVisitReviewRecorded) {
+    if (!event.reviewed && event.statusOverride.trim().isEmpty) {
+      return '${event.vehicleLabel} review cleared';
+    }
+    if (event.statusOverride.trim().isNotEmpty) {
+      return '${event.vehicleLabel} marked ${event.effectiveStatusLabel}';
+    }
+    return '${event.vehicleLabel} marked reviewed';
   }
   if (event is GuardCheckedIn) {
     return '${event.guardId} checkpoint scan completed';
@@ -1917,6 +1928,7 @@ Color _eventColor(DispatchEvent event) {
   if (event is ExecutionCompleted) return const Color(0xFF10B981);
   if (event is ResponseArrived) return const Color(0xFF22D3EE);
   if (event is PartnerDispatchStatusDeclared) return const Color(0xFF06B6D4);
+  if (event is VehicleVisitReviewRecorded) return const Color(0xFF38BDF8);
   if (event is GuardCheckedIn) return const Color(0xFF3B82F6);
   if (event is ExecutionDenied) return const Color(0xFFF59E0B);
   if (event is IntelligenceReceived) return const Color(0xFFC084FC);
@@ -1927,6 +1939,7 @@ Color _eventColor(DispatchEvent event) {
 String _guardLabel(DispatchEvent event) {
   if (event is ResponseArrived) return event.guardId;
   if (event is PartnerDispatchStatusDeclared) return event.actorLabel;
+  if (event is VehicleVisitReviewRecorded) return event.actorLabel;
   if (event is GuardCheckedIn) return event.guardId;
   if (event is PatrolCompleted) return event.guardId;
   return '';
@@ -1937,6 +1950,7 @@ String _eventSiteId(DispatchEvent event) {
   if (event is DecisionCreated) return event.siteId;
   if (event is ResponseArrived) return event.siteId;
   if (event is PartnerDispatchStatusDeclared) return event.siteId;
+  if (event is VehicleVisitReviewRecorded) return event.siteId;
   if (event is GuardCheckedIn) return event.siteId;
   if (event is ExecutionCompleted) return event.siteId;
   if (event is ExecutionDenied) return event.siteId;
@@ -1951,6 +1965,7 @@ String _eventClientId(DispatchEvent event) {
   if (event is DecisionCreated) return event.clientId;
   if (event is ResponseArrived) return event.clientId;
   if (event is PartnerDispatchStatusDeclared) return event.clientId;
+  if (event is VehicleVisitReviewRecorded) return event.clientId;
   if (event is GuardCheckedIn) return event.clientId;
   if (event is ExecutionCompleted) return event.clientId;
   if (event is ExecutionDenied) return event.clientId;
@@ -1965,6 +1980,7 @@ String _eventRegionId(DispatchEvent event) {
   if (event is DecisionCreated) return event.regionId;
   if (event is ResponseArrived) return event.regionId;
   if (event is PartnerDispatchStatusDeclared) return event.regionId;
+  if (event is VehicleVisitReviewRecorded) return event.regionId;
   if (event is GuardCheckedIn) return event.regionId;
   if (event is ExecutionCompleted) return event.regionId;
   if (event is ExecutionDenied) return event.regionId;

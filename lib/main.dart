@@ -75,6 +75,7 @@ import 'domain/events/intelligence_received.dart';
 import 'domain/events/partner_dispatch_status_declared.dart';
 import 'domain/events/patrol_completed.dart';
 import 'domain/events/response_arrived.dart';
+import 'domain/events/vehicle_visit_review_recorded.dart';
 import 'domain/evidence/client_ledger_repository.dart';
 import 'domain/evidence/client_ledger_service.dart';
 import 'domain/evidence/evidence_provenance.dart';
@@ -4726,6 +4727,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }
 
   void _handleMorningSovereignReportChanged(SovereignReport report) {
+    final previous = _morningSovereignReport;
+    _appendVehicleVisitReviewEvents(
+      previous: previous,
+      next: report,
+    );
     if (mounted) {
       setState(() {
         _morningSovereignReport = report;
@@ -4734,6 +4740,101 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _morningSovereignReport = report;
     }
     unawaited(_persistMorningSovereignReport());
+  }
+
+  void _appendVehicleVisitReviewEvents({
+    required SovereignReport? previous,
+    required SovereignReport next,
+  }) {
+    final previousByKey = <String, SovereignReportVehicleVisitException>{
+      for (final exception in previous?.vehicleThroughput.exceptionVisits ??
+          const <SovereignReportVehicleVisitException>[])
+        sovereignReportVehicleVisitExceptionKey(exception): exception,
+    };
+    for (final exception in next.vehicleThroughput.exceptionVisits) {
+      final key = sovereignReportVehicleVisitExceptionKey(exception);
+      final prior = previousByKey[key];
+      if (!_vehicleVisitReviewStateChanged(prior, exception)) {
+        continue;
+      }
+      final regionId = _vehicleVisitReviewRegionIdFor(exception);
+      final occurredAt = (exception.operatorReviewedAtUtc ?? DateTime.now())
+          .toUtc();
+      final keyHash = key.hashCode.toUnsigned(32);
+      store.append(
+        VehicleVisitReviewRecorded(
+          eventId:
+              'vehicle-review-${occurredAt.microsecondsSinceEpoch}-$keyHash',
+          sequence: 0,
+          version: 1,
+          occurredAt: occurredAt,
+          vehicleVisitKey: key,
+          primaryEventId: exception.primaryEventId.trim(),
+          clientId: exception.clientId.trim(),
+          regionId: regionId,
+          siteId: exception.siteId.trim(),
+          vehicleLabel: exception.vehicleLabel.trim(),
+          actorLabel: 'GOVERNANCE_OPERATOR',
+          reviewed: exception.operatorReviewed,
+          statusOverride: exception.operatorStatusOverride.trim().toUpperCase(),
+          effectiveStatusLabel: exception.statusLabel.trim().toUpperCase(),
+          reasonLabel: exception.reasonLabel.trim(),
+          workflowSummary: exception.workflowSummary.trim(),
+          sourceSurface: 'governance',
+        ),
+      );
+    }
+  }
+
+  bool _vehicleVisitReviewStateChanged(
+    SovereignReportVehicleVisitException? previous,
+    SovereignReportVehicleVisitException next,
+  ) {
+    if (previous == null) {
+      return next.operatorReviewed ||
+          next.operatorStatusOverride.trim().isNotEmpty;
+    }
+    return previous.operatorReviewed != next.operatorReviewed ||
+        previous.operatorStatusOverride.trim().toUpperCase() !=
+            next.operatorStatusOverride.trim().toUpperCase() ||
+        previous.operatorReviewedAtUtc?.toUtc() !=
+            next.operatorReviewedAtUtc?.toUtc();
+  }
+
+  String _vehicleVisitReviewRegionIdFor(
+    SovereignReportVehicleVisitException exception,
+  ) {
+    final candidateEventIds = <String>{
+      exception.primaryEventId.trim(),
+      ...exception.eventIds.map((id) => id.trim()),
+    }..removeWhere((value) => value.isEmpty);
+    if (candidateEventIds.isEmpty) {
+      return '';
+    }
+    for (final event in store.allEvents()) {
+      if (!candidateEventIds.contains(event.eventId)) {
+        continue;
+      }
+      if (event is IntelligenceReceived) {
+        return event.regionId.trim();
+      }
+      if (event is DecisionCreated) {
+        return event.regionId.trim();
+      }
+      if (event is ExecutionDenied) {
+        return event.regionId.trim();
+      }
+      if (event is ResponseArrived) {
+        return event.regionId.trim();
+      }
+      if (event is IncidentClosed) {
+        return event.regionId.trim();
+      }
+      if (event is PartnerDispatchStatusDeclared) {
+        return event.regionId.trim();
+      }
+    }
+    return '';
   }
 
   SovereignReport _mergeMorningSovereignReportVehicleReviews(

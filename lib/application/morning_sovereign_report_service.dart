@@ -7,6 +7,7 @@ import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_denied.dart';
 import '../domain/events/intelligence_received.dart';
+import '../domain/events/vehicle_visit_review_recorded.dart';
 import '../domain/guard/guard_ops_event.dart';
 import '../domain/testing/replay_consistency_verifier.dart';
 
@@ -903,6 +904,10 @@ class MorningSovereignReportService {
     final vehicleThroughput = _buildVehicleThroughput(
       nowUtc: nowUtc,
       events: nightIntel,
+      reviewEvents: events
+          .whereType<VehicleVisitReviewRecorded>()
+          .where((event) => !event.occurredAt.toUtc().isAfter(nowUtc))
+          .toList(growable: false),
     );
 
     return SovereignReport(
@@ -951,6 +956,7 @@ class MorningSovereignReportService {
   SovereignReportVehicleThroughput _buildVehicleThroughput({
     required DateTime nowUtc,
     required List<IntelligenceReceived> events,
+    List<VehicleVisitReviewRecorded> reviewEvents = const [],
   }) {
     final snapshots = const VehicleVisitLedgerProjector().projectByScope(
       events: events,
@@ -1053,7 +1059,11 @@ class MorningSovereignReportService {
         }
       }
     }
-    exceptionVisits.sort((a, b) {
+    final reviewedExceptions = _applyVehicleVisitReviewEvents(
+      exceptions: exceptionVisits,
+      reviewEvents: reviewEvents,
+    );
+    reviewedExceptions.sort((a, b) {
       final severityCompare = _vehicleExceptionPriority(
         a.reasonLabel,
       ).compareTo(_vehicleExceptionPriority(b.reasonLabel));
@@ -1098,8 +1108,74 @@ class MorningSovereignReportService {
       workflowHeadline: _vehicleWorkflowHeadline(visits, nowUtc),
       summaryLine: const VehicleThroughputSummaryFormatter().format(summary),
       scopeBreakdowns: scopeBreakdowns,
-      exceptionVisits: exceptionVisits,
+      exceptionVisits: reviewedExceptions,
     );
+  }
+
+  List<SovereignReportVehicleVisitException> _applyVehicleVisitReviewEvents({
+    required List<SovereignReportVehicleVisitException> exceptions,
+    required List<VehicleVisitReviewRecorded> reviewEvents,
+  }) {
+    if (exceptions.isEmpty || reviewEvents.isEmpty) {
+      return List<SovereignReportVehicleVisitException>.from(
+        exceptions,
+        growable: false,
+      );
+    }
+    final latestByVisitKey = <String, VehicleVisitReviewRecorded>{};
+    for (final event in reviewEvents) {
+      final key = event.vehicleVisitKey.trim();
+      if (key.isEmpty) {
+        continue;
+      }
+      final existing = latestByVisitKey[key];
+      if (existing == null ||
+          event.sequence > existing.sequence ||
+          (event.sequence == existing.sequence &&
+              event.occurredAt.isAfter(existing.occurredAt))) {
+        latestByVisitKey[key] = event;
+      }
+    }
+    return exceptions.map((exception) {
+      final reviewEvent = latestByVisitKey[
+          sovereignReportVehicleVisitExceptionKey(exception)];
+      if (reviewEvent == null) {
+        return exception;
+      }
+      final overrideLabel = reviewEvent.statusOverride.trim().toUpperCase();
+      final effectiveStatus = overrideLabel.isEmpty
+          ? exception.statusLabel.trim()
+          : overrideLabel;
+      final effectiveWorkflow = _applyStatusToWorkflowSummary(
+        exception.workflowSummary,
+        effectiveStatus,
+      );
+      return exception.copyWith(
+        statusLabel: effectiveStatus,
+        workflowSummary: effectiveWorkflow,
+        operatorReviewed: reviewEvent.reviewed,
+        operatorReviewedAtUtc:
+            reviewEvent.reviewed ? reviewEvent.occurredAt.toUtc() : null,
+        clearOperatorReviewedAtUtc: !reviewEvent.reviewed,
+        operatorStatusOverride: overrideLabel,
+      );
+    }).toList(growable: false);
+  }
+
+  String _applyStatusToWorkflowSummary(String summary, String statusLabel) {
+    final normalizedStatus = statusLabel.trim().toUpperCase();
+    if (normalizedStatus.isEmpty) {
+      return summary.trim();
+    }
+    final trimmed = summary.trim();
+    if (trimmed.isEmpty) {
+      return 'OBSERVED ($normalizedStatus)';
+    }
+    final statusPattern = RegExp(r'\s*\([A-Z_]+\)\s*$');
+    if (statusPattern.hasMatch(trimmed)) {
+      return trimmed.replaceFirst(statusPattern, ' ($normalizedStatus)');
+    }
+    return '$trimmed ($normalizedStatus)';
   }
 
   SovereignReportVehicleScopeBreakdown _buildVehicleScopeBreakdown({

@@ -5,6 +5,7 @@ import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 import 'package:omnix_dashboard/domain/events/decision_created.dart';
 import 'package:omnix_dashboard/domain/events/execution_denied.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
+import 'package:omnix_dashboard/domain/events/vehicle_visit_review_recorded.dart';
 import 'package:omnix_dashboard/domain/guard/guard_ops_event.dart';
 
 void main() {
@@ -323,6 +324,91 @@ void main() {
       expect(
         restored.vehicleThroughput.workflowHeadline,
         '1 completed visit reached EXIT',
+      );
+    });
+
+    test('applies latest vehicle visit review events to throughput exceptions', () {
+      final service = const MorningSovereignReportService();
+      final report = service.generate(
+        nowUtc: DateTime.utc(2026, 3, 10, 8, 30),
+        events: [
+          IntelligenceReceived(
+            eventId: 'INT-ENTRY',
+            sequence: 20,
+            version: 1,
+            occurredAt: DateTime.utc(2026, 3, 10, 0, 10),
+            intelligenceId: 'INT-ENTRY',
+            provider: 'feed',
+            sourceType: 'dvr',
+            externalId: 'EXT-ENTRY',
+            clientId: 'CLIENT-9',
+            regionId: 'REGION-9',
+            siteId: 'SITE-9',
+            headline: 'Vehicle entered entry lane',
+            summary: 'Vehicle entered the monitored lane.',
+            riskScore: 22,
+            canonicalHash: 'hash-entry',
+            cameraId: 'lane-1',
+            objectLabel: 'vehicle',
+            plateNumber: 'ND 987 654',
+            zone: 'Entry Lane',
+          ),
+          IntelligenceReceived(
+            eventId: 'INT-SERVICE',
+            sequence: 21,
+            version: 1,
+            occurredAt: DateTime.utc(2026, 3, 10, 0, 24),
+            intelligenceId: 'INT-SERVICE',
+            provider: 'feed',
+            sourceType: 'dvr',
+            externalId: 'EXT-SERVICE',
+            clientId: 'CLIENT-9',
+            regionId: 'REGION-9',
+            siteId: 'SITE-9',
+            headline: 'Vehicle entered wash bay',
+            summary: 'Vehicle moved into the service zone.',
+            riskScore: 18,
+            canonicalHash: 'hash-service',
+            cameraId: 'lane-2',
+            objectLabel: 'vehicle',
+            plateNumber: 'ND 987 654',
+            zone: 'Wash Bay',
+          ),
+          VehicleVisitReviewRecorded(
+            eventId: 'VR-1',
+            sequence: 22,
+            version: 1,
+            occurredAt: DateTime.utc(2026, 3, 10, 8, 5),
+            vehicleVisitKey: 'INT-SERVICE',
+            primaryEventId: 'INT-SERVICE',
+            clientId: 'CLIENT-9',
+            regionId: 'REGION-9',
+            siteId: 'SITE-9',
+            vehicleLabel: 'ND987654',
+            actorLabel: 'GOVERNANCE_OPERATOR',
+            reviewed: true,
+            statusOverride: 'COMPLETED',
+            effectiveStatusLabel: 'COMPLETED',
+            reasonLabel: 'Incomplete visit',
+            workflowSummary: 'ENTRY -> SERVICE (COMPLETED)',
+            sourceSurface: 'governance',
+          ),
+        ],
+        recentMedia: const [],
+        guardOutcomePolicyDenied24h: 0,
+        sceneReviewByIntelligenceId: const {},
+      );
+
+      expect(report.vehicleThroughput.exceptionVisits, hasLength(1));
+      final exception = report.vehicleThroughput.exceptionVisits.single;
+      expect(exception.primaryEventId, 'INT-SERVICE');
+      expect(exception.statusLabel, 'COMPLETED');
+      expect(exception.workflowSummary, 'ENTRY -> SERVICE (COMPLETED)');
+      expect(exception.operatorReviewed, isTrue);
+      expect(exception.operatorStatusOverride, 'COMPLETED');
+      expect(
+        exception.operatorReviewedAtUtc,
+        DateTime.utc(2026, 3, 10, 8, 5),
       );
     });
   });
