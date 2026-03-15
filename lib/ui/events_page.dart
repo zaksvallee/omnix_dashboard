@@ -12,6 +12,7 @@ import '../domain/events/execution_denied.dart';
 import '../domain/events/guard_checked_in.dart';
 import '../domain/events/incident_closed.dart';
 import '../domain/events/intelligence_received.dart';
+import '../domain/events/partner_dispatch_status_declared.dart';
 import '../domain/events/patrol_completed.dart';
 import '../domain/events/report_generated.dart';
 import '../domain/events/response_arrived.dart';
@@ -887,6 +888,9 @@ class _EventsPageState extends State<EventsPage> {
     } else if (event is ResponseArrived) {
       siteId = event.siteId;
       guardId = event.guardId;
+    } else if (event is PartnerDispatchStatusDeclared) {
+      siteId = event.siteId;
+      guardId = event.actorLabel;
     } else if (event is IncidentClosed) {
       siteId = event.siteId;
     } else if (event is ReportGenerated) {
@@ -980,6 +984,21 @@ class _EventsPageState extends State<EventsPage> {
         ("clientId", event.clientId),
         ("regionId", event.regionId),
         ("siteId", event.siteId),
+      ];
+    }
+    if (event is PartnerDispatchStatusDeclared) {
+      return [
+        ...base,
+        ("eventType", "PartnerDispatchStatusDeclared"),
+        ("dispatchId", event.dispatchId),
+        ("partnerLabel", event.partnerLabel),
+        ("actorLabel", event.actorLabel),
+        ("status", event.status.name),
+        ("clientId", event.clientId),
+        ("regionId", event.regionId),
+        ("siteId", event.siteId),
+        ("sourceChannel", event.sourceChannel),
+        ("sourceMessageKey", event.sourceMessageKey),
       ];
     }
     if (event is IncidentClosed) {
@@ -1095,6 +1114,14 @@ class _EventsPageState extends State<EventsPage> {
         color: const Color(0xFF74D1FF),
         summary:
             '${event.guardId} arrived for ${event.dispatchId} at ${event.siteId}',
+      );
+    }
+    if (event is PartnerDispatchStatusDeclared) {
+      return _EventInfo(
+        label: 'PARTNER DECLARED',
+        color: const Color(0xFF22C55E),
+        summary:
+            '${event.partnerLabel} declared ${event.status.name} for ${event.dispatchId} at ${event.siteId}',
       );
     }
     if (event is IncidentClosed) {

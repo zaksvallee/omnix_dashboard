@@ -5344,8 +5344,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         clientId: resolvedClientId,
         siteId: resolvedSiteId,
       );
-      if (endpoints.isNotEmpty) {
-        return endpoints
+      final clientTargets = endpoints
+          .where((endpoint) => !_isPartnerEndpointLabel(endpoint.displayLabel))
+          .toList(growable: false);
+      if (clientTargets.isNotEmpty) {
+        return clientTargets
             .map(
               (endpoint) => _TelegramBridgeTarget(
                 chatId: endpoint.chatId,
@@ -8346,6 +8349,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           .order('verified_at', ascending: false)
           .order('created_at', ascending: false);
       final rows = List<Map<String, dynamic>>.from(rowsRaw);
+      rows.removeWhere(
+        (row) => _isPartnerEndpointLabel((row['display_label'] ?? '').toString()),
+      );
       if (rows.isEmpty) {
         return null;
       }
@@ -10619,6 +10625,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           command: 'bindchat',
           arguments: arguments,
         );
+      case '/bindpartner':
+        return _TelegramAdminCommandParseResult(
+          command: 'bindpartner',
+          arguments: arguments,
+        );
       case '/linkchat':
         return _TelegramAdminCommandParseResult(
           command: 'linkchat',
@@ -10629,6 +10640,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           command: 'unlinkchat',
           arguments: arguments,
         );
+      case '/unlinkpartner':
+        return _TelegramAdminCommandParseResult(
+          command: 'unlinkpartner',
+          arguments: arguments,
+        );
       case '/unlinkall':
         return _TelegramAdminCommandParseResult(
           command: 'unlinkall',
@@ -10637,6 +10653,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case '/chatcheck':
         return _TelegramAdminCommandParseResult(
           command: 'chatcheck',
+          arguments: arguments,
+        );
+      case '/partnercheck':
+        return _TelegramAdminCommandParseResult(
+          command: 'partnercheck',
           arguments: arguments,
         );
       case '/demoprep':
@@ -10837,10 +10858,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'watchrepeat',
         'watchend',
         'bindchat',
+        'bindpartner',
         'linkchat',
         'unlinkchat',
+        'unlinkpartner',
         'unlinkall',
         'chatcheck',
+        'partnercheck',
         'demoprep',
         'demoflow',
         'autodemo',
@@ -11013,8 +11037,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case 'watchrepeat':
       case 'watchend':
       case 'bindchat':
+      case 'bindpartner':
       case 'linkchat':
       case 'unlinkchat':
+      case 'unlinkpartner':
       case 'unlinkall':
       case 'demoflow':
       case 'autodemo':
@@ -11108,14 +11134,20 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         return _telegramAdminWatchEndCommand(arguments);
       case 'bindchat':
         return _telegramAdminBindChatCommand(arguments, update);
+      case 'bindpartner':
+        return _telegramAdminBindPartnerCommand(arguments, update);
       case 'linkchat':
         return _telegramAdminLinkChatCommand(arguments, update);
       case 'unlinkchat':
         return _telegramAdminUnlinkChatCommand(arguments, update);
+      case 'unlinkpartner':
+        return _telegramAdminUnlinkPartnerCommand(arguments, update);
       case 'unlinkall':
         return _telegramAdminUnlinkAllCommand(arguments);
       case 'chatcheck':
         return _telegramAdminChatCheckCommand(arguments, update);
+      case 'partnercheck':
+        return _telegramAdminPartnerCheckCommand(arguments, update);
       case 'demoprep':
         return _telegramAdminDemoPrepCommand(arguments, update);
       case 'demoflow':
@@ -11243,6 +11275,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '• <code>/watchalert [client_id site_id] [camera_label]</code>\n'
         '• <code>/watchrepeat [client_id site_id] [camera_label]</code>\n'
         '• <code>/watchend [client_id site_id]</code>\n'
+        '• <code>/bindpartner &lt;client_id&gt; &lt;site_id&gt; [label]</code>\n'
+        '• <code>/unlinkpartner [client_id site_id]</code> | <code>/partnercheck [client_id site_id]</code>\n'
         '\n---\n\n'
         '<b>Admin</b>\n'
         '• <code>/exec [on|off|status|default]</code>\n'
@@ -12448,10 +12482,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           telegramThreadId: update.messageThreadId?.toString(),
         ),
       );
-      final targets = await repository.readActiveTelegramTargets(
+      final targets = (await repository.readActiveTelegramTargets(
         clientId: clientId,
         siteId: siteId,
-      );
+      ))
+          .where((target) => !_isPartnerEndpointLabel(target.displayLabel))
+          .toList(growable: false);
       return 'ONYX LINKCHAT\n'
           'bound_chat=${update.chatId}${update.messageThreadId == null ? '' : '#${update.messageThreadId}'}\n'
           'scope=$clientId/$siteId\n'
@@ -12460,6 +12496,72 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           'UTC: ${_telegramUtcStamp()}';
     } catch (error) {
       return 'ONYX LINKCHAT\nFailed to save endpoint: $error';
+    }
+  }
+
+  Future<String> _telegramAdminBindPartnerCommand(
+    String arguments,
+    TelegramBridgeInboundMessage update,
+  ) async {
+    if (!widget.supabaseReady) {
+      return 'ONYX BINDPARTNER\nSupabase is required to persist partner endpoints.';
+    }
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (tokens.length < 2) {
+      return 'ONYX BINDPARTNER\nUsage: /bindpartner <client_id> <site_id> [label]';
+    }
+    final clientId = tokens[0].trim();
+    final siteId = tokens[1].trim();
+    if (clientId.isEmpty || siteId.isEmpty) {
+      return 'ONYX BINDPARTNER\nUsage: /bindpartner <client_id> <site_id> [label]';
+    }
+    final customLabel = tokens.length > 2 ? tokens.sublist(2).join(' ') : '';
+    final chatTitle = update.chatTitle?.trim() ?? '';
+    final endpointLabel = _normalizePartnerEndpointLabel(
+      customLabel.isNotEmpty
+          ? customLabel
+          : (chatTitle.isNotEmpty ? chatTitle : _telegramPartnerLabelEnv),
+    );
+    final contactName = update.fromUsername?.trim().isNotEmpty == true
+        ? '@${update.fromUsername!.trim()}'
+        : (update.fromUserId == null
+              ? 'Partner Contact'
+              : 'Telegram User ${update.fromUserId}');
+    try {
+      final repository = SupabaseClientMessagingBridgeRepository(
+        Supabase.instance.client,
+      );
+      await repository.upsertOnboardingSetup(
+        ClientMessagingOnboardingSetup(
+          clientId: clientId,
+          siteId: siteId,
+          contactName: contactName,
+          contactRole: 'response_partner',
+          contactConsentConfirmed: false,
+          provider: 'telegram',
+          endpointLabel: endpointLabel,
+          telegramChatId: update.chatId,
+          telegramThreadId: update.messageThreadId?.toString(),
+        ),
+      );
+      final targets = (await repository.readActiveTelegramTargets(
+        clientId: clientId,
+        siteId: siteId,
+      ))
+          .where((target) => _isPartnerEndpointLabel(target.displayLabel))
+          .toList(growable: false);
+      return 'ONYX BINDPARTNER\n'
+          'bound_chat=${update.chatId}${update.messageThreadId == null ? '' : '#${update.messageThreadId}'}\n'
+          'scope=$clientId/$siteId\n'
+          'label=$endpointLabel\n'
+          'active_partner_targets=${targets.length}\n'
+          'UTC: ${_telegramUtcStamp()}';
+    } catch (error) {
+      return 'ONYX BINDPARTNER\nFailed to save endpoint: $error';
     }
   }
 
@@ -12487,24 +12589,107 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       final repository = SupabaseClientMessagingBridgeRepository(
         Supabase.instance.client,
       );
-      final deactivated = await repository.deactivateTelegramEndpointsByChat(
+      final targets = (await repository.readActiveTelegramTargets(
         clientId: clientId,
         siteId: siteId,
-        chatId: update.chatId,
-        threadId: update.messageThreadId,
-      );
-      final remaining = await repository.readActiveTelegramTargets(
+      ))
+          .where(
+            (target) =>
+                !_isPartnerEndpointLabel(target.displayLabel) &&
+                target.chatId.trim() == update.chatId.trim() &&
+                target.threadId == update.messageThreadId,
+          )
+          .toList(growable: false);
+      var deactivated = 0;
+      for (final target in targets) {
+        await Supabase.instance.client
+            .from('client_messaging_endpoints')
+            .update({
+              'is_active': false,
+              'last_delivery_status': 'disabled',
+            })
+            .eq('client_id', clientId)
+            .eq('id', target.endpointId);
+        deactivated += 1;
+      }
+      final remaining = (await repository.readActiveTelegramTargets(
         clientId: clientId,
         siteId: siteId,
-      );
+      ))
+          .where((target) => !_isPartnerEndpointLabel(target.displayLabel))
+          .length;
       return 'ONYX UNLINKCHAT\n'
           'scope=$clientId/$siteId\n'
           'chat=${update.chatId}${update.messageThreadId == null ? '' : '#${update.messageThreadId}'}\n'
           'deactivated=$deactivated\n'
-          'remaining_targets=${remaining.length}\n'
+          'remaining_targets=$remaining\n'
           'UTC: ${DateTime.now().toUtc().toIso8601String()}';
     } catch (error) {
       return 'ONYX UNLINKCHAT\nFailed to disable endpoint: $error';
+    }
+  }
+
+  Future<String> _telegramAdminUnlinkPartnerCommand(
+    String arguments,
+    TelegramBridgeInboundMessage update,
+  ) async {
+    if (!widget.supabaseReady) {
+      return 'ONYX UNLINKPARTNER\nSupabase is required to update partner endpoints.';
+    }
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (tokens.length == 1 || tokens.length > 2) {
+      return 'ONYX UNLINKPARTNER\nUsage: /unlinkpartner [client_id site_id]';
+    }
+    final clientId = tokens.isEmpty ? _telegramAdminTargetClientId : tokens[0];
+    final siteId = tokens.isEmpty ? _telegramAdminTargetSiteId : tokens[1];
+    if (clientId.isEmpty || siteId.isEmpty) {
+      return 'ONYX UNLINKPARTNER\nUsage: /unlinkpartner [client_id site_id]';
+    }
+    try {
+      final repository = SupabaseClientMessagingBridgeRepository(
+        Supabase.instance.client,
+      );
+      final targets = (await repository.readActiveTelegramTargets(
+        clientId: clientId,
+        siteId: siteId,
+      ))
+          .where(
+            (target) =>
+                _isPartnerEndpointLabel(target.displayLabel) &&
+                target.chatId.trim() == update.chatId.trim() &&
+                target.threadId == update.messageThreadId,
+          )
+          .toList(growable: false);
+      var deactivated = 0;
+      for (final target in targets) {
+        await Supabase.instance.client
+            .from('client_messaging_endpoints')
+            .update({
+              'is_active': false,
+              'last_delivery_status': 'partner_unlinked',
+            })
+            .eq('client_id', clientId)
+            .eq('id', target.endpointId);
+        deactivated += 1;
+      }
+      final remaining = (await repository.readActiveTelegramTargets(
+        clientId: clientId,
+        siteId: siteId,
+      ))
+          .where((target) => _isPartnerEndpointLabel(target.displayLabel))
+          .length;
+      return 'ONYX UNLINKPARTNER\n'
+          'scope=$clientId/$siteId\n'
+          'chat=${update.chatId}${update.messageThreadId == null ? '' : '#${update.messageThreadId}'}\n'
+          'deactivated=$deactivated\n'
+          'remaining_partner_targets=$remaining\n'
+          'UTC: ${DateTime.now().toUtc().toIso8601String()}';
+    } catch (error) {
+      return 'ONYX UNLINKPARTNER\nFailed to disable partner endpoint: $error';
     }
   }
 
@@ -12529,18 +12714,34 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       final repository = SupabaseClientMessagingBridgeRepository(
         Supabase.instance.client,
       );
-      final deactivated = await repository.deactivateTelegramEndpointsForScope(
+      final targets = (await repository.readActiveTelegramTargets(
         clientId: clientId,
         siteId: siteId,
-      );
-      final remaining = await repository.readActiveTelegramTargets(
+      ))
+          .where((target) => !_isPartnerEndpointLabel(target.displayLabel))
+          .toList(growable: false);
+      var deactivated = 0;
+      for (final target in targets) {
+        await Supabase.instance.client
+            .from('client_messaging_endpoints')
+            .update({
+              'is_active': false,
+              'last_delivery_status': 'disabled',
+            })
+            .eq('client_id', clientId)
+            .eq('id', target.endpointId);
+        deactivated += 1;
+      }
+      final remaining = (await repository.readActiveTelegramTargets(
         clientId: clientId,
         siteId: siteId,
-      );
+      ))
+          .where((target) => !_isPartnerEndpointLabel(target.displayLabel))
+          .length;
       return 'ONYX UNLINKALL\n'
           'scope=$clientId/$siteId\n'
           'deactivated=$deactivated\n'
-          'remaining_targets=${remaining.length}\n'
+          'remaining_targets=$remaining\n'
           'UTC: ${DateTime.now().toUtc().toIso8601String()}';
     } catch (error) {
       return 'ONYX UNLINKALL\nFailed to disable endpoints: $error';
@@ -12571,10 +12772,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       final repository = SupabaseClientMessagingBridgeRepository(
         Supabase.instance.client,
       );
-      final targets = await repository.readActiveTelegramTargets(
+      final targets = (await repository.readActiveTelegramTargets(
         clientId: clientId,
         siteId: siteId,
-      );
+      ))
+          .where((target) => !_isPartnerEndpointLabel(target.displayLabel))
+          .toList(growable: false);
       final matching = targets
           .where(
             (target) =>
@@ -12609,6 +12812,70 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
   }
 
+  Future<String> _telegramAdminPartnerCheckCommand(
+    String arguments,
+    TelegramBridgeInboundMessage update,
+  ) async {
+    if (!widget.supabaseReady) {
+      return 'ONYX PARTNERCHECK\nSupabase is required to verify partner endpoints.';
+    }
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (tokens.length == 1 || tokens.length > 2) {
+      return 'ONYX PARTNERCHECK\nUsage: /partnercheck [client_id site_id]';
+    }
+    final clientId = tokens.isEmpty ? _telegramAdminTargetClientId : tokens[0];
+    final siteId = tokens.isEmpty ? _telegramAdminTargetSiteId : tokens[1];
+    if (clientId.isEmpty || siteId.isEmpty) {
+      return 'ONYX PARTNERCHECK\nUsage: /partnercheck [client_id site_id]';
+    }
+    try {
+      final repository = SupabaseClientMessagingBridgeRepository(
+        Supabase.instance.client,
+      );
+      final targets = (await repository.readActiveTelegramTargets(
+        clientId: clientId,
+        siteId: siteId,
+      ))
+          .where((target) => _isPartnerEndpointLabel(target.displayLabel))
+          .toList(growable: false);
+      final matching = targets
+          .where(
+            (target) =>
+                target.chatId.trim() == update.chatId.trim() &&
+                target.threadId == update.messageThreadId,
+          )
+          .toList(growable: false);
+      final linked = matching.isNotEmpty;
+      final rows = targets
+          .take(6)
+          .map((target) {
+            final threadLabel = target.threadId == null
+                ? 'none'
+                : target.threadId.toString();
+            final marker =
+                target.chatId.trim() == update.chatId.trim() &&
+                    target.threadId == update.messageThreadId
+                ? ' [current]'
+                : '';
+            return '- ${target.displayLabel} | chat=${target.chatId} | thread=$threadLabel$marker';
+          })
+          .join('\n');
+      return 'ONYX PARTNERCHECK\n'
+          'scope=$clientId/$siteId\n'
+          'current_chat=${update.chatId}${update.messageThreadId == null ? '' : '#${update.messageThreadId}'}\n'
+          'linked=${linked ? 'yes' : 'no'}\n'
+          'matching_partner_endpoints=${matching.length}\n'
+          'active_partner_endpoints=${targets.length}'
+          '${rows.isEmpty ? '\n(no active partner targets configured)' : '\n$rows'}';
+    } catch (error) {
+      return 'ONYX PARTNERCHECK\nFailed to verify partner endpoint: $error';
+    }
+  }
+
   Future<_TelegramDemoReadinessReport> _telegramAdminBuildDemoReadinessReport({
     required String clientId,
     required String siteId,
@@ -12638,10 +12905,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         final repository = SupabaseClientMessagingBridgeRepository(
           Supabase.instance.client,
         );
-        final targets = await repository.readActiveTelegramTargets(
+        final targets = (await repository.readActiveTelegramTargets(
           clientId: clientId,
           siteId: siteId,
-        );
+        ))
+            .where((target) => !_isPartnerEndpointLabel(target.displayLabel))
+            .toList(growable: false);
         final linked = targets.any(
           (target) =>
               target.chatId.trim() == update.chatId.trim() &&
