@@ -163,6 +163,24 @@ class _SuppressedSceneReviewContext {
   });
 }
 
+class _PartnerLiveProgressSummary {
+  final String dispatchId;
+  final String partnerLabel;
+  final PartnerDispatchStatus latestStatus;
+  final DateTime latestOccurredAt;
+  final int declarationCount;
+  final Map<PartnerDispatchStatus, DateTime> firstOccurrenceByStatus;
+
+  const _PartnerLiveProgressSummary({
+    required this.dispatchId,
+    required this.partnerLabel,
+    required this.latestStatus,
+    required this.latestOccurredAt,
+    required this.declarationCount,
+    required this.firstOccurrenceByStatus,
+  });
+}
+
 class LiveOperationsPage extends StatefulWidget {
   final List<DispatchEvent> events;
   final String focusIncidentReference;
@@ -1019,6 +1037,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     }
     final duress = _duressDetected(incident);
     final evidenceReady = _evidenceReadyLabel(incident);
+    final partnerProgress = _partnerProgressForIncident(incident);
     final suppressedReviews = _suppressedSceneReviewsForIncident(incident);
     final rows = <Widget>[
       _metaRow('Incident', incident.id),
@@ -1032,6 +1051,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       _metaRow('Client', 'Sandton HOA'),
       _metaRow('Contact', 'John Sovereign'),
       _metaRow('Client Safe Word', 'PHOENIX'),
+      if (partnerProgress != null) ...[
+        const SizedBox(height: 8),
+        _partnerProgressCard(partnerProgress, incident.id),
+      ],
       if ((incident.latestIntelHeadline ?? '').trim().isNotEmpty)
         _metaRow(
           'Latest ${widget.videoOpsLabel} Intel',
@@ -1152,7 +1175,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           !decisionSummary.contains('suppress')) {
         continue;
       }
-      output.add(_SuppressedSceneReviewContext(intelligence: intel, review: review));
+      output.add(
+        _SuppressedSceneReviewContext(intelligence: intel, review: review),
+      );
     }
     output.sort(
       (a, b) => b.review.reviewedAtUtc.compareTo(a.review.reviewedAtUtc),
@@ -1307,6 +1332,146 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             );
           }),
         ],
+      ),
+    );
+  }
+
+  _PartnerLiveProgressSummary? _partnerProgressForIncident(
+    _IncidentRecord incident,
+  ) {
+    final incidentId = incident.id.trim();
+    if (incidentId.isEmpty) {
+      return null;
+    }
+    final candidateDispatchIds = <String>{
+      incidentId,
+      if (incidentId.startsWith('INC-')) incidentId.substring(4).trim(),
+    }..removeWhere((value) => value.isEmpty);
+    final declarations = widget.events
+        .whereType<PartnerDispatchStatusDeclared>()
+        .where(
+          (event) => candidateDispatchIds.contains(event.dispatchId.trim()),
+        )
+        .toList(growable: false);
+    if (declarations.isEmpty) {
+      return null;
+    }
+    final ordered = [...declarations]
+      ..sort((a, b) {
+        final occurredAtCompare = a.occurredAt.compareTo(b.occurredAt);
+        if (occurredAtCompare != 0) {
+          return occurredAtCompare;
+        }
+        return a.sequence.compareTo(b.sequence);
+      });
+    final first = ordered.first;
+    final latest = ordered.last;
+    final firstOccurrenceByStatus = <PartnerDispatchStatus, DateTime>{};
+    for (final event in ordered) {
+      firstOccurrenceByStatus.putIfAbsent(event.status, () => event.occurredAt);
+    }
+    return _PartnerLiveProgressSummary(
+      dispatchId: first.dispatchId,
+      partnerLabel: first.partnerLabel,
+      latestStatus: latest.status,
+      latestOccurredAt: latest.occurredAt,
+      declarationCount: ordered.length,
+      firstOccurrenceByStatus: firstOccurrenceByStatus,
+    );
+  }
+
+  Widget _partnerProgressCard(
+    _PartnerLiveProgressSummary progress,
+    String incidentId,
+  ) {
+    return Container(
+      key: ValueKey<String>('live-partner-progress-card-$incidentId'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF2A3D58)),
+        color: const Color(0x14000000),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Partner Progression',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFE4EEFF),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(width: 8),
+              _contextChip(
+                label: '${progress.declarationCount} declarations',
+                foreground: const Color(0xFF8FD1FF),
+                background: const Color(0x1122D3EE),
+                border: const Color(0x5522D3EE),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${progress.partnerLabel} • Latest ${_partnerDispatchStatusLabel(progress.latestStatus)} • ${_hhmm(progress.latestOccurredAt.toLocal())}',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFE4EEFF),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _contextChip(
+                label: 'Dispatch ${progress.dispatchId}',
+                foreground: const Color(0xFFBFD7F2),
+                background: const Color(0x14000000),
+                border: const Color(0xFF2A3D58),
+              ),
+              for (final status in PartnerDispatchStatus.values)
+                _partnerProgressChip(
+                  incidentId: incidentId,
+                  status: status,
+                  timestamp: progress.firstOccurrenceByStatus[status],
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _partnerProgressChip({
+    required String incidentId,
+    required PartnerDispatchStatus status,
+    required DateTime? timestamp,
+  }) {
+    final reached = timestamp != null;
+    final tone = _partnerProgressTone(status);
+    return Container(
+      key: ValueKey<String>('live-partner-progress-$incidentId-${status.name}'),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: reached ? tone.$2 : const Color(0x14000000),
+        border: Border.all(color: reached ? tone.$3 : const Color(0xFF2A3D58)),
+      ),
+      child: Text(
+        reached
+            ? '${_partnerDispatchStatusLabel(status)} ${_hhmm(timestamp.toLocal())}'
+            : '${_partnerDispatchStatusLabel(status)} Pending',
+        style: GoogleFonts.inter(
+          color: reached ? tone.$1 : const Color(0xFF8FA7C8),
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+        ),
       ),
     );
   }
@@ -2387,8 +2552,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               final latestIntel = latestHardwareIntelBySite[decision.siteId];
               final latestSceneReview = latestIntel == null
                   ? null
-                  : widget.sceneReviewByIntelligenceId[latestIntel.intelligenceId
-                      .trim()];
+                  : widget.sceneReviewByIntelligenceId[latestIntel
+                        .intelligenceId
+                        .trim()];
               return _IncidentRecord(
                 id: normalizedId,
                 priority: priority,
@@ -2905,6 +3071,40 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       _IncidentStatus.dispatched => 'DISPATCHED',
       _IncidentStatus.investigating => 'INVESTIGATING',
       _IncidentStatus.resolved => 'RESOLVED',
+    };
+  }
+
+  String _partnerDispatchStatusLabel(PartnerDispatchStatus status) {
+    return switch (status) {
+      PartnerDispatchStatus.accepted => 'ACCEPT',
+      PartnerDispatchStatus.onSite => 'ON SITE',
+      PartnerDispatchStatus.allClear => 'ALL CLEAR',
+      PartnerDispatchStatus.cancelled => 'CANCEL',
+    };
+  }
+
+  (Color, Color, Color) _partnerProgressTone(PartnerDispatchStatus status) {
+    return switch (status) {
+      PartnerDispatchStatus.accepted => (
+        const Color(0xFF38BDF8),
+        const Color(0x1A38BDF8),
+        const Color(0x6638BDF8),
+      ),
+      PartnerDispatchStatus.onSite => (
+        const Color(0xFFF59E0B),
+        const Color(0x1AF59E0B),
+        const Color(0x66F59E0B),
+      ),
+      PartnerDispatchStatus.allClear => (
+        const Color(0xFF34D399),
+        const Color(0x1A34D399),
+        const Color(0x6634D399),
+      ),
+      PartnerDispatchStatus.cancelled => (
+        const Color(0xFFF87171),
+        const Color(0x1AF87171),
+        const Color(0x66F87171),
+      ),
     };
   }
 

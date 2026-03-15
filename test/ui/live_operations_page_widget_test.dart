@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 import 'package:omnix_dashboard/domain/events/decision_created.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
+import 'package:omnix_dashboard/domain/events/partner_dispatch_status_declared.dart';
 import 'package:omnix_dashboard/ui/live_operations_page.dart';
 
 void main() {
@@ -154,51 +155,52 @@ void main() {
     expect(find.textContaining('clip.mp4'), findsOneWidget);
   });
 
-  testWidgets('live operations switches latest intel and ladder labels for DVR', (
-    tester,
-  ) async {
-    final now = DateTime.now().toUtc();
-    await tester.pumpWidget(
-      MaterialApp(
-        home: LiveOperationsPage(
-          events: [
-            DecisionCreated(
-              eventId: 'decision-1',
-              sequence: 1,
-              version: 1,
-              occurredAt: now.subtract(const Duration(minutes: 3)),
-              dispatchId: 'D-1001',
-              clientId: 'CLIENT-001',
-              regionId: 'REGION-GAUTENG',
-              siteId: 'SITE-SANDTON',
-            ),
-            IntelligenceReceived(
-              eventId: 'intel-1',
-              sequence: 2,
-              version: 1,
-              occurredAt: now.subtract(const Duration(minutes: 2)),
-              intelligenceId: 'INT-1',
-              provider: 'hikvision-dvr',
-              sourceType: 'dvr',
-              externalId: 'evt-1',
-              clientId: 'CLIENT-001',
-              regionId: 'REGION-GAUTENG',
-              siteId: 'SITE-SANDTON',
-              headline: 'DVR INTRUSION',
-              summary: 'DVR vehicle detected at bay_2',
-              riskScore: 91,
-              canonicalHash: 'hash-1',
-            ),
-          ],
-          videoOpsLabel: 'DVR',
+  testWidgets(
+    'live operations switches latest intel and ladder labels for DVR',
+    (tester) async {
+      final now = DateTime.now().toUtc();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            events: [
+              DecisionCreated(
+                eventId: 'decision-1',
+                sequence: 1,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 3)),
+                dispatchId: 'D-1001',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-SANDTON',
+              ),
+              IntelligenceReceived(
+                eventId: 'intel-1',
+                sequence: 2,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 2)),
+                intelligenceId: 'INT-1',
+                provider: 'hikvision-dvr',
+                sourceType: 'dvr',
+                externalId: 'evt-1',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-SANDTON',
+                headline: 'DVR INTRUSION',
+                summary: 'DVR vehicle detected at bay_2',
+                riskScore: 91,
+                canonicalHash: 'hash-1',
+              ),
+            ],
+            videoOpsLabel: 'DVR',
+          ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('Latest DVR Intel'), findsOneWidget);
-    expect(find.text('DVR ACTIVATION'), findsWidgets);
-  });
+      expect(find.text('Latest DVR Intel'), findsOneWidget);
+      expect(find.text('DVR ACTIVATION'), findsWidgets);
+    },
+  );
 
   testWidgets('live operations shows scene review alongside latest intel', (
     tester,
@@ -263,8 +265,110 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Escalation Candidate'), findsOneWidget);
-    expect(find.textContaining('Person visible near the boundary line.'), findsOneWidget);
+    expect(
+      find.textContaining('Person visible near the boundary line.'),
+      findsOneWidget,
+    );
     expect(find.textContaining('Escalated for urgent review'), findsOneWidget);
+  });
+
+  testWidgets('live operations shows partner progression in incident context', (
+    tester,
+  ) async {
+    final now = DateTime.now().toUtc();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LiveOperationsPage(
+          events: [
+            DecisionCreated(
+              eventId: 'decision-1',
+              sequence: 4,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 4)),
+              dispatchId: 'D-1001',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-SANDTON',
+            ),
+            PartnerDispatchStatusDeclared(
+              eventId: 'partner-1',
+              sequence: 3,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 3)),
+              dispatchId: 'D-1001',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-SANDTON',
+              partnerLabel: 'PARTNER • Alpha',
+              actorLabel: '@partner.alpha',
+              status: PartnerDispatchStatus.accepted,
+              sourceChannel: 'telegram',
+              sourceMessageKey: 'tg-partner-1',
+            ),
+            PartnerDispatchStatusDeclared(
+              eventId: 'partner-2',
+              sequence: 2,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 2)),
+              dispatchId: 'D-1001',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-SANDTON',
+              partnerLabel: 'PARTNER • Alpha',
+              actorLabel: '@partner.alpha',
+              status: PartnerDispatchStatus.onSite,
+              sourceChannel: 'telegram',
+              sourceMessageKey: 'tg-partner-2',
+            ),
+            PartnerDispatchStatusDeclared(
+              eventId: 'partner-3',
+              sequence: 1,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 1)),
+              dispatchId: 'D-1001',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-SANDTON',
+              partnerLabel: 'PARTNER • Alpha',
+              actorLabel: '@partner.alpha',
+              status: PartnerDispatchStatus.allClear,
+              sourceChannel: 'telegram',
+              sourceMessageKey: 'tg-partner-3',
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('live-partner-progress-card-INC-D-1001')),
+      findsOneWidget,
+    );
+    expect(find.text('Partner Progression'), findsOneWidget);
+    expect(
+      find.textContaining('PARTNER • Alpha • Latest ALL CLEAR'),
+      findsOneWidget,
+    );
+    expect(find.text('Dispatch D-1001'), findsOneWidget);
+    expect(find.text('3 declarations'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('live-partner-progress-INC-D-1001-accepted')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('live-partner-progress-INC-D-1001-onSite')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('live-partner-progress-INC-D-1001-allClear')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('live-partner-progress-INC-D-1001-cancelled')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('CANCEL Pending'), findsOneWidget);
   });
 
   testWidgets('live operations shows suppressed scene review queue for active site', (
