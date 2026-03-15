@@ -8,6 +8,10 @@ import 'dispatch_application_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AppState {
+  static const _operatorIdEnv = String.fromEnvironment(
+    'ONYX_OPERATOR_ID',
+    defaultValue: 'OPERATOR-01',
+  );
   final InMemoryEventStore store;
   final DispatchApplicationService service;
 
@@ -22,7 +26,7 @@ class AppState {
     final repository = SupabaseClientLedgerRepository(supabase);
 
     final operator = OperatorContext(
-      operatorId: 'OPERATOR-01',
+      operatorId: _operatorIdEnv.trim().isEmpty ? 'OPERATOR-01' : _operatorIdEnv.trim(),
       allowedRegions: {
         'REGION-GAUTENG',
       },

@@ -91,6 +91,7 @@ class DispatchPersistenceService {
   static const morningSovereignReportKey = 'onyx_morning_sovereign_report_v1';
   static const morningSovereignReportAutoRunKey =
       'onyx_morning_sovereign_report_auto_run_key_v1';
+  static const operatorIdKey = 'onyx_operator_id_v1';
 
   final SharedPreferences prefs;
 
@@ -1337,6 +1338,20 @@ class DispatchPersistenceService {
 
   Future<void> clearMorningSovereignReportAutoRunKey() async {
     await prefs.remove(morningSovereignReportAutoRunKey);
+  }
+
+  Future<String?> readOperatorId() async {
+    final raw = prefs.getString(operatorIdKey);
+    if (raw == null || raw.trim().isEmpty) return null;
+    return raw.trim();
+  }
+
+  Future<void> saveOperatorId(String operatorId) async {
+    await prefs.setString(operatorIdKey, operatorId.trim());
+  }
+
+  Future<void> clearOperatorId() async {
+    await prefs.remove(operatorIdKey);
   }
 
   Future<DispatchProfileDraft?> readStressProfile() async {

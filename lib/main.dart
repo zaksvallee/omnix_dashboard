@@ -545,6 +545,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     'ONYX_SITE_ID',
     defaultValue: 'SITE-MS-VALLEE-RESIDENCE',
   );
+  static const _operatorIdEnv = String.fromEnvironment(
+    'ONYX_OPERATOR_ID',
+    defaultValue: 'OPERATOR-01',
+  );
   static const _wearableProviderEnv = String.fromEnvironment(
     'ONYX_WEARABLE_PROVIDER',
   );
@@ -903,9 +907,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _clientAppLocaleEnv,
   );
   final store = InMemoryEventStore();
-  late final DispatchApplicationService service;
+  late DispatchApplicationService service;
   late final ClientLedgerRepository _clientLedgerRepository;
-  late final IntakeStressService stressService;
+  late IntakeStressService stressService;
   late final Future<DispatchPersistenceService> _persistenceServiceFuture;
   late final Future<ClientConversationRepository>
   _clientConversationRepositoryFuture;
@@ -942,6 +946,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _siteIdEnv,
     fallback: 'SITE-MS-VALLEE-RESIDENCE',
   );
+  late final String _defaultOperatorId = _resolvedScopeValue(
+    _operatorIdEnv,
+    fallback: 'OPERATOR-01',
+  );
+  late String _operatorId = _defaultOperatorId;
 
   String? _lastIntakeStatus;
   String? _lastStressStatus;
@@ -1495,20 +1504,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
     });
 
-    final operator = OperatorContext(
-      operatorId: 'OPERATOR-01',
-      allowedRegions: {_selectedRegion},
-      allowedSites: {_selectedSite},
-    );
-
-    service = DispatchApplicationService(
-      store: store,
-      engine: ExecutionEngine(),
-      policy: RiskPolicy(escalationThreshold: 70),
-      ledgerService: ClientLedgerService(_clientLedgerRepository),
-      operator: operator,
-    );
-    stressService = IntakeStressService(store: store, service: service);
+    _rebuildDispatchServices();
     _newsIntel = NewsIntelligenceService();
     _newsSourceDiagnostics = _newsIntel.diagnostics;
 
@@ -1518,6 +1514,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _hydrateLivePollSummary();
     _hydrateNewsSourceDiagnostics();
     _hydrateRadioIntentPhraseConfig();
+    _hydrateOperatorIdentity();
     _hydrateMonitoringIdentityRulesConfig();
     _hydrateMonitoringIdentityRuleAuditHistory();
     _hydrateMonitoringIdentityRuleAuditUiState();
@@ -1566,6 +1563,25 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       return GuardMobileInitialScreen.sync;
     }
     return GuardMobileInitialScreen.dispatch;
+  }
+
+  OperatorContext _currentOperatorContext() {
+    return OperatorContext(
+      operatorId: _operatorId.trim().isEmpty ? _defaultOperatorId : _operatorId,
+      allowedRegions: {_selectedRegion},
+      allowedSites: {_selectedSite},
+    );
+  }
+
+  void _rebuildDispatchServices() {
+    service = DispatchApplicationService(
+      store: store,
+      engine: ExecutionEngine(),
+      policy: RiskPolicy(escalationThreshold: 70),
+      ledgerService: ClientLedgerService(_clientLedgerRepository),
+      operator: _currentOperatorContext(),
+    );
+    stressService = IntakeStressService(store: store, service: service);
   }
 
   @override
@@ -1663,6 +1679,52 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   Future<void> _persistTelemetry() async {
     final persistence = await _persistenceServiceFuture;
     await persistence.saveTelemetry(_intakeTelemetry);
+  }
+
+  Future<void> _hydrateOperatorIdentity() async {
+    final persistence = await _persistenceServiceFuture;
+    final persisted = (await persistence.readOperatorId() ?? '').trim();
+    if (persisted.isEmpty || persisted == _operatorId) {
+      return;
+    }
+    if (mounted) {
+      setState(() {
+        _operatorId = persisted;
+        _rebuildDispatchServices();
+      });
+    } else {
+      _operatorId = persisted;
+      _rebuildDispatchServices();
+    }
+  }
+
+  Future<void> _persistOperatorIdentity() async {
+    final persistence = await _persistenceServiceFuture;
+    final normalized = _operatorId.trim();
+    if (normalized.isEmpty || normalized == _defaultOperatorId) {
+      await persistence.clearOperatorId();
+    } else {
+      await persistence.saveOperatorId(normalized);
+    }
+  }
+
+  Future<void> _setOperatorIdentity(String operatorId) async {
+    final normalized = operatorId.trim().isEmpty
+        ? _defaultOperatorId
+        : operatorId.trim();
+    if (normalized == _operatorId) {
+      return;
+    }
+    if (mounted) {
+      setState(() {
+        _operatorId = normalized;
+        _rebuildDispatchServices();
+      });
+    } else {
+      _operatorId = normalized;
+      _rebuildDispatchServices();
+    }
+    await _persistOperatorIdentity();
   }
 
   Future<void> _hydrateLivePollHistory() async {
@@ -11420,6 +11482,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case 'unlinkchat':
       case 'unlinkpartner':
       case 'unlinkall':
+      case 'setoperator':
       case 'demoflow':
       case 'autodemo':
       case 'demoscript':
@@ -11444,6 +11507,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case 'critical':
       case 'history':
       case 'adminconfig':
+      case 'operator':
       case 'target':
       case 'guards':
       case 'bridges':
@@ -11486,12 +11550,16 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         return _telegramAdminHistorySnapshot();
       case 'adminconfig':
         return _telegramAdminConfigSnapshot();
+      case 'operator':
+        return _telegramAdminOperatorSnapshot();
       case 'pushcritical':
         return _telegramAdminPushCriticalCommand();
       case 'setpoll':
         return _telegramAdminSetPollCommand(arguments);
       case 'setreminder':
         return _telegramAdminSetReminderCommand(arguments);
+      case 'setoperator':
+        return _telegramAdminSetOperatorCommand(arguments);
       case 'target':
         return _telegramAdminTargetSnapshot();
       case 'settarget':
@@ -11658,6 +11726,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '\n---\n\n'
         '<b>Admin</b>\n'
         '• <code>/exec [on|off|status|default]</code>\n'
+        '• <code>/operator</code> | <code>/setoperator [&lt;operator_id&gt;|default]</code>\n'
         '• <code>/setpoll [seconds|default]</code>\n'
         '• <code>/setreminder [seconds|default]</code>\n'
         '• <code>/target</code> | <code>/settarget [client_id site_id|default]</code>\n'
@@ -12155,6 +12224,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'ai_assist=${_telegramAiAssistantEnabled ? 'on' : 'off'} ($aiAssistSource)\n'
         'ai_client_approval_required=${_telegramAiApprovalRequired ? 'on' : 'off'} ($aiApprovalSource)\n'
         'ai_pending_drafts=${_telegramAiPendingDrafts.length}\n'
+        'operator_id=${service.operator.operatorId}\n'
+        'operator_source=${_operatorId.trim() == _defaultOperatorId ? 'default' : 'override'}\n'
         'target_client_id=$_telegramAdminTargetClientId\n'
         'target_site_id=$_telegramAdminTargetSiteId\n'
         'target_source=$targetSource\n'
@@ -12163,6 +12234,38 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'acked_at=${_telegramAdminCriticalAckAtUtc?.toIso8601String() ?? 'none'}\n'
         'allowed_user_ids=$allowListLabel\n'
         'UTC: ${DateTime.now().toUtc().toIso8601String()}';
+  }
+
+  String _telegramAdminOperatorSnapshot() {
+    final current = service.operator.operatorId.trim();
+    final source = current == _defaultOperatorId ? 'default' : 'override';
+    return 'ONYX OPERATOR\n'
+        'operator_id=$current\n'
+        'source=$source\n'
+        'allowed_regions=${service.operator.allowedRegions.join(',')}\n'
+        'allowed_sites=${service.operator.allowedSites.join(',')}\n'
+        'Use /setoperator <operator_id> to change runtime identity or /setoperator default to reset.\n'
+        'UTC: ${DateTime.now().toUtc().toIso8601String()}';
+  }
+
+  Future<String> _telegramAdminSetOperatorCommand(String arguments) async {
+    final raw = arguments.trim();
+    if (raw.isEmpty) {
+      return 'ONYX SETOPERATOR\n'
+          'Usage: /setoperator <operator_id>\n'
+          'Use /setoperator default to reset.\n'
+          'Current operator: ${service.operator.operatorId}';
+    }
+    final normalizedLower = raw.toLowerCase();
+    final nextOperatorId =
+        normalizedLower == 'default' || normalizedLower == 'env'
+        ? _defaultOperatorId
+        : raw;
+    await _setOperatorIdentity(nextOperatorId);
+    final source = nextOperatorId == _defaultOperatorId ? 'default' : 'override';
+    return 'ONYX SETOPERATOR\n'
+        'Operator set to ${service.operator.operatorId} ($source).\n'
+        'New execution and review events will use this identity.';
   }
 
   String _telegramAdminSetPollCommand(String arguments) {

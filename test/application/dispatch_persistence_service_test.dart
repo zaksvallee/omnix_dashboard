@@ -1132,6 +1132,18 @@ void main() {
       expect(restored, audit);
     });
 
+    test('saves and restores operator identity override', () async {
+      final service = await DispatchPersistenceService.create();
+
+      await service.saveOperatorId('OPERATOR-77');
+
+      expect(await service.readOperatorId(), 'OPERATOR-77');
+
+      await service.clearOperatorId();
+
+      expect(await service.readOperatorId(), isNull);
+    });
+
     test('clears corrupt offline incident spool caches', () async {
       SharedPreferences.setMockInitialValues({
         DispatchPersistenceService.offlineIncidentSpoolEntriesKey: '{not-json',
