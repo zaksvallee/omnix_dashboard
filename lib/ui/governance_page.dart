@@ -190,6 +190,14 @@ class _PartnerScoreboardHistoryPoint {
     required this.row,
     required this.current,
   });
+
+  Map<String, Object?> toJson() {
+    return {
+      'reportDate': reportDate,
+      'current': current,
+      'row': row.toJson(),
+    };
+  }
 }
 
 class _GovernanceReportView {
@@ -239,6 +247,7 @@ class _GovernanceReportView {
   final String partnerSummary;
   final List<SovereignReportPartnerScopeBreakdown> partnerScopeBreakdowns;
   final List<SovereignReportPartnerScoreboardRow> partnerScoreboardRows;
+  final List<_PartnerScoreboardHistoryPoint> partnerScoreboardHistory;
   final List<_PartnerTrendRow> partnerTrendRows;
   final List<SovereignReportPartnerDispatchChain> partnerDispatchChains;
   final String latestActionTaken;
@@ -297,6 +306,7 @@ class _GovernanceReportView {
     required this.partnerSummary,
     required this.partnerScopeBreakdowns,
     required this.partnerScoreboardRows,
+    required this.partnerScoreboardHistory,
     required this.partnerTrendRows,
     required this.partnerDispatchChains,
     required this.latestActionTaken,
@@ -2924,6 +2934,70 @@ class _GovernancePageState extends State<GovernancePage> {
     return rows;
   }
 
+  List<_PartnerScoreboardHistoryPoint> _partnerScoreboardHistoryRows({
+    required String currentReportDate,
+    required List<SovereignReportPartnerScoreboardRow> currentRows,
+  }) {
+    final scopeKeys = <String>{
+      for (final row in currentRows)
+        _partnerTrendKey(row.clientId, row.siteId, row.partnerLabel),
+    };
+    if (scopeKeys.isEmpty) {
+      return const <_PartnerScoreboardHistoryPoint>[];
+    }
+    final byDateAndScope = <String, _PartnerScoreboardHistoryPoint>{};
+    for (final report in widget.morningSovereignReportHistory) {
+      final reportDate = report.date.trim();
+      if (reportDate.isEmpty) {
+        continue;
+      }
+      for (final row in report.partnerProgression.scoreboardRows) {
+        final scopeKey = _partnerTrendKey(
+          row.clientId,
+          row.siteId,
+          row.partnerLabel,
+        );
+        if (!scopeKeys.contains(scopeKey)) {
+          continue;
+        }
+        byDateAndScope['$reportDate::$scopeKey'] = _PartnerScoreboardHistoryPoint(
+          reportDate: reportDate,
+          row: row,
+          current: false,
+        );
+      }
+    }
+    for (final row in currentRows) {
+      final scopeKey = _partnerTrendKey(row.clientId, row.siteId, row.partnerLabel);
+      final reportDate = currentReportDate.trim();
+      if (reportDate.isEmpty) {
+        continue;
+      }
+      byDateAndScope['$reportDate::$scopeKey'] = _PartnerScoreboardHistoryPoint(
+        reportDate: reportDate,
+        row: row,
+        current: true,
+      );
+    }
+    final rows = byDateAndScope.values.toList(growable: false)
+      ..sort((a, b) {
+        final dateCompare = b.reportDate.compareTo(a.reportDate);
+        if (dateCompare != 0) {
+          return dateCompare;
+        }
+        final scopeCompare = a.row.clientId.compareTo(b.row.clientId);
+        if (scopeCompare != 0) {
+          return scopeCompare;
+        }
+        final siteCompare = a.row.siteId.compareTo(b.row.siteId);
+        if (siteCompare != 0) {
+          return siteCompare;
+        }
+        return a.row.partnerLabel.compareTo(b.row.partnerLabel);
+      });
+    return rows;
+  }
+
   String _partnerTrendKey(String clientId, String siteId, String partnerLabel) {
     return '${clientId.trim()}::${siteId.trim()}::${partnerLabel.trim().toUpperCase()}';
   }
@@ -3045,6 +3119,13 @@ class _GovernancePageState extends State<GovernancePage> {
 
   String _partnerScoreboardCsvSummary(SovereignReportPartnerScoreboardRow row) {
     return '${row.clientId}/${row.siteId} • ${row.partnerLabel} • ${row.summaryLine}';
+  }
+
+  String _partnerScoreboardHistoryCsvSummary(
+    _PartnerScoreboardHistoryPoint point,
+  ) {
+    final currentLabel = point.current ? 'CURRENT' : 'HISTORY';
+    return '${point.reportDate} • $currentLabel • ${_partnerScoreboardCsvSummary(point.row)}';
   }
 
   String _partnerTrendCsvSummary(_PartnerTrendRow row) {
@@ -3910,6 +3991,10 @@ class _GovernancePageState extends State<GovernancePage> {
         currentReportDate: canonical.date,
         currentRows: canonical.partnerProgression.scoreboardRows,
       );
+      final partnerScoreboardHistory = _partnerScoreboardHistoryRows(
+        currentReportDate: canonical.date,
+        currentRows: canonical.partnerProgression.scoreboardRows,
+      );
       return _GovernanceReportView(
         reportDate: canonical.date,
         totalEvents: canonical.ledgerIntegrity.totalEvents,
@@ -3961,6 +4046,7 @@ class _GovernancePageState extends State<GovernancePage> {
         partnerSummary: canonical.partnerProgression.summaryLine,
         partnerScopeBreakdowns: canonical.partnerProgression.scopeBreakdowns,
         partnerScoreboardRows: canonical.partnerProgression.scoreboardRows,
+        partnerScoreboardHistory: partnerScoreboardHistory,
         partnerTrendRows: partnerTrendRows,
         partnerDispatchChains: canonical.partnerProgression.dispatchChains,
         latestActionTaken: canonical.sceneReview.latestActionTaken,
@@ -4003,6 +4089,10 @@ class _GovernancePageState extends State<GovernancePage> {
     );
     final fallbackReportDate = _dateLabel(DateTime.now().toUtc());
     final partnerTrendRows = _partnerTrendRows(
+      currentReportDate: fallbackReportDate,
+      currentRows: partnerSummary.scoreboardRows,
+    );
+    final partnerScoreboardHistory = _partnerScoreboardHistoryRows(
       currentReportDate: fallbackReportDate,
       currentRows: partnerSummary.scoreboardRows,
     );
@@ -4056,6 +4146,7 @@ class _GovernancePageState extends State<GovernancePage> {
       partnerSummary: partnerSummary.summaryLine,
       partnerScopeBreakdowns: partnerSummary.scopeBreakdowns,
       partnerScoreboardRows: partnerSummary.scoreboardRows,
+      partnerScoreboardHistory: partnerScoreboardHistory,
       partnerTrendRows: partnerTrendRows,
       partnerDispatchChains: partnerSummary.dispatchChains,
       latestActionTaken: '',
@@ -4649,6 +4740,9 @@ class _GovernancePageState extends State<GovernancePage> {
         'scoreboardRows': report.partnerScoreboardRows
             .map((row) => row.toJson())
             .toList(growable: false),
+        'scoreboardHistory': report.partnerScoreboardHistory
+            .map((point) => point.toJson())
+            .toList(growable: false),
         'trendRows': report.partnerTrendRows
             .map((row) => row.toJson())
             .toList(growable: false),
@@ -4724,6 +4818,8 @@ class _GovernancePageState extends State<GovernancePage> {
         'partner_scope_${i + 1},"${_partnerScopeCsvSummary(report.partnerScopeBreakdowns[i]).replaceAll('"', '""')}"',
       for (var i = 0; i < report.partnerScoreboardRows.length; i++)
         'partner_scoreboard_${i + 1},"${_partnerScoreboardCsvSummary(report.partnerScoreboardRows[i]).replaceAll('"', '""')}"',
+      for (var i = 0; i < report.partnerScoreboardHistory.length; i++)
+        'partner_scoreboard_history_${i + 1},"${_partnerScoreboardHistoryCsvSummary(report.partnerScoreboardHistory[i]).replaceAll('"', '""')}"',
       for (var i = 0; i < report.partnerTrendRows.length; i++)
         'partner_trend_${i + 1},"${_partnerTrendCsvSummary(report.partnerTrendRows[i]).replaceAll('"', '""')}"',
       for (var i = 0; i < report.partnerDispatchChains.length; i++)

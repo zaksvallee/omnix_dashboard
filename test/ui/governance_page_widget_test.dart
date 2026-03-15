@@ -612,6 +612,88 @@ void main() {
           ),
         ],
       ),
+      partnerProgression: SovereignReportPartnerProgression(
+        dispatchCount: 2,
+        declarationCount: 5,
+        acceptedCount: 2,
+        onSiteCount: 1,
+        allClearCount: 1,
+        cancelledCount: 1,
+        workflowHeadline:
+            '1 partner dispatch reached ALL CLEAR • 1 partner dispatch was CANCELLED',
+        performanceHeadline: '1 strong response • 1 critical response',
+        slaHeadline: 'Avg accept 5.0m • Avg on site 12.0m',
+        summaryLine:
+            'Dispatches 2 • Declarations 5 • Accept 2 • On site 1 • All clear 1 • Cancelled 1',
+        scoreboardRows: [
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            partnerLabel: 'Partner Alpha',
+            dispatchCount: 2,
+            strongCount: 1,
+            onTrackCount: 0,
+            watchCount: 0,
+            criticalCount: 1,
+            averageAcceptedDelayMinutes: 5.0,
+            averageOnSiteDelayMinutes: 13.0,
+            summaryLine:
+                'Dispatches 2 • Strong 1 • On track 0 • Watch 0 • Critical 1 • Avg accept 5.0m • Avg on site 13.0m',
+          ),
+        ],
+      ),
+    );
+
+    final priorReport = SovereignReport(
+      date: '2026-03-09',
+      generatedAtUtc: DateTime.utc(2026, 3, 9, 6, 0),
+      shiftWindowStartUtc: DateTime.utc(2026, 3, 8, 22, 0),
+      shiftWindowEndUtc: DateTime.utc(2026, 3, 9, 6, 0),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 160,
+        hashVerified: true,
+        integrityScore: 99,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 12,
+        humanOverrides: 1,
+        overrideReasons: <String, int>{},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 14,
+        driftDetected: 1,
+        avgMatchScore: 85,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 0,
+        pdpExpired: 0,
+        totalBlocked: 0,
+      ),
+      partnerProgression: SovereignReportPartnerProgression(
+        dispatchCount: 2,
+        declarationCount: 2,
+        acceptedCount: 2,
+        onSiteCount: 0,
+        allClearCount: 0,
+        cancelledCount: 1,
+        summaryLine: '',
+        scoreboardRows: [
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            partnerLabel: 'Partner Alpha',
+            dispatchCount: 2,
+            strongCount: 0,
+            onTrackCount: 0,
+            watchCount: 1,
+            criticalCount: 1,
+            averageAcceptedDelayMinutes: 12.0,
+            averageOnSiteDelayMinutes: 22.0,
+            summaryLine:
+                'Dispatches 2 • Strong 0 • On track 0 • Watch 1 • Critical 1 • Avg accept 12.0m • Avg on site 22.0m',
+          ),
+        ],
+      ),
     );
 
     await tester.pumpWidget(
@@ -619,6 +701,7 @@ void main() {
         home: GovernancePage(
           events: const [],
           morningSovereignReport: report,
+          morningSovereignReportHistory: [priorReport],
           morningSovereignReportAutoRunKey: '2026-03-10',
         ),
       ),
@@ -870,6 +953,88 @@ void main() {
           ),
         ],
       ),
+      partnerProgression: SovereignReportPartnerProgression(
+        dispatchCount: 2,
+        declarationCount: 5,
+        acceptedCount: 2,
+        onSiteCount: 1,
+        allClearCount: 1,
+        cancelledCount: 1,
+        workflowHeadline:
+            '1 partner dispatch reached ALL CLEAR • 1 partner dispatch was CANCELLED',
+        performanceHeadline: '1 strong response • 1 critical response',
+        slaHeadline: 'Avg accept 5.0m • Avg on site 13.0m',
+        summaryLine:
+            'Dispatches 2 • Declarations 5 • Accept 2 • On site 1 • All clear 1 • Cancelled 1',
+        scoreboardRows: [
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            partnerLabel: 'Partner Alpha',
+            dispatchCount: 2,
+            strongCount: 1,
+            onTrackCount: 0,
+            watchCount: 0,
+            criticalCount: 1,
+            averageAcceptedDelayMinutes: 5.0,
+            averageOnSiteDelayMinutes: 13.0,
+            summaryLine:
+                'Dispatches 2 • Strong 1 • On track 0 • Watch 0 • Critical 1 • Avg accept 5.0m • Avg on site 13.0m',
+          ),
+        ],
+      ),
+    );
+
+    final priorReport = SovereignReport(
+      date: '2026-03-09',
+      generatedAtUtc: DateTime.utc(2026, 3, 9, 6, 0),
+      shiftWindowStartUtc: DateTime.utc(2026, 3, 8, 22, 0),
+      shiftWindowEndUtc: DateTime.utc(2026, 3, 9, 6, 0),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 150,
+        hashVerified: true,
+        integrityScore: 97,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 18,
+        humanOverrides: 2,
+        overrideReasons: <String, int>{},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 12,
+        driftDetected: 1,
+        avgMatchScore: 82,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 0,
+        pdpExpired: 0,
+        totalBlocked: 0,
+      ),
+      partnerProgression: SovereignReportPartnerProgression(
+        dispatchCount: 2,
+        declarationCount: 2,
+        acceptedCount: 2,
+        onSiteCount: 0,
+        allClearCount: 0,
+        cancelledCount: 1,
+        summaryLine: '',
+        scoreboardRows: [
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            partnerLabel: 'Partner Alpha',
+            dispatchCount: 2,
+            strongCount: 0,
+            onTrackCount: 0,
+            watchCount: 1,
+            criticalCount: 1,
+            averageAcceptedDelayMinutes: 12.0,
+            averageOnSiteDelayMinutes: 22.0,
+            summaryLine:
+                'Dispatches 2 • Strong 0 • On track 0 • Watch 1 • Critical 1 • Avg accept 12.0m • Avg on site 22.0m',
+          ),
+        ],
+      ),
     );
 
     await tester.pumpWidget(
@@ -877,6 +1042,7 @@ void main() {
         home: GovernancePage(
           events: const [],
           morningSovereignReport: report,
+          morningSovereignReportHistory: [priorReport],
           morningSovereignReportAutoRunKey: '2026-03-10',
         ),
       ),
@@ -1869,6 +2035,88 @@ void main() {
           ),
         ],
       ),
+      partnerProgression: SovereignReportPartnerProgression(
+        dispatchCount: 2,
+        declarationCount: 5,
+        acceptedCount: 2,
+        onSiteCount: 1,
+        allClearCount: 1,
+        cancelledCount: 1,
+        workflowHeadline:
+            '1 partner dispatch reached ALL CLEAR • 1 partner dispatch was CANCELLED',
+        performanceHeadline: '1 strong response • 1 critical response',
+        slaHeadline: 'Avg accept 5.0m • Avg on site 13.0m',
+        summaryLine:
+            'Dispatches 2 • Declarations 5 • Accept 2 • On site 1 • All clear 1 • Cancelled 1',
+        scoreboardRows: [
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            partnerLabel: 'Partner Alpha',
+            dispatchCount: 2,
+            strongCount: 1,
+            onTrackCount: 0,
+            watchCount: 0,
+            criticalCount: 1,
+            averageAcceptedDelayMinutes: 5.0,
+            averageOnSiteDelayMinutes: 13.0,
+            summaryLine:
+                'Dispatches 2 • Strong 1 • On track 0 • Watch 0 • Critical 1 • Avg accept 5.0m • Avg on site 13.0m',
+          ),
+        ],
+      ),
+    );
+
+    final priorReport = SovereignReport(
+      date: '2026-03-09',
+      generatedAtUtc: DateTime.utc(2026, 3, 9, 6, 0),
+      shiftWindowStartUtc: DateTime.utc(2026, 3, 8, 22, 0),
+      shiftWindowEndUtc: DateTime.utc(2026, 3, 9, 6, 0),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 150,
+        hashVerified: true,
+        integrityScore: 97,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 18,
+        humanOverrides: 2,
+        overrideReasons: <String, int>{},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 12,
+        driftDetected: 1,
+        avgMatchScore: 82,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 0,
+        pdpExpired: 0,
+        totalBlocked: 0,
+      ),
+      partnerProgression: SovereignReportPartnerProgression(
+        dispatchCount: 2,
+        declarationCount: 2,
+        acceptedCount: 2,
+        onSiteCount: 0,
+        allClearCount: 0,
+        cancelledCount: 1,
+        summaryLine: '',
+        scoreboardRows: [
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            partnerLabel: 'Partner Alpha',
+            dispatchCount: 2,
+            strongCount: 0,
+            onTrackCount: 0,
+            watchCount: 1,
+            criticalCount: 1,
+            averageAcceptedDelayMinutes: 12.0,
+            averageOnSiteDelayMinutes: 22.0,
+            summaryLine:
+                'Dispatches 2 • Strong 0 • On track 0 • Watch 1 • Critical 1 • Avg accept 12.0m • Avg on site 22.0m',
+          ),
+        ],
+      ),
     );
 
     await tester.pumpWidget(
@@ -1876,6 +2124,7 @@ void main() {
         home: GovernancePage(
           events: const [],
           morningSovereignReport: report,
+          morningSovereignReportHistory: [priorReport],
           morningSovereignReportAutoRunKey: '2026-03-10',
         ),
       ),
@@ -1910,6 +2159,11 @@ void main() {
     );
     expect(copiedPayload, contains('"scopeBreakdowns"'));
     expect(copiedPayload, contains('"exceptionVisits"'));
+    expect(copiedPayload, contains('"partnerProgression"'));
+    expect(copiedPayload, contains('"scoreboardHistory"'));
+    expect(copiedPayload, contains('"date": "2026-03-10"'));
+    expect(copiedPayload, contains('"reportDate": "2026-03-10"'));
+    expect(copiedPayload, contains('"reportDate": "2026-03-09"'));
     expect(copiedPayload, contains('"siteId": "SITE-42"'));
     expect(copiedPayload, contains('"reasonLabel": "Incomplete visit"'));
     expect(
@@ -1938,6 +2192,18 @@ void main() {
     expect(
       copiedPayload,
       contains('vehicle_exception_1,"Incomplete visit • INCOMPLETE • CA123456'),
+    );
+    expect(
+      copiedPayload,
+      contains(
+        'partner_scoreboard_history_1,"2026-03-10 • CURRENT • CLIENT-1/SITE-42 • Partner Alpha',
+      ),
+    );
+    expect(
+      copiedPayload,
+      contains(
+        'partner_scoreboard_history_2,"2026-03-09 • HISTORY • CLIENT-1/SITE-42 • Partner Alpha',
+      ),
     );
     expect(
       copiedPayload,
