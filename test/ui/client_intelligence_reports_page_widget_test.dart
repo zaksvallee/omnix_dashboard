@@ -538,6 +538,17 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(find.text('Partner Comparison'), findsOneWidget);
+    expect(
+      find.byKey(
+        const ValueKey(
+          'reports-partner-comparison-CLIENT-001/SITE-SANDTON/PARTNER • Alpha',
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('LEADER'), findsOneWidget);
+    expect(find.text('Accept +2.0m • On site +2.0m vs leader'), findsOneWidget);
     expect(find.text('Partner Scorecard Lanes'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('reports-partner-scope-banner')),

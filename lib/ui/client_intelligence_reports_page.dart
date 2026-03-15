@@ -276,6 +276,8 @@ class _ClientIntelligenceReportsPageState
                   ],
                   if (_sitePartnerScoreboardRows.isNotEmpty) ...[
                     const SizedBox(height: 8),
+                    _partnerComparisonCard(),
+                    const SizedBox(height: 8),
                     _partnerScorecardLanesCard(),
                   ],
                   if (_hasPartnerScopeFocus) ...[
@@ -788,6 +790,24 @@ class _ClientIntelligenceReportsPageState
     );
   }
 
+  Widget _partnerComparisonCard() {
+    final comparisons = _sitePartnerComparisonRows;
+    return OnyxSectionCard(
+      title: 'Partner Comparison',
+      subtitle:
+          'Current-shift comparison for responder lanes on this site, ranked against the strongest scorecard.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var index = 0; index < comparisons.length; index++) ...[
+            _partnerComparisonRow(comparisons[index]),
+            if (index < comparisons.length - 1) const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _kpiCard({
     Key? key,
     required String label,
@@ -938,6 +958,131 @@ class _ClientIntelligenceReportsPageState
               fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _partnerComparisonRow(_PartnerComparisonRow comparison) {
+    final row = comparison.row;
+    final isActive = _partnerScoreboardMatchesFocus(row);
+    final deltaParts = <String>[
+      if (!comparison.isLeader && comparison.acceptDeltaMinutes != null)
+        'Accept +${comparison.acceptDeltaMinutes!.toStringAsFixed(1)}m',
+      if (!comparison.isLeader && comparison.onSiteDeltaMinutes != null)
+        'On site +${comparison.onSiteDeltaMinutes!.toStringAsFixed(1)}m',
+    ];
+    return Container(
+      key: ValueKey<String>(
+        'reports-partner-comparison-${row.clientId}/${row.siteId}/${row.partnerLabel}',
+      ),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isActive ? const Color(0x1418D39E) : const Color(0xFF0E1A2B),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isActive ? const Color(0xFF59D79B) : const Color(0xFF223244),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      row.partnerLabel,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFE8F1FF),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      row.summaryLine,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF9CB2D1),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  _partnerScopeChip(
+                    label: comparison.isLeader
+                        ? 'LEADER'
+                        : comparison.trendLabel,
+                    color: comparison.isLeader
+                        ? const Color(0xFF59D79B)
+                        : _partnerTrendColor(comparison.trendLabel),
+                  ),
+                  if (isActive)
+                    _partnerScopeChip(
+                      label: 'ACTIVE',
+                      color: const Color(0xFF59D79B),
+                    ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            comparison.isLeader
+                ? 'Best current scorecard for this site.'
+                : (deltaParts.isEmpty
+                      ? comparison.trendReason
+                      : '${deltaParts.join(' • ')} vs leader'),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (!comparison.isLeader && comparison.trendReason.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              comparison.trendReason,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF7D93B1),
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _actionButton(
+                key: ValueKey<String>(
+                  'reports-partner-comparison-focus-${row.clientId}/${row.siteId}/${row.partnerLabel}',
+                ),
+                label: isActive ? 'Focused' : 'Focus Lane',
+                icon: isActive
+                    ? Icons.check_circle_rounded
+                    : Icons.filter_center_focus_rounded,
+                onTap: isActive
+                    ? null
+                    : () => _setPartnerScopeFocus(
+                        clientId: row.clientId,
+                        siteId: row.siteId,
+                        partnerLabel: row.partnerLabel,
+                      ),
+              ),
+            ],
           ),
         ],
       ),
@@ -1219,6 +1364,64 @@ class _ClientIntelligenceReportsPageState
       }
     }
     return rows;
+  }
+
+  List<_PartnerComparisonRow> get _sitePartnerComparisonRows {
+    final rows = [..._sitePartnerScoreboardRows]
+      ..sort((a, b) {
+        final severityCompare = _partnerSeverityScore(
+          a,
+        ).compareTo(_partnerSeverityScore(b));
+        if (severityCompare != 0) {
+          return severityCompare;
+        }
+        final acceptedCompare = a.averageAcceptedDelayMinutes.compareTo(
+          b.averageAcceptedDelayMinutes,
+        );
+        if (acceptedCompare != 0) {
+          return acceptedCompare;
+        }
+        final onSiteCompare = a.averageOnSiteDelayMinutes.compareTo(
+          b.averageOnSiteDelayMinutes,
+        );
+        if (onSiteCompare != 0) {
+          return onSiteCompare;
+        }
+        return a.partnerLabel.compareTo(b.partnerLabel);
+      });
+    if (rows.isEmpty) {
+      return const <_PartnerComparisonRow>[];
+    }
+    final leader = rows.first;
+    return rows
+        .map((row) {
+          final historyPoints = _partnerScopeHistoryPointsFor(
+            clientId: row.clientId,
+            siteId: row.siteId,
+            partnerLabel: row.partnerLabel,
+          );
+          final acceptDelta = row == leader
+              ? null
+              : (row.averageAcceptedDelayMinutes -
+                    leader.averageAcceptedDelayMinutes);
+          final onSiteDelta = row == leader
+              ? null
+              : (row.averageOnSiteDelayMinutes -
+                    leader.averageOnSiteDelayMinutes);
+          return _PartnerComparisonRow(
+            row: row,
+            isLeader: identical(row, leader),
+            trendLabel: _partnerScopeTrendLabel(historyPoints),
+            trendReason: _partnerScopeTrendReason(historyPoints),
+            acceptDeltaMinutes: acceptDelta != null && acceptDelta > 0
+                ? double.parse(acceptDelta.toStringAsFixed(1))
+                : null,
+            onSiteDeltaMinutes: onSiteDelta != null && onSiteDelta > 0
+                ? double.parse(onSiteDelta.toStringAsFixed(1))
+                : null,
+          );
+        })
+        .toList(growable: false);
   }
 
   List<SovereignReportPartnerDispatchChain> _partnerScopeDispatchChains() {
@@ -2853,6 +3056,24 @@ class _PartnerScopeHistoryPoint {
     final currentLabel = current ? 'CURRENT' : 'HISTORY';
     return '$reportDate • $currentLabel • ${row.clientId}/${row.siteId} • ${row.partnerLabel} • ${row.summaryLine}';
   }
+}
+
+class _PartnerComparisonRow {
+  final SovereignReportPartnerScoreboardRow row;
+  final bool isLeader;
+  final String trendLabel;
+  final String trendReason;
+  final double? acceptDeltaMinutes;
+  final double? onSiteDeltaMinutes;
+
+  const _PartnerComparisonRow({
+    required this.row,
+    required this.isLeader,
+    required this.trendLabel,
+    required this.trendReason,
+    required this.acceptDeltaMinutes,
+    required this.onSiteDeltaMinutes,
+  });
 }
 
 int _compareDispatchEventsByOccurredAtThenSequence(
