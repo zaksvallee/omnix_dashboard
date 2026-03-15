@@ -7693,7 +7693,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         responseText:
             'ONYX partner lane\n'
             'Reply with ACCEPT, ON SITE, ALL CLEAR, or CANCEL.\n'
-            'If multiple dispatches are active, include the dispatch id, for example: ON SITE DSP-1001.',
+            'If multiple dispatches are active, reply to the dispatch card or include the dispatch id, for example: ON SITE DSP-1001.',
         failureContext: 'Partner dispatch guidance',
         replyMarkup: _telegramPartnerDispatchService.replyKeyboardMarkup(),
       );
@@ -7714,7 +7714,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       return true;
     }
-    final requestedDispatchId = _dispatchIdFromTelegramText(update.text);
+    final requestedDispatchId = _dispatchIdFromPartnerUpdate(update);
     final matchingContexts = requestedDispatchId == null
         ? openContexts
         : openContexts
@@ -7743,7 +7743,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         messageThreadId: update.messageThreadId,
         responseText:
             'ONYX needs the dispatch id because multiple partner dispatches are active.\n'
-            'Reply like: ${action.label} ${matchingContexts.first.dispatchId}\n'
+            'Reply to the dispatch card or send: ${action.label} ${matchingContexts.first.dispatchId}\n'
             'Open dispatches: ${matchingContexts.map((context) => context.dispatchId).join(', ')}',
         failureContext: 'Partner dispatch ambiguous context',
       );
@@ -8135,6 +8135,18 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       text.toUpperCase(),
     );
     return match?.group(0)?.trim();
+  }
+
+  String? _dispatchIdFromPartnerUpdate(TelegramBridgeInboundMessage update) {
+    final direct = _dispatchIdFromTelegramText(update.text);
+    if (direct != null) {
+      return direct;
+    }
+    final replyText = (update.replyToText ?? '').trim();
+    if (replyText.isEmpty) {
+      return null;
+    }
+    return _dispatchIdFromTelegramText(replyText);
   }
 
   String _partnerDispatchMessageKey(String dispatchId) {

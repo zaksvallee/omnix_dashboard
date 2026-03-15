@@ -177,6 +177,10 @@ void main() {
         "message_thread_id": 5,
         "chat": {"id": -5247743742, "type": "supergroup", "title": "ONYX Admin"},
         "from": {"id": 6652600225, "username": "zaks_vallee", "is_bot": false},
+        "reply_to_message": {
+          "message_id": 811,
+          "text": "ONYX PARTNER DISPATCH\\nincident=DSP-1001\\nReply with: ACCEPT, ON SITE, ALL CLEAR, or CANCEL."
+        },
         "text": "/status"
       }
     },
@@ -218,8 +222,11 @@ void main() {
     expect(updates[0].updateId, 2001);
     expect(updates[0].fromIsBot, isTrue);
     expect(updates[1].updateId, 2002);
+    expect(updates[1].messageId, 901);
     expect(updates[1].chatId, '-5247743742');
     expect(updates[1].messageThreadId, 5);
+    expect(updates[1].replyToMessageId, 811);
+    expect(updates[1].replyToText, contains('incident=DSP-1001'));
     expect(updates[1].fromUserId, 6652600225);
     expect(updates[1].fromUsername, 'zaks_vallee');
     expect(updates[1].text, '/status');

@@ -22,10 +22,13 @@ class TelegramBridgeMessage {
 
 class TelegramBridgeInboundMessage {
   final int updateId;
+  final int? messageId;
   final String chatId;
   final String chatType;
   final String? chatTitle;
   final int? messageThreadId;
+  final int? replyToMessageId;
+  final String? replyToText;
   final int? fromUserId;
   final String? fromUsername;
   final bool fromIsBot;
@@ -34,10 +37,13 @@ class TelegramBridgeInboundMessage {
 
   const TelegramBridgeInboundMessage({
     required this.updateId,
+    this.messageId,
     required this.chatId,
     required this.chatType,
     this.chatTitle,
     this.messageThreadId,
+    this.replyToMessageId,
+    this.replyToText,
     this.fromUserId,
     this.fromUsername,
     this.fromIsBot = false,
@@ -250,16 +256,25 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
       final from = fromRaw is Map
           ? fromRaw.cast<Object?, Object?>()
           : const <Object?, Object?>{};
+      final replyToRaw = message['reply_to_message'];
+      final replyTo = replyToRaw is Map
+          ? replyToRaw.cast<Object?, Object?>()
+          : const <Object?, Object?>{};
       final sentAtSeconds = _asInt(message['date']);
       updates.add(
         TelegramBridgeInboundMessage(
           updateId: updateId,
+          messageId: _asInt(message['message_id']),
           chatId: chatId,
           chatType: (chat['type'] ?? '').toString().trim(),
           chatTitle: (chat['title'] ?? '').toString().trim().isEmpty
               ? null
               : (chat['title'] ?? '').toString().trim(),
           messageThreadId: _asInt(message['message_thread_id']),
+          replyToMessageId: _asInt(replyTo['message_id']),
+          replyToText: (replyTo['text'] ?? '').toString().trim().isEmpty
+              ? null
+              : (replyTo['text'] ?? '').toString().trim(),
           fromUserId: _asInt(from['id']),
           fromUsername: (from['username'] ?? '').toString().trim().isEmpty
               ? null
