@@ -82,6 +82,7 @@ void main() {
   ) async {
     String? clipboardText;
     Map<String, String>? openedGovernanceScope;
+    Map<String, Object?>? openedEventsScope;
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       SystemChannels.platform,
       (call) async {
@@ -237,11 +238,63 @@ void main() {
         ],
       ),
     );
+    final store = InMemoryEventStore();
+    store.append(
+      PartnerDispatchStatusDeclared(
+        eventId: 'PARTNER-EVT-1',
+        sequence: 0,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 15, 1, 4),
+        dispatchId: 'DSP-9001',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-1',
+        siteId: 'SITE-SANDTON',
+        partnerLabel: 'PARTNER • Alpha',
+        actorLabel: 'Partner Controller',
+        status: PartnerDispatchStatus.accepted,
+        sourceChannel: 'telegram',
+        sourceMessageKey: 'MSG-1',
+      ),
+    );
+    store.append(
+      PartnerDispatchStatusDeclared(
+        eventId: 'PARTNER-EVT-2',
+        sequence: 0,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 15, 1, 10),
+        dispatchId: 'DSP-9001',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-1',
+        siteId: 'SITE-SANDTON',
+        partnerLabel: 'PARTNER • Alpha',
+        actorLabel: 'Partner Controller',
+        status: PartnerDispatchStatus.onSite,
+        sourceChannel: 'telegram',
+        sourceMessageKey: 'MSG-2',
+      ),
+    );
+    store.append(
+      PartnerDispatchStatusDeclared(
+        eventId: 'PARTNER-EVT-3',
+        sequence: 0,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 15, 1, 18),
+        dispatchId: 'DSP-9001',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-1',
+        siteId: 'SITE-SANDTON',
+        partnerLabel: 'PARTNER • Alpha',
+        actorLabel: 'Partner Controller',
+        status: PartnerDispatchStatus.allClear,
+        sourceChannel: 'telegram',
+        sourceMessageKey: 'MSG-3',
+      ),
+    );
 
     await tester.pumpWidget(
       MaterialApp(
         home: ClientIntelligenceReportsPage(
-          store: InMemoryEventStore(),
+          store: store,
           selectedClient: 'CLIENT-001',
           selectedSite: 'SITE-SANDTON',
           morningSovereignReportHistory: [priorReport, currentReport],
@@ -253,6 +306,12 @@ void main() {
               'clientId': clientId,
               'siteId': siteId,
               'partnerLabel': partnerLabel,
+            };
+          },
+          onOpenEventsForScope: (eventIds, selectedEventId) {
+            openedEventsScope = <String, Object?>{
+              'eventIds': eventIds,
+              'selectedEventId': selectedEventId,
             };
           },
         ),
@@ -276,6 +335,10 @@ void main() {
     );
     expect(
       find.text('ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)'),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('reports-partner-chain-open-events-DSP-9001')),
       findsOneWidget,
     );
 
@@ -314,6 +377,18 @@ void main() {
       'clientId': 'CLIENT-001',
       'siteId': 'SITE-SANDTON',
       'partnerLabel': 'PARTNER • Alpha',
+    });
+
+    final openEventsButton = find.byKey(
+      const ValueKey('reports-partner-chain-open-events-DSP-9001'),
+    );
+    await tester.ensureVisible(openEventsButton);
+    await tester.tap(openEventsButton);
+    await tester.pumpAndSettle();
+
+    expect(openedEventsScope, <String, Object?>{
+      'eventIds': ['PARTNER-EVT-1', 'PARTNER-EVT-2', 'PARTNER-EVT-3'],
+      'selectedEventId': 'PARTNER-EVT-3',
     });
   });
 

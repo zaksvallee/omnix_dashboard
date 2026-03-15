@@ -17073,6 +17073,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               ? null
               : _reportsScopePartnerLabel,
           onOpenGovernanceForPartnerScope: _openGovernanceForPartnerScope,
+          onOpenEventsForScope: (eventIds, selectedEventId) {
+            _openEventsForScopedEventIds(
+              eventIds,
+              selectedEventId: selectedEventId,
+            );
+          },
           onReportShellStateChanged: (value) {
             _reportShellState = value;
           },

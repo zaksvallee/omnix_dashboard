@@ -18,6 +18,8 @@ import '../application/report_preview_surface.dart';
 import '../application/report_generation_service.dart';
 import '../application/report_receipt_scene_filter.dart';
 import '../application/report_shell_state.dart';
+import '../domain/events/dispatch_event.dart';
+import '../domain/events/partner_dispatch_status_declared.dart';
 import '../domain/events/report_generated.dart';
 import '../domain/store/in_memory_event_store.dart';
 import '../presentation/reports/report_preview_dock_card.dart';
@@ -46,6 +48,8 @@ class ClientIntelligenceReportsPage extends StatefulWidget {
   final ValueChanged<ReportPreviewRequest>? onRequestPreview;
   final void Function(String clientId, String siteId, String partnerLabel)?
   onOpenGovernanceForPartnerScope;
+  final void Function(List<String> eventIds, String selectedEventId)?
+  onOpenEventsForScope;
 
   const ClientIntelligenceReportsPage({
     super.key,
@@ -61,6 +65,7 @@ class ClientIntelligenceReportsPage extends StatefulWidget {
     this.onReportShellStateChanged,
     this.onRequestPreview,
     this.onOpenGovernanceForPartnerScope,
+    this.onOpenEventsForScope,
   });
 
   @override
@@ -713,6 +718,15 @@ class _ClientIntelligenceReportsPageState
                     );
                   },
                 ),
+              if (widget.onOpenEventsForScope != null &&
+                  currentChains.isNotEmpty)
+                _actionButton(
+                  key: const ValueKey('reports-partner-scorecard-open-events'),
+                  label: 'Open Events Review',
+                  icon: Icons.rule_folder_rounded,
+                  onTap: () =>
+                      _openEventsForPartnerDispatchChain(currentChains.first),
+                ),
             ],
           ),
           if (historyPoints.isNotEmpty) ...[
@@ -1135,6 +1149,18 @@ class _ClientIntelligenceReportsPageState
               ),
             ),
           ],
+          if (widget.onOpenEventsForScope != null &&
+              _partnerDispatchChainEventIds(chain).isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _actionButton(
+              key: ValueKey<String>(
+                'reports-partner-chain-open-events-${chain.dispatchId}',
+              ),
+              label: 'Open Events Review',
+              icon: Icons.rule_folder_rounded,
+              onTap: () => _openEventsForPartnerDispatchChain(chain),
+            ),
+          ],
         ],
       ),
     );
@@ -1213,6 +1239,52 @@ class _ClientIntelligenceReportsPageState
     return reports.first.partnerProgression.dispatchChains
         .where((chain) => _partnerDispatchChainMatchesScope(chain))
         .toList(growable: false);
+  }
+
+  List<PartnerDispatchStatusDeclared> _partnerDispatchChainEvents(
+    SovereignReportPartnerDispatchChain chain,
+  ) {
+    final dispatchId = chain.dispatchId.trim();
+    if (dispatchId.isEmpty) {
+      return const <PartnerDispatchStatusDeclared>[];
+    }
+    final partnerLabel = chain.partnerLabel.trim().toUpperCase();
+    final matched =
+        widget.store
+            .allEvents()
+            .whereType<PartnerDispatchStatusDeclared>()
+            .where(
+              (event) =>
+                  event.dispatchId.trim() == dispatchId &&
+                  event.clientId.trim() == chain.clientId.trim() &&
+                  event.siteId.trim() == chain.siteId.trim() &&
+                  event.partnerLabel.trim().toUpperCase() == partnerLabel,
+            )
+            .toList(growable: false)
+          ..sort(_compareDispatchEventsByOccurredAtThenSequence);
+    return matched;
+  }
+
+  List<String> _partnerDispatchChainEventIds(
+    SovereignReportPartnerDispatchChain chain,
+  ) {
+    return _partnerDispatchChainEvents(chain)
+        .map((event) => event.eventId.trim())
+        .where((id) => id.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  void _openEventsForPartnerDispatchChain(
+    SovereignReportPartnerDispatchChain chain,
+  ) {
+    final eventIds = _partnerDispatchChainEventIds(chain);
+    if (widget.onOpenEventsForScope == null || eventIds.isEmpty) {
+      return;
+    }
+    widget.onOpenEventsForScope!(eventIds, eventIds.last);
+    _showReceiptActionFeedback(
+      'Opening Events Review for ${chain.dispatchId} • ${chain.partnerLabel}.',
+    );
   }
 
   bool _partnerScoreboardMatchesScope(SovereignReportPartnerScoreboardRow row) {
@@ -2781,4 +2853,15 @@ class _PartnerScopeHistoryPoint {
     final currentLabel = current ? 'CURRENT' : 'HISTORY';
     return '$reportDate • $currentLabel • ${row.clientId}/${row.siteId} • ${row.partnerLabel} • ${row.summaryLine}';
   }
+}
+
+int _compareDispatchEventsByOccurredAtThenSequence(
+  DispatchEvent a,
+  DispatchEvent b,
+) {
+  final occurredAtCompare = a.occurredAt.compareTo(b.occurredAt);
+  if (occurredAtCompare != 0) {
+    return occurredAtCompare;
+  }
+  return a.sequence.compareTo(b.sequence);
 }
