@@ -1133,15 +1133,24 @@ class _ClientIntelligenceReportsPageState
   Widget _receiptPolicyHistoryRow(_ReceiptRow row, {required bool current}) {
     final event = row.event;
     final accent = _receiptPolicyAccent(event);
+    final focused = _receiptPolicyRowMatchesPreviewTarget(row);
+    final backgroundColor = focused
+        ? const Color(0x1428C3FF)
+        : current
+        ? const Color(0x1A0EA5E9)
+        : const Color(0xFF0E1A2B);
+    final borderColor = focused
+        ? const Color(0xFF5DC8FF)
+        : current
+        ? const Color(0x550EA5E9)
+        : const Color(0xFF223244);
     return Container(
       key: ValueKey<String>('reports-receipt-policy-row-${event.eventId}'),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: current ? const Color(0x1A0EA5E9) : const Color(0xFF0E1A2B),
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: current ? const Color(0x550EA5E9) : const Color(0xFF223244),
-        ),
+        border: Border.all(color: borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1178,6 +1187,17 @@ class _ClientIntelligenceReportsPageState
                   label: 'CURRENT',
                   color: const Color(0xFF8FD1FF),
                 ),
+              if (focused) ...[
+                if (current) const SizedBox(width: 6),
+                _partnerScopeChip(
+                  label:
+                      _entryContext ==
+                          ReportEntryContext.governanceBrandingDrift
+                      ? 'GOVERNANCE TARGET'
+                      : 'FOCUSED',
+                  color: const Color(0xFF5DC8FF),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 6),
@@ -1222,6 +1242,14 @@ class _ClientIntelligenceReportsPageState
         ],
       ),
     );
+  }
+
+  bool _receiptPolicyRowMatchesPreviewTarget(_ReceiptRow row) {
+    final previewReceiptEventId = _previewReceiptEventId?.trim();
+    if (previewReceiptEventId == null || previewReceiptEventId.isEmpty) {
+      return false;
+    }
+    return row.event.eventId.trim() == previewReceiptEventId;
   }
 
   Widget _kpiCard({

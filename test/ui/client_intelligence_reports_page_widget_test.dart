@@ -920,6 +920,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Receipt • RPT-CTX-1'), findsOneWidget);
+      expect(find.text('GOVERNANCE TARGET'), findsOneWidget);
 
       final dismissButton = find.byKey(
         const ValueKey('reports-receipt-policy-entry-context-clear'),
@@ -934,8 +935,10 @@ void main() {
         ),
         findsNothing,
       );
+      expect(find.text('GOVERNANCE TARGET'), findsNothing);
       expect(shellState.value.entryContext, isNull);
       expect(shellState.value.previewReceiptEventId, 'RPT-CTX-1');
+      expect(find.text('FOCUSED'), findsOneWidget);
       expect(
         find.textContaining('Governance branding-drift context cleared.'),
         findsOneWidget,
