@@ -86,13 +86,20 @@ void main() {
         reportsWithOmittedSections: 1,
         omittedAiDecisionLogReports: 1,
         omittedGuardMetricsReports: 1,
+        standardBrandingReports: 1,
+        defaultPartnerBrandingReports: 0,
+        customBrandingOverrideReports: 1,
         executiveSummary:
             '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
+        brandingExecutiveSummary:
+            '1 receipt used custom branding override',
         headline: '1 generated reports omitted sections',
         summaryLine:
-            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
+            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1 • Standard branding 1 • Default partner branding 0 • Custom branding 1',
         latestReportSummary:
             'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
+        latestBrandingSummary:
+            'CLIENT-1/SITE-42 2026-03 used custom branding override from Partner Alpha.',
       ),
       sceneReview: const SovereignReportSceneReview(
         totalReviews: 7,
@@ -283,6 +290,10 @@ void main() {
       find.textContaining(
         '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
       ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('1 receipt used custom branding override'),
       findsOneWidget,
     );
     expect(
@@ -589,13 +600,20 @@ void main() {
         reportsWithOmittedSections: 1,
         omittedAiDecisionLogReports: 1,
         omittedGuardMetricsReports: 1,
+        standardBrandingReports: 1,
+        defaultPartnerBrandingReports: 0,
+        customBrandingOverrideReports: 1,
         executiveSummary:
             '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
+        brandingExecutiveSummary:
+            '1 receipt used custom branding override',
         headline: '1 generated reports omitted sections',
         summaryLine:
-            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
+            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1 • Standard branding 1 • Default partner branding 0 • Custom branding 1',
         latestReportSummary:
             'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
+        latestBrandingSummary:
+            'CLIENT-1/SITE-42 2026-03 used custom branding override from Partner Alpha.',
       ),
       sceneReview: const SovereignReportSceneReview(
         totalReviews: 7,
@@ -1195,13 +1213,20 @@ void main() {
         reportsWithOmittedSections: 1,
         omittedAiDecisionLogReports: 1,
         omittedGuardMetricsReports: 1,
+        standardBrandingReports: 1,
+        defaultPartnerBrandingReports: 0,
+        customBrandingOverrideReports: 1,
         executiveSummary:
             '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
+        brandingExecutiveSummary:
+            '1 receipt used custom branding override',
         headline: '1 generated reports omitted sections',
         summaryLine:
-            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
+            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1 • Standard branding 1 • Default partner branding 0 • Custom branding 1',
         latestReportSummary:
             'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
+        latestBrandingSummary:
+            'CLIENT-1/SITE-42 2026-03 used custom branding override from Partner Alpha.',
       ),
       sceneReview: const SovereignReportSceneReview(
         totalReviews: 7,
@@ -2704,13 +2729,20 @@ void main() {
         reportsWithOmittedSections: 1,
         omittedAiDecisionLogReports: 1,
         omittedGuardMetricsReports: 1,
+        standardBrandingReports: 1,
+        defaultPartnerBrandingReports: 0,
+        customBrandingOverrideReports: 1,
         executiveSummary:
             '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
+        brandingExecutiveSummary:
+            '1 receipt used custom branding override',
         headline: '1 generated reports omitted sections',
         summaryLine:
-            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
+            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1 • Standard branding 1 • Default partner branding 0 • Custom branding 1',
         latestReportSummary:
             'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
+        latestBrandingSummary:
+            'CLIENT-1/SITE-42 2026-03 used custom branding override from Partner Alpha.',
       ),
       sceneReview: const SovereignReportSceneReview(
         totalReviews: 7,
@@ -2901,7 +2933,17 @@ void main() {
     );
     expect(
       copiedPayload,
+      contains('"brandingExecutiveSummary": "1 receipt used custom branding override"'),
+    );
+    expect(
+      copiedPayload,
       contains('"headline": "1 generated reports omitted sections"'),
+    );
+    expect(
+      copiedPayload,
+      contains(
+        '"latestBrandingSummary": "CLIENT-1/SITE-42 2026-03 used custom branding override from Partner Alpha."',
+      ),
     );
     expect(copiedPayload, contains('"vehicleThroughput"'));
     expect(copiedPayload, contains('"totalVisits": 18'));
@@ -2940,7 +2982,19 @@ void main() {
     );
     expect(
       copiedPayload,
+      contains(
+        'receipt_branding_executive_summary,"1 receipt used custom branding override"',
+      ),
+    );
+    expect(
+      copiedPayload,
       contains('receipt_headline,"1 generated reports omitted sections"'),
+    );
+    expect(
+      copiedPayload,
+      contains(
+        'receipt_latest_branding_summary,"CLIENT-1/SITE-42 2026-03 used custom branding override from Partner Alpha."',
+      ),
     );
     expect(copiedPayload, contains('vehicle_total_visits,18'));
     expect(copiedPayload, contains('vehicle_completed_visits,15'));

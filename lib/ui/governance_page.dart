@@ -227,10 +227,15 @@ class _GovernanceReportView {
   final int reportsWithOmittedSections;
   final int omittedAiDecisionLogReports;
   final int omittedGuardMetricsReports;
+  final int standardBrandingReports;
+  final int defaultPartnerBrandingReports;
+  final int customBrandingOverrideReports;
   final String receiptPolicyExecutiveSummary;
+  final String receiptPolicyBrandingExecutiveSummary;
   final String receiptPolicyHeadline;
   final String receiptPolicySummary;
   final String latestReceiptPolicySummary;
+  final String latestReceiptBrandingSummary;
   final int vehicleVisits;
   final int vehicleCompletedVisits;
   final int vehicleActiveVisits;
@@ -297,10 +302,15 @@ class _GovernanceReportView {
     required this.reportsWithOmittedSections,
     required this.omittedAiDecisionLogReports,
     required this.omittedGuardMetricsReports,
+    required this.standardBrandingReports,
+    required this.defaultPartnerBrandingReports,
+    required this.customBrandingOverrideReports,
     required this.receiptPolicyExecutiveSummary,
+    required this.receiptPolicyBrandingExecutiveSummary,
     required this.receiptPolicyHeadline,
     required this.receiptPolicySummary,
     required this.latestReceiptPolicySummary,
+    required this.latestReceiptBrandingSummary,
     required this.vehicleVisits,
     required this.vehicleCompletedVisits,
     required this.vehicleActiveVisits,
@@ -1948,10 +1958,16 @@ class _GovernancePageState extends State<GovernancePage> {
       reportsWithOmittedSections: report.reportsWithOmittedSections,
       omittedAiDecisionLogReports: report.omittedAiDecisionLogReports,
       omittedGuardMetricsReports: report.omittedGuardMetricsReports,
+      standardBrandingReports: report.standardBrandingReports,
+      defaultPartnerBrandingReports: report.defaultPartnerBrandingReports,
+      customBrandingOverrideReports: report.customBrandingOverrideReports,
       receiptPolicyExecutiveSummary: report.receiptPolicyExecutiveSummary,
+      receiptPolicyBrandingExecutiveSummary:
+          report.receiptPolicyBrandingExecutiveSummary,
       receiptPolicyHeadline: report.receiptPolicyHeadline,
       receiptPolicySummary: report.receiptPolicySummary,
       latestReceiptPolicySummary: report.latestReceiptPolicySummary,
+      latestReceiptBrandingSummary: report.latestReceiptBrandingSummary,
       vehicleVisits: report.vehicleVisits,
       vehicleCompletedVisits: report.vehicleCompletedVisits,
       vehicleActiveVisits: report.vehicleActiveVisits,
@@ -2205,13 +2221,7 @@ class _GovernancePageState extends State<GovernancePage> {
         key: const ValueKey('governance-metric-receipt-policy'),
         label: 'Receipt Policy',
         value: '${report.generatedReports} reports',
-        detail: report.receiptPolicyExecutiveSummary.trim().isNotEmpty
-            ? '${report.receiptPolicyExecutiveSummary} • ${report.latestReceiptPolicySummary.trim().isNotEmpty ? report.latestReceiptPolicySummary : report.receiptPolicySummary}'
-            : report.receiptPolicyHeadline.trim().isNotEmpty
-            ? '${report.receiptPolicyHeadline} • ${report.latestReceiptPolicySummary.trim().isNotEmpty ? report.latestReceiptPolicySummary : report.receiptPolicySummary}'
-            : report.receiptPolicySummary.trim().isNotEmpty
-            ? report.receiptPolicySummary
-            : 'No generated report receipts recorded in this shift window.',
+        detail: _receiptPolicyMetricDetail(report),
         color:
             report.reportsWithOmittedSections > 0 ||
                 report.legacyConfigurationReports > 0
@@ -2608,6 +2618,37 @@ class _GovernancePageState extends State<GovernancePage> {
     return brandingDetail == null
         ? configurationDetail
         : '$brandingDetail $configurationDetail';
+  }
+
+  String _receiptPolicyMetricDetail(_GovernanceReportView report) {
+    final summaryParts = <String>[
+      if (report.receiptPolicyExecutiveSummary.trim().isNotEmpty)
+        report.receiptPolicyExecutiveSummary,
+      if (report.receiptPolicyBrandingExecutiveSummary.trim().isNotEmpty)
+        report.receiptPolicyBrandingExecutiveSummary,
+    ];
+    if (summaryParts.isEmpty && report.receiptPolicyHeadline.trim().isNotEmpty) {
+      summaryParts.add(report.receiptPolicyHeadline);
+    }
+    if (summaryParts.isEmpty && report.receiptPolicySummary.trim().isNotEmpty) {
+      summaryParts.add(report.receiptPolicySummary);
+    }
+    final latestParts = <String>[
+      if (report.latestReceiptPolicySummary.trim().isNotEmpty)
+        report.latestReceiptPolicySummary,
+      if (report.latestReceiptBrandingSummary.trim().isNotEmpty)
+        report.latestReceiptBrandingSummary,
+    ];
+    if (summaryParts.isEmpty && latestParts.isEmpty) {
+      return 'No generated report receipts recorded in this shift window.';
+    }
+    if (latestParts.isEmpty) {
+      return summaryParts.join(' • ');
+    }
+    if (summaryParts.isEmpty) {
+      return latestParts.join(' • ');
+    }
+    return '${summaryParts.join(' • ')} • ${latestParts.join(' • ')}';
   }
 
   Color _receiptPolicyEventAccent(ReportGenerated event) {
@@ -4812,12 +4853,22 @@ class _GovernancePageState extends State<GovernancePage> {
               canonical.receiptPolicy.omittedAiDecisionLogReports,
           omittedGuardMetricsReports:
               canonical.receiptPolicy.omittedGuardMetricsReports,
+          standardBrandingReports:
+              canonical.receiptPolicy.standardBrandingReports,
+          defaultPartnerBrandingReports:
+              canonical.receiptPolicy.defaultPartnerBrandingReports,
+          customBrandingOverrideReports:
+              canonical.receiptPolicy.customBrandingOverrideReports,
           receiptPolicyExecutiveSummary:
               canonical.receiptPolicy.executiveSummary,
+          receiptPolicyBrandingExecutiveSummary:
+              canonical.receiptPolicy.brandingExecutiveSummary,
           receiptPolicyHeadline: canonical.receiptPolicy.headline,
           receiptPolicySummary: canonical.receiptPolicy.summaryLine,
           latestReceiptPolicySummary:
               canonical.receiptPolicy.latestReportSummary,
+          latestReceiptBrandingSummary:
+              canonical.receiptPolicy.latestBrandingSummary,
           vehicleVisits: canonical.vehicleThroughput.totalVisits,
           vehicleCompletedVisits: canonical.vehicleThroughput.completedVisits,
           vehicleActiveVisits: canonical.vehicleThroughput.activeVisits,
@@ -4932,10 +4983,15 @@ class _GovernancePageState extends State<GovernancePage> {
         reportsWithOmittedSections: 0,
         omittedAiDecisionLogReports: 0,
         omittedGuardMetricsReports: 0,
+        standardBrandingReports: 0,
+        defaultPartnerBrandingReports: 0,
+        customBrandingOverrideReports: 0,
         receiptPolicyExecutiveSummary: '',
+        receiptPolicyBrandingExecutiveSummary: '',
         receiptPolicyHeadline: '',
         receiptPolicySummary: '',
         latestReceiptPolicySummary: '',
+        latestReceiptBrandingSummary: '',
         vehicleVisits: 0,
         vehicleCompletedVisits: 0,
         vehicleActiveVisits: 0,
@@ -5612,10 +5668,17 @@ class _GovernancePageState extends State<GovernancePage> {
         'reportsWithOmittedSections': report.reportsWithOmittedSections,
         'omittedAiDecisionLogReports': report.omittedAiDecisionLogReports,
         'omittedGuardMetricsReports': report.omittedGuardMetricsReports,
+        'standardBrandingReports': report.standardBrandingReports,
+        'defaultPartnerBrandingReports': report.defaultPartnerBrandingReports,
+        'customBrandingOverrideReports':
+            report.customBrandingOverrideReports,
         'executiveSummary': report.receiptPolicyExecutiveSummary,
+        'brandingExecutiveSummary':
+            report.receiptPolicyBrandingExecutiveSummary,
         'headline': report.receiptPolicyHeadline,
         'summaryLine': report.receiptPolicySummary,
         'latestReportSummary': report.latestReceiptPolicySummary,
+        'latestBrandingSummary': report.latestReceiptBrandingSummary,
       },
       'vehicleThroughput': {
         'totalVisits': report.vehicleVisits,
@@ -5709,10 +5772,15 @@ class _GovernancePageState extends State<GovernancePage> {
       'receipt_reports_with_omitted_sections,${report.reportsWithOmittedSections}',
       'receipt_omitted_ai_decision_log_reports,${report.omittedAiDecisionLogReports}',
       'receipt_omitted_guard_metrics_reports,${report.omittedGuardMetricsReports}',
+      'receipt_standard_branding_reports,${report.standardBrandingReports}',
+      'receipt_default_partner_branding_reports,${report.defaultPartnerBrandingReports}',
+      'receipt_custom_branding_override_reports,${report.customBrandingOverrideReports}',
       'receipt_executive_summary,"${report.receiptPolicyExecutiveSummary.replaceAll('"', '""')}"',
+      'receipt_branding_executive_summary,"${report.receiptPolicyBrandingExecutiveSummary.replaceAll('"', '""')}"',
       'receipt_headline,"${report.receiptPolicyHeadline.replaceAll('"', '""')}"',
       'receipt_summary,"${report.receiptPolicySummary.replaceAll('"', '""')}"',
       'receipt_latest_report_summary,"${report.latestReceiptPolicySummary.replaceAll('"', '""')}"',
+      'receipt_latest_branding_summary,"${report.latestReceiptBrandingSummary.replaceAll('"', '""')}"',
       'vehicle_total_visits,${report.vehicleVisits}',
       'vehicle_completed_visits,${report.vehicleCompletedVisits}',
       'vehicle_active_visits,${report.vehicleActiveVisits}',
