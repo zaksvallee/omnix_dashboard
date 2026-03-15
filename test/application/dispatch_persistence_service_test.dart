@@ -103,6 +103,90 @@ void main() {
       expect(restored, history);
     });
 
+    test('saves and restores morning sovereign report history', () async {
+      final service = await DispatchPersistenceService.create();
+      final history = <Map<String, Object?>>[
+        {
+          'date': '2026-03-14',
+          'generatedAtUtc': '2026-03-14T06:00:00.000Z',
+          'shiftWindowStartUtc': '2026-03-13T22:00:00.000Z',
+          'shiftWindowEndUtc': '2026-03-14T06:00:00.000Z',
+          'ledgerIntegrity': {
+            'totalEvents': 10,
+            'hashVerified': true,
+            'integrityScore': 99,
+          },
+          'aiHumanDelta': {
+            'aiDecisions': 1,
+            'humanOverrides': 0,
+            'overrideReasons': <String, int>{},
+          },
+          'normDrift': {
+            'sitesMonitored': 1,
+            'driftDetected': 0,
+            'avgMatchScore': 100,
+          },
+          'complianceBlockage': {
+            'psiraExpired': 0,
+            'pdpExpired': 0,
+            'totalBlocked': 0,
+          },
+          'sceneReview': {
+            'totalReviews': 0,
+            'modelReviews': 0,
+            'metadataFallbackReviews': 0,
+            'suppressedActions': 0,
+            'incidentAlerts': 0,
+            'repeatUpdates': 0,
+            'escalationCandidates': 0,
+            'topPosture': 'none',
+            'actionMixSummary': '',
+            'latestActionTaken': '',
+            'recentActionsSummary': '',
+            'latestSuppressedPattern': '',
+          },
+          'vehicleThroughput': {
+            'totalVisits': 0,
+            'completedVisits': 0,
+            'activeVisits': 0,
+            'incompleteVisits': 0,
+            'uniqueVehicles': 0,
+            'repeatVehicles': 0,
+            'unknownVehicleEvents': 0,
+            'peakHourLabel': 'none',
+            'peakHourVisitCount': 0,
+            'averageCompletedDwellMinutes': 0,
+            'suspiciousShortVisitCount': 0,
+            'loiteringVisitCount': 0,
+            'workflowHeadline': '',
+            'summaryLine': '',
+            'scopeBreakdowns': const <Object?>[],
+            'exceptionVisits': const <Object?>[],
+          },
+          'partnerProgression': {
+            'dispatchCount': 1,
+            'declarationCount': 1,
+            'acceptedCount': 1,
+            'onSiteCount': 0,
+            'allClearCount': 0,
+            'cancelledCount': 0,
+            'workflowHeadline': '',
+            'performanceHeadline': '1 watch response',
+            'slaHeadline': 'Avg accept 12.0m',
+            'summaryLine': '',
+            'scopeBreakdowns': const <Object?>[],
+            'scoreboardRows': const <Object?>[],
+            'dispatchChains': const <Object?>[],
+          },
+        },
+      ];
+
+      await service.saveMorningSovereignReportHistory(history);
+      final restored = await service.readMorningSovereignReportHistory();
+
+      expect(restored, history);
+    });
+
     test('saves, restores, and clears radio intent phrase json', () async {
       final service = await DispatchPersistenceService.create();
       const rawJson =

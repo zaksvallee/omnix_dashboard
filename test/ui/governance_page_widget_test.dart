@@ -316,7 +316,7 @@ void main() {
     expect(find.text('Partner dispatch progression'), findsOneWidget);
     expect(
       find.textContaining('CLIENT-1/SITE-42 • Partner Alpha'),
-      findsOneWidget,
+      findsNWidgets(2),
     );
     expect(
       find.text(
@@ -349,6 +349,128 @@ void main() {
     expect(find.text('Copy Morning JSON'), findsOneWidget);
     expect(find.text('Download Morning CSV'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('governance page renders partner trends from report history', (
+    tester,
+  ) async {
+    SovereignReport buildReport({
+      required String date,
+      required DateTime generatedAtUtc,
+      required int dispatchCount,
+      required int strongCount,
+      required int onTrackCount,
+      required int watchCount,
+      required int criticalCount,
+      required double acceptedDelayMinutes,
+      required double onSiteDelayMinutes,
+      required String summaryLine,
+    }) {
+      return SovereignReport(
+        date: date,
+        generatedAtUtc: generatedAtUtc,
+        shiftWindowStartUtc: generatedAtUtc.subtract(const Duration(hours: 8)),
+        shiftWindowEndUtc: generatedAtUtc,
+        ledgerIntegrity: const SovereignReportLedgerIntegrity(
+          totalEvents: 10,
+          hashVerified: true,
+          integrityScore: 99,
+        ),
+        aiHumanDelta: const SovereignReportAiHumanDelta(
+          aiDecisions: 1,
+          humanOverrides: 0,
+          overrideReasons: <String, int>{},
+        ),
+        normDrift: const SovereignReportNormDrift(
+          sitesMonitored: 1,
+          driftDetected: 0,
+          avgMatchScore: 100,
+        ),
+        complianceBlockage: const SovereignReportComplianceBlockage(
+          psiraExpired: 0,
+          pdpExpired: 0,
+          totalBlocked: 0,
+        ),
+        partnerProgression: SovereignReportPartnerProgression(
+          dispatchCount: dispatchCount,
+          declarationCount: dispatchCount,
+          acceptedCount: dispatchCount,
+          onSiteCount: criticalCount == 0 ? dispatchCount : 0,
+          allClearCount: strongCount,
+          cancelledCount: criticalCount,
+          workflowHeadline: '',
+          performanceHeadline: '',
+          slaHeadline: '',
+          summaryLine: '',
+          scoreboardRows: [
+            SovereignReportPartnerScoreboardRow(
+              clientId: 'CLIENT-1',
+              siteId: 'SITE-42',
+              partnerLabel: 'Partner Alpha',
+              dispatchCount: dispatchCount,
+              strongCount: strongCount,
+              onTrackCount: onTrackCount,
+              watchCount: watchCount,
+              criticalCount: criticalCount,
+              averageAcceptedDelayMinutes: acceptedDelayMinutes,
+              averageOnSiteDelayMinutes: onSiteDelayMinutes,
+              summaryLine: summaryLine,
+            ),
+          ],
+        ),
+      );
+    }
+
+    final priorReport = buildReport(
+      date: '2026-03-09',
+      generatedAtUtc: DateTime.utc(2026, 3, 9, 6, 0),
+      dispatchCount: 2,
+      strongCount: 0,
+      onTrackCount: 0,
+      watchCount: 1,
+      criticalCount: 1,
+      acceptedDelayMinutes: 12.0,
+      onSiteDelayMinutes: 22.0,
+      summaryLine:
+          'Dispatches 2 • Strong 0 • On track 0 • Watch 1 • Critical 1 • Avg accept 12.0m • Avg on site 22.0m',
+    );
+    final currentReport = buildReport(
+      date: '2026-03-10',
+      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      dispatchCount: 2,
+      strongCount: 2,
+      onTrackCount: 0,
+      watchCount: 0,
+      criticalCount: 0,
+      acceptedDelayMinutes: 4.0,
+      onSiteDelayMinutes: 10.0,
+      summaryLine:
+          'Dispatches 2 • Strong 2 • On track 0 • Watch 0 • Critical 0 • Avg accept 4.0m • Avg on site 10.0m',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GovernancePage(
+          events: const [],
+          morningSovereignReport: currentReport,
+          morningSovereignReportHistory: [priorReport],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Partner trends (7 days)'), findsOneWidget);
+    expect(find.text('IMPROVING'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Days 2 • Dispatches 4 • Strong 2 • On track 0 • Watch 1 • Critical 1',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Acceptance timing improved against the prior 7-day average.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('governance page focuses scene action detail from chips', (

@@ -1086,6 +1086,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   Map<String, Object?> _guardLastSyncReportAudit = const {};
   Map<String, Object?> _guardExportAuditClearMeta = const {};
   SovereignReport? _morningSovereignReport;
+  List<SovereignReport> _morningSovereignReportHistory =
+      const <SovereignReport>[];
   String? _morningSovereignReportAutoRunKey;
   GovernanceSceneActionFocus? _governanceSceneActionFocus;
   Map<String, DateTime> _guardCoachingPromptSnoozedUntilByRule = const {};
@@ -4747,8 +4749,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   Future<void> _hydrateMorningSovereignReport() async {
     final persistence = await _persistenceServiceFuture;
     final rawReport = await persistence.readMorningSovereignReport();
+    final rawHistory = await persistence.readMorningSovereignReportHistory();
     final autoRunKey = await persistence.readMorningSovereignReportAutoRunKey();
     SovereignReport? report;
+    final history = <SovereignReport>[];
     if (rawReport.isNotEmpty) {
       try {
         report = SovereignReport.fromJson(rawReport);
@@ -4756,13 +4760,24 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         await persistence.clearMorningSovereignReport();
       }
     }
+    for (final rawEntry in rawHistory) {
+      try {
+        history.add(SovereignReport.fromJson(rawEntry));
+      } catch (_) {}
+    }
+    final normalizedHistory = _normalizedMorningSovereignReportHistory(
+      history,
+      latest: report,
+    );
     if (mounted) {
       setState(() {
         _morningSovereignReport = report;
+        _morningSovereignReportHistory = normalizedHistory;
         _morningSovereignReportAutoRunKey = autoRunKey;
       });
     } else {
       _morningSovereignReport = report;
+      _morningSovereignReportHistory = normalizedHistory;
       _morningSovereignReportAutoRunKey = autoRunKey;
     }
     await _maybeAutoGenerateMorningSovereignReport();
@@ -4778,6 +4793,18 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _persistMorningSovereignReportHistory() async {
+    final persistence = await _persistenceServiceFuture;
+    final history = _morningSovereignReportHistory;
+    if (history.isEmpty) {
+      await persistence.clearMorningSovereignReportHistory();
+      return;
+    }
+    await persistence.saveMorningSovereignReportHistory(
+      history.map((report) => report.toJson()).toList(growable: false),
+    );
+  }
+
   Future<void> _persistMorningSovereignReportAutoRunKey() async {
     final persistence = await _persistenceServiceFuture;
     final key = (_morningSovereignReportAutoRunKey ?? '').trim();
@@ -4791,14 +4818,70 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   void _handleMorningSovereignReportChanged(SovereignReport report) {
     final previous = _morningSovereignReport;
     _appendVehicleVisitReviewEvents(previous: previous, next: report);
+    final nextHistory = _normalizedMorningSovereignReportHistory(
+      _morningSovereignReportHistory,
+      latest: report,
+    );
     if (mounted) {
       setState(() {
         _morningSovereignReport = report;
+        _morningSovereignReportHistory = nextHistory;
       });
     } else {
       _morningSovereignReport = report;
+      _morningSovereignReportHistory = nextHistory;
     }
     unawaited(_persistMorningSovereignReport());
+    unawaited(_persistMorningSovereignReportHistory());
+  }
+
+  List<SovereignReport> _normalizedMorningSovereignReportHistory(
+    Iterable<SovereignReport> reports, {
+    SovereignReport? latest,
+  }) {
+    final byKey = <String, SovereignReport>{};
+    for (final report in reports) {
+      final key = _morningSovereignReportHistoryKeyFor(report);
+      if (key.isEmpty) {
+        continue;
+      }
+      final existing = byKey[key];
+      if (existing == null ||
+          report.generatedAtUtc.toUtc().isAfter(
+            existing.generatedAtUtc.toUtc(),
+          )) {
+        byKey[key] = report;
+      }
+    }
+    if (latest != null) {
+      final key = _morningSovereignReportHistoryKeyFor(latest);
+      if (key.isNotEmpty) {
+        byKey[key] = latest;
+      }
+    }
+    final normalized = byKey.values.toList(growable: false)
+      ..sort((a, b) {
+        final generatedCompare = b.generatedAtUtc.toUtc().compareTo(
+          a.generatedAtUtc.toUtc(),
+        );
+        if (generatedCompare != 0) {
+          return generatedCompare;
+        }
+        return b.date.compareTo(a.date);
+      });
+    return normalized.take(7).toList(growable: false);
+  }
+
+  String _morningSovereignReportHistoryKeyFor(SovereignReport report) {
+    final date = report.date.trim();
+    if (date.isNotEmpty) {
+      return date;
+    }
+    final generatedAt = report.generatedAtUtc.toUtc();
+    if (generatedAt.year > 1970) {
+      return generatedAt.toIso8601String();
+    }
+    return '';
   }
 
   void _appendVehicleVisitReviewEvents({
@@ -4981,17 +5064,27 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     if (mounted) {
       setState(() {
         _morningSovereignReport = report;
+        _morningSovereignReportHistory =
+            _normalizedMorningSovereignReportHistory(
+              _morningSovereignReportHistory,
+              latest: report,
+            );
         _morningSovereignReportAutoRunKey = nextAutoRunKey.isEmpty
             ? null
             : nextAutoRunKey;
       });
     } else {
       _morningSovereignReport = report;
+      _morningSovereignReportHistory = _normalizedMorningSovereignReportHistory(
+        _morningSovereignReportHistory,
+        latest: report,
+      );
       _morningSovereignReportAutoRunKey = nextAutoRunKey.isEmpty
           ? null
           : nextAutoRunKey;
     }
     await _persistMorningSovereignReport();
+    await _persistMorningSovereignReportHistory();
     await _persistMorningSovereignReportAutoRunKey();
     await _recordGuardExportAuditEvent(
       exportType: 'morning_sovereign_report',
@@ -16636,6 +16729,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         return GovernancePage(
           events: events,
           morningSovereignReport: _morningSovereignReport,
+          morningSovereignReportHistory: _morningSovereignReportHistory,
           morningSovereignReportAutoRunKey: _morningSovereignReportAutoRunKey,
           onMorningSovereignReportChanged: _handleMorningSovereignReportChanged,
           onOpenVehicleExceptionEvent: _openEventsForEventId,

@@ -89,6 +89,8 @@ class DispatchPersistenceService {
   static const offlineIncidentSpoolReplayAuditKey =
       'onyx_offline_incident_spool_replay_audit_v1';
   static const morningSovereignReportKey = 'onyx_morning_sovereign_report_v1';
+  static const morningSovereignReportHistoryKey =
+      'onyx_morning_sovereign_report_history_v1';
   static const morningSovereignReportAutoRunKey =
       'onyx_morning_sovereign_report_auto_run_key_v1';
   static const operatorIdKey = 'onyx_operator_id_v1';
@@ -264,7 +266,9 @@ class DispatchPersistenceService {
   Future<List<MonitoringIdentityPolicyAuditRecord>>
   readMonitoringIdentityRuleAuditHistory() async {
     final raw = prefs.getString(monitoringIdentityRuleAuditHistoryKey);
-    if (raw == null || raw.isEmpty) return const <MonitoringIdentityPolicyAuditRecord>[];
+    if (raw == null || raw.isEmpty) {
+      return const <MonitoringIdentityPolicyAuditRecord>[];
+    }
     try {
       final decoded = jsonDecode(raw);
       if (decoded is! List) {
@@ -337,7 +341,8 @@ class DispatchPersistenceService {
     await prefs.remove(monitoringIdentityRuleAuditExpandedKey);
   }
 
-  Future<VideoFleetWatchActionDrilldown?> readAdminWatchActionDrilldown() async {
+  Future<VideoFleetWatchActionDrilldown?>
+  readAdminWatchActionDrilldown() async {
     final raw = prefs.getString(adminWatchActionDrilldownKey);
     if (raw == null || raw.trim().isEmpty) return null;
     final normalized = raw.trim();
@@ -1324,6 +1329,43 @@ class DispatchPersistenceService {
 
   Future<void> clearMorningSovereignReport() async {
     await prefs.remove(morningSovereignReportKey);
+  }
+
+  Future<List<Map<String, Object?>>> readMorningSovereignReportHistory() async {
+    final raw = prefs.getString(morningSovereignReportHistoryKey);
+    if (raw == null || raw.isEmpty) return const <Map<String, Object?>>[];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) {
+        return const <Map<String, Object?>>[];
+      }
+      final reports = <Map<String, Object?>>[];
+      for (final item in decoded) {
+        if (item is! Map) {
+          continue;
+        }
+        reports.add(
+          item.map((key, value) => MapEntry(key.toString(), value as Object?)),
+        );
+      }
+      return reports;
+    } catch (_) {
+      await clearMorningSovereignReportHistory();
+      return const <Map<String, Object?>>[];
+    }
+  }
+
+  Future<void> saveMorningSovereignReportHistory(
+    List<Map<String, Object?>> reports,
+  ) async {
+    await prefs.setString(
+      morningSovereignReportHistoryKey,
+      jsonEncode(reports),
+    );
+  }
+
+  Future<void> clearMorningSovereignReportHistory() async {
+    await prefs.remove(morningSovereignReportHistoryKey);
   }
 
   Future<String?> readMorningSovereignReportAutoRunKey() async {

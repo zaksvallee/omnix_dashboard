@@ -98,6 +98,88 @@ class _VehicleExceptionReviewOverride {
   }
 }
 
+class _PartnerTrendRow {
+  final String clientId;
+  final String siteId;
+  final String partnerLabel;
+  final int reportDays;
+  final int dispatchCount;
+  final int strongCount;
+  final int onTrackCount;
+  final int watchCount;
+  final int criticalCount;
+  final double averageAcceptedDelayMinutes;
+  final double averageOnSiteDelayMinutes;
+  final String currentScoreLabel;
+  final String trendLabel;
+  final String trendReason;
+  final String summaryLine;
+
+  const _PartnerTrendRow({
+    required this.clientId,
+    required this.siteId,
+    required this.partnerLabel,
+    required this.reportDays,
+    required this.dispatchCount,
+    required this.strongCount,
+    required this.onTrackCount,
+    required this.watchCount,
+    required this.criticalCount,
+    required this.averageAcceptedDelayMinutes,
+    required this.averageOnSiteDelayMinutes,
+    required this.currentScoreLabel,
+    required this.trendLabel,
+    required this.trendReason,
+    required this.summaryLine,
+  });
+
+  Map<String, Object?> toJson() {
+    return {
+      'clientId': clientId,
+      'siteId': siteId,
+      'partnerLabel': partnerLabel,
+      'reportDays': reportDays,
+      'dispatchCount': dispatchCount,
+      'strongCount': strongCount,
+      'onTrackCount': onTrackCount,
+      'watchCount': watchCount,
+      'criticalCount': criticalCount,
+      'averageAcceptedDelayMinutes': averageAcceptedDelayMinutes,
+      'averageOnSiteDelayMinutes': averageOnSiteDelayMinutes,
+      'currentScoreLabel': currentScoreLabel,
+      'trendLabel': trendLabel,
+      'trendReason': trendReason,
+      'summaryLine': summaryLine,
+    };
+  }
+}
+
+class _PartnerTrendAggregate {
+  final String clientId;
+  final String siteId;
+  final String partnerLabel;
+  final Set<String> reportDates = <String>{};
+  int dispatchCount = 0;
+  int strongCount = 0;
+  int onTrackCount = 0;
+  int watchCount = 0;
+  int criticalCount = 0;
+  double acceptedDelayWeightedSum = 0;
+  double acceptedDelayWeight = 0;
+  double onSiteDelayWeightedSum = 0;
+  double onSiteDelayWeight = 0;
+  final List<double> priorSeverityScores = <double>[];
+  final List<double> priorAcceptedDelayMinutes = <double>[];
+  final List<double> priorOnSiteDelayMinutes = <double>[];
+  SovereignReportPartnerScoreboardRow? currentRow;
+
+  _PartnerTrendAggregate({
+    required this.clientId,
+    required this.siteId,
+    required this.partnerLabel,
+  });
+}
+
 class _GovernanceReportView {
   final String reportDate;
   final int totalEvents;
@@ -145,6 +227,7 @@ class _GovernanceReportView {
   final String partnerSummary;
   final List<SovereignReportPartnerScopeBreakdown> partnerScopeBreakdowns;
   final List<SovereignReportPartnerScoreboardRow> partnerScoreboardRows;
+  final List<_PartnerTrendRow> partnerTrendRows;
   final List<SovereignReportPartnerDispatchChain> partnerDispatchChains;
   final String latestActionTaken;
   final String recentActionsSummary;
@@ -202,6 +285,7 @@ class _GovernanceReportView {
     required this.partnerSummary,
     required this.partnerScopeBreakdowns,
     required this.partnerScoreboardRows,
+    required this.partnerTrendRows,
     required this.partnerDispatchChains,
     required this.latestActionTaken,
     required this.recentActionsSummary,
@@ -217,6 +301,7 @@ class _GovernanceReportView {
 class GovernancePage extends StatefulWidget {
   final List<DispatchEvent> events;
   final SovereignReport? morningSovereignReport;
+  final List<SovereignReport> morningSovereignReportHistory;
   final String? morningSovereignReportAutoRunKey;
   final Future<void> Function()? onGenerateMorningSovereignReport;
   final ValueChanged<SovereignReport>? onMorningSovereignReportChanged;
@@ -230,6 +315,7 @@ class GovernancePage extends StatefulWidget {
     super.key,
     required this.events,
     this.morningSovereignReport,
+    this.morningSovereignReportHistory = const <SovereignReport>[],
     this.morningSovereignReportAutoRunKey,
     this.onGenerateMorningSovereignReport,
     this.onMorningSovereignReportChanged,
@@ -1113,6 +1199,26 @@ class _GovernancePageState extends State<GovernancePage> {
               children: [
                 for (final row in report.partnerScoreboardRows)
                   _partnerScoreboardCard(row),
+              ],
+            ),
+          ],
+          if (report.partnerTrendRows.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Partner trends (7 days)',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFEAF4FF),
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final row in report.partnerTrendRows)
+                  _partnerTrendCard(row),
               ],
             ),
           ],
@@ -2662,6 +2768,261 @@ class _GovernancePageState extends State<GovernancePage> {
     return '${_vehicleScopeLabel(scope)} • ${scope.summaryLine}';
   }
 
+  List<_PartnerTrendRow> _partnerTrendRows({
+    required String currentReportDate,
+    required List<SovereignReportPartnerScoreboardRow> currentRows,
+  }) {
+    final scoreboardRowsByDate =
+        <String, List<SovereignReportPartnerScoreboardRow>>{};
+    for (final report in widget.morningSovereignReportHistory) {
+      final reportDate = report.date.trim();
+      if (reportDate.isEmpty) {
+        continue;
+      }
+      scoreboardRowsByDate[reportDate] =
+          report.partnerProgression.scoreboardRows;
+    }
+    if (currentReportDate.trim().isNotEmpty && currentRows.isNotEmpty) {
+      scoreboardRowsByDate[currentReportDate.trim()] = currentRows;
+    }
+    if (scoreboardRowsByDate.isEmpty) {
+      return const <_PartnerTrendRow>[];
+    }
+    final aggregates = <String, _PartnerTrendAggregate>{};
+    for (final entry in scoreboardRowsByDate.entries) {
+      final reportDate = entry.key.trim();
+      final isCurrent = reportDate == currentReportDate.trim();
+      for (final row in entry.value) {
+        final key = _partnerTrendKey(
+          row.clientId,
+          row.siteId,
+          row.partnerLabel,
+        );
+        final aggregate = aggregates.putIfAbsent(
+          key,
+          () => _PartnerTrendAggregate(
+            clientId: row.clientId,
+            siteId: row.siteId,
+            partnerLabel: row.partnerLabel,
+          ),
+        );
+        aggregate.reportDates.add(reportDate);
+        aggregate.dispatchCount += row.dispatchCount;
+        aggregate.strongCount += row.strongCount;
+        aggregate.onTrackCount += row.onTrackCount;
+        aggregate.watchCount += row.watchCount;
+        aggregate.criticalCount += row.criticalCount;
+        if (row.averageAcceptedDelayMinutes > 0) {
+          aggregate.acceptedDelayWeightedSum +=
+              row.averageAcceptedDelayMinutes * row.dispatchCount;
+          aggregate.acceptedDelayWeight += row.dispatchCount;
+        }
+        if (row.averageOnSiteDelayMinutes > 0) {
+          aggregate.onSiteDelayWeightedSum +=
+              row.averageOnSiteDelayMinutes * row.dispatchCount;
+          aggregate.onSiteDelayWeight += row.dispatchCount;
+        }
+        if (isCurrent) {
+          aggregate.currentRow = row;
+        } else {
+          aggregate.priorSeverityScores.add(_partnerSeverityScore(row));
+          if (row.averageAcceptedDelayMinutes > 0) {
+            aggregate.priorAcceptedDelayMinutes.add(
+              row.averageAcceptedDelayMinutes,
+            );
+          }
+          if (row.averageOnSiteDelayMinutes > 0) {
+            aggregate.priorOnSiteDelayMinutes.add(
+              row.averageOnSiteDelayMinutes,
+            );
+          }
+        }
+      }
+    }
+    final rows = <_PartnerTrendRow>[];
+    for (final aggregate in aggregates.values) {
+      final currentRow = aggregate.currentRow;
+      if (currentRow == null) {
+        continue;
+      }
+      final acceptedAverage = aggregate.acceptedDelayWeight == 0
+          ? 0.0
+          : aggregate.acceptedDelayWeightedSum / aggregate.acceptedDelayWeight;
+      final onSiteAverage = aggregate.onSiteDelayWeight == 0
+          ? 0.0
+          : aggregate.onSiteDelayWeightedSum / aggregate.onSiteDelayWeight;
+      final trendLabel = _partnerTrendLabel(
+        currentRow,
+        aggregate.priorSeverityScores,
+      );
+      final trendReason = _partnerTrendReason(
+        currentRow: currentRow,
+        priorSeverityScores: aggregate.priorSeverityScores,
+        priorAcceptedDelayMinutes: aggregate.priorAcceptedDelayMinutes,
+        priorOnSiteDelayMinutes: aggregate.priorOnSiteDelayMinutes,
+      );
+      final acceptedLabel = acceptedAverage > 0
+          ? acceptedAverage.toStringAsFixed(1)
+          : 'n/a';
+      final onSiteLabel = onSiteAverage > 0
+          ? onSiteAverage.toStringAsFixed(1)
+          : 'n/a';
+      rows.add(
+        _PartnerTrendRow(
+          clientId: aggregate.clientId,
+          siteId: aggregate.siteId,
+          partnerLabel: aggregate.partnerLabel,
+          reportDays: aggregate.reportDates.length,
+          dispatchCount: aggregate.dispatchCount,
+          strongCount: aggregate.strongCount,
+          onTrackCount: aggregate.onTrackCount,
+          watchCount: aggregate.watchCount,
+          criticalCount: aggregate.criticalCount,
+          averageAcceptedDelayMinutes: double.parse(
+            acceptedAverage.toStringAsFixed(1),
+          ),
+          averageOnSiteDelayMinutes: double.parse(
+            onSiteAverage.toStringAsFixed(1),
+          ),
+          currentScoreLabel: _partnerDominantScoreLabel(currentRow),
+          trendLabel: trendLabel,
+          trendReason: trendReason,
+          summaryLine:
+              'Days ${aggregate.reportDates.length} • Dispatches ${aggregate.dispatchCount} • Strong ${aggregate.strongCount} • On track ${aggregate.onTrackCount} • Watch ${aggregate.watchCount} • Critical ${aggregate.criticalCount} • Avg accept ${acceptedLabel}m • Avg on site ${onSiteLabel}m',
+        ),
+      );
+    }
+    rows.sort((a, b) {
+      final criticalCompare = b.criticalCount.compareTo(a.criticalCount);
+      if (criticalCompare != 0) {
+        return criticalCompare;
+      }
+      final slippingCompare = _partnerTrendPriority(
+        b.trendLabel,
+      ).compareTo(_partnerTrendPriority(a.trendLabel));
+      if (slippingCompare != 0) {
+        return slippingCompare;
+      }
+      final dispatchCompare = b.dispatchCount.compareTo(a.dispatchCount);
+      if (dispatchCompare != 0) {
+        return dispatchCompare;
+      }
+      return a.partnerLabel.compareTo(b.partnerLabel);
+    });
+    return rows;
+  }
+
+  String _partnerTrendKey(String clientId, String siteId, String partnerLabel) {
+    return '${clientId.trim()}::${siteId.trim()}::${partnerLabel.trim().toUpperCase()}';
+  }
+
+  double _partnerSeverityScore(SovereignReportPartnerScoreboardRow row) {
+    final dispatchCount = row.dispatchCount <= 0 ? 1 : row.dispatchCount;
+    final rawScore = (row.criticalCount * 3) + row.watchCount - row.strongCount;
+    return rawScore / dispatchCount;
+  }
+
+  String _partnerDominantScoreLabel(SovereignReportPartnerScoreboardRow row) {
+    if (row.criticalCount > 0) {
+      return 'CRITICAL';
+    }
+    if (row.watchCount > 0) {
+      return 'WATCH';
+    }
+    if (row.onTrackCount > 0) {
+      return 'ON TRACK';
+    }
+    if (row.strongCount > 0) {
+      return 'STRONG';
+    }
+    return '';
+  }
+
+  String _partnerTrendLabel(
+    SovereignReportPartnerScoreboardRow currentRow,
+    List<double> priorSeverityScores,
+  ) {
+    if (priorSeverityScores.isEmpty) {
+      return 'NEW';
+    }
+    final priorAverage =
+        priorSeverityScores.reduce((left, right) => left + right) /
+        priorSeverityScores.length;
+    final currentScore = _partnerSeverityScore(currentRow);
+    if (currentScore <= priorAverage - 0.35) {
+      return 'IMPROVING';
+    }
+    if (currentScore >= priorAverage + 0.35) {
+      return 'SLIPPING';
+    }
+    return 'STABLE';
+  }
+
+  String _partnerTrendReason({
+    required SovereignReportPartnerScoreboardRow currentRow,
+    required List<double> priorSeverityScores,
+    required List<double> priorAcceptedDelayMinutes,
+    required List<double> priorOnSiteDelayMinutes,
+  }) {
+    if (priorSeverityScores.isEmpty) {
+      return 'First recorded shift in the 7-day scoreboard window.';
+    }
+    final trendLabel = _partnerTrendLabel(currentRow, priorSeverityScores);
+    final priorAcceptedAverage = priorAcceptedDelayMinutes.isEmpty
+        ? null
+        : priorAcceptedDelayMinutes.reduce((left, right) => left + right) /
+              priorAcceptedDelayMinutes.length;
+    final priorOnSiteAverage = priorOnSiteDelayMinutes.isEmpty
+        ? null
+        : priorOnSiteDelayMinutes.reduce((left, right) => left + right) /
+              priorOnSiteDelayMinutes.length;
+    switch (trendLabel) {
+      case 'IMPROVING':
+        if (priorAcceptedAverage != null &&
+            currentRow.averageAcceptedDelayMinutes > 0 &&
+            currentRow.averageAcceptedDelayMinutes <=
+                priorAcceptedAverage - 2.0) {
+          return 'Acceptance timing improved against the prior 7-day average.';
+        }
+        if (priorOnSiteAverage != null &&
+            currentRow.averageOnSiteDelayMinutes > 0 &&
+            currentRow.averageOnSiteDelayMinutes <= priorOnSiteAverage - 2.0) {
+          return 'On-site timing improved against the prior 7-day average.';
+        }
+        return 'Current shift severity improved against the prior 7-day average.';
+      case 'SLIPPING':
+        if (priorAcceptedAverage != null &&
+            currentRow.averageAcceptedDelayMinutes >=
+                priorAcceptedAverage + 2.0) {
+          return 'Acceptance timing slipped beyond the prior 7-day average.';
+        }
+        if (priorOnSiteAverage != null &&
+            currentRow.averageOnSiteDelayMinutes >= priorOnSiteAverage + 2.0) {
+          return 'On-site timing slipped beyond the prior 7-day average.';
+        }
+        return 'Current shift severity slipped against the prior 7-day average.';
+      case 'STABLE':
+      case 'NEW':
+        return 'Current shift is holding close to the prior 7-day performance.';
+    }
+    return '';
+  }
+
+  int _partnerTrendPriority(String label) {
+    switch (label.trim().toUpperCase()) {
+      case 'SLIPPING':
+        return 4;
+      case 'NEW':
+        return 3;
+      case 'STABLE':
+        return 2;
+      case 'IMPROVING':
+        return 1;
+      default:
+        return 0;
+    }
+  }
+
   String _partnerScopeLabel(SovereignReportPartnerScopeBreakdown scope) {
     return '${scope.clientId}/${scope.siteId}';
   }
@@ -2672,6 +3033,13 @@ class _GovernancePageState extends State<GovernancePage> {
 
   String _partnerScoreboardCsvSummary(SovereignReportPartnerScoreboardRow row) {
     return '${row.clientId}/${row.siteId} • ${row.partnerLabel} • ${row.summaryLine}';
+  }
+
+  String _partnerTrendCsvSummary(_PartnerTrendRow row) {
+    final currentScore = row.currentScoreLabel.trim().isEmpty
+        ? ''
+        : ' • current ${row.currentScoreLabel.trim()}';
+    return '${row.clientId}/${row.siteId} • ${row.partnerLabel} • ${row.summaryLine} • trend ${row.trendLabel}$currentScore • ${row.trendReason}';
   }
 
   String _partnerChainCsvSummary(SovereignReportPartnerDispatchChain chain) {
@@ -2771,6 +3139,108 @@ class _GovernancePageState extends State<GovernancePage> {
                 color: const Color(0xFF9CB2D1),
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _partnerTrendCard(_PartnerTrendRow row) {
+    final scopeLabel = '${row.clientId}/${row.siteId}';
+    final trendColor = _partnerTrendColor(row.trendLabel);
+    final currentScoreColor = _partnerScoreColor(row.currentScoreLabel);
+    return SizedBox(
+      width: 340,
+      child: Container(
+        key: ValueKey<String>(
+          'governance-partner-trend-$scopeLabel-${row.partnerLabel}',
+        ),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: const Color(0x14000000),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0x22FFFFFF)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '$scopeLabel • ${row.partnerLabel}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFEAF4FF),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                if (row.currentScoreLabel.trim().isNotEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: currentScoreColor.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: currentScoreColor.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    child: Text(
+                      row.currentScoreLabel,
+                      style: GoogleFonts.inter(
+                        color: currentScoreColor,
+                        fontSize: 8,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                ],
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: trendColor.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: trendColor.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Text(
+                    row.trendLabel,
+                    style: GoogleFonts.inter(
+                      color: trendColor,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              row.summaryLine,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF9CB2D1),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              row.trendReason,
+              style: GoogleFonts.inter(
+                color: trendColor,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ],
@@ -2924,6 +3394,16 @@ class _GovernancePageState extends State<GovernancePage> {
     };
   }
 
+  Color _partnerTrendColor(String trendLabel) {
+    return switch (trendLabel.trim().toUpperCase()) {
+      'IMPROVING' => const Color(0xFF10B981),
+      'STABLE' => const Color(0xFF38BDF8),
+      'SLIPPING' => const Color(0xFFF97316),
+      'NEW' => const Color(0xFFFDE68A),
+      _ => const Color(0xFF9CB2D1),
+    };
+  }
+
   Widget _card({
     required String title,
     required String subtitle,
@@ -3046,6 +3526,10 @@ class _GovernancePageState extends State<GovernancePage> {
                 .take(3)
                 .map((entry) => '${entry.key} (${entry.value})')
                 .join(', ');
+      final partnerTrendRows = _partnerTrendRows(
+        currentReportDate: canonical.date,
+        currentRows: canonical.partnerProgression.scoreboardRows,
+      );
       return _GovernanceReportView(
         reportDate: canonical.date,
         totalEvents: canonical.ledgerIntegrity.totalEvents,
@@ -3097,6 +3581,7 @@ class _GovernancePageState extends State<GovernancePage> {
         partnerSummary: canonical.partnerProgression.summaryLine,
         partnerScopeBreakdowns: canonical.partnerProgression.scopeBreakdowns,
         partnerScoreboardRows: canonical.partnerProgression.scoreboardRows,
+        partnerTrendRows: partnerTrendRows,
         partnerDispatchChains: canonical.partnerProgression.dispatchChains,
         latestActionTaken: canonical.sceneReview.latestActionTaken,
         recentActionsSummary: canonical.sceneReview.recentActionsSummary,
@@ -3136,11 +3621,16 @@ class _GovernancePageState extends State<GovernancePage> {
       widget.events,
       widget.events.whereType<DecisionCreated>().toList(growable: false),
     );
+    final fallbackReportDate = _dateLabel(DateTime.now().toUtc());
+    final partnerTrendRows = _partnerTrendRows(
+      currentReportDate: fallbackReportDate,
+      currentRows: partnerSummary.scoreboardRows,
+    );
     final integrityScore = widget.events.isEmpty
         ? 100
         : (99 - (widget.events.length % 3));
     return _GovernanceReportView(
-      reportDate: _dateLabel(DateTime.now().toUtc()),
+      reportDate: fallbackReportDate,
       totalEvents: widget.events.length,
       hashVerified: true,
       integrityScore: integrityScore.clamp(92, 100),
@@ -3186,6 +3676,7 @@ class _GovernancePageState extends State<GovernancePage> {
       partnerSummary: partnerSummary.summaryLine,
       partnerScopeBreakdowns: partnerSummary.scopeBreakdowns,
       partnerScoreboardRows: partnerSummary.scoreboardRows,
+      partnerTrendRows: partnerTrendRows,
       partnerDispatchChains: partnerSummary.dispatchChains,
       latestActionTaken: '',
       recentActionsSummary: '',
@@ -3778,6 +4269,9 @@ class _GovernancePageState extends State<GovernancePage> {
         'scoreboardRows': report.partnerScoreboardRows
             .map((row) => row.toJson())
             .toList(growable: false),
+        'trendRows': report.partnerTrendRows
+            .map((row) => row.toJson())
+            .toList(growable: false),
         'dispatchChains': report.partnerDispatchChains
             .map((chain) => chain.toJson())
             .toList(growable: false),
@@ -3850,6 +4344,8 @@ class _GovernancePageState extends State<GovernancePage> {
         'partner_scope_${i + 1},"${_partnerScopeCsvSummary(report.partnerScopeBreakdowns[i]).replaceAll('"', '""')}"',
       for (var i = 0; i < report.partnerScoreboardRows.length; i++)
         'partner_scoreboard_${i + 1},"${_partnerScoreboardCsvSummary(report.partnerScoreboardRows[i]).replaceAll('"', '""')}"',
+      for (var i = 0; i < report.partnerTrendRows.length; i++)
+        'partner_trend_${i + 1},"${_partnerTrendCsvSummary(report.partnerTrendRows[i]).replaceAll('"', '""')}"',
       for (var i = 0; i < report.partnerDispatchChains.length; i++)
         'partner_chain_${i + 1},"${_partnerChainCsvSummary(report.partnerDispatchChains[i]).replaceAll('"', '""')}"',
       if (focusedSceneAction != null)
