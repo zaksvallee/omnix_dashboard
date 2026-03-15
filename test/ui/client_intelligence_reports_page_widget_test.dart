@@ -271,9 +271,11 @@ void main() {
     );
     expect(find.text('IMPROVING'), findsOneWidget);
 
-    await tester.tap(
-      find.byKey(const ValueKey('reports-partner-scorecard-copy-json')),
+    final copyJsonButton = find.byKey(
+      const ValueKey('reports-partner-scorecard-copy-json'),
     );
+    await tester.ensureVisible(copyJsonButton);
+    await tester.tap(copyJsonButton);
     await tester.pumpAndSettle();
 
     expect(clipboardText, isNotNull);
@@ -282,18 +284,22 @@ void main() {
     expect(clipboardText, contains('"dispatchId": "DSP-9001"'));
     expect(clipboardText, isNot(contains('CLIENT-002')));
 
-    await tester.tap(
-      find.byKey(const ValueKey('reports-partner-scorecard-copy-csv')),
+    final copyCsvButton = find.byKey(
+      const ValueKey('reports-partner-scorecard-copy-csv'),
     );
+    await tester.ensureVisible(copyCsvButton);
+    await tester.tap(copyCsvButton);
     await tester.pumpAndSettle();
 
     expect(clipboardText, contains('partner_label,"PARTNER • Alpha"'));
     expect(clipboardText, contains('trend_label,IMPROVING'));
     expect(clipboardText, contains('dispatch_chain_1,"DSP-9001'));
 
-    await tester.tap(
-      find.byKey(const ValueKey('reports-partner-scorecard-open-governance')),
+    final openGovernanceButton = find.byKey(
+      const ValueKey('reports-partner-scorecard-open-governance'),
     );
+    await tester.ensureVisible(openGovernanceButton);
+    await tester.tap(openGovernanceButton);
     await tester.pumpAndSettle();
 
     expect(openedGovernanceScope, <String, String>{
@@ -301,6 +307,197 @@ void main() {
       'siteId': 'SITE-SANDTON',
       'partnerLabel': 'PARTNER • Alpha',
     });
+  });
+
+  testWidgets('client reports can focus and clear a partner lane locally', (
+    tester,
+  ) async {
+    final priorReport = SovereignReport(
+      date: '2026-03-14',
+      generatedAtUtc: DateTime.utc(2026, 3, 14, 6, 0),
+      shiftWindowStartUtc: DateTime.utc(2026, 3, 13, 22, 0),
+      shiftWindowEndUtc: DateTime.utc(2026, 3, 14, 6, 0),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 10,
+        hashVerified: true,
+        integrityScore: 99,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 1,
+        humanOverrides: 0,
+        overrideReasons: <String, int>{},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 1,
+        driftDetected: 0,
+        avgMatchScore: 100,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 0,
+        pdpExpired: 0,
+        totalBlocked: 0,
+      ),
+      partnerProgression: SovereignReportPartnerProgression(
+        dispatchCount: 2,
+        declarationCount: 4,
+        acceptedCount: 2,
+        onSiteCount: 1,
+        allClearCount: 1,
+        cancelledCount: 1,
+        summaryLine: '',
+        scoreboardRows: [
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            partnerLabel: 'PARTNER • Alpha',
+            dispatchCount: 1,
+            strongCount: 0,
+            onTrackCount: 1,
+            watchCount: 0,
+            criticalCount: 0,
+            averageAcceptedDelayMinutes: 7.0,
+            averageOnSiteDelayMinutes: 14.0,
+            summaryLine:
+                'Dispatches 1 • Strong 0 • On track 1 • Watch 0 • Critical 0 • Avg accept 7.0m • Avg on site 14.0m',
+          ),
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            partnerLabel: 'PARTNER • Beta',
+            dispatchCount: 1,
+            strongCount: 0,
+            onTrackCount: 0,
+            watchCount: 1,
+            criticalCount: 0,
+            averageAcceptedDelayMinutes: 9.0,
+            averageOnSiteDelayMinutes: 18.0,
+            summaryLine:
+                'Dispatches 1 • Strong 0 • On track 0 • Watch 1 • Critical 0 • Avg accept 9.0m • Avg on site 18.0m',
+          ),
+        ],
+      ),
+    );
+    final currentReport = SovereignReport(
+      date: '2026-03-15',
+      generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
+      shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 10,
+        hashVerified: true,
+        integrityScore: 99,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 1,
+        humanOverrides: 0,
+        overrideReasons: <String, int>{},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 1,
+        driftDetected: 0,
+        avgMatchScore: 100,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 0,
+        pdpExpired: 0,
+        totalBlocked: 0,
+      ),
+      partnerProgression: SovereignReportPartnerProgression(
+        dispatchCount: 2,
+        declarationCount: 6,
+        acceptedCount: 2,
+        onSiteCount: 2,
+        allClearCount: 1,
+        cancelledCount: 0,
+        summaryLine: '',
+        scoreboardRows: [
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            partnerLabel: 'PARTNER • Alpha',
+            dispatchCount: 1,
+            strongCount: 1,
+            onTrackCount: 0,
+            watchCount: 0,
+            criticalCount: 0,
+            averageAcceptedDelayMinutes: 4.0,
+            averageOnSiteDelayMinutes: 10.0,
+            summaryLine:
+                'Dispatches 1 • Strong 1 • On track 0 • Watch 0 • Critical 0 • Avg accept 4.0m • Avg on site 10.0m',
+          ),
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            partnerLabel: 'PARTNER • Beta',
+            dispatchCount: 1,
+            strongCount: 0,
+            onTrackCount: 1,
+            watchCount: 0,
+            criticalCount: 0,
+            averageAcceptedDelayMinutes: 6.0,
+            averageOnSiteDelayMinutes: 12.0,
+            summaryLine:
+                'Dispatches 1 • Strong 0 • On track 1 • Watch 0 • Critical 0 • Avg accept 6.0m • Avg on site 12.0m',
+          ),
+        ],
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ClientIntelligenceReportsPage(
+          store: InMemoryEventStore(),
+          selectedClient: 'CLIENT-001',
+          selectedSite: 'SITE-SANDTON',
+          morningSovereignReportHistory: [priorReport, currentReport],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Partner Scorecard Lanes'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('reports-partner-scope-banner')),
+      findsNothing,
+    );
+
+    final focusLaneButton = find.byKey(
+      const ValueKey(
+        'reports-partner-lane-focus-CLIENT-001/SITE-SANDTON/PARTNER • Beta',
+      ),
+    );
+    await tester.ensureVisible(focusLaneButton);
+    await tester.tap(focusLaneButton);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('reports-partner-scope-banner')),
+      findsOneWidget,
+    );
+    expect(
+      find.text('CLIENT-001/SITE-SANDTON • PARTNER • Beta'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Focused Reports on SITE-SANDTON • PARTNER • Beta.'),
+      findsOneWidget,
+    );
+
+    final clearFocusButton = find.byKey(
+      const ValueKey('reports-partner-scorecard-clear-focus'),
+    );
+    await tester.ensureVisible(clearFocusButton);
+    await tester.tap(clearFocusButton);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('reports-partner-scope-banner')),
+      findsNothing,
+    );
+    expect(
+      find.textContaining('Partner scorecard focus cleared.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('client reports export all includes latest-action lens context', (

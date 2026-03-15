@@ -78,6 +78,9 @@ class _ClientIntelligenceReportsPageState
   String _selectedScope = 'Sandton Estate North';
   DateTime _startDate = DateTime.utc(2024, 3, 1);
   DateTime _endDate = DateTime.utc(2024, 3, 10);
+  String? _focusedPartnerScopeClientId;
+  String? _focusedPartnerScopeSiteId;
+  String? _focusedPartnerScopePartnerLabel;
 
   bool _includeTimeline = true;
   bool _includeDispatchSummary = true;
@@ -94,6 +97,7 @@ class _ClientIntelligenceReportsPageState
   void initState() {
     super.initState();
     _shellBinding = ReportShellBinding.fromShellState(widget.reportShellState);
+    _syncFocusedPartnerScopeFromWidget();
     _loadReceipts();
   }
 
@@ -104,6 +108,14 @@ class _ClientIntelligenceReportsPageState
       oldShellState: oldWidget.reportShellState,
       newShellState: widget.reportShellState,
     );
+    if (oldWidget.initialPartnerScopeClientId !=
+            widget.initialPartnerScopeClientId ||
+        oldWidget.initialPartnerScopeSiteId !=
+            widget.initialPartnerScopeSiteId ||
+        oldWidget.initialPartnerScopePartnerLabel !=
+            widget.initialPartnerScopePartnerLabel) {
+      _syncFocusedPartnerScopeFromWidget();
+    }
   }
 
   Future<void> _loadReceipts() async {
@@ -256,6 +268,10 @@ class _ClientIntelligenceReportsPageState
                       row: previewTargetReceipt,
                       hasLiveReceipts: _receipts.isNotEmpty,
                     ),
+                  ],
+                  if (_sitePartnerScoreboardRows.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    _partnerScorecardLanesCard(),
                   ],
                   if (_hasPartnerScopeFocus) ...[
                     const SizedBox(height: 8),
@@ -673,6 +689,12 @@ class _ClientIntelligenceReportsPageState
                 icon: Icons.table_chart_rounded,
                 onTap: _copyPartnerScopeCsv,
               ),
+              _actionButton(
+                key: const ValueKey('reports-partner-scorecard-clear-focus'),
+                label: 'Clear Focus',
+                icon: Icons.filter_alt_off_rounded,
+                onTap: _clearPartnerScopeFocus,
+              ),
               if (widget.onOpenGovernanceForPartnerScope != null)
                 _actionButton(
                   key: const ValueKey(
@@ -708,6 +730,28 @@ class _ClientIntelligenceReportsPageState
               _partnerScopeHistoryRow(point),
               const SizedBox(height: 6),
             ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _partnerScorecardLanesCard() {
+    return OnyxSectionCard(
+      title: 'Partner Scorecard Lanes',
+      subtitle:
+          'Enter a responder scorecard focus directly from Reports for this client and site.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (
+            var index = 0;
+            index < _sitePartnerScoreboardRows.length;
+            index++
+          ) ...[
+            _partnerScorecardLaneRow(_sitePartnerScoreboardRows[index]),
+            if (index < _sitePartnerScoreboardRows.length - 1)
+              const SizedBox(height: 8),
           ],
         ],
       ),
@@ -870,8 +914,146 @@ class _ClientIntelligenceReportsPageState
     );
   }
 
+  Widget _partnerScorecardLaneRow(SovereignReportPartnerScoreboardRow row) {
+    final historyPoints = _partnerScopeHistoryPointsFor(
+      clientId: row.clientId,
+      siteId: row.siteId,
+      partnerLabel: row.partnerLabel,
+    );
+    final trendLabel = _partnerScopeTrendLabel(historyPoints);
+    final trendReason = _partnerScopeTrendReason(historyPoints);
+    final isActive = _partnerScoreboardMatchesFocus(row);
+    return Container(
+      key: ValueKey<String>(
+        'reports-partner-lane-${row.clientId}/${row.siteId}/${row.partnerLabel}',
+      ),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isActive ? const Color(0x1418D39E) : const Color(0xFF0E1A2B),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isActive ? const Color(0xFF59D79B) : const Color(0xFF223244),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      row.partnerLabel,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFE8F1FF),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${row.clientId}/${row.siteId}',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF7D93B1),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _partnerScopeChip(
+                label: isActive ? 'ACTIVE' : trendLabel,
+                color: isActive
+                    ? const Color(0xFF59D79B)
+                    : _partnerTrendColor(trendLabel),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            row.summaryLine,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9CB2D1),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (trendReason.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              trendReason,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _actionButton(
+                key: ValueKey<String>(
+                  'reports-partner-lane-focus-${row.clientId}/${row.siteId}/${row.partnerLabel}',
+                ),
+                label: isActive ? 'Focused' : 'Focus Lane',
+                icon: isActive
+                    ? Icons.check_circle_rounded
+                    : Icons.filter_center_focus_rounded,
+                onTap: isActive
+                    ? null
+                    : () => _setPartnerScopeFocus(
+                        clientId: row.clientId,
+                        siteId: row.siteId,
+                        partnerLabel: row.partnerLabel,
+                      ),
+              ),
+              if (widget.onOpenGovernanceForPartnerScope != null)
+                _actionButton(
+                  key: ValueKey<String>(
+                    'reports-partner-lane-open-governance-${row.clientId}/${row.siteId}/${row.partnerLabel}',
+                  ),
+                  label: 'Open Governance',
+                  icon: Icons.verified_user_rounded,
+                  onTap: () {
+                    widget.onOpenGovernanceForPartnerScope!(
+                      row.clientId,
+                      row.siteId,
+                      row.partnerLabel,
+                    );
+                    _showReceiptActionFeedback(
+                      'Opening Governance for ${row.siteId} • ${row.partnerLabel}.',
+                    );
+                  },
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   List<_PartnerScopeHistoryPoint> _partnerScopeHistoryPoints() {
-    if (!_hasPartnerScopeFocus) {
+    return _partnerScopeHistoryPointsFor(
+      clientId: _partnerScopeClientId,
+      siteId: _partnerScopeSiteId,
+      partnerLabel: _partnerScopePartnerLabel,
+    );
+  }
+
+  List<_PartnerScopeHistoryPoint> _partnerScopeHistoryPointsFor({
+    required String? clientId,
+    required String? siteId,
+    required String? partnerLabel,
+  }) {
+    if (clientId == null || siteId == null || partnerLabel == null) {
       return const <_PartnerScopeHistoryPoint>[];
     }
     final reports = [...widget.morningSovereignReportHistory]
@@ -893,7 +1075,12 @@ class _ClientIntelligenceReportsPageState
         continue;
       }
       for (final row in report.partnerProgression.scoreboardRows) {
-        if (!_partnerScoreboardMatchesScope(row)) {
+        if (!_partnerScoreboardMatchesScopeValues(
+          row,
+          clientId: clientId,
+          siteId: siteId,
+          partnerLabel: partnerLabel,
+        )) {
           continue;
         }
         rows.add(
@@ -929,10 +1116,30 @@ class _ClientIntelligenceReportsPageState
   }
 
   bool _partnerScoreboardMatchesScope(SovereignReportPartnerScoreboardRow row) {
-    return row.clientId.trim() == _partnerScopeClientId &&
-        row.siteId.trim() == _partnerScopeSiteId &&
-        row.partnerLabel.trim().toUpperCase() ==
-            (_partnerScopePartnerLabel ?? '').toUpperCase();
+    return _partnerScoreboardMatchesScopeValues(
+      row,
+      clientId: _partnerScopeClientId,
+      siteId: _partnerScopeSiteId,
+      partnerLabel: _partnerScopePartnerLabel,
+    );
+  }
+
+  bool _partnerScoreboardMatchesFocus(SovereignReportPartnerScoreboardRow row) {
+    return _partnerScoreboardMatchesScope(row);
+  }
+
+  bool _partnerScoreboardMatchesScopeValues(
+    SovereignReportPartnerScoreboardRow row, {
+    required String? clientId,
+    required String? siteId,
+    required String? partnerLabel,
+  }) {
+    return clientId != null &&
+        siteId != null &&
+        partnerLabel != null &&
+        row.clientId.trim() == clientId &&
+        row.siteId.trim() == siteId &&
+        row.partnerLabel.trim().toUpperCase() == partnerLabel.toUpperCase();
   }
 
   bool _partnerDispatchChainMatchesScope(
@@ -1569,17 +1776,17 @@ class _ClientIntelligenceReportsPageState
   }
 
   String? get _partnerScopeClientId {
-    final value = widget.initialPartnerScopeClientId?.trim() ?? '';
+    final value = _focusedPartnerScopeClientId?.trim() ?? '';
     return value.isEmpty ? null : value;
   }
 
   String? get _partnerScopeSiteId {
-    final value = widget.initialPartnerScopeSiteId?.trim() ?? '';
+    final value = _focusedPartnerScopeSiteId?.trim() ?? '';
     return value.isEmpty ? null : value;
   }
 
   String? get _partnerScopePartnerLabel {
-    final value = widget.initialPartnerScopePartnerLabel?.trim() ?? '';
+    final value = _focusedPartnerScopePartnerLabel?.trim() ?? '';
     return value.isEmpty ? null : value;
   }
 
@@ -1587,6 +1794,27 @@ class _ClientIntelligenceReportsPageState
       _partnerScopeClientId != null &&
       _partnerScopeSiteId != null &&
       _partnerScopePartnerLabel != null;
+
+  List<SovereignReportPartnerScoreboardRow> get _sitePartnerScoreboardRows {
+    final reports = [...widget.morningSovereignReportHistory]
+      ..sort((a, b) {
+        final generatedCompare = b.generatedAtUtc.compareTo(a.generatedAtUtc);
+        if (generatedCompare != 0) {
+          return generatedCompare;
+        }
+        return b.date.compareTo(a.date);
+      });
+    if (reports.isEmpty) {
+      return const <SovereignReportPartnerScoreboardRow>[];
+    }
+    return reports.first.partnerProgression.scoreboardRows
+        .where(
+          (row) =>
+              row.clientId.trim() == widget.selectedClient &&
+              row.siteId.trim() == widget.selectedSite,
+        )
+        .toList(growable: false);
+  }
 
   String get _pageSubtitle {
     final scopeLabel = _hasPartnerScopeFocus
@@ -1596,6 +1824,45 @@ class _ClientIntelligenceReportsPageState
       scopeLabel: scopeLabel,
       filter: _receiptFilter,
     );
+  }
+
+  void _syncFocusedPartnerScopeFromWidget() {
+    _focusedPartnerScopeClientId = widget.initialPartnerScopeClientId?.trim();
+    _focusedPartnerScopeSiteId = widget.initialPartnerScopeSiteId?.trim();
+    _focusedPartnerScopePartnerLabel = widget.initialPartnerScopePartnerLabel
+        ?.trim();
+    if ((_focusedPartnerScopeClientId ?? '').isEmpty ||
+        (_focusedPartnerScopeSiteId ?? '').isEmpty ||
+        (_focusedPartnerScopePartnerLabel ?? '').isEmpty) {
+      _focusedPartnerScopeClientId = null;
+      _focusedPartnerScopeSiteId = null;
+      _focusedPartnerScopePartnerLabel = null;
+    }
+  }
+
+  void _setPartnerScopeFocus({
+    required String clientId,
+    required String siteId,
+    required String partnerLabel,
+  }) {
+    setState(() {
+      _focusedPartnerScopeClientId = clientId.trim();
+      _focusedPartnerScopeSiteId = siteId.trim();
+      _focusedPartnerScopePartnerLabel = partnerLabel.trim();
+    });
+    _showReceiptActionFeedback('Focused Reports on $siteId • $partnerLabel.');
+  }
+
+  void _clearPartnerScopeFocus() {
+    if (!_hasPartnerScopeFocus) {
+      return;
+    }
+    setState(() {
+      _focusedPartnerScopeClientId = null;
+      _focusedPartnerScopeSiteId = null;
+      _focusedPartnerScopePartnerLabel = null;
+    });
+    _showReceiptActionFeedback('Partner scorecard focus cleared.');
   }
 
   String get _receiptHistorySubtitle {
