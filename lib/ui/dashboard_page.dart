@@ -1166,8 +1166,12 @@ class _RightRail extends StatelessWidget {
         policy.reportsWithOmittedSections +
         policy.omittedAiDecisionLogReports +
         policy.omittedGuardMetricsReports;
+    final brandingWeight =
+        (policy.customBrandingOverrideReports * 2) +
+        policy.defaultPartnerBrandingReports;
     return ((policy.legacyConfigurationReports * 3) + (omittedWeight * 2)) /
-        policy.generatedReports;
+            policy.generatedReports +
+        (brandingWeight / policy.generatedReports);
   }
 
   String _slippingReceiptPolicySummary(
@@ -1184,6 +1188,13 @@ class _RightRail extends StatelessWidget {
     );
     if (current.legacyConfigurationReports > 0 && baselineLegacy == 0) {
       return 'Latest receipt fell back to legacy policy capture.';
+    }
+    final baselineCustomBranding = baseline.fold<int>(
+      0,
+      (value, item) => value + item.customBrandingOverrideReports,
+    );
+    if (current.customBrandingOverrideReports > baselineCustomBranding) {
+      return 'Latest receipts introduced more custom branding overrides than recent baseline.';
     }
     if (current.reportsWithOmittedSections > baselineOmitted) {
       return 'Latest receipts omitted more sections than recent baseline.';
@@ -1208,6 +1219,14 @@ class _RightRail extends StatelessWidget {
         (baselineLegacy > 0 || baselineOmitted > 0)) {
       return 'Latest receipt returned to full tracked policy.';
     }
+    final baselineCustomBranding = baseline.fold<int>(
+      0,
+      (value, item) => value + item.customBrandingOverrideReports,
+    );
+    if (current.customBrandingOverrideReports == 0 &&
+        baselineCustomBranding > 0) {
+      return 'Latest receipts returned from custom branding overrides to baseline branding.';
+    }
     return 'Latest receipt posture improved against recent policy baseline.';
   }
 
@@ -1229,6 +1248,22 @@ class _RightRail extends StatelessWidget {
       return 'Latest omission posture held close to recent policy baseline.';
     }
     return 'Latest receipts held close to recent policy baseline.';
+  }
+
+  String _receiptPolicyRailSummary(SovereignReportReceiptPolicy policy) {
+    final base = policy.executiveSummary.trim().isNotEmpty
+        ? policy.executiveSummary
+        : policy.headline.trim().isNotEmpty
+        ? policy.headline
+        : policy.summaryLine;
+    final branding = policy.brandingExecutiveSummary.trim();
+    if (branding.isEmpty) {
+      return base;
+    }
+    if (base.trim().isEmpty) {
+      return branding;
+    }
+    return '$base • $branding';
   }
 
   String _guardFailureTraceText(
@@ -2488,19 +2523,15 @@ class _RightRail extends StatelessWidget {
                     sovereignReport.receiptPolicy.executiveSummary
                         .trim()
                         .isNotEmpty ||
+                    sovereignReport.receiptPolicy.brandingExecutiveSummary
+                        .trim()
+                        .isNotEmpty ||
                     sovereignReport.receiptPolicy.summaryLine.trim().isNotEmpty)
                   _RailMetricRow(
                     label: 'Receipt policy',
-                    value:
-                        sovereignReport.receiptPolicy.executiveSummary
-                            .trim()
-                            .isNotEmpty
-                        ? sovereignReport.receiptPolicy.executiveSummary
-                        : sovereignReport.receiptPolicy.headline
-                              .trim()
-                              .isNotEmpty
-                        ? sovereignReport.receiptPolicy.headline
-                        : sovereignReport.receiptPolicy.summaryLine,
+                    value: _receiptPolicyRailSummary(
+                      sovereignReport.receiptPolicy,
+                    ),
                   ),
                 if (receiptPolicyTrend != null)
                   _RailMetricRow(

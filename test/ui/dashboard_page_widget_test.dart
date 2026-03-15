@@ -143,13 +143,20 @@ void main() {
               reportsWithOmittedSections: 1,
               omittedAiDecisionLogReports: 1,
               omittedGuardMetricsReports: 1,
+              standardBrandingReports: 1,
+              defaultPartnerBrandingReports: 0,
+              customBrandingOverrideReports: 1,
               executiveSummary:
                   '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
+              brandingExecutiveSummary:
+                  '1 receipt used custom branding override',
               headline: '1 generated reports omitted sections',
               summaryLine:
-                  'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
+                  'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1 • Standard branding 1 • Default partner branding 0 • Custom branding 1',
               latestReportSummary:
                   'CLIENT-1/SITE-1 2026-03 omitted AI Decision Log, Guard Metrics.',
+              latestBrandingSummary:
+                  'CLIENT-1/SITE-1 2026-03 used standard ONYX branding.',
             ),
             vehicleThroughput: const SovereignReportVehicleThroughput(
               totalVisits: 6,
@@ -252,13 +259,20 @@ void main() {
                 reportsWithOmittedSections: 0,
                 omittedAiDecisionLogReports: 0,
                 omittedGuardMetricsReports: 0,
+                standardBrandingReports: 1,
+                defaultPartnerBrandingReports: 0,
+                customBrandingOverrideReports: 0,
                 executiveSummary:
                     '1 client-facing receipt used full tracked policy',
+                brandingExecutiveSummary:
+                    '1 receipt used standard ONYX branding',
                 headline: 'All generated reports included every section',
                 summaryLine:
-                    'Reports 1 • Tracked 1 • Legacy 0 • Full 1 • Omitted 0 • AI log omitted 0 • Guard metrics omitted 0',
+                    'Reports 1 • Tracked 1 • Legacy 0 • Full 1 • Omitted 0 • AI log omitted 0 • Guard metrics omitted 0 • Standard branding 1 • Default partner branding 0 • Custom branding 0',
                 latestReportSummary:
                     'CLIENT-1/SITE-1 2026-03 included all configured sections.',
+                latestBrandingSummary:
+                    'CLIENT-1/SITE-1 2026-03 used standard ONYX branding.',
               ),
             ),
           ],
@@ -293,7 +307,7 @@ void main() {
     expect(find.text('Receipt policy'), findsOneWidget);
     expect(
       find.text(
-        '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
+        '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy • 1 receipt used custom branding override',
       ),
       findsOneWidget,
     );

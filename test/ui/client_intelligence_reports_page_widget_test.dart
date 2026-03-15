@@ -756,6 +756,10 @@ void main() {
         eventCount: 24,
         reportSchemaVersion: 3,
         projectionVersion: 1,
+        primaryBrandLabel: 'VISION Tactical',
+        endorsementLine: 'Powered by ONYX',
+        brandingSourceLabel: 'PARTNER • Alpha',
+        brandingUsesOverride: true,
         includeAiDecisionLog: false,
         includeGuardMetrics: false,
       ),
@@ -780,10 +784,13 @@ void main() {
 
     expect(find.text('Receipt Policy History'), findsOneWidget);
     expect(find.text('SLIPPING'), findsOneWidget);
-    expect(find.text('Omitted AI Decision Log, Guard Metrics'), findsWidgets);
+    expect(
+      find.text('Omitted AI Decision Log, Guard Metrics • Custom branding'),
+      findsWidgets,
+    );
     expect(
       find.text(
-        'The latest receipt omitted more sections than the recent receipt baseline.',
+        'The latest receipt introduced a custom branding override against the recent receipt baseline.',
       ),
       findsOneWidget,
     );
@@ -797,6 +804,7 @@ void main() {
     );
     expect(find.text('LEGACY'), findsOneWidget);
     expect(find.text('2 OMITTED'), findsWidgets);
+    expect(find.text('CUSTOM BRANDING'), findsWidgets);
 
     final copyJsonButton = find.byKey(
       const ValueKey('reports-receipt-policy-copy-json'),
@@ -808,6 +816,13 @@ void main() {
     expect(clipboardText, isNotNull);
     expect(clipboardText, contains('"trendLabel": "SLIPPING"'));
     expect(clipboardText, contains('"eventId": "RPT-3"'));
+    expect(clipboardText, contains('"brandingMode": "CUSTOM BRANDING"'));
+    expect(
+      clipboardText,
+      contains(
+        '"brandingSummary": "Branding: custom override from default partner lane PARTNER • Alpha."',
+      ),
+    );
     expect(clipboardText, contains('"stateLabel": "LEGACY"'));
     expect(clipboardText, contains('"omittedSections": ['));
 
@@ -819,7 +834,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(clipboardText, contains('trend_label,SLIPPING'));
-    expect(clipboardText, contains('receipt_1,"RPT-3",state=2 OMITTED'));
+    expect(
+      clipboardText,
+      contains('receipt_1,"RPT-3",state=2 OMITTED,branding=CUSTOM BRANDING'),
+    );
     expect(clipboardText, contains('receipt_2,"RPT-2",state=LEGACY'));
 
     final openEventsButton = find.byKey(

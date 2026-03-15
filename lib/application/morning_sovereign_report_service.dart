@@ -212,10 +212,15 @@ class SovereignReportReceiptPolicy {
   final int reportsWithOmittedSections;
   final int omittedAiDecisionLogReports;
   final int omittedGuardMetricsReports;
+  final int standardBrandingReports;
+  final int defaultPartnerBrandingReports;
+  final int customBrandingOverrideReports;
   final String executiveSummary;
   final String headline;
   final String summaryLine;
   final String latestReportSummary;
+  final String brandingExecutiveSummary;
+  final String latestBrandingSummary;
 
   const SovereignReportReceiptPolicy({
     required this.generatedReports,
@@ -225,10 +230,15 @@ class SovereignReportReceiptPolicy {
     required this.reportsWithOmittedSections,
     required this.omittedAiDecisionLogReports,
     required this.omittedGuardMetricsReports,
+    this.standardBrandingReports = 0,
+    this.defaultPartnerBrandingReports = 0,
+    this.customBrandingOverrideReports = 0,
     this.executiveSummary = '',
     this.headline = '',
     this.summaryLine = '',
     this.latestReportSummary = '',
+    this.brandingExecutiveSummary = '',
+    this.latestBrandingSummary = '',
   });
 
   Map<String, Object?> toJson() {
@@ -240,10 +250,15 @@ class SovereignReportReceiptPolicy {
       'reportsWithOmittedSections': reportsWithOmittedSections,
       'omittedAiDecisionLogReports': omittedAiDecisionLogReports,
       'omittedGuardMetricsReports': omittedGuardMetricsReports,
+      'standardBrandingReports': standardBrandingReports,
+      'defaultPartnerBrandingReports': defaultPartnerBrandingReports,
+      'customBrandingOverrideReports': customBrandingOverrideReports,
       'executiveSummary': executiveSummary,
       'headline': headline,
       'summaryLine': summaryLine,
       'latestReportSummary': latestReportSummary,
+      'brandingExecutiveSummary': brandingExecutiveSummary,
+      'latestBrandingSummary': latestBrandingSummary,
     };
   }
 
@@ -262,10 +277,20 @@ class SovereignReportReceiptPolicy {
           (json['omittedAiDecisionLogReports'] as num?)?.toInt() ?? 0,
       omittedGuardMetricsReports:
           (json['omittedGuardMetricsReports'] as num?)?.toInt() ?? 0,
+      standardBrandingReports:
+          (json['standardBrandingReports'] as num?)?.toInt() ?? 0,
+      defaultPartnerBrandingReports:
+          (json['defaultPartnerBrandingReports'] as num?)?.toInt() ?? 0,
+      customBrandingOverrideReports:
+          (json['customBrandingOverrideReports'] as num?)?.toInt() ?? 0,
       executiveSummary: (json['executiveSummary'] as String? ?? '').trim(),
       headline: (json['headline'] as String? ?? '').trim(),
       summaryLine: (json['summaryLine'] as String? ?? '').trim(),
       latestReportSummary: (json['latestReportSummary'] as String? ?? '')
+          .trim(),
+      brandingExecutiveSummary:
+          (json['brandingExecutiveSummary'] as String? ?? '').trim(),
+      latestBrandingSummary: (json['latestBrandingSummary'] as String? ?? '')
           .trim(),
     );
   }
@@ -1487,9 +1512,14 @@ class MorningSovereignReportService {
         reportsWithOmittedSections: 0,
         omittedAiDecisionLogReports: 0,
         omittedGuardMetricsReports: 0,
+        standardBrandingReports: 0,
+        defaultPartnerBrandingReports: 0,
+        customBrandingOverrideReports: 0,
         headline: '',
         summaryLine: '',
         latestReportSummary: '',
+        brandingExecutiveSummary: '',
+        latestBrandingSummary: '',
       );
     }
 
@@ -1508,8 +1538,18 @@ class MorningSovereignReportService {
     var reportsWithOmittedSections = 0;
     var omittedAiDecisionLogReports = 0;
     var omittedGuardMetricsReports = 0;
+    var standardBrandingReports = 0;
+    var defaultPartnerBrandingReports = 0;
+    var customBrandingOverrideReports = 0;
 
     for (final event in ordered) {
+      if (!event.brandingConfiguration.isConfigured) {
+        standardBrandingReports += 1;
+      } else if (event.brandingUsesOverride) {
+        customBrandingOverrideReports += 1;
+      } else {
+        defaultPartnerBrandingReports += 1;
+      }
       final tracked = event.reportSchemaVersion >= 3;
       if (!tracked) {
         legacyConfigurationReports += 1;
@@ -1545,6 +1585,7 @@ class MorningSovereignReportService {
       if (!latest.includeAiDecisionLog) 'AI Decision Log',
       if (!latest.includeGuardMetrics) 'Guard Metrics',
     ];
+    final latestBrandingSummary = _receiptBrandingSummary(latest);
     final latestReportSummary = !latestTracked
         ? '${latest.clientId}/${latest.siteId} ${latest.month} used legacy receipt configuration.'
         : latestOmitted.isEmpty
@@ -1565,6 +1606,20 @@ class MorningSovereignReportService {
         ? '${events.length} generated receipts recorded'
         : executiveParts.join(' • ');
 
+    final brandingExecutiveParts = <String>[
+      if (customBrandingOverrideReports > 0)
+        '$customBrandingOverrideReports ${customBrandingOverrideReports == 1 ? 'receipt used custom branding override' : 'receipts used custom branding overrides'}',
+      if (defaultPartnerBrandingReports > 0)
+        '$defaultPartnerBrandingReports ${defaultPartnerBrandingReports == 1 ? 'receipt used default partner branding' : 'receipts used default partner branding'}',
+      if (customBrandingOverrideReports == 0 &&
+          defaultPartnerBrandingReports == 0 &&
+          standardBrandingReports > 0)
+        '$standardBrandingReports ${standardBrandingReports == 1 ? 'receipt used standard ONYX branding' : 'receipts used standard ONYX branding'}',
+    ];
+    final brandingExecutiveSummary = brandingExecutiveParts.isEmpty
+        ? ''
+        : brandingExecutiveParts.join(' • ');
+
     final headline = reportsWithOmittedSections > 0
         ? '$reportsWithOmittedSections generated reports omitted sections'
         : fullyIncludedReports > 0
@@ -1574,7 +1629,7 @@ class MorningSovereignReportService {
         : '${events.length} generated reports recorded';
 
     final summaryLine =
-        'Reports ${events.length} • Tracked $trackedConfigurationReports • Legacy $legacyConfigurationReports • Full $fullyIncludedReports • Omitted $reportsWithOmittedSections • AI log omitted $omittedAiDecisionLogReports • Guard metrics omitted $omittedGuardMetricsReports';
+        'Reports ${events.length} • Tracked $trackedConfigurationReports • Legacy $legacyConfigurationReports • Full $fullyIncludedReports • Omitted $reportsWithOmittedSections • AI log omitted $omittedAiDecisionLogReports • Guard metrics omitted $omittedGuardMetricsReports • Standard branding $standardBrandingReports • Default partner branding $defaultPartnerBrandingReports • Custom branding $customBrandingOverrideReports';
 
     return SovereignReportReceiptPolicy(
       generatedReports: events.length,
@@ -1584,11 +1639,31 @@ class MorningSovereignReportService {
       reportsWithOmittedSections: reportsWithOmittedSections,
       omittedAiDecisionLogReports: omittedAiDecisionLogReports,
       omittedGuardMetricsReports: omittedGuardMetricsReports,
+      standardBrandingReports: standardBrandingReports,
+      defaultPartnerBrandingReports: defaultPartnerBrandingReports,
+      customBrandingOverrideReports: customBrandingOverrideReports,
       executiveSummary: executiveSummary,
       headline: headline,
       summaryLine: summaryLine,
       latestReportSummary: latestReportSummary,
+      brandingExecutiveSummary: brandingExecutiveSummary,
+      latestBrandingSummary: latestBrandingSummary,
     );
+  }
+
+  String _receiptBrandingSummary(ReportGenerated event) {
+    if (!event.brandingConfiguration.isConfigured) {
+      return '${event.clientId}/${event.siteId} ${event.month} used standard ONYX branding.';
+    }
+    final sourceLabel = event.brandingConfiguration.sourceLabel.trim();
+    if (event.brandingUsesOverride) {
+      return sourceLabel.isNotEmpty
+          ? '${event.clientId}/${event.siteId} ${event.month} used custom branding override from $sourceLabel.'
+          : '${event.clientId}/${event.siteId} ${event.month} used custom branding override.';
+    }
+    return sourceLabel.isNotEmpty
+        ? '${event.clientId}/${event.siteId} ${event.month} used default partner branding from $sourceLabel.'
+        : '${event.clientId}/${event.siteId} ${event.month} used configured partner branding.';
   }
 
   SovereignReportPartnerProgression _buildPartnerProgression({

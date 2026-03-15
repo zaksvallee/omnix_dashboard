@@ -200,6 +200,10 @@ void main() {
             eventCount: 9,
             reportSchemaVersion: 3,
             projectionVersion: 1,
+            primaryBrandLabel: 'VISION Tactical',
+            endorsementLine: 'Powered by ONYX',
+            brandingSourceLabel: 'Partner Alpha',
+            brandingUsesOverride: true,
             includeAiDecisionLog: false,
             includeGuardMetrics: false,
           ),
@@ -323,6 +327,9 @@ void main() {
       expect(report.receiptPolicy.reportsWithOmittedSections, 1);
       expect(report.receiptPolicy.omittedAiDecisionLogReports, 1);
       expect(report.receiptPolicy.omittedGuardMetricsReports, 1);
+      expect(report.receiptPolicy.standardBrandingReports, 1);
+      expect(report.receiptPolicy.defaultPartnerBrandingReports, 0);
+      expect(report.receiptPolicy.customBrandingOverrideReports, 1);
       expect(
         report.receiptPolicy.executiveSummary,
         '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
@@ -333,11 +340,19 @@ void main() {
       );
       expect(
         report.receiptPolicy.summaryLine,
-        'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
+        'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1 • Standard branding 1 • Default partner branding 0 • Custom branding 1',
       );
       expect(
         report.receiptPolicy.latestReportSummary,
         'CLIENT-1/SITE-1 2026-03 used legacy receipt configuration.',
+      );
+      expect(
+        report.receiptPolicy.brandingExecutiveSummary,
+        '1 receipt used custom branding override',
+      );
+      expect(
+        report.receiptPolicy.latestBrandingSummary,
+        'CLIENT-1/SITE-1 2026-03 used standard ONYX branding.',
       );
       expect(report.vehicleThroughput.totalVisits, 1);
       expect(report.vehicleThroughput.completedVisits, 1);
@@ -442,6 +457,14 @@ void main() {
       expect(
         restored.receiptPolicy.latestReportSummary,
         report.receiptPolicy.latestReportSummary,
+      );
+      expect(
+        restored.receiptPolicy.brandingExecutiveSummary,
+        report.receiptPolicy.brandingExecutiveSummary,
+      );
+      expect(
+        restored.receiptPolicy.latestBrandingSummary,
+        report.receiptPolicy.latestBrandingSummary,
       );
       expect(restored.sceneReview.escalationCandidates, 1);
       expect(

@@ -980,7 +980,7 @@ class _ClientIntelligenceReportsPageState
     return OnyxSectionCard(
       title: 'Receipt Policy History',
       subtitle:
-          'Recent generated receipts for this client and site, showing tracked policy capture, omitted sections, and drift over time.',
+          'Recent generated receipts for this client and site, showing tracked policy capture, branding mode, and drift over time.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -992,6 +992,10 @@ class _ClientIntelligenceReportsPageState
                 _partnerScopeChip(
                   label: _receiptPolicyStateChipLabel(current.event),
                   color: _receiptPolicyAccent(current.event),
+                ),
+                _partnerScopeChip(
+                  label: _receiptPolicyBrandingChipLabel(current.event),
+                  color: _receiptPolicyBrandingAccent(current.event),
                 ),
                 _partnerScopeChip(
                   label: trendLabel,
@@ -1112,6 +1116,10 @@ class _ClientIntelligenceReportsPageState
               _partnerScopeChip(
                 label: _receiptPolicyStateChipLabel(event),
                 color: accent,
+              ),
+              _partnerScopeChip(
+                label: _receiptPolicyBrandingChipLabel(event),
+                color: _receiptPolicyBrandingAccent(event),
               ),
               _partnerScopeChip(
                 label: '${event.eventCount} events',
@@ -2063,6 +2071,9 @@ class _ClientIntelligenceReportsPageState
   }
 
   Color _receiptPolicyAccent(ReportGenerated event) {
+    if (event.brandingUsesOverride) {
+      return const Color(0xFFF6C067);
+    }
     if (!_hasTrackedReceiptPolicy(event)) {
       return const Color(0xFF8EA5C6);
     }
@@ -2083,36 +2094,42 @@ class _ClientIntelligenceReportsPageState
   }
 
   String _receiptPolicyHistoryHeadline(ReportGenerated event) {
+    final brandingHeadline = _receiptPolicyBrandingHeadline(event);
     if (!_hasTrackedReceiptPolicy(event)) {
-      return 'Legacy receipt configuration';
+      return brandingHeadline == null
+          ? 'Legacy receipt configuration'
+          : 'Legacy receipt configuration • $brandingHeadline';
     }
     final omitted = _receiptOmittedSectionLabels(event);
-    if (omitted.isEmpty) {
-      return 'All sections included';
-    }
-    return 'Omitted ${omitted.join(', ')}';
+    final policyHeadline = omitted.isEmpty
+        ? 'All sections included'
+        : 'Omitted ${omitted.join(', ')}';
+    return brandingHeadline == null
+        ? policyHeadline
+        : '$policyHeadline • $brandingHeadline';
   }
 
   String _receiptPolicyHistoryDetail(ReportGenerated event) {
+    final brandingSummary = _receiptPolicyBrandingSummary(event);
     if (!_hasTrackedReceiptPolicy(event)) {
-      return 'Per-section report configuration was not captured for this receipt. Replay policy drift must be inferred from legacy behavior.';
+      return '$brandingSummary Per-section report configuration was not captured for this receipt. Replay policy drift must be inferred from legacy behavior.';
     }
     final included = _receiptIncludedSectionLabels(event);
     final omitted = _receiptOmittedSectionLabels(event);
     final includedLabel = included.isEmpty ? 'None' : included.join(', ');
     final omittedLabel = omitted.isEmpty ? 'None' : omitted.join(', ');
-    return 'Included: $includedLabel. Omitted: $omittedLabel.';
+    return '$brandingSummary Included: $includedLabel. Omitted: $omittedLabel.';
   }
 
   double _receiptPolicySeverityScore(ReportGenerated event) {
     if (!_hasTrackedReceiptPolicy(event)) {
-      return 3.0;
+      return 3.0 + _receiptPolicyBrandingSeverityScore(event);
     }
     final omitted = _receiptOmittedSectionLabels(event);
     if (omitted.isEmpty) {
-      return 1.0;
+      return 1.0 + _receiptPolicyBrandingSeverityScore(event);
     }
-    return 1.5 + omitted.length;
+    return 1.5 + omitted.length + _receiptPolicyBrandingSeverityScore(event);
   }
 
   String _receiptPolicyTrendLabel(List<_ReceiptRow> rows) {
@@ -2149,12 +2166,20 @@ class _ClientIntelligenceReportsPageState
     final trend = _receiptPolicyTrendLabel(rows);
     switch (trend) {
       case 'IMPROVING':
+        if (!current.brandingUsesOverride &&
+            rows.skip(1).any((row) => row.event.brandingUsesOverride)) {
+          return 'The latest receipt returned from custom branding overrides to baseline branding.';
+        }
         if (_hasTrackedReceiptPolicy(current) &&
             _receiptOmittedSectionLabels(current).isEmpty) {
           return 'The latest receipt returned to full tracked policy coverage.';
         }
         return 'The latest receipt reduced omitted-section or legacy risk against recent history.';
       case 'SLIPPING':
+        if (current.brandingUsesOverride &&
+            rows.skip(1).every((row) => !row.event.brandingUsesOverride)) {
+          return 'The latest receipt introduced a custom branding override against the recent receipt baseline.';
+        }
         if (!_hasTrackedReceiptPolicy(current)) {
           return 'The latest receipt fell back to legacy policy capture.';
         }
@@ -2166,6 +2191,51 @@ class _ClientIntelligenceReportsPageState
         return 'This is the first recorded receipt policy snapshot for this client and site.';
     }
     return '';
+  }
+
+  String _receiptPolicyBrandingChipLabel(ReportGenerated event) {
+    if (!event.brandingConfiguration.isConfigured) {
+      return 'STANDARD BRANDING';
+    }
+    return event.brandingUsesOverride ? 'CUSTOM BRANDING' : 'DEFAULT BRANDING';
+  }
+
+  Color _receiptPolicyBrandingAccent(ReportGenerated event) {
+    if (!event.brandingConfiguration.isConfigured) {
+      return const Color(0xFF8EA5C6);
+    }
+    return event.brandingUsesOverride
+        ? const Color(0xFFF6C067)
+        : const Color(0xFF63BDFF);
+  }
+
+  String? _receiptPolicyBrandingHeadline(ReportGenerated event) {
+    if (!event.brandingConfiguration.isConfigured) {
+      return null;
+    }
+    return event.brandingUsesOverride ? 'Custom branding' : 'Default branding';
+  }
+
+  String _receiptPolicyBrandingSummary(ReportGenerated event) {
+    if (!event.brandingConfiguration.isConfigured) {
+      return 'Branding: standard ONYX identity.';
+    }
+    final sourceLabel = event.brandingConfiguration.sourceLabel.trim();
+    if (event.brandingUsesOverride) {
+      return sourceLabel.isNotEmpty
+          ? 'Branding: custom override from default partner lane $sourceLabel.'
+          : 'Branding: custom override was used for this receipt.';
+    }
+    return sourceLabel.isNotEmpty
+        ? 'Branding: default partner lane $sourceLabel.'
+        : 'Branding: configured partner label was used.';
+  }
+
+  double _receiptPolicyBrandingSeverityScore(ReportGenerated event) {
+    if (!event.brandingConfiguration.isConfigured) {
+      return 0;
+    }
+    return event.brandingUsesOverride ? 1.0 : 0.25;
   }
 
   Color _receiptPolicyTrendColor(String trendLabel) {
@@ -3858,8 +3928,10 @@ class _ClientIntelligenceReportsPageState
               'month': row.event.month,
               'reportSchemaVersion': row.event.reportSchemaVersion,
               'stateLabel': _receiptPolicyStateChipLabel(row.event),
+              'brandingMode': _receiptPolicyBrandingChipLabel(row.event),
               'headline': _receiptPolicyHistoryHeadline(row.event),
               'detail': _receiptPolicyHistoryDetail(row.event),
+              'brandingSummary': _receiptPolicyBrandingSummary(row.event),
               'includedSections': _receiptIncludedSectionLabels(row.event),
               'omittedSections': _receiptOmittedSectionLabels(row.event),
               'eventCount': row.event.eventCount,
@@ -3927,7 +3999,7 @@ class _ClientIntelligenceReportsPageState
     for (var index = 0; index < rows.length; index++) {
       final row = rows[index];
       lines.add(
-        'receipt_${index + 1},"${row.event.eventId.replaceAll('"', '""')}",state=${_receiptPolicyStateChipLabel(row.event)},headline=${_receiptPolicyHistoryHeadline(row.event).replaceAll('"', '""')},event_count=${row.event.eventCount}',
+        'receipt_${index + 1},"${row.event.eventId.replaceAll('"', '""')}",state=${_receiptPolicyStateChipLabel(row.event)},branding=${_receiptPolicyBrandingChipLabel(row.event)},headline=${_receiptPolicyHistoryHeadline(row.event).replaceAll('"', '""')},event_count=${row.event.eventCount}',
       );
       lines.add(
         'receipt_${index + 1}_detail,"${_receiptPolicyHistoryDetail(row.event).replaceAll('"', '""')}"',
