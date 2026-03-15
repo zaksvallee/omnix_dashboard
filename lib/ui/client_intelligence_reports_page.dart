@@ -84,9 +84,6 @@ class _ClientIntelligenceReportsPageState
   String _selectedScope = 'Sandton Estate North';
   DateTime _startDate = DateTime.utc(2024, 3, 1);
   DateTime _endDate = DateTime.utc(2024, 3, 10);
-  String? _focusedPartnerScopeClientId;
-  String? _focusedPartnerScopeSiteId;
-  String? _focusedPartnerScopePartnerLabel;
 
   bool _includeTimeline = true;
   bool _includeDispatchSummary = true;
@@ -103,7 +100,7 @@ class _ClientIntelligenceReportsPageState
   void initState() {
     super.initState();
     _shellBinding = ReportShellBinding.fromShellState(widget.reportShellState);
-    _syncFocusedPartnerScopeFromWidget();
+    _syncFocusedPartnerScopeFromWidget(deferEmit: true);
     _loadReceipts();
   }
 
@@ -2405,17 +2402,17 @@ class _ClientIntelligenceReportsPageState
   }
 
   String? get _partnerScopeClientId {
-    final value = _focusedPartnerScopeClientId?.trim() ?? '';
+    final value = _shellBinding.partnerScopeClientId?.trim() ?? '';
     return value.isEmpty ? null : value;
   }
 
   String? get _partnerScopeSiteId {
-    final value = _focusedPartnerScopeSiteId?.trim() ?? '';
+    final value = _shellBinding.partnerScopeSiteId?.trim() ?? '';
     return value.isEmpty ? null : value;
   }
 
   String? get _partnerScopePartnerLabel {
-    final value = _focusedPartnerScopePartnerLabel?.trim() ?? '';
+    final value = _shellBinding.partnerScopePartnerLabel?.trim() ?? '';
     return value.isEmpty ? null : value;
   }
 
@@ -2455,18 +2452,37 @@ class _ClientIntelligenceReportsPageState
     );
   }
 
-  void _syncFocusedPartnerScopeFromWidget() {
-    _focusedPartnerScopeClientId = widget.initialPartnerScopeClientId?.trim();
-    _focusedPartnerScopeSiteId = widget.initialPartnerScopeSiteId?.trim();
-    _focusedPartnerScopePartnerLabel = widget.initialPartnerScopePartnerLabel
-        ?.trim();
-    if ((_focusedPartnerScopeClientId ?? '').isEmpty ||
-        (_focusedPartnerScopeSiteId ?? '').isEmpty ||
-        (_focusedPartnerScopePartnerLabel ?? '').isEmpty) {
-      _focusedPartnerScopeClientId = null;
-      _focusedPartnerScopeSiteId = null;
-      _focusedPartnerScopePartnerLabel = null;
+  void _syncFocusedPartnerScopeFromWidget({bool deferEmit = false}) {
+    final clientId = widget.initialPartnerScopeClientId?.trim() ?? '';
+    final siteId = widget.initialPartnerScopeSiteId?.trim() ?? '';
+    final partnerLabel = widget.initialPartnerScopePartnerLabel?.trim() ?? '';
+    if (clientId.isEmpty && siteId.isEmpty && partnerLabel.isEmpty) {
+      return;
     }
+    final nextBinding = clientId.isNotEmpty &&
+            siteId.isNotEmpty &&
+            partnerLabel.isNotEmpty
+        ? _shellBinding.withPartnerScopeFocus(
+            clientId: clientId,
+            siteId: siteId,
+            partnerLabel: partnerLabel,
+          )
+        : _shellBinding.clearingPartnerScopeFocus();
+    if (nextBinding == _shellBinding) {
+      return;
+    }
+    _shellBinding = nextBinding;
+    if (deferEmit) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _shellBinding != nextBinding) {
+          return;
+        }
+        emitProjectedReportShellState(nextBinding);
+      });
+      return;
+    }
+    setState(() => _shellBinding = nextBinding);
+    emitProjectedReportShellState(nextBinding);
   }
 
   void _setPartnerScopeFocus({
@@ -2474,11 +2490,11 @@ class _ClientIntelligenceReportsPageState
     required String siteId,
     required String partnerLabel,
   }) {
-    setState(() {
-      _focusedPartnerScopeClientId = clientId.trim();
-      _focusedPartnerScopeSiteId = siteId.trim();
-      _focusedPartnerScopePartnerLabel = partnerLabel.trim();
-    });
+    setReportPartnerScopeFocus(
+      clientId: clientId.trim(),
+      siteId: siteId.trim(),
+      partnerLabel: partnerLabel.trim(),
+    );
     _showReceiptActionFeedback('Focused Reports on $siteId • $partnerLabel.');
   }
 
@@ -2486,11 +2502,7 @@ class _ClientIntelligenceReportsPageState
     if (!_hasPartnerScopeFocus) {
       return;
     }
-    setState(() {
-      _focusedPartnerScopeClientId = null;
-      _focusedPartnerScopeSiteId = null;
-      _focusedPartnerScopePartnerLabel = null;
-    });
+    clearReportPartnerScopeFocus();
     _showReceiptActionFeedback('Partner scorecard focus cleared.');
   }
 

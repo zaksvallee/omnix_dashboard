@@ -74,6 +74,24 @@ mixin ReportShellBindingHost<T extends StatefulWidget> on State<T> {
     );
   }
 
+  void setReportPartnerScopeFocus({
+    required String clientId,
+    required String siteId,
+    required String partnerLabel,
+  }) {
+    mutateReportShellBinding(
+      (binding) => binding.withPartnerScopeFocus(
+        clientId: clientId,
+        siteId: siteId,
+        partnerLabel: partnerLabel,
+      ),
+    );
+  }
+
+  void clearReportPartnerScopeFocus() {
+    mutateReportShellBinding((binding) => binding.clearingPartnerScopeFocus());
+  }
+
   void focusReportReceiptWorkspace(String? eventId) {
     mutateReportShellBinding(
       (binding) => binding.withReceiptWorkspaceFocus(eventId),

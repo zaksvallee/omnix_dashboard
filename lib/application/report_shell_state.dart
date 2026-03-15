@@ -10,6 +10,9 @@ class ReportShellState {
   final String? previewReceiptEventId;
   final ReportPreviewSurface previewSurface;
   final ReportPartnerComparisonWindow partnerComparisonWindow;
+  final String? partnerScopeClientId;
+  final String? partnerScopeSiteId;
+  final String? partnerScopePartnerLabel;
 
   const ReportShellState({
     this.receiptFilter = ReportReceiptSceneFilter.all,
@@ -18,6 +21,9 @@ class ReportShellState {
     this.previewReceiptEventId,
     this.previewSurface = ReportPreviewSurface.route,
     this.partnerComparisonWindow = ReportPartnerComparisonWindow.latestShift,
+    this.partnerScopeClientId,
+    this.partnerScopeSiteId,
+    this.partnerScopePartnerLabel,
   });
 
   ReportShellState copyWith({
@@ -29,9 +35,41 @@ class ReportShellState {
     bool clearPreviewReceiptEventId = false,
     ReportPreviewSurface? previewSurface,
     ReportPartnerComparisonWindow? partnerComparisonWindow,
+    String? partnerScopeClientId,
+    String? partnerScopeSiteId,
+    String? partnerScopePartnerLabel,
+    bool clearPartnerScopeFocus = false,
   }) {
     final normalizedSelectedReceiptEventId = selectedReceiptEventId?.trim();
     final normalizedPreviewReceiptEventId = previewReceiptEventId?.trim();
+    final normalizedPartnerScopeClientId = partnerScopeClientId?.trim();
+    final normalizedPartnerScopeSiteId = partnerScopeSiteId?.trim();
+    final normalizedPartnerScopePartnerLabel = partnerScopePartnerLabel?.trim();
+    final nextPartnerScopeClientId = clearPartnerScopeFocus
+        ? null
+        : normalizedPartnerScopeClientId == null
+        ? this.partnerScopeClientId
+        : normalizedPartnerScopeClientId.isEmpty
+        ? null
+        : normalizedPartnerScopeClientId;
+    final nextPartnerScopeSiteId = clearPartnerScopeFocus
+        ? null
+        : normalizedPartnerScopeSiteId == null
+        ? this.partnerScopeSiteId
+        : normalizedPartnerScopeSiteId.isEmpty
+        ? null
+        : normalizedPartnerScopeSiteId;
+    final nextPartnerScopePartnerLabel = clearPartnerScopeFocus
+        ? null
+        : normalizedPartnerScopePartnerLabel == null
+        ? this.partnerScopePartnerLabel
+        : normalizedPartnerScopePartnerLabel.isEmpty
+        ? null
+        : normalizedPartnerScopePartnerLabel;
+    final hasCompletePartnerScope =
+        nextPartnerScopeClientId != null &&
+        nextPartnerScopeSiteId != null &&
+        nextPartnerScopePartnerLabel != null;
     return ReportShellState(
       receiptFilter: receiptFilter ?? this.receiptFilter,
       outputMode: outputMode ?? this.outputMode,
@@ -52,6 +90,15 @@ class ReportShellState {
       previewSurface: previewSurface ?? this.previewSurface,
       partnerComparisonWindow:
           partnerComparisonWindow ?? this.partnerComparisonWindow,
+      partnerScopeClientId: hasCompletePartnerScope
+          ? nextPartnerScopeClientId
+          : null,
+      partnerScopeSiteId: hasCompletePartnerScope
+          ? nextPartnerScopeSiteId
+          : null,
+      partnerScopePartnerLabel: hasCompletePartnerScope
+          ? nextPartnerScopePartnerLabel
+          : null,
     );
   }
 }

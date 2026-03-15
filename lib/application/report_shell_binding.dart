@@ -11,6 +11,9 @@ class ReportShellBinding {
   final String? previewReceiptEventId;
   final ReportPreviewSurface previewSurface;
   final ReportPartnerComparisonWindow partnerComparisonWindow;
+  final String? partnerScopeClientId;
+  final String? partnerScopeSiteId;
+  final String? partnerScopePartnerLabel;
 
   const ReportShellBinding({
     required this.receiptFilter,
@@ -19,6 +22,9 @@ class ReportShellBinding {
     required this.previewReceiptEventId,
     required this.previewSurface,
     required this.partnerComparisonWindow,
+    required this.partnerScopeClientId,
+    required this.partnerScopeSiteId,
+    required this.partnerScopePartnerLabel,
   });
 
   factory ReportShellBinding.fromShellState(ReportShellState shellState) {
@@ -26,6 +32,19 @@ class ReportShellBinding {
         ?.trim();
     final normalizedPreviewReceiptEventId = shellState.previewReceiptEventId
         ?.trim();
+    final normalizedPartnerScopeClientId = shellState.partnerScopeClientId
+        ?.trim();
+    final normalizedPartnerScopeSiteId = shellState.partnerScopeSiteId?.trim();
+    final normalizedPartnerScopePartnerLabel = shellState
+        .partnerScopePartnerLabel
+        ?.trim();
+    final hasCompletePartnerScope =
+        normalizedPartnerScopeClientId != null &&
+        normalizedPartnerScopeClientId.isNotEmpty &&
+        normalizedPartnerScopeSiteId != null &&
+        normalizedPartnerScopeSiteId.isNotEmpty &&
+        normalizedPartnerScopePartnerLabel != null &&
+        normalizedPartnerScopePartnerLabel.isNotEmpty;
     return ReportShellBinding(
       receiptFilter: shellState.receiptFilter,
       outputMode: shellState.outputMode,
@@ -41,6 +60,15 @@ class ReportShellBinding {
           : normalizedPreviewReceiptEventId,
       previewSurface: shellState.previewSurface,
       partnerComparisonWindow: shellState.partnerComparisonWindow,
+      partnerScopeClientId: hasCompletePartnerScope
+          ? normalizedPartnerScopeClientId
+          : null,
+      partnerScopeSiteId: hasCompletePartnerScope
+          ? normalizedPartnerScopeSiteId
+          : null,
+      partnerScopePartnerLabel: hasCompletePartnerScope
+          ? normalizedPartnerScopePartnerLabel
+          : null,
     );
   }
 
@@ -53,9 +81,41 @@ class ReportShellBinding {
     bool clearPreviewReceiptEventId = false,
     ReportPreviewSurface? previewSurface,
     ReportPartnerComparisonWindow? partnerComparisonWindow,
+    String? partnerScopeClientId,
+    String? partnerScopeSiteId,
+    String? partnerScopePartnerLabel,
+    bool clearPartnerScopeFocus = false,
   }) {
     final normalizedSelectedReceiptEventId = selectedReceiptEventId?.trim();
     final normalizedPreviewReceiptEventId = previewReceiptEventId?.trim();
+    final normalizedPartnerScopeClientId = partnerScopeClientId?.trim();
+    final normalizedPartnerScopeSiteId = partnerScopeSiteId?.trim();
+    final normalizedPartnerScopePartnerLabel = partnerScopePartnerLabel?.trim();
+    final nextPartnerScopeClientId = clearPartnerScopeFocus
+        ? null
+        : normalizedPartnerScopeClientId == null
+        ? this.partnerScopeClientId
+        : normalizedPartnerScopeClientId.isEmpty
+        ? null
+        : normalizedPartnerScopeClientId;
+    final nextPartnerScopeSiteId = clearPartnerScopeFocus
+        ? null
+        : normalizedPartnerScopeSiteId == null
+        ? this.partnerScopeSiteId
+        : normalizedPartnerScopeSiteId.isEmpty
+        ? null
+        : normalizedPartnerScopeSiteId;
+    final nextPartnerScopePartnerLabel = clearPartnerScopeFocus
+        ? null
+        : normalizedPartnerScopePartnerLabel == null
+        ? this.partnerScopePartnerLabel
+        : normalizedPartnerScopePartnerLabel.isEmpty
+        ? null
+        : normalizedPartnerScopePartnerLabel;
+    final hasCompletePartnerScope =
+        nextPartnerScopeClientId != null &&
+        nextPartnerScopeSiteId != null &&
+        nextPartnerScopePartnerLabel != null;
     return ReportShellBinding(
       receiptFilter: receiptFilter ?? this.receiptFilter,
       outputMode: outputMode ?? this.outputMode,
@@ -76,6 +136,15 @@ class ReportShellBinding {
       previewSurface: previewSurface ?? this.previewSurface,
       partnerComparisonWindow:
           partnerComparisonWindow ?? this.partnerComparisonWindow,
+      partnerScopeClientId: hasCompletePartnerScope
+          ? nextPartnerScopeClientId
+          : null,
+      partnerScopeSiteId: hasCompletePartnerScope
+          ? nextPartnerScopeSiteId
+          : null,
+      partnerScopePartnerLabel: hasCompletePartnerScope
+          ? nextPartnerScopePartnerLabel
+          : null,
     );
   }
 
@@ -125,6 +194,30 @@ class ReportShellBinding {
               newShellState.partnerComparisonWindow != partnerComparisonWindow
           ? newShellState.partnerComparisonWindow
           : null,
+      partnerScopeClientId:
+          oldShellState.partnerScopeClientId !=
+              newShellState.partnerScopeClientId
+          ? newShellState.partnerScopeClientId
+          : null,
+      partnerScopeSiteId:
+          oldShellState.partnerScopeSiteId != newShellState.partnerScopeSiteId
+          ? newShellState.partnerScopeSiteId
+          : null,
+      partnerScopePartnerLabel:
+          oldShellState.partnerScopePartnerLabel !=
+              newShellState.partnerScopePartnerLabel
+          ? newShellState.partnerScopePartnerLabel
+          : null,
+      clearPartnerScopeFocus:
+          (oldShellState.partnerScopeClientId !=
+                  newShellState.partnerScopeClientId ||
+              oldShellState.partnerScopeSiteId !=
+                  newShellState.partnerScopeSiteId ||
+              oldShellState.partnerScopePartnerLabel !=
+                  newShellState.partnerScopePartnerLabel) &&
+          newShellState.partnerScopeClientId == null &&
+          newShellState.partnerScopeSiteId == null &&
+          newShellState.partnerScopePartnerLabel == null,
     );
   }
 
@@ -154,6 +247,22 @@ class ReportShellBinding {
     ReportPartnerComparisonWindow value,
   ) {
     return copyWith(partnerComparisonWindow: value);
+  }
+
+  ReportShellBinding withPartnerScopeFocus({
+    required String clientId,
+    required String siteId,
+    required String partnerLabel,
+  }) {
+    return copyWith(
+      partnerScopeClientId: clientId,
+      partnerScopeSiteId: siteId,
+      partnerScopePartnerLabel: partnerLabel,
+    );
+  }
+
+  ReportShellBinding clearingPartnerScopeFocus() {
+    return copyWith(clearPartnerScopeFocus: true);
   }
 
   ReportShellBinding withReceiptWorkspaceFocus(String? value) {
@@ -205,6 +314,13 @@ class ReportShellBinding {
       clearPreviewReceiptEventId: previewReceiptEventId == null,
       previewSurface: previewSurface,
       partnerComparisonWindow: partnerComparisonWindow,
+      partnerScopeClientId: partnerScopeClientId,
+      partnerScopeSiteId: partnerScopeSiteId,
+      partnerScopePartnerLabel: partnerScopePartnerLabel,
+      clearPartnerScopeFocus:
+          partnerScopeClientId == null ||
+          partnerScopeSiteId == null ||
+          partnerScopePartnerLabel == null,
     );
   }
 
@@ -219,7 +335,10 @@ class ReportShellBinding {
         other.selectedReceiptEventId == selectedReceiptEventId &&
         other.previewReceiptEventId == previewReceiptEventId &&
         other.previewSurface == previewSurface &&
-        other.partnerComparisonWindow == partnerComparisonWindow;
+        other.partnerComparisonWindow == partnerComparisonWindow &&
+        other.partnerScopeClientId == partnerScopeClientId &&
+        other.partnerScopeSiteId == partnerScopeSiteId &&
+        other.partnerScopePartnerLabel == partnerScopePartnerLabel;
   }
 
   @override
@@ -230,5 +349,8 @@ class ReportShellBinding {
     previewReceiptEventId,
     previewSurface,
     partnerComparisonWindow,
+    partnerScopeClientId,
+    partnerScopeSiteId,
+    partnerScopePartnerLabel,
   );
 }
