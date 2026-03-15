@@ -329,8 +329,23 @@ void main() {
         home: AdministrationPage(
           events: <DispatchEvent>[
             PartnerDispatchStatusDeclared(
+              eventId: 'evt-partner-0',
+              sequence: 3,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 15, 21, 11),
+              dispatchId: 'DSP-8821',
+              clientId: 'CLT-001',
+              regionId: 'GAUTENG',
+              siteId: 'WTF-MAIN',
+              partnerLabel: 'PARTNER • Alpha',
+              actorLabel: '@partner.alpha',
+              status: PartnerDispatchStatus.accepted,
+              sourceChannel: 'telegram',
+              sourceMessageKey: 'tg-partner-0',
+            ),
+            PartnerDispatchStatusDeclared(
               eventId: 'evt-partner-1',
-              sequence: 1,
+              sequence: 2,
               version: 1,
               occurredAt: DateTime.utc(2026, 3, 15, 21, 14),
               dispatchId: 'DSP-8821',
@@ -342,6 +357,21 @@ void main() {
               status: PartnerDispatchStatus.onSite,
               sourceChannel: 'telegram',
               sourceMessageKey: 'tg-partner-1',
+            ),
+            PartnerDispatchStatusDeclared(
+              eventId: 'evt-partner-2',
+              sequence: 1,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 15, 21, 19),
+              dispatchId: 'DSP-8821',
+              clientId: 'CLT-001',
+              regionId: 'GAUTENG',
+              siteId: 'WTF-MAIN',
+              partnerLabel: 'PARTNER • Alpha',
+              actorLabel: '@partner.alpha',
+              status: PartnerDispatchStatus.allClear,
+              sourceChannel: 'telegram',
+              sourceMessageKey: 'tg-partner-2',
             ),
           ],
           supabaseReady: false,
@@ -400,6 +430,33 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(
+      find.byKey(const ValueKey('admin-partner-dispatch-progression-card')),
+      findsOneWidget,
+    );
+    expect(find.text('Dispatch progression'), findsOneWidget);
+    expect(find.text('DSP-8821'), findsWidgets);
+    expect(
+      find.textContaining('PARTNER • Alpha • Latest ALL CLEAR'),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('admin-partner-progress-accepted')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('admin-partner-progress-onSite')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('admin-partner-progress-allClear')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('admin-partner-progress-cancelled')),
+      findsOneWidget,
+    );
+    expect(find.text('Pending'), findsOneWidget);
 
     await tester.tap(find.text('Check lane'));
     await tester.pumpAndSettle();
@@ -425,8 +482,12 @@ void main() {
     await tester.tap(find.text('Open Events Review'));
     await tester.pumpAndSettle();
 
-    expect(openedEventIds, <String>['evt-partner-1']);
-    expect(openedSelectedEventId, 'evt-partner-1');
+    expect(openedEventIds, <String>[
+      'evt-partner-2',
+      'evt-partner-1',
+      'evt-partner-0',
+    ]);
+    expect(openedSelectedEventId, 'evt-partner-2');
   });
 
   testWidgets('administration page reports tab changes to parent state', (

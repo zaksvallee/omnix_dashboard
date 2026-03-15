@@ -3395,12 +3395,105 @@ class _AdministrationPageState extends State<AdministrationPage> {
     return (label: label, chatId: chatId, threadId: threadId);
   }
 
+  Widget _miniStatBlock(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            color: const Color(0xFF8EA4C2),
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: GoogleFonts.inter(
+            color: const Color(0xFFEAF4FF),
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    );
+  }
+
   String _partnerDispatchStatusLabel(PartnerDispatchStatus status) {
     return switch (status) {
       PartnerDispatchStatus.accepted => 'ACCEPT',
       PartnerDispatchStatus.onSite => 'ON SITE',
       PartnerDispatchStatus.allClear => 'ALL CLEAR',
       PartnerDispatchStatus.cancelled => 'CANCEL',
+    };
+  }
+
+  Widget _partnerProgressBadge({
+    required PartnerDispatchStatus status,
+    required DateTime? timestamp,
+  }) {
+    final reached = timestamp != null;
+    final tone = _partnerProgressTone(status);
+    return Container(
+      key: ValueKey<String>('admin-partner-progress-${status.name}'),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: reached ? tone.$2 : const Color(0xFF111822),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: reached ? tone.$3 : const Color(0xFF2A374A)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            _partnerDispatchStatusLabel(status),
+            style: GoogleFonts.inter(
+              color: reached ? tone.$1 : const Color(0xFF94A3B8),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            reached ? _partnerEventTimeLabel(timestamp) : 'Pending',
+            style: GoogleFonts.inter(
+              color: reached
+                  ? const Color(0xFFEAF4FF)
+                  : const Color(0xFF8EA4C2),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  (Color, Color, Color) _partnerProgressTone(PartnerDispatchStatus status) {
+    return switch (status) {
+      PartnerDispatchStatus.accepted => (
+        const Color(0xFF38BDF8),
+        const Color(0x1A38BDF8),
+        const Color(0x6638BDF8),
+      ),
+      PartnerDispatchStatus.onSite => (
+        const Color(0xFFF59E0B),
+        const Color(0x1AF59E0B),
+        const Color(0x66F59E0B),
+      ),
+      PartnerDispatchStatus.allClear => (
+        const Color(0xFF34D399),
+        const Color(0x1A34D399),
+        const Color(0x6634D399),
+      ),
+      PartnerDispatchStatus.cancelled => (
+        const Color(0xFFF87171),
+        const Color(0x1AF87171),
+        const Color(0x66F87171),
+      ),
     };
   }
 
@@ -3449,6 +3542,36 @@ class _AdministrationPageState extends State<AdministrationPage> {
     return matching.take(6).toList(growable: false);
   }
 
+  _PartnerActionSummary? _partnerActionSummaryForScope(
+    List<PartnerDispatchStatusDeclared> recentActions,
+  ) {
+    if (recentActions.isEmpty) {
+      return null;
+    }
+    final ordered = [...recentActions]
+      ..sort((a, b) {
+        final occurredAtCompare = a.occurredAt.compareTo(b.occurredAt);
+        if (occurredAtCompare != 0) {
+          return occurredAtCompare;
+        }
+        return a.sequence.compareTo(b.sequence);
+      });
+    final first = ordered.first;
+    final latest = ordered.last;
+    final firstOccurrenceByStatus = <PartnerDispatchStatus, DateTime>{};
+    for (final event in ordered) {
+      firstOccurrenceByStatus.putIfAbsent(event.status, () => event.occurredAt);
+    }
+    return _PartnerActionSummary(
+      dispatchId: first.dispatchId,
+      partnerLabel: first.partnerLabel,
+      latestStatus: latest.status,
+      latestOccurredAt: latest.occurredAt,
+      actionCount: ordered.length,
+      firstOccurrenceByStatus: firstOccurrenceByStatus,
+    );
+  }
+
   Future<void> _showPartnerDispatchDetailDialog({
     required String clientId,
     String? siteId,
@@ -3471,6 +3594,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       normalizedClientId,
       siteId: normalizedSiteId,
     );
+    final partnerActionSummary = _partnerActionSummaryForScope(recentActions);
     await showDialog<void>(
       context: context,
       builder: (dialogContext) {
@@ -3547,6 +3671,75 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             ),
                           ),
                         ),
+                      if (partnerActionSummary != null) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          'Dispatch progression',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFEAF4FF),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          key: const ValueKey(
+                            'admin-partner-dispatch-progression-card',
+                          ),
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0F1722),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFF223244)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _miniStatBlock(
+                                      'Dispatch',
+                                      partnerActionSummary.dispatchId,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _miniStatBlock(
+                                      'Declarations',
+                                      '${partnerActionSummary.actionCount}',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '${partnerActionSummary.partnerLabel} • Latest ${_partnerDispatchStatusLabel(partnerActionSummary.latestStatus)} • ${_partnerEventTimeLabel(partnerActionSummary.latestOccurredAt)}',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFFEAF4FF),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  for (final status
+                                      in PartnerDispatchStatus.values)
+                                    _partnerProgressBadge(
+                                      status: status,
+                                      timestamp: partnerActionSummary
+                                          .firstOccurrenceByStatus[status],
+                                    ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 12),
                       Text(
                         'Recent declared actions',
@@ -19106,6 +19299,24 @@ class _TacticalMapGridPainter extends CustomPainter {
   bool shouldRepaint(covariant _TacticalMapGridPainter oldDelegate) {
     return oldDelegate.accent != accent;
   }
+}
+
+class _PartnerActionSummary {
+  final String dispatchId;
+  final String partnerLabel;
+  final PartnerDispatchStatus latestStatus;
+  final DateTime latestOccurredAt;
+  final int actionCount;
+  final Map<PartnerDispatchStatus, DateTime> firstOccurrenceByStatus;
+
+  const _PartnerActionSummary({
+    required this.dispatchId,
+    required this.partnerLabel,
+    required this.latestStatus,
+    required this.latestOccurredAt,
+    required this.actionCount,
+    required this.firstOccurrenceByStatus,
+  });
 }
 
 Widget _textField(TextEditingController controller, String label) {
