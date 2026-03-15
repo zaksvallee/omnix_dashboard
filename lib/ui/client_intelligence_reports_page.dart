@@ -19,6 +19,7 @@ import '../application/report_preview_surface.dart';
 import '../application/report_generation_service.dart';
 import '../application/report_receipt_scene_filter.dart';
 import '../application/report_shell_state.dart';
+import '../domain/crm/reporting/report_section_configuration.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/partner_dispatch_status_declared.dart';
 import '../domain/events/report_generated.dart';
@@ -160,6 +161,7 @@ class _ClientIntelligenceReportsPageState
       clientId: widget.selectedClient,
       siteId: widget.selectedSite,
       nowUtc: DateTime.now().toUtc(),
+      sectionConfiguration: _currentSectionConfiguration,
     );
     final replayMatches = await _service.verifyReportHash(
       generated.receiptEvent,
@@ -2564,6 +2566,15 @@ class _ClientIntelligenceReportsPageState
 
   ReportPreviewSurface get _previewSurface => _shellBinding.previewSurface;
 
+  ReportSectionConfiguration get _currentSectionConfiguration =>
+      ReportSectionConfiguration(
+        includeTimeline: _includeTimeline,
+        includeDispatchSummary: _includeDispatchSummary,
+        includeCheckpointCompliance: _includeCheckpointCompliance,
+        includeAiDecisionLog: _includeAiDecisionLog,
+        includeGuardMetrics: _includeGuardMetrics,
+      );
+
   bool get _includeTimeline => _shellBinding.includeTimeline;
 
   bool get _includeDispatchSummary => _shellBinding.includeDispatchSummary;
@@ -2919,6 +2930,7 @@ class _ClientIntelligenceReportsPageState
       filter: _receiptFilter,
       selectedReceiptEventId: _selectedReceiptEventId,
       previewReceiptEventId: _previewReceiptEventId,
+      activeSectionConfiguration: _currentSectionConfiguration.toJson(),
       focusedReceipt: focusedReceipt == null
           ? null
           : ReportReceiptExportEntry(
@@ -3135,6 +3147,7 @@ class _ClientIntelligenceReportsPageState
       filter: _receiptFilter,
       selectedReceiptEventId: _selectedReceiptEventId,
       previewReceiptEventId: _previewReceiptEventId,
+      activeSectionConfiguration: _currentSectionConfiguration.toJson(),
     );
     final encoded = const JsonEncoder.withIndent('  ').convert(payload);
     Clipboard.setData(ClipboardData(text: encoded));
@@ -3175,6 +3188,7 @@ class _ClientIntelligenceReportsPageState
         filter: _receiptFilter,
         selectedReceiptEventId: _selectedReceiptEventId,
         previewReceiptEventId: _previewReceiptEventId,
+        activeSectionConfiguration: _currentSectionConfiguration.toJson(),
       );
       final encoded = const JsonEncoder.withIndent('  ').convert(payload);
       Clipboard.setData(ClipboardData(text: encoded));

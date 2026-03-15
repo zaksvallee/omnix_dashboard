@@ -78,6 +78,8 @@ class ReportBundleCanonicalizer {
         'slaTier': bundle.clientSnapshot.slaTier,
         'reportingPeriod': bundle.clientSnapshot.reportingPeriod,
       },
+      if (reportSchemaVersion >= 3)
+        'sectionConfiguration': bundle.sectionConfiguration.toJson(),
       'guardPerformance': bundle.guardPerformance
           .map(
             (guard) => <String, Object?>{

@@ -15,10 +15,7 @@ void main() {
 
     final payload = ReportReceiptExportPayload.build(
       entries: [
-        ReportReceiptExportEntry(
-          receiptEvent: receipt,
-          replayVerified: true,
-        ),
+        ReportReceiptExportEntry(receiptEvent: receipt, replayVerified: true),
       ],
       filter: ReportReceiptSceneFilter.all,
       selectedReceiptEventId: 'RPT-1',
@@ -41,6 +38,7 @@ void main() {
     expect(firstReceipt['eventId'], 'RPT-1');
     expect(firstReceipt['replayVerified'], true);
     expect(firstReceipt['sceneReviewIncluded'], false);
+    expect(firstReceipt['sectionConfiguration'], isA<Map<String, Object?>>());
   });
 
   test('build includes focused receipt only for latest-action filters', () {
@@ -91,28 +89,73 @@ void main() {
     );
   });
 
-  test('buildSingle returns the same envelope shape for single receipt exports', () {
-    final receipt = buildTestReportGenerated(
-      eventId: 'RPT-SINGLE-1',
-      occurredAt: DateTime.utc(2026, 3, 14, 22, 0),
-      reportSchemaVersion: 1,
-    );
+  test(
+    'build carries active section configuration and receipt section state',
+    () {
+      final receipt = buildTestReportGenerated(
+        eventId: 'RPT-CONFIG-1',
+        occurredAt: DateTime.utc(2026, 3, 14, 22, 0),
+        reportSchemaVersion: 3,
+        includeDispatchSummary: false,
+        includeAiDecisionLog: false,
+      );
 
-    final payload = ReportReceiptExportPayload.buildSingle(
-      entry: ReportReceiptExportEntry(receiptEvent: receipt),
-      filter: ReportReceiptSceneFilter.all,
-      selectedReceiptEventId: 'RPT-SINGLE-1',
-    );
+      final payload = ReportReceiptExportPayload.build(
+        entries: [
+          ReportReceiptExportEntry(receiptEvent: receipt, replayVerified: true),
+        ],
+        filter: ReportReceiptSceneFilter.all,
+        activeSectionConfiguration: const <String, Object?>{
+          'includeTimeline': true,
+          'includeDispatchSummary': false,
+          'includeCheckpointCompliance': true,
+          'includeAiDecisionLog': false,
+          'includeGuardMetrics': false,
+        },
+      );
 
-    final context = payload['context']! as Map<String, Object?>;
-    final receipts = payload['receipts']! as List<Object?>;
+      final context = payload['context']! as Map<String, Object?>;
+      final firstReceipt =
+          (payload['receipts']! as List<Object?>).first!
+              as Map<String, Object?>;
+      final activeConfig =
+          context['activeSectionConfiguration']! as Map<String, Object?>;
+      final receiptConfig =
+          firstReceipt['sectionConfiguration']! as Map<String, Object?>;
 
-    expect((context['filter']! as Map<String, Object?>)['key'], 'all');
-    expect(context['selectedReceiptEventId'], 'RPT-SINGLE-1');
-    expect(receipts, hasLength(1));
-    expect(
-      (receipts.first! as Map<String, Object?>)['eventId'],
-      'RPT-SINGLE-1',
-    );
-  });
+      expect(activeConfig['includeDispatchSummary'], false);
+      expect(activeConfig['includeAiDecisionLog'], false);
+      expect(firstReceipt['sceneReviewIncluded'], false);
+      expect(receiptConfig['includeDispatchSummary'], false);
+      expect(receiptConfig['includeAiDecisionLog'], false);
+    },
+  );
+
+  test(
+    'buildSingle returns the same envelope shape for single receipt exports',
+    () {
+      final receipt = buildTestReportGenerated(
+        eventId: 'RPT-SINGLE-1',
+        occurredAt: DateTime.utc(2026, 3, 14, 22, 0),
+        reportSchemaVersion: 1,
+      );
+
+      final payload = ReportReceiptExportPayload.buildSingle(
+        entry: ReportReceiptExportEntry(receiptEvent: receipt),
+        filter: ReportReceiptSceneFilter.all,
+        selectedReceiptEventId: 'RPT-SINGLE-1',
+      );
+
+      final context = payload['context']! as Map<String, Object?>;
+      final receipts = payload['receipts']! as List<Object?>;
+
+      expect((context['filter']! as Map<String, Object?>)['key'], 'all');
+      expect(context['selectedReceiptEventId'], 'RPT-SINGLE-1');
+      expect(receipts, hasLength(1));
+      expect(
+        (receipts.first! as Map<String, Object?>)['eventId'],
+        'RPT-SINGLE-1',
+      );
+    },
+  );
 }

@@ -1,13 +1,54 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 import 'package:omnix_dashboard/application/report_generation_service.dart';
+import 'package:omnix_dashboard/domain/crm/reporting/report_section_configuration.dart';
 import 'package:omnix_dashboard/domain/store/in_memory_event_store.dart';
 
 import '../fixtures/report_test_intelligence.dart';
 import '../fixtures/report_test_receipt.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('ReportGenerationService scene review receipt summary', () {
+    test('generatePdfReport persists report section configuration', () async {
+      final service = ReportGenerationService(store: InMemoryEventStore());
+
+      final generated = await service.generatePdfReport(
+        clientId: 'CLIENT-MS-VALLEE',
+        siteId: 'SITE-MS-VALLEE-RESIDENCE',
+        nowUtc: DateTime.utc(2026, 3, 15, 6, 0),
+        sectionConfiguration: const ReportSectionConfiguration(
+          includeTimeline: true,
+          includeDispatchSummary: false,
+          includeCheckpointCompliance: true,
+          includeAiDecisionLog: false,
+          includeGuardMetrics: true,
+        ),
+      );
+
+      expect(generated.receiptEvent.reportSchemaVersion, 3);
+      expect(generated.receiptEvent.includeTimeline, isTrue);
+      expect(generated.receiptEvent.includeDispatchSummary, isFalse);
+      expect(generated.receiptEvent.includeCheckpointCompliance, isTrue);
+      expect(generated.receiptEvent.includeAiDecisionLog, isFalse);
+      expect(generated.receiptEvent.includeGuardMetrics, isTrue);
+      expect(generated.bundle.sectionConfiguration.includeTimeline, isTrue);
+      expect(
+        generated.bundle.sectionConfiguration.includeDispatchSummary,
+        isFalse,
+      );
+      expect(
+        generated.bundle.sectionConfiguration.includeCheckpointCompliance,
+        isTrue,
+      );
+      expect(
+        generated.bundle.sectionConfiguration.includeAiDecisionLog,
+        isFalse,
+      );
+      expect(generated.bundle.sectionConfiguration.includeGuardMetrics, isTrue);
+    });
+
     test('returns embedded scene review metrics for schema v2 receipts', () {
       final store = InMemoryEventStore();
       store.append(
@@ -110,8 +151,7 @@ void main() {
             sourceLabel: 'metadata:fallback',
             postureLabel: 'reviewed',
             decisionLabel: 'Suppressed Review',
-            decisionSummary:
-                'Vehicle remained below escalation threshold.',
+            decisionSummary: 'Vehicle remained below escalation threshold.',
             summary: 'Routine vehicle motion remained internal.',
             reviewedAtUtc: DateTime.utc(2026, 3, 14, 21, 16, 5),
           ),
@@ -136,6 +176,24 @@ void main() {
         summary.latestSuppressedPattern,
         '2026-03-14T21:16:00.000Z • Camera 3 • Vehicle remained below escalation threshold.',
       );
+    });
+
+    test('returns not included summary when ai decision log is disabled', () {
+      final service = ReportGenerationService(store: InMemoryEventStore());
+
+      final summary = service.summarizeSceneReviewForReceipt(
+        buildTestReportGenerated(
+          eventId: 'RPT-NO-AI-LOG',
+          occurredAt: DateTime.utc(2026, 3, 14, 22, 0),
+          reportSchemaVersion: 3,
+          includeAiDecisionLog: false,
+        ),
+      );
+
+      expect(summary.includedInReceipt, isFalse);
+      expect(summary.totalReviews, 0);
+      expect(summary.topPosture, 'not included');
+      expect(summary.latestActionBucket, ReportReceiptLatestActionBucket.none);
     });
   });
 }

@@ -2,6 +2,7 @@ import 'package:omnix_dashboard/domain/crm/reporting/escalation_trend.dart';
 import 'package:omnix_dashboard/domain/crm/reporting/executive_summary.dart';
 import 'package:omnix_dashboard/domain/crm/reporting/monthly_report.dart';
 import 'package:omnix_dashboard/domain/crm/reporting/report_bundle.dart';
+import 'package:omnix_dashboard/domain/crm/reporting/report_section_configuration.dart';
 import 'package:omnix_dashboard/domain/crm/reporting/report_sections.dart';
 import 'package:omnix_dashboard/domain/crm/reporting/site_performance.dart';
 
@@ -53,13 +54,12 @@ ReportBundle buildTestReportBundle({
     reportingPeriod: '2026-03',
   ),
   List<GuardPerformanceSnapshot> guardPerformance = const [],
-  PatrolPerformanceSnapshot patrolPerformance =
-      const PatrolPerformanceSnapshot(
-        scheduledPatrols: 0,
-        completedPatrols: 0,
-        missedPatrols: 0,
-        completionRate: 0,
-      ),
+  PatrolPerformanceSnapshot patrolPerformance = const PatrolPerformanceSnapshot(
+    scheduledPatrols: 0,
+    completedPatrols: 0,
+    missedPatrols: 0,
+    completionRate: 0,
+  ),
   List<IncidentDetailSnapshot> incidentDetails = const [],
   SceneReviewSnapshot sceneReview = const SceneReviewSnapshot(
     totalReviews: 2,
@@ -84,6 +84,8 @@ ReportBundle buildTestReportBundle({
       ),
     ],
   ),
+  ReportSectionConfiguration sectionConfiguration =
+      const ReportSectionConfiguration(),
   SupervisorAssessment supervisorAssessment = const SupervisorAssessment(
     operationalSummary: 'Stable watch period.',
     riskTrend: 'Contained.',
@@ -91,8 +93,9 @@ ReportBundle buildTestReportBundle({
   ),
   CompanyAchievementsSnapshot companyAchievements =
       const CompanyAchievementsSnapshot(highlights: []),
-  EmergingThreatSnapshot emergingThreats =
-      const EmergingThreatSnapshot(patternsObserved: []),
+  EmergingThreatSnapshot emergingThreats = const EmergingThreatSnapshot(
+    patternsObserved: [],
+  ),
 }) {
   return ReportBundle(
     monthlyReport: monthlyReport,
@@ -104,6 +107,7 @@ ReportBundle buildTestReportBundle({
     patrolPerformance: patrolPerformance,
     incidentDetails: incidentDetails,
     sceneReview: sceneReview,
+    sectionConfiguration: sectionConfiguration,
     supervisorAssessment: supervisorAssessment,
     companyAchievements: companyAchievements,
     emergingThreats: emergingThreats,

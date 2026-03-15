@@ -12,6 +12,7 @@ import 'multi_site_comparison_projection.dart';
 import 'escalation_trend_projection.dart';
 import 'dispatch_performance_projection.dart';
 import 'report_bundle.dart';
+import 'report_section_configuration.dart';
 import 'report_sections.dart';
 
 class ReportBundleAssembler {
@@ -23,6 +24,8 @@ class ReportBundleAssembler {
     required List<CRMEvent> crmEvents,
     required List<DispatchEvent> dispatchEvents,
     required SceneReviewSnapshot sceneReview,
+    ReportSectionConfiguration sectionConfiguration =
+        const ReportSectionConfiguration(),
   }) {
     ClientAggregate aggregate;
 
@@ -147,6 +150,7 @@ class ReportBundleAssembler {
       patrolPerformance: patrolPerformance,
       incidentDetails: incidentDetails,
       sceneReview: sceneReview,
+      sectionConfiguration: sectionConfiguration,
       supervisorAssessment: supervisorAssessment,
       companyAchievements: companyAchievements,
       emergingThreats: emergingThreats,

@@ -2,6 +2,7 @@ import 'monthly_report.dart';
 import 'executive_summary.dart';
 import 'site_performance.dart';
 import 'escalation_trend.dart';
+import 'report_section_configuration.dart';
 import 'report_sections.dart';
 
 class ReportBundle {
@@ -18,6 +19,7 @@ class ReportBundle {
   final PatrolPerformanceSnapshot patrolPerformance;
   final List<IncidentDetailSnapshot> incidentDetails;
   final SceneReviewSnapshot sceneReview;
+  final ReportSectionConfiguration sectionConfiguration;
   final SupervisorAssessment supervisorAssessment;
   final CompanyAchievementsSnapshot companyAchievements;
   final EmergingThreatSnapshot emergingThreats;
@@ -32,6 +34,7 @@ class ReportBundle {
     required this.patrolPerformance,
     required this.incidentDetails,
     required this.sceneReview,
+    this.sectionConfiguration = const ReportSectionConfiguration(),
     required this.supervisorAssessment,
     required this.companyAchievements,
     required this.emergingThreats,

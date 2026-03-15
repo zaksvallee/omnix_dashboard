@@ -48,25 +48,35 @@ class PDFReportExporter {
           pw.SizedBox(height: 20),
           _buildSectionTitle('EXECUTIVE SUMMARY'),
           _buildExecutiveCard(bundle),
-          pw.SizedBox(height: 20),
-          _buildSectionTitle('CCTV SCENE REVIEW'),
-          _buildSceneReviewSection(bundle),
-          pw.SizedBox(height: 20),
-          _buildSectionTitle('INCIDENT REGISTER'),
-          bundle.incidentDetails.isEmpty
-              ? _buildInfoCard(
-                  'No incidents recorded for this reporting period.',
-                )
-              : _buildIncidentTable(bundle),
-          pw.SizedBox(height: 20),
-          _buildSectionTitle('SLA PERFORMANCE SUMMARY'),
-          _buildSlaSummary(bundle),
-          pw.SizedBox(height: 20),
-          _buildSectionTitle('PATROL EXECUTION SUMMARY'),
-          _buildPatrolSummary(bundle),
-          pw.SizedBox(height: 20),
-          _buildSectionTitle('GUARD PERFORMANCE MATRIX'),
-          _buildGuardPerformanceSection(bundle),
+          if (bundle.sectionConfiguration.includeAiDecisionLog) ...[
+            pw.SizedBox(height: 20),
+            _buildSectionTitle('CCTV SCENE REVIEW'),
+            _buildSceneReviewSection(bundle),
+          ],
+          if (bundle.sectionConfiguration.includeTimeline) ...[
+            pw.SizedBox(height: 20),
+            _buildSectionTitle('INCIDENT REGISTER'),
+            bundle.incidentDetails.isEmpty
+                ? _buildInfoCard(
+                    'No incidents recorded for this reporting period.',
+                  )
+                : _buildIncidentTable(bundle),
+          ],
+          if (bundle.sectionConfiguration.includeDispatchSummary) ...[
+            pw.SizedBox(height: 20),
+            _buildSectionTitle('SLA PERFORMANCE SUMMARY'),
+            _buildSlaSummary(bundle),
+          ],
+          if (bundle.sectionConfiguration.includeCheckpointCompliance) ...[
+            pw.SizedBox(height: 20),
+            _buildSectionTitle('PATROL EXECUTION SUMMARY'),
+            _buildPatrolSummary(bundle),
+          ],
+          if (bundle.sectionConfiguration.includeGuardMetrics) ...[
+            pw.SizedBox(height: 20),
+            _buildSectionTitle('GUARD PERFORMANCE MATRIX'),
+            _buildGuardPerformanceSection(bundle),
+          ],
           pw.SizedBox(height: 18),
           _buildSectionTitle('OPERATIONAL APPENDIX'),
           _buildOperationalAppendix(bundle),
@@ -458,18 +468,16 @@ class PDFReportExporter {
             ),
           ),
           pw.SizedBox(height: 4),
-          ...sceneReview.highlights.map(
-            (highlight) {
-              final actionDetail = highlight.decisionSummary.trim().isNotEmpty
-                  ? ' • ${highlight.decisionSummary.trim()}'
-                  : '';
-              return pw.Bullet(
-                text:
-                    '${highlight.detectedAt} • ${highlight.cameraLabel} • ${highlight.postureLabel} • ${highlight.decisionLabel.isEmpty ? 'Unspecified action' : highlight.decisionLabel}$actionDetail • ${highlight.summary}',
-                style: pw.TextStyle(fontSize: 10.8, color: _inkPrimary),
-              );
-            },
-          ),
+          ...sceneReview.highlights.map((highlight) {
+            final actionDetail = highlight.decisionSummary.trim().isNotEmpty
+                ? ' • ${highlight.decisionSummary.trim()}'
+                : '';
+            return pw.Bullet(
+              text:
+                  '${highlight.detectedAt} • ${highlight.cameraLabel} • ${highlight.postureLabel} • ${highlight.decisionLabel.isEmpty ? 'Unspecified action' : highlight.decisionLabel}$actionDetail • ${highlight.summary}',
+              style: pw.TextStyle(fontSize: 10.8, color: _inkPrimary),
+            );
+          }),
         ],
       ],
     );

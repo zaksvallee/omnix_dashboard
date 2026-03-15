@@ -15,6 +15,11 @@ ReportGenerated buildTestReportGenerated({
   int eventCount = 1,
   int reportSchemaVersion = 2,
   int projectionVersion = 1,
+  bool includeTimeline = true,
+  bool includeDispatchSummary = true,
+  bool includeCheckpointCompliance = true,
+  bool includeAiDecisionLog = true,
+  bool includeGuardMetrics = true,
 }) {
   return ReportGenerated(
     eventId: eventId,
@@ -31,5 +36,10 @@ ReportGenerated buildTestReportGenerated({
     eventCount: eventCount,
     reportSchemaVersion: reportSchemaVersion,
     projectionVersion: projectionVersion,
+    includeTimeline: includeTimeline,
+    includeDispatchSummary: includeDispatchSummary,
+    includeCheckpointCompliance: includeCheckpointCompliance,
+    includeAiDecisionLog: includeAiDecisionLog,
+    includeGuardMetrics: includeGuardMetrics,
   );
 }

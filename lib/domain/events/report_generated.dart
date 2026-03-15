@@ -1,4 +1,5 @@
 import 'dispatch_event.dart';
+import '../crm/reporting/report_section_configuration.dart';
 
 class ReportGenerated extends DispatchEvent {
   final String clientId;
@@ -11,6 +12,11 @@ class ReportGenerated extends DispatchEvent {
   final int eventCount;
   final int reportSchemaVersion;
   final int projectionVersion;
+  final bool includeTimeline;
+  final bool includeDispatchSummary;
+  final bool includeCheckpointCompliance;
+  final bool includeAiDecisionLog;
+  final bool includeGuardMetrics;
 
   const ReportGenerated({
     required super.eventId,
@@ -27,7 +33,21 @@ class ReportGenerated extends DispatchEvent {
     required this.eventCount,
     required this.reportSchemaVersion,
     required this.projectionVersion,
+    this.includeTimeline = true,
+    this.includeDispatchSummary = true,
+    this.includeCheckpointCompliance = true,
+    this.includeAiDecisionLog = true,
+    this.includeGuardMetrics = true,
   });
+
+  ReportSectionConfiguration get sectionConfiguration =>
+      ReportSectionConfiguration(
+        includeTimeline: includeTimeline,
+        includeDispatchSummary: includeDispatchSummary,
+        includeCheckpointCompliance: includeCheckpointCompliance,
+        includeAiDecisionLog: includeAiDecisionLog,
+        includeGuardMetrics: includeGuardMetrics,
+      );
 
   @override
   ReportGenerated copyWithSequence(int sequence) {
@@ -46,6 +66,11 @@ class ReportGenerated extends DispatchEvent {
       eventCount: eventCount,
       reportSchemaVersion: reportSchemaVersion,
       projectionVersion: projectionVersion,
+      includeTimeline: includeTimeline,
+      includeDispatchSummary: includeDispatchSummary,
+      includeCheckpointCompliance: includeCheckpointCompliance,
+      includeAiDecisionLog: includeAiDecisionLog,
+      includeGuardMetrics: includeGuardMetrics,
     );
   }
 }

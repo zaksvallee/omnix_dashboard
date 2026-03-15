@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 
 import 'monitoring_scene_review_store.dart';
 import 'report_scene_review_snapshot_builder.dart';
+import '../domain/crm/reporting/report_section_configuration.dart';
 import '../domain/crm/crm_event.dart';
 import '../domain/crm/export/pdf_report_exporter.dart';
 import '../domain/crm/reporting/report_bundle.dart';
@@ -79,7 +80,7 @@ enum ReportReceiptLatestActionBucket {
 }
 
 class ReportGenerationService {
-  static const int reportSchemaVersion = 2;
+  static const int reportSchemaVersion = 3;
   static const int projectionVersion = 1;
 
   final EventStore store;
@@ -98,6 +99,8 @@ class ReportGenerationService {
     required String clientId,
     required String siteId,
     required DateTime nowUtc,
+    ReportSectionConfiguration sectionConfiguration =
+        const ReportSectionConfiguration(),
   }) async {
     final currentMonth = _monthKey(nowUtc);
     final previousMonth = _monthKey(
@@ -155,6 +158,7 @@ class ReportGenerationService {
       crmEvents: crmEvents,
       dispatchEvents: tenantEvents,
       sceneReview: sceneReview,
+      sectionConfiguration: sectionConfiguration,
     );
 
     final monthEvents = tenantEvents
@@ -201,6 +205,12 @@ class ReportGenerationService {
       eventCount: monthEvents.length,
       reportSchemaVersion: reportSchemaVersion,
       projectionVersion: projectionVersion,
+      includeTimeline: sectionConfiguration.includeTimeline,
+      includeDispatchSummary: sectionConfiguration.includeDispatchSummary,
+      includeCheckpointCompliance:
+          sectionConfiguration.includeCheckpointCompliance,
+      includeAiDecisionLog: sectionConfiguration.includeAiDecisionLog,
+      includeGuardMetrics: sectionConfiguration.includeGuardMetrics,
     );
 
     store.append(receiptEvent);
@@ -256,6 +266,21 @@ class ReportGenerationService {
         repeatUpdates: 0,
         escalationCandidates: 0,
         topPosture: 'none',
+        latestActionBucket: ReportReceiptLatestActionBucket.none,
+        latestActionTaken: '',
+        latestSuppressedPattern: '',
+      );
+    }
+    if (!receipt.includeAiDecisionLog) {
+      return const ReportReceiptSceneReviewSummary(
+        includedInReceipt: false,
+        totalReviews: 0,
+        modelReviews: 0,
+        suppressedActions: 0,
+        incidentAlerts: 0,
+        repeatUpdates: 0,
+        escalationCandidates: 0,
+        topPosture: 'not included',
         latestActionBucket: ReportReceiptLatestActionBucket.none,
         latestActionTaken: '',
         latestSuppressedPattern: '',
@@ -384,6 +409,7 @@ class ReportGenerationService {
       crmEvents: crmEvents,
       dispatchEvents: scopedEvents,
       sceneReview: sceneReview,
+      sectionConfiguration: receipt.sectionConfiguration,
     );
     return bundle;
   }

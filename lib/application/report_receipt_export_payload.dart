@@ -23,7 +23,10 @@ class ReportReceiptExportEntry {
       'eventCount': receiptEvent.eventCount,
       'reportSchemaVersion': receiptEvent.reportSchemaVersion,
       'projectionVersion': receiptEvent.projectionVersion,
-      'sceneReviewIncluded': receiptEvent.reportSchemaVersion >= 2,
+      'sceneReviewIncluded':
+          receiptEvent.reportSchemaVersion >= 2 &&
+          receiptEvent.includeAiDecisionLog,
+      'sectionConfiguration': receiptEvent.sectionConfiguration.toJson(),
       if (replayVerified != null) 'replayVerified': replayVerified,
     };
   }
@@ -43,12 +46,14 @@ class ReportReceiptExportPayload {
     required ReportReceiptSceneFilter filter,
     String? selectedReceiptEventId,
     String? previewReceiptEventId,
+    Map<String, Object?>? activeSectionConfiguration,
   }) {
     return build(
       entries: [entry],
       filter: filter,
       selectedReceiptEventId: selectedReceiptEventId,
       previewReceiptEventId: previewReceiptEventId,
+      activeSectionConfiguration: activeSectionConfiguration,
     );
   }
 
@@ -58,6 +63,7 @@ class ReportReceiptExportPayload {
     String? selectedReceiptEventId,
     String? previewReceiptEventId,
     ReportReceiptExportEntry? focusedReceipt,
+    Map<String, Object?>? activeSectionConfiguration,
   }) {
     final context = <String, Object?>{
       'filter': <String, Object?>{
@@ -68,13 +74,14 @@ class ReportReceiptExportPayload {
       },
       ...?selectedReceiptEventId == null
           ? null
-          : <String, Object?>{
-              'selectedReceiptEventId': selectedReceiptEventId,
-            },
+          : <String, Object?>{'selectedReceiptEventId': selectedReceiptEventId},
       ...?previewReceiptEventId == null
           ? null
+          : <String, Object?>{'previewReceiptEventId': previewReceiptEventId},
+      ...?activeSectionConfiguration == null
+          ? null
           : <String, Object?>{
-              'previewReceiptEventId': previewReceiptEventId,
+              'activeSectionConfiguration': activeSectionConfiguration,
             },
     };
     if (filter.isLatestActionFilter && focusedReceipt != null) {
@@ -82,7 +89,9 @@ class ReportReceiptExportPayload {
     }
     return <String, Object?>{
       'context': context,
-      'receipts': entries.map((entry) => entry.toJson()).toList(growable: false),
+      'receipts': entries
+          .map((entry) => entry.toJson())
+          .toList(growable: false),
     };
   }
 }

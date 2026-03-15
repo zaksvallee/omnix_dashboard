@@ -3338,7 +3338,9 @@ void main() {
         intelligenceId: 'intel-generate-reviewed-1',
       );
       final store = fixture.store;
-      final shellState = ValueNotifier(const ReportShellState());
+      final shellState = ValueNotifier(
+        const ReportShellState(includeAiDecisionLog: true),
+      );
       final previewRequests = <ReportPreviewRequest>[];
       addTearDown(shellState.dispose);
 
@@ -3458,6 +3460,7 @@ void main() {
             sceneReviewByIntelligenceId: fixture.sceneReviewByIntelligenceId,
             reportShellState: const ReportShellState(
               previewSurface: ReportPreviewSurface.route,
+              includeAiDecisionLog: true,
             ),
           ),
         ),
