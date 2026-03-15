@@ -679,6 +679,160 @@ void main() {
     );
   });
 
+  testWidgets('client reports shows receipt policy history and exports it', (
+    tester,
+  ) async {
+    String? clipboardText;
+    Map<String, Object?>? openedEventsScope;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final args = call.arguments as Map<dynamic, dynamic>;
+          clipboardText = args['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+
+    final store = InMemoryEventStore();
+    store.append(
+      ReportGenerated(
+        eventId: 'RPT-1',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 13, 23, 30),
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-SANDTON',
+        month: '2026-03',
+        contentHash: 'content-hash-1',
+        pdfHash: 'pdf-hash-1',
+        eventRangeStart: 1,
+        eventRangeEnd: 20,
+        eventCount: 20,
+        reportSchemaVersion: 3,
+        projectionVersion: 1,
+      ),
+    );
+    store.append(
+      ReportGenerated(
+        eventId: 'RPT-2',
+        sequence: 2,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 14, 23, 30),
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-SANDTON',
+        month: '2026-03',
+        contentHash: 'content-hash-2',
+        pdfHash: 'pdf-hash-2',
+        eventRangeStart: 21,
+        eventRangeEnd: 40,
+        eventCount: 20,
+        reportSchemaVersion: 1,
+        projectionVersion: 1,
+      ),
+    );
+    store.append(
+      ReportGenerated(
+        eventId: 'RPT-3',
+        sequence: 3,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 15, 23, 30),
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-SANDTON',
+        month: '2026-03',
+        contentHash: 'content-hash-3',
+        pdfHash: 'pdf-hash-3',
+        eventRangeStart: 41,
+        eventRangeEnd: 64,
+        eventCount: 24,
+        reportSchemaVersion: 3,
+        projectionVersion: 1,
+        includeAiDecisionLog: false,
+        includeGuardMetrics: false,
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ClientIntelligenceReportsPage(
+          store: store,
+          selectedClient: 'CLIENT-001',
+          selectedSite: 'SITE-SANDTON',
+          onOpenEventsForScope: (eventIds, selectedEventId) {
+            openedEventsScope = <String, Object?>{
+              'eventIds': eventIds,
+              'selectedEventId': selectedEventId,
+            };
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Receipt Policy History'), findsOneWidget);
+    expect(find.text('SLIPPING'), findsOneWidget);
+    expect(find.text('Omitted AI Decision Log, Guard Metrics'), findsWidgets);
+    expect(
+      find.text(
+        'The latest receipt omitted more sections than the recent receipt baseline.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('reports-receipt-policy-row-RPT-3')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('reports-receipt-policy-row-RPT-2')),
+      findsOneWidget,
+    );
+    expect(find.text('LEGACY'), findsOneWidget);
+    expect(find.text('2 OMITTED'), findsWidgets);
+
+    final copyJsonButton = find.byKey(
+      const ValueKey('reports-receipt-policy-copy-json'),
+    );
+    await tester.ensureVisible(copyJsonButton);
+    await tester.tap(copyJsonButton);
+    await tester.pumpAndSettle();
+
+    expect(clipboardText, isNotNull);
+    expect(clipboardText, contains('"trendLabel": "SLIPPING"'));
+    expect(clipboardText, contains('"eventId": "RPT-3"'));
+    expect(clipboardText, contains('"stateLabel": "LEGACY"'));
+    expect(clipboardText, contains('"omittedSections": ['));
+
+    final copyCsvButton = find.byKey(
+      const ValueKey('reports-receipt-policy-copy-csv'),
+    );
+    await tester.ensureVisible(copyCsvButton);
+    await tester.tap(copyCsvButton);
+    await tester.pumpAndSettle();
+
+    expect(clipboardText, contains('trend_label,SLIPPING'));
+    expect(clipboardText, contains('receipt_1,"RPT-3",state=2 OMITTED'));
+    expect(clipboardText, contains('receipt_2,"RPT-2",state=LEGACY'));
+
+    final openEventsButton = find.byKey(
+      const ValueKey('reports-receipt-policy-open-events-RPT-3'),
+    );
+    await tester.ensureVisible(openEventsButton);
+    await tester.tap(openEventsButton);
+    await tester.pumpAndSettle();
+
+    expect(openedEventsScope, <String, Object?>{
+      'eventIds': ['RPT-3'],
+      'selectedEventId': 'RPT-3',
+    });
+  });
+
   testWidgets('client reports persists comparison window through remount', (
     tester,
   ) async {
@@ -3485,7 +3639,10 @@ void main() {
       await tester.tap(previewReportAction);
       await tester.pumpAndSettle();
 
-      final generatedReceipt = store.allEvents().whereType<ReportGenerated>().single;
+      final generatedReceipt = store
+          .allEvents()
+          .whereType<ReportGenerated>()
+          .single;
       expect(generatedReceipt.reportSchemaVersion, 3);
       expect(generatedReceipt.includeAiDecisionLog, isFalse);
       expect(generatedReceipt.includeGuardMetrics, isFalse);
@@ -3502,9 +3659,12 @@ void main() {
         find.text(
           'Included: Incident Timeline, Dispatch Summary, Checkpoint Compliance. Omitted: AI Decision Log, Guard Metrics.',
         ),
+        findsWidgets,
+      );
+      expect(
+        find.text('Preview target: ${generatedReceipt.eventId}'),
         findsOneWidget,
       );
-      expect(find.text('Preview target: ${generatedReceipt.eventId}'), findsOneWidget);
       expect(find.text('2 Sections Omitted'), findsWidgets);
       expect(previewRequests, hasLength(1));
     },

@@ -274,6 +274,10 @@ class _ClientIntelligenceReportsPageState
                     const SizedBox(height: 8),
                     _partnerScorecardLanesCard(),
                   ],
+                  if (reportRows.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    _receiptPolicyHistoryCard(reportRows),
+                  ],
                   if (_hasPartnerScopeFocus) ...[
                     const SizedBox(height: 8),
                     _partnerScopeCard(),
@@ -864,6 +868,177 @@ class _ClientIntelligenceReportsPageState
           for (var index = 0; index < comparisons.length; index++) ...[
             _partnerComparisonRow(comparisons[index]),
             if (index < comparisons.length - 1) const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _receiptPolicyHistoryCard(List<_ReceiptRow> rows) {
+    final trendLabel = _receiptPolicyTrendLabel(rows);
+    final trendReason = _receiptPolicyTrendReason(rows);
+    final current = rows.isEmpty ? null : rows.first;
+    return OnyxSectionCard(
+      title: 'Receipt Policy History',
+      subtitle:
+          'Recent generated receipts for this client and site, showing tracked policy capture, omitted sections, and drift over time.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (current != null)
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _partnerScopeChip(
+                  label: _receiptPolicyStateChipLabel(current.event),
+                  color: _receiptPolicyAccent(current.event),
+                ),
+                _partnerScopeChip(
+                  label: trendLabel,
+                  color: _receiptPolicyTrendColor(trendLabel),
+                ),
+                _partnerScopeChip(
+                  label: '${rows.length} receipts',
+                  color: const Color(0xFF8FD1FF),
+                ),
+              ],
+            ),
+          if (current != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _receiptPolicyHistoryHeadline(current.event),
+              style: GoogleFonts.inter(
+                color: const Color(0xFFE8F1FF),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+          if (trendReason.trim().isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              trendReason,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _actionButton(
+                key: const ValueKey('reports-receipt-policy-copy-json'),
+                label: 'Copy Policy JSON',
+                icon: Icons.copy_all_rounded,
+                onTap: () => _copyReceiptPolicyHistoryJson(rows),
+              ),
+              _actionButton(
+                key: const ValueKey('reports-receipt-policy-copy-csv'),
+                label: 'Copy Policy CSV',
+                icon: Icons.table_chart_rounded,
+                onTap: () => _copyReceiptPolicyHistoryCsv(rows),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          for (var index = 0; index < rows.length && index < 4; index++) ...[
+            _receiptPolicyHistoryRow(rows[index], current: index == 0),
+            if (index < rows.length - 1 && index < 3) const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _receiptPolicyHistoryRow(_ReceiptRow row, {required bool current}) {
+    final event = row.event;
+    final accent = _receiptPolicyAccent(event);
+    return Container(
+      key: ValueKey<String>('reports-receipt-policy-row-${event.eventId}'),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: current ? const Color(0x1A0EA5E9) : const Color(0xFF0E1A2B),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: current ? const Color(0x550EA5E9) : const Color(0xFF223244),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${event.eventId} • ${_formatUtc(event.occurredAt)}',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFE8F1FF),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _receiptPolicyHistoryHeadline(event),
+                      style: GoogleFonts.inter(
+                        color: accent,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (current)
+                _partnerScopeChip(
+                  label: 'CURRENT',
+                  color: const Color(0xFF8FD1FF),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _partnerScopeChip(
+                label: _receiptPolicyStateChipLabel(event),
+                color: accent,
+              ),
+              _partnerScopeChip(
+                label: '${event.eventCount} events',
+                color: const Color(0xFF8EA4C2),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _receiptPolicyHistoryDetail(event),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (widget.onOpenEventsForScope != null) ...[
+            const SizedBox(height: 8),
+            _actionButton(
+              key: ValueKey<String>(
+                'reports-receipt-policy-open-events-${event.eventId}',
+              ),
+              label: 'Open Events Review',
+              icon: Icons.rule_folder_rounded,
+              onTap: () => _openEventsForReceiptPolicyRow(row),
+            ),
           ],
         ],
       ),
@@ -1762,6 +1937,163 @@ class _ClientIntelligenceReportsPageState
         return 'Current shift is holding close to the recent scorecard baseline.';
     }
     return '';
+  }
+
+  bool _hasTrackedReceiptPolicy(ReportGenerated event) {
+    return event.reportSchemaVersion >= 3;
+  }
+
+  List<String> _receiptIncludedSectionLabels(ReportGenerated event) {
+    return <String>[
+      if (event.includeTimeline) 'Incident Timeline',
+      if (event.includeDispatchSummary) 'Dispatch Summary',
+      if (event.includeCheckpointCompliance) 'Checkpoint Compliance',
+      if (event.includeAiDecisionLog) 'AI Decision Log',
+      if (event.includeGuardMetrics) 'Guard Metrics',
+    ];
+  }
+
+  List<String> _receiptOmittedSectionLabels(ReportGenerated event) {
+    return <String>[
+      if (!event.includeTimeline) 'Incident Timeline',
+      if (!event.includeDispatchSummary) 'Dispatch Summary',
+      if (!event.includeCheckpointCompliance) 'Checkpoint Compliance',
+      if (!event.includeAiDecisionLog) 'AI Decision Log',
+      if (!event.includeGuardMetrics) 'Guard Metrics',
+    ];
+  }
+
+  Color _receiptPolicyAccent(ReportGenerated event) {
+    if (!_hasTrackedReceiptPolicy(event)) {
+      return const Color(0xFF8EA5C6);
+    }
+    return _receiptOmittedSectionLabels(event).isEmpty
+        ? const Color(0xFF59D79B)
+        : const Color(0xFFF6C067);
+  }
+
+  String _receiptPolicyStateChipLabel(ReportGenerated event) {
+    if (!_hasTrackedReceiptPolicy(event)) {
+      return 'LEGACY';
+    }
+    final omitted = _receiptOmittedSectionLabels(event);
+    if (omitted.isEmpty) {
+      return 'FULL POLICY';
+    }
+    return '${omitted.length} OMITTED';
+  }
+
+  String _receiptPolicyHistoryHeadline(ReportGenerated event) {
+    if (!_hasTrackedReceiptPolicy(event)) {
+      return 'Legacy receipt configuration';
+    }
+    final omitted = _receiptOmittedSectionLabels(event);
+    if (omitted.isEmpty) {
+      return 'All sections included';
+    }
+    return 'Omitted ${omitted.join(', ')}';
+  }
+
+  String _receiptPolicyHistoryDetail(ReportGenerated event) {
+    if (!_hasTrackedReceiptPolicy(event)) {
+      return 'Per-section report configuration was not captured for this receipt. Replay policy drift must be inferred from legacy behavior.';
+    }
+    final included = _receiptIncludedSectionLabels(event);
+    final omitted = _receiptOmittedSectionLabels(event);
+    final includedLabel = included.isEmpty ? 'None' : included.join(', ');
+    final omittedLabel = omitted.isEmpty ? 'None' : omitted.join(', ');
+    return 'Included: $includedLabel. Omitted: $omittedLabel.';
+  }
+
+  double _receiptPolicySeverityScore(ReportGenerated event) {
+    if (!_hasTrackedReceiptPolicy(event)) {
+      return 3.0;
+    }
+    final omitted = _receiptOmittedSectionLabels(event);
+    if (omitted.isEmpty) {
+      return 1.0;
+    }
+    return 1.5 + omitted.length;
+  }
+
+  String _receiptPolicyTrendLabel(List<_ReceiptRow> rows) {
+    if (rows.isEmpty) {
+      return 'NO DATA';
+    }
+    if (rows.length == 1) {
+      return 'NEW';
+    }
+    final currentScore = _receiptPolicySeverityScore(rows.first.event);
+    final priorScores = rows
+        .skip(1)
+        .map((row) => _receiptPolicySeverityScore(row.event))
+        .toList(growable: false);
+    final priorAverage =
+        priorScores.reduce((left, right) => left + right) / priorScores.length;
+    if (currentScore <= priorAverage - 0.35) {
+      return 'IMPROVING';
+    }
+    if (currentScore >= priorAverage + 0.35) {
+      return 'SLIPPING';
+    }
+    return 'STABLE';
+  }
+
+  String _receiptPolicyTrendReason(List<_ReceiptRow> rows) {
+    if (rows.isEmpty) {
+      return 'No generated receipts are available for this client and site.';
+    }
+    if (rows.length == 1) {
+      return 'This is the first recorded receipt policy snapshot for this client and site.';
+    }
+    final current = rows.first.event;
+    final trend = _receiptPolicyTrendLabel(rows);
+    switch (trend) {
+      case 'IMPROVING':
+        if (_hasTrackedReceiptPolicy(current) &&
+            _receiptOmittedSectionLabels(current).isEmpty) {
+          return 'The latest receipt returned to full tracked policy coverage.';
+        }
+        return 'The latest receipt reduced omitted-section or legacy risk against recent history.';
+      case 'SLIPPING':
+        if (!_hasTrackedReceiptPolicy(current)) {
+          return 'The latest receipt fell back to legacy policy capture.';
+        }
+        return 'The latest receipt omitted more sections than the recent receipt baseline.';
+      case 'STABLE':
+        return 'The latest receipt is holding close to the recent policy baseline.';
+      case 'NEW':
+      case 'NO DATA':
+        return 'This is the first recorded receipt policy snapshot for this client and site.';
+    }
+    return '';
+  }
+
+  Color _receiptPolicyTrendColor(String trendLabel) {
+    switch (trendLabel) {
+      case 'IMPROVING':
+        return const Color(0xFF59D79B);
+      case 'SLIPPING':
+        return const Color(0xFFF6C067);
+      case 'STABLE':
+        return const Color(0xFF8FD1FF);
+      case 'NEW':
+        return const Color(0xFF8EA5C6);
+      case 'NO DATA':
+      default:
+        return const Color(0xFF8EA4C2);
+    }
+  }
+
+  void _openEventsForReceiptPolicyRow(_ReceiptRow row) {
+    final eventId = row.event.eventId.trim();
+    if (widget.onOpenEventsForScope == null || eventId.isEmpty) {
+      return;
+    }
+    widget.onOpenEventsForScope!(<String>[eventId], eventId);
+    _showReceiptActionFeedback(
+      'Opening Events Review for ${row.event.eventId}.',
+    );
   }
 
   double _partnerSeverityScore(SovereignReportPartnerScoreboardRow row) {
@@ -2779,7 +3111,9 @@ class _ClientIntelligenceReportsPageState
     return event.reportSchemaVersion >= 3;
   }
 
-  List<String> _includedSectionLabels(ReportSectionConfiguration configuration) {
+  List<String> _includedSectionLabels(
+    ReportSectionConfiguration configuration,
+  ) {
     return <String>[
       if (configuration.includeTimeline) 'Incident Timeline',
       if (configuration.includeDispatchSummary) 'Dispatch Summary',
@@ -2793,8 +3127,7 @@ class _ClientIntelligenceReportsPageState
     return <String>[
       if (!configuration.includeTimeline) 'Incident Timeline',
       if (!configuration.includeDispatchSummary) 'Dispatch Summary',
-      if (!configuration.includeCheckpointCompliance)
-        'Checkpoint Compliance',
+      if (!configuration.includeCheckpointCompliance) 'Checkpoint Compliance',
       if (!configuration.includeAiDecisionLog) 'AI Decision Log',
       if (!configuration.includeGuardMetrics) 'Guard Metrics',
     ];
@@ -3128,6 +3461,35 @@ class _ClientIntelligenceReportsPageState
     _showReceiptActionFeedback('Partner comparison CSV copied.');
   }
 
+  void _copyReceiptPolicyHistoryJson(List<_ReceiptRow> rows) {
+    final payload = _receiptPolicyHistoryExportPayload(rows);
+    final encoded = const JsonEncoder.withIndent('  ').convert(payload);
+    Clipboard.setData(ClipboardData(text: encoded));
+    logUiAction(
+      'reports.copy_receipt_policy_json',
+      context: <String, Object?>{
+        'client_id': widget.selectedClient,
+        'site_id': widget.selectedSite,
+        'rows': rows.length,
+      },
+    );
+    _showReceiptActionFeedback('Receipt policy JSON copied.');
+  }
+
+  void _copyReceiptPolicyHistoryCsv(List<_ReceiptRow> rows) {
+    final encoded = _receiptPolicyHistoryExportCsv(rows);
+    Clipboard.setData(ClipboardData(text: encoded));
+    logUiAction(
+      'reports.copy_receipt_policy_csv',
+      context: <String, Object?>{
+        'client_id': widget.selectedClient,
+        'site_id': widget.selectedSite,
+        'rows': rows.length,
+      },
+    );
+    _showReceiptActionFeedback('Receipt policy CSV copied.');
+  }
+
   Map<String, Object?> _partnerScopeExportPayload() {
     final historyPoints = _partnerScopeHistoryPoints();
     _PartnerScopeHistoryPoint? currentPoint;
@@ -3190,6 +3552,35 @@ class _ClientIntelligenceReportsPageState
     };
   }
 
+  Map<String, Object?> _receiptPolicyHistoryExportPayload(
+    List<_ReceiptRow> rows,
+  ) {
+    return <String, Object?>{
+      'scope': <String, Object?>{
+        'clientId': widget.selectedClient,
+        'siteId': widget.selectedSite,
+      },
+      'trendLabel': _receiptPolicyTrendLabel(rows),
+      'trendReason': _receiptPolicyTrendReason(rows),
+      'receipts': rows
+          .map(
+            (row) => <String, Object?>{
+              'eventId': row.event.eventId,
+              'occurredAtUtc': row.event.occurredAt.toIso8601String(),
+              'month': row.event.month,
+              'reportSchemaVersion': row.event.reportSchemaVersion,
+              'stateLabel': _receiptPolicyStateChipLabel(row.event),
+              'headline': _receiptPolicyHistoryHeadline(row.event),
+              'detail': _receiptPolicyHistoryDetail(row.event),
+              'includedSections': _receiptIncludedSectionLabels(row.event),
+              'omittedSections': _receiptOmittedSectionLabels(row.event),
+              'eventCount': row.event.eventCount,
+            },
+          )
+          .toList(growable: false),
+    };
+  }
+
   String _partnerScopeExportCsv() {
     final historyPoints = _partnerScopeHistoryPoints();
     final chains = _partnerScopeDispatchChains();
@@ -3233,6 +3624,26 @@ class _ClientIntelligenceReportsPageState
           '${prefix}_history_${historyIndex + 1},"${point.toCsvSummary().replaceAll('"', '""')}"',
         );
       }
+    }
+    return lines.join('\n');
+  }
+
+  String _receiptPolicyHistoryExportCsv(List<_ReceiptRow> rows) {
+    final lines = <String>[
+      'metric,value',
+      'client_id,${widget.selectedClient}',
+      'site_id,${widget.selectedSite}',
+      'trend_label,${_receiptPolicyTrendLabel(rows)}',
+      'trend_reason,"${_receiptPolicyTrendReason(rows).replaceAll('"', '""')}"',
+    ];
+    for (var index = 0; index < rows.length; index++) {
+      final row = rows[index];
+      lines.add(
+        'receipt_${index + 1},"${row.event.eventId.replaceAll('"', '""')}",state=${_receiptPolicyStateChipLabel(row.event)},headline=${_receiptPolicyHistoryHeadline(row.event).replaceAll('"', '""')},event_count=${row.event.eventCount}',
+      );
+      lines.add(
+        'receipt_${index + 1}_detail,"${_receiptPolicyHistoryDetail(row.event).replaceAll('"', '""')}"',
+      );
     }
     return lines.join('\n');
   }
