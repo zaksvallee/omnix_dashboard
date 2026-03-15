@@ -3183,6 +3183,28 @@ class _AdministrationPageState extends State<AdministrationPage> {
     _siteTelegramChatcheckStatus = nextSite;
   }
 
+  void _cachePartnerChatcheckResult({
+    required String clientId,
+    String? siteId,
+    required String result,
+  }) {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId?.trim() ?? '';
+    final normalizedResult = result.trim();
+    if (normalizedClientId.isEmpty || normalizedResult.isEmpty) {
+      return;
+    }
+    final nextClient = Map<String, String>.from(_clientPartnerChatcheckStatus);
+    final nextSite = Map<String, String>.from(_sitePartnerChatcheckStatus);
+    nextClient[normalizedClientId] = normalizedResult;
+    if (normalizedSiteId.isNotEmpty) {
+      nextSite[_siteScopeKey(normalizedClientId, normalizedSiteId)] =
+          normalizedResult;
+    }
+    _clientPartnerChatcheckStatus = nextClient;
+    _sitePartnerChatcheckStatus = nextSite;
+  }
+
   void _recordChatcheckResult({
     required String clientId,
     String? siteId,
@@ -3338,6 +3360,38 @@ class _AdministrationPageState extends State<AdministrationPage> {
     );
   }
 
+  ({String label, String chatId, int? threadId})? _primaryPartnerLaneForScope(
+    String clientId, {
+    String? siteId,
+  }) {
+    final details = _partnerLaneDetailsForScope(clientId, siteId: siteId);
+    if (details.isEmpty) {
+      return null;
+    }
+    final segments = details.first
+        .split(' • ')
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (segments.length < 2) {
+      return null;
+    }
+    final label = segments.first;
+    var chatId = '';
+    int? threadId;
+    for (final segment in segments.skip(1)) {
+      if (segment.startsWith('chat=')) {
+        chatId = segment.substring('chat='.length).trim();
+      } else if (segment.startsWith('thread=')) {
+        threadId = int.tryParse(segment.substring('thread='.length).trim());
+      }
+    }
+    if (chatId.isEmpty || chatId == 'pending') {
+      return null;
+    }
+    return (label: label, chatId: chatId, threadId: threadId);
+  }
+
   String _partnerDispatchStatusLabel(PartnerDispatchStatus status) {
     return switch (status) {
       PartnerDispatchStatus.accepted => 'ACCEPT',
@@ -3361,8 +3415,11 @@ class _AdministrationPageState extends State<AdministrationPage> {
     final normalizedClientId = clientId.trim();
     final normalizedSiteId = siteId?.trim() ?? '';
     if (normalizedSiteId.isNotEmpty) {
-      final scoped = _sitePartnerLaneDetails[
-          _siteScopeKey(normalizedClientId, normalizedSiteId)];
+      final scoped =
+          _sitePartnerLaneDetails[_siteScopeKey(
+            normalizedClientId,
+            normalizedSiteId,
+          )];
       if (scoped != null && scoped.isNotEmpty) {
         return scoped;
       }
@@ -3381,7 +3438,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
         .where(
           (event) =>
               event.clientId.trim() == normalizedClientId &&
-              (normalizedSiteId.isEmpty || event.siteId.trim() == normalizedSiteId),
+              (normalizedSiteId.isEmpty ||
+                  event.siteId.trim() == normalizedSiteId),
         )
         .toList(growable: false);
     matching.sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
@@ -3400,10 +3458,12 @@ class _AdministrationPageState extends State<AdministrationPage> {
     );
     final partnerStatus = normalizedSiteId.isEmpty
         ? (_clientPartnerChatcheckStatus[normalizedClientId] ?? '').trim()
-        : (_sitePartnerChatcheckStatus[
-                    _siteScopeKey(normalizedClientId, normalizedSiteId)] ??
-                '')
-            .trim();
+        : (_sitePartnerChatcheckStatus[_siteScopeKey(
+                    normalizedClientId,
+                    normalizedSiteId,
+                  )] ??
+                  '')
+              .trim();
     final recentActions = _recentPartnerActionsForScope(
       normalizedClientId,
       siteId: normalizedSiteId,
@@ -3411,124 +3471,213 @@ class _AdministrationPageState extends State<AdministrationPage> {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF0C1117),
-          title: Text(
-            normalizedSiteId.isEmpty
-                ? 'Partner Dispatch Detail'
-                : 'Partner Dispatch Detail • ${_siteName(normalizedSiteId)}',
-            style: GoogleFonts.inter(
-              color: const Color(0xFFEAF4FF),
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          content: SizedBox(
-            width: _responsiveDialogWidth(context, maxWidth: 720),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Scope: ${_clientName(normalizedClientId)}${normalizedSiteId.isEmpty ? '' : ' • ${_siteName(normalizedSiteId)}'}',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF9AB1CF),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
+        var detailStatus = partnerStatus;
+        var checking = false;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF0C1117),
+              title: Text(
+                normalizedSiteId.isEmpty
+                    ? 'Partner Dispatch Detail'
+                    : 'Partner Dispatch Detail • ${_siteName(normalizedSiteId)}',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFEAF4FF),
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              content: SizedBox(
+                width: _responsiveDialogWidth(context, maxWidth: 720),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Scope: ${_clientName(normalizedClientId)}${normalizedSiteId.isEmpty ? '' : ' • ${_siteName(normalizedSiteId)}'}',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF9AB1CF),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (detailStatus.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Current health: $detailStatus',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFEAF4FF),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      Text(
+                        'Bound lane details',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFEAF4FF),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      if (laneDetails.isEmpty)
+                        Text(
+                          'No bound partner lane details are cached for this scope yet.',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF8EA4C2),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        )
+                      else
+                        ...laneDetails.map(
+                          (detail) => Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Text(
+                              detail,
+                              style: GoogleFonts.robotoMono(
+                                color: const Color(0xFFB9CCE5),
+                                fontSize: 11,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Recent declared actions',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFEAF4FF),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      if (recentActions.isEmpty)
+                        Text(
+                          'No partner-declared actions recorded for this scope yet.',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF8EA4C2),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        )
+                      else
+                        ...recentActions.map(
+                          (event) => Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Text(
+                              '${_partnerEventTimeLabel(event.occurredAt)} • ${event.partnerLabel} • ${_partnerDispatchStatusLabel(event.status)} • ${event.actorLabel} • dispatch=${event.dispatchId}',
+                              style: GoogleFonts.robotoMono(
+                                color: const Color(0xFFB9CCE5),
+                                fontSize: 11,
+                                height: 1.45,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
-                  if (partnerStatus.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      'Current health: $partnerStatus',
+                ),
+              ),
+              actions: [
+                if (widget.onCheckPartnerTelegramEndpoint != null)
+                  TextButton(
+                    onPressed: checking
+                        ? null
+                        : () async {
+                            final lane = _primaryPartnerLaneForScope(
+                              normalizedClientId,
+                              siteId: normalizedSiteId,
+                            );
+                            if (lane == null) {
+                              _snack(
+                                'No partner lane with a usable chat/thread target is available for check.',
+                              );
+                              return;
+                            }
+                            setDialogState(() => checking = true);
+                            try {
+                              final result =
+                                  await widget.onCheckPartnerTelegramEndpoint!(
+                                    clientId: normalizedClientId,
+                                    siteId: normalizedSiteId,
+                                    chatId: lane.chatId,
+                                    threadId: lane.threadId,
+                                  );
+                              if (!mounted) return;
+                              setState(() {
+                                _cachePartnerChatcheckResult(
+                                  clientId: normalizedClientId,
+                                  siteId: normalizedSiteId,
+                                  result: result,
+                                );
+                              });
+                              setDialogState(() {
+                                detailStatus = result;
+                                checking = false;
+                              });
+                            } catch (_) {
+                              if (!mounted) return;
+                              setDialogState(() => checking = false);
+                              _snack('Failed to verify partner dispatch lane.');
+                            }
+                          },
+                    child: Text(
+                      checking ? 'Checking...' : 'Check lane',
                       style: GoogleFonts.inter(
                         color: const Color(0xFFEAF4FF),
-                        fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                  ],
-                  const SizedBox(height: 12),
-                  Text(
-                    'Bound lane details',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFFEAF4FF),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
+                  ),
+                if (normalizedSiteId.isNotEmpty &&
+                    widget.onOpenFleetDispatchScope != null)
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop();
+                      widget.onOpenFleetDispatchScope!.call(
+                        normalizedClientId,
+                        normalizedSiteId,
+                        null,
+                      );
+                    },
+                    child: Text(
+                      'Open Dispatch Scope',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF8FD1FF),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  )
+                else if (widget.onOpenDispatches != null)
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop();
+                      widget.onOpenDispatches!.call();
+                    },
+                    child: Text(
+                      'Open Dispatches',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF8FD1FF),
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  if (laneDetails.isEmpty)
-                    Text(
-                      'No bound partner lane details are cached for this scope yet.',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF8EA4C2),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    )
-                  else
-                    ...laneDetails.map(
-                      (detail) => Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: Text(
-                          detail,
-                          style: GoogleFonts.robotoMono(
-                            color: const Color(0xFFB9CCE5),
-                            fontSize: 11,
-                            height: 1.4,
-                          ),
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Recent declared actions',
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: Text(
+                    'Close',
                     style: GoogleFonts.inter(
                       color: const Color(0xFFEAF4FF),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  if (recentActions.isEmpty)
-                    Text(
-                      'No partner-declared actions recorded for this scope yet.',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF8EA4C2),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    )
-                  else
-                    ...recentActions.map(
-                      (event) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Text(
-                          '${_partnerEventTimeLabel(event.occurredAt)} • ${event.partnerLabel} • ${_partnerDispatchStatusLabel(event.status)} • ${event.actorLabel} • dispatch=${event.dispatchId}',
-                          style: GoogleFonts.robotoMono(
-                            color: const Color(0xFFB9CCE5),
-                            fontSize: 11,
-                            height: 1.45,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text(
-                'Close',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFFEAF4FF),
-                  fontWeight: FontWeight.w700,
                 ),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         );
       },
     );
@@ -3636,9 +3785,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 onTap: !hasPartnerDrillIn
                     ? null
                     : () => _showPartnerDispatchDetailDialog(
-                          clientId: row.clientId,
-                          siteId: row.id,
-                        ),
+                        clientId: row.clientId,
+                        siteId: row.id,
+                      ),
                 onEdit: () => _showEditStub('Site'),
                 onDelete: () => _deleteSite(row.id),
               ),

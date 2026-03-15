@@ -317,6 +317,11 @@ void main() {
   testWidgets('site partner health row opens drill-in with lane details', (
     tester,
   ) async {
+    late Map<String, Object?> checkedPayload;
+    String? openedDispatchClientId;
+    String? openedDispatchSiteId;
+    String? openedDispatchReference;
+
     await tester.pumpWidget(
       MaterialApp(
         home: AdministrationPage(
@@ -350,6 +355,25 @@ void main() {
               'PARTNER • Alpha • chat=-1001234567890 • thread=77',
             ],
           },
+          onCheckPartnerTelegramEndpoint: ({
+            required clientId,
+            required siteId,
+            required chatId,
+            int? threadId,
+          }) async {
+            checkedPayload = <String, Object?>{
+              'clientId': clientId,
+              'siteId': siteId,
+              'chatId': chatId,
+              'threadId': threadId,
+            };
+            return 'PASS (partner lane linked)';
+          },
+          onOpenFleetDispatchScope: (clientId, siteId, incidentReference) {
+            openedDispatchClientId = clientId;
+            openedDispatchSiteId = siteId;
+            openedDispatchReference = incidentReference;
+          },
         ),
       ),
     );
@@ -369,6 +393,22 @@ void main() {
       ),
       findsOneWidget,
     );
+
+    await tester.tap(find.text('Check lane'));
+    await tester.pumpAndSettle();
+
+    expect(checkedPayload['clientId'], 'CLT-001');
+    expect(checkedPayload['siteId'], 'WTF-MAIN');
+    expect(checkedPayload['chatId'], '-1001234567890');
+    expect(checkedPayload['threadId'], 77);
+    expect(find.text('Current health: PASS (partner lane linked)'), findsOneWidget);
+
+    await tester.tap(find.text('Open Dispatch Scope'));
+    await tester.pumpAndSettle();
+
+    expect(openedDispatchClientId, 'CLT-001');
+    expect(openedDispatchSiteId, 'WTF-MAIN');
+    expect(openedDispatchReference, isNull);
   });
 
   testWidgets('administration page reports tab changes to parent state', (
