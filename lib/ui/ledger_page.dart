@@ -481,8 +481,7 @@ class _LedgerPageState extends State<LedgerPage> {
                   if (row.configurationPillLabel != null)
                     _ledgerPill(
                       row.configurationPillLabel!,
-                      row.configurationPillTextColor ??
-                          const Color(0xFFA8BEE0),
+                      row.configurationPillTextColor ?? const Color(0xFFA8BEE0),
                       row.configurationPillBorderColor ??
                           const Color(0xFF2A4C7A),
                     ),
@@ -665,6 +664,7 @@ class _LedgerPageState extends State<LedgerPage> {
         final omittedSections = _omittedReportSectionLabels(
           event.sectionConfiguration,
         );
+        final brandingHeadline = _reportBrandingHeadline(event);
         rows.add(
           _LedgerTimelineRow(
             eventId: event.eventId,
@@ -672,24 +672,31 @@ class _LedgerPageState extends State<LedgerPage> {
             occurredAt: event.occurredAt,
             type: 'REPORT GENERATED',
             title:
-                '${event.siteId} ${event.month} • ${_reportSectionConfigurationHeadline(event)} • range ${event.eventRangeStart}-${event.eventRangeEnd}',
+                '${event.siteId} ${event.month} • ${_reportSectionConfigurationHeadline(event)}${brandingHeadline == null ? '' : ' • $brandingHeadline'} • range ${event.eventRangeStart}-${event.eventRangeEnd}',
             color: const Color(0xFFC79CFF),
             configurationPillLabel: tracked
-                ? omittedSections.isEmpty
+                ? event.brandingUsesOverride
+                      ? 'Custom Branding'
+                      : omittedSections.isEmpty
                       ? 'Tracked Config'
                       : '${omittedSections.length} Sections Omitted'
                 : 'Legacy Config',
-            configurationPillTextColor: tracked
+            configurationPillTextColor: event.brandingUsesOverride
+                ? const Color(0xFFFADFA4)
+                : tracked
                 ? omittedSections.isEmpty
                       ? const Color(0xFF8FF3C9)
                       : const Color(0xFFFADFA4)
                 : const Color(0xFFA8BEE0),
-            configurationPillBorderColor: tracked
+            configurationPillBorderColor: event.brandingUsesOverride
+                ? const Color(0xFF8A6A2A)
+                : tracked
                 ? omittedSections.isEmpty
                       ? const Color(0xFF2D7D63)
                       : const Color(0xFF8A6A2A)
                 : const Color(0xFF425B80),
-            detailSummary: _reportSectionConfigurationDetail(event),
+            detailSummary:
+                '${_reportBrandingDetail(event)} ${_reportSectionConfigurationDetail(event)}',
           ),
         );
       }
@@ -773,4 +780,28 @@ String _reportSectionConfigurationDetail(ReportGenerated event) {
   final includedLabel = included.isEmpty ? 'None' : included.join(', ');
   final omittedLabel = omitted.isEmpty ? 'None' : omitted.join(', ');
   return 'Included: $includedLabel. Omitted: $omittedLabel.';
+}
+
+String? _reportBrandingHeadline(ReportGenerated event) {
+  if (!event.brandingConfiguration.isConfigured) {
+    return null;
+  }
+  return event.brandingUsesOverride
+      ? 'custom branding override'
+      : 'default partner branding';
+}
+
+String _reportBrandingDetail(ReportGenerated event) {
+  if (!event.brandingConfiguration.isConfigured) {
+    return 'Branding: standard ONYX identity.';
+  }
+  final sourceLabel = event.brandingConfiguration.sourceLabel.trim();
+  if (event.brandingUsesOverride) {
+    return sourceLabel.isNotEmpty
+        ? 'Branding: custom override from default partner lane $sourceLabel.'
+        : 'Branding: custom override was used for this receipt.';
+  }
+  return sourceLabel.isNotEmpty
+      ? 'Branding: default partner lane $sourceLabel.'
+      : 'Branding: configured partner label was used.';
 }

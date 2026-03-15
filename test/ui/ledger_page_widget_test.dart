@@ -85,6 +85,10 @@ void main() {
           siteId: 'SITE-SANDTON',
           month: '2026-03',
           reportSchemaVersion: 3,
+          primaryBrandLabel: 'VISION Tactical',
+          endorsementLine: 'Powered by ONYX',
+          brandingSourceLabel: 'PARTNER • Alpha',
+          brandingUsesOverride: true,
           includeAiDecisionLog: false,
           includeGuardMetrics: false,
         ),
@@ -102,11 +106,14 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('REPORT GENERATED'), findsOneWidget);
-      expect(find.textContaining('2 sections omitted'), findsOneWidget);
-      expect(find.text('2 Sections Omitted'), findsOneWidget);
+      expect(
+        find.textContaining('2 sections omitted • custom branding override'),
+        findsOneWidget,
+      );
+      expect(find.text('Custom Branding'), findsOneWidget);
       expect(
         find.text(
-          'Included: Incident Timeline, Dispatch Summary, Checkpoint Compliance. Omitted: AI Decision Log, Guard Metrics.',
+          'Branding: custom override from default partner lane PARTNER • Alpha. Included: Incident Timeline, Dispatch Summary, Checkpoint Compliance. Omitted: AI Decision Log, Guard Metrics.',
         ),
         findsOneWidget,
       );
@@ -144,7 +151,7 @@ void main() {
       expect(find.text('Legacy Config'), findsOneWidget);
       expect(
         find.text(
-          'Legacy receipt. Per-section report configuration was not captured for this generated report.',
+          'Branding: standard ONYX identity. Legacy receipt. Per-section report configuration was not captured for this generated report.',
         ),
         findsOneWidget,
       );

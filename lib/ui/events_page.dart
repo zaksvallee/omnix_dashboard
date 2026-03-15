@@ -1056,6 +1056,9 @@ class _EventsPageState extends State<EventsPage> {
         ("eventCount", event.eventCount.toString()),
         ("reportSchemaVersion", event.reportSchemaVersion.toString()),
         ("projectionVersion", event.projectionVersion.toString()),
+        ("brandingMode", _reportBrandingModeLabel(event)),
+        ("brandingSource", _reportBrandingSourceLabel(event)),
+        ("brandingSummary", _reportBrandingDetail(event)),
         (
           "sectionConfigurationTracked",
           _hasTrackedReportSectionConfiguration(event).toString(),
@@ -1063,7 +1066,9 @@ class _EventsPageState extends State<EventsPage> {
         (
           "includedSections",
           _hasTrackedReportSectionConfiguration(event)
-              ? (includedSections.isEmpty ? "None" : includedSections.join(", "))
+              ? (includedSections.isEmpty
+                    ? "None"
+                    : includedSections.join(", "))
               : "Legacy receipt",
         ),
         (
@@ -1203,6 +1208,7 @@ class _EventsPageState extends State<EventsPage> {
       final omittedSections = _omittedReportSectionLabels(
         event.sectionConfiguration,
       );
+      final brandingHeadline = _reportBrandingHeadline(event);
       final configurationSummary = !hasTrackedConfig
           ? 'legacy receipt configuration'
           : omittedSections.isEmpty
@@ -1212,7 +1218,7 @@ class _EventsPageState extends State<EventsPage> {
         label: 'REPORT GENERATED',
         color: const Color(0xFFAD8DFF),
         summary:
-            '${event.clientId}/${event.siteId} ${event.month} • $configurationSummary • hash ${event.contentHash.substring(0, 12)}... range ${event.eventRangeStart}-${event.eventRangeEnd}',
+            '${event.clientId}/${event.siteId} ${event.month} • $configurationSummary${brandingHeadline == null ? '' : ' • $brandingHeadline'} • hash ${event.contentHash.substring(0, 12)}... range ${event.eventRangeStart}-${event.eventRangeEnd}',
       );
     }
     if (event is IntelligenceReceived) {
@@ -1452,6 +1458,14 @@ class _EventsPageState extends State<EventsPage> {
                   color: _reportSectionConfigurationAccent(reportEvent),
                 ),
               if (reportEvent != null &&
+                  reportEvent.brandingConfiguration.isConfigured)
+                _pill(
+                  reportEvent.brandingUsesOverride
+                      ? 'Custom Branding'
+                      : 'Default Branding',
+                  color: _reportBrandingAccent(reportEvent),
+                ),
+              if (reportEvent != null &&
                   _hasTrackedReportSectionConfiguration(reportEvent))
                 _pill(
                   _reportSectionConfigurationHeadline(reportEvent),
@@ -1472,7 +1486,7 @@ class _EventsPageState extends State<EventsPage> {
           if (reportEvent != null) ...[
             const SizedBox(height: 8),
             Text(
-              _reportSectionConfigurationDetail(reportEvent),
+              _reportBrandingAndSectionConfigurationDetail(reportEvent),
               style: GoogleFonts.inter(
                 color: const Color(0xFF8EA5C6),
                 fontSize: 12,
@@ -1496,8 +1510,7 @@ class _EventsPageState extends State<EventsPage> {
     return <String>[
       if (configuration.includeTimeline) 'Incident Timeline',
       if (configuration.includeDispatchSummary) 'Dispatch Summary',
-      if (configuration.includeCheckpointCompliance)
-        'Checkpoint Compliance',
+      if (configuration.includeCheckpointCompliance) 'Checkpoint Compliance',
       if (configuration.includeAiDecisionLog) 'AI Decision Log',
       if (configuration.includeGuardMetrics) 'Guard Metrics',
     ];
@@ -1509,8 +1522,7 @@ class _EventsPageState extends State<EventsPage> {
     return <String>[
       if (!configuration.includeTimeline) 'Incident Timeline',
       if (!configuration.includeDispatchSummary) 'Dispatch Summary',
-      if (!configuration.includeCheckpointCompliance)
-        'Checkpoint Compliance',
+      if (!configuration.includeCheckpointCompliance) 'Checkpoint Compliance',
       if (!configuration.includeAiDecisionLog) 'AI Decision Log',
       if (!configuration.includeGuardMetrics) 'Guard Metrics',
     ];
@@ -1533,6 +1545,60 @@ class _EventsPageState extends State<EventsPage> {
     final includedLabel = included.isEmpty ? 'None' : included.join(', ');
     final omittedLabel = omitted.isEmpty ? 'None' : omitted.join(', ');
     return 'Included: $includedLabel. Omitted: $omittedLabel.';
+  }
+
+  String _reportBrandingModeLabel(ReportGenerated event) {
+    if (!event.brandingConfiguration.isConfigured) {
+      return 'Standard ONYX';
+    }
+    return event.brandingUsesOverride ? 'Custom Override' : 'Default Partner';
+  }
+
+  String _reportBrandingSourceLabel(ReportGenerated event) {
+    final sourceLabel = event.brandingConfiguration.sourceLabel.trim();
+    if (sourceLabel.isEmpty) {
+      return event.brandingConfiguration.isConfigured
+          ? 'Configured partner branding'
+          : 'ONYX';
+    }
+    return sourceLabel;
+  }
+
+  String? _reportBrandingHeadline(ReportGenerated event) {
+    if (!event.brandingConfiguration.isConfigured) {
+      return null;
+    }
+    return event.brandingUsesOverride
+        ? 'custom branding override'
+        : 'default partner branding';
+  }
+
+  String _reportBrandingDetail(ReportGenerated event) {
+    if (!event.brandingConfiguration.isConfigured) {
+      return 'Branding: standard ONYX identity.';
+    }
+    final sourceLabel = event.brandingConfiguration.sourceLabel.trim();
+    if (event.brandingUsesOverride) {
+      return sourceLabel.isNotEmpty
+          ? 'Branding: custom override from default partner lane $sourceLabel.'
+          : 'Branding: custom override was used for this receipt.';
+    }
+    return sourceLabel.isNotEmpty
+        ? 'Branding: default partner lane $sourceLabel.'
+        : 'Branding: configured partner label was used.';
+  }
+
+  String _reportBrandingAndSectionConfigurationDetail(ReportGenerated event) {
+    return '${_reportBrandingDetail(event)} ${_reportSectionConfigurationDetail(event)}';
+  }
+
+  Color _reportBrandingAccent(ReportGenerated event) {
+    if (!event.brandingConfiguration.isConfigured) {
+      return const Color(0xFF8EA5C6);
+    }
+    return event.brandingUsesOverride
+        ? const Color(0xFFF6C067)
+        : const Color(0xFF59D79B);
   }
 
   Color _reportSectionConfigurationAccent(ReportGenerated event) {
@@ -1567,7 +1633,7 @@ class _EventInfo {
   const _EventInfo({
     required this.label,
     required this.color,
-  required this.summary,
+    required this.summary,
   });
 }
 
@@ -1608,10 +1674,7 @@ class IntegrityCertificatePreviewCard extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: hasEvidence
                       ? const Color(0x162FD6A3)
@@ -1651,8 +1714,12 @@ class IntegrityCertificatePreviewCard extends StatelessWidget {
             spacing: 6,
             runSpacing: 6,
             children: [
-              _previewPill('record ${_shortHash(certificate.evidenceRecordHash)}'),
-              _previewPill('snapshot ${_shortHash(certificate.snapshot.locatorHash)}'),
+              _previewPill(
+                'record ${_shortHash(certificate.evidenceRecordHash)}',
+              ),
+              _previewPill(
+                'snapshot ${_shortHash(certificate.snapshot.locatorHash)}',
+              ),
               _previewPill('clip ${_shortHash(certificate.clip.locatorHash)}'),
             ],
           ),
@@ -1690,7 +1757,8 @@ class IntegrityCertificatePreviewCard extends StatelessWidget {
       'intelligence': certificate.toJson(),
       'ledger': {
         'sealed': false,
-        'note': 'Preview only. Ledger-backed export is available from the evidence export flow.',
+        'note':
+            'Preview only. Ledger-backed export is available from the evidence export flow.',
       },
     };
     final prettyJson = const JsonEncoder.withIndent('  ').convert(payload);

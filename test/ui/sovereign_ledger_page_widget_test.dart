@@ -94,8 +94,14 @@ void main() {
     await tester.pump();
     expect(find.textContaining('Entry export copied'), findsOneWidget);
     expect(copiedClipboardPayload, contains('"sceneReview"'));
-    expect(copiedClipboardPayload, contains('"decision_label": "Escalation Candidate"'));
-    expect(copiedClipboardPayload, contains('Person visible near the boundary line.'));
+    expect(
+      copiedClipboardPayload,
+      contains('"decision_label": "Escalation Candidate"'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('Person visible near the boundary line.'),
+    );
 
     final viewInEventReview = find.text('VIEW IN EVENT REVIEW').first;
     await tester.ensureVisible(viewInEventReview);
@@ -123,6 +129,10 @@ void main() {
           siteId: 'SITE-SANDTON',
           month: '2026-03',
           reportSchemaVersion: 3,
+          primaryBrandLabel: 'VISION Tactical',
+          endorsementLine: 'Powered by ONYX',
+          brandingSourceLabel: 'PARTNER • Alpha',
+          brandingUsesOverride: true,
           includeAiDecisionLog: false,
           includeGuardMetrics: false,
         ),
@@ -136,9 +146,20 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('REPORT'), findsWidgets);
-      expect(find.textContaining('2 sections omitted'), findsWidgets);
+      expect(
+        find.textContaining('2 sections omitted • custom branding override'),
+        findsWidgets,
+      );
       expect(find.text('REPORT CONFIGURATION'), findsOneWidget);
       expect(find.text('Tracked'), findsOneWidget);
+      expect(find.text('Custom Override'), findsOneWidget);
+      expect(find.text('PARTNER • Alpha'), findsWidgets);
+      expect(
+        find.text(
+          'Branding: custom override from default partner lane PARTNER • Alpha.',
+        ),
+        findsOneWidget,
+      );
       expect(
         find.text(
           'Included: Incident Timeline, Dispatch Summary, Checkpoint Compliance. Omitted: AI Decision Log, Guard Metrics.',
@@ -153,42 +174,41 @@ void main() {
     },
   );
 
-  testWidgets(
-    'sovereign ledger labels legacy report receipt configuration',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 1100));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets('sovereign ledger labels legacy report receipt configuration', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1100));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      final events = <DispatchEvent>[
-        buildTestReportGenerated(
-          eventId: 'RPT-LEDGER-LEGACY-1',
-          sequence: 1,
-          occurredAt: DateTime.utc(2026, 3, 15, 6, 0),
-          clientId: 'CLIENT-001',
-          siteId: 'SITE-SANDTON',
-          month: '2026-03',
-          reportSchemaVersion: 1,
-        ),
-      ];
+    final events = <DispatchEvent>[
+      buildTestReportGenerated(
+        eventId: 'RPT-LEDGER-LEGACY-1',
+        sequence: 1,
+        occurredAt: DateTime.utc(2026, 3, 15, 6, 0),
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-SANDTON',
+        month: '2026-03',
+        reportSchemaVersion: 1,
+      ),
+    ];
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: SovereignLedgerPage(clientId: 'CLIENT-001', events: events),
-        ),
-      );
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SovereignLedgerPage(clientId: 'CLIENT-001', events: events),
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.textContaining('legacy receipt config'), findsWidgets);
-      expect(find.text('REPORT CONFIGURATION'), findsOneWidget);
-      expect(find.text('Legacy'), findsOneWidget);
-      expect(
-        find.text(
-          'Legacy receipt. Per-section report configuration was not captured for this generated report.',
-        ),
-        findsOneWidget,
-      );
-      expect(find.text('Legacy receipt'), findsOneWidget);
-      expect(find.text('Not captured'), findsOneWidget);
-    },
-  );
+    expect(find.textContaining('legacy receipt config'), findsWidgets);
+    expect(find.text('REPORT CONFIGURATION'), findsOneWidget);
+    expect(find.text('Legacy'), findsOneWidget);
+    expect(
+      find.text(
+        'Legacy receipt. Per-section report configuration was not captured for this generated report.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Legacy receipt'), findsOneWidget);
+    expect(find.text('Not captured'), findsOneWidget);
+  });
 }

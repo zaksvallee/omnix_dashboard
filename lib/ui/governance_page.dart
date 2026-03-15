@@ -2577,33 +2577,71 @@ class _GovernancePageState extends State<GovernancePage> {
 
   String _receiptPolicyEventHeadline(ReportGenerated event) {
     if (!_hasTrackedReportSectionConfiguration(event)) {
-      return 'Legacy receipt configuration';
+      final brandingHeadline = _receiptPolicyBrandingHeadline(event);
+      return brandingHeadline == null
+          ? 'Legacy receipt configuration'
+          : 'Legacy receipt configuration • $brandingHeadline';
     }
     final omitted = _omittedReceiptSectionLabels(event);
-    if (omitted.isEmpty) {
-      return 'All sections included';
-    }
-    return '${omitted.length} sections omitted';
+    final configurationHeadline = omitted.isEmpty
+        ? 'All sections included'
+        : '${omitted.length} sections omitted';
+    final brandingHeadline = _receiptPolicyBrandingHeadline(event);
+    return brandingHeadline == null
+        ? configurationHeadline
+        : '$configurationHeadline • $brandingHeadline';
   }
 
   String _receiptPolicyEventDetail(ReportGenerated event) {
+    final brandingDetail = _receiptPolicyBrandingDetail(event);
     if (!_hasTrackedReportSectionConfiguration(event)) {
-      return 'Per-section report configuration was not captured for this generated receipt.';
+      return brandingDetail == null
+          ? 'Per-section report configuration was not captured for this generated receipt.'
+          : '$brandingDetail Per-section report configuration was not captured for this generated receipt.';
     }
     final included = _includedReceiptSectionLabels(event);
     final omitted = _omittedReceiptSectionLabels(event);
     final includedLabel = included.isEmpty ? 'None' : included.join(', ');
     final omittedLabel = omitted.isEmpty ? 'None' : omitted.join(', ');
-    return 'Included: $includedLabel. Omitted: $omittedLabel.';
+    final configurationDetail =
+        'Included: $includedLabel. Omitted: $omittedLabel.';
+    return brandingDetail == null
+        ? configurationDetail
+        : '$brandingDetail $configurationDetail';
   }
 
   Color _receiptPolicyEventAccent(ReportGenerated event) {
+    if (event.brandingUsesOverride) {
+      return const Color(0xFFF6C067);
+    }
     if (!_hasTrackedReportSectionConfiguration(event)) {
       return const Color(0xFF8EA5C6);
     }
     return _omittedReceiptSectionLabels(event).isEmpty
         ? const Color(0xFF59D79B)
         : const Color(0xFFF6C067);
+  }
+
+  String? _receiptPolicyBrandingHeadline(ReportGenerated event) {
+    if (!event.brandingConfiguration.isConfigured) {
+      return null;
+    }
+    return event.brandingUsesOverride ? 'Custom branding' : 'Default branding';
+  }
+
+  String? _receiptPolicyBrandingDetail(ReportGenerated event) {
+    if (!event.brandingConfiguration.isConfigured) {
+      return null;
+    }
+    final sourceLabel = event.brandingConfiguration.sourceLabel.trim();
+    if (event.brandingUsesOverride) {
+      return sourceLabel.isNotEmpty
+          ? 'Branding: custom override from default partner lane $sourceLabel.'
+          : 'Branding: custom override was used for this receipt.';
+    }
+    return sourceLabel.isNotEmpty
+        ? 'Branding: default partner lane $sourceLabel.'
+        : 'Branding: configured partner label was used.';
   }
 
   void _showReceiptPolicyDrillIn(_GovernanceReportView report) {
@@ -2825,6 +2863,43 @@ class _GovernancePageState extends State<GovernancePage> {
                                             ),
                                           ),
                                         ),
+                                        if (event
+                                            .brandingConfiguration
+                                            .isConfigured) ...[
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 7,
+                                              vertical: 3,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: _receiptPolicyEventAccent(
+                                                event,
+                                              ).withValues(alpha: 0.14),
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
+                                              border: Border.all(
+                                                color:
+                                                    _receiptPolicyEventAccent(
+                                                      event,
+                                                    ).withValues(alpha: 0.5),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              event.brandingUsesOverride
+                                                  ? 'CUSTOM BRANDING'
+                                                  : 'DEFAULT BRANDING',
+                                              style: GoogleFonts.inter(
+                                                color:
+                                                    _receiptPolicyEventAccent(
+                                                      event,
+                                                    ),
+                                                fontSize: 8,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ],
                                     ),
                                     const SizedBox(height: 6),

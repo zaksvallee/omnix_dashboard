@@ -636,6 +636,10 @@ void main() {
               eventCount: 9,
               reportSchemaVersion: 3,
               projectionVersion: 1,
+              primaryBrandLabel: 'VISION Tactical',
+              endorsementLine: 'Powered by ONYX',
+              brandingSourceLabel: 'PARTNER • Alpha',
+              brandingUsesOverride: true,
               includeAiDecisionLog: false,
               includeGuardMetrics: false,
             ),
@@ -705,6 +709,14 @@ void main() {
       find.byKey(const ValueKey('governance-receipt-policy-entry-RPT-TRACKED')),
       findsOneWidget,
     );
+    expect(find.text('CUSTOM BRANDING'), findsOneWidget);
+    expect(find.text('2 sections omitted • Custom branding'), findsOneWidget);
+    expect(
+      find.text(
+        'Branding: custom override from default partner lane PARTNER • Alpha. Included: Incident Timeline, Dispatch Summary, Checkpoint Compliance. Omitted: AI Decision Log, Guard Metrics.',
+      ),
+      findsOneWidget,
+    );
     expect(
       find.byKey(const ValueKey('governance-receipt-policy-entry-RPT-LEGACY')),
       findsOneWidget,
@@ -714,7 +726,7 @@ void main() {
       findsNothing,
     );
     expect(find.text('All sections included'), findsNothing);
-    expect(find.text('2 sections omitted'), findsOneWidget);
+    expect(find.text('2 sections omitted • Custom branding'), findsOneWidget);
     expect(find.text('Legacy receipt configuration'), findsOneWidget);
     expect(
       find.textContaining(

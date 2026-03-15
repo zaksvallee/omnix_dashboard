@@ -752,19 +752,39 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                 const SizedBox(height: 8),
                 _contextRow(
                   'Config',
-                  ((_reportConfigurationPayloadForEntry(
-                                    selected,
-                                  )!['tracked'] ??
-                                  false)
-                              as bool)
-                          ? 'Tracked'
-                          : 'Legacy',
+                  ((_reportConfigurationPayloadForEntry(selected)!['tracked'] ??
+                              false)
+                          as bool)
+                      ? 'Tracked'
+                      : 'Legacy',
+                ),
+                _contextRow(
+                  'Branding',
+                  (_reportConfigurationPayloadForEntry(
+                            selected,
+                          )!['branding_mode_label'] ??
+                          '')
+                      .toString(),
+                ),
+                _contextRow(
+                  'Branding Source',
+                  (_reportConfigurationPayloadForEntry(
+                            selected,
+                          )!['branding_source_label'] ??
+                          '')
+                      .toString(),
+                ),
+                _contextRow(
+                  'Branding Summary',
+                  (_reportConfigurationPayloadForEntry(
+                            selected,
+                          )!['branding_summary'] ??
+                          '')
+                      .toString(),
                 ),
                 _contextRow(
                   'Summary',
-                  (_reportConfigurationPayloadForEntry(
-                            selected,
-                          )!['summary'] ??
+                  (_reportConfigurationPayloadForEntry(selected)!['summary'] ??
                           '')
                       .toString(),
                 ),
@@ -803,14 +823,17 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                 ),
                 _contextRow(
                   'Posture',
-                  (_sceneReviewPayloadForEntry(selected)!['posture_label'] ?? '')
+                  (_sceneReviewPayloadForEntry(selected)!['posture_label'] ??
+                          '')
                       .toString(),
                 ),
-                if (((_sceneReviewPayloadForEntry(selected)!['decision_label'] ??
-                                '')
-                            .toString()
-                            .trim())
-                        .isNotEmpty)
+                if (((_sceneReviewPayloadForEntry(
+                              selected,
+                            )!['decision_label'] ??
+                            '')
+                        .toString()
+                        .trim())
+                    .isNotEmpty)
                   _contextRow(
                     'Action',
                     (_sceneReviewPayloadForEntry(selected)!['decision_label'] ??
@@ -819,7 +842,8 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                   ),
                 _contextRow(
                   'Reviewed At',
-                  (_sceneReviewPayloadForEntry(selected)!['reviewed_at_utc'] ?? '')
+                  (_sceneReviewPayloadForEntry(selected)!['reviewed_at_utc'] ??
+                          '')
                       .toString(),
                 ),
                 _contextRow(
@@ -827,14 +851,18 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                   (_sceneReviewPayloadForEntry(selected)!['summary'] ?? '')
                       .toString(),
                 ),
-                if (((_sceneReviewPayloadForEntry(selected)!['decision_summary'] ??
-                                '')
-                            .toString()
-                            .trim())
-                        .isNotEmpty)
+                if (((_sceneReviewPayloadForEntry(
+                              selected,
+                            )!['decision_summary'] ??
+                            '')
+                        .toString()
+                        .trim())
+                    .isNotEmpty)
                   _contextRow(
                     'Decision Detail',
-                    (_sceneReviewPayloadForEntry(selected)!['decision_summary'] ??
+                    (_sceneReviewPayloadForEntry(
+                              selected,
+                            )!['decision_summary'] ??
                             '')
                         .toString(),
                   ),
@@ -1406,6 +1434,9 @@ Map<String, Object?> _ledgerPayloadForEvent(
     payload['reportConfiguration'] = <String, Object?>{
       'tracked': tracked,
       'summary': _reportSectionConfigurationDetail(event),
+      'branding_mode_label': _reportBrandingModeLabel(event),
+      'branding_summary': _reportBrandingDetail(event),
+      'branding_source_label': _reportBrandingSourceLabel(event),
       'included_sections': included,
       'omitted_sections': omitted,
       'included_sections_label': tracked
@@ -1519,12 +1550,13 @@ String _eventTitle(DispatchEvent event) {
   if (event is ReportGenerated) {
     final tracked = _hasTrackedReportSectionConfiguration(event);
     final omitted = _omittedReportSectionLabels(event.sectionConfiguration);
+    final brandingHeadline = _reportBrandingHeadline(event);
     final configSummary = !tracked
         ? 'legacy receipt config'
         : omitted.isEmpty
         ? 'all sections included'
         : '${omitted.length} sections omitted';
-    return '${event.siteId} ${event.month} • $configSummary • range ${event.eventRangeStart}-${event.eventRangeEnd}';
+    return '${event.siteId} ${event.month} • $configSummary${brandingHeadline == null ? '' : ' • $brandingHeadline'} • range ${event.eventRangeStart}-${event.eventRangeEnd}';
   }
   return event.eventId;
 }
@@ -1626,6 +1658,47 @@ String _reportSectionConfigurationDetail(ReportGenerated event) {
   final includedLabel = included.isEmpty ? 'None' : included.join(', ');
   final omittedLabel = omitted.isEmpty ? 'None' : omitted.join(', ');
   return 'Included: $includedLabel. Omitted: $omittedLabel.';
+}
+
+String _reportBrandingModeLabel(ReportGenerated event) {
+  if (!event.brandingConfiguration.isConfigured) {
+    return 'Standard ONYX';
+  }
+  return event.brandingUsesOverride ? 'Custom Override' : 'Default Partner';
+}
+
+String _reportBrandingSourceLabel(ReportGenerated event) {
+  final sourceLabel = event.brandingConfiguration.sourceLabel.trim();
+  if (sourceLabel.isEmpty) {
+    return event.brandingConfiguration.isConfigured
+        ? 'Configured partner branding'
+        : 'ONYX';
+  }
+  return sourceLabel;
+}
+
+String? _reportBrandingHeadline(ReportGenerated event) {
+  if (!event.brandingConfiguration.isConfigured) {
+    return null;
+  }
+  return event.brandingUsesOverride
+      ? 'custom branding override'
+      : 'default partner branding';
+}
+
+String _reportBrandingDetail(ReportGenerated event) {
+  if (!event.brandingConfiguration.isConfigured) {
+    return 'Branding: standard ONYX identity.';
+  }
+  final sourceLabel = event.brandingConfiguration.sourceLabel.trim();
+  if (event.brandingUsesOverride) {
+    return sourceLabel.isNotEmpty
+        ? 'Branding: custom override from default partner lane $sourceLabel.'
+        : 'Branding: custom override was used for this receipt.';
+  }
+  return sourceLabel.isNotEmpty
+      ? 'Branding: default partner lane $sourceLabel.'
+      : 'Branding: configured partner label was used.';
 }
 
 String _clock(DateTime value) {

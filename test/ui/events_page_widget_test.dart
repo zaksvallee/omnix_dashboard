@@ -171,6 +171,10 @@ void main() {
         siteId: 'SITE-SANDTON',
         month: '2026-03',
         reportSchemaVersion: 3,
+        primaryBrandLabel: 'VISION Tactical',
+        endorsementLine: 'Powered by ONYX',
+        brandingSourceLabel: 'PARTNER • Alpha',
+        brandingUsesOverride: true,
         includeAiDecisionLog: false,
         includeGuardMetrics: false,
       );
@@ -183,24 +187,30 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final rowSummary = find.textContaining(
-        'CLIENT-001/SITE-SANDTON 2026-03',
-      );
+      final rowSummary = find.textContaining('CLIENT-001/SITE-SANDTON 2026-03');
       await tester.ensureVisible(rowSummary.first);
       await tester.tap(
-        find.ancestor(of: rowSummary.first, matching: find.byType(InkWell)).first,
+        find
+            .ancestor(of: rowSummary.first, matching: find.byType(InkWell))
+            .first,
       );
       await tester.pumpAndSettle();
 
       expect(find.text('REPORT GENERATED'), findsWidgets);
       expect(find.text('Tracked Config'), findsOneWidget);
+      expect(find.text('Custom Branding'), findsOneWidget);
       expect(find.text('2 Sections Omitted'), findsOneWidget);
       expect(
         find.text(
-          'Included: Incident Timeline, Dispatch Summary, Checkpoint Compliance. Omitted: AI Decision Log, Guard Metrics.',
+          'Branding: custom override from default partner lane PARTNER • Alpha. Included: Incident Timeline, Dispatch Summary, Checkpoint Compliance. Omitted: AI Decision Log, Guard Metrics.',
         ),
         findsOneWidget,
       );
+      expect(find.text('brandingMode'), findsOneWidget);
+      expect(find.text('brandingSource'), findsOneWidget);
+      expect(find.text('brandingSummary'), findsOneWidget);
+      expect(find.text('Custom Override'), findsOneWidget);
+      expect(find.text('PARTNER • Alpha'), findsWidgets);
       expect(find.text('sectionConfigurationTracked'), findsOneWidget);
       expect(find.text('includedSections'), findsOneWidget);
       expect(find.text('omittedSections'), findsOneWidget);
@@ -227,9 +237,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final rowSummary = find.textContaining(
-      'CLIENT-001/SITE-SANDTON 2026-03',
-    );
+    final rowSummary = find.textContaining('CLIENT-001/SITE-SANDTON 2026-03');
     await tester.ensureVisible(rowSummary.first);
     await tester.tap(
       find.ancestor(of: rowSummary.first, matching: find.byType(InkWell)).first,
@@ -239,7 +247,7 @@ void main() {
     expect(find.text('Legacy Config'), findsOneWidget);
     expect(
       find.text(
-        'Legacy receipt. Per-section report configuration was not captured for this generated report.',
+        'Branding: standard ONYX identity. Legacy receipt. Per-section report configuration was not captured for this generated report.',
       ),
       findsOneWidget,
     );
@@ -292,5 +300,4 @@ void main() {
     expect(find.text('Copy JSON'), findsOneWidget);
     expect(find.text('Copy Markdown'), findsOneWidget);
   });
-
 }
