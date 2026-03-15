@@ -15,6 +15,8 @@ class ReportGenerated extends DispatchEvent {
   final int projectionVersion;
   final String primaryBrandLabel;
   final String endorsementLine;
+  final String brandingSourceLabel;
+  final bool brandingUsesOverride;
   final bool includeTimeline;
   final bool includeDispatchSummary;
   final bool includeCheckpointCompliance;
@@ -38,6 +40,8 @@ class ReportGenerated extends DispatchEvent {
     required this.projectionVersion,
     this.primaryBrandLabel = '',
     this.endorsementLine = '',
+    this.brandingSourceLabel = '',
+    this.brandingUsesOverride = false,
     this.includeTimeline = true,
     this.includeDispatchSummary = true,
     this.includeCheckpointCompliance = true,
@@ -58,6 +62,8 @@ class ReportGenerated extends DispatchEvent {
       ReportBrandingConfiguration(
         primaryLabel: primaryBrandLabel,
         endorsementLine: endorsementLine,
+        sourceLabel: brandingSourceLabel,
+        usesOverride: brandingUsesOverride,
       );
 
   @override
@@ -79,6 +85,8 @@ class ReportGenerated extends DispatchEvent {
       projectionVersion: projectionVersion,
       primaryBrandLabel: primaryBrandLabel,
       endorsementLine: endorsementLine,
+      brandingSourceLabel: brandingSourceLabel,
+      brandingUsesOverride: brandingUsesOverride,
       includeTimeline: includeTimeline,
       includeDispatchSummary: includeDispatchSummary,
       includeCheckpointCompliance: includeCheckpointCompliance,

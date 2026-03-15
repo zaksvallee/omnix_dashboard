@@ -98,6 +98,8 @@ void main() {
         reportSchemaVersion: 3,
         primaryBrandLabel: 'VISION Tactical',
         endorsementLine: 'Powered by ONYX',
+        brandingSourceLabel: 'PARTNER • Alpha',
+        brandingUsesOverride: true,
         includeDispatchSummary: false,
         includeAiDecisionLog: false,
       );
@@ -130,10 +132,17 @@ void main() {
       expect(activeConfig['includeDispatchSummary'], false);
       expect(activeConfig['includeAiDecisionLog'], false);
       expect(firstReceipt['sceneReviewIncluded'], false);
+      expect(firstReceipt['brandingMode'], 'custom_override');
+      expect(
+        firstReceipt['brandingSummary'],
+        'Custom branding override from PARTNER • Alpha',
+      );
       expect(receiptConfig['includeDispatchSummary'], false);
       expect(receiptConfig['includeAiDecisionLog'], false);
       expect(brandingConfig['primaryLabel'], 'VISION Tactical');
       expect(brandingConfig['endorsementLine'], 'Powered by ONYX');
+      expect(brandingConfig['sourceLabel'], 'PARTNER • Alpha');
+      expect(brandingConfig['usesOverride'], true);
     },
   );
 

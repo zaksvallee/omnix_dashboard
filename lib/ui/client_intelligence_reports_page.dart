@@ -2598,6 +2598,9 @@ class _ClientIntelligenceReportsPageState
     final omittedSections = _omittedSectionLabels(
       row.event.sectionConfiguration,
     );
+    final brandingSummary = _receiptBrandingSummary(row.event);
+    final brandingAccent = _receiptBrandingAccent(row.event);
+    final brandingLabel = _receiptBrandingLabel(row.event);
 
     return Container(
       width: double.infinity,
@@ -2705,6 +2708,8 @@ class _ClientIntelligenceReportsPageState
                         row.event.brandingConfiguration.primaryLabel,
                         const Color(0xFF63BDFF),
                       ),
+                    if (row.event.brandingConfiguration.isConfigured)
+                      _receiptSceneReviewPill(brandingLabel, brandingAccent),
                     _receiptSceneReviewPill(
                       hasTrackedSectionConfiguration
                           ? 'Tracked Config'
@@ -2725,7 +2730,7 @@ class _ClientIntelligenceReportsPageState
                 const SizedBox(height: 6),
                 Text(
                   row.event.brandingConfiguration.isConfigured
-                      ? '${row.event.brandingConfiguration.primaryLabel}${row.event.endorsementLine.trim().isNotEmpty ? ' • ${row.event.endorsementLine.trim()}' : ''}\n$sectionSummary'
+                      ? '${row.event.brandingConfiguration.primaryLabel}${row.event.endorsementLine.trim().isNotEmpty ? ' • ${row.event.endorsementLine.trim()}' : ''}\n$brandingSummary\n$sectionSummary'
                       : sectionSummary,
                   style: GoogleFonts.inter(
                     color: const Color(0xFF9CB2D1),
@@ -3204,6 +3209,7 @@ class _ClientIntelligenceReportsPageState
       ? ReportBrandingConfiguration(
           primaryLabel: _partnerScopePartnerLabel!,
           endorsementLine: 'Powered by ONYX',
+          sourceLabel: _partnerScopePartnerLabel!,
         )
       : const ReportBrandingConfiguration();
 
@@ -3216,6 +3222,8 @@ class _ClientIntelligenceReportsPageState
       primaryLabel: _brandingPrimaryLabelOverride ?? defaults.primaryLabel,
       endorsementLine:
           _brandingEndorsementLineOverride ?? defaults.endorsementLine,
+      sourceLabel: defaults.sourceLabel,
+      usesOverride: _hasBrandingOverride,
     );
   }
 
@@ -3411,6 +3419,37 @@ class _ClientIntelligenceReportsPageState
     return _omittedSectionLabels(event.sectionConfiguration).isEmpty
         ? const Color(0xFF59D79B)
         : const Color(0xFFF6C067);
+  }
+
+  String _receiptBrandingLabel(ReportGenerated event) {
+    if (!event.brandingConfiguration.isConfigured) {
+      return 'ONYX Standard';
+    }
+    return event.brandingUsesOverride ? 'Custom Branding' : 'Default Branding';
+  }
+
+  String _receiptBrandingSummary(ReportGenerated event) {
+    if (!event.brandingConfiguration.isConfigured) {
+      return 'Branding: standard ONYX identity.';
+    }
+    final source = event.brandingConfiguration.sourceLabel.trim();
+    if (event.brandingUsesOverride) {
+      return source.isNotEmpty
+          ? 'Branding: custom override from default partner lane $source.'
+          : 'Branding: custom override was used for this receipt.';
+    }
+    return source.isNotEmpty
+        ? 'Branding: default partner lane $source.'
+        : 'Branding: configured partner label was used.';
+  }
+
+  Color _receiptBrandingAccent(ReportGenerated event) {
+    if (!event.brandingConfiguration.isConfigured) {
+      return const Color(0xFF8EA4C2);
+    }
+    return event.brandingUsesOverride
+        ? const Color(0xFFF6C067)
+        : const Color(0xFF59D79B);
   }
 
   Widget _fieldLabel(String label) {

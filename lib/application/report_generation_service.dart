@@ -211,6 +211,8 @@ class ReportGenerationService {
       projectionVersion: projectionVersion,
       primaryBrandLabel: brandingConfiguration.primaryLabel,
       endorsementLine: brandingConfiguration.endorsementLine,
+      brandingSourceLabel: brandingConfiguration.sourceLabel,
+      brandingUsesOverride: brandingConfiguration.usesOverride,
       includeTimeline: sectionConfiguration.includeTimeline,
       includeDispatchSummary: sectionConfiguration.includeDispatchSummary,
       includeCheckpointCompliance:

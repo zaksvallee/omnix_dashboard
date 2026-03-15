@@ -24,6 +24,12 @@ class ReportReceiptExportEntry {
       'reportSchemaVersion': receiptEvent.reportSchemaVersion,
       'projectionVersion': receiptEvent.projectionVersion,
       'brandingConfiguration': receiptEvent.brandingConfiguration.toJson(),
+      'brandingMode': receiptEvent.brandingUsesOverride
+          ? 'custom_override'
+          : receiptEvent.brandingConfiguration.isConfigured
+          ? 'default_partner'
+          : 'standard',
+      'brandingSummary': _brandingSummary(receiptEvent),
       'sceneReviewIncluded':
           receiptEvent.reportSchemaVersion >= 2 &&
           receiptEvent.includeAiDecisionLog,
@@ -38,6 +44,24 @@ class ReportReceiptExportEntry {
       'latestActionBucket': sceneReviewSummary?.latestActionBucket.name,
       'latestActionTaken': sceneReviewSummary?.latestActionTaken.trim(),
     };
+  }
+
+  static String _brandingSummary(ReportGenerated receiptEvent) {
+    final branding = receiptEvent.brandingConfiguration;
+    if (!branding.isConfigured) {
+      return 'Standard ONYX branding';
+    }
+    if (receiptEvent.brandingUsesOverride) {
+      final source = branding.sourceLabel.trim();
+      if (source.isNotEmpty) {
+        return 'Custom branding override from $source';
+      }
+      return 'Custom branding override';
+    }
+    if (branding.sourceLabel.trim().isNotEmpty) {
+      return 'Default partner branding from ${branding.sourceLabel.trim()}';
+    }
+    return 'Configured partner branding';
   }
 }
 
