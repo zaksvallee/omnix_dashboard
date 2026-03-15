@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../application/monitoring_scene_review_store.dart';
+import '../domain/crm/reporting/report_section_configuration.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_completed.dart';
@@ -15,6 +16,7 @@ import '../domain/events/incident_closed.dart';
 import '../domain/events/intelligence_received.dart';
 import '../domain/events/partner_dispatch_status_declared.dart';
 import '../domain/events/patrol_completed.dart';
+import '../domain/events/report_generated.dart';
 import '../domain/events/response_arrived.dart';
 import '../domain/events/vehicle_visit_review_recorded.dart';
 import 'onyx_surface.dart';
@@ -740,6 +742,52 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
             ],
           ),
         ),
+        if (_reportConfigurationPayloadForEntry(selected) != null) ...[
+          const SizedBox(height: 8),
+          _detailCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _blockTitle('REPORT CONFIGURATION'),
+                const SizedBox(height: 8),
+                _contextRow(
+                  'Config',
+                  ((_reportConfigurationPayloadForEntry(
+                                    selected,
+                                  )!['tracked'] ??
+                                  false)
+                              as bool)
+                          ? 'Tracked'
+                          : 'Legacy',
+                ),
+                _contextRow(
+                  'Summary',
+                  (_reportConfigurationPayloadForEntry(
+                            selected,
+                          )!['summary'] ??
+                          '')
+                      .toString(),
+                ),
+                _contextRow(
+                  'Included',
+                  (_reportConfigurationPayloadForEntry(
+                            selected,
+                          )!['included_sections_label'] ??
+                          '')
+                      .toString(),
+                ),
+                _contextRow(
+                  'Omitted',
+                  (_reportConfigurationPayloadForEntry(
+                            selected,
+                          )!['omitted_sections_label'] ??
+                          '')
+                      .toString(),
+                ),
+              ],
+            ),
+          ),
+        ],
         if (_sceneReviewPayloadForEntry(selected) != null) ...[
           const SizedBox(height: 8),
           _detailCard(
@@ -1129,6 +1177,23 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
     return mapped;
   }
 
+  Map<String, Object?>? _reportConfigurationPayloadForEntry(
+    _LedgerEntryView entry,
+  ) {
+    final payload = entry.payload['reportConfiguration'];
+    if (payload is! Map) {
+      return null;
+    }
+    final mapped = payload.map(
+      (key, value) => MapEntry(key.toString(), value as Object?),
+    );
+    final summary = (mapped['summary'] ?? '').toString().trim();
+    if (summary.isEmpty) {
+      return null;
+    }
+    return mapped;
+  }
+
   void _showActionMessage(String message) {
     final messenger = ScaffoldMessenger.maybeOf(context);
     if (messenger == null) {
@@ -1326,6 +1391,35 @@ Map<String, Object?> _ledgerPayloadForEvent(
           'evidence_record_hash': review.evidenceRecordHash,
       };
     }
+  } else if (event is ReportGenerated) {
+    final tracked = _hasTrackedReportSectionConfiguration(event);
+    final included = _includedReportSectionLabels(event.sectionConfiguration);
+    final omitted = _omittedReportSectionLabels(event.sectionConfiguration);
+    payload['month'] = event.month;
+    payload['contentHash'] = event.contentHash;
+    payload['pdfHash'] = event.pdfHash;
+    payload['eventRangeStart'] = event.eventRangeStart;
+    payload['eventRangeEnd'] = event.eventRangeEnd;
+    payload['eventCount'] = event.eventCount;
+    payload['reportSchemaVersion'] = event.reportSchemaVersion;
+    payload['projectionVersion'] = event.projectionVersion;
+    payload['reportConfiguration'] = <String, Object?>{
+      'tracked': tracked,
+      'summary': _reportSectionConfigurationDetail(event),
+      'included_sections': included,
+      'omitted_sections': omitted,
+      'included_sections_label': tracked
+          ? (included.isEmpty ? 'None' : included.join(', '))
+          : 'Legacy receipt',
+      'omitted_sections_label': tracked
+          ? (omitted.isEmpty ? 'None' : omitted.join(', '))
+          : 'Not captured',
+      'includeTimeline': event.includeTimeline,
+      'includeDispatchSummary': event.includeDispatchSummary,
+      'includeCheckpointCompliance': event.includeCheckpointCompliance,
+      'includeAiDecisionLog': event.includeAiDecisionLog,
+      'includeGuardMetrics': event.includeGuardMetrics,
+    };
   }
   return payload;
 }
@@ -1356,6 +1450,7 @@ String _ledgerType(DispatchEvent event) {
   if (event is PatrolCompleted) return 'GUARD ACTION';
   if (event is ExecutionCompleted) return 'DISPATCH';
   if (event is IncidentClosed) return 'INCIDENT';
+  if (event is ReportGenerated) return 'REPORT';
   return 'SYSTEM';
 }
 
@@ -1375,6 +1470,8 @@ Color _typeColor(String type) {
       return const Color(0xFFC084FC);
     case 'GUARD ACTION':
       return const Color(0xFF3B82F6);
+    case 'REPORT':
+      return const Color(0xFFC084FC);
     default:
       return const Color(0xFF9BB0CE);
   }
@@ -1419,6 +1516,16 @@ String _eventTitle(DispatchEvent event) {
   if (event is IncidentClosed) {
     return '${event.dispatchId} closed for ${event.siteId}';
   }
+  if (event is ReportGenerated) {
+    final tracked = _hasTrackedReportSectionConfiguration(event);
+    final omitted = _omittedReportSectionLabels(event.sectionConfiguration);
+    final configSummary = !tracked
+        ? 'legacy receipt config'
+        : omitted.isEmpty
+        ? 'all sections included'
+        : '${omitted.length} sections omitted';
+    return '${event.siteId} ${event.month} • $configSummary • range ${event.eventRangeStart}-${event.eventRangeEnd}';
+  }
   return event.eventId;
 }
 
@@ -1430,6 +1537,7 @@ String? _eventDispatchId(DispatchEvent event) {
   if (event is ExecutionCompleted) return event.dispatchId;
   if (event is ExecutionDenied) return event.dispatchId;
   if (event is IncidentClosed) return event.dispatchId;
+  if (event is ReportGenerated) return null;
   return null;
 }
 
@@ -1447,6 +1555,7 @@ String _eventClientId(DispatchEvent event) {
   if (event is IntelligenceReceived) return event.clientId;
   if (event is PatrolCompleted) return event.clientId;
   if (event is IncidentClosed) return event.clientId;
+  if (event is ReportGenerated) return event.clientId;
   return 'CLIENT-UNKNOWN';
 }
 
@@ -1461,6 +1570,7 @@ String _eventRegionId(DispatchEvent event) {
   if (event is IntelligenceReceived) return event.regionId;
   if (event is PatrolCompleted) return event.regionId;
   if (event is IncidentClosed) return event.regionId;
+  if (event is ReportGenerated) return 'REGION-UNKNOWN';
   return 'REGION-UNKNOWN';
 }
 
@@ -1475,7 +1585,47 @@ String _eventSiteId(DispatchEvent event) {
   if (event is IntelligenceReceived) return event.siteId;
   if (event is PatrolCompleted) return event.siteId;
   if (event is IncidentClosed) return event.siteId;
+  if (event is ReportGenerated) return event.siteId;
   return 'SITE-UNKNOWN';
+}
+
+bool _hasTrackedReportSectionConfiguration(ReportGenerated event) {
+  return event.reportSchemaVersion >= 3;
+}
+
+List<String> _includedReportSectionLabels(
+  ReportSectionConfiguration configuration,
+) {
+  return <String>[
+    if (configuration.includeTimeline) 'Incident Timeline',
+    if (configuration.includeDispatchSummary) 'Dispatch Summary',
+    if (configuration.includeCheckpointCompliance) 'Checkpoint Compliance',
+    if (configuration.includeAiDecisionLog) 'AI Decision Log',
+    if (configuration.includeGuardMetrics) 'Guard Metrics',
+  ];
+}
+
+List<String> _omittedReportSectionLabels(
+  ReportSectionConfiguration configuration,
+) {
+  return <String>[
+    if (!configuration.includeTimeline) 'Incident Timeline',
+    if (!configuration.includeDispatchSummary) 'Dispatch Summary',
+    if (!configuration.includeCheckpointCompliance) 'Checkpoint Compliance',
+    if (!configuration.includeAiDecisionLog) 'AI Decision Log',
+    if (!configuration.includeGuardMetrics) 'Guard Metrics',
+  ];
+}
+
+String _reportSectionConfigurationDetail(ReportGenerated event) {
+  if (!_hasTrackedReportSectionConfiguration(event)) {
+    return 'Legacy receipt. Per-section report configuration was not captured for this generated report.';
+  }
+  final included = _includedReportSectionLabels(event.sectionConfiguration);
+  final omitted = _omittedReportSectionLabels(event.sectionConfiguration);
+  final includedLabel = included.isEmpty ? 'None' : included.join(', ');
+  final omittedLabel = omitted.isEmpty ? 'None' : omitted.join(', ');
+  return 'Included: $includedLabel. Omitted: $omittedLabel.';
 }
 
 String _clock(DateTime value) {

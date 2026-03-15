@@ -7,6 +7,8 @@ import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/ui/sovereign_ledger_page.dart';
 
+import '../fixtures/report_test_receipt.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -105,4 +107,88 @@ void main() {
     expect(find.text('Escalation Candidate'), findsOneWidget);
     expect(find.textContaining('Escalated for urgent review'), findsOneWidget);
   });
+
+  testWidgets(
+    'sovereign ledger shows tracked report section configuration for generated receipts',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 1100));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final events = <DispatchEvent>[
+        buildTestReportGenerated(
+          eventId: 'RPT-LEDGER-1',
+          sequence: 1,
+          occurredAt: DateTime.utc(2026, 3, 15, 6, 0),
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          month: '2026-03',
+          reportSchemaVersion: 3,
+          includeAiDecisionLog: false,
+          includeGuardMetrics: false,
+        ),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SovereignLedgerPage(clientId: 'CLIENT-001', events: events),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('REPORT'), findsWidgets);
+      expect(find.textContaining('2 sections omitted'), findsWidgets);
+      expect(find.text('REPORT CONFIGURATION'), findsOneWidget);
+      expect(find.text('Tracked'), findsOneWidget);
+      expect(
+        find.text(
+          'Included: Incident Timeline, Dispatch Summary, Checkpoint Compliance. Omitted: AI Decision Log, Guard Metrics.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Incident Timeline, Dispatch Summary, Checkpoint Compliance'),
+        findsOneWidget,
+      );
+      expect(find.text('AI Decision Log, Guard Metrics'), findsWidgets);
+    },
+  );
+
+  testWidgets(
+    'sovereign ledger labels legacy report receipt configuration',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 1100));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final events = <DispatchEvent>[
+        buildTestReportGenerated(
+          eventId: 'RPT-LEDGER-LEGACY-1',
+          sequence: 1,
+          occurredAt: DateTime.utc(2026, 3, 15, 6, 0),
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          month: '2026-03',
+          reportSchemaVersion: 1,
+        ),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SovereignLedgerPage(clientId: 'CLIENT-001', events: events),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('legacy receipt config'), findsWidgets);
+      expect(find.text('REPORT CONFIGURATION'), findsOneWidget);
+      expect(find.text('Legacy'), findsOneWidget);
+      expect(
+        find.text(
+          'Legacy receipt. Per-section report configuration was not captured for this generated report.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Legacy receipt'), findsOneWidget);
+      expect(find.text('Not captured'), findsOneWidget);
+    },
+  );
 }
