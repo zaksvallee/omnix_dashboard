@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 
 import 'monitoring_scene_review_store.dart';
+import 'vehicle_throughput_summary_formatter.dart';
+import 'vehicle_visit_ledger_projector.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_denied.dart';
@@ -191,8 +193,8 @@ class SovereignReportSceneReview {
       topPosture: (json['topPosture'] as String? ?? '').trim(),
       actionMixSummary: (json['actionMixSummary'] as String? ?? '').trim(),
       latestActionTaken: (json['latestActionTaken'] as String? ?? '').trim(),
-      recentActionsSummary:
-          (json['recentActionsSummary'] as String? ?? '').trim(),
+      recentActionsSummary: (json['recentActionsSummary'] as String? ?? '')
+          .trim(),
       latestSuppressedPattern:
           (json['latestSuppressedPattern'] as String? ?? '').trim(),
     );
@@ -209,6 +211,7 @@ class SovereignReport {
   final SovereignReportNormDrift normDrift;
   final SovereignReportComplianceBlockage complianceBlockage;
   final SovereignReportSceneReview sceneReview;
+  final SovereignReportVehicleThroughput vehicleThroughput;
 
   const SovereignReport({
     required this.date,
@@ -219,7 +222,31 @@ class SovereignReport {
     required this.aiHumanDelta,
     required this.normDrift,
     required this.complianceBlockage,
-    required this.sceneReview,
+    this.sceneReview = const SovereignReportSceneReview(
+      totalReviews: 0,
+      modelReviews: 0,
+      metadataFallbackReviews: 0,
+      suppressedActions: 0,
+      incidentAlerts: 0,
+      repeatUpdates: 0,
+      escalationCandidates: 0,
+      topPosture: 'none',
+    ),
+    this.vehicleThroughput = const SovereignReportVehicleThroughput(
+      totalVisits: 0,
+      completedVisits: 0,
+      activeVisits: 0,
+      incompleteVisits: 0,
+      uniqueVehicles: 0,
+      repeatVehicles: 0,
+      unknownVehicleEvents: 0,
+      peakHourLabel: 'none',
+      peakHourVisitCount: 0,
+      averageCompletedDwellMinutes: 0,
+      suspiciousShortVisitCount: 0,
+      loiteringVisitCount: 0,
+      summaryLine: '',
+    ),
   });
 
   Map<String, Object?> toJson() {
@@ -233,6 +260,7 @@ class SovereignReport {
       'normDrift': normDrift.toJson(),
       'complianceBlockage': complianceBlockage.toJson(),
       'sceneReview': sceneReview.toJson(),
+      'vehicleThroughput': vehicleThroughput.toJson(),
     };
   }
 
@@ -242,6 +270,7 @@ class SovereignReport {
     final normDriftRaw = json['normDrift'];
     final complianceRaw = json['complianceBlockage'];
     final sceneReviewRaw = json['sceneReview'];
+    final vehicleThroughputRaw = json['vehicleThroughput'];
     return SovereignReport(
       date: (json['date'] as String? ?? '').trim(),
       generatedAtUtc:
@@ -316,6 +345,98 @@ class SovereignReport {
               latestActionTaken: '',
               latestSuppressedPattern: '',
             ),
+      vehicleThroughput: vehicleThroughputRaw is Map
+          ? SovereignReportVehicleThroughput.fromJson(
+              vehicleThroughputRaw.map(
+                (key, value) => MapEntry(key.toString(), value),
+              ),
+            )
+          : const SovereignReportVehicleThroughput(
+              totalVisits: 0,
+              completedVisits: 0,
+              activeVisits: 0,
+              incompleteVisits: 0,
+              uniqueVehicles: 0,
+              repeatVehicles: 0,
+              unknownVehicleEvents: 0,
+              peakHourLabel: 'none',
+              peakHourVisitCount: 0,
+              averageCompletedDwellMinutes: 0,
+              suspiciousShortVisitCount: 0,
+              loiteringVisitCount: 0,
+              summaryLine: '',
+            ),
+    );
+  }
+}
+
+class SovereignReportVehicleThroughput {
+  final int totalVisits;
+  final int completedVisits;
+  final int activeVisits;
+  final int incompleteVisits;
+  final int uniqueVehicles;
+  final int repeatVehicles;
+  final int unknownVehicleEvents;
+  final String peakHourLabel;
+  final int peakHourVisitCount;
+  final double averageCompletedDwellMinutes;
+  final int suspiciousShortVisitCount;
+  final int loiteringVisitCount;
+  final String summaryLine;
+
+  const SovereignReportVehicleThroughput({
+    required this.totalVisits,
+    required this.completedVisits,
+    required this.activeVisits,
+    required this.incompleteVisits,
+    required this.uniqueVehicles,
+    required this.repeatVehicles,
+    required this.unknownVehicleEvents,
+    required this.peakHourLabel,
+    required this.peakHourVisitCount,
+    required this.averageCompletedDwellMinutes,
+    required this.suspiciousShortVisitCount,
+    required this.loiteringVisitCount,
+    required this.summaryLine,
+  });
+
+  Map<String, Object?> toJson() {
+    return {
+      'totalVisits': totalVisits,
+      'completedVisits': completedVisits,
+      'activeVisits': activeVisits,
+      'incompleteVisits': incompleteVisits,
+      'uniqueVehicles': uniqueVehicles,
+      'repeatVehicles': repeatVehicles,
+      'unknownVehicleEvents': unknownVehicleEvents,
+      'peakHourLabel': peakHourLabel,
+      'peakHourVisitCount': peakHourVisitCount,
+      'averageCompletedDwellMinutes': averageCompletedDwellMinutes,
+      'suspiciousShortVisitCount': suspiciousShortVisitCount,
+      'loiteringVisitCount': loiteringVisitCount,
+      'summaryLine': summaryLine,
+    };
+  }
+
+  factory SovereignReportVehicleThroughput.fromJson(Map<String, Object?> json) {
+    return SovereignReportVehicleThroughput(
+      totalVisits: (json['totalVisits'] as num?)?.toInt() ?? 0,
+      completedVisits: (json['completedVisits'] as num?)?.toInt() ?? 0,
+      activeVisits: (json['activeVisits'] as num?)?.toInt() ?? 0,
+      incompleteVisits: (json['incompleteVisits'] as num?)?.toInt() ?? 0,
+      uniqueVehicles: (json['uniqueVehicles'] as num?)?.toInt() ?? 0,
+      repeatVehicles: (json['repeatVehicles'] as num?)?.toInt() ?? 0,
+      unknownVehicleEvents:
+          (json['unknownVehicleEvents'] as num?)?.toInt() ?? 0,
+      peakHourLabel: (json['peakHourLabel'] as String? ?? 'none').trim(),
+      peakHourVisitCount: (json['peakHourVisitCount'] as num?)?.toInt() ?? 0,
+      averageCompletedDwellMinutes:
+          (json['averageCompletedDwellMinutes'] as num?)?.toDouble() ?? 0,
+      suspiciousShortVisitCount:
+          (json['suspiciousShortVisitCount'] as num?)?.toInt() ?? 0,
+      loiteringVisitCount: (json['loiteringVisitCount'] as num?)?.toInt() ?? 0,
+      summaryLine: (json['summaryLine'] as String? ?? '').trim(),
     );
   }
 }
@@ -416,15 +537,12 @@ class MorningSovereignReportService {
         reviewedSceneEvents.add((event: intel, review: review));
       }
     }
-    final modelReviews = reviewedSceneEvents
-        .where((entry) {
-          final normalized = entry.review.sourceLabel.trim().toLowerCase();
-          return normalized != 'metadata-only' &&
-              !normalized.startsWith('metadata:');
-        })
-        .length;
-    final metadataFallbackReviews =
-        reviewedSceneEvents.length - modelReviews;
+    final modelReviews = reviewedSceneEvents.where((entry) {
+      final normalized = entry.review.sourceLabel.trim().toLowerCase();
+      return normalized != 'metadata-only' &&
+          !normalized.startsWith('metadata:');
+    }).length;
+    final metadataFallbackReviews = reviewedSceneEvents.length - modelReviews;
     var suppressedActions = 0;
     var incidentAlerts = 0;
     var repeatUpdates = 0;
@@ -452,7 +570,13 @@ class MorningSovereignReportService {
     );
     final latestActionTaken = _latestActionTaken(reviewedSceneEvents);
     final recentActionsSummary = _recentActionsSummary(reviewedSceneEvents);
-    final latestSuppressedPattern = _latestSuppressedPattern(reviewedSceneEvents);
+    final latestSuppressedPattern = _latestSuppressedPattern(
+      reviewedSceneEvents,
+    );
+    final vehicleThroughput = _buildVehicleThroughput(
+      nowUtc: nowUtc,
+      events: nightIntel,
+    );
 
     return SovereignReport(
       date: _dateKey(shiftEndLocal),
@@ -493,6 +617,119 @@ class MorningSovereignReportService {
         recentActionsSummary: recentActionsSummary,
         latestSuppressedPattern: latestSuppressedPattern,
       ),
+      vehicleThroughput: vehicleThroughput,
+    );
+  }
+
+  SovereignReportVehicleThroughput _buildVehicleThroughput({
+    required DateTime nowUtc,
+    required List<IntelligenceReceived> events,
+  }) {
+    final snapshots = const VehicleVisitLedgerProjector().projectByScope(
+      events: events,
+      nowUtc: nowUtc,
+    );
+    if (snapshots.isEmpty) {
+      return const SovereignReportVehicleThroughput(
+        totalVisits: 0,
+        completedVisits: 0,
+        activeVisits: 0,
+        incompleteVisits: 0,
+        uniqueVehicles: 0,
+        repeatVehicles: 0,
+        unknownVehicleEvents: 0,
+        peakHourLabel: 'none',
+        peakHourVisitCount: 0,
+        averageCompletedDwellMinutes: 0,
+        suspiciousShortVisitCount: 0,
+        loiteringVisitCount: 0,
+        summaryLine: '',
+      );
+    }
+    final visits = <VehicleVisitRecord>[
+      for (final snapshot in snapshots.values) ...snapshot.visits,
+    ];
+    final vehicleVisitCount = <String, int>{};
+    final visitsByHour = <int, int>{};
+    var completedVisits = 0;
+    var activeVisits = 0;
+    var incompleteVisits = 0;
+    var totalCompletedMinutes = 0.0;
+    var unknownVehicleEvents = 0;
+    var suspiciousShortVisitCount = 0;
+    var loiteringVisitCount = 0;
+    for (final snapshot in snapshots.values) {
+      unknownVehicleEvents += snapshot.summary.unknownVehicleEvents;
+    }
+    for (final visit in visits) {
+      vehicleVisitCount[visit.vehicleKey] =
+          (vehicleVisitCount[visit.vehicleKey] ?? 0) + 1;
+      visitsByHour[visit.startedAtUtc.toUtc().hour] =
+          (visitsByHour[visit.startedAtUtc.toUtc().hour] ?? 0) + 1;
+      switch (visit.statusAt(nowUtc)) {
+        case VehicleVisitStatus.completed:
+          completedVisits += 1;
+          totalCompletedMinutes += visit.dwell.inSeconds / 60.0;
+          if (visit.dwell < const Duration(minutes: 2)) {
+            suspiciousShortVisitCount += 1;
+          }
+        case VehicleVisitStatus.active:
+          activeVisits += 1;
+        case VehicleVisitStatus.incomplete:
+          incompleteVisits += 1;
+      }
+      if (visit.dwell >= const Duration(minutes: 30)) {
+        loiteringVisitCount += 1;
+      }
+    }
+    final peakHourEntry = visitsByHour.entries.fold<MapEntry<int, int>?>(null, (
+      best,
+      entry,
+    ) {
+      if (best == null || entry.value > best.value) {
+        return entry;
+      }
+      if (entry.value == best.value && entry.key < best.key) {
+        return entry;
+      }
+      return best;
+    });
+    final peakHour = peakHourEntry?.key;
+    final repeatVehicles = vehicleVisitCount.values.where((count) => count > 1);
+    final summary = VehicleThroughputSummary(
+      totalVisits: visits.length,
+      entryCount: visits.where((visit) => visit.sawEntry).length,
+      exitCount: visits.where((visit) => visit.sawExit).length,
+      completedCount: completedVisits,
+      activeCount: activeVisits,
+      incompleteCount: incompleteVisits,
+      uniqueVehicles: vehicleVisitCount.length,
+      repeatVehicles: repeatVehicles.length,
+      unknownVehicleEvents: unknownVehicleEvents,
+      averageCompletedDwellMinutes: completedVisits == 0
+          ? 0
+          : totalCompletedMinutes / completedVisits,
+      peakHourLabel: peakHour == null
+          ? 'none'
+          : '${peakHour.toString().padLeft(2, '0')}:00-${((peakHour + 1) % 24).toString().padLeft(2, '0')}:00',
+      peakHourVisitCount: peakHourEntry?.value ?? 0,
+      suspiciousShortVisitCount: suspiciousShortVisitCount,
+      loiteringVisitCount: loiteringVisitCount,
+    );
+    return SovereignReportVehicleThroughput(
+      totalVisits: summary.totalVisits,
+      completedVisits: summary.completedCount,
+      activeVisits: summary.activeCount,
+      incompleteVisits: summary.incompleteCount,
+      uniqueVehicles: summary.uniqueVehicles,
+      repeatVehicles: summary.repeatVehicles,
+      unknownVehicleEvents: summary.unknownVehicleEvents,
+      peakHourLabel: summary.peakHourLabel,
+      peakHourVisitCount: summary.peakHourVisitCount,
+      averageCompletedDwellMinutes: summary.averageCompletedDwellMinutes,
+      suspiciousShortVisitCount: summary.suspiciousShortVisitCount,
+      loiteringVisitCount: summary.loiteringVisitCount,
+      summaryLine: const VehicleThroughputSummaryFormatter().format(summary),
     );
   }
 
@@ -580,7 +817,8 @@ class MorningSovereignReportService {
   ) {
     final recentActions = <String>[];
     for (final entry in reviews) {
-      if (_sceneReviewDecisionBucket(entry.review) == _SceneReviewDecisionBucket.suppressed) {
+      if (_sceneReviewDecisionBucket(entry.review) ==
+          _SceneReviewDecisionBucket.suppressed) {
         continue;
       }
       final parts = <String>[
@@ -632,13 +870,13 @@ class MorningSovereignReportService {
   }) {
     final parts = <String>[];
     if (incidentAlerts > 0) {
-      parts.add(
-        incidentAlerts == 1 ? '1 alert' : '$incidentAlerts alerts',
-      );
+      parts.add(incidentAlerts == 1 ? '1 alert' : '$incidentAlerts alerts');
     }
     if (repeatUpdates > 0) {
       parts.add(
-        repeatUpdates == 1 ? '1 repeat update' : '$repeatUpdates repeat updates',
+        repeatUpdates == 1
+            ? '1 repeat update'
+            : '$repeatUpdates repeat updates',
       );
     }
     if (escalationCandidates > 0) {

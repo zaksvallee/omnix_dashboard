@@ -78,7 +78,7 @@ void main() {
             occurredAt: DateTime.utc(2026, 3, 10, 1, 10),
             intelligenceId: 'INT-2',
             provider: 'feed',
-            sourceType: 'hardware',
+            sourceType: 'dvr',
             externalId: 'EXT-2',
             clientId: 'CLIENT-1',
             regionId: 'REGION-1',
@@ -88,6 +88,9 @@ void main() {
             riskScore: 21,
             canonicalHash: 'hash-2',
             cameraId: 'channel-2',
+            objectLabel: 'vehicle',
+            plateNumber: 'CA 123 456',
+            zone: 'Entry Lane',
           ),
           IntelligenceReceived(
             eventId: 'INT-3',
@@ -96,7 +99,7 @@ void main() {
             occurredAt: DateTime.utc(2026, 3, 10, 0, 12),
             intelligenceId: 'INT-3',
             provider: 'feed',
-            sourceType: 'hardware',
+            sourceType: 'dvr',
             externalId: 'EXT-3',
             clientId: 'CLIENT-1',
             regionId: 'REGION-1',
@@ -106,6 +109,48 @@ void main() {
             riskScore: 58,
             canonicalHash: 'hash-3',
             cameraId: 'channel-1',
+          ),
+          IntelligenceReceived(
+            eventId: 'INT-4',
+            sequence: 15,
+            version: 1,
+            occurredAt: DateTime.utc(2026, 3, 10, 1, 25),
+            intelligenceId: 'INT-4',
+            provider: 'feed',
+            sourceType: 'dvr',
+            externalId: 'EXT-4',
+            clientId: 'CLIENT-1',
+            regionId: 'REGION-1',
+            siteId: 'SITE-2',
+            headline: 'Vehicle entered wash bay',
+            summary: 'Vehicle moved into wash bay for processing.',
+            riskScore: 24,
+            canonicalHash: 'hash-4',
+            cameraId: 'channel-2',
+            objectLabel: 'vehicle',
+            plateNumber: 'CA 123 456',
+            zone: 'Wash Bay',
+          ),
+          IntelligenceReceived(
+            eventId: 'INT-5',
+            sequence: 16,
+            version: 1,
+            occurredAt: DateTime.utc(2026, 3, 10, 1, 40),
+            intelligenceId: 'INT-5',
+            provider: 'feed',
+            sourceType: 'dvr',
+            externalId: 'EXT-5',
+            clientId: 'CLIENT-1',
+            regionId: 'REGION-1',
+            siteId: 'SITE-2',
+            headline: 'Vehicle departed through exit lane',
+            summary: 'Vehicle completed service and cleared the exit lane.',
+            riskScore: 18,
+            canonicalHash: 'hash-5',
+            cameraId: 'channel-3',
+            objectLabel: 'vehicle',
+            plateNumber: 'CA 123 456',
+            zone: 'Exit Lane',
           ),
         ],
         recentMedia: [
@@ -171,7 +216,7 @@ void main() {
       expect(report.date, '2026-03-10');
       expect(report.shiftWindowStartUtc, expectedWindowStartUtc);
       expect(report.shiftWindowEndUtc, expectedWindowEndUtc);
-      expect(report.ledgerIntegrity.totalEvents, 5);
+      expect(report.ledgerIntegrity.totalEvents, 7);
       expect(report.ledgerIntegrity.hashVerified, isTrue);
       expect(report.aiHumanDelta.aiDecisions, 1);
       expect(report.aiHumanDelta.humanOverrides, 1);
@@ -204,10 +249,20 @@ void main() {
         report.sceneReview.latestSuppressedPattern,
         '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
       );
+      expect(report.vehicleThroughput.totalVisits, 1);
+      expect(report.vehicleThroughput.completedVisits, 1);
+      expect(report.vehicleThroughput.uniqueVehicles, 1);
+      expect(report.vehicleThroughput.peakHourLabel, '01:00-02:00');
+      expect(report.vehicleThroughput.peakHourVisitCount, 1);
+      expect(report.vehicleThroughput.averageCompletedDwellMinutes, 30);
+      expect(
+        report.vehicleThroughput.summaryLine,
+        'Visits 1 • Entry 1 • Completed 1 • Active 0 • Incomplete 0 • Unique 1 • Avg dwell 30.0m • Peak 01:00-02:00 (1) • Loitering 1',
+      );
 
       final restored = SovereignReport.fromJson(report.toJson());
       expect(restored.date, report.date);
-      expect(restored.ledgerIntegrity.totalEvents, 5);
+      expect(restored.ledgerIntegrity.totalEvents, 7);
       expect(restored.aiHumanDelta.humanOverrides, 1);
       expect(restored.sceneReview.totalReviews, 3);
       expect(restored.sceneReview.escalationCandidates, 1);
@@ -226,6 +281,10 @@ void main() {
       expect(
         restored.sceneReview.latestSuppressedPattern,
         report.sceneReview.latestSuppressedPattern,
+      );
+      expect(
+        restored.vehicleThroughput.summaryLine,
+        report.vehicleThroughput.summaryLine,
       );
     });
   });

@@ -18,11 +18,7 @@ enum _VigilanceStatus { green, orange, red }
 
 enum _ComplianceSeverity { critical, warning, info }
 
-enum GovernanceSceneActionFocus {
-  latestAction,
-  recentActions,
-  filteredPattern,
-}
+enum GovernanceSceneActionFocus { latestAction, recentActions, filteredPattern }
 
 class _GuardVigilance {
   final String callsign;
@@ -99,6 +95,15 @@ class _GovernanceReportView {
   final int sceneEscalations;
   final String topScenePosture;
   final String sceneActionMixSummary;
+  final int vehicleVisits;
+  final int vehicleCompletedVisits;
+  final int vehicleActiveVisits;
+  final int vehicleIncompleteVisits;
+  final int vehicleUniqueVehicles;
+  final int vehicleUnknownEvents;
+  final String vehiclePeakHourLabel;
+  final int vehiclePeakHourVisitCount;
+  final String vehicleSummary;
   final String latestActionTaken;
   final String recentActionsSummary;
   final String latestSuppressedPattern;
@@ -131,6 +136,15 @@ class _GovernanceReportView {
     required this.sceneEscalations,
     required this.topScenePosture,
     required this.sceneActionMixSummary,
+    required this.vehicleVisits,
+    required this.vehicleCompletedVisits,
+    required this.vehicleActiveVisits,
+    required this.vehicleIncompleteVisits,
+    required this.vehicleUniqueVehicles,
+    required this.vehicleUnknownEvents,
+    required this.vehiclePeakHourLabel,
+    required this.vehiclePeakHourVisitCount,
+    required this.vehicleSummary,
     required this.latestActionTaken,
     required this.recentActionsSummary,
     required this.latestSuppressedPattern,
@@ -989,9 +1003,7 @@ class _GovernancePageState extends State<GovernancePage> {
                             },
                             borderRadius: BorderRadius.circular(6),
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 2,
-                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 2),
                               child: Text(
                                 _focusedSceneActionDetailValue(report)!,
                                 style: GoogleFonts.inter(
@@ -1206,14 +1218,18 @@ class _GovernancePageState extends State<GovernancePage> {
       _morningReportActionButton(
         label: _copyMorningJsonActionLabel(report),
         onPressed: () async {
-          await Clipboard.setData(ClipboardData(text: _morningReportJson(report)));
+          await Clipboard.setData(
+            ClipboardData(text: _morningReportJson(report)),
+          );
           _showSnack(_copyMorningJsonSnackLabel(report));
         },
       ),
       _morningReportActionButton(
         label: _copyMorningCsvActionLabel(report),
         onPressed: () async {
-          await Clipboard.setData(ClipboardData(text: _morningReportCsv(report)));
+          await Clipboard.setData(
+            ClipboardData(text: _morningReportCsv(report)),
+          );
           _showSnack(_copyMorningCsvSnackLabel(report));
         },
       ),
@@ -1394,7 +1410,8 @@ class _GovernancePageState extends State<GovernancePage> {
         key: const ValueKey('governance-metric-ledger-integrity'),
         label: 'Ledger Integrity',
         value: report.hashVerified ? 'VERIFIED' : 'COMPROMISED',
-        detail: '${report.totalEvents} events • ${report.integrityScore}% score',
+        detail:
+            '${report.totalEvents} events • ${report.integrityScore}% score',
         color: report.hashVerified
             ? const Color(0xFF10B981)
             : const Color(0xFFEF4444),
@@ -1424,6 +1441,17 @@ class _GovernancePageState extends State<GovernancePage> {
         detail: 'PSIRA ${report.psiraExpired} • PDP ${report.pdpExpired}',
         color: report.totalBlocked > 0
             ? const Color(0xFFEF4444)
+            : const Color(0xFF10B981),
+      ),
+      _reportMetric(
+        key: const ValueKey('governance-metric-vehicle-throughput'),
+        label: 'Vehicle Throughput',
+        value: '${report.vehicleVisits} visits',
+        detail: report.vehicleSummary.trim().isNotEmpty
+            ? report.vehicleSummary
+            : 'Completed ${report.vehicleCompletedVisits} • Active ${report.vehicleActiveVisits} • Incomplete ${report.vehicleIncompleteVisits}',
+        color: report.vehicleUnknownEvents > 0
+            ? const Color(0xFFF59E0B)
             : const Color(0xFF10B981),
       ),
     ];
@@ -1825,10 +1853,19 @@ class _GovernancePageState extends State<GovernancePage> {
         sceneEscalations: canonical.sceneReview.escalationCandidates,
         topScenePosture: canonical.sceneReview.topPosture,
         sceneActionMixSummary: canonical.sceneReview.actionMixSummary,
+        vehicleVisits: canonical.vehicleThroughput.totalVisits,
+        vehicleCompletedVisits: canonical.vehicleThroughput.completedVisits,
+        vehicleActiveVisits: canonical.vehicleThroughput.activeVisits,
+        vehicleIncompleteVisits: canonical.vehicleThroughput.incompleteVisits,
+        vehicleUniqueVehicles: canonical.vehicleThroughput.uniqueVehicles,
+        vehicleUnknownEvents: canonical.vehicleThroughput.unknownVehicleEvents,
+        vehiclePeakHourLabel: canonical.vehicleThroughput.peakHourLabel,
+        vehiclePeakHourVisitCount:
+            canonical.vehicleThroughput.peakHourVisitCount,
+        vehicleSummary: canonical.vehicleThroughput.summaryLine,
         latestActionTaken: canonical.sceneReview.latestActionTaken,
         recentActionsSummary: canonical.sceneReview.recentActionsSummary,
-        latestSuppressedPattern:
-            canonical.sceneReview.latestSuppressedPattern,
+        latestSuppressedPattern: canonical.sceneReview.latestSuppressedPattern,
         overrideReasonSummary: reasonSummary,
         generatedAtUtc: canonical.generatedAtUtc,
         shiftWindowStartUtc: canonical.shiftWindowStartUtc,
@@ -1886,6 +1923,15 @@ class _GovernancePageState extends State<GovernancePage> {
       sceneEscalations: 0,
       topScenePosture: 'none',
       sceneActionMixSummary: '',
+      vehicleVisits: 0,
+      vehicleCompletedVisits: 0,
+      vehicleActiveVisits: 0,
+      vehicleIncompleteVisits: 0,
+      vehicleUniqueVehicles: 0,
+      vehicleUnknownEvents: 0,
+      vehiclePeakHourLabel: 'none',
+      vehiclePeakHourVisitCount: 0,
+      vehicleSummary: '',
       latestActionTaken: '',
       recentActionsSummary: '',
       latestSuppressedPattern: '',
@@ -1943,6 +1989,17 @@ class _GovernancePageState extends State<GovernancePage> {
         'avgMatchScore': report.avgMatchScore,
       },
       'sceneReview': sceneReview,
+      'vehicleThroughput': {
+        'totalVisits': report.vehicleVisits,
+        'completedVisits': report.vehicleCompletedVisits,
+        'activeVisits': report.vehicleActiveVisits,
+        'incompleteVisits': report.vehicleIncompleteVisits,
+        'uniqueVehicles': report.vehicleUniqueVehicles,
+        'unknownVehicleEvents': report.vehicleUnknownEvents,
+        'peakHourLabel': report.vehiclePeakHourLabel,
+        'peakHourVisitCount': report.vehiclePeakHourVisitCount,
+        'summaryLine': report.vehicleSummary,
+      },
       'complianceBlockage': {
         'psiraExpired': report.psiraExpired,
         'pdpExpired': report.pdpExpired,
@@ -1983,6 +2040,15 @@ class _GovernancePageState extends State<GovernancePage> {
       'scene_latest_action_taken,"${report.latestActionTaken.replaceAll('"', '""')}"',
       'scene_recent_actions_summary,"${report.recentActionsSummary.replaceAll('"', '""')}"',
       'scene_latest_suppressed_pattern,"${report.latestSuppressedPattern.replaceAll('"', '""')}"',
+      'vehicle_total_visits,${report.vehicleVisits}',
+      'vehicle_completed_visits,${report.vehicleCompletedVisits}',
+      'vehicle_active_visits,${report.vehicleActiveVisits}',
+      'vehicle_incomplete_visits,${report.vehicleIncompleteVisits}',
+      'vehicle_unique_vehicles,${report.vehicleUniqueVehicles}',
+      'vehicle_unknown_events,${report.vehicleUnknownEvents}',
+      'vehicle_peak_hour_label,${report.vehiclePeakHourLabel}',
+      'vehicle_peak_hour_visit_count,${report.vehiclePeakHourVisitCount}',
+      'vehicle_summary,"${report.vehicleSummary.replaceAll('"', '""')}"',
       if (focusedSceneAction != null)
         'scene_focused_lens_key,${focusedSceneAction['key']}',
       if (focusedSceneAction != null)
@@ -2006,9 +2072,12 @@ class _GovernancePageState extends State<GovernancePage> {
       return null;
     }
     final detail = switch (focus) {
-      GovernanceSceneActionFocus.latestAction => report.latestActionTaken.trim(),
-      GovernanceSceneActionFocus.recentActions => report.recentActionsSummary.trim(),
-      GovernanceSceneActionFocus.filteredPattern => report.latestSuppressedPattern.trim(),
+      GovernanceSceneActionFocus.latestAction =>
+        report.latestActionTaken.trim(),
+      GovernanceSceneActionFocus.recentActions =>
+        report.recentActionsSummary.trim(),
+      GovernanceSceneActionFocus.filteredPattern =>
+        report.latestSuppressedPattern.trim(),
     };
     if (detail.isEmpty) {
       return null;

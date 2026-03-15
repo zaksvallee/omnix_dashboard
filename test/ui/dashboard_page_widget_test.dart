@@ -134,6 +134,22 @@ void main() {
               pdpExpired: 1,
               totalBlocked: 2,
             ),
+            vehicleThroughput: const SovereignReportVehicleThroughput(
+              totalVisits: 6,
+              completedVisits: 5,
+              activeVisits: 1,
+              incompleteVisits: 0,
+              uniqueVehicles: 6,
+              repeatVehicles: 0,
+              unknownVehicleEvents: 0,
+              peakHourLabel: '23:00-00:00',
+              peakHourVisitCount: 3,
+              averageCompletedDwellMinutes: 18.5,
+              suspiciousShortVisitCount: 0,
+              loiteringVisitCount: 0,
+              summaryLine:
+                  'Visits 6 • Entry 6 • Completed 5 • Active 1 • Incomplete 0 • Unique 6 • Avg dwell 18.5m • Peak 23:00-00:00 (3)',
+            ),
           ),
           morningSovereignReportAutoStatusLabel:
               'Auto generated for shift ending 2026-03-09. Next generation runs at 06:00 local.',
@@ -178,6 +194,11 @@ void main() {
     expect(find.textContaining('Policy denied (latest):'), findsOneWidget);
     expect(find.text('Advanced export and share'), findsOneWidget);
     expect(find.text('Morning Sovereign Report'), findsOneWidget);
+    expect(find.text('Vehicle throughput'), findsOneWidget);
+    expect(
+      find.textContaining('Visits 6 • Entry 6 • Completed 5'),
+      findsOneWidget,
+    );
     await tester.ensureVisible(find.text('Advanced export and share'));
     await tester.tap(find.text('Advanced export and share'));
     await tester.pumpAndSettle();

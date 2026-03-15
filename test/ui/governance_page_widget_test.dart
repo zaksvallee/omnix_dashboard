@@ -93,6 +93,22 @@ void main() {
         latestSuppressedPattern:
             '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
       ),
+      vehicleThroughput: const SovereignReportVehicleThroughput(
+        totalVisits: 18,
+        completedVisits: 15,
+        activeVisits: 2,
+        incompleteVisits: 1,
+        uniqueVehicles: 16,
+        repeatVehicles: 2,
+        unknownVehicleEvents: 1,
+        peakHourLabel: '23:00-00:00',
+        peakHourVisitCount: 6,
+        averageCompletedDwellMinutes: 17.4,
+        suspiciousShortVisitCount: 1,
+        loiteringVisitCount: 0,
+        summaryLine:
+            'Visits 18 • Entry 18 • Completed 15 • Active 2 • Incomplete 1 • Unique 16 • Repeat 2 • Avg dwell 17.4m • Peak 23:00-00:00 (6) • Short visits 1 • Unknown vehicle events 1',
+      ),
     );
 
     await tester.pumpWidget(
@@ -148,6 +164,11 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(find.text('Vehicle Throughput'), findsOneWidget);
+    expect(
+      find.textContaining('Visits 18 • Entry 18 • Completed 15'),
+      findsOneWidget,
+    );
     expect(find.text('Copy Morning JSON'), findsOneWidget);
     expect(find.text('Download Morning CSV'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -198,6 +219,22 @@ void main() {
             '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
         latestSuppressedPattern:
             '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
+      ),
+      vehicleThroughput: const SovereignReportVehicleThroughput(
+        totalVisits: 18,
+        completedVisits: 15,
+        activeVisits: 2,
+        incompleteVisits: 1,
+        uniqueVehicles: 16,
+        repeatVehicles: 2,
+        unknownVehicleEvents: 1,
+        peakHourLabel: '23:00-00:00',
+        peakHourVisitCount: 6,
+        averageCompletedDwellMinutes: 17.4,
+        suspiciousShortVisitCount: 1,
+        loiteringVisitCount: 0,
+        summaryLine:
+            'Visits 18 • Entry 18 • Completed 15 • Active 2 • Incomplete 1 • Unique 16 • Repeat 2 • Avg dwell 17.4m • Peak 23:00-00:00 (6) • Short visits 1 • Unknown vehicle events 1',
       ),
     );
 
@@ -251,17 +288,21 @@ void main() {
       findsOneWidget,
     );
     expect(
-      tester.getTopLeft(
+      tester
+          .getTopLeft(
             find.textContaining(
               'Recent actions: 2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
             ),
-          ).dy,
+          )
+          .dy,
       lessThan(
-        tester.getTopLeft(
+        tester
+            .getTopLeft(
               find.textContaining(
                 'Latest action taken: 2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line.',
               ),
-            ).dy,
+            )
+            .dy,
       ),
     );
     expect(
@@ -300,10 +341,19 @@ void main() {
     expect(find.text('Copy Filtered Pattern Detail'), findsOneWidget);
     expect(find.text('Copy Morning JSON (Filtered Pattern)'), findsOneWidget);
     expect(find.text('Copy Morning CSV (Filtered Pattern)'), findsOneWidget);
-    expect(find.text('Download Morning JSON (Filtered Pattern)'), findsOneWidget);
-    expect(find.text('Download Morning CSV (Filtered Pattern)'), findsOneWidget);
+    expect(
+      find.text('Download Morning JSON (Filtered Pattern)'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Download Morning CSV (Filtered Pattern)'),
+      findsOneWidget,
+    );
     expect(find.text('Share Morning Pack (Filtered Pattern)'), findsOneWidget);
-    expect(find.text('Email Morning Report (Filtered Pattern)'), findsOneWidget);
+    expect(
+      find.text('Email Morning Report (Filtered Pattern)'),
+      findsOneWidget,
+    );
     expect(
       find.byKey(const ValueKey('governance-scene-detail-filteredPattern')),
       findsOneWidget,
@@ -315,17 +365,21 @@ void main() {
       findsOneWidget,
     );
     expect(
-      tester.getTopLeft(
+      tester
+          .getTopLeft(
             find.textContaining(
               'Latest filtered pattern: 2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
             ),
-          ).dy,
+          )
+          .dy,
       lessThan(
-        tester.getTopLeft(
+        tester
+            .getTopLeft(
               find.textContaining(
                 'Recent actions: 2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
               ),
-            ).dy,
+            )
+            .dy,
       ),
     );
     expect(
@@ -394,6 +448,22 @@ void main() {
             '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
         latestSuppressedPattern:
             '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
+      ),
+      vehicleThroughput: const SovereignReportVehicleThroughput(
+        totalVisits: 18,
+        completedVisits: 15,
+        activeVisits: 2,
+        incompleteVisits: 1,
+        uniqueVehicles: 16,
+        repeatVehicles: 2,
+        unknownVehicleEvents: 1,
+        peakHourLabel: '23:00-00:00',
+        peakHourVisitCount: 6,
+        averageCompletedDwellMinutes: 17.4,
+        suspiciousShortVisitCount: 1,
+        loiteringVisitCount: 0,
+        summaryLine:
+            'Visits 18 • Entry 18 • Completed 15 • Active 2 • Incomplete 1 • Unique 16 • Repeat 2 • Avg dwell 17.4m • Peak 23:00-00:00 (6) • Short visits 1 • Unknown vehicle events 1',
       ),
     );
 
@@ -489,6 +559,22 @@ void main() {
         latestSuppressedPattern:
             '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
       ),
+      vehicleThroughput: const SovereignReportVehicleThroughput(
+        totalVisits: 18,
+        completedVisits: 15,
+        activeVisits: 2,
+        incompleteVisits: 1,
+        uniqueVehicles: 16,
+        repeatVehicles: 2,
+        unknownVehicleEvents: 1,
+        peakHourLabel: '23:00-00:00',
+        peakHourVisitCount: 6,
+        averageCompletedDwellMinutes: 17.4,
+        suspiciousShortVisitCount: 1,
+        loiteringVisitCount: 0,
+        summaryLine:
+            'Visits 18 • Entry 18 • Completed 15 • Active 2 • Incomplete 1 • Unique 16 • Repeat 2 • Avg dwell 17.4m • Peak 23:00-00:00 (6) • Short visits 1 • Unknown vehicle events 1',
+      ),
     );
     GovernanceSceneActionFocus? persistedFocus;
     var showGovernance = true;
@@ -564,118 +650,117 @@ void main() {
     );
   });
 
-  testWidgets(
-    'governance scene action focus survives app shell route swap',
-    (tester) async {
-      tester.view.physicalSize = const Size(1366, 900);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+  testWidgets('governance scene action focus survives app shell route swap', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1366, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
 
-      final report = SovereignReport(
-        date: '2026-03-10',
-        generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-        shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-        shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
-        ledgerIntegrity: const SovereignReportLedgerIntegrity(
-          totalEvents: 184,
-          hashVerified: true,
-          integrityScore: 98,
+    final report = SovereignReport(
+      date: '2026-03-10',
+      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
+      shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 184,
+        hashVerified: true,
+        integrityScore: 98,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 24,
+        humanOverrides: 3,
+        overrideReasons: {'PSIRA expired': 2},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 14,
+        driftDetected: 2,
+        avgMatchScore: 84,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 2,
+        pdpExpired: 1,
+        totalBlocked: 3,
+      ),
+      sceneReview: const SovereignReportSceneReview(
+        totalReviews: 7,
+        modelReviews: 5,
+        metadataFallbackReviews: 2,
+        suppressedActions: 1,
+        incidentAlerts: 2,
+        repeatUpdates: 2,
+        escalationCandidates: 2,
+        topPosture: 'escalation candidate',
+        actionMixSummary:
+            '2 alerts • 2 repeat updates • 2 escalations • 1 suppressed review',
+        latestActionTaken:
+            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line.',
+        recentActionsSummary:
+            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
+        latestSuppressedPattern:
+            '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
+      ),
+    );
+    GovernanceSceneActionFocus? persistedFocus;
+    var route = OnyxRoute.governance;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            return AppShell(
+              currentRoute: route,
+              onRouteChanged: (value) {
+                setState(() {
+                  route = value;
+                });
+              },
+              child: route == OnyxRoute.governance
+                  ? GovernancePage(
+                      events: const [],
+                      morningSovereignReport: report,
+                      morningSovereignReportAutoRunKey: '2026-03-10',
+                      initialSceneActionFocus: persistedFocus,
+                      onSceneActionFocusChanged: (value) {
+                        persistedFocus = value;
+                      },
+                    )
+                  : const Center(child: Text('Live Operations Stub')),
+            );
+          },
         ),
-        aiHumanDelta: const SovereignReportAiHumanDelta(
-          aiDecisions: 24,
-          humanOverrides: 3,
-          overrideReasons: {'PSIRA expired': 2},
-        ),
-        normDrift: const SovereignReportNormDrift(
-          sitesMonitored: 14,
-          driftDetected: 2,
-          avgMatchScore: 84,
-        ),
-        complianceBlockage: const SovereignReportComplianceBlockage(
-          psiraExpired: 2,
-          pdpExpired: 1,
-          totalBlocked: 3,
-        ),
-        sceneReview: const SovereignReportSceneReview(
-          totalReviews: 7,
-          modelReviews: 5,
-          metadataFallbackReviews: 2,
-          suppressedActions: 1,
-          incidentAlerts: 2,
-          repeatUpdates: 2,
-          escalationCandidates: 2,
-          topPosture: 'escalation candidate',
-          actionMixSummary:
-              '2 alerts • 2 repeat updates • 2 escalations • 1 suppressed review',
-          latestActionTaken:
-              '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line.',
-          recentActionsSummary:
-              '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
-          latestSuppressedPattern:
-              '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
-        ),
-      );
-      GovernanceSceneActionFocus? persistedFocus;
-      var route = OnyxRoute.governance;
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: StatefulBuilder(
-            builder: (context, setState) {
-              return AppShell(
-                currentRoute: route,
-                onRouteChanged: (value) {
-                  setState(() {
-                    route = value;
-                  });
-                },
-                child: route == OnyxRoute.governance
-                    ? GovernancePage(
-                        events: const [],
-                        morningSovereignReport: report,
-                        morningSovereignReportAutoRunKey: '2026-03-10',
-                        initialSceneActionFocus: persistedFocus,
-                        onSceneActionFocusChanged: (value) {
-                          persistedFocus = value;
-                        },
-                      )
-                    : const Center(child: Text('Live Operations Stub')),
-              );
-            },
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('governance-scene-focus-recent-actions')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('governance-scene-focus-recent-actions')),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('governance-scene-focus-recent-actions')),
-      );
-      await tester.tap(
-        find.byKey(const ValueKey('governance-scene-focus-recent-actions')),
-      );
-      await tester.pumpAndSettle();
+    expect(persistedFocus, GovernanceSceneActionFocus.recentActions);
+    expect(find.text('Focused scene action: Recent actions'), findsOneWidget);
 
-      expect(persistedFocus, GovernanceSceneActionFocus.recentActions);
-      expect(find.text('Focused scene action: Recent actions'), findsOneWidget);
+    await tester.tap(find.text('Live Operations').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Live Operations Stub'), findsOneWidget);
 
-      await tester.tap(find.text('Live Operations').first);
-      await tester.pumpAndSettle();
-      expect(find.text('Live Operations Stub'), findsOneWidget);
+    await tester.tap(find.text('Compliance').first);
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Compliance').first);
-      await tester.pumpAndSettle();
-
-      expect(find.text('Focused scene action: Recent actions'), findsOneWidget);
-      expect(find.text('Copy Morning JSON (Recent Actions)'), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey('governance-scene-detail-recentActions')),
-        findsOneWidget,
-      );
-    },
-  );
+    expect(find.text('Focused scene action: Recent actions'), findsOneWidget);
+    expect(find.text('Copy Morning JSON (Recent Actions)'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('governance-scene-detail-recentActions')),
+      findsOneWidget,
+    );
+  });
 
   testWidgets('governance page reports scene action focus changes to parent', (
     tester,
@@ -752,10 +837,7 @@ void main() {
     await tester.tap(find.text('Clear'));
     await tester.pumpAndSettle();
 
-    expect(
-      focusChanges,
-      [GovernanceSceneActionFocus.recentActions, isNull],
-    );
+    expect(focusChanges, [GovernanceSceneActionFocus.recentActions, isNull]);
   });
 
   testWidgets('governance page syncs scene action focus from parent updates', (
@@ -1308,6 +1390,22 @@ void main() {
         latestSuppressedPattern:
             '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
       ),
+      vehicleThroughput: const SovereignReportVehicleThroughput(
+        totalVisits: 18,
+        completedVisits: 15,
+        activeVisits: 2,
+        incompleteVisits: 1,
+        uniqueVehicles: 16,
+        repeatVehicles: 2,
+        unknownVehicleEvents: 1,
+        peakHourLabel: '23:00-00:00',
+        peakHourVisitCount: 6,
+        averageCompletedDwellMinutes: 17.4,
+        suspiciousShortVisitCount: 1,
+        loiteringVisitCount: 0,
+        summaryLine:
+            'Visits 18 • Entry 18 • Completed 15 • Active 2 • Incomplete 1 • Unique 16 • Repeat 2 • Avg dwell 17.4m • Peak 23:00-00:00 (6) • Short visits 1 • Unknown vehicle events 1',
+      ),
     );
 
     await tester.pumpWidget(
@@ -1341,6 +1439,12 @@ void main() {
     expect(copiedPayload, contains('"focusedLens"'));
     expect(copiedPayload, contains('"key": "recentActions"'));
     expect(copiedPayload, contains('"label": "Recent actions"'));
+    expect(copiedPayload, contains('"vehicleThroughput"'));
+    expect(copiedPayload, contains('"totalVisits": 18'));
+    expect(
+      copiedPayload,
+      contains('"summaryLine": "Visits 18 • Entry 18 • Completed 15'),
+    );
     expect(
       copiedPayload,
       contains(
@@ -1354,6 +1458,12 @@ void main() {
 
     expect(copiedPayload, isNotNull);
     expect(copiedPayload, contains('scene_focused_lens_key,recentActions'));
+    expect(copiedPayload, contains('vehicle_total_visits,18'));
+    expect(copiedPayload, contains('vehicle_completed_visits,15'));
+    expect(
+      copiedPayload,
+      contains('vehicle_summary,"Visits 18 • Entry 18 • Completed 15'),
+    );
     expect(
       copiedPayload,
       contains('scene_focused_lens_label,"Recent actions"'),
