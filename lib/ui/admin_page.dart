@@ -4200,7 +4200,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
     setState(() => _operatorIdSaving = true);
     try {
       await widget.onSetOperatorId!.call(nextOperatorId);
-      final resolved = nextOperatorId.isEmpty ? 'default operator' : nextOperatorId;
+      final resolved = nextOperatorId.isEmpty
+          ? 'default operator'
+          : nextOperatorId;
       _snack('Operator runtime set to $resolved.');
     } catch (_) {
       _snack('Failed to update operator runtime.');
@@ -4623,7 +4625,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
             runSpacing: 8,
             children: [
               FilledButton.icon(
-                onPressed: (!canSave || _operatorIdSaving) ? null : _saveOperatorId,
+                onPressed: (!canSave || _operatorIdSaving)
+                    ? null
+                    : _saveOperatorId,
                 icon: _operatorIdSaving
                     ? const SizedBox(
                         width: 14,
@@ -4647,7 +4651,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 ),
               ),
               OutlinedButton.icon(
-                onPressed: (!canSave || _operatorIdSaving) ? null : _resetOperatorId,
+                onPressed: (!canSave || _operatorIdSaving)
+                    ? null
+                    : _resetOperatorId,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFFEAF4FF),
                   side: const BorderSide(color: Color(0xFF35506F)),

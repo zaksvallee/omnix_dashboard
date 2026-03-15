@@ -4790,10 +4790,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   void _handleMorningSovereignReportChanged(SovereignReport report) {
     final previous = _morningSovereignReport;
-    _appendVehicleVisitReviewEvents(
-      previous: previous,
-      next: report,
-    );
+    _appendVehicleVisitReviewEvents(previous: previous, next: report);
     if (mounted) {
       setState(() {
         _morningSovereignReport = report;
@@ -4809,8 +4806,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     required SovereignReport next,
   }) {
     final previousByKey = <String, SovereignReportVehicleVisitException>{
-      for (final exception in previous?.vehicleThroughput.exceptionVisits ??
-          const <SovereignReportVehicleVisitException>[])
+      for (final exception
+          in previous?.vehicleThroughput.exceptionVisits ??
+              const <SovereignReportVehicleVisitException>[])
         sovereignReportVehicleVisitExceptionKey(exception): exception,
     };
     for (final exception in next.vehicleThroughput.exceptionVisits) {
@@ -4920,20 +4918,21 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     };
     final mergedExceptions = report.vehicleThroughput.exceptionVisits
         .map((exception) {
-          final previousException = previousByKey[
-              sovereignReportVehicleVisitExceptionKey(exception)];
+          final previousException =
+              previousByKey[sovereignReportVehicleVisitExceptionKey(exception)];
           if (previousException == null) {
             return exception;
           }
           return exception.copyWith(
             operatorReviewed: previousException.operatorReviewed,
-            operatorReviewedAtUtc:
-                previousException.operatorReviewedAtUtc?.toUtc(),
+            operatorReviewedAtUtc: previousException.operatorReviewedAtUtc
+                ?.toUtc(),
             clearOperatorReviewedAtUtc:
                 !previousException.operatorReviewed &&
                 previousException.operatorReviewedAtUtc == null,
-            operatorStatusOverride:
-                previousException.operatorStatusOverride.trim().toUpperCase(),
+            operatorStatusOverride: previousException.operatorStatusOverride
+                .trim()
+                .toUpperCase(),
           );
         })
         .toList(growable: false);
@@ -12262,7 +12261,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         ? _defaultOperatorId
         : raw;
     await _setOperatorIdentity(nextOperatorId);
-    final source = nextOperatorId == _defaultOperatorId ? 'default' : 'override';
+    final source = nextOperatorId == _defaultOperatorId
+        ? 'default'
+        : 'override';
     return 'ONYX SETOPERATOR\n'
         'Operator set to ${service.operator.operatorId} ($source).\n'
         'New execution and review events will use this identity.';
