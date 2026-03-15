@@ -11,6 +11,7 @@ import '../application/text_share_service.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_denied.dart';
+import '../domain/events/vehicle_visit_review_recorded.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 
@@ -2004,6 +2005,8 @@ class _GovernancePageState extends State<GovernancePage> {
         widget.onOpenVehicleExceptionEvent != null &&
         exceptionEventId.isNotEmpty;
     final hasStatusOverride = exception.operatorStatusOverride.trim().isNotEmpty;
+    final reviewAuditEvents = _vehicleReviewAuditEventsFor(exception);
+    final reviewAuditSummary = _vehicleReviewAuditSummary(reviewAuditEvents);
     return InkWell(
       key: ValueKey<String>(
         'governance-vehicle-exception-${exception.vehicleLabel}-${exception.siteId}',
@@ -2122,6 +2125,17 @@ class _GovernancePageState extends State<GovernancePage> {
                 fontWeight: FontWeight.w700,
               ),
             ),
+            if (reviewAuditSummary.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                'Review audit: $reviewAuditSummary',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF67E8F9),
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
             const SizedBox(height: 4),
             Row(
               children: [
@@ -2223,6 +2237,28 @@ class _GovernancePageState extends State<GovernancePage> {
                         'Status override',
                         exception.operatorStatusOverride,
                       ),
+                    if (reviewAuditEvents.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'Review audit',
+                        key: ValueKey<String>(
+                          'governance-vehicle-review-audit-${exceptionEventId.isEmpty ? _vehicleExceptionReviewKey(exception) : exceptionEventId}',
+                        ),
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFEAF4FF),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      for (final event in reviewAuditEvents)
+                        _vehicleReviewAuditEntry(
+                          event: event,
+                          key: ValueKey<String>(
+                            'governance-vehicle-review-audit-entry-${event.eventId}',
+                          ),
+                        ),
+                    ],
                     const SizedBox(height: 6),
                     Text(
                       'Operator review',
@@ -2371,6 +2407,89 @@ class _GovernancePageState extends State<GovernancePage> {
             fontWeight: FontWeight.w700,
           ),
         ),
+      ),
+    );
+  }
+
+  List<VehicleVisitReviewRecorded> _vehicleReviewAuditEventsFor(
+    SovereignReportVehicleVisitException exception,
+  ) {
+    final exceptionKey = _vehicleExceptionReviewKey(exception);
+    final history = widget.events
+        .whereType<VehicleVisitReviewRecorded>()
+        .where((event) => event.vehicleVisitKey.trim() == exceptionKey)
+        .toList(growable: false)
+      ..sort((a, b) {
+        final occurredCompare = b.occurredAt.compareTo(a.occurredAt);
+        if (occurredCompare != 0) {
+          return occurredCompare;
+        }
+        return b.sequence.compareTo(a.sequence);
+      });
+    return history;
+  }
+
+  String _vehicleReviewAuditSummary(List<VehicleVisitReviewRecorded> history) {
+    if (history.isEmpty) {
+      return '';
+    }
+    final latest = history.first;
+    final action = _vehicleReviewAuditActionLabel(latest);
+    final countLabel = history.length == 1 ? '1 action' : '${history.length} actions';
+    return '$countLabel • latest ${_timestampLabel(latest.occurredAt)} • $action';
+  }
+
+  String _vehicleReviewAuditActionLabel(VehicleVisitReviewRecorded event) {
+    if (!event.reviewed && event.statusOverride.trim().isEmpty) {
+      return '${event.actorLabel} cleared review';
+    }
+    if (event.statusOverride.trim().isNotEmpty) {
+      return '${event.actorLabel} set ${event.effectiveStatusLabel}';
+    }
+    return '${event.actorLabel} marked reviewed';
+  }
+
+  Widget _vehicleReviewAuditEntry({
+    Key? key,
+    required VehicleVisitReviewRecorded event,
+  }) {
+    final action = _vehicleReviewAuditActionLabel(event);
+    final detailParts = <String>[
+      _timestampLabel(event.occurredAt),
+      if (event.reasonLabel.trim().isNotEmpty) event.reasonLabel.trim(),
+      if (event.workflowSummary.trim().isNotEmpty) event.workflowSummary.trim(),
+    ];
+    return Container(
+      key: key,
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: const Color(0x10151F2F),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0x335C728F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            action,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF67E8F9),
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            detailParts.join(' • '),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
