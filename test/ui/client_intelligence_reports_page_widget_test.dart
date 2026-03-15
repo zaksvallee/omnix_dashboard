@@ -395,6 +395,24 @@ void main() {
   testWidgets('client reports can focus and clear a partner lane locally', (
     tester,
   ) async {
+    String? clipboardText;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final args = call.arguments as Map<dynamic, dynamic>;
+          clipboardText = args['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+
     final priorReport = SovereignReport(
       date: '2026-03-14',
       generatedAtUtc: DateTime.utc(2026, 3, 14, 6, 0),
@@ -557,6 +575,37 @@ void main() {
     expect(
       find.byKey(const ValueKey('reports-partner-scope-banner')),
       findsNothing,
+    );
+
+    final copyComparisonJsonButton = find.byKey(
+      const ValueKey('reports-partner-comparison-copy-json'),
+    );
+    await tester.ensureVisible(copyComparisonJsonButton);
+    await tester.tap(copyComparisonJsonButton);
+    await tester.pumpAndSettle();
+
+    expect(clipboardText, isNotNull);
+    expect(clipboardText, contains('"partnerLabel": "PARTNER • Alpha"'));
+    expect(clipboardText, contains('"partnerLabel": "PARTNER • Beta"'));
+    expect(clipboardText, contains('"isLeader": true'));
+    expect(clipboardText, contains('"trendLabel": "IMPROVING"'));
+    expect(clipboardText, contains('"reportDate": "2026-03-14"'));
+
+    final copyComparisonCsvButton = find.byKey(
+      const ValueKey('reports-partner-comparison-copy-csv'),
+    );
+    await tester.ensureVisible(copyComparisonCsvButton);
+    await tester.tap(copyComparisonCsvButton);
+    await tester.pumpAndSettle();
+
+    expect(clipboardText, contains('client_id,CLIENT-001'));
+    expect(clipboardText, contains('site_id,SITE-SANDTON'));
+    expect(clipboardText, contains('comparison_1,"PARTNER • Alpha"'));
+    expect(
+      clipboardText,
+      contains(
+        'comparison_2_history_2,"2026-03-14 • HISTORY • CLIENT-001/SITE-SANDTON • PARTNER • Beta',
+      ),
     );
 
     final focusLaneButton = find.byKey(

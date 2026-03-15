@@ -799,6 +799,25 @@ class _ClientIntelligenceReportsPageState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _actionButton(
+                key: const ValueKey('reports-partner-comparison-copy-json'),
+                label: 'Copy Comparison JSON',
+                icon: Icons.copy_all_rounded,
+                onTap: _copyPartnerComparisonJson,
+              ),
+              _actionButton(
+                key: const ValueKey('reports-partner-comparison-copy-csv'),
+                label: 'Copy Comparison CSV',
+                icon: Icons.table_chart_rounded,
+                onTap: _copyPartnerComparisonCsv,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
           for (var index = 0; index < comparisons.length; index++) ...[
             _partnerComparisonRow(comparisons[index]),
             if (index < comparisons.length - 1) const SizedBox(height: 8),
@@ -2763,6 +2782,35 @@ class _ClientIntelligenceReportsPageState
     _showReceiptActionFeedback('Partner scorecard CSV copied.');
   }
 
+  void _copyPartnerComparisonJson() {
+    final payload = _partnerComparisonExportPayload();
+    final encoded = const JsonEncoder.withIndent('  ').convert(payload);
+    Clipboard.setData(ClipboardData(text: encoded));
+    logUiAction(
+      'reports.copy_partner_comparison_json',
+      context: <String, Object?>{
+        'client_id': widget.selectedClient,
+        'site_id': widget.selectedSite,
+        'rows': _sitePartnerComparisonRows.length,
+      },
+    );
+    _showReceiptActionFeedback('Partner comparison JSON copied.');
+  }
+
+  void _copyPartnerComparisonCsv() {
+    final encoded = _partnerComparisonExportCsv();
+    Clipboard.setData(ClipboardData(text: encoded));
+    logUiAction(
+      'reports.copy_partner_comparison_csv',
+      context: <String, Object?>{
+        'client_id': widget.selectedClient,
+        'site_id': widget.selectedSite,
+        'rows': _sitePartnerComparisonRows.length,
+      },
+    );
+    _showReceiptActionFeedback('Partner comparison CSV copied.');
+  }
+
   Map<String, Object?> _partnerScopeExportPayload() {
     final historyPoints = _partnerScopeHistoryPoints();
     _PartnerScopeHistoryPoint? currentPoint;
@@ -2792,6 +2840,33 @@ class _ClientIntelligenceReportsPageState
     };
   }
 
+  Map<String, Object?> _partnerComparisonExportPayload() {
+    final comparisons = _sitePartnerComparisonRows;
+    return <String, Object?>{
+      'scope': <String, Object?>{
+        'clientId': widget.selectedClient,
+        'siteId': widget.selectedSite,
+      },
+      'activePartnerLabel': _partnerScopePartnerLabel,
+      'comparisons': comparisons
+          .map(
+            (comparison) => <String, Object?>{
+              'partnerLabel': comparison.row.partnerLabel,
+              'isLeader': comparison.isLeader,
+              'trendLabel': comparison.trendLabel,
+              'trendReason': comparison.trendReason,
+              'acceptDeltaMinutes': comparison.acceptDeltaMinutes,
+              'onSiteDeltaMinutes': comparison.onSiteDeltaMinutes,
+              'row': comparison.row.toJson(),
+              'history': comparison.historyPoints
+                  .map((point) => point.toJson())
+                  .toList(growable: false),
+            },
+          )
+          .toList(growable: false),
+    };
+  }
+
   String _partnerScopeExportCsv() {
     final historyPoints = _partnerScopeHistoryPoints();
     final chains = _partnerScopeDispatchChains();
@@ -2807,6 +2882,34 @@ class _ClientIntelligenceReportsPageState
       for (var i = 0; i < chains.length; i++)
         'dispatch_chain_${i + 1},"${_partnerScopeChainCsvSummary(chains[i]).replaceAll('"', '""')}"',
     ];
+    return lines.join('\n');
+  }
+
+  String _partnerComparisonExportCsv() {
+    final comparisons = _sitePartnerComparisonRows;
+    final lines = <String>[
+      'metric,value',
+      'client_id,${widget.selectedClient}',
+      'site_id,${widget.selectedSite}',
+      'active_partner_label,"${(_partnerScopePartnerLabel ?? '').replaceAll('"', '""')}"',
+    ];
+    for (var index = 0; index < comparisons.length; index++) {
+      final comparison = comparisons[index];
+      final prefix = 'comparison_${index + 1}';
+      lines.add(
+        '$prefix,"${comparison.row.partnerLabel.replaceAll('"', '""')}",leader=${comparison.isLeader},trend=${comparison.trendLabel},accept_delta=${comparison.acceptDeltaMinutes?.toStringAsFixed(1) ?? ''},on_site_delta=${comparison.onSiteDeltaMinutes?.toStringAsFixed(1) ?? ''}',
+      );
+      for (
+        var historyIndex = 0;
+        historyIndex < comparison.historyPoints.length;
+        historyIndex++
+      ) {
+        final point = comparison.historyPoints[historyIndex];
+        lines.add(
+          '${prefix}_history_${historyIndex + 1},"${point.toCsvSummary().replaceAll('"', '""')}"',
+        );
+      }
+    }
     return lines.join('\n');
   }
 
