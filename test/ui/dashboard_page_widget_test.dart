@@ -146,6 +146,8 @@ void main() {
               standardBrandingReports: 1,
               defaultPartnerBrandingReports: 0,
               customBrandingOverrideReports: 1,
+              governanceHandoffReports: 1,
+              routineReviewReports: 1,
               executiveSummary:
                   '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
               brandingExecutiveSummary:
@@ -264,6 +266,8 @@ void main() {
                 standardBrandingReports: 1,
                 defaultPartnerBrandingReports: 0,
                 customBrandingOverrideReports: 0,
+                governanceHandoffReports: 0,
+                routineReviewReports: 1,
                 executiveSummary:
                     '1 client-facing receipt used full tracked policy',
                 brandingExecutiveSummary:
@@ -317,6 +321,20 @@ void main() {
     expect(
       find.text(
         'SLIPPING • Latest receipt fell back to legacy policy capture.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Receipt investigation'), findsOneWidget);
+    expect(
+      find.text(
+        '1 receipt investigation came from Governance branding drift • 1 receipt investigation remained routine review',
+      ),
+      findsWidgets,
+    );
+    expect(find.text('Receipt investigation trend'), findsOneWidget);
+    expect(
+      find.text(
+        'OVERSIGHT RISING • Latest receipt reviews introduced Governance handoffs above recent routine baseline.',
       ),
       findsOneWidget,
     );

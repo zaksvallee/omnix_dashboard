@@ -1152,6 +1152,60 @@ class _RightRail extends StatelessWidget {
     );
   }
 
+  _ReceiptPolicyTrend? _receiptInvestigationTrendFor(SovereignReport report) {
+    final baselineReports =
+        morningSovereignReportHistory
+            .where((item) => !_isSameSovereignReport(item, report))
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
+    if (baselineReports.isEmpty) {
+      return null;
+    }
+    final baseline = baselineReports
+        .take(3)
+        .map((item) => item.receiptPolicy)
+        .toList(growable: false);
+    if (baseline.isEmpty) {
+      return null;
+    }
+    final currentGovernance = report.receiptPolicy.governanceHandoffReports
+        .toDouble();
+    final baselineGovernance =
+        baseline
+            .map((item) => item.governanceHandoffReports)
+            .reduce((left, right) => left + right) /
+        baseline.length;
+    final delta = currentGovernance - baselineGovernance;
+    if (delta >= 0.5) {
+      return _ReceiptPolicyTrend(
+        label: 'OVERSIGHT RISING',
+        summary: _risingReceiptInvestigationSummary(
+          report.receiptPolicy,
+          baseline,
+        ),
+      );
+    }
+    if (delta <= -0.5) {
+      return _ReceiptPolicyTrend(
+        label: 'OVERSIGHT EASING',
+        summary: _easingReceiptInvestigationSummary(
+          report.receiptPolicy,
+          baseline,
+        ),
+      );
+    }
+    return _ReceiptPolicyTrend(
+      label: 'STABLE',
+      summary: _stableReceiptInvestigationSummary(
+        report.receiptPolicy,
+        baseline,
+      ),
+    );
+  }
+
   bool _isSameSovereignReport(SovereignReport left, SovereignReport right) {
     return left.generatedAtUtc == right.generatedAtUtc &&
         left.shiftWindowEndUtc == right.shiftWindowEndUtc &&
@@ -1250,6 +1304,48 @@ class _RightRail extends StatelessWidget {
     return 'Latest receipts held close to recent policy baseline.';
   }
 
+  String _risingReceiptInvestigationSummary(
+    SovereignReportReceiptPolicy current,
+    List<SovereignReportReceiptPolicy> baseline,
+  ) {
+    final baselineGovernance = baseline.fold<int>(
+      0,
+      (value, item) => value + item.governanceHandoffReports,
+    );
+    if (current.governanceHandoffReports > 0 && baselineGovernance == 0) {
+      return 'Latest receipt reviews introduced Governance handoffs above recent routine baseline.';
+    }
+    return 'Governance-opened receipt reviews increased against recent shifts.';
+  }
+
+  String _easingReceiptInvestigationSummary(
+    SovereignReportReceiptPolicy current,
+    List<SovereignReportReceiptPolicy> baseline,
+  ) {
+    final baselineGovernance = baseline.fold<int>(
+      0,
+      (value, item) => value + item.governanceHandoffReports,
+    );
+    if (current.governanceHandoffReports == 0 && baselineGovernance > 0) {
+      return 'Latest receipt reviews returned to routine handling with no Governance handoffs.';
+    }
+    return 'Governance-opened receipt reviews eased against recent shifts.';
+  }
+
+  String _stableReceiptInvestigationSummary(
+    SovereignReportReceiptPolicy current,
+    List<SovereignReportReceiptPolicy> baseline,
+  ) {
+    final baselineGenerated = baseline.fold<int>(
+      0,
+      (value, item) => value + item.generatedReports,
+    );
+    if (baselineGenerated <= 0 && current.generatedReports <= 0) {
+      return 'No recent receipt investigations to compare.';
+    }
+    return 'Receipt investigation provenance held close to recent baseline.';
+  }
+
   String _receiptPolicyRailSummary(SovereignReportReceiptPolicy policy) {
     final parts = <String>[
       if (policy.executiveSummary.trim().isNotEmpty)
@@ -1262,6 +1358,18 @@ class _RightRail extends StatelessWidget {
         policy.brandingExecutiveSummary,
       if (policy.investigationExecutiveSummary.trim().isNotEmpty)
         policy.investigationExecutiveSummary,
+    ]..removeWhere((part) => part.trim().isEmpty);
+    return parts.join(' • ');
+  }
+
+  String _receiptInvestigationRailSummary(SovereignReportReceiptPolicy policy) {
+    final parts = <String>[
+      if (policy.investigationExecutiveSummary.trim().isNotEmpty)
+        policy.investigationExecutiveSummary
+      else
+        'Governance ${policy.governanceHandoffReports} • Routine ${policy.routineReviewReports}',
+      if (policy.latestInvestigationSummary.trim().isNotEmpty)
+        policy.latestInvestigationSummary,
     ]..removeWhere((part) => part.trim().isEmpty);
     return parts.join(' • ');
   }
@@ -1391,6 +1499,9 @@ class _RightRail extends StatelessWidget {
     final receiptPolicyTrend = sovereignReport == null
         ? null
         : _receiptPolicyTrendFor(sovereignReport);
+    final receiptInvestigationTrend = sovereignReport == null
+        ? null
+        : _receiptInvestigationTrendFor(sovereignReport);
 
     return Column(
       children: [
@@ -2538,6 +2649,24 @@ class _RightRail extends StatelessWidget {
                     label: 'Receipt policy trend',
                     value:
                         '${receiptPolicyTrend.label} • ${receiptPolicyTrend.summary}',
+                  ),
+                if (sovereignReport.receiptPolicy.investigationExecutiveSummary
+                        .trim()
+                        .isNotEmpty ||
+                    sovereignReport.receiptPolicy.governanceHandoffReports >
+                        0 ||
+                    sovereignReport.receiptPolicy.routineReviewReports > 0)
+                  _RailMetricRow(
+                    label: 'Receipt investigation',
+                    value: _receiptInvestigationRailSummary(
+                      sovereignReport.receiptPolicy,
+                    ),
+                  ),
+                if (receiptInvestigationTrend != null)
+                  _RailMetricRow(
+                    label: 'Receipt investigation trend',
+                    value:
+                        '${receiptInvestigationTrend.label} • ${receiptInvestigationTrend.summary}',
                   ),
                 if ((sovereignReport.vehicleThroughput.workflowHeadline
                         .trim()
