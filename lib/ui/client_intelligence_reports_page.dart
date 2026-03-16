@@ -20,6 +20,7 @@ import '../application/report_preview_surface.dart';
 import '../application/report_generation_service.dart';
 import '../application/report_receipt_scene_filter.dart';
 import '../application/report_shell_state.dart';
+import '../application/site_activity_intelligence_service.dart';
 import '../domain/crm/reporting/report_branding_configuration.dart';
 import '../domain/crm/reporting/report_section_configuration.dart';
 import '../domain/events/dispatch_event.dart';
@@ -80,6 +81,7 @@ class ClientIntelligenceReportsPage extends StatefulWidget {
 class _ClientIntelligenceReportsPageState
     extends State<ClientIntelligenceReportsPage>
     with ReportShellBindingHost<ClientIntelligenceReportsPage> {
+  static const _siteActivityService = SiteActivityIntelligenceService();
   bool _isGenerating = false;
   bool _isRefreshing = false;
   List<_ReceiptRow> _receipts = const [];
@@ -737,6 +739,11 @@ class _ClientIntelligenceReportsPageState
     final trendLabel = _partnerScopeTrendLabel(historyPoints);
     final trendReason = _partnerScopeTrendReason(historyPoints);
     final receiptRows = _partnerScopeReceiptRows();
+    final siteActivity = _siteActivitySnapshot(
+      clientId: _partnerScopeClientId,
+      siteId: _partnerScopeSiteId,
+      reportDate: latestPoint?.reportDate,
+    );
     final receiptInvestigationTrendLabel = _receiptInvestigationTrendLabel(
       receiptRows,
     );
@@ -868,6 +875,54 @@ class _ClientIntelligenceReportsPageState
                     ),
                   ),
                 ],
+                if (siteActivity.totalSignals > 0) ...[
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _partnerScopeChip(
+                        label: 'Site Activity',
+                        color: const Color(0xFF59D79B),
+                      ),
+                      _partnerScopeChip(
+                        label: '${siteActivity.totalSignals} signals',
+                        color: const Color(0xFF8FD1FF),
+                      ),
+                      if (siteActivity.vehicleSignals > 0)
+                        _partnerScopeChip(
+                          label: '${siteActivity.vehicleSignals} vehicles',
+                          color: const Color(0xFFF6C067),
+                        ),
+                      if (siteActivity.personSignals > 0)
+                        _partnerScopeChip(
+                          label: '${siteActivity.personSignals} people',
+                          color: const Color(0xFF8EA4C2),
+                        ),
+                      if (siteActivity.knownIdentitySignals > 0)
+                        _partnerScopeChip(
+                          label:
+                              '${siteActivity.knownIdentitySignals} known IDs',
+                          color: const Color(0xFF5DC8FF),
+                        ),
+                      if (siteActivity.flaggedIdentitySignals > 0)
+                        _partnerScopeChip(
+                          label:
+                              '${siteActivity.flaggedIdentitySignals} flagged',
+                          color: const Color(0xFFFF7A7A),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    siteActivity.summaryLine,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF9CB2D1),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -991,6 +1046,10 @@ class _ClientIntelligenceReportsPageState
   Widget _partnerComparisonCard() {
     final comparisons = _sitePartnerComparisonRows;
     final receiptRows = _siteScopeReceiptRows();
+    final siteActivity = _siteActivitySnapshot(
+      clientId: widget.selectedClient,
+      siteId: widget.selectedSite,
+    );
     final receiptInvestigationComparison =
         _receiptInvestigationComparison(receiptRows);
     final receiptInvestigationTrendLabel = _receiptInvestigationTrendLabel(
@@ -1087,6 +1146,52 @@ class _ClientIntelligenceReportsPageState
                 color: _receiptInvestigationTrendColor(
                   receiptInvestigationTrendLabel,
                 ),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          if (siteActivity.totalSignals > 0) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _partnerScopeChip(
+                  label: 'Site Activity',
+                  color: const Color(0xFF59D79B),
+                ),
+                _partnerScopeChip(
+                  label: '${siteActivity.totalSignals} signals',
+                  color: const Color(0xFF8FD1FF),
+                ),
+                if (siteActivity.vehicleSignals > 0)
+                  _partnerScopeChip(
+                    label: '${siteActivity.vehicleSignals} vehicles',
+                    color: const Color(0xFFF6C067),
+                  ),
+                if (siteActivity.personSignals > 0)
+                  _partnerScopeChip(
+                    label: '${siteActivity.personSignals} people',
+                    color: const Color(0xFF8EA4C2),
+                  ),
+                if (siteActivity.knownIdentitySignals > 0)
+                  _partnerScopeChip(
+                    label: '${siteActivity.knownIdentitySignals} known IDs',
+                    color: const Color(0xFF5DC8FF),
+                  ),
+                if (siteActivity.flaggedIdentitySignals > 0)
+                  _partnerScopeChip(
+                    label: '${siteActivity.flaggedIdentitySignals} flagged',
+                    color: const Color(0xFFFF7A7A),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              siteActivity.summaryLine,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
@@ -5559,6 +5664,11 @@ class _ClientIntelligenceReportsPageState
       }
     }
     currentPoint ??= historyPoints.isEmpty ? null : historyPoints.first;
+    final siteActivity = _siteActivitySnapshot(
+      clientId: clientId,
+      siteId: siteId,
+      reportDate: currentPoint?.reportDate,
+    );
     final chains = _partnerDispatchChainsForScope(
       clientId: clientId,
       siteId: siteId,
@@ -5572,6 +5682,7 @@ class _ClientIntelligenceReportsPageState
       },
       'trendLabel': _partnerScopeTrendLabel(historyPoints),
       'trendReason': _partnerScopeTrendReason(historyPoints),
+      'siteActivity': _siteActivitySnapshotJson(siteActivity),
       if (receiptRows.isNotEmpty)
         'receiptInvestigation': <String, Object?>{
           'trendLabel': _receiptInvestigationTrendLabel(receiptRows),
@@ -5617,6 +5728,11 @@ class _ClientIntelligenceReportsPageState
       partnerLabel: point.row.partnerLabel,
       reportDate: point.reportDate,
     );
+    final siteActivity = _siteActivitySnapshot(
+      clientId: point.row.clientId,
+      siteId: point.row.siteId,
+      reportDate: point.reportDate,
+    );
     return <String, Object?>{
       'scope': <String, Object?>{
         'clientId': point.row.clientId,
@@ -5628,6 +5744,7 @@ class _ClientIntelligenceReportsPageState
       'primaryLabel': _partnerScoreboardPrimaryLabel(point.row),
       'summaryLine': point.row.summaryLine,
       'scoreboardRow': point.row.toJson(),
+      'siteActivity': _siteActivitySnapshotJson(siteActivity),
       if (point.receiptInvestigationSummary != null)
         'receiptInvestigation': point.receiptInvestigationSummary!.toJson(),
       'receipts': receiptRows
@@ -5816,6 +5933,11 @@ class _ClientIntelligenceReportsPageState
       partnerLabel: point.row.partnerLabel,
       reportDate: point.reportDate,
     );
+    final siteActivity = _siteActivitySnapshot(
+      clientId: point.row.clientId,
+      siteId: point.row.siteId,
+      reportDate: point.reportDate,
+    );
     final lines = <String>[
       'metric,value',
       'client_id,${point.row.clientId}',
@@ -5825,6 +5947,15 @@ class _ClientIntelligenceReportsPageState
       'current_shift,${point.current}',
       'primary_label,${_partnerScoreboardPrimaryLabel(point.row)}',
       'summary_line,"${point.row.summaryLine.replaceAll('"', '""')}"',
+      'site_activity_total_signals,${siteActivity.totalSignals}',
+      'site_activity_people,${siteActivity.personSignals}',
+      'site_activity_vehicles,${siteActivity.vehicleSignals}',
+      'site_activity_known_ids,${siteActivity.knownIdentitySignals}',
+      'site_activity_flagged_ids,${siteActivity.flaggedIdentitySignals}',
+      'site_activity_unknown_signals,${siteActivity.unknownPersonSignals + siteActivity.unknownVehicleSignals}',
+      'site_activity_long_presence,${siteActivity.longPresenceSignals}',
+      'site_activity_guard_interactions,${siteActivity.guardInteractionSignals}',
+      'site_activity_summary,"${siteActivity.summaryLine.replaceAll('"', '""')}"',
       'dispatch_count,${point.row.dispatchCount}',
       'strong_count,${point.row.strongCount}',
       'on_track_count,${point.row.onTrackCount}',
@@ -5853,6 +5984,68 @@ class _ClientIntelligenceReportsPageState
               row.event.siteId.trim() == widget.selectedSite,
         )
         .toList(growable: false);
+  }
+
+  SiteActivityIntelligenceSnapshot _siteActivitySnapshot({
+    required String? clientId,
+    required String? siteId,
+    String? reportDate,
+  }) {
+    final scopedClientId = clientId?.trim();
+    final scopedSiteId = siteId?.trim();
+    if (scopedClientId == null ||
+        scopedClientId.isEmpty ||
+        scopedSiteId == null ||
+        scopedSiteId.isEmpty) {
+      return const SiteActivityIntelligenceSnapshot(
+        totalSignals: 0,
+        personSignals: 0,
+        vehicleSignals: 0,
+        knownIdentitySignals: 0,
+        flaggedIdentitySignals: 0,
+        unknownPersonSignals: 0,
+        unknownVehicleSignals: 0,
+        longPresenceSignals: 0,
+        guardInteractionSignals: 0,
+        summaryLine: 'No visitor or site-activity signals detected.',
+      );
+    }
+    DateTime? startUtc;
+    DateTime? endUtc;
+    final trimmedDate = reportDate?.trim();
+    if (trimmedDate != null && trimmedDate.isNotEmpty) {
+      final parsed = DateTime.tryParse(trimmedDate);
+      if (parsed != null) {
+        startUtc = DateTime.utc(parsed.year, parsed.month, parsed.day);
+        endUtc = startUtc.add(const Duration(days: 1));
+      }
+    }
+    return _siteActivityService.buildSnapshot(
+      events: widget.store.allEvents(),
+      startUtc: startUtc,
+      endUtc: endUtc,
+      clientId: scopedClientId,
+      siteId: scopedSiteId,
+    );
+  }
+
+  Map<String, Object?> _siteActivitySnapshotJson(
+    SiteActivityIntelligenceSnapshot snapshot,
+  ) {
+    return <String, Object?>{
+      'totalSignals': snapshot.totalSignals,
+      'personSignals': snapshot.personSignals,
+      'vehicleSignals': snapshot.vehicleSignals,
+      'knownIdentitySignals': snapshot.knownIdentitySignals,
+      'flaggedIdentitySignals': snapshot.flaggedIdentitySignals,
+      'unknownSignals':
+          snapshot.unknownPersonSignals + snapshot.unknownVehicleSignals,
+      'unknownPersonSignals': snapshot.unknownPersonSignals,
+      'unknownVehicleSignals': snapshot.unknownVehicleSignals,
+      'longPresenceSignals': snapshot.longPresenceSignals,
+      'guardInteractionSignals': snapshot.guardInteractionSignals,
+      'summaryLine': snapshot.summaryLine,
+    };
   }
 
   _ReceiptInvestigationHistorySummary? _receiptInvestigationHistorySummaryFor({
@@ -5888,6 +6081,10 @@ class _ClientIntelligenceReportsPageState
   Map<String, Object?> _partnerComparisonExportPayload() {
     final comparisons = _sitePartnerComparisonRows;
     final receiptRows = _siteScopeReceiptRows();
+    final siteActivity = _siteActivitySnapshot(
+      clientId: widget.selectedClient,
+      siteId: widget.selectedSite,
+    );
     final receiptInvestigationComparison =
         _receiptInvestigationComparison(receiptRows);
     return <String, Object?>{
@@ -5897,6 +6094,7 @@ class _ClientIntelligenceReportsPageState
       },
       'comparisonWindow': _partnerComparisonWindow.name,
       'activePartnerLabel': _partnerScopePartnerLabel,
+      'siteActivity': _siteActivitySnapshotJson(siteActivity),
       if (receiptRows.isNotEmpty)
         'receiptInvestigation': <String, Object?>{
           'trendLabel': _receiptInvestigationTrendLabel(receiptRows),
@@ -6056,6 +6254,19 @@ class _ClientIntelligenceReportsPageState
       clientId: clientId,
       siteId: siteId,
     );
+    _PartnerScopeHistoryPoint? currentPoint;
+    for (final point in historyPoints) {
+      if (point.current) {
+        currentPoint = point;
+        break;
+      }
+    }
+    currentPoint ??= historyPoints.isEmpty ? null : historyPoints.first;
+    final siteActivity = _siteActivitySnapshot(
+      clientId: clientId,
+      siteId: siteId,
+      reportDate: currentPoint?.reportDate,
+    );
     final receiptInvestigationComparison =
         _receiptInvestigationComparison(receiptRows);
     final lines = <String>[
@@ -6065,6 +6276,15 @@ class _ClientIntelligenceReportsPageState
       'partner_label,"${partnerLabel.replaceAll('"', '""')}"',
       'trend_label,${_partnerScopeTrendLabel(historyPoints)}',
       'trend_reason,"${_partnerScopeTrendReason(historyPoints).replaceAll('"', '""')}"',
+      'site_activity_total_signals,${siteActivity.totalSignals}',
+      'site_activity_people,${siteActivity.personSignals}',
+      'site_activity_vehicles,${siteActivity.vehicleSignals}',
+      'site_activity_known_ids,${siteActivity.knownIdentitySignals}',
+      'site_activity_flagged_ids,${siteActivity.flaggedIdentitySignals}',
+      'site_activity_unknown_signals,${siteActivity.unknownPersonSignals + siteActivity.unknownVehicleSignals}',
+      'site_activity_long_presence,${siteActivity.longPresenceSignals}',
+      'site_activity_guard_interactions,${siteActivity.guardInteractionSignals}',
+      'site_activity_summary,"${siteActivity.summaryLine.replaceAll('"', '""')}"',
       if (receiptRows.isNotEmpty)
         'receipt_investigation_trend_label,"${_receiptInvestigationTrendLabel(receiptRows).replaceAll('"', '""')}"',
       if (receiptRows.isNotEmpty)
@@ -6090,6 +6310,10 @@ class _ClientIntelligenceReportsPageState
   String _partnerComparisonExportCsv() {
     final comparisons = _sitePartnerComparisonRows;
     final receiptRows = _siteScopeReceiptRows();
+    final siteActivity = _siteActivitySnapshot(
+      clientId: widget.selectedClient,
+      siteId: widget.selectedSite,
+    );
     final receiptInvestigationComparison =
         _receiptInvestigationComparison(receiptRows);
     final lines = <String>[
@@ -6098,6 +6322,15 @@ class _ClientIntelligenceReportsPageState
       'site_id,${widget.selectedSite}',
       'comparison_window,${_partnerComparisonWindow.name}',
       'active_partner_label,"${(_partnerScopePartnerLabel ?? '').replaceAll('"', '""')}"',
+      'site_activity_total_signals,${siteActivity.totalSignals}',
+      'site_activity_people,${siteActivity.personSignals}',
+      'site_activity_vehicles,${siteActivity.vehicleSignals}',
+      'site_activity_known_ids,${siteActivity.knownIdentitySignals}',
+      'site_activity_flagged_ids,${siteActivity.flaggedIdentitySignals}',
+      'site_activity_unknown_signals,${siteActivity.unknownPersonSignals + siteActivity.unknownVehicleSignals}',
+      'site_activity_long_presence,${siteActivity.longPresenceSignals}',
+      'site_activity_guard_interactions,${siteActivity.guardInteractionSignals}',
+      'site_activity_summary,"${siteActivity.summaryLine.replaceAll('"', '""')}"',
       if (receiptRows.isNotEmpty)
         'receipt_investigation_trend_label,"${_receiptInvestigationTrendLabel(receiptRows).replaceAll('"', '""')}"',
       if (receiptRows.isNotEmpty)

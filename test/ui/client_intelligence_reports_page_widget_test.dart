@@ -16,6 +16,7 @@ import 'package:omnix_dashboard/domain/store/in_memory_event_store.dart';
 import 'package:omnix_dashboard/ui/client_intelligence_reports_page.dart';
 
 import '../fixtures/report_test_receipt.dart';
+import '../fixtures/report_test_intelligence.dart';
 import '../fixtures/report_test_reviewed_workspace.dart';
 
 void main() {
@@ -347,6 +348,48 @@ void main() {
         investigationContextKey: 'governance_branding_drift',
       ),
     );
+    store.append(
+      buildTestIntelligenceReceived(
+        eventId: 'ACTIVITY-1',
+        sequence: 7,
+        occurredAt: DateTime.utc(2026, 3, 15, 0, 20),
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-SANDTON',
+        intelligenceId: 'activity-1',
+        headline: 'Authorized vehicle detected',
+        summary: 'Partner patrol vehicle entered the site.',
+        objectLabel: 'vehicle',
+        plateNumber: 'ABC123GP',
+      ),
+    );
+    store.append(
+      buildTestIntelligenceReceived(
+        eventId: 'ACTIVITY-2',
+        sequence: 8,
+        occurredAt: DateTime.utc(2026, 3, 15, 0, 40),
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-SANDTON',
+        intelligenceId: 'activity-2',
+        headline: 'Known person detected',
+        summary: 'Known family member approached the gate.',
+        objectLabel: 'person',
+        faceMatchId: 'PERSON-001',
+      ),
+    );
+    store.append(
+      buildTestIntelligenceReceived(
+        eventId: 'ACTIVITY-3',
+        sequence: 9,
+        occurredAt: DateTime.utc(2026, 3, 15, 2, 10),
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-SANDTON',
+        intelligenceId: 'activity-3',
+        headline: 'Unknown person interaction',
+        summary:
+            'Unauthorized person seen in guard conversation near the service gate.',
+        objectLabel: 'person',
+      ),
+    );
 
     await tester.pumpWidget(
       MaterialApp(
@@ -389,6 +432,7 @@ void main() {
     expect(find.text('Powered by ONYX'), findsOneWidget);
     expect(find.text('IMPROVING'), findsOneWidget);
     expect(find.text('Receipt OVERSIGHT RISING'), findsWidgets);
+    expect(find.text('Site Activity'), findsWidgets);
     expect(find.text('Current Governance: 1'), findsWidgets);
     expect(find.text('Current Routine: 0'), findsWidgets);
     expect(find.text('Baseline Governance: 0.0'), findsWidgets);
@@ -399,6 +443,12 @@ void main() {
     );
     expect(
       find.text('Receipt ROUTINE REVIEW • Governance 0 • Routine 1'),
+      findsWidgets,
+    );
+    expect(
+      find.text(
+        'Signals 3 • Vehicles 1 • People 2 • Known IDs 2 • Unknown 1 • Guard interactions 1 • Flagged IDs 1',
+      ),
       findsWidgets,
     );
     expect(
@@ -476,6 +526,9 @@ void main() {
     expect(clipboardText, isNotNull);
     expect(clipboardText, contains('"reportDate": "2026-03-15"'));
     expect(clipboardText, contains('"primaryLabel": "STRONG"'));
+    expect(clipboardText, contains('"siteActivity": {'));
+    expect(clipboardText, contains('"totalSignals": 3'));
+    expect(clipboardText, contains('"guardInteractionSignals": 1'));
     expect(clipboardText, contains('"eventIds": ['));
     expect(clipboardText, contains('"PARTNER-EVT-1"'));
     expect(clipboardText, contains('"PARTNER-RPT-3"'));
@@ -489,6 +542,8 @@ void main() {
 
     expect(clipboardText, contains('report_date,2026-03-15'));
     expect(clipboardText, contains('primary_label,STRONG'));
+    expect(clipboardText, contains('site_activity_total_signals,3'));
+    expect(clipboardText, contains('site_activity_guard_interactions,1'));
     expect(
       clipboardText,
       contains(
@@ -543,6 +598,8 @@ void main() {
     expect(clipboardText, isNotNull);
     expect(clipboardText, contains('"partnerLabel": "PARTNER • Alpha"'));
     expect(clipboardText, contains('"trendLabel": "IMPROVING"'));
+    expect(clipboardText, contains('"siteActivity": {'));
+    expect(clipboardText, contains('"totalSignals": 3'));
     expect(clipboardText, contains('"receiptInvestigation": {'));
     expect(clipboardText, contains('"trendLabel": "OVERSIGHT RISING"'));
     expect(clipboardText, contains('"currentGovernanceHandoffCount": 1'));
@@ -565,6 +622,8 @@ void main() {
 
     expect(clipboardText, contains('partner_label,"PARTNER • Alpha"'));
     expect(clipboardText, contains('trend_label,IMPROVING'));
+    expect(clipboardText, contains('site_activity_total_signals,3'));
+    expect(clipboardText, contains('site_activity_summary,"Signals 3 • Vehicles 1 • People 2 • Known IDs 2 • Unknown 1 • Guard interactions 1 • Flagged IDs 1"'));
     expect(
       clipboardText,
       contains('receipt_investigation_trend_label,"OVERSIGHT RISING"'),
