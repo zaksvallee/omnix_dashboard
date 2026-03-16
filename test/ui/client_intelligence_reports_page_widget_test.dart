@@ -876,6 +876,55 @@ void main() {
       findsNothing,
     );
 
+    final comparisonOpenDrillInButton = find.byKey(
+      const ValueKey(
+        'reports-partner-comparison-open-drill-in-CLIENT-001/SITE-SANDTON/PARTNER • Beta',
+      ),
+    );
+    await tester.ensureVisible(comparisonOpenDrillInButton);
+    await tester.tap(comparisonOpenDrillInButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Partner Scorecard Drill-In'), findsOneWidget);
+    expect(
+      find.text('CLIENT-001/SITE-SANDTON • PARTNER • Beta'),
+      findsOneWidget,
+    );
+    expect(find.text('Receipt provenance by shift'), findsOneWidget);
+    expect(find.text('Scorecard history'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(
+        const ValueKey('reports-partner-scorecard-drill-in-copy-json'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(clipboardText, isNotNull);
+    expect(clipboardText, contains('"clientId": "CLIENT-001"'));
+    expect(clipboardText, contains('"siteId": "SITE-SANDTON"'));
+    expect(clipboardText, contains('"partnerLabel": "PARTNER • Beta"'));
+
+    await tester.tap(
+      find.byKey(
+        const ValueKey('reports-partner-scorecard-drill-in-copy-csv'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(clipboardText, contains('client_id,CLIENT-001'));
+    expect(clipboardText, contains('site_id,SITE-SANDTON'));
+    expect(clipboardText, contains('partner_label,"PARTNER • Beta"'));
+
+    await tester.tap(
+      find.byKey(
+        const ValueKey('reports-partner-scorecard-drill-in-close'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Partner Scorecard Drill-In'), findsNothing);
+
     final copyComparisonJsonButton = find.byKey(
       const ValueKey('reports-partner-comparison-copy-json'),
     );

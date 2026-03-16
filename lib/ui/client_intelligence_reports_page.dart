@@ -1428,9 +1428,32 @@ class _ClientIntelligenceReportsPageState
     if (!_hasPartnerScopeFocus) {
       return;
     }
-    final historyPoints = _partnerScopeHistoryPoints();
-    final currentChains = _partnerScopeDispatchChains();
-    final receiptRows = _partnerScopeReceiptRows();
+    await _openPartnerDrillIn(
+      clientId: _partnerScopeClientId!,
+      siteId: _partnerScopeSiteId!,
+      partnerLabel: _partnerScopePartnerLabel!,
+    );
+  }
+
+  Future<void> _openPartnerDrillIn({
+    required String clientId,
+    required String siteId,
+    required String partnerLabel,
+  }) async {
+    final historyPoints = _partnerScopeHistoryPointsFor(
+      clientId: clientId,
+      siteId: siteId,
+      partnerLabel: partnerLabel,
+    );
+    final currentChains = _partnerDispatchChainsForScope(
+      clientId: clientId,
+      siteId: siteId,
+      partnerLabel: partnerLabel,
+    );
+    final receiptRows = _partnerReceiptRowsForScope(
+      clientId: clientId,
+      siteId: siteId,
+    );
     final trendLabel = _partnerScopeTrendLabel(historyPoints);
     final trendReason = _partnerScopeTrendReason(historyPoints);
     final receiptInvestigationTrendLabel = _receiptInvestigationTrendLabel(
@@ -1458,7 +1481,7 @@ class _ClientIntelligenceReportsPageState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${_partnerScopeClientId!}/${_partnerScopeSiteId!} • ${_partnerScopePartnerLabel!}',
+                    '$clientId/$siteId • $partnerLabel',
                     style: GoogleFonts.inter(
                       color: const Color(0xFFE8F1FF),
                       fontSize: 12,
@@ -1595,6 +1618,24 @@ class _ClientIntelligenceReportsPageState
             ),
           ),
           actions: [
+            TextButton(
+              key: const ValueKey('reports-partner-scorecard-drill-in-copy-json'),
+              onPressed: () => _copyPartnerDrillInJson(
+                clientId: clientId,
+                siteId: siteId,
+                partnerLabel: partnerLabel,
+              ),
+              child: const Text('Copy JSON'),
+            ),
+            TextButton(
+              key: const ValueKey('reports-partner-scorecard-drill-in-copy-csv'),
+              onPressed: () => _copyPartnerDrillInCsv(
+                clientId: clientId,
+                siteId: siteId,
+                partnerLabel: partnerLabel,
+              ),
+              child: const Text('Copy CSV'),
+            ),
             TextButton(
               key: const ValueKey('reports-partner-scorecard-drill-in-close'),
               onPressed: () => Navigator.of(context).pop(),
@@ -2390,6 +2431,18 @@ class _ClientIntelligenceReportsPageState
             children: [
               _actionButton(
                 key: ValueKey<String>(
+                  'reports-partner-comparison-open-drill-in-${row.clientId}/${row.siteId}/${row.partnerLabel}',
+                ),
+                label: 'Open Drill-In',
+                icon: Icons.manage_search_rounded,
+                onTap: () => _openPartnerDrillIn(
+                  clientId: row.clientId,
+                  siteId: row.siteId,
+                  partnerLabel: row.partnerLabel,
+                ),
+              ),
+              _actionButton(
+                key: ValueKey<String>(
                   'reports-partner-comparison-focus-${row.clientId}/${row.siteId}/${row.partnerLabel}',
                 ),
                 label: isActive ? 'Focused' : 'Focus Lane',
@@ -2823,6 +2876,18 @@ class _ClientIntelligenceReportsPageState
     if (!_hasPartnerScopeFocus) {
       return const <SovereignReportPartnerDispatchChain>[];
     }
+    return _partnerDispatchChainsForScope(
+      clientId: _partnerScopeClientId!,
+      siteId: _partnerScopeSiteId!,
+      partnerLabel: _partnerScopePartnerLabel!,
+    );
+  }
+
+  List<SovereignReportPartnerDispatchChain> _partnerDispatchChainsForScope({
+    required String clientId,
+    required String siteId,
+    required String partnerLabel,
+  }) {
     final reports = [...widget.morningSovereignReportHistory]
       ..sort((a, b) {
         final generatedCompare = b.generatedAtUtc.compareTo(a.generatedAtUtc);
@@ -2835,7 +2900,14 @@ class _ClientIntelligenceReportsPageState
       return const <SovereignReportPartnerDispatchChain>[];
     }
     return reports.first.partnerProgression.dispatchChains
-        .where((chain) => _partnerDispatchChainMatchesScope(chain))
+        .where(
+          (chain) => _partnerDispatchChainMatchesScopeValues(
+            chain,
+            clientId: clientId,
+            siteId: siteId,
+            partnerLabel: partnerLabel,
+          ),
+        )
         .toList(growable: false);
   }
 
@@ -2910,17 +2982,6 @@ class _ClientIntelligenceReportsPageState
         row.clientId.trim() == clientId &&
         row.siteId.trim() == siteId &&
         row.partnerLabel.trim().toUpperCase() == partnerLabel.toUpperCase();
-  }
-
-  bool _partnerDispatchChainMatchesScope(
-    SovereignReportPartnerDispatchChain chain,
-  ) {
-    return _partnerDispatchChainMatchesScopeValues(
-      chain,
-      clientId: _partnerScopeClientId,
-      siteId: _partnerScopeSiteId,
-      partnerLabel: _partnerScopePartnerLabel,
-    );
   }
 
   bool _partnerDispatchChainMatchesScopeValues(
@@ -4960,6 +5021,51 @@ class _ClientIntelligenceReportsPageState
     _showReceiptActionFeedback('Partner scorecard CSV copied.');
   }
 
+  void _copyPartnerDrillInJson({
+    required String clientId,
+    required String siteId,
+    required String partnerLabel,
+  }) {
+    final payload = _partnerScopeExportPayloadFor(
+      clientId: clientId,
+      siteId: siteId,
+      partnerLabel: partnerLabel,
+    );
+    final encoded = const JsonEncoder.withIndent('  ').convert(payload);
+    Clipboard.setData(ClipboardData(text: encoded));
+    logUiAction(
+      'reports.copy_partner_drill_in_json',
+      context: <String, Object?>{
+        'client_id': clientId,
+        'site_id': siteId,
+        'partner_label': partnerLabel,
+      },
+    );
+    _showReceiptActionFeedback('Partner drill-in JSON copied.');
+  }
+
+  void _copyPartnerDrillInCsv({
+    required String clientId,
+    required String siteId,
+    required String partnerLabel,
+  }) {
+    final encoded = _partnerScopeExportCsvFor(
+      clientId: clientId,
+      siteId: siteId,
+      partnerLabel: partnerLabel,
+    );
+    Clipboard.setData(ClipboardData(text: encoded));
+    logUiAction(
+      'reports.copy_partner_drill_in_csv',
+      context: <String, Object?>{
+        'client_id': clientId,
+        'site_id': siteId,
+        'partner_label': partnerLabel,
+      },
+    );
+    _showReceiptActionFeedback('Partner drill-in CSV copied.');
+  }
+
   void _copyPartnerComparisonJson() {
     final payload = _partnerComparisonExportPayload();
     final encoded = const JsonEncoder.withIndent('  ').convert(payload);
@@ -5050,8 +5156,37 @@ class _ClientIntelligenceReportsPageState
   }
 
   Map<String, Object?> _partnerScopeExportPayload() {
-    final historyPoints = _partnerScopeHistoryPoints();
-    final receiptRows = _partnerScopeReceiptRows();
+    final clientId = _partnerScopeClientId;
+    final siteId = _partnerScopeSiteId;
+    final partnerLabel = _partnerScopePartnerLabel;
+    if (clientId == null || siteId == null || partnerLabel == null) {
+      return const <String, Object?>{
+        'scope': <String, Object?>{},
+        'historyRows': <Object?>[],
+        'dispatchChains': <Object?>[],
+      };
+    }
+    return _partnerScopeExportPayloadFor(
+      clientId: clientId,
+      siteId: siteId,
+      partnerLabel: partnerLabel,
+    );
+  }
+
+  Map<String, Object?> _partnerScopeExportPayloadFor({
+    required String clientId,
+    required String siteId,
+    required String partnerLabel,
+  }) {
+    final historyPoints = _partnerScopeHistoryPointsFor(
+      clientId: clientId,
+      siteId: siteId,
+      partnerLabel: partnerLabel,
+    );
+    final receiptRows = _partnerReceiptRowsForScope(
+      clientId: clientId,
+      siteId: siteId,
+    );
     final receiptInvestigationComparison =
         _receiptInvestigationComparison(receiptRows);
     _PartnerScopeHistoryPoint? currentPoint;
@@ -5062,12 +5197,16 @@ class _ClientIntelligenceReportsPageState
       }
     }
     currentPoint ??= historyPoints.isEmpty ? null : historyPoints.first;
-    final chains = _partnerScopeDispatchChains();
+    final chains = _partnerDispatchChainsForScope(
+      clientId: clientId,
+      siteId: siteId,
+      partnerLabel: partnerLabel,
+    );
     return <String, Object?>{
       'scope': <String, Object?>{
-        'clientId': _partnerScopeClientId,
-        'siteId': _partnerScopeSiteId,
-        'partnerLabel': _partnerScopePartnerLabel,
+        'clientId': clientId,
+        'siteId': siteId,
+        'partnerLabel': partnerLabel,
       },
       'trendLabel': _partnerScopeTrendLabel(historyPoints),
       'trendReason': _partnerScopeTrendReason(historyPoints),
@@ -5151,12 +5290,19 @@ class _ClientIntelligenceReportsPageState
   }
 
   List<_ReceiptRow> _partnerScopeReceiptRows() {
-    final rows = _receipts.isNotEmpty ? _receipts : _sampleReceipts;
     final clientId = _partnerScopeClientId;
     final siteId = _partnerScopeSiteId;
     if (clientId == null || siteId == null) {
       return const [];
     }
+    return _partnerReceiptRowsForScope(clientId: clientId, siteId: siteId);
+  }
+
+  List<_ReceiptRow> _partnerReceiptRowsForScope({
+    required String clientId,
+    required String siteId,
+  }) {
+    final rows = _receipts.isNotEmpty ? _receipts : _sampleReceipts;
     return rows
         .where(
           (row) =>
@@ -5516,16 +5662,45 @@ class _ClientIntelligenceReportsPageState
   }
 
   String _partnerScopeExportCsv() {
-    final historyPoints = _partnerScopeHistoryPoints();
-    final chains = _partnerScopeDispatchChains();
-    final receiptRows = _partnerScopeReceiptRows();
+    final clientId = _partnerScopeClientId;
+    final siteId = _partnerScopeSiteId;
+    final partnerLabel = _partnerScopePartnerLabel;
+    if (clientId == null || siteId == null || partnerLabel == null) {
+      return 'metric,value';
+    }
+    return _partnerScopeExportCsvFor(
+      clientId: clientId,
+      siteId: siteId,
+      partnerLabel: partnerLabel,
+    );
+  }
+
+  String _partnerScopeExportCsvFor({
+    required String clientId,
+    required String siteId,
+    required String partnerLabel,
+  }) {
+    final historyPoints = _partnerScopeHistoryPointsFor(
+      clientId: clientId,
+      siteId: siteId,
+      partnerLabel: partnerLabel,
+    );
+    final chains = _partnerDispatchChainsForScope(
+      clientId: clientId,
+      siteId: siteId,
+      partnerLabel: partnerLabel,
+    );
+    final receiptRows = _partnerReceiptRowsForScope(
+      clientId: clientId,
+      siteId: siteId,
+    );
     final receiptInvestigationComparison =
         _receiptInvestigationComparison(receiptRows);
     final lines = <String>[
       'metric,value',
-      'client_id,${_partnerScopeClientId ?? ''}',
-      'site_id,${_partnerScopeSiteId ?? ''}',
-      'partner_label,"${(_partnerScopePartnerLabel ?? '').replaceAll('"', '""')}"',
+      'client_id,$clientId',
+      'site_id,$siteId',
+      'partner_label,"${partnerLabel.replaceAll('"', '""')}"',
       'trend_label,${_partnerScopeTrendLabel(historyPoints)}',
       'trend_reason,"${_partnerScopeTrendReason(historyPoints).replaceAll('"', '""')}"',
       if (receiptRows.isNotEmpty)
