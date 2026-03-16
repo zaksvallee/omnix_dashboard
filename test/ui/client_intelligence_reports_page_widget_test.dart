@@ -633,6 +633,7 @@ void main() {
     tester,
   ) async {
     String? clipboardText;
+    Map<String, Object?>? openedEventsScope;
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       SystemChannels.platform,
       (call) async {
@@ -845,6 +846,12 @@ void main() {
           selectedClient: 'CLIENT-001',
           selectedSite: 'SITE-SANDTON',
           morningSovereignReportHistory: [priorReport, currentReport],
+          onOpenEventsForScope: (eventIds, selectedEventId) {
+            openedEventsScope = <String, Object?>{
+              'eventIds': eventIds,
+              'selectedEventId': selectedEventId,
+            };
+          },
         ),
       ),
     );
@@ -875,6 +882,19 @@ void main() {
       find.byKey(const ValueKey('reports-partner-scope-banner')),
       findsNothing,
     );
+
+    final comparisonOpenEventsButton = find.byKey(
+      const ValueKey(
+        'reports-partner-comparison-open-events-CLIENT-001/SITE-SANDTON/PARTNER • Alpha',
+      ),
+    );
+    await tester.ensureVisible(comparisonOpenEventsButton);
+    await tester.tap(comparisonOpenEventsButton);
+    await tester.pumpAndSettle();
+
+    expect(openedEventsScope, isNotNull);
+    expect(openedEventsScope!['eventIds'], <String>['CMP-RPT-3']);
+    expect(openedEventsScope!['selectedEventId'], 'CMP-RPT-3');
 
     final comparisonOpenDrillInButton = find.byKey(
       const ValueKey(

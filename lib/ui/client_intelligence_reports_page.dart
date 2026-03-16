@@ -2431,6 +2431,18 @@ class _ClientIntelligenceReportsPageState
             children: [
               _actionButton(
                 key: ValueKey<String>(
+                  'reports-partner-comparison-open-events-${row.clientId}/${row.siteId}/${row.partnerLabel}',
+                ),
+                label: 'Open Events',
+                icon: Icons.timeline_rounded,
+                onTap: comparison.historyPoints.isEmpty
+                    ? null
+                    : () => _openEventsForPartnerShift(
+                        comparison.historyPoints.first,
+                      ),
+              ),
+              _actionButton(
+                key: ValueKey<String>(
                   'reports-partner-comparison-open-drill-in-${row.clientId}/${row.siteId}/${row.partnerLabel}',
                 ),
                 label: 'Open Drill-In',
