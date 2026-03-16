@@ -17,6 +17,7 @@ import '../application/site_identity_registry_repository.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/listener_alarm_advisory_recorded.dart';
 import '../domain/events/listener_alarm_feed_cycle_recorded.dart';
+import '../domain/events/listener_alarm_parity_cycle_recorded.dart';
 import '../domain/events/partner_dispatch_status_declared.dart';
 import 'onyx_surface.dart';
 import 'video_fleet_scope_health_card.dart';
@@ -4820,6 +4821,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
       ...widget.events.whereType<ListenerAlarmAdvisoryRecorded>(),
     ]..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
     final latestCycle = cycles.isEmpty ? null : cycles.first;
+    final parities = [
+      ...widget.events.whereType<ListenerAlarmParityCycleRecorded>(),
+    ]..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    final latestParity = parities.isEmpty ? null : parities.first;
     final clearCount = advisories
         .where((event) => event.dispositionLabel == 'clear')
         .length;
@@ -4839,6 +4844,11 @@ class _AdministrationPageState extends State<AdministrationPage> {
         ? 'No listener alarm advisories have been delivered yet.'
         : 'Latest advisory • ${latestAdvisory.siteId} • ${latestAdvisory.eventLabel} • '
               '${latestAdvisory.summary}';
+    final latestParitySummary = latestParity == null
+        ? 'No listener parity comparison has been recorded yet.'
+        : '${latestParity.statusLabel.toUpperCase()} • matched ${latestParity.matchedCount}/${latestParity.legacyCount} • '
+              'serial-only ${latestParity.unmatchedSerialCount} • legacy-only ${latestParity.unmatchedLegacyCount} • '
+              'max skew ${latestParity.maxSkewSecondsObserved}s';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
@@ -4886,6 +4896,11 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 value: '$unavailableCount',
                 color: const Color(0xFFEF4444),
               ),
+              _partnerScorecardChip(
+                label: 'Parity',
+                value: '${parities.length}',
+                color: const Color(0xFFFDE68A),
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -4895,6 +4910,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
             label: 'Partner',
             value: latestAdvisorySummary,
           ),
+          const SizedBox(height: 8),
+          _listenerAlarmSummaryRow(label: 'Parity', value: latestParitySummary),
         ],
       ),
     );

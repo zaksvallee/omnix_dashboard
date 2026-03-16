@@ -9,6 +9,7 @@ import 'package:omnix_dashboard/application/site_identity_registry_repository.da
 import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
 import 'package:omnix_dashboard/domain/events/listener_alarm_advisory_recorded.dart';
 import 'package:omnix_dashboard/domain/events/listener_alarm_feed_cycle_recorded.dart';
+import 'package:omnix_dashboard/domain/events/listener_alarm_parity_cycle_recorded.dart';
 import 'package:omnix_dashboard/domain/events/partner_dispatch_status_declared.dart';
 import 'package:omnix_dashboard/ui/admin_page.dart';
 import 'package:omnix_dashboard/ui/video_fleet_scope_health_sections.dart';
@@ -1109,6 +1110,24 @@ void main() {
                 deliveredCount: 1,
                 failedCount: 0,
               ),
+              ListenerAlarmParityCycleRecorded(
+                eventId: 'alarm-parity-1',
+                sequence: 3,
+                version: 1,
+                occurredAt: DateTime.utc(2026, 3, 16, 8, 2),
+                sourceLabel: 'listener-http',
+                legacySourceLabel: 'oryx-http',
+                statusLabel: 'ok',
+                serialCount: 5,
+                legacyCount: 5,
+                matchedCount: 4,
+                unmatchedSerialCount: 1,
+                unmatchedLegacyCount: 1,
+                maxAllowedSkewSeconds: 90,
+                maxSkewSecondsObserved: 22,
+                averageSkewSeconds: 8.4,
+                driftSummary: 'serial 5 • legacy 5 • matched 4',
+              ),
             ],
           ),
         ),
@@ -1130,6 +1149,10 @@ void main() {
       );
       expect(
         find.textContaining('Latest advisory • VALLEE • Burglary'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('OK • matched 4/5 • serial-only 1 • legacy-only 1'),
         findsOneWidget,
       );
     },

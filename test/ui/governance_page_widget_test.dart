@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:omnix_dashboard/application/morning_sovereign_report_service.dart';
 import 'package:omnix_dashboard/domain/events/listener_alarm_advisory_recorded.dart';
 import 'package:omnix_dashboard/domain/events/listener_alarm_feed_cycle_recorded.dart';
+import 'package:omnix_dashboard/domain/events/listener_alarm_parity_cycle_recorded.dart';
 import 'package:omnix_dashboard/domain/events/partner_dispatch_status_declared.dart';
 import 'package:omnix_dashboard/domain/events/report_generated.dart';
 import 'package:omnix_dashboard/domain/events/vehicle_visit_review_recorded.dart';
@@ -1022,6 +1023,24 @@ void main() {
               deliveredCount: 1,
               failedCount: 0,
             ),
+            ListenerAlarmParityCycleRecorded(
+              eventId: 'alarm-parity-1',
+              sequence: 3,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 16, 2, 2),
+              sourceLabel: 'listener-http',
+              legacySourceLabel: 'oryx-http',
+              statusLabel: 'ok',
+              serialCount: 5,
+              legacyCount: 5,
+              matchedCount: 4,
+              unmatchedSerialCount: 1,
+              unmatchedLegacyCount: 1,
+              maxAllowedSkewSeconds: 90,
+              maxSkewSecondsObserved: 22,
+              averageSkewSeconds: 8.4,
+              driftSummary: 'serial 5 • legacy 5 • matched 4',
+            ),
           ],
           morningSovereignReport: report,
         ),
@@ -1038,6 +1057,7 @@ void main() {
       find.textContaining('Latest cycle mapped 4/5 • missed 1'),
       findsOneWidget,
     );
+    expect(find.textContaining('parity ok 4/5'), findsOneWidget);
   });
 
   testWidgets('governance partner scorecard drill-in can open scoped reports', (

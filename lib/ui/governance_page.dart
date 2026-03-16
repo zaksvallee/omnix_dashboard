@@ -13,6 +13,7 @@ import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_denied.dart';
 import '../domain/events/listener_alarm_advisory_recorded.dart';
 import '../domain/events/listener_alarm_feed_cycle_recorded.dart';
+import '../domain/events/listener_alarm_parity_cycle_recorded.dart';
 import '../domain/events/partner_dispatch_status_declared.dart';
 import '../domain/events/report_generated.dart';
 import '../domain/events/vehicle_visit_review_recorded.dart';
@@ -2317,9 +2318,13 @@ class _GovernancePageState extends State<GovernancePage> {
   ) {
     final listenerCycles = _listenerAlarmFeedCyclesForReport(report);
     final listenerAdvisories = _listenerAlarmAdvisoriesForReport(report);
+    final listenerParities = _listenerAlarmParityCyclesForReport(report);
     final latestListenerCycle = listenerCycles.isEmpty
         ? null
         : listenerCycles.first;
+    final latestListenerParity = listenerParities.isEmpty
+        ? null
+        : listenerParities.first;
     final listenerMissedCount = latestListenerCycle == null
         ? 0
         : latestListenerCycle.unmappedCount +
@@ -2379,6 +2384,7 @@ class _GovernancePageState extends State<GovernancePage> {
         detail: _listenerAlarmMetricDetail(
           listenerAdvisories: listenerAdvisories,
           latestCycle: latestListenerCycle,
+          latestParity: latestListenerParity,
         ),
         color: listenerMissedCount > 0
             ? const Color(0xFFF59E0B)
@@ -2484,18 +2490,43 @@ class _GovernancePageState extends State<GovernancePage> {
     return advisories;
   }
 
+  List<ListenerAlarmParityCycleRecorded> _listenerAlarmParityCyclesForReport(
+    _GovernanceReportView report,
+  ) {
+    final startUtc = report.shiftWindowStartUtc?.toUtc();
+    final endUtc = report.shiftWindowEndUtc?.toUtc();
+    if (startUtc == null || endUtc == null) {
+      return const <ListenerAlarmParityCycleRecorded>[];
+    }
+    final parities = widget.events
+        .whereType<ListenerAlarmParityCycleRecorded>()
+        .where(
+          (event) =>
+              !event.occurredAt.toUtc().isBefore(startUtc) &&
+              !event.occurredAt.toUtc().isAfter(endUtc),
+        )
+        .toList(growable: false);
+    return [...parities]..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+  }
+
   String _listenerAlarmMetricDetail({
     required List<ListenerAlarmAdvisoryRecorded> listenerAdvisories,
     required ListenerAlarmFeedCycleRecorded? latestCycle,
+    required ListenerAlarmParityCycleRecorded? latestParity,
   }) {
+    final paritySegment = latestParity == null
+        ? ''
+        : ' • parity ${latestParity.statusLabel} ${latestParity.matchedCount}/${latestParity.legacyCount}'
+              ' • serial-only ${latestParity.unmatchedSerialCount}'
+              ' • legacy-only ${latestParity.unmatchedLegacyCount}';
     if (latestCycle == null) {
       return listenerAdvisories.isEmpty
           ? 'No listener alarm cycles recorded in this shift'
-          : '${listenerAdvisories.length} advisories recorded without a matching feed-cycle summary';
+          : '${listenerAdvisories.length} advisories recorded without a matching feed-cycle summary$paritySegment';
     }
     return 'Latest cycle mapped ${latestCycle.mappedCount}/${latestCycle.acceptedCount} • '
         'missed ${latestCycle.unmappedCount + latestCycle.rejectedCount + latestCycle.failedCount} • '
-        'clear ${latestCycle.clearCount} • suspicious ${latestCycle.suspiciousCount}';
+        'clear ${latestCycle.clearCount} • suspicious ${latestCycle.suspiciousCount}$paritySegment';
   }
 
   String? _focusedSceneActionLabel(_GovernanceReportView report) {

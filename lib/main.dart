@@ -30,6 +30,7 @@ import 'application/guard_telemetry_replay_fixture_service.dart';
 import 'application/intake_stress_service.dart';
 import 'application/listener_alarm_advisory_pipeline_service.dart';
 import 'application/listener_alarm_feed_service.dart';
+import 'application/listener_parity_service.dart';
 import 'application/listener_alarm_partner_advisory_service.dart';
 import 'application/listener_alarm_scope_mapping_service.dart';
 import 'application/listener_alarm_scope_registry_repository.dart';
@@ -81,6 +82,7 @@ import 'domain/events/incident_closed.dart';
 import 'domain/events/intelligence_received.dart';
 import 'domain/events/listener_alarm_advisory_recorded.dart';
 import 'domain/events/listener_alarm_feed_cycle_recorded.dart';
+import 'domain/events/listener_alarm_parity_cycle_recorded.dart';
 import 'domain/events/partner_dispatch_status_declared.dart';
 import 'domain/events/patrol_completed.dart';
 import 'domain/events/response_arrived.dart';
@@ -826,6 +828,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   final http.Client _cctvBridgeHttpClient = http.Client();
   final http.Client _wearableBridgeHttpClient = http.Client();
   final http.Client _listenerAlarmFeedHttpClient = http.Client();
+  final http.Client _listenerAlarmLegacyFeedHttpClient = http.Client();
   final http.Client _telegramBridgeHttpClient = http.Client();
   final http.Client _telegramAiHttpClient = http.Client();
   final http.Client _monitoringVisionHttpClient = http.Client();
@@ -887,6 +890,15 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   );
   static const _listenerAlarmFeedHeadersJson = String.fromEnvironment(
     'ONYX_LISTENER_ALARM_FEED_HEADERS_JSON',
+  );
+  static const _listenerAlarmLegacyFeedUrl = String.fromEnvironment(
+    'ONYX_LISTENER_ALARM_LEGACY_FEED_URL',
+  );
+  static const _listenerAlarmLegacyFeedBearerToken = String.fromEnvironment(
+    'ONYX_LISTENER_ALARM_LEGACY_FEED_BEARER_TOKEN',
+  );
+  static const _listenerAlarmLegacyFeedHeadersJson = String.fromEnvironment(
+    'ONYX_LISTENER_ALARM_LEGACY_FEED_HEADERS_JSON',
   );
   static const _guardOutcomeGovernanceJson = String.fromEnvironment(
     'ONYX_GUARD_OUTCOME_GOVERNANCE_JSON',
@@ -1091,6 +1103,15 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         client: _listenerAlarmFeedHttpClient,
         serialIngestor: _listenerAlarmSerialIngestor,
       );
+  late final ListenerAlarmFeedService _listenerAlarmLegacyFeedService =
+      ListenerAlarmFeedService(
+        feedUri: _listenerAlarmLegacyFeedUri,
+        headers: _listenerAlarmLegacyFeedHeaders,
+        client: _listenerAlarmLegacyFeedHttpClient,
+        serialIngestor: _listenerAlarmSerialIngestor,
+      );
+  static const ListenerParityService _listenerParityService =
+      ListenerParityService();
   DateTime? _telegramAiLastHandledAtUtc;
   String? _telegramAiLastHandledSummary;
   String _clientAppBackendProbeStatusLabel = 'idle';
@@ -6792,6 +6813,37 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     );
   }
 
+  void _appendListenerAlarmParityCycleRecorded({
+    required DateTime occurredAtUtc,
+    required String sourceLabel,
+    required String legacySourceLabel,
+    required String statusLabel,
+    required ListenerParityReport report,
+    required String driftSummary,
+  }) {
+    store.append(
+      ListenerAlarmParityCycleRecorded(
+        eventId:
+            'listener-alarm-parity-${occurredAtUtc.microsecondsSinceEpoch}',
+        sequence: 0,
+        version: 1,
+        occurredAt: occurredAtUtc,
+        sourceLabel: sourceLabel,
+        legacySourceLabel: legacySourceLabel,
+        statusLabel: statusLabel,
+        serialCount: report.serialCount,
+        legacyCount: report.legacyCount,
+        matchedCount: report.matchedCount,
+        unmatchedSerialCount: report.unmatchedSerialCount,
+        unmatchedLegacyCount: report.unmatchedLegacyCount,
+        maxAllowedSkewSeconds: report.maxAllowedSkewSeconds,
+        maxSkewSecondsObserved: report.maxSkewSecondsObserved,
+        averageSkewSeconds: report.averageSkewSeconds,
+        driftSummary: driftSummary,
+      ),
+    );
+  }
+
   String _listenerAlarmRejectSummary(Map<String, int> counts) {
     if (counts.isEmpty) {
       return '';
@@ -7012,6 +7064,53 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         regionId: _selectedRegion,
         siteId: 'LISTENER-RAW',
       );
+      ListenerParityReport? parityReport;
+      String? parityDetail;
+      if (_listenerAlarmLegacyFeedConfigured) {
+        try {
+          final legacyBatch = await _listenerAlarmLegacyFeedService.fetchLatest(
+            clientId: 'LISTENER-RAW',
+            regionId: _selectedRegion,
+            siteId: 'LISTENER-RAW',
+          );
+          parityReport = _listenerParityService.compare(
+            serialEvents: batch.envelopes,
+            legacyEvents: legacyBatch.envelopes,
+          );
+          parityDetail = parityReport.summaryLabel();
+          _appendListenerAlarmParityCycleRecorded(
+            occurredAtUtc: DateTime.now().toUtc(),
+            sourceLabel: batch.sourceLabel,
+            legacySourceLabel: legacyBatch.sourceLabel,
+            statusLabel: 'ok',
+            report: parityReport,
+            driftSummary: parityDetail,
+          );
+        } catch (error) {
+          parityDetail = 'parity_error ${error.toString().trim()}';
+          _appendListenerAlarmParityCycleRecorded(
+            occurredAtUtc: DateTime.now().toUtc(),
+            sourceLabel: batch.sourceLabel,
+            legacySourceLabel:
+                _listenerAlarmLegacyFeedUri?.host.trim().isNotEmpty == true
+                ? _listenerAlarmLegacyFeedUri!.host
+                : 'legacy listener feed',
+            statusLabel: 'error',
+            report: ListenerParityReport(
+              serialCount: batch.acceptedCount,
+              legacyCount: 0,
+              matchedCount: 0,
+              matches: const <ListenerParityMatch>[],
+              unmatchedSerial: batch.envelopes,
+              unmatchedLegacy: const <ListenerSerialEnvelope>[],
+              unmatchedSerialDrifts: const <ListenerParityDrift>[],
+              unmatchedLegacyDrifts: const <ListenerParityDrift>[],
+              maxAllowedSkewSeconds: _listenerParityService.maxSkew.inSeconds,
+            ),
+            driftSummary: parityDetail,
+          );
+        }
+      }
       var mapped = 0;
       var unmapped = 0;
       var appended = 0;
@@ -7109,7 +7208,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           '${pendingCount == 0 ? '' : ' • pending $pendingCount'} • '
           'partner $delivered sent'
           '${failed == 0 ? '' : ' / $failed failed'}'
-          '${normalizationSkipped == 0 ? '' : ' • normalization $normalizationSkipped'}';
+          '${normalizationSkipped == 0 ? '' : ' • normalization $normalizationSkipped'}'
+          '${parityDetail == null || parityDetail.isEmpty ? '' : ' • parity $parityDetail'}';
       if (updateStatus && mounted) {
         setState(() {
           _lastIntakeStatus = 'Listener alarms $detail.';
@@ -18421,6 +18521,19 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   bool get _listenerAlarmFeedConfigured => _listenerAlarmFeedUri != null;
 
+  Uri? get _listenerAlarmLegacyFeedUri {
+    final endpoint = OnyxRuntimeConfig.usableListenerAlarmLegacyFeedUrl(
+      _listenerAlarmLegacyFeedUrl,
+    );
+    if (endpoint.isEmpty) {
+      return null;
+    }
+    return Uri.tryParse(endpoint);
+  }
+
+  bool get _listenerAlarmLegacyFeedConfigured =>
+      _listenerAlarmLegacyFeedUri != null;
+
   Map<String, String> get _listenerAlarmFeedHeaders {
     final headers = <String, String>{};
     final bearerToken = OnyxRuntimeConfig.usableSecret(
@@ -18452,6 +18565,33 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       // without the malformed supplemental headers.
     }
 
+    return headers;
+  }
+
+  Map<String, String> get _listenerAlarmLegacyFeedHeaders {
+    final headers = <String, String>{};
+    final bearerToken = OnyxRuntimeConfig.usableSecret(
+      _listenerAlarmLegacyFeedBearerToken,
+    );
+    if (bearerToken.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $bearerToken';
+    }
+    final rawHeaders = _listenerAlarmLegacyFeedHeadersJson.trim();
+    if (rawHeaders.isEmpty) {
+      return headers;
+    }
+    final decoded = jsonDecode(rawHeaders);
+    if (decoded is! Map) {
+      return headers;
+    }
+    decoded.forEach((key, value) {
+      final headerName = key.toString().trim();
+      final headerValue = value?.toString().trim() ?? '';
+      if (headerName.isEmpty || headerValue.isEmpty) {
+        return;
+      }
+      headers[headerName] = headerValue;
+    });
     return headers;
   }
 
