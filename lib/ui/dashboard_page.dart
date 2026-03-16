@@ -1251,19 +1251,19 @@ class _RightRail extends StatelessWidget {
   }
 
   String _receiptPolicyRailSummary(SovereignReportReceiptPolicy policy) {
-    final base = policy.executiveSummary.trim().isNotEmpty
-        ? policy.executiveSummary
-        : policy.headline.trim().isNotEmpty
-        ? policy.headline
-        : policy.summaryLine;
-    final branding = policy.brandingExecutiveSummary.trim();
-    if (branding.isEmpty) {
-      return base;
-    }
-    if (base.trim().isEmpty) {
-      return branding;
-    }
-    return '$base • $branding';
+    final parts = <String>[
+      if (policy.executiveSummary.trim().isNotEmpty)
+        policy.executiveSummary
+      else if (policy.headline.trim().isNotEmpty)
+        policy.headline
+      else if (policy.summaryLine.trim().isNotEmpty)
+        policy.summaryLine,
+      if (policy.brandingExecutiveSummary.trim().isNotEmpty)
+        policy.brandingExecutiveSummary,
+      if (policy.investigationExecutiveSummary.trim().isNotEmpty)
+        policy.investigationExecutiveSummary,
+    ]..removeWhere((part) => part.trim().isEmpty);
+    return parts.join(' • ');
   }
 
   String _guardFailureTraceText(

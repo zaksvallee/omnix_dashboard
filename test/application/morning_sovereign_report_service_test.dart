@@ -204,6 +204,7 @@ void main() {
             endorsementLine: 'Powered by ONYX',
             brandingSourceLabel: 'Partner Alpha',
             brandingUsesOverride: true,
+            investigationContextKey: 'governance_branding_drift',
             includeAiDecisionLog: false,
             includeGuardMetrics: false,
           ),
@@ -330,6 +331,8 @@ void main() {
       expect(report.receiptPolicy.standardBrandingReports, 1);
       expect(report.receiptPolicy.defaultPartnerBrandingReports, 0);
       expect(report.receiptPolicy.customBrandingOverrideReports, 1);
+      expect(report.receiptPolicy.governanceHandoffReports, 1);
+      expect(report.receiptPolicy.routineReviewReports, 1);
       expect(
         report.receiptPolicy.executiveSummary,
         '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
@@ -351,8 +354,16 @@ void main() {
         '1 receipt used custom branding override',
       );
       expect(
+        report.receiptPolicy.investigationExecutiveSummary,
+        '1 receipt investigation came from Governance branding drift • 1 receipt investigation remained routine review',
+      );
+      expect(
         report.receiptPolicy.latestBrandingSummary,
         'CLIENT-1/SITE-1 2026-03 used standard ONYX branding.',
+      );
+      expect(
+        report.receiptPolicy.latestInvestigationSummary,
+        'CLIENT-1/SITE-1 2026-03 remained routine report review.',
       );
       expect(report.vehicleThroughput.totalVisits, 1);
       expect(report.vehicleThroughput.completedVisits, 1);
@@ -463,8 +474,16 @@ void main() {
         report.receiptPolicy.brandingExecutiveSummary,
       );
       expect(
+        restored.receiptPolicy.investigationExecutiveSummary,
+        report.receiptPolicy.investigationExecutiveSummary,
+      );
+      expect(
         restored.receiptPolicy.latestBrandingSummary,
         report.receiptPolicy.latestBrandingSummary,
+      );
+      expect(
+        restored.receiptPolicy.latestInvestigationSummary,
+        report.receiptPolicy.latestInvestigationSummary,
       );
       expect(restored.sceneReview.escalationCandidates, 1);
       expect(

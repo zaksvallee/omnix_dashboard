@@ -150,6 +150,8 @@ void main() {
                   '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
               brandingExecutiveSummary:
                   '1 receipt used custom branding override',
+              investigationExecutiveSummary:
+                  '1 receipt investigation came from Governance branding drift • 1 receipt investigation remained routine review',
               headline: '1 generated reports omitted sections',
               summaryLine:
                   'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1 • Standard branding 1 • Default partner branding 0 • Custom branding 1',
@@ -307,7 +309,7 @@ void main() {
     expect(find.text('Receipt policy'), findsOneWidget);
     expect(
       find.text(
-        '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy • 1 receipt used custom branding override',
+        '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy • 1 receipt used custom branding override • 1 receipt investigation came from Governance branding drift • 1 receipt investigation remained routine review',
       ),
       findsOneWidget,
     );

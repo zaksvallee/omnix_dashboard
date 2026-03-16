@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'monitoring_scene_review_store.dart';
 import 'vehicle_throughput_summary_formatter.dart';
 import 'vehicle_visit_ledger_projector.dart';
+import 'report_entry_context.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_denied.dart';
@@ -215,12 +216,16 @@ class SovereignReportReceiptPolicy {
   final int standardBrandingReports;
   final int defaultPartnerBrandingReports;
   final int customBrandingOverrideReports;
+  final int governanceHandoffReports;
+  final int routineReviewReports;
   final String executiveSummary;
   final String headline;
   final String summaryLine;
   final String latestReportSummary;
   final String brandingExecutiveSummary;
   final String latestBrandingSummary;
+  final String investigationExecutiveSummary;
+  final String latestInvestigationSummary;
 
   const SovereignReportReceiptPolicy({
     required this.generatedReports,
@@ -233,12 +238,16 @@ class SovereignReportReceiptPolicy {
     this.standardBrandingReports = 0,
     this.defaultPartnerBrandingReports = 0,
     this.customBrandingOverrideReports = 0,
+    this.governanceHandoffReports = 0,
+    this.routineReviewReports = 0,
     this.executiveSummary = '',
     this.headline = '',
     this.summaryLine = '',
     this.latestReportSummary = '',
     this.brandingExecutiveSummary = '',
     this.latestBrandingSummary = '',
+    this.investigationExecutiveSummary = '',
+    this.latestInvestigationSummary = '',
   });
 
   Map<String, Object?> toJson() {
@@ -253,12 +262,16 @@ class SovereignReportReceiptPolicy {
       'standardBrandingReports': standardBrandingReports,
       'defaultPartnerBrandingReports': defaultPartnerBrandingReports,
       'customBrandingOverrideReports': customBrandingOverrideReports,
+      'governanceHandoffReports': governanceHandoffReports,
+      'routineReviewReports': routineReviewReports,
       'executiveSummary': executiveSummary,
       'headline': headline,
       'summaryLine': summaryLine,
       'latestReportSummary': latestReportSummary,
       'brandingExecutiveSummary': brandingExecutiveSummary,
       'latestBrandingSummary': latestBrandingSummary,
+      'investigationExecutiveSummary': investigationExecutiveSummary,
+      'latestInvestigationSummary': latestInvestigationSummary,
     };
   }
 
@@ -283,6 +296,10 @@ class SovereignReportReceiptPolicy {
           (json['defaultPartnerBrandingReports'] as num?)?.toInt() ?? 0,
       customBrandingOverrideReports:
           (json['customBrandingOverrideReports'] as num?)?.toInt() ?? 0,
+      governanceHandoffReports:
+          (json['governanceHandoffReports'] as num?)?.toInt() ?? 0,
+      routineReviewReports:
+          (json['routineReviewReports'] as num?)?.toInt() ?? 0,
       executiveSummary: (json['executiveSummary'] as String? ?? '').trim(),
       headline: (json['headline'] as String? ?? '').trim(),
       summaryLine: (json['summaryLine'] as String? ?? '').trim(),
@@ -292,6 +309,10 @@ class SovereignReportReceiptPolicy {
           (json['brandingExecutiveSummary'] as String? ?? '').trim(),
       latestBrandingSummary: (json['latestBrandingSummary'] as String? ?? '')
           .trim(),
+      investigationExecutiveSummary:
+          (json['investigationExecutiveSummary'] as String? ?? '').trim(),
+      latestInvestigationSummary:
+          (json['latestInvestigationSummary'] as String? ?? '').trim(),
     );
   }
 }
@@ -1515,11 +1536,15 @@ class MorningSovereignReportService {
         standardBrandingReports: 0,
         defaultPartnerBrandingReports: 0,
         customBrandingOverrideReports: 0,
+        governanceHandoffReports: 0,
+        routineReviewReports: 0,
         headline: '',
         summaryLine: '',
         latestReportSummary: '',
         brandingExecutiveSummary: '',
         latestBrandingSummary: '',
+        investigationExecutiveSummary: '',
+        latestInvestigationSummary: '',
       );
     }
 
@@ -1541,8 +1566,18 @@ class MorningSovereignReportService {
     var standardBrandingReports = 0;
     var defaultPartnerBrandingReports = 0;
     var customBrandingOverrideReports = 0;
+    var governanceHandoffReports = 0;
+    var routineReviewReports = 0;
 
     for (final event in ordered) {
+      final investigationContext = ReportEntryContext.fromStorageValue(
+        event.investigationContextKey,
+      );
+      if (investigationContext == ReportEntryContext.governanceBrandingDrift) {
+        governanceHandoffReports += 1;
+      } else {
+        routineReviewReports += 1;
+      }
       if (!event.brandingConfiguration.isConfigured) {
         standardBrandingReports += 1;
       } else if (event.brandingUsesOverride) {
@@ -1586,6 +1621,7 @@ class MorningSovereignReportService {
       if (!latest.includeGuardMetrics) 'Guard Metrics',
     ];
     final latestBrandingSummary = _receiptBrandingSummary(latest);
+    final latestInvestigationSummary = _receiptInvestigationSummary(latest);
     final latestReportSummary = !latestTracked
         ? '${latest.clientId}/${latest.siteId} ${latest.month} used legacy receipt configuration.'
         : latestOmitted.isEmpty
@@ -1619,6 +1655,15 @@ class MorningSovereignReportService {
     final brandingExecutiveSummary = brandingExecutiveParts.isEmpty
         ? ''
         : brandingExecutiveParts.join(' • ');
+    final investigationExecutiveParts = <String>[
+      if (governanceHandoffReports > 0)
+        '$governanceHandoffReports ${governanceHandoffReports == 1 ? 'receipt investigation came from Governance branding drift' : 'receipt investigations came from Governance branding drift'}',
+      if (routineReviewReports > 0)
+        '$routineReviewReports ${routineReviewReports == 1 ? 'receipt investigation remained routine review' : 'receipt investigations remained routine review'}',
+    ];
+    final investigationExecutiveSummary = investigationExecutiveParts.isEmpty
+        ? ''
+        : investigationExecutiveParts.join(' • ');
 
     final headline = reportsWithOmittedSections > 0
         ? '$reportsWithOmittedSections generated reports omitted sections'
@@ -1642,12 +1687,16 @@ class MorningSovereignReportService {
       standardBrandingReports: standardBrandingReports,
       defaultPartnerBrandingReports: defaultPartnerBrandingReports,
       customBrandingOverrideReports: customBrandingOverrideReports,
+      governanceHandoffReports: governanceHandoffReports,
+      routineReviewReports: routineReviewReports,
       executiveSummary: executiveSummary,
       headline: headline,
       summaryLine: summaryLine,
       latestReportSummary: latestReportSummary,
       brandingExecutiveSummary: brandingExecutiveSummary,
       latestBrandingSummary: latestBrandingSummary,
+      investigationExecutiveSummary: investigationExecutiveSummary,
+      latestInvestigationSummary: latestInvestigationSummary,
     );
   }
 
@@ -1664,6 +1713,17 @@ class MorningSovereignReportService {
     return sourceLabel.isNotEmpty
         ? '${event.clientId}/${event.siteId} ${event.month} used default partner branding from $sourceLabel.'
         : '${event.clientId}/${event.siteId} ${event.month} used configured partner branding.';
+  }
+
+  String _receiptInvestigationSummary(ReportGenerated event) {
+    return switch (ReportEntryContext.fromStorageValue(
+      event.investigationContextKey,
+    )) {
+      ReportEntryContext.governanceBrandingDrift =>
+        '${event.clientId}/${event.siteId} ${event.month} was opened from Governance branding drift.',
+      null =>
+        '${event.clientId}/${event.siteId} ${event.month} remained routine report review.',
+    };
   }
 
   SovereignReportPartnerProgression _buildPartnerProgression({
