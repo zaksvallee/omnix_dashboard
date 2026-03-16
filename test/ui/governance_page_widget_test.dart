@@ -109,6 +109,200 @@ void main() {
     expect(find.text('Global Readiness'), findsOneWidget);
   });
 
+  testWidgets('governance page shows global readiness drift and drill-in', (
+    tester,
+  ) async {
+    SovereignReport buildReport({
+      required String date,
+      required DateTime generatedAtUtc,
+    }) {
+      return SovereignReport(
+        date: date,
+        generatedAtUtc: generatedAtUtc,
+        shiftWindowStartUtc: generatedAtUtc.subtract(const Duration(hours: 8)),
+        shiftWindowEndUtc: generatedAtUtc,
+        ledgerIntegrity: const SovereignReportLedgerIntegrity(
+          totalEvents: 10,
+          hashVerified: true,
+          integrityScore: 99,
+        ),
+        aiHumanDelta: const SovereignReportAiHumanDelta(
+          aiDecisions: 1,
+          humanOverrides: 0,
+          overrideReasons: <String, int>{},
+        ),
+        normDrift: const SovereignReportNormDrift(
+          sitesMonitored: 2,
+          driftDetected: 0,
+          avgMatchScore: 100,
+        ),
+        complianceBlockage: const SovereignReportComplianceBlockage(
+          psiraExpired: 0,
+          pdpExpired: 0,
+          totalBlocked: 0,
+        ),
+      );
+    }
+
+    final priorReport = buildReport(
+      date: '2026-03-09',
+      generatedAtUtc: DateTime.utc(2026, 3, 9, 6, 0),
+    );
+    final currentReport = buildReport(
+      date: '2026-03-10',
+      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
+    );
+
+    final events = <DispatchEvent>[
+      IntelligenceReceived(
+        eventId: 'evt-prior',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 9, 1, 0),
+        intelligenceId: 'intel-prior',
+        provider: 'hikvision_dvr_monitor_only',
+        sourceType: 'dvr',
+        externalId: 'ext-prior',
+        clientId: 'CLIENT-1',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-VALLEE',
+        cameraId: 'gate-cam',
+        objectLabel: 'person',
+        objectConfidence: 0.71,
+        headline: 'Prior watch',
+        summary: 'Routine watch posture only.',
+        riskScore: 34,
+        snapshotUrl: 'https://edge.example.com/prior.jpg',
+        canonicalHash: 'hash-prior',
+      ),
+      IntelligenceReceived(
+        eventId: 'evt-current-1',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 10, 1, 0),
+        intelligenceId: 'intel-current-1',
+        provider: 'hikvision_dvr_monitor_only',
+        sourceType: 'dvr',
+        externalId: 'ext-current-1',
+        clientId: 'CLIENT-1',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-VALLEE',
+        cameraId: 'gate-cam',
+        faceMatchId: 'PERSON-44',
+        objectLabel: 'person',
+        objectConfidence: 0.95,
+        headline: 'Current escalation',
+        summary: 'Boundary activity detected.',
+        riskScore: 92,
+        snapshotUrl: 'https://edge.example.com/current-1.jpg',
+        canonicalHash: 'hash-current-1',
+      ),
+      IntelligenceReceived(
+        eventId: 'evt-current-2',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 10, 1, 10),
+        intelligenceId: 'intel-current-2',
+        provider: 'community-feed',
+        sourceType: 'community',
+        externalId: 'ext-current-2',
+        clientId: 'CLIENT-2',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        cameraId: 'community-feed',
+        objectLabel: 'vehicle',
+        objectConfidence: 0.8,
+        headline: 'Neighborhood watch alert',
+        summary: 'Suspicious vehicle circling nearby estates.',
+        riskScore: 76,
+        snapshotUrl: 'https://edge.example.com/current-2.jpg',
+        canonicalHash: 'hash-current-2',
+      ),
+    ];
+
+    final reviews = <String, MonitoringSceneReviewRecord>{
+      'intel-prior': MonitoringSceneReviewRecord(
+        intelligenceId: 'intel-prior',
+        sourceLabel: 'openai:gpt-5.4-mini',
+        postureLabel: 'monitored movement',
+        decisionLabel: 'Suppressed',
+        decisionSummary: 'Routine monitored movement only.',
+        summary: 'No escalation needed.',
+        reviewedAtUtc: DateTime.utc(2026, 3, 9, 1, 1),
+      ),
+      'intel-current-1': MonitoringSceneReviewRecord(
+        intelligenceId: 'intel-current-1',
+        sourceLabel: 'openai:gpt-5.4-mini',
+        postureLabel: 'boundary identity concern',
+        decisionLabel: 'Escalation Candidate',
+        decisionSummary: 'Escalation posture requires response review.',
+        summary: 'Boundary activity at gate.',
+        reviewedAtUtc: DateTime.utc(2026, 3, 10, 1, 1),
+      ),
+    };
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GovernancePage(
+          events: events,
+          sceneReviewByIntelligenceId: reviews,
+          morningSovereignReport: currentReport,
+          morningSovereignReportHistory: [priorReport],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Global readiness drift (7 days)'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('governance-global-readiness-trend-card')),
+      findsOneWidget,
+    );
+    expect(find.text('CRITICAL POSTURE'), findsWidgets);
+    expect(find.text('SLIPPING'), findsWidgets);
+    expect(find.text('Current Critical: 1'), findsOneWidget);
+    expect(find.text('Current Elevated: 1'), findsOneWidget);
+    expect(find.text('Baseline Critical: 0.0'), findsOneWidget);
+    expect(find.text('Baseline Elevated: 0.0'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Critical and elevated site pressure increased against recent shifts.',
+      ),
+      findsOneWidget,
+    );
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('governance-global-readiness-trend-card')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('governance-global-readiness-trend-card')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('governance-global-readiness-dialog')),
+      findsOneWidget,
+    );
+    expect(find.text('GLOBAL READINESS DRILL-IN'), findsOneWidget);
+    expect(
+      find.byKey(
+        const ValueKey('governance-global-readiness-history-2026-03-10'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey('governance-global-readiness-history-2026-03-09'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Sites 2 • Critical 1 • Elevated 1 • Intents'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('governance page renders persisted morning report metadata', (
     tester,
   ) async {
@@ -3461,6 +3655,10 @@ void main() {
     expect(copiedPayload, contains('"focusedLens"'));
     expect(copiedPayload, contains('"key": "recentActions"'));
     expect(copiedPayload, contains('"label": "Recent actions"'));
+    expect(copiedPayload, contains('"globalReadiness"'));
+    expect(copiedPayload, contains('"baselineCriticalAverage"'));
+    expect(copiedPayload, contains('"baselineElevatedAverage"'));
+    expect(copiedPayload, contains('"baselineIntentAverage"'));
     expect(copiedPayload, contains('"receiptPolicy"'));
     expect(copiedPayload, contains('"generatedReports": 2'));
     expect(

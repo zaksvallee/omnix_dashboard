@@ -232,6 +232,66 @@ class _ReceiptInvestigationBaselineStats {
   });
 }
 
+class _GlobalReadinessTrend {
+  final String trendLabel;
+  final String trendReason;
+  final String summaryLine;
+  final int reportDays;
+  final String currentModeLabel;
+
+  const _GlobalReadinessTrend({
+    required this.trendLabel,
+    required this.trendReason,
+    required this.summaryLine,
+    required this.reportDays,
+    required this.currentModeLabel,
+  });
+}
+
+class _GlobalReadinessBaselineStats {
+  final double criticalAverage;
+  final double elevatedAverage;
+  final double intentAverage;
+  final int reportDays;
+
+  const _GlobalReadinessBaselineStats({
+    required this.criticalAverage,
+    required this.elevatedAverage,
+    required this.intentAverage,
+    required this.reportDays,
+  });
+}
+
+class _GlobalReadinessHistoryPoint {
+  final String reportDate;
+  final bool current;
+  final int totalSites;
+  final int elevatedSiteCount;
+  final int criticalSiteCount;
+  final int intentCount;
+  final String modeLabel;
+  final String leadRegionId;
+  final String leadRegionSummary;
+  final String leadSiteId;
+  final String leadSiteSummary;
+  final String latestIntentSummary;
+
+  const _GlobalReadinessHistoryPoint({
+    required this.reportDate,
+    required this.current,
+    required this.totalSites,
+    required this.elevatedSiteCount,
+    required this.criticalSiteCount,
+    required this.intentCount,
+    required this.modeLabel,
+    required this.leadRegionId,
+    required this.leadRegionSummary,
+    required this.leadSiteId,
+    required this.leadSiteSummary,
+    required this.latestIntentSummary,
+  });
+}
+
 class _ReceiptBrandingHistoryPoint {
   final String reportDate;
   final bool current;
@@ -1338,6 +1398,17 @@ class _GovernancePageState extends State<GovernancePage> {
               ),
             ),
           ],
+          const SizedBox(height: 8),
+          Text(
+            'Global readiness drift (7 days)',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF4FF),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          _globalReadinessTrendCard(report),
           if (report.generatedReports > 0) ...[
             const SizedBox(height: 8),
             Text(
@@ -2524,10 +2595,9 @@ class _GovernancePageState extends State<GovernancePage> {
   MonitoringGlobalPostureSnapshot _globalReadinessSnapshotForReport(
     _GovernanceReportView report,
   ) {
-    final scopedEvents = _eventsScopedToReportWindow(report);
-    return _globalPostureService.buildSnapshot(
-      events: scopedEvents,
-      sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+    return _globalReadinessSnapshotForWindow(
+      report.shiftWindowStartUtc,
+      report.shiftWindowEndUtc,
       generatedAtUtc: report.generatedAtUtc,
     );
   }
@@ -2535,16 +2605,42 @@ class _GovernancePageState extends State<GovernancePage> {
   List<MonitoringWatchAutonomyActionPlan> _globalReadinessIntentsForReport(
     _GovernanceReportView report,
   ) {
-    final scopedEvents = _eventsScopedToReportWindow(report);
+    return _globalReadinessIntentsForWindow(
+      report.shiftWindowStartUtc,
+      report.shiftWindowEndUtc,
+    );
+  }
+
+  MonitoringGlobalPostureSnapshot _globalReadinessSnapshotForWindow(
+    DateTime? startUtc,
+    DateTime? endUtc, {
+    DateTime? generatedAtUtc,
+  }) {
+    final scopedEvents = _eventsScopedToWindow(startUtc, endUtc);
+    return _globalPostureService.buildSnapshot(
+      events: scopedEvents,
+      sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+      generatedAtUtc: generatedAtUtc,
+    );
+  }
+
+  List<MonitoringWatchAutonomyActionPlan> _globalReadinessIntentsForWindow(
+    DateTime? startUtc,
+    DateTime? endUtc,
+  ) {
+    final scopedEvents = _eventsScopedToWindow(startUtc, endUtc);
     return _orchestratorService.buildActionIntents(
       events: scopedEvents,
       sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
     );
   }
 
-  List<DispatchEvent> _eventsScopedToReportWindow(_GovernanceReportView report) {
-    final startUtc = report.shiftWindowStartUtc?.toUtc();
-    final endUtc = report.shiftWindowEndUtc?.toUtc();
+  List<DispatchEvent> _eventsScopedToWindow(
+    DateTime? startUtcValue,
+    DateTime? endUtcValue,
+  ) {
+    final startUtc = startUtcValue?.toUtc();
+    final endUtc = endUtcValue?.toUtc();
     if (startUtc == null || endUtc == null) {
       return widget.events;
     }
@@ -2612,6 +2708,250 @@ class _GovernancePageState extends State<GovernancePage> {
         ? ''
         : ' • lead ${leadSite.siteId} ${leadSite.dominantSignals.join('/')}';
     return 'Sites ${snapshot.totalSites} • elevated ${snapshot.elevatedSiteCount} • critical ${snapshot.criticalSiteCount} • intents ${intents.length}$regionSegment$siteSegment';
+  }
+
+  _GlobalReadinessTrend _globalReadinessTrendForReport(
+    _GovernanceReportView report,
+  ) {
+    final currentSnapshot = _globalReadinessSnapshotForReport(report);
+    final currentIntents = _globalReadinessIntentsForReport(report);
+    final currentModeLabel = _globalReadinessModeLabel(
+      currentSnapshot,
+      currentIntents,
+    );
+    final summaryLine =
+        'Current readiness • Critical ${currentSnapshot.criticalSiteCount} • Elevated ${currentSnapshot.elevatedSiteCount} • Intents ${currentIntents.length}';
+    final baselineReports =
+        widget.morningSovereignReportHistory
+            .where((item) {
+              if (item.generatedAtUtc == report.generatedAtUtc &&
+                  item.date == report.reportDate) {
+                return false;
+              }
+              return true;
+            })
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
+    final baseline = baselineReports.take(3).toList(growable: false);
+    if (baseline.isEmpty) {
+      return _GlobalReadinessTrend(
+        trendLabel: 'NEW',
+        trendReason:
+            'No prior global readiness snapshots are available for comparison.',
+        summaryLine: summaryLine,
+        reportDays: 1,
+        currentModeLabel: currentModeLabel,
+      );
+    }
+    final currentPressure =
+        (currentSnapshot.criticalSiteCount * 2.0) +
+        currentSnapshot.elevatedSiteCount +
+        (currentIntents.length * 0.5);
+    final baselinePressure =
+        baseline
+            .map((item) {
+              final snapshot = _globalReadinessSnapshotForWindow(
+                item.shiftWindowStartUtc,
+                item.shiftWindowEndUtc,
+                generatedAtUtc: item.generatedAtUtc,
+              );
+              final intents = _globalReadinessIntentsForWindow(
+                item.shiftWindowStartUtc,
+                item.shiftWindowEndUtc,
+              );
+              return (snapshot.criticalSiteCount * 2.0) +
+                  snapshot.elevatedSiteCount +
+                  (intents.length * 0.5);
+            })
+            .reduce((left, right) => left + right) /
+        baseline.length;
+    final trendLabel = currentPressure >= baselinePressure + 1.0
+        ? 'SLIPPING'
+        : currentPressure <= baselinePressure - 1.0
+        ? 'IMPROVING'
+        : 'STABLE';
+    final trendReason = switch (trendLabel) {
+      'SLIPPING' =>
+        'Critical and elevated site pressure increased against recent shifts.',
+      'IMPROVING' =>
+        currentSnapshot.criticalSiteCount == 0 && baselinePressure > 0
+            ? 'Current shift returned to a calmer readiness posture with no critical sites.'
+            : 'Global readiness pressure eased against recent shifts.',
+      _ => 'Global readiness posture is holding close to the recent baseline.',
+    };
+    return _GlobalReadinessTrend(
+      trendLabel: trendLabel,
+      trendReason: trendReason,
+      summaryLine: summaryLine,
+      reportDays: baseline.length,
+      currentModeLabel: currentModeLabel,
+    );
+  }
+
+  _GlobalReadinessBaselineStats _globalReadinessBaselineStats(
+    _GovernanceReportView report,
+  ) {
+    final baselineReports =
+        widget.morningSovereignReportHistory
+            .where((item) {
+              if (item.generatedAtUtc == report.generatedAtUtc &&
+                  item.date == report.reportDate) {
+                return false;
+              }
+              return true;
+            })
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
+    final baseline = baselineReports.take(3).toList(growable: false);
+    if (baseline.isEmpty) {
+      return const _GlobalReadinessBaselineStats(
+        criticalAverage: 0,
+        elevatedAverage: 0,
+        intentAverage: 0,
+        reportDays: 0,
+      );
+    }
+    final criticalAverage =
+        baseline
+            .map(
+              (item) => _globalReadinessSnapshotForWindow(
+                item.shiftWindowStartUtc,
+                item.shiftWindowEndUtc,
+                generatedAtUtc: item.generatedAtUtc,
+              ).criticalSiteCount,
+            )
+            .reduce((left, right) => left + right) /
+        baseline.length;
+    final elevatedAverage =
+        baseline
+            .map(
+              (item) => _globalReadinessSnapshotForWindow(
+                item.shiftWindowStartUtc,
+                item.shiftWindowEndUtc,
+                generatedAtUtc: item.generatedAtUtc,
+              ).elevatedSiteCount,
+            )
+            .reduce((left, right) => left + right) /
+        baseline.length;
+    final intentAverage =
+        baseline
+            .map(
+              (item) => _globalReadinessIntentsForWindow(
+                item.shiftWindowStartUtc,
+                item.shiftWindowEndUtc,
+              ).length,
+            )
+            .reduce((left, right) => left + right) /
+        baseline.length;
+    return _GlobalReadinessBaselineStats(
+      criticalAverage: criticalAverage,
+      elevatedAverage: elevatedAverage,
+      intentAverage: intentAverage,
+      reportDays: baseline.length,
+    );
+  }
+
+  List<_GlobalReadinessHistoryPoint> _globalReadinessHistory(
+    _GovernanceReportView report,
+  ) {
+    final currentSnapshot = _globalReadinessSnapshotForReport(report);
+    final currentIntents = _globalReadinessIntentsForReport(report);
+    final currentLeadRegion = currentSnapshot.regions.isEmpty
+        ? null
+        : currentSnapshot.regions.first;
+    final currentLeadSite = currentSnapshot.sites.isEmpty
+        ? null
+        : currentSnapshot.sites.first;
+    final points = <_GlobalReadinessHistoryPoint>[
+      _GlobalReadinessHistoryPoint(
+        reportDate: report.reportDate,
+        current: true,
+        totalSites: currentSnapshot.totalSites,
+        elevatedSiteCount: currentSnapshot.elevatedSiteCount,
+        criticalSiteCount: currentSnapshot.criticalSiteCount,
+        intentCount: currentIntents.length,
+        modeLabel: _globalReadinessModeLabel(currentSnapshot, currentIntents),
+        leadRegionId: currentLeadRegion?.regionId ?? '',
+        leadRegionSummary: currentLeadRegion?.summary ?? '',
+        leadSiteId: currentLeadSite?.siteId ?? '',
+        leadSiteSummary: currentLeadSite?.latestSummary ?? '',
+        latestIntentSummary: currentIntents.isEmpty
+            ? ''
+            : currentIntents.first.description,
+      ),
+    ];
+    for (final item in widget.morningSovereignReportHistory) {
+      if (item.generatedAtUtc == report.generatedAtUtc &&
+          item.date == report.reportDate) {
+        continue;
+      }
+      final snapshot = _globalReadinessSnapshotForWindow(
+        item.shiftWindowStartUtc,
+        item.shiftWindowEndUtc,
+        generatedAtUtc: item.generatedAtUtc,
+      );
+      final intents = _globalReadinessIntentsForWindow(
+        item.shiftWindowStartUtc,
+        item.shiftWindowEndUtc,
+      );
+      final leadRegion = snapshot.regions.isEmpty ? null : snapshot.regions.first;
+      final leadSite = snapshot.sites.isEmpty ? null : snapshot.sites.first;
+      points.add(
+        _GlobalReadinessHistoryPoint(
+          reportDate: item.date,
+          current: false,
+          totalSites: snapshot.totalSites,
+          elevatedSiteCount: snapshot.elevatedSiteCount,
+          criticalSiteCount: snapshot.criticalSiteCount,
+          intentCount: intents.length,
+          modeLabel: _globalReadinessModeLabel(snapshot, intents),
+          leadRegionId: leadRegion?.regionId ?? '',
+          leadRegionSummary: leadRegion?.summary ?? '',
+          leadSiteId: leadSite?.siteId ?? '',
+          leadSiteSummary: leadSite?.latestSummary ?? '',
+          latestIntentSummary: intents.isEmpty ? '' : intents.first.description,
+        ),
+      );
+    }
+    points.sort((left, right) {
+      if (left.current != right.current) {
+        return left.current ? -1 : 1;
+      }
+      return right.reportDate.compareTo(left.reportDate);
+    });
+    return points;
+  }
+
+  String _globalReadinessModeLabel(
+    MonitoringGlobalPostureSnapshot snapshot,
+    List<MonitoringWatchAutonomyActionPlan> intents,
+  ) {
+    if (snapshot.criticalSiteCount > 0) {
+      return 'CRITICAL POSTURE';
+    }
+    if (snapshot.elevatedSiteCount > 0) {
+      return 'ELEVATED WATCH';
+    }
+    if (intents.isNotEmpty) {
+      return 'ACTIVE TENSION';
+    }
+    return 'STABLE POSTURE';
+  }
+
+  Color _globalReadinessModeColor(String modeLabel) {
+    return switch (modeLabel.trim().toUpperCase()) {
+      'CRITICAL POSTURE' => const Color(0xFFEF4444),
+      'ELEVATED WATCH' => const Color(0xFFF59E0B),
+      'ACTIVE TENSION' => const Color(0xFF22D3EE),
+      'STABLE POSTURE' => const Color(0xFF10B981),
+      _ => const Color(0xFF9CB2D1),
+    };
   }
 
   void _showListenerAlarmParityDrillIn(_GovernanceReportView report) {
@@ -4977,6 +5317,150 @@ class _GovernancePageState extends State<GovernancePage> {
     );
   }
 
+  Widget _globalReadinessTrendCard(_GovernanceReportView report) {
+    final trend = _globalReadinessTrendForReport(report);
+    final baseline = _globalReadinessBaselineStats(report);
+    final trendColor = _partnerTrendColor(trend.trendLabel);
+    final modeColor = _globalReadinessModeColor(trend.currentModeLabel);
+    final snapshot = _globalReadinessSnapshotForReport(report);
+    final intents = _globalReadinessIntentsForReport(report);
+    return InkWell(
+      key: const ValueKey('governance-global-readiness-trend-card'),
+      onTap: () => _showGlobalReadinessDrillIn(report),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: const Color(0x14000000),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0x22FFFFFF)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    trend.summaryLine,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFEAF4FF),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: modeColor.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: modeColor.withValues(alpha: 0.5)),
+                  ),
+                  child: Text(
+                    trend.currentModeLabel,
+                    style: GoogleFonts.inter(
+                      color: modeColor,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: trendColor.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: trendColor.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Text(
+                    trend.trendLabel,
+                    style: GoogleFonts.inter(
+                      color: trendColor,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              trend.trendReason,
+              style: GoogleFonts.inter(
+                color: trendColor,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Compared against ${trend.reportDays} recent shift${trend.reportDays == 1 ? '' : 's'} • Tap to drill in.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _partnerTrendMetricChip(
+                  label: 'Current Critical',
+                  value: '${snapshot.criticalSiteCount}',
+                  color: const Color(0xFFEF4444),
+                ),
+                _partnerTrendMetricChip(
+                  label: 'Current Elevated',
+                  value: '${snapshot.elevatedSiteCount}',
+                  color: const Color(0xFFF59E0B),
+                ),
+                _partnerTrendMetricChip(
+                  label: 'Current Intents',
+                  value: '${intents.length}',
+                  color: const Color(0xFF22D3EE),
+                ),
+                _partnerTrendMetricChip(
+                  label: 'Baseline Critical',
+                  value: baseline.reportDays <= 0
+                      ? 'n/a'
+                      : baseline.criticalAverage.toStringAsFixed(1),
+                  color: const Color(0xFFEF4444),
+                ),
+                _partnerTrendMetricChip(
+                  label: 'Baseline Elevated',
+                  value: baseline.reportDays <= 0
+                      ? 'n/a'
+                      : baseline.elevatedAverage.toStringAsFixed(1),
+                  color: const Color(0xFFF59E0B),
+                ),
+                _partnerTrendMetricChip(
+                  label: 'Baseline Intents',
+                  value: baseline.reportDays <= 0
+                      ? 'n/a'
+                      : baseline.intentAverage.toStringAsFixed(1),
+                  color: const Color(0xFF22D3EE),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _partnerTrendMetricChip({
     required String label,
     required String value,
@@ -5519,6 +6003,245 @@ class _GovernancePageState extends State<GovernancePage> {
                                     const SizedBox(height: 4),
                                     Text(
                                       point.latestInvestigationSummary,
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF8EA4C2),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showGlobalReadinessDrillIn(_GovernanceReportView report) {
+    final history = _globalReadinessHistory(report);
+    final trend = _globalReadinessTrendForReport(report);
+    final baseline = _globalReadinessBaselineStats(report);
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: const Color(0xFF08111B),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 24,
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760, maxHeight: 720),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                key: const ValueKey('governance-global-readiness-dialog'),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'GLOBAL READINESS DRILL-IN',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFFEAF4FF),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${trend.trendLabel} • ${trend.trendReason}',
+                              style: GoogleFonts.inter(
+                                color: _partnerTrendColor(trend.trendLabel),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        icon: const Icon(Icons.close, color: Color(0xFFEAF4FF)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _partnerTrendMetricChip(
+                        label: 'Current mode',
+                        value: trend.currentModeLabel,
+                        color: _globalReadinessModeColor(trend.currentModeLabel),
+                      ),
+                      _partnerTrendMetricChip(
+                        label: 'Baseline Critical',
+                        value: baseline.reportDays <= 0
+                            ? 'n/a'
+                            : baseline.criticalAverage.toStringAsFixed(1),
+                        color: const Color(0xFFEF4444),
+                      ),
+                      _partnerTrendMetricChip(
+                        label: 'Baseline Elevated',
+                        value: baseline.reportDays <= 0
+                            ? 'n/a'
+                            : baseline.elevatedAverage.toStringAsFixed(1),
+                        color: const Color(0xFFF59E0B),
+                      ),
+                      _partnerTrendMetricChip(
+                        label: 'Baseline Intents',
+                        value: baseline.reportDays <= 0
+                            ? 'n/a'
+                            : baseline.intentAverage.toStringAsFixed(1),
+                        color: const Color(0xFF22D3EE),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          for (final point in history) ...[
+                            Container(
+                              key: ValueKey<String>(
+                                'governance-global-readiness-history-${point.reportDate}',
+                              ),
+                              width: double.infinity,
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: point.current
+                                    ? const Color(0x1A0EA5E9)
+                                    : const Color(0x14000000),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: point.current
+                                      ? const Color(0x550EA5E9)
+                                      : const Color(0x22FFFFFF),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          point.reportDate,
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFEAF4FF),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ),
+                                      if (point.current)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 7,
+                                            vertical: 3,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: const Color(
+                                              0xFF8FD1FF,
+                                            ).withValues(alpha: 0.14),
+                                            borderRadius: BorderRadius.circular(
+                                              999,
+                                            ),
+                                            border: Border.all(
+                                              color: const Color(
+                                                0xFF8FD1FF,
+                                              ).withValues(alpha: 0.5),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            'CURRENT',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFF8FD1FF),
+                                              fontSize: 8,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ),
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 7,
+                                          vertical: 3,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: _globalReadinessModeColor(
+                                            point.modeLabel,
+                                          ).withValues(alpha: 0.14),
+                                          borderRadius:
+                                              BorderRadius.circular(999),
+                                          border: Border.all(
+                                            color: _globalReadinessModeColor(
+                                              point.modeLabel,
+                                            ).withValues(alpha: 0.5),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          point.modeLabel,
+                                          style: GoogleFonts.inter(
+                                            color: _globalReadinessModeColor(
+                                              point.modeLabel,
+                                            ),
+                                            fontSize: 8,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Sites ${point.totalSites} • Critical ${point.criticalSiteCount} • Elevated ${point.elevatedSiteCount} • Intents ${point.intentCount}',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFF9CB2D1),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  if (point.leadRegionSummary.trim().isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      point.leadRegionId.trim().isEmpty
+                                          ? point.leadRegionSummary
+                                          : '${point.leadRegionId} • ${point.leadRegionSummary}',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFEAF4FF),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                  if (point.leadSiteSummary.trim().isNotEmpty ||
+                                      point.latestIntentSummary.trim().isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      point.latestIntentSummary.trim().isNotEmpty
+                                          ? point.latestIntentSummary
+                                          : '${point.leadSiteId} • ${point.leadSiteSummary}',
                                       style: GoogleFonts.inter(
                                         color: const Color(0xFF8EA4C2),
                                         fontSize: 10,
@@ -6390,6 +7113,45 @@ class _GovernancePageState extends State<GovernancePage> {
       'reportDays': trend.reportDays,
       'currentModeLabel': trend.currentModeLabel,
     };
+  }
+
+  Map<String, Object?> _globalReadinessTrendJson(_GlobalReadinessTrend trend) {
+    return {
+      'trendLabel': trend.trendLabel,
+      'trendReason': trend.trendReason,
+      'summaryLine': trend.summaryLine,
+      'reportDays': trend.reportDays,
+      'currentModeLabel': trend.currentModeLabel,
+    };
+  }
+
+  Map<String, Object?> _globalReadinessHistoryJson(
+    _GlobalReadinessHistoryPoint point,
+  ) {
+    return {
+      'reportDate': point.reportDate,
+      'current': point.current,
+      'totalSites': point.totalSites,
+      'elevatedSiteCount': point.elevatedSiteCount,
+      'criticalSiteCount': point.criticalSiteCount,
+      'intentCount': point.intentCount,
+      'modeLabel': point.modeLabel,
+      'leadRegionId': point.leadRegionId,
+      'leadRegionSummary': point.leadRegionSummary,
+      'leadSiteId': point.leadSiteId,
+      'leadSiteSummary': point.leadSiteSummary,
+      'latestIntentSummary': point.latestIntentSummary,
+    };
+  }
+
+  String _globalReadinessHistoryCsvSummary(_GlobalReadinessHistoryPoint point) {
+    final leadSegment = point.leadSiteId.trim().isEmpty
+        ? point.leadRegionSummary
+        : '${point.leadSiteId} • ${point.leadSiteSummary.isEmpty ? point.leadRegionSummary : point.leadSiteSummary}';
+    final intentSegment = point.latestIntentSummary.trim().isEmpty
+        ? ''
+        : ' • ${point.latestIntentSummary}';
+    return '${point.reportDate} • ${point.current ? 'CURRENT' : 'HISTORY'} • Sites ${point.totalSites} • Critical ${point.criticalSiteCount} • Elevated ${point.elevatedSiteCount} • Intents ${point.intentCount} • ${point.modeLabel} • $leadSegment$intentSegment';
   }
 
   Map<String, Object?> _receiptInvestigationHistoryJson(
@@ -7387,6 +8149,11 @@ class _GovernancePageState extends State<GovernancePage> {
       report,
     );
     final receiptInvestigationHistory = _receiptInvestigationHistory(report);
+    final globalReadinessSnapshot = _globalReadinessSnapshotForReport(report);
+    final globalReadinessIntents = _globalReadinessIntentsForReport(report);
+    final globalReadinessTrend = _globalReadinessTrendForReport(report);
+    final globalReadinessBaseline = _globalReadinessBaselineStats(report);
+    final globalReadinessHistory = _globalReadinessHistory(report);
     final payload = <String, Object?>{
       'date': report.reportDate,
       'generatedAtUtc': report.generatedAtUtc?.toIso8601String(),
@@ -7409,6 +8176,43 @@ class _GovernancePageState extends State<GovernancePage> {
         'avgMatchScore': report.avgMatchScore,
       },
       'sceneReview': sceneReview,
+      'globalReadiness': {
+        'totalSites': globalReadinessSnapshot.totalSites,
+        'elevatedSiteCount': globalReadinessSnapshot.elevatedSiteCount,
+        'criticalSiteCount': globalReadinessSnapshot.criticalSiteCount,
+        'intentCount': globalReadinessIntents.length,
+        'modeLabel': _globalReadinessModeLabel(
+          globalReadinessSnapshot,
+          globalReadinessIntents,
+        ),
+        'leadRegion': globalReadinessSnapshot.regions.isEmpty
+            ? null
+            : {
+                'regionId': globalReadinessSnapshot.regions.first.regionId,
+                'summary': globalReadinessSnapshot.regions.first.summary,
+                'heatLevel':
+                    globalReadinessSnapshot.regions.first.heatLevel.name,
+              },
+        'leadSite': globalReadinessSnapshot.sites.isEmpty
+            ? null
+            : {
+                'siteId': globalReadinessSnapshot.sites.first.siteId,
+                'summary': globalReadinessSnapshot.sites.first.latestSummary,
+                'dominantSignals':
+                    globalReadinessSnapshot.sites.first.dominantSignals,
+                'heatLevel': globalReadinessSnapshot.sites.first.heatLevel.name,
+              },
+        'comparison': {
+          'baselineCriticalAverage': globalReadinessBaseline.criticalAverage,
+          'baselineElevatedAverage': globalReadinessBaseline.elevatedAverage,
+          'baselineIntentAverage': globalReadinessBaseline.intentAverage,
+          'baselineReportDays': globalReadinessBaseline.reportDays,
+        },
+        'trend': _globalReadinessTrendJson(globalReadinessTrend),
+        'history': globalReadinessHistory
+            .map(_globalReadinessHistoryJson)
+            .toList(growable: false),
+      },
       'receiptPolicy': {
         'generatedReports': report.generatedReports,
         'trackedConfigurationReports': report.trackedConfigurationReports,
@@ -7510,6 +8314,11 @@ class _GovernancePageState extends State<GovernancePage> {
     final receiptInvestigationBaseline = _receiptInvestigationBaselineStats(
       report,
     );
+    final globalReadinessSnapshot = _globalReadinessSnapshotForReport(report);
+    final globalReadinessIntents = _globalReadinessIntentsForReport(report);
+    final globalReadinessTrend = _globalReadinessTrendForReport(report);
+    final globalReadinessBaseline = _globalReadinessBaselineStats(report);
+    final globalReadinessHistory = _globalReadinessHistory(report);
     final reasons = report.overrideReasons.entries.toList(growable: false)
       ..sort((a, b) => b.value.compareTo(a.value));
     final lines = <String>[
@@ -7539,6 +8348,21 @@ class _GovernancePageState extends State<GovernancePage> {
       'scene_latest_action_taken,"${report.latestActionTaken.replaceAll('"', '""')}"',
       'scene_recent_actions_summary,"${report.recentActionsSummary.replaceAll('"', '""')}"',
       'scene_latest_suppressed_pattern,"${report.latestSuppressedPattern.replaceAll('"', '""')}"',
+      'global_readiness_total_sites,${globalReadinessSnapshot.totalSites}',
+      'global_readiness_elevated_sites,${globalReadinessSnapshot.elevatedSiteCount}',
+      'global_readiness_critical_sites,${globalReadinessSnapshot.criticalSiteCount}',
+      'global_readiness_intent_count,${globalReadinessIntents.length}',
+      'global_readiness_mode,"${_globalReadinessModeLabel(globalReadinessSnapshot, globalReadinessIntents).replaceAll('"', '""')}"',
+      'global_readiness_trend_label,${globalReadinessTrend.trendLabel}',
+      'global_readiness_trend_reason,"${globalReadinessTrend.trendReason.replaceAll('"', '""')}"',
+      'global_readiness_trend_summary,"${globalReadinessTrend.summaryLine.replaceAll('"', '""')}"',
+      'global_readiness_trend_report_days,${globalReadinessTrend.reportDays}',
+      'global_readiness_baseline_critical_average,${globalReadinessBaseline.criticalAverage.toStringAsFixed(1)}',
+      'global_readiness_baseline_elevated_average,${globalReadinessBaseline.elevatedAverage.toStringAsFixed(1)}',
+      'global_readiness_baseline_intent_average,${globalReadinessBaseline.intentAverage.toStringAsFixed(1)}',
+      'global_readiness_baseline_report_days,${globalReadinessBaseline.reportDays}',
+      for (var i = 0; i < globalReadinessHistory.length; i++)
+        'global_readiness_history_${i + 1},"${_globalReadinessHistoryCsvSummary(globalReadinessHistory[i]).replaceAll('"', '""')}"',
       'receipt_generated_reports,${report.generatedReports}',
       'receipt_tracked_configuration_reports,${report.trackedConfigurationReports}',
       'receipt_legacy_configuration_reports,${report.legacyConfigurationReports}',
