@@ -79,6 +79,12 @@ class MonitoringGlobalPostureSnapshot {
 class MonitoringGlobalPostureService {
   const MonitoringGlobalPostureService();
 
+  static const _externalSourceTypes = <String>{
+    'news',
+    'community',
+    'weather',
+  };
+
   MonitoringGlobalPostureSnapshot buildSnapshot({
     required List<DispatchEvent> events,
     required Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId,
@@ -86,7 +92,13 @@ class MonitoringGlobalPostureService {
   }) {
     final intelligenceEvents = events
         .whereType<IntelligenceReceived>()
-        .where((event) => sceneReviewByIntelligenceId.containsKey(event.intelligenceId))
+        .where(
+          (event) =>
+              sceneReviewByIntelligenceId.containsKey(event.intelligenceId) ||
+              _externalSourceTypes.contains(
+                event.sourceType.trim().toLowerCase(),
+              ),
+        )
         .toList(growable: false);
 
     if (intelligenceEvents.isEmpty) {
@@ -100,10 +112,16 @@ class MonitoringGlobalPostureService {
 
     final siteBuckets = <String, List<_PostureItem>>{};
     for (final event in intelligenceEvents) {
-      final review = sceneReviewByIntelligenceId[event.intelligenceId]!;
       final key = '${event.clientId}::${event.regionId}::${event.siteId}';
       siteBuckets.putIfAbsent(key, () => <_PostureItem>[]).add(
-        _PostureItem(event: event, review: review, score: _score(event, review)),
+        _PostureItem(
+          event: event,
+          review: sceneReviewByIntelligenceId[event.intelligenceId],
+          score: _score(
+            event,
+            sceneReviewByIntelligenceId[event.intelligenceId],
+          ),
+        ),
       );
     }
 
@@ -143,20 +161,20 @@ class MonitoringGlobalPostureService {
       ..sort((a, b) => b.event.occurredAt.compareTo(a.event.occurredAt));
     final latest = ordered.first;
     final escalationCount = ordered
-        .where((item) => item.review.decisionLabel.toLowerCase().contains('escalation'))
+        .where((item) => _decisionLabelFor(item).contains('escalation'))
         .length;
     final repeatCount = ordered
-        .where((item) => item.review.decisionLabel.toLowerCase().contains('repeat'))
+        .where((item) => _decisionLabelFor(item).contains('repeat'))
         .length;
     final suppressedCount = ordered
-        .where((item) => item.review.decisionLabel.toLowerCase().contains('suppress'))
+        .where((item) => _decisionLabelFor(item).contains('suppress'))
         .length;
     final identitySignalCount = ordered
         .where(
           (item) =>
               (item.event.faceMatchId ?? '').trim().isNotEmpty ||
               (item.event.plateNumber ?? '').trim().isNotEmpty ||
-              item.review.postureLabel.toLowerCase().contains('identity'),
+              _postureLabelFor(item).contains('identity'),
         )
         .length;
     final activityScore = ordered.fold<int>(0, (sum, item) => sum + item.score);
@@ -186,9 +204,7 @@ class MonitoringGlobalPostureService {
       repeatCount: repeatCount,
       suppressedCount: suppressedCount,
       identitySignalCount: identitySignalCount,
-      latestSummary: latest.review.decisionSummary.trim().isNotEmpty
-          ? latest.review.decisionSummary.trim()
-          : latest.review.summary.trim(),
+      latestSummary: _latestSummaryFor(latest),
       lastActivityAtUtc: latest.event.occurredAt.toUtc(),
       dominantSignals: dominantSignals.take(3).map((entry) => entry.key).toList(growable: false),
     );
@@ -242,8 +258,9 @@ class MonitoringGlobalPostureService {
 
   List<String> _signalsFor(_PostureItem item) {
     final signals = <String>{};
-    final posture = item.review.postureLabel.toLowerCase();
-    final decision = item.review.decisionLabel.toLowerCase();
+    final posture = _postureLabelFor(item);
+    final decision = _decisionLabelFor(item);
+    final sourceType = item.event.sourceType.trim().toLowerCase();
     if (posture.contains('boundary')) {
       signals.add('boundary');
     }
@@ -259,6 +276,13 @@ class MonitoringGlobalPostureService {
     if ((item.event.plateNumber ?? '').trim().isNotEmpty) {
       signals.add('plate_match');
     }
+    if (sourceType == 'news') {
+      signals.add('news_pressure');
+    } else if (sourceType == 'community') {
+      signals.add('community_watch');
+    } else if (sourceType == 'weather') {
+      signals.add('weather_alert');
+    }
     if (decision.contains('escalation')) {
       signals.add('escalation');
     } else if (decision.contains('repeat')) {
@@ -269,16 +293,27 @@ class MonitoringGlobalPostureService {
     return signals.toList(growable: false);
   }
 
-  int _score(IntelligenceReceived event, MonitoringSceneReviewRecord review) {
+  int _score(
+    IntelligenceReceived event,
+    MonitoringSceneReviewRecord? review,
+  ) {
     var score = event.riskScore.clamp(0, 100);
-    final posture = review.postureLabel.toLowerCase();
-    final decision = review.decisionLabel.toLowerCase();
+    final posture = (review?.postureLabel ?? '').toLowerCase();
+    final decision = (review?.decisionLabel ?? '').toLowerCase();
+    final sourceType = event.sourceType.trim().toLowerCase();
     if (decision.contains('escalation')) {
       score += 50;
     } else if (decision.contains('repeat')) {
       score += 24;
     } else if (decision.contains('suppress')) {
       score -= 12;
+    }
+    if (sourceType == 'news') {
+      score += 18;
+    } else if (sourceType == 'community') {
+      score += 14;
+    } else if (sourceType == 'weather') {
+      score += 10;
     }
     if (posture.contains('boundary')) {
       score += 12;
@@ -297,11 +332,52 @@ class MonitoringGlobalPostureService {
     }
     return score;
   }
+
+  String _decisionLabelFor(_PostureItem item) {
+    if (item.review != null) {
+      return item.review!.decisionLabel.toLowerCase();
+    }
+    final sourceType = item.event.sourceType.trim().toLowerCase();
+    return switch (sourceType) {
+      'news' || 'community' => 'external pressure',
+      'weather' => 'weather pressure',
+      _ => '',
+    };
+  }
+
+  String _postureLabelFor(_PostureItem item) {
+    if (item.review != null) {
+      return item.review!.postureLabel.toLowerCase();
+    }
+    return switch (item.event.sourceType.trim().toLowerCase()) {
+      'news' => 'regional news pressure',
+      'community' => 'community watch escalation',
+      'weather' => 'weather risk alert',
+      _ => '',
+    };
+  }
+
+  String _latestSummaryFor(_PostureItem item) {
+    final review = item.review;
+    if (review != null) {
+      if (review.decisionSummary.trim().isNotEmpty) {
+        return review.decisionSummary.trim();
+      }
+      if (review.summary.trim().isNotEmpty) {
+        return review.summary.trim();
+      }
+    }
+    final eventSummary = item.event.summary.trim();
+    if (eventSummary.isNotEmpty) {
+      return eventSummary;
+    }
+    return item.event.headline.trim();
+  }
 }
 
 class _PostureItem {
   final IntelligenceReceived event;
-  final MonitoringSceneReviewRecord review;
+  final MonitoringSceneReviewRecord? review;
   final int score;
 
   const _PostureItem({

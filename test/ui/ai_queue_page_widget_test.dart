@@ -114,6 +114,27 @@ void main() {
         snapshotUrl: 'https://edge.example.com/intel-1.jpg',
         canonicalHash: 'hash-1',
       ),
+      IntelligenceReceived(
+        eventId: 'evt-2',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 16, 21, 13),
+        intelligenceId: 'intel-2',
+        provider: 'hikvision_dvr_monitor_only',
+        sourceType: 'dvr',
+        externalId: 'ext-2',
+        clientId: 'CLIENT-SANDTON',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        cameraId: 'lobby-cam',
+        objectLabel: 'person',
+        objectConfidence: 0.84,
+        headline: 'HIKVISION PERIMETER WATCH',
+        summary: 'Routine perimeter activity',
+        riskScore: 54,
+        snapshotUrl: 'https://edge.example.com/intel-2.jpg',
+        canonicalHash: 'hash-2',
+      ),
     ];
     final reviews = {
       'intel-1': MonitoringSceneReviewRecord(
@@ -125,6 +146,15 @@ void main() {
             'Escalated for urgent review because person activity was detected.',
         summary: 'Person visible near the boundary line.',
         reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 15),
+      ),
+      'intel-2': MonitoringSceneReviewRecord(
+        intelligenceId: 'intel-2',
+        sourceLabel: 'openai:gpt-5.4-mini',
+        postureLabel: 'monitored boundary watch',
+        decisionLabel: 'Monitoring Alert',
+        decisionSummary: 'Routine perimeter watch remains active.',
+        summary: 'Sandton remains under active watch.',
+        reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 16),
       ),
     };
 
@@ -140,6 +170,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('GLOBAL POSTURE SHIFT'), findsOneWidget);
+    expect(find.text('POSTURAL ECHO'), findsOneWidget);
     expect(find.text('AUTO-DISPATCH HOLD'), findsOneWidget);
     expect(find.textContaining('HIKVISION evidence lock'), findsOneWidget);
     expect(find.text('AUTO'), findsWidgets);

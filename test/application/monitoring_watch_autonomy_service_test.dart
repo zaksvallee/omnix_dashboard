@@ -23,6 +23,12 @@ void main() {
           siteId: 'SITE-VALLEE',
           cameraId: 'driveway-cam',
         ),
+        _intel(
+          id: 'intel-sandton',
+          riskScore: 54,
+          siteId: 'SITE-SANDTON',
+          cameraId: 'lobby-cam',
+        ),
       ];
       final reviews = <String, MonitoringSceneReviewRecord>{
         'intel-escalate': MonitoringSceneReviewRecord(
@@ -45,6 +51,15 @@ void main() {
           summary: 'Vehicle made multiple passes through the driveway.',
           reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 16),
         ),
+        'intel-sandton': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-sandton',
+          sourceLabel: 'openai:gpt-5.4-mini',
+          postureLabel: 'monitored boundary watch',
+          decisionLabel: 'Monitoring Alert',
+          decisionSummary: 'Routine perimeter watch remains active.',
+          summary: 'Sandton remains under active watch.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 17),
+        ),
       };
 
       final plans = service.buildPlans(
@@ -57,6 +72,7 @@ void main() {
         plans.map((entry) => entry.actionType),
         containsAll(<String>[
           'PREPOSITION RESPONSE',
+          'POSTURAL ECHO',
           'GLOBAL POSTURE SHIFT',
           'AUTO-DISPATCH HOLD',
           'PERSISTENCE SWEEP',

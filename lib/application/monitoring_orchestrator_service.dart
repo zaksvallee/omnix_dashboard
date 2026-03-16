@@ -84,6 +84,40 @@ class MonitoringOrchestratorService {
         ),
       );
 
+      final echoTargets = region.topSites
+          .where((site) => site.siteId != leadSite.siteId)
+          .take(region.heatLevel == MonitoringGlobalHeatLevel.critical ? 2 : 1)
+          .toList(growable: false);
+      for (final target in echoTargets) {
+        final targetPriority =
+            target.heatLevel == MonitoringGlobalHeatLevel.elevated
+            ? MonitoringWatchAutonomyPriority.critical
+            : MonitoringWatchAutonomyPriority.high;
+        actionIntents.add(
+          MonitoringWatchAutonomyActionPlan(
+            id: 'ORCH-ECHO-${region.regionId}-${target.siteId}',
+            incidentId: latest?.intelligenceId ?? leadSite.siteId,
+            siteId: target.siteId,
+            priority: targetPriority,
+            actionType: 'POSTURAL ECHO',
+            description:
+                'Raise ${videoOpsLabel.toUpperCase()} perimeter attention at ${target.siteId} because ${leadSite.siteId} is driving ${region.regionId} into ${region.heatLevel.name.toUpperCase()} posture.',
+            countdownSeconds: region.heatLevel == MonitoringGlobalHeatLevel.critical
+                ? 14
+                : 22,
+            metadata: <String, String>{
+              'mode': 'AUTO',
+              'scope': 'ORCHESTRATOR',
+              'region': region.regionId,
+              'lead_site': leadSite.siteId,
+              'echo_target': target.siteId,
+              'echo_heat': target.heatLevel.name.toUpperCase(),
+              'echo_signals': target.dominantSignals.join(', '),
+            },
+          ),
+        );
+      }
+
       if (hasIdentityPressure || leadSite.escalationCount > 0) {
         actionIntents.add(
           MonitoringWatchAutonomyActionPlan(

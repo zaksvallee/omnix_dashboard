@@ -84,6 +84,50 @@ void main() {
       );
       expect(snapshot.sites.first.dominantSignals, contains('boundary'));
     });
+
+    test('includes news and community pressure in regional posture', () {
+      final events = <DispatchEvent>[
+        _intel(
+          id: 'news-1',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-VALLEE',
+          riskScore: 79,
+          cameraId: 'news-feed',
+          sourceType: 'news',
+          headline: 'Armed robbery pattern escalates in nearby suburb',
+          summary: 'Police report a robbery cluster moving toward the estate.',
+        ),
+        _intel(
+          id: 'community-1',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-SANDTON',
+          riskScore: 76,
+          cameraId: 'community-feed',
+          sourceType: 'community',
+          headline: 'Neighborhood watch reports suspicious vehicle',
+          summary: 'A suspicious vehicle was seen circling nearby estates.',
+        ),
+      ];
+
+      final snapshot = service.buildSnapshot(
+        events: events,
+        sceneReviewByIntelligenceId: const <String, MonitoringSceneReviewRecord>{},
+        generatedAtUtc: DateTime.utc(2026, 3, 16, 22, 10),
+      );
+
+      expect(snapshot.totalSites, 2);
+      expect(snapshot.elevatedSiteCount, 2);
+      expect(snapshot.regions, hasLength(1));
+      expect(
+        snapshot.regions.first.heatLevel,
+        MonitoringGlobalHeatLevel.elevated,
+      );
+      expect(snapshot.sites.first.dominantSignals, contains('news_pressure'));
+      expect(
+        snapshot.sites.map((site) => site.dominantSignals.join(',')),
+        anyElement(contains('community_watch')),
+      );
+    });
   });
 }
 
@@ -94,6 +138,9 @@ IntelligenceReceived _intel({
   required int riskScore,
   required String cameraId,
   String faceMatchId = '',
+  String sourceType = 'dvr',
+  String headline = 'HIKVISION ALERT',
+  String summary = 'Alert summary',
 }) {
   return IntelligenceReceived(
     eventId: 'evt-$id',
@@ -102,7 +149,7 @@ IntelligenceReceived _intel({
     occurredAt: DateTime.utc(2026, 3, 16, 21, 55),
     intelligenceId: id,
     provider: 'hikvision_dvr_monitor_only',
-    sourceType: 'dvr',
+    sourceType: sourceType,
     externalId: 'ext-$id',
     clientId: 'CLIENT-TEST',
     regionId: regionId,
@@ -111,8 +158,8 @@ IntelligenceReceived _intel({
     faceMatchId: faceMatchId.isEmpty ? null : faceMatchId,
     objectLabel: 'person',
     objectConfidence: 0.91,
-    headline: 'HIKVISION ALERT',
-    summary: 'Alert summary',
+    headline: headline,
+    summary: summary,
     riskScore: riskScore,
     snapshotUrl: 'https://edge.example.com/$id.jpg',
     canonicalHash: 'hash-$id',
