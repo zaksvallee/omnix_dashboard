@@ -1016,6 +1016,7 @@ class _ClientIntelligenceReportsPageState
     final investigationTrendReason = _receiptInvestigationTrendReason(rows);
     final governanceCount = _receiptGovernanceHandoffCount(rows);
     final routineCount = _receiptRoutineReviewCount(rows);
+    final investigationComparison = _receiptInvestigationComparison(rows);
     final current = rows.isEmpty ? null : rows.first;
     final activeEntryContext = _activeReceiptPolicyEntryContext(rows);
     return OnyxSectionCard(
@@ -1101,6 +1102,35 @@ class _ClientIntelligenceReportsPageState
           ],
           const SizedBox(height: 10),
           _receiptPolicyInvestigationLensCard(activeEntryContext),
+          if (rows.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _partnerScopeChip(
+                  label:
+                      'Current Governance: ${investigationComparison.currentGovernanceCount}',
+                  color: const Color(0xFF5DC8FF),
+                ),
+                _partnerScopeChip(
+                  label:
+                      'Current Routine: ${investigationComparison.currentRoutineCount}',
+                  color: const Color(0xFF8EA4C2),
+                ),
+                _partnerScopeChip(
+                  label:
+                      'Baseline Governance: ${investigationComparison.baselineGovernanceAverage.toStringAsFixed(1)}',
+                  color: const Color(0xFF4F87BE),
+                ),
+                _partnerScopeChip(
+                  label:
+                      'Baseline Routine: ${investigationComparison.baselineRoutineAverage.toStringAsFixed(1)}',
+                  color: const Color(0xFF7087A8),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
@@ -1143,6 +1173,7 @@ class _ClientIntelligenceReportsPageState
     final trendReason = _receiptInvestigationTrendReason(rows);
     final governanceCount = _receiptGovernanceHandoffCount(rows);
     final routineCount = _receiptRoutineReviewCount(rows);
+    final investigationComparison = _receiptInvestigationComparison(rows);
     final activeEntryContext = _activeReceiptPolicyEntryContext(rows);
     final current = rows.isEmpty ? null : rows.first;
     await showDialog<void>(
@@ -1211,6 +1242,40 @@ class _ClientIntelligenceReportsPageState
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
+                    ),
+                  ],
+                  if (rows.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _partnerScopeChip(
+                          label:
+                              'Current Governance: ${investigationComparison.currentGovernanceCount}',
+                          color: const Color(0xFF5DC8FF),
+                        ),
+                        _partnerScopeChip(
+                          label:
+                              'Current Routine: ${investigationComparison.currentRoutineCount}',
+                          color: const Color(0xFF8EA4C2),
+                        ),
+                        _partnerScopeChip(
+                          label:
+                              'Baseline Governance: ${investigationComparison.baselineGovernanceAverage.toStringAsFixed(1)}',
+                          color: const Color(0xFF4F87BE),
+                        ),
+                        _partnerScopeChip(
+                          label:
+                              'Baseline Routine: ${investigationComparison.baselineRoutineAverage.toStringAsFixed(1)}',
+                          color: const Color(0xFF7087A8),
+                        ),
+                        _partnerScopeChip(
+                          label:
+                              'Baseline Receipts: ${investigationComparison.baselineReceiptCount}',
+                          color: const Color(0xFF8FD1FF),
+                        ),
+                      ],
                     ),
                   ],
                   if (trendReason.trim().isNotEmpty) ...[
@@ -2579,6 +2644,56 @@ class _ClientIntelligenceReportsPageState
 
   int _receiptRoutineReviewCount(List<_ReceiptRow> rows) {
     return rows.length - _receiptGovernanceHandoffCount(rows);
+  }
+
+  _ReceiptInvestigationComparison _receiptInvestigationComparison(
+    List<_ReceiptRow> rows,
+  ) {
+    if (rows.isEmpty) {
+      return const _ReceiptInvestigationComparison(
+        currentGovernanceCount: 0,
+        currentRoutineCount: 0,
+        baselineGovernanceAverage: 0,
+        baselineRoutineAverage: 0,
+        baselineReceiptCount: 0,
+      );
+    }
+    final currentContext = _storedEntryContextForReceipt(rows.first.event);
+    final baselineRows = rows.skip(1).toList(growable: false);
+    if (baselineRows.isEmpty) {
+      return _ReceiptInvestigationComparison(
+        currentGovernanceCount:
+            currentContext == ReportEntryContext.governanceBrandingDrift
+            ? 1
+            : 0,
+        currentRoutineCount:
+            currentContext == ReportEntryContext.governanceBrandingDrift
+            ? 0
+            : 1,
+        baselineGovernanceAverage: 0,
+        baselineRoutineAverage: 0,
+        baselineReceiptCount: 0,
+      );
+    }
+    final baselineGovernanceCount =
+        baselineRows
+            .where(
+              (row) =>
+                  _storedEntryContextForReceipt(row.event) ==
+                  ReportEntryContext.governanceBrandingDrift,
+            )
+            .length;
+    final baselineRoutineCount = baselineRows.length - baselineGovernanceCount;
+    return _ReceiptInvestigationComparison(
+      currentGovernanceCount:
+          currentContext == ReportEntryContext.governanceBrandingDrift ? 1 : 0,
+      currentRoutineCount:
+          currentContext == ReportEntryContext.governanceBrandingDrift ? 0 : 1,
+      baselineGovernanceAverage:
+          baselineGovernanceCount / baselineRows.length,
+      baselineRoutineAverage: baselineRoutineCount / baselineRows.length,
+      baselineReceiptCount: baselineRows.length,
+    );
   }
 
   String _receiptInvestigationTrendLabel(List<_ReceiptRow> rows) {
@@ -4400,6 +4515,7 @@ class _ClientIntelligenceReportsPageState
     final investigationTrendReason = _receiptInvestigationTrendReason(rows);
     final governanceCount = _receiptGovernanceHandoffCount(rows);
     final routineCount = _receiptRoutineReviewCount(rows);
+    final investigationComparison = _receiptInvestigationComparison(rows);
     return <String, Object?>{
       'scope': <String, Object?>{
         'clientId': widget.selectedClient,
@@ -4430,6 +4546,17 @@ class _ClientIntelligenceReportsPageState
       'investigationBreakdown': <String, Object?>{
         'governanceHandoffCount': governanceCount,
         'routineReviewCount': routineCount,
+      },
+      'investigationComparison': <String, Object?>{
+        'currentGovernanceHandoffCount':
+            investigationComparison.currentGovernanceCount,
+        'currentRoutineReviewCount':
+            investigationComparison.currentRoutineCount,
+        'baselineGovernanceAverage':
+            investigationComparison.baselineGovernanceAverage,
+        'baselineRoutineAverage':
+            investigationComparison.baselineRoutineAverage,
+        'baselineReceiptCount': investigationComparison.baselineReceiptCount,
       },
       'trendLabel': _receiptPolicyTrendLabel(rows),
       'trendReason': _receiptPolicyTrendReason(rows),
@@ -4520,6 +4647,7 @@ class _ClientIntelligenceReportsPageState
     final investigationTrendReason = _receiptInvestigationTrendReason(rows);
     final governanceCount = _receiptGovernanceHandoffCount(rows);
     final routineCount = _receiptRoutineReviewCount(rows);
+    final investigationComparison = _receiptInvestigationComparison(rows);
     final lines = <String>[
       'metric,value',
       'client_id,${widget.selectedClient}',
@@ -4535,6 +4663,11 @@ class _ClientIntelligenceReportsPageState
       'investigation_baseline_label,"ROUTINE BASELINE"',
       'investigation_governance_handoff_count,$governanceCount',
       'investigation_routine_review_count,$routineCount',
+      'investigation_current_governance_handoff_count,${investigationComparison.currentGovernanceCount}',
+      'investigation_current_routine_review_count,${investigationComparison.currentRoutineCount}',
+      'investigation_baseline_governance_average,${investigationComparison.baselineGovernanceAverage.toStringAsFixed(1)}',
+      'investigation_baseline_routine_average,${investigationComparison.baselineRoutineAverage.toStringAsFixed(1)}',
+      'investigation_baseline_receipt_count,${investigationComparison.baselineReceiptCount}',
       'trend_label,${_receiptPolicyTrendLabel(rows)}',
       'trend_reason,"${_receiptPolicyTrendReason(rows).replaceAll('"', '""')}"',
       'investigation_trend_label,"${investigationTrendLabel.replaceAll('"', '""')}"',
@@ -4846,6 +4979,22 @@ class _ReceiptRow {
     required this.event,
     required this.replayVerified,
     this.sceneReviewSummary,
+  });
+}
+
+class _ReceiptInvestigationComparison {
+  final int currentGovernanceCount;
+  final int currentRoutineCount;
+  final double baselineGovernanceAverage;
+  final double baselineRoutineAverage;
+  final int baselineReceiptCount;
+
+  const _ReceiptInvestigationComparison({
+    required this.currentGovernanceCount,
+    required this.currentRoutineCount,
+    required this.baselineGovernanceAverage,
+    required this.baselineRoutineAverage,
+    required this.baselineReceiptCount,
   });
 }
 

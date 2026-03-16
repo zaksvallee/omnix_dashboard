@@ -805,6 +805,10 @@ void main() {
     expect(find.text('OVERSIGHT RISING'), findsWidgets);
     expect(find.text('1 oversight'), findsOneWidget);
     expect(find.text('2 routine'), findsOneWidget);
+    expect(find.text('Current Governance: 1'), findsOneWidget);
+    expect(find.text('Current Routine: 0'), findsOneWidget);
+    expect(find.text('Baseline Governance: 0.0'), findsOneWidget);
+    expect(find.text('Baseline Routine: 1.0'), findsOneWidget);
     expect(find.text('OVERSIGHT HANDOFFS'), findsOneWidget);
     expect(find.text('ROUTINE REVIEW'), findsWidgets);
     expect(find.text('INVESTIGATION DRIFT'), findsOneWidget);
@@ -836,6 +840,7 @@ void main() {
 
     expect(find.text('Receipt Investigation History'), findsOneWidget);
     expect(find.text('OVERSIGHT RISING'), findsWidgets);
+    expect(find.text('Baseline Receipts: 2'), findsOneWidget);
     expect(
       find.byKey(
         const ValueKey('reports-receipt-policy-investigation-history-close'),
@@ -870,6 +875,12 @@ void main() {
     expect(clipboardText, contains('"investigationBreakdown": {'));
     expect(clipboardText, contains('"governanceHandoffCount": 1'));
     expect(clipboardText, contains('"routineReviewCount": 2'));
+    expect(clipboardText, contains('"investigationComparison": {'));
+    expect(clipboardText, contains('"currentGovernanceHandoffCount": 1'));
+    expect(clipboardText, contains('"currentRoutineReviewCount": 0'));
+    expect(clipboardText, contains('"baselineGovernanceAverage": 0.0'));
+    expect(clipboardText, contains('"baselineRoutineAverage": 1.0'));
+    expect(clipboardText, contains('"baselineReceiptCount": 2'));
     expect(clipboardText, contains('"trendLabel": "SLIPPING"'));
     expect(clipboardText, contains('"investigationTrend": {'));
     expect(clipboardText, contains('"label": "OVERSIGHT RISING"'));
@@ -915,6 +926,26 @@ void main() {
     );
     expect(clipboardText, contains('investigation_governance_handoff_count,1'));
     expect(clipboardText, contains('investigation_routine_review_count,2'));
+    expect(
+      clipboardText,
+      contains('investigation_current_governance_handoff_count,1'),
+    );
+    expect(
+      clipboardText,
+      contains('investigation_current_routine_review_count,0'),
+    );
+    expect(
+      clipboardText,
+      contains('investigation_baseline_governance_average,0.0'),
+    );
+    expect(
+      clipboardText,
+      contains('investigation_baseline_routine_average,1.0'),
+    );
+    expect(
+      clipboardText,
+      contains('investigation_baseline_receipt_count,2'),
+    );
     expect(
       clipboardText,
       contains('investigation_trend_label,"OVERSIGHT RISING"'),
