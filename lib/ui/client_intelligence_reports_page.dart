@@ -982,6 +982,8 @@ class _ClientIntelligenceReportsPageState
     final trendReason = _receiptPolicyTrendReason(rows);
     final investigationTrendLabel = _receiptInvestigationTrendLabel(rows);
     final investigationTrendReason = _receiptInvestigationTrendReason(rows);
+    final governanceCount = _receiptGovernanceHandoffCount(rows);
+    final routineCount = _receiptRoutineReviewCount(rows);
     final current = rows.isEmpty ? null : rows.first;
     final activeEntryContext = _activeReceiptPolicyEntryContext(rows);
     return OnyxSectionCard(
@@ -1017,6 +1019,14 @@ class _ClientIntelligenceReportsPageState
                   color: _receiptInvestigationTrendColor(
                     investigationTrendLabel,
                   ),
+                ),
+                _partnerScopeChip(
+                  label: '$governanceCount oversight',
+                  color: const Color(0xFF5DC8FF),
+                ),
+                _partnerScopeChip(
+                  label: '$routineCount routine',
+                  color: const Color(0xFF8EA4C2),
                 ),
                 _partnerScopeChip(
                   label: '${rows.length} receipts',
@@ -1099,6 +1109,8 @@ class _ClientIntelligenceReportsPageState
   Future<void> _openReceiptInvestigationHistory(List<_ReceiptRow> rows) async {
     final trendLabel = _receiptInvestigationTrendLabel(rows);
     final trendReason = _receiptInvestigationTrendReason(rows);
+    final governanceCount = _receiptGovernanceHandoffCount(rows);
+    final routineCount = _receiptRoutineReviewCount(rows);
     final activeEntryContext = _activeReceiptPolicyEntryContext(rows);
     final current = rows.isEmpty ? null : rows.first;
     await showDialog<void>(
@@ -1131,6 +1143,14 @@ class _ClientIntelligenceReportsPageState
                       _partnerScopeChip(
                         label: trendLabel,
                         color: _receiptInvestigationTrendColor(trendLabel),
+                      ),
+                      _partnerScopeChip(
+                        label: '$governanceCount oversight',
+                        color: const Color(0xFF5DC8FF),
+                      ),
+                      _partnerScopeChip(
+                        label: '$routineCount routine',
+                        color: const Color(0xFF8EA4C2),
                       ),
                       _partnerScopeChip(
                         label:
@@ -2513,6 +2533,20 @@ class _ClientIntelligenceReportsPageState
             ReportEntryContext.governanceBrandingDrift
         ? 1.0
         : 0.0;
+  }
+
+  int _receiptGovernanceHandoffCount(List<_ReceiptRow> rows) {
+    return rows
+        .where(
+          (row) =>
+              _storedEntryContextForReceipt(row.event) ==
+              ReportEntryContext.governanceBrandingDrift,
+        )
+        .length;
+  }
+
+  int _receiptRoutineReviewCount(List<_ReceiptRow> rows) {
+    return rows.length - _receiptGovernanceHandoffCount(rows);
   }
 
   String _receiptInvestigationTrendLabel(List<_ReceiptRow> rows) {
@@ -4332,6 +4366,8 @@ class _ClientIntelligenceReportsPageState
     final activeEntryContext = _activeReceiptPolicyEntryContext(rows);
     final investigationTrendLabel = _receiptInvestigationTrendLabel(rows);
     final investigationTrendReason = _receiptInvestigationTrendReason(rows);
+    final governanceCount = _receiptGovernanceHandoffCount(rows);
+    final routineCount = _receiptRoutineReviewCount(rows);
     return <String, Object?>{
       'scope': <String, Object?>{
         'clientId': widget.selectedClient,
@@ -4358,6 +4394,10 @@ class _ClientIntelligenceReportsPageState
             activeEntryContext == ReportEntryContext.governanceBrandingDrift
             ? 'Routine review is the default receipt-policy baseline when operators enter Reports without an oversight handoff.'
             : 'Governance-launched investigations will be labeled separately when a branding-drift handoff opens this lane.',
+      },
+      'investigationBreakdown': <String, Object?>{
+        'governanceHandoffCount': governanceCount,
+        'routineReviewCount': routineCount,
       },
       'trendLabel': _receiptPolicyTrendLabel(rows),
       'trendReason': _receiptPolicyTrendReason(rows),
@@ -4446,6 +4486,8 @@ class _ClientIntelligenceReportsPageState
     final activeEntryContext = _activeReceiptPolicyEntryContext(rows);
     final investigationTrendLabel = _receiptInvestigationTrendLabel(rows);
     final investigationTrendReason = _receiptInvestigationTrendReason(rows);
+    final governanceCount = _receiptGovernanceHandoffCount(rows);
+    final routineCount = _receiptRoutineReviewCount(rows);
     final lines = <String>[
       'metric,value',
       'client_id,${widget.selectedClient}',
@@ -4459,6 +4501,8 @@ class _ClientIntelligenceReportsPageState
       'investigation_mode,${activeEntryContext?.storageValue ?? 'routine_review'}',
       'investigation_mode_label,"${(activeEntryContext == ReportEntryContext.governanceBrandingDrift ? 'OVERSIGHT HANDOFF' : 'ROUTINE REVIEW').replaceAll('"', '""')}"',
       'investigation_baseline_label,"ROUTINE BASELINE"',
+      'investigation_governance_handoff_count,$governanceCount',
+      'investigation_routine_review_count,$routineCount',
       'trend_label,${_receiptPolicyTrendLabel(rows)}',
       'trend_reason,"${_receiptPolicyTrendReason(rows).replaceAll('"', '""')}"',
       'investigation_trend_label,"${investigationTrendLabel.replaceAll('"', '""')}"',

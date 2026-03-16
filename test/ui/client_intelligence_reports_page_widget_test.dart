@@ -803,6 +803,8 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('OVERSIGHT RISING'), findsOneWidget);
+    expect(find.text('1 oversight'), findsOneWidget);
+    expect(find.text('2 routine'), findsOneWidget);
     expect(
       find.text(
         'The latest receipt entered Reports through a Governance branding-drift handoff against a more routine recent baseline.',
@@ -862,6 +864,9 @@ void main() {
     expect(clipboardText, contains('"investigationLens": {'));
     expect(clipboardText, contains('"modeKey": "governance_branding_drift"'));
     expect(clipboardText, contains('"modeLabel": "OVERSIGHT HANDOFF"'));
+    expect(clipboardText, contains('"investigationBreakdown": {'));
+    expect(clipboardText, contains('"governanceHandoffCount": 1'));
+    expect(clipboardText, contains('"routineReviewCount": 2'));
     expect(clipboardText, contains('"trendLabel": "SLIPPING"'));
     expect(clipboardText, contains('"investigationTrend": {'));
     expect(clipboardText, contains('"label": "OVERSIGHT RISING"'));
@@ -905,6 +910,8 @@ void main() {
       clipboardText,
       contains('investigation_mode_label,"OVERSIGHT HANDOFF"'),
     );
+    expect(clipboardText, contains('investigation_governance_handoff_count,1'));
+    expect(clipboardText, contains('investigation_routine_review_count,2'));
     expect(
       clipboardText,
       contains('investigation_trend_label,"OVERSIGHT RISING"'),
