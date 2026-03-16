@@ -802,9 +802,12 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('OVERSIGHT RISING'), findsOneWidget);
+    expect(find.text('OVERSIGHT RISING'), findsWidgets);
     expect(find.text('1 oversight'), findsOneWidget);
     expect(find.text('2 routine'), findsOneWidget);
+    expect(find.text('OVERSIGHT HANDOFFS'), findsOneWidget);
+    expect(find.text('ROUTINE REVIEW'), findsWidgets);
+    expect(find.text('INVESTIGATION DRIFT'), findsOneWidget);
     expect(
       find.text(
         'The latest receipt entered Reports through a Governance branding-drift handoff against a more routine recent baseline.',

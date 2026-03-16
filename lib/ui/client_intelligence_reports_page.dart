@@ -223,6 +223,11 @@ class _ClientIntelligenceReportsPageState
     final escalationReceiptCount = receiptMetrics.escalationCount;
     final suppressedReceiptCount = receiptMetrics.suppressedCount;
     final pendingSceneCount = receiptMetrics.pendingSceneCount;
+    final governanceInvestigationCount = _receiptGovernanceHandoffCount(
+      reportRows,
+    );
+    final routineInvestigationCount = _receiptRoutineReviewCount(reportRows);
+    final investigationTrendLabel = _receiptInvestigationTrendLabel(reportRows);
     final replayState = _isRefreshing
         ? 'RUNNING'
         : pendingCount == 0 && _receipts.isNotEmpty
@@ -299,6 +304,9 @@ class _ClientIntelligenceReportsPageState
                     escalationReceiptCount: escalationReceiptCount,
                     suppressedReceiptCount: suppressedReceiptCount,
                     pendingSceneCount: pendingSceneCount,
+                    governanceInvestigationCount: governanceInvestigationCount,
+                    routineInvestigationCount: routineInvestigationCount,
+                    investigationTrendLabel: investigationTrendLabel,
                   ),
                   const SizedBox(height: 8),
                   LayoutBuilder(
@@ -588,6 +596,9 @@ class _ClientIntelligenceReportsPageState
     required int escalationReceiptCount,
     required int suppressedReceiptCount,
     required int pendingSceneCount,
+    required int governanceInvestigationCount,
+    required int routineInvestigationCount,
+    required String investigationTrendLabel,
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -673,6 +684,27 @@ class _ClientIntelligenceReportsPageState
             isActive: _receiptFilter == ReportReceiptSceneFilter.pending,
             onTap: () =>
                 toggleReportReceiptFilter(ReportReceiptSceneFilter.pending),
+          ),
+          _kpiCard(
+            key: const ValueKey('reports-kpi-investigation-governance'),
+            label: 'OVERSIGHT HANDOFFS',
+            value: '$governanceInvestigationCount',
+            accent: const Color(0xFF5DC8FF),
+            icon: Icons.manage_search_rounded,
+          ),
+          _kpiCard(
+            key: const ValueKey('reports-kpi-investigation-routine'),
+            label: 'ROUTINE REVIEW',
+            value: '$routineInvestigationCount',
+            accent: const Color(0xFF8EA4C2),
+            icon: Icons.rule_rounded,
+          ),
+          _kpiCard(
+            key: const ValueKey('reports-kpi-investigation-trend'),
+            label: 'INVESTIGATION DRIFT',
+            value: investigationTrendLabel,
+            accent: _receiptInvestigationTrendColor(investigationTrendLabel),
+            icon: Icons.insights_rounded,
           ),
           _kpiCard(
             label: 'OUTPUT MODE',
