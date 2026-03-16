@@ -79,6 +79,42 @@ class ListenerSerialEnvelope {
       metadata: _objectMap(json['metadata']),
     );
   }
+
+  ListenerSerialEnvelope copyWith({
+    String? provider,
+    String? transport,
+    String? externalId,
+    String? rawLine,
+    String? accountNumber,
+    String? partition,
+    String? eventCode,
+    String? eventQualifier,
+    String? zone,
+    String? userCode,
+    String? siteId,
+    String? clientId,
+    String? regionId,
+    DateTime? occurredAtUtc,
+    Map<String, Object?>? metadata,
+  }) {
+    return ListenerSerialEnvelope(
+      provider: provider ?? this.provider,
+      transport: transport ?? this.transport,
+      externalId: externalId ?? this.externalId,
+      rawLine: rawLine ?? this.rawLine,
+      accountNumber: accountNumber ?? this.accountNumber,
+      partition: partition ?? this.partition,
+      eventCode: eventCode ?? this.eventCode,
+      eventQualifier: eventQualifier ?? this.eventQualifier,
+      zone: zone ?? this.zone,
+      userCode: userCode ?? this.userCode,
+      siteId: siteId ?? this.siteId,
+      clientId: clientId ?? this.clientId,
+      regionId: regionId ?? this.regionId,
+      occurredAtUtc: occurredAtUtc ?? this.occurredAtUtc,
+      metadata: metadata ?? this.metadata,
+    );
+  }
 }
 
 class ListenerSerialBenchParseResult {
