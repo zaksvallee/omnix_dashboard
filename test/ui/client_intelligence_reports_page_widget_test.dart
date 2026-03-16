@@ -292,6 +292,61 @@ void main() {
         sourceMessageKey: 'MSG-3',
       ),
     );
+    store.append(
+      ReportGenerated(
+        eventId: 'PARTNER-RPT-1',
+        sequence: 4,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 13, 23, 30),
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-SANDTON',
+        month: '2026-03',
+        contentHash: 'partner-content-hash-1',
+        pdfHash: 'partner-pdf-hash-1',
+        eventRangeStart: 1,
+        eventRangeEnd: 20,
+        eventCount: 20,
+        reportSchemaVersion: 3,
+        projectionVersion: 1,
+      ),
+    );
+    store.append(
+      ReportGenerated(
+        eventId: 'PARTNER-RPT-2',
+        sequence: 5,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 14, 23, 30),
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-SANDTON',
+        month: '2026-03',
+        contentHash: 'partner-content-hash-2',
+        pdfHash: 'partner-pdf-hash-2',
+        eventRangeStart: 21,
+        eventRangeEnd: 40,
+        eventCount: 20,
+        reportSchemaVersion: 3,
+        projectionVersion: 1,
+      ),
+    );
+    store.append(
+      ReportGenerated(
+        eventId: 'PARTNER-RPT-3',
+        sequence: 6,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 15, 23, 30),
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-SANDTON',
+        month: '2026-03',
+        contentHash: 'partner-content-hash-3',
+        pdfHash: 'partner-pdf-hash-3',
+        eventRangeStart: 41,
+        eventRangeEnd: 64,
+        eventCount: 24,
+        reportSchemaVersion: 3,
+        projectionVersion: 1,
+        investigationContextKey: 'governance_branding_drift',
+      ),
+    );
 
     await tester.pumpWidget(
       MaterialApp(
@@ -333,6 +388,11 @@ void main() {
     );
     expect(find.text('Powered by ONYX'), findsOneWidget);
     expect(find.text('IMPROVING'), findsOneWidget);
+    expect(find.text('Receipt OVERSIGHT RISING'), findsOneWidget);
+    expect(find.text('Current Governance: 1'), findsWidgets);
+    expect(find.text('Current Routine: 0'), findsWidgets);
+    expect(find.text('Baseline Governance: 0.0'), findsWidgets);
+    expect(find.text('Baseline Routine: 1.0'), findsWidgets);
     expect(
       find.byKey(const ValueKey('reports-partner-scope-chain-DSP-9001')),
       findsOneWidget,
@@ -356,6 +416,13 @@ void main() {
     expect(clipboardText, isNotNull);
     expect(clipboardText, contains('"partnerLabel": "PARTNER • Alpha"'));
     expect(clipboardText, contains('"trendLabel": "IMPROVING"'));
+    expect(clipboardText, contains('"receiptInvestigation": {'));
+    expect(clipboardText, contains('"trendLabel": "OVERSIGHT RISING"'));
+    expect(clipboardText, contains('"currentGovernanceHandoffCount": 1'));
+    expect(clipboardText, contains('"currentRoutineReviewCount": 0'));
+    expect(clipboardText, contains('"baselineGovernanceAverage": 0.0'));
+    expect(clipboardText, contains('"baselineRoutineAverage": 1.0'));
+    expect(clipboardText, contains('"baselineReceiptCount": 2'));
     expect(clipboardText, contains('"dispatchId": "DSP-9001"'));
     expect(clipboardText, isNot(contains('CLIENT-002')));
 
@@ -368,6 +435,32 @@ void main() {
 
     expect(clipboardText, contains('partner_label,"PARTNER • Alpha"'));
     expect(clipboardText, contains('trend_label,IMPROVING'));
+    expect(
+      clipboardText,
+      contains('receipt_investigation_trend_label,"OVERSIGHT RISING"'),
+    );
+    expect(
+      clipboardText,
+      contains(
+        'receipt_investigation_current_governance_handoff_count,1',
+      ),
+    );
+    expect(
+      clipboardText,
+      contains('receipt_investigation_current_routine_review_count,0'),
+    );
+    expect(
+      clipboardText,
+      contains('receipt_investigation_baseline_governance_average,0.0'),
+    );
+    expect(
+      clipboardText,
+      contains('receipt_investigation_baseline_routine_average,1.0'),
+    );
+    expect(
+      clipboardText,
+      contains('receipt_investigation_baseline_receipt_count,2'),
+    );
     expect(clipboardText, contains('dispatch_chain_1,"DSP-9001'));
 
     final openGovernanceButton = find.byKey(

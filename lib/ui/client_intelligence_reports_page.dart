@@ -736,6 +736,12 @@ class _ClientIntelligenceReportsPageState
     final currentChains = _partnerScopeDispatchChains();
     final trendLabel = _partnerScopeTrendLabel(historyPoints);
     final trendReason = _partnerScopeTrendReason(historyPoints);
+    final receiptRows = _partnerScopeReceiptRows();
+    final receiptInvestigationTrendLabel = _receiptInvestigationTrendLabel(
+      receiptRows,
+    );
+    final receiptInvestigationComparison =
+        _receiptInvestigationComparison(receiptRows);
     return OnyxSectionCard(
       title: 'Partner Scorecard Focus',
       subtitle:
@@ -810,6 +816,53 @@ class _ClientIntelligenceReportsPageState
                     trendReason,
                     style: GoogleFonts.inter(
                       color: const Color(0xFF8EA4C2),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+                if (receiptRows.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _partnerScopeChip(
+                        label:
+                            'Receipt ${receiptInvestigationTrendLabel.toUpperCase()}',
+                        color: _receiptInvestigationTrendColor(
+                          receiptInvestigationTrendLabel,
+                        ),
+                      ),
+                      _partnerScopeChip(
+                        label:
+                            'Current Governance: ${receiptInvestigationComparison.currentGovernanceCount}',
+                        color: const Color(0xFF5DC8FF),
+                      ),
+                      _partnerScopeChip(
+                        label:
+                            'Current Routine: ${receiptInvestigationComparison.currentRoutineCount}',
+                        color: const Color(0xFF8EA4C2),
+                      ),
+                      _partnerScopeChip(
+                        label:
+                            'Baseline Governance: ${receiptInvestigationComparison.baselineGovernanceAverage.toStringAsFixed(1)}',
+                        color: const Color(0xFF4F87BE),
+                      ),
+                      _partnerScopeChip(
+                        label:
+                            'Baseline Routine: ${receiptInvestigationComparison.baselineRoutineAverage.toStringAsFixed(1)}',
+                        color: const Color(0xFF7087A8),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _receiptInvestigationTrendReason(receiptRows),
+                    style: GoogleFonts.inter(
+                      color: _receiptInvestigationTrendColor(
+                        receiptInvestigationTrendLabel,
+                      ),
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
@@ -4447,6 +4500,9 @@ class _ClientIntelligenceReportsPageState
 
   Map<String, Object?> _partnerScopeExportPayload() {
     final historyPoints = _partnerScopeHistoryPoints();
+    final receiptRows = _partnerScopeReceiptRows();
+    final receiptInvestigationComparison =
+        _receiptInvestigationComparison(receiptRows);
     _PartnerScopeHistoryPoint? currentPoint;
     for (final point in historyPoints) {
       if (point.current) {
@@ -4464,6 +4520,21 @@ class _ClientIntelligenceReportsPageState
       },
       'trendLabel': _partnerScopeTrendLabel(historyPoints),
       'trendReason': _partnerScopeTrendReason(historyPoints),
+      if (receiptRows.isNotEmpty)
+        'receiptInvestigation': <String, Object?>{
+          'trendLabel': _receiptInvestigationTrendLabel(receiptRows),
+          'trendReason': _receiptInvestigationTrendReason(receiptRows),
+          'currentGovernanceHandoffCount':
+              receiptInvestigationComparison.currentGovernanceCount,
+          'currentRoutineReviewCount':
+              receiptInvestigationComparison.currentRoutineCount,
+          'baselineGovernanceAverage':
+              receiptInvestigationComparison.baselineGovernanceAverage,
+          'baselineRoutineAverage':
+              receiptInvestigationComparison.baselineRoutineAverage,
+          'baselineReceiptCount':
+              receiptInvestigationComparison.baselineReceiptCount,
+        },
       'currentRow': currentPoint?.toJson(),
       'historyRows': historyPoints
           .map((point) => point.toJson())
@@ -4472,6 +4543,22 @@ class _ClientIntelligenceReportsPageState
           .map((chain) => chain.toJson())
           .toList(growable: false),
     };
+  }
+
+  List<_ReceiptRow> _partnerScopeReceiptRows() {
+    final rows = _receipts.isNotEmpty ? _receipts : _sampleReceipts;
+    final clientId = _partnerScopeClientId;
+    final siteId = _partnerScopeSiteId;
+    if (clientId == null || siteId == null) {
+      return const [];
+    }
+    return rows
+        .where(
+          (row) =>
+              row.event.clientId.trim() == clientId &&
+              row.event.siteId.trim() == siteId,
+        )
+        .toList(growable: false);
   }
 
   Map<String, Object?> _partnerComparisonExportPayload() {
@@ -4597,6 +4684,9 @@ class _ClientIntelligenceReportsPageState
   String _partnerScopeExportCsv() {
     final historyPoints = _partnerScopeHistoryPoints();
     final chains = _partnerScopeDispatchChains();
+    final receiptRows = _partnerScopeReceiptRows();
+    final receiptInvestigationComparison =
+        _receiptInvestigationComparison(receiptRows);
     final lines = <String>[
       'metric,value',
       'client_id,${_partnerScopeClientId ?? ''}',
@@ -4604,6 +4694,20 @@ class _ClientIntelligenceReportsPageState
       'partner_label,"${(_partnerScopePartnerLabel ?? '').replaceAll('"', '""')}"',
       'trend_label,${_partnerScopeTrendLabel(historyPoints)}',
       'trend_reason,"${_partnerScopeTrendReason(historyPoints).replaceAll('"', '""')}"',
+      if (receiptRows.isNotEmpty)
+        'receipt_investigation_trend_label,"${_receiptInvestigationTrendLabel(receiptRows).replaceAll('"', '""')}"',
+      if (receiptRows.isNotEmpty)
+        'receipt_investigation_trend_reason,"${_receiptInvestigationTrendReason(receiptRows).replaceAll('"', '""')}"',
+      if (receiptRows.isNotEmpty)
+        'receipt_investigation_current_governance_handoff_count,${receiptInvestigationComparison.currentGovernanceCount}',
+      if (receiptRows.isNotEmpty)
+        'receipt_investigation_current_routine_review_count,${receiptInvestigationComparison.currentRoutineCount}',
+      if (receiptRows.isNotEmpty)
+        'receipt_investigation_baseline_governance_average,${receiptInvestigationComparison.baselineGovernanceAverage.toStringAsFixed(1)}',
+      if (receiptRows.isNotEmpty)
+        'receipt_investigation_baseline_routine_average,${receiptInvestigationComparison.baselineRoutineAverage.toStringAsFixed(1)}',
+      if (receiptRows.isNotEmpty)
+        'receipt_investigation_baseline_receipt_count,${receiptInvestigationComparison.baselineReceiptCount}',
       for (var i = 0; i < historyPoints.length; i++)
         'history_row_${i + 1},"${historyPoints[i].toCsvSummary().replaceAll('"', '""')}"',
       for (var i = 0; i < chains.length; i++)
