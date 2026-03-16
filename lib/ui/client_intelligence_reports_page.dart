@@ -2496,6 +2496,18 @@ class _ClientIntelligenceReportsPageState
                         label: '${latestPoint.row.dispatchCount} dispatches',
                         color: const Color(0xFF8FD1FF),
                       ),
+                      if (latestPoint.row.averageAcceptedDelayMinutes > 0)
+                        _partnerScopeChip(
+                          label:
+                              'Accept ${latestPoint.row.averageAcceptedDelayMinutes.toStringAsFixed(1)}m',
+                          color: const Color(0xFFF6C067),
+                        ),
+                      if (latestPoint.row.averageOnSiteDelayMinutes > 0)
+                        _partnerScopeChip(
+                          label:
+                              'On site ${latestPoint.row.averageOnSiteDelayMinutes.toStringAsFixed(1)}m',
+                          color: const Color(0xFFFFB86C),
+                        ),
                       if (latestPoint.receiptInvestigationSummary != null) ...[
                         _partnerScopeChip(
                           label:
