@@ -15,6 +15,9 @@ class MonitoringWatchVisionReviewResult {
   final bool indicatesPerson;
   final bool indicatesVehicle;
   final bool indicatesAnimal;
+  final bool indicatesFireSmoke;
+  final bool indicatesWaterLeak;
+  final bool indicatesEnvironmentHazard;
   final bool indicatesLoitering;
   final bool indicatesBoundaryConcern;
   final bool indicatesEscalationCandidate;
@@ -30,6 +33,9 @@ class MonitoringWatchVisionReviewResult {
     required this.indicatesPerson,
     required this.indicatesVehicle,
     required this.indicatesAnimal,
+    this.indicatesFireSmoke = false,
+    this.indicatesWaterLeak = false,
+    this.indicatesEnvironmentHazard = false,
     required this.indicatesLoitering,
     required this.indicatesBoundaryConcern,
     required this.indicatesEscalationCandidate,
@@ -228,6 +234,29 @@ class OpenAiMonitoringWatchVisionReviewService
       fallback: (event.objectLabel ?? '').trim(),
     );
     final riskDelta = _clampRiskDelta(payload['risk_delta']);
+    final indicatesFireSmoke =
+        primaryObject == 'fire' ||
+        primaryObject == 'smoke' ||
+        posture.contains('fire') ||
+        tagPresent('fire', tags) ||
+        tagPresent('smoke', tags);
+    final indicatesWaterLeak =
+        primaryObject == 'water' ||
+        primaryObject == 'leak' ||
+        posture.contains('flood') ||
+        posture.contains('leak') ||
+        tagPresent('water', tags) ||
+        tagPresent('flood', tags) ||
+        tagPresent('leak', tags) ||
+        tagPresent('pipe_burst', tags);
+    final indicatesEnvironmentHazard =
+        primaryObject == 'equipment' ||
+        posture.contains('hazard') ||
+        posture.contains('environment') ||
+        tagPresent('hazard', tags) ||
+        tagPresent('steam', tags) ||
+        tagPresent('equipment_failure', tags) ||
+        tagPresent('environmental_hazard', tags);
     return MonitoringWatchVisionReviewResult(
       sourceLabel: 'openai:${model.trim()}',
       usedFallback: false,
@@ -242,6 +271,9 @@ class OpenAiMonitoringWatchVisionReviewService
           primaryObject == 'vehicle' || tagPresent('vehicle', tags),
       indicatesAnimal:
           primaryObject == 'animal' || tagPresent('animal', tags),
+      indicatesFireSmoke: indicatesFireSmoke,
+      indicatesWaterLeak: indicatesWaterLeak,
+      indicatesEnvironmentHazard: indicatesEnvironmentHazard,
       indicatesLoitering:
           posture.contains('loiter') || tagPresent('loitering', tags),
       indicatesBoundaryConcern:
@@ -265,9 +297,9 @@ class OpenAiMonitoringWatchVisionReviewService
         'Return JSON only with keys: '
         '"primary_object", "confidence", "posture", "risk_delta", "tags", "summary".\n'
         'Rules:\n'
-        '- primary_object: person | vehicle | animal | movement | unknown\n'
+        '- primary_object: person | vehicle | animal | smoke | fire | water | leak | equipment | movement | unknown\n'
         '- confidence: low | medium | high\n'
-        '- posture: routine | monitored | repeat | boundary | loitering | escalation_candidate\n'
+        '- posture: routine | monitored | repeat | boundary | loitering | fire | flood | leak | environment_hazard | escalation_candidate\n'
         '- risk_delta: integer between -20 and 20\n'
         '- tags: short lowercase tokens\n'
         '- summary: one short sentence.';
@@ -311,12 +343,36 @@ MonitoringWatchVisionReviewResult buildMetadataOnlyMonitoringWatchVisionReview(
     indicatesPerson: objectLabel == 'person',
     indicatesVehicle: objectLabel == 'vehicle',
     indicatesAnimal: objectLabel == 'animal',
+    indicatesFireSmoke:
+        signalText.contains('fire') ||
+        signalText.contains('smoke') ||
+        objectLabel == 'fire' ||
+        objectLabel == 'smoke',
+    indicatesWaterLeak:
+        signalText.contains('water') ||
+        signalText.contains('leak') ||
+        signalText.contains('flood') ||
+        signalText.contains('burst pipe') ||
+        signalText.contains('pipe burst') ||
+        objectLabel == 'water' ||
+        objectLabel == 'leak',
+    indicatesEnvironmentHazard:
+        signalText.contains('hazard') ||
+        signalText.contains('steam') ||
+        signalText.contains('equipment failure') ||
+        signalText.contains('electrical') ||
+        objectLabel == 'equipment',
     indicatesLoitering: signalText.contains('loiter'),
     indicatesBoundaryConcern:
         signalText.contains('line_crossing') ||
         signalText.contains('line crossing') ||
         signalText.contains('intrusion'),
-    indicatesEscalationCandidate: false,
+    indicatesEscalationCandidate:
+        signalText.contains('fire') ||
+        signalText.contains('smoke') ||
+        signalText.contains('flood') ||
+        signalText.contains('leak') ||
+        signalText.contains('hazard'),
     riskDelta: 0,
     summary: 'Metadata-only review.',
     tags: const <String>['metadata'],
@@ -356,6 +412,15 @@ String _normalizeObjectLabel(String raw, {required String fallback}) {
   }
   if (normalized == 'human' || normalized == 'intruder') {
     return 'person';
+  }
+  if (normalized == 'smoke') {
+    return 'smoke';
+  }
+  if (normalized == 'flame') {
+    return 'fire';
+  }
+  if (normalized == 'flood' || normalized == 'burst_pipe') {
+    return 'water';
   }
   if (normalized == 'cat' ||
       normalized == 'dog' ||

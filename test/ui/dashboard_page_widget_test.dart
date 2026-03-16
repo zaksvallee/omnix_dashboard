@@ -46,13 +46,62 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1600, 1000));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
+    final store = InMemoryEventStore();
+    store.append(
+      IntelligenceReceived(
+        eventId: 'evt-activity-1',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 9, 0, 10),
+        intelligenceId: 'intel-activity-1',
+        provider: 'hikvision_dvr_monitor_only',
+        sourceType: 'dvr',
+        externalId: 'ext-activity-1',
+        clientId: 'CLIENT-1',
+        regionId: 'REGION-1',
+        siteId: 'SITE-1',
+        cameraId: 'gate-cam',
+        objectLabel: 'vehicle',
+        objectConfidence: 0.92,
+        plateNumber: 'CA111111',
+        headline: 'Known visitor vehicle entered',
+        summary: 'Known visitor vehicle entered the gate lane.',
+        riskScore: 58,
+        snapshotUrl: 'https://edge.example.com/vehicle.jpg',
+        canonicalHash: 'hash-activity-1',
+      ),
+    );
+    store.append(
+      IntelligenceReceived(
+        eventId: 'evt-activity-2',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 9, 2, 40),
+        intelligenceId: 'intel-activity-2',
+        provider: 'hikvision_dvr_monitor_only',
+        sourceType: 'dvr',
+        externalId: 'ext-activity-2',
+        clientId: 'CLIENT-1',
+        regionId: 'REGION-1',
+        siteId: 'SITE-1',
+        cameraId: 'gate-cam',
+        objectLabel: 'human',
+        objectConfidence: 0.87,
+        headline: 'Guard conversation observed',
+        summary: 'Guard talking to unknown individual near the gate.',
+        riskScore: 66,
+        snapshotUrl: 'https://edge.example.com/person.jpg',
+        canonicalHash: 'hash-activity-2',
+      ),
+    );
+
     var openCount = 0;
     var clearPolicyCount = 0;
 
     await tester.pumpWidget(
       MaterialApp(
         home: DashboardPage(
-          eventStore: InMemoryEventStore(),
+          eventStore: store,
           guardSyncBackendEnabled: false,
           guardSyncInFlight: false,
           guardSyncQueueDepth: 60,
@@ -365,6 +414,11 @@ void main() {
     expect(find.text('Advanced export and share'), findsOneWidget);
     expect(find.text('Morning Sovereign Report'), findsOneWidget);
     expect(find.text('Vehicle throughput'), findsOneWidget);
+    expect(find.text('Site activity'), findsOneWidget);
+    expect(
+      find.text('Signals 2 • Vehicles 1 • People 1 • Known IDs 1 • Unknown 1 • Guard interactions 1'),
+      findsOneWidget,
+    );
     await tester.ensureVisible(find.text('Advanced export and share'));
     await tester.tap(find.text('Advanced export and share'));
     await tester.pumpAndSettle();

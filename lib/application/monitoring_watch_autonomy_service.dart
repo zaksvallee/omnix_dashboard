@@ -114,6 +114,7 @@ class MonitoringWatchAutonomyService {
   }) {
     final decisionLabel = entry.review.decisionLabel.trim().toLowerCase();
     final posture = entry.review.postureLabel.trim();
+    final postureLower = posture.toLowerCase();
     final summary = entry.review.decisionSummary.trim().isNotEmpty
         ? entry.review.decisionSummary.trim()
         : entry.review.summary.trim();
@@ -129,6 +130,45 @@ class MonitoringWatchAutonomyService {
       'source': entry.review.sourceLabel.trim(),
     };
 
+    if (postureLower.contains('fire') || postureLower.contains('smoke')) {
+      return MonitoringWatchAutonomyActionPlan(
+        id: 'AUTO-${entry.event.intelligenceId}',
+        incidentId: entry.event.intelligenceId,
+        siteId: entry.event.siteId,
+        priority: MonitoringWatchAutonomyPriority.critical,
+        actionType: 'FIRE ESCALATION',
+        description:
+            'Promote immediate fire response, notify the partner lane, and preserve ${videoOpsLabel.toUpperCase()} evidence for emergency escalation. $summary',
+        countdownSeconds: 8,
+        metadata: metadata,
+      );
+    }
+    if (postureLower.contains('flood') || postureLower.contains('leak')) {
+      return MonitoringWatchAutonomyActionPlan(
+        id: 'AUTO-${entry.event.intelligenceId}',
+        incidentId: entry.event.intelligenceId,
+        siteId: entry.event.siteId,
+        priority: MonitoringWatchAutonomyPriority.critical,
+        actionType: 'LEAK CONTAINMENT',
+        description:
+            'Escalate a likely water-loss incident, protect the site, and lock ${videoOpsLabel.toUpperCase()} evidence before damage spreads. $summary',
+        countdownSeconds: 10,
+        metadata: metadata,
+      );
+    }
+    if (postureLower.contains('hazard')) {
+      return MonitoringWatchAutonomyActionPlan(
+        id: 'AUTO-${entry.event.intelligenceId}',
+        incidentId: entry.event.intelligenceId,
+        siteId: entry.event.siteId,
+        priority: MonitoringWatchAutonomyPriority.high,
+        actionType: 'HAZARD RESPONSE',
+        description:
+            'Raise a site hazard response with ${videoOpsLabel.toUpperCase()} evidence attached and keep human veto available. $summary',
+        countdownSeconds: 16,
+        metadata: metadata,
+      );
+    }
     if (decisionLabel.contains('escalation')) {
       return MonitoringWatchAutonomyActionPlan(
         id: 'AUTO-${entry.event.intelligenceId}',

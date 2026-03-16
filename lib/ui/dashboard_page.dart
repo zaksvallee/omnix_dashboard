@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../application/dispatch_snapshot_file_service.dart';
 import '../application/email_bridge_service.dart';
 import '../application/morning_sovereign_report_service.dart';
+import '../application/site_activity_intelligence_service.dart';
 import '../application/text_share_service.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/decision_created.dart';
@@ -18,6 +19,7 @@ import '../domain/store/in_memory_event_store.dart';
 import 'onyx_surface.dart';
 
 class DashboardPage extends StatelessWidget {
+  static const _siteActivityService = SiteActivityIntelligenceService();
   final InMemoryEventStore eventStore;
   final bool guardSyncBackendEnabled;
   final bool guardSyncInFlight;
@@ -90,6 +92,7 @@ class DashboardPage extends StatelessWidget {
     final events = eventStore.allEvents();
     final snapshot = OperationsHealthProjection.build(events);
     final triage = _buildDashboardTriageSummary(events);
+    final siteActivity = _siteActivityService.buildSnapshot(events: events);
     final threat = _threat(snapshot);
 
     return OnyxPageScaffold(
@@ -141,6 +144,7 @@ class DashboardPage extends StatelessWidget {
                         morningSovereignReportHistory,
                     morningSovereignReportAutoStatusLabel:
                         morningSovereignReportAutoStatusLabel,
+                    siteActivity: siteActivity,
                     onGenerateMorningSovereignReport:
                         onGenerateMorningSovereignReport,
                   );
@@ -184,6 +188,7 @@ class DashboardPage extends StatelessWidget {
                   morningSovereignReportHistory: morningSovereignReportHistory,
                   morningSovereignReportAutoStatusLabel:
                       morningSovereignReportAutoStatusLabel,
+                  siteActivity: siteActivity,
                   onGenerateMorningSovereignReport:
                       onGenerateMorningSovereignReport,
                 );
@@ -344,6 +349,7 @@ class _DesktopDashboard extends StatelessWidget {
   final SovereignReport? morningSovereignReport;
   final List<SovereignReport> morningSovereignReportHistory;
   final String? morningSovereignReportAutoStatusLabel;
+  final SiteActivityIntelligenceSnapshot siteActivity;
   final Future<void> Function()? onGenerateMorningSovereignReport;
 
   const _DesktopDashboard({
@@ -379,6 +385,7 @@ class _DesktopDashboard extends StatelessWidget {
     required this.morningSovereignReport,
     required this.morningSovereignReportHistory,
     required this.morningSovereignReportAutoStatusLabel,
+    required this.siteActivity,
     required this.onGenerateMorningSovereignReport,
   });
 
@@ -417,6 +424,7 @@ class _DesktopDashboard extends StatelessWidget {
       morningSovereignReportHistory: morningSovereignReportHistory,
       morningSovereignReportAutoStatusLabel:
           morningSovereignReportAutoStatusLabel,
+      siteActivity: siteActivity,
       onGenerateMorningSovereignReport: onGenerateMorningSovereignReport,
     );
 
@@ -509,6 +517,7 @@ class _CompactDashboard extends StatelessWidget {
   final SovereignReport? morningSovereignReport;
   final List<SovereignReport> morningSovereignReportHistory;
   final String? morningSovereignReportAutoStatusLabel;
+  final SiteActivityIntelligenceSnapshot siteActivity;
   final Future<void> Function()? onGenerateMorningSovereignReport;
 
   const _CompactDashboard({
@@ -544,6 +553,7 @@ class _CompactDashboard extends StatelessWidget {
     required this.morningSovereignReport,
     required this.morningSovereignReportHistory,
     required this.morningSovereignReportAutoStatusLabel,
+    required this.siteActivity,
     required this.onGenerateMorningSovereignReport,
   });
 
@@ -594,6 +604,7 @@ class _CompactDashboard extends StatelessWidget {
           morningSovereignReportHistory: morningSovereignReportHistory,
           morningSovereignReportAutoStatusLabel:
               morningSovereignReportAutoStatusLabel,
+          siteActivity: siteActivity,
           onGenerateMorningSovereignReport: onGenerateMorningSovereignReport,
         ),
       ],
@@ -1054,6 +1065,7 @@ class _RightRail extends StatelessWidget {
   final SovereignReport? morningSovereignReport;
   final List<SovereignReport> morningSovereignReportHistory;
   final String? morningSovereignReportAutoStatusLabel;
+  final SiteActivityIntelligenceSnapshot siteActivity;
   final Future<void> Function()? onGenerateMorningSovereignReport;
 
   const _RightRail({
@@ -1088,6 +1100,7 @@ class _RightRail extends StatelessWidget {
     required this.morningSovereignReport,
     required this.morningSovereignReportHistory,
     required this.morningSovereignReportAutoStatusLabel,
+    required this.siteActivity,
     required this.onGenerateMorningSovereignReport,
   });
 
@@ -2679,9 +2692,14 @@ class _RightRail extends StatelessWidget {
                     value:
                         sovereignReport.vehicleThroughput.workflowHeadline
                             .trim()
-                            .isNotEmpty
+                        .isNotEmpty
                         ? sovereignReport.vehicleThroughput.workflowHeadline
                         : sovereignReport.vehicleThroughput.summaryLine,
+                  ),
+                if (siteActivity.totalSignals > 0)
+                  _RailMetricRow(
+                    label: 'Site activity',
+                    value: siteActivity.summaryLine,
                   ),
                 if ((sovereignReport.partnerProgression.workflowHeadline
                         .trim()

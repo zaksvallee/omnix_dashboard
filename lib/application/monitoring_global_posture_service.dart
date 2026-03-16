@@ -270,6 +270,15 @@ class MonitoringGlobalPostureService {
     if (posture.contains('identity')) {
       signals.add('identity');
     }
+    if (posture.contains('fire') || posture.contains('smoke')) {
+      signals.add('fire');
+    }
+    if (posture.contains('flood') || posture.contains('leak')) {
+      signals.add('water_leak');
+    }
+    if (posture.contains('hazard')) {
+      signals.add('environment_hazard');
+    }
     if ((item.event.faceMatchId ?? '').trim().isNotEmpty) {
       signals.add('face_match');
     }
@@ -323,6 +332,15 @@ class MonitoringGlobalPostureService {
     }
     if (posture.contains('identity')) {
       score += 10;
+    }
+    if (posture.contains('fire') || posture.contains('smoke')) {
+      score += 36;
+    }
+    if (posture.contains('flood') || posture.contains('leak')) {
+      score += 26;
+    }
+    if (posture.contains('hazard')) {
+      score += 18;
     }
     if ((event.faceMatchId ?? '').trim().isNotEmpty) {
       score += 10;

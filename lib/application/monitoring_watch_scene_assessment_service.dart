@@ -15,6 +15,9 @@ class MonitoringWatchSceneAssessment {
   final bool repeatActivity;
   final bool boundaryConcern;
   final bool loiteringConcern;
+  final bool fireSignal;
+  final bool waterLeakSignal;
+  final bool environmentHazardSignal;
   final String? faceMatchId;
   final double? faceConfidence;
   final String? plateNumber;
@@ -36,6 +39,9 @@ class MonitoringWatchSceneAssessment {
     required this.repeatActivity,
     this.boundaryConcern = false,
     this.loiteringConcern = false,
+    this.fireSignal = false,
+    this.waterLeakSignal = false,
+    this.environmentHazardSignal = false,
     this.faceMatchId,
     this.faceConfidence,
     this.plateNumber,
@@ -116,6 +122,15 @@ class MonitoringWatchSceneAssessmentService {
         objectLabel == 'bird') {
       score -= 18;
       rationale.add('object:animal');
+    } else if (objectLabel == 'fire' || objectLabel == 'smoke') {
+      score += 28;
+      rationale.add('object:fire');
+    } else if (objectLabel == 'water' || objectLabel == 'leak') {
+      score += 20;
+      rationale.add('object:water');
+    } else if (objectLabel == 'equipment') {
+      score += 14;
+      rationale.add('object:equipment');
     } else if (objectLabel == 'unknown' || objectLabel == 'motion') {
       score += 6;
       rationale.add('object:unknown');
@@ -225,6 +240,36 @@ class MonitoringWatchSceneAssessmentService {
       score += 10;
       rationale.add('signal:loiter');
     }
+    final fireSignal =
+        review.indicatesFireSmoke ||
+        signalText.contains('fire') ||
+        signalText.contains('smoke') ||
+        signalText.contains('flame');
+    if (fireSignal) {
+      score += 34;
+      rationale.add('signal:fire');
+    }
+    final waterLeakSignal =
+        review.indicatesWaterLeak ||
+        signalText.contains('water leak') ||
+        signalText.contains('leak') ||
+        signalText.contains('flood') ||
+        signalText.contains('burst pipe') ||
+        signalText.contains('pipe burst');
+    if (waterLeakSignal) {
+      score += 24;
+      rationale.add('signal:water_leak');
+    }
+    final environmentHazardSignal =
+        review.indicatesEnvironmentHazard ||
+        signalText.contains('hazard') ||
+        signalText.contains('steam') ||
+        signalText.contains('electrical') ||
+        signalText.contains('equipment failure');
+    if (environmentHazardSignal) {
+      score += 18;
+      rationale.add('signal:environment_hazard');
+    }
     if (review.indicatesEscalationCandidate) {
       score += 6;
       rationale.add('signal:review_escalation');
@@ -242,15 +287,26 @@ class MonitoringWatchSceneAssessmentService {
 
     final effectiveRiskScore = score.clamp(1, 99);
     final shouldEscalate =
+        fireSignal ||
+        waterLeakSignal ||
+        (environmentHazardSignal && effectiveRiskScore >= 84) ||
         effectiveRiskScore >= 96 ||
         (repeatActivity && objectLabel == 'person' && effectiveRiskScore >= 90);
     final shouldNotifyClient =
-        shouldEscalate || repeatActivity || effectiveRiskScore >= 74;
+        shouldEscalate ||
+        fireSignal ||
+        waterLeakSignal ||
+        environmentHazardSignal ||
+        repeatActivity ||
+        effectiveRiskScore >= 74;
     final postureLabel = _postureLabel(
       shouldEscalate: shouldEscalate,
       repeatActivity: repeatActivity,
       boundaryConcern: boundaryConcern,
       loiteringConcern: loiteringConcern,
+      fireSignal: fireSignal,
+      waterLeakSignal: waterLeakSignal,
+      environmentHazardSignal: environmentHazardSignal,
       identityRiskSignal: identityRiskSignal,
       identityAllowedSignal: identityAllowedSignal,
       effectiveRiskScore: effectiveRiskScore,
@@ -266,6 +322,9 @@ class MonitoringWatchSceneAssessmentService {
       repeatActivity: repeatActivity,
       boundaryConcern: boundaryConcern,
       loiteringConcern: loiteringConcern,
+      fireSignal: fireSignal,
+      waterLeakSignal: waterLeakSignal,
+      environmentHazardSignal: environmentHazardSignal,
       faceMatchId: faceMatchId.isEmpty ? null : faceMatchId,
       faceConfidence: event.faceConfidence,
       plateNumber: plateNumber.isEmpty ? null : plateNumber,
@@ -339,10 +398,22 @@ class MonitoringWatchSceneAssessmentService {
     required bool repeatActivity,
     required bool boundaryConcern,
     required bool loiteringConcern,
+    required bool fireSignal,
+    required bool waterLeakSignal,
+    required bool environmentHazardSignal,
     required bool identityRiskSignal,
     required bool identityAllowedSignal,
     required int effectiveRiskScore,
   }) {
+    if (fireSignal) {
+      return 'fire and smoke emergency';
+    }
+    if (waterLeakSignal) {
+      return 'flood or leak emergency';
+    }
+    if (environmentHazardSignal) {
+      return 'environmental hazard alert';
+    }
     if (shouldEscalate) {
       return 'escalation candidate';
     }
