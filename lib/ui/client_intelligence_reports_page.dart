@@ -2334,6 +2334,14 @@ class _ClientIntelligenceReportsPageState
       isLeader: comparison.isLeader,
       primaryLabel: latestShiftPrimaryLabel,
     );
+    final latestShiftGapDriverLabel = _partnerLatestShiftGapDriverLabel(
+      comparison,
+      latestPoint,
+    );
+    final latestShiftGapDriverSummary = _partnerLatestShiftGapDriverSummary(
+      comparison,
+      latestPoint,
+    );
     final deltaParts = <String>[
       if (!comparison.isLeader && comparison.acceptDeltaMinutes != null)
         'Accept +${comparison.acceptDeltaMinutes!.toStringAsFixed(1)}m',
@@ -2476,6 +2484,11 @@ class _ClientIntelligenceReportsPageState
                         label: latestShiftPostureLabel,
                         color: _partnerTrendColor(latestShiftPrimaryLabel),
                       ),
+                      if (latestShiftGapDriverLabel.isNotEmpty)
+                        _partnerScopeChip(
+                          label: latestShiftGapDriverLabel,
+                          color: const Color(0xFFF6C067),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 6),
@@ -2540,6 +2553,17 @@ class _ClientIntelligenceReportsPageState
                     const SizedBox(height: 4),
                     Text(
                       latestShiftPostureSummary,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF8EA4C2),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                  if (latestShiftGapDriverSummary.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      latestShiftGapDriverSummary,
                       style: GoogleFonts.inter(
                         color: const Color(0xFF8EA4C2),
                         fontSize: 10,
@@ -3851,6 +3875,68 @@ class _ClientIntelligenceReportsPageState
         return isLeader
             ? 'Latest shift is leading with an incomplete score picture.'
             : 'Latest shift is active, but still needs score confirmation.';
+    }
+  }
+
+  String _partnerLatestShiftGapDriverLabel(
+    _PartnerComparisonRow comparison,
+    _PartnerScopeHistoryPoint? latestPoint,
+  ) {
+    if (comparison.isLeader) {
+      return 'SITE PACE';
+    }
+    final receiptSummary = latestPoint?.receiptInvestigationSummary;
+    if (receiptSummary != null &&
+        receiptSummary.governanceHandoffCount >
+            receiptSummary.routineReviewCount) {
+      return 'OVERSIGHT PRESSURE';
+    }
+    final acceptDelta = comparison.acceptDeltaMinutes ?? 0;
+    final onSiteDelta = comparison.onSiteDeltaMinutes ?? 0;
+    if (acceptDelta >= onSiteDelta && acceptDelta >= 2) {
+      return 'ACCEPT LAG';
+    }
+    if (onSiteDelta > acceptDelta && onSiteDelta >= 2) {
+      return 'ON-SITE LAG';
+    }
+    switch (comparison.trendLabel.trim().toUpperCase()) {
+      case 'SLIPPING':
+        return 'GAP OPENING';
+      case 'IMPROVING':
+        return 'GAP CLOSING';
+      default:
+        return 'BASELINE HOLD';
+    }
+  }
+
+  String _partnerLatestShiftGapDriverSummary(
+    _PartnerComparisonRow comparison,
+    _PartnerScopeHistoryPoint? latestPoint,
+  ) {
+    if (comparison.isLeader) {
+      return 'This lane is currently defining the site comparison pace.';
+    }
+    final receiptSummary = latestPoint?.receiptInvestigationSummary;
+    if (receiptSummary != null &&
+        receiptSummary.governanceHandoffCount >
+            receiptSummary.routineReviewCount) {
+      return 'Receipt investigations are leaning toward Governance handoff on this shift.';
+    }
+    final acceptDelta = comparison.acceptDeltaMinutes ?? 0;
+    final onSiteDelta = comparison.onSiteDeltaMinutes ?? 0;
+    if (acceptDelta >= onSiteDelta && acceptDelta >= 2) {
+      return 'The largest current gap versus the leader is acceptance timing.';
+    }
+    if (onSiteDelta > acceptDelta && onSiteDelta >= 2) {
+      return 'The largest current gap versus the leader is on-site timing.';
+    }
+    switch (comparison.trendLabel.trim().toUpperCase()) {
+      case 'SLIPPING':
+        return 'The lane is slipping without one dominant timing culprit yet.';
+      case 'IMPROVING':
+        return 'The lane is closing the gap against the current leader.';
+      default:
+        return 'The lane is holding close to the current site baseline.';
     }
   }
 

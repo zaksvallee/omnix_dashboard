@@ -881,6 +881,7 @@ void main() {
     expect(find.text('Latest shift'), findsWidgets);
     expect(find.text('BEST CURRENT'), findsOneWidget);
     expect(find.text('BEST SHIFT'), findsOneWidget);
+    expect(find.text('SITE PACE'), findsOneWidget);
     expect(
       find.byKey(
         const ValueKey(
@@ -899,6 +900,10 @@ void main() {
       find.text('Latest shift is currently setting the site pace.'),
       findsOneWidget,
     );
+    expect(
+      find.text('This lane is currently defining the site comparison pace.'),
+      findsOneWidget,
+    );
     expect(find.text('1 dispatches'), findsWidgets);
     expect(find.text('Accept 4.0m'), findsWidgets);
     expect(find.text('On site 10.0m'), findsWidgets);
@@ -909,6 +914,13 @@ void main() {
     expect(
       find.text('Receipt OVERSIGHT HANDOFF • Governance 1 • Routine 0'),
       findsWidgets,
+    );
+    expect(find.text('OVERSIGHT PRESSURE'), findsOneWidget);
+    expect(
+      find.text(
+        'Receipt investigations are leaning toward Governance handoff on this shift.',
+      ),
+      findsOneWidget,
     );
     expect(find.text('Investigate'), findsWidgets);
     expect(find.text('Export'), findsWidgets);
