@@ -452,6 +452,10 @@ void main() {
       findsWidgets,
     );
     expect(
+      find.byKey(const ValueKey('reports-partner-scorecard-open-activity')),
+      findsOneWidget,
+    );
+    expect(
       find.byKey(const ValueKey('reports-partner-scope-chain-DSP-9001')),
       findsWidgets,
     );
@@ -463,6 +467,50 @@ void main() {
       find.byKey(const ValueKey('reports-partner-chain-open-events-DSP-9001')),
       findsOneWidget,
     );
+
+    final openActivityTruthButton = find.byKey(
+      const ValueKey('reports-partner-scorecard-open-activity'),
+    );
+    await tester.ensureVisible(openActivityTruthButton);
+    await tester.tap(openActivityTruthButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Visitor / Activity Truth'), findsOneWidget);
+    expect(find.text('Activity truth by shift'), findsOneWidget);
+    expect(find.text('CURRENT TRUTH'), findsOneWidget);
+    expect(
+      find.byKey(
+        const ValueKey(
+          'reports-site-activity-history-CLIENT-001/SITE-SANDTON/2026-03-15',
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey('reports-site-activity-open-events-2026-03-15'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(
+        const ValueKey('reports-site-activity-open-events-2026-03-15'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(openedEventsScope, isNotNull);
+    expect(
+      openedEventsScope!['eventIds'],
+      <String>['ACTIVITY-1', 'ACTIVITY-2', 'ACTIVITY-3'],
+    );
+    expect(openedEventsScope!['selectedEventId'], 'ACTIVITY-3');
+
+    await tester.tap(
+      find.byKey(const ValueKey('reports-site-activity-truth-close')),
+    );
+    await tester.pumpAndSettle();
 
     final openDrillInButton = find.byKey(
       const ValueKey('reports-partner-scorecard-open-drill-in'),

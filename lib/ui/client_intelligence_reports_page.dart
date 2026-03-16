@@ -24,6 +24,7 @@ import '../application/site_activity_intelligence_service.dart';
 import '../domain/crm/reporting/report_branding_configuration.dart';
 import '../domain/crm/reporting/report_section_configuration.dart';
 import '../domain/events/dispatch_event.dart';
+import '../domain/events/intelligence_received.dart';
 import '../domain/events/partner_dispatch_status_declared.dart';
 import '../domain/events/report_generated.dart';
 import '../domain/store/in_memory_event_store.dart';
@@ -944,6 +945,12 @@ class _ClientIntelligenceReportsPageState
                 onTap: _copyPartnerScopeCsv,
               ),
               _actionButton(
+                key: const ValueKey('reports-partner-scorecard-open-activity'),
+                label: 'Open Activity Truth',
+                icon: Icons.groups_rounded,
+                onTap: _openPartnerScopeActivityTruth,
+              ),
+              _actionButton(
                 key: const ValueKey('reports-partner-scorecard-open-drill-in'),
                 label: 'Open Drill-In',
                 icon: Icons.manage_search_rounded,
@@ -1213,6 +1220,15 @@ class _ClientIntelligenceReportsPageState
                 label: 'Copy Comparison CSV',
                 icon: Icons.table_chart_rounded,
                 onTap: _copyPartnerComparisonCsv,
+              ),
+              _actionButton(
+                key: const ValueKey('reports-partner-comparison-open-activity'),
+                label: 'Open Activity Truth',
+                icon: Icons.groups_rounded,
+                onTap: () => _openSiteActivityTruth(
+                  clientId: widget.selectedClient,
+                  siteId: widget.selectedSite,
+                ),
               ),
             ],
           ),
@@ -1537,6 +1553,156 @@ class _ClientIntelligenceReportsPageState
       clientId: _partnerScopeClientId!,
       siteId: _partnerScopeSiteId!,
       partnerLabel: _partnerScopePartnerLabel!,
+    );
+  }
+
+  Future<void> _openPartnerScopeActivityTruth() async {
+    if (!_hasPartnerScopeFocus) {
+      return;
+    }
+    await _openSiteActivityTruth(
+      clientId: _partnerScopeClientId!,
+      siteId: _partnerScopeSiteId!,
+      partnerLabel: _partnerScopePartnerLabel,
+    );
+  }
+
+  Future<void> _openSiteActivityTruth({
+    required String clientId,
+    required String siteId,
+    String? partnerLabel,
+  }) async {
+    final historyPoints = _siteActivityHistoryPointsFor(
+      clientId: clientId,
+      siteId: siteId,
+    );
+    final currentPoint = historyPoints.isEmpty ? null : historyPoints.first;
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF08111F),
+          title: Text(
+            'Visitor / Activity Truth',
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFE8F1FF),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          content: SizedBox(
+            width: 760,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    partnerLabel == null || partnerLabel.trim().isEmpty
+                        ? '$clientId/$siteId'
+                        : '$clientId/$siteId • $partnerLabel',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFE8F1FF),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (currentPoint != null) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _partnerScopeChip(
+                          label: currentPoint.current
+                              ? 'CURRENT TRUTH'
+                              : 'LATEST TRUTH',
+                          color: const Color(0xFF59D79B),
+                        ),
+                        _partnerScopeChip(
+                          label: currentPoint.reportDate,
+                          color: const Color(0xFF8FD1FF),
+                        ),
+                        _partnerScopeChip(
+                          label:
+                              '${currentPoint.snapshot.totalSignals} signals',
+                          color: const Color(0xFF8FD1FF),
+                        ),
+                        if (currentPoint.snapshot.vehicleSignals > 0)
+                          _partnerScopeChip(
+                            label:
+                                '${currentPoint.snapshot.vehicleSignals} vehicles',
+                            color: const Color(0xFFF6C067),
+                          ),
+                        if (currentPoint.snapshot.personSignals > 0)
+                          _partnerScopeChip(
+                            label:
+                                '${currentPoint.snapshot.personSignals} people',
+                            color: const Color(0xFF8EA4C2),
+                          ),
+                        if (currentPoint.snapshot.knownIdentitySignals > 0)
+                          _partnerScopeChip(
+                            label:
+                                '${currentPoint.snapshot.knownIdentitySignals} known IDs',
+                            color: const Color(0xFF5DC8FF),
+                          ),
+                        if (currentPoint.snapshot.flaggedIdentitySignals > 0)
+                          _partnerScopeChip(
+                            label:
+                                '${currentPoint.snapshot.flaggedIdentitySignals} flagged',
+                            color: const Color(0xFFFF7A7A),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      currentPoint.snapshot.summaryLine,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF9CB2D1),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ] else ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'No visitor or site-activity signals have been recorded for this scope yet.',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF8EA4C2),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                  if (historyPoints.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      'Activity truth by shift',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFE8F1FF),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    for (var index = 0; index < historyPoints.length; index++) ...[
+                      _siteActivityHistoryRow(historyPoints[index]),
+                      if (index < historyPoints.length - 1)
+                        const SizedBox(height: 6),
+                    ],
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              key: const ValueKey('reports-site-activity-truth-close'),
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -2084,6 +2250,94 @@ class _ClientIntelligenceReportsPageState
               );
             },
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _siteActivityHistoryRow(_SiteActivityHistoryPoint point) {
+    return Container(
+      key: ValueKey<String>(
+        'reports-site-activity-history-${point.clientId}/${point.siteId}/${point.reportDate}',
+      ),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1A29),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: point.current
+              ? const Color(0xFF59D79B)
+              : const Color(0xFF223244),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _partnerScopeChip(
+                label: point.current ? 'CURRENT' : 'HISTORY',
+                color: point.current
+                    ? const Color(0xFF59D79B)
+                    : const Color(0xFF8EA4C2),
+              ),
+              _partnerScopeChip(
+                label: point.reportDate,
+                color: const Color(0xFF8FD1FF),
+              ),
+              _partnerScopeChip(
+                label: '${point.snapshot.totalSignals} signals',
+                color: const Color(0xFF8FD1FF),
+              ),
+              if (point.snapshot.vehicleSignals > 0)
+                _partnerScopeChip(
+                  label: '${point.snapshot.vehicleSignals} vehicles',
+                  color: const Color(0xFFF6C067),
+                ),
+              if (point.snapshot.personSignals > 0)
+                _partnerScopeChip(
+                  label: '${point.snapshot.personSignals} people',
+                  color: const Color(0xFF8EA4C2),
+                ),
+              if (point.snapshot.knownIdentitySignals > 0)
+                _partnerScopeChip(
+                  label: '${point.snapshot.knownIdentitySignals} known IDs',
+                  color: const Color(0xFF5DC8FF),
+                ),
+              if (point.snapshot.flaggedIdentitySignals > 0)
+                _partnerScopeChip(
+                  label: '${point.snapshot.flaggedIdentitySignals} flagged',
+                  color: const Color(0xFFFF7A7A),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            point.snapshot.summaryLine,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9CB2D1),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (widget.onOpenEventsForScope != null && point.eventIds.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: _pillActionButton(
+                buttonKey: ValueKey<String>(
+                  'reports-site-activity-open-events-${point.reportDate}',
+                ),
+                label: 'Open Events Review',
+                icon: Icons.rule_folder_rounded,
+                filled: false,
+                onTap: () => _openEventsForSiteActivityPoint(point),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -5986,6 +6240,51 @@ class _ClientIntelligenceReportsPageState
         .toList(growable: false);
   }
 
+  List<_SiteActivityHistoryPoint> _siteActivityHistoryPointsFor({
+    required String clientId,
+    required String siteId,
+  }) {
+    final scopedEvents = widget.store
+        .allEvents()
+        .whereType<IntelligenceReceived>()
+        .where(
+          (event) =>
+              event.clientId.trim() == clientId &&
+              event.siteId.trim() == siteId &&
+              ((event.sourceType.trim().toLowerCase() == 'dvr') ||
+                  (event.sourceType.trim().toLowerCase() == 'cctv')),
+        )
+        .toList(growable: false);
+    if (scopedEvents.isEmpty) {
+      return const <_SiteActivityHistoryPoint>[];
+    }
+    final grouped = <String, List<IntelligenceReceived>>{};
+    for (final event in scopedEvents) {
+      final reportDate = _formatDate(event.occurredAt.toUtc());
+      grouped.putIfAbsent(reportDate, () => <IntelligenceReceived>[]).add(event);
+    }
+    final reportDates = grouped.keys.toList(growable: false)..sort((a, b) => b.compareTo(a));
+    final latestDate = reportDates.first;
+    return reportDates.map((reportDate) {
+      final snapshot = _siteActivitySnapshot(
+        clientId: clientId,
+        siteId: siteId,
+        reportDate: reportDate,
+      );
+      final eventIds = grouped[reportDate]!
+          .toList(growable: false)
+        ..sort((a, b) => _compareDispatchEventsByOccurredAtThenSequence(a, b));
+      return _SiteActivityHistoryPoint(
+        reportDate: reportDate,
+        clientId: clientId,
+        siteId: siteId,
+        current: reportDate == latestDate,
+        snapshot: snapshot,
+        eventIds: eventIds.map((event) => event.eventId).toList(growable: false),
+      );
+    }).toList(growable: false);
+  }
+
   SiteActivityIntelligenceSnapshot _siteActivitySnapshot({
     required String? clientId,
     required String? siteId,
@@ -6026,6 +6325,16 @@ class _ClientIntelligenceReportsPageState
       endUtc: endUtc,
       clientId: scopedClientId,
       siteId: scopedSiteId,
+    );
+  }
+
+  void _openEventsForSiteActivityPoint(_SiteActivityHistoryPoint point) {
+    if (widget.onOpenEventsForScope == null || point.eventIds.isEmpty) {
+      return;
+    }
+    widget.onOpenEventsForScope!(point.eventIds, point.eventIds.last);
+    _showReceiptActionFeedback(
+      'Opening Events Review for ${point.reportDate} site activity.',
     );
   }
 
@@ -6755,6 +7064,24 @@ class _PartnerScopeHistoryPoint {
         receiptSummary,
     ].join(' • ');
   }
+}
+
+class _SiteActivityHistoryPoint {
+  final String reportDate;
+  final String clientId;
+  final String siteId;
+  final bool current;
+  final SiteActivityIntelligenceSnapshot snapshot;
+  final List<String> eventIds;
+
+  const _SiteActivityHistoryPoint({
+    required this.reportDate,
+    required this.clientId,
+    required this.siteId,
+    required this.current,
+    required this.snapshot,
+    required this.eventIds,
+  });
 }
 
 class _ReceiptInvestigationHistorySummary {
