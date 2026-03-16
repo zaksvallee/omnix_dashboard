@@ -466,12 +466,33 @@ void main() {
       findsOneWidget,
     );
 
+    final openShiftEventsButton = find.byKey(
+      const ValueKey('reports-partner-shift-open-events-2026-03-15'),
+    );
+    await tester.ensureVisible(openShiftEventsButton);
+    await tester.tap(openShiftEventsButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Partner Shift Detail'), findsNothing);
+    expect(openedEventsScope, isNotNull);
+    expect(
+      openedEventsScope!['eventIds'],
+      <String>[
+        'PARTNER-EVT-1',
+        'PARTNER-EVT-2',
+        'PARTNER-EVT-3',
+        'PARTNER-RPT-3',
+      ],
+    );
+    expect(openedEventsScope!['selectedEventId'], 'PARTNER-RPT-3');
+
+    await tester.tap(openShiftButton);
+    await tester.pumpAndSettle();
+
     await tester.tap(
       find.byKey(const ValueKey('reports-partner-shift-detail-close')),
     );
     await tester.pumpAndSettle();
-
-    expect(find.text('Partner Shift Detail'), findsNothing);
 
     await tester.tap(
       find.byKey(const ValueKey('reports-partner-scorecard-drill-in-close')),

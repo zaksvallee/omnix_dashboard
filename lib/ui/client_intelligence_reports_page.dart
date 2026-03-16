@@ -1739,6 +1739,23 @@ class _ClientIntelligenceReportsPageState
                       _partnerScopeDispatchChainRow(chains[index]),
                       if (index < chains.length - 1) const SizedBox(height: 6),
                     ],
+                  if (widget.onOpenEventsForScope != null &&
+                      _partnerScopeShiftEventIdsForDate(
+                        point.reportDate,
+                      ).isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    _actionButton(
+                      key: ValueKey<String>(
+                        'reports-partner-shift-open-events-${point.reportDate}',
+                      ),
+                      label: 'Open Events Review',
+                      icon: Icons.rule_folder_rounded,
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        _openEventsForPartnerScopeShift(point.reportDate);
+                      },
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -5026,6 +5043,50 @@ class _ClientIntelligenceReportsPageState
           return milestoneDates.contains(reportDate);
         })
         .toList(growable: false);
+  }
+
+  List<String> _partnerScopeShiftEventIdsForDate(String reportDate) {
+    final eventEntries = <({String id, DateTime occurredAt})>[];
+    final seenIds = <String>{};
+
+    for (final row in _partnerScopeReceiptRowsForDate(reportDate)) {
+      final eventId = row.event.eventId.trim();
+      if (eventId.isEmpty || !seenIds.add(eventId)) {
+        continue;
+      }
+      eventEntries.add((id: eventId, occurredAt: row.event.occurredAt.toUtc()));
+    }
+
+    for (final chain in _partnerScopeDispatchChainsForDate(reportDate)) {
+      for (final event in _partnerDispatchChainEvents(chain)) {
+        final eventId = event.eventId.trim();
+        if (eventId.isEmpty || !seenIds.add(eventId)) {
+          continue;
+        }
+        eventEntries.add((id: eventId, occurredAt: event.occurredAt.toUtc()));
+      }
+    }
+
+    eventEntries.sort((a, b) {
+      final occurredCompare = a.occurredAt.compareTo(b.occurredAt);
+      if (occurredCompare != 0) {
+        return occurredCompare;
+      }
+      return a.id.compareTo(b.id);
+    });
+
+    return eventEntries.map((entry) => entry.id).toList(growable: false);
+  }
+
+  void _openEventsForPartnerScopeShift(String reportDate) {
+    final eventIds = _partnerScopeShiftEventIdsForDate(reportDate);
+    if (widget.onOpenEventsForScope == null || eventIds.isEmpty) {
+      return;
+    }
+    widget.onOpenEventsForScope!(eventIds, eventIds.last);
+    _showReceiptActionFeedback(
+      'Opening Events Review for $reportDate • ${_partnerScopePartnerLabel!}.',
+    );
   }
 
   List<_ReceiptRow> _siteScopeReceiptRows() {
