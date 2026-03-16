@@ -167,6 +167,7 @@ void main() {
     (tester) async {
       final reportEvent = buildTestReportGenerated(
         eventId: 'RPT-EVT-1',
+        occurredAt: DateTime.utc(2026, 3, 16, 10, 0),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         month: '2026-03',
@@ -175,6 +176,7 @@ void main() {
         endorsementLine: 'Powered by ONYX',
         brandingSourceLabel: 'PARTNER • Alpha',
         brandingUsesOverride: true,
+        investigationContextKey: 'governance_branding_drift',
         includeAiDecisionLog: false,
         includeGuardMetrics: false,
       );
@@ -187,30 +189,28 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final rowSummary = find.textContaining('CLIENT-001/SITE-SANDTON 2026-03');
-      await tester.ensureVisible(rowSummary.first);
-      await tester.tap(
-        find
-            .ancestor(of: rowSummary.first, matching: find.byType(InkWell))
-            .first,
+      final rowCard = find.ancestor(
+        of: find.text('Event ID RPT-EVT-1'),
+        matching: find.byType(InkWell),
       );
+      await tester.ensureVisible(rowCard);
+      await tester.tap(rowCard.first);
       await tester.pumpAndSettle();
 
-      expect(find.text('REPORT GENERATED'), findsWidgets);
+      expect(find.text('Selected Event'), findsOneWidget);
       expect(find.text('Tracked Config'), findsOneWidget);
       expect(find.text('Custom Branding'), findsOneWidget);
+      expect(find.text('Governance Handoff'), findsWidgets);
       expect(find.text('2 Sections Omitted'), findsOneWidget);
-      expect(
-        find.text(
-          'Branding: custom override from default partner lane PARTNER • Alpha. Included: Incident Timeline, Dispatch Summary, Checkpoint Compliance. Omitted: AI Decision Log, Guard Metrics.',
-        ),
-        findsOneWidget,
-      );
+      expect(find.textContaining('governance handoff'), findsWidgets);
       expect(find.text('brandingMode'), findsOneWidget);
       expect(find.text('brandingSource'), findsOneWidget);
       expect(find.text('brandingSummary'), findsOneWidget);
       expect(find.text('Custom Override'), findsOneWidget);
       expect(find.text('PARTNER • Alpha'), findsWidgets);
+      expect(find.text('investigationContext'), findsOneWidget);
+      expect(find.text('investigationContextKey'), findsOneWidget);
+      expect(find.text('governance_branding_drift'), findsOneWidget);
       expect(find.text('sectionConfigurationTracked'), findsOneWidget);
       expect(find.text('includedSections'), findsOneWidget);
       expect(find.text('omittedSections'), findsOneWidget);
@@ -223,6 +223,7 @@ void main() {
   ) async {
     final reportEvent = buildTestReportGenerated(
       eventId: 'RPT-EVT-LEGACY-1',
+      occurredAt: DateTime.utc(2026, 3, 16, 10, 0),
       clientId: 'CLIENT-001',
       siteId: 'SITE-SANDTON',
       month: '2026-03',
@@ -237,13 +238,15 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final rowSummary = find.textContaining('CLIENT-001/SITE-SANDTON 2026-03');
-    await tester.ensureVisible(rowSummary.first);
-    await tester.tap(
-      find.ancestor(of: rowSummary.first, matching: find.byType(InkWell)).first,
+    final rowCard = find.ancestor(
+      of: find.text('Event ID RPT-EVT-LEGACY-1'),
+      matching: find.byType(InkWell),
     );
+    await tester.ensureVisible(rowCard);
+    await tester.tap(rowCard.first);
     await tester.pumpAndSettle();
 
+    expect(find.text('Selected Event'), findsOneWidget);
     expect(find.text('Legacy Config'), findsOneWidget);
     expect(
       find.text(

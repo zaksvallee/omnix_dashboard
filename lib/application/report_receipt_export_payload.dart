@@ -15,6 +15,9 @@ class ReportReceiptExportEntry {
   });
 
   Map<String, Object?> toJson() {
+    final investigationContext = ReportEntryContext.fromStorageValue(
+      receiptEvent.investigationContextKey,
+    );
     return <String, Object?>{
       'eventId': receiptEvent.eventId,
       'clientId': receiptEvent.clientId,
@@ -31,6 +34,12 @@ class ReportReceiptExportEntry {
           ? 'default_partner'
           : 'standard',
       'brandingSummary': _brandingSummary(receiptEvent),
+      'investigationContextKey': receiptEvent.investigationContextKey.trim(),
+      'investigationContextLabel': investigationContext == null
+          ? 'Routine Review'
+          : switch (investigationContext) {
+              ReportEntryContext.governanceBrandingDrift => 'OVERSIGHT HANDOFF',
+            },
       'sceneReviewIncluded':
           receiptEvent.reportSchemaVersion >= 2 &&
           receiptEvent.includeAiDecisionLog,

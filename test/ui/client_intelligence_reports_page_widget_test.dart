@@ -761,6 +761,7 @@ void main() {
         endorsementLine: 'Powered by ONYX',
         brandingSourceLabel: 'PARTNER • Alpha',
         brandingUsesOverride: true,
+        investigationContextKey: 'governance_branding_drift',
         includeAiDecisionLog: false,
         includeGuardMetrics: false,
       ),
@@ -789,7 +790,7 @@ void main() {
       find.byKey(const ValueKey('reports-receipt-policy-investigation-lens')),
       findsOneWidget,
     );
-    expect(find.text('ROUTINE REVIEW'), findsOneWidget);
+    expect(find.text('OVERSIGHT HANDOFF'), findsWidgets);
     expect(find.text('ROUTINE BASELINE'), findsOneWidget);
     expect(
       find.text('Omitted AI Decision Log, Guard Metrics • Custom branding'),
@@ -812,6 +813,7 @@ void main() {
     expect(find.text('LEGACY'), findsOneWidget);
     expect(find.text('2 OMITTED'), findsWidgets);
     expect(find.text('CUSTOM BRANDING'), findsWidgets);
+    expect(find.text('OVERSIGHT HANDOFF'), findsWidgets);
 
     final copyJsonButton = find.byKey(
       const ValueKey('reports-receipt-policy-copy-json'),
@@ -822,11 +824,19 @@ void main() {
 
     expect(clipboardText, isNotNull);
     expect(clipboardText, contains('"investigationLens": {'));
-    expect(clipboardText, contains('"modeKey": "routine_review"'));
-    expect(clipboardText, contains('"modeLabel": "ROUTINE REVIEW"'));
+    expect(clipboardText, contains('"modeKey": "governance_branding_drift"'));
+    expect(clipboardText, contains('"modeLabel": "OVERSIGHT HANDOFF"'));
     expect(clipboardText, contains('"trendLabel": "SLIPPING"'));
     expect(clipboardText, contains('"eventId": "RPT-3"'));
     expect(clipboardText, contains('"brandingMode": "CUSTOM BRANDING"'));
+    expect(
+      clipboardText,
+      contains('"investigationContextKey": "governance_branding_drift"'),
+    );
+    expect(
+      clipboardText,
+      contains('"investigationContextLabel": "OVERSIGHT HANDOFF"'),
+    );
     expect(
       clipboardText,
       contains(
@@ -843,15 +853,20 @@ void main() {
     await tester.tap(copyCsvButton);
     await tester.pumpAndSettle();
 
-    expect(clipboardText, contains('investigation_mode,routine_review'));
     expect(
       clipboardText,
-      contains('investigation_mode_label,"ROUTINE REVIEW"'),
+      contains('investigation_mode,governance_branding_drift'),
+    );
+    expect(
+      clipboardText,
+      contains('investigation_mode_label,"OVERSIGHT HANDOFF"'),
     );
     expect(clipboardText, contains('trend_label,SLIPPING'));
     expect(
       clipboardText,
-      contains('receipt_1,"RPT-3",state=2 OMITTED,branding=CUSTOM BRANDING'),
+      contains(
+        'receipt_1,"RPT-3",state=2 OMITTED,branding=CUSTOM BRANDING,investigation=governance_branding_drift',
+      ),
     );
     expect(clipboardText, contains('receipt_2,"RPT-2",state=LEGACY'));
 
@@ -3895,6 +3910,7 @@ void main() {
           .whereType<ReportGenerated>()
           .single;
       expect(generatedReceipt.reportSchemaVersion, 3);
+      expect(generatedReceipt.investigationContextKey, isEmpty);
       expect(generatedReceipt.includeAiDecisionLog, isFalse);
       expect(generatedReceipt.includeGuardMetrics, isFalse);
 
@@ -3918,6 +3934,7 @@ void main() {
       );
       expect(find.text('2 Sections Omitted'), findsWidgets);
       expect(previewRequests, hasLength(1));
+      expect(previewRequests.single.entryContext, isNull);
     },
   );
 

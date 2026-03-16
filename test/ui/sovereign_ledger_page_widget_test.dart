@@ -133,6 +133,7 @@ void main() {
           endorsementLine: 'Powered by ONYX',
           brandingSourceLabel: 'PARTNER • Alpha',
           brandingUsesOverride: true,
+          investigationContextKey: 'governance_branding_drift',
           includeAiDecisionLog: false,
           includeGuardMetrics: false,
         ),
@@ -147,7 +148,9 @@ void main() {
 
       expect(find.text('REPORT'), findsWidgets);
       expect(
-        find.textContaining('2 sections omitted • custom branding override'),
+        find.textContaining(
+          '2 sections omitted • custom branding override • governance handoff',
+        ),
         findsWidgets,
       );
       expect(find.text('REPORT CONFIGURATION'), findsOneWidget);

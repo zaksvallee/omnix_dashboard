@@ -101,6 +101,7 @@ void main() {
         endorsementLine: 'Powered by ONYX',
         brandingSourceLabel: 'PARTNER • Alpha',
         brandingUsesOverride: true,
+        investigationContextKey: 'governance_branding_drift',
         includeDispatchSummary: false,
         includeAiDecisionLog: false,
       );
@@ -138,6 +139,11 @@ void main() {
         firstReceipt['brandingSummary'],
         'Custom branding override from PARTNER • Alpha',
       );
+      expect(
+        firstReceipt['investigationContextKey'],
+        'governance_branding_drift',
+      );
+      expect(firstReceipt['investigationContextLabel'], 'OVERSIGHT HANDOFF');
       expect(receiptConfig['includeDispatchSummary'], false);
       expect(receiptConfig['includeAiDecisionLog'], false);
       expect(brandingConfig['primaryLabel'], 'VISION Tactical');

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../application/report_entry_context.dart';
 import '../domain/crm/reporting/report_section_configuration.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
@@ -672,7 +673,7 @@ class _LedgerPageState extends State<LedgerPage> {
             occurredAt: event.occurredAt,
             type: 'REPORT GENERATED',
             title:
-                '${event.siteId} ${event.month} • ${_reportSectionConfigurationHeadline(event)}${brandingHeadline == null ? '' : ' • $brandingHeadline'} • range ${event.eventRangeStart}-${event.eventRangeEnd}',
+                '${event.siteId} ${event.month} • ${_reportSectionConfigurationHeadline(event)}${brandingHeadline == null ? '' : ' • $brandingHeadline'}${_reportInvestigationHeadline(event) == null ? '' : ' • ${_reportInvestigationHeadline(event)}'} • range ${event.eventRangeStart}-${event.eventRangeEnd}',
             color: const Color(0xFFC79CFF),
             configurationPillLabel: tracked
                 ? event.brandingUsesOverride
@@ -696,7 +697,7 @@ class _LedgerPageState extends State<LedgerPage> {
                       : const Color(0xFF8A6A2A)
                 : const Color(0xFF425B80),
             detailSummary:
-                '${_reportBrandingDetail(event)} ${_reportSectionConfigurationDetail(event)}',
+                '${_reportBrandingDetail(event)} ${_reportSectionConfigurationDetail(event)} ${_reportInvestigationDetail(event)}',
           ),
         );
       }
@@ -804,4 +805,23 @@ String _reportBrandingDetail(ReportGenerated event) {
   return sourceLabel.isNotEmpty
       ? 'Branding: default partner lane $sourceLabel.'
       : 'Branding: configured partner label was used.';
+}
+
+ReportEntryContext? _reportInvestigationContext(ReportGenerated event) {
+  return ReportEntryContext.fromStorageValue(event.investigationContextKey);
+}
+
+String? _reportInvestigationHeadline(ReportGenerated event) {
+  return switch (_reportInvestigationContext(event)) {
+    ReportEntryContext.governanceBrandingDrift => 'governance handoff',
+    null => null,
+  };
+}
+
+String _reportInvestigationDetail(ReportGenerated event) {
+  return switch (_reportInvestigationContext(event)) {
+    ReportEntryContext.governanceBrandingDrift =>
+      'Investigation: this receipt was generated from a Governance branding-drift handoff.',
+    null => 'Investigation: routine report review.',
+  };
 }

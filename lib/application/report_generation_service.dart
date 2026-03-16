@@ -104,6 +104,7 @@ class ReportGenerationService {
         const ReportBrandingConfiguration(),
     ReportSectionConfiguration sectionConfiguration =
         const ReportSectionConfiguration(),
+    String investigationContextKey = '',
   }) async {
     final currentMonth = _monthKey(nowUtc);
     final previousMonth = _monthKey(
@@ -213,6 +214,7 @@ class ReportGenerationService {
       endorsementLine: brandingConfiguration.endorsementLine,
       brandingSourceLabel: brandingConfiguration.sourceLabel,
       brandingUsesOverride: brandingConfiguration.usesOverride,
+      investigationContextKey: investigationContextKey,
       includeTimeline: sectionConfiguration.includeTimeline,
       includeDispatchSummary: sectionConfiguration.includeDispatchSummary,
       includeCheckpointCompliance:

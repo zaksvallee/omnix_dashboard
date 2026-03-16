@@ -17,6 +17,7 @@ class ReportGenerated extends DispatchEvent {
   final String endorsementLine;
   final String brandingSourceLabel;
   final bool brandingUsesOverride;
+  final String investigationContextKey;
   final bool includeTimeline;
   final bool includeDispatchSummary;
   final bool includeCheckpointCompliance;
@@ -42,6 +43,7 @@ class ReportGenerated extends DispatchEvent {
     this.endorsementLine = '',
     this.brandingSourceLabel = '',
     this.brandingUsesOverride = false,
+    this.investigationContextKey = '',
     this.includeTimeline = true,
     this.includeDispatchSummary = true,
     this.includeCheckpointCompliance = true,
@@ -87,6 +89,7 @@ class ReportGenerated extends DispatchEvent {
       endorsementLine: endorsementLine,
       brandingSourceLabel: brandingSourceLabel,
       brandingUsesOverride: brandingUsesOverride,
+      investigationContextKey: investigationContextKey,
       includeTimeline: includeTimeline,
       includeDispatchSummary: includeDispatchSummary,
       includeCheckpointCompliance: includeCheckpointCompliance,

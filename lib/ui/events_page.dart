@@ -18,6 +18,7 @@ import '../domain/events/patrol_completed.dart';
 import '../domain/events/report_generated.dart';
 import '../domain/events/response_arrived.dart';
 import '../domain/events/vehicle_visit_review_recorded.dart';
+import '../application/report_entry_context.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 
@@ -1056,6 +1057,13 @@ class _EventsPageState extends State<EventsPage> {
         ("eventCount", event.eventCount.toString()),
         ("reportSchemaVersion", event.reportSchemaVersion.toString()),
         ("projectionVersion", event.projectionVersion.toString()),
+        ("investigationContext", _reportInvestigationContextLabel(event)),
+        (
+          "investigationContextKey",
+          event.investigationContextKey.trim().isEmpty
+              ? "routine_review"
+              : event.investigationContextKey.trim(),
+        ),
         ("brandingMode", _reportBrandingModeLabel(event)),
         ("brandingSource", _reportBrandingSourceLabel(event)),
         ("brandingSummary", _reportBrandingDetail(event)),
@@ -1214,11 +1222,12 @@ class _EventsPageState extends State<EventsPage> {
           : omittedSections.isEmpty
           ? 'all sections included'
           : '${omittedSections.length} sections omitted';
+      final investigationHeadline = _reportInvestigationHeadline(event);
       return _EventInfo(
         label: 'REPORT GENERATED',
         color: const Color(0xFFAD8DFF),
         summary:
-            '${event.clientId}/${event.siteId} ${event.month} • $configurationSummary${brandingHeadline == null ? '' : ' • $brandingHeadline'} • hash ${event.contentHash.substring(0, 12)}... range ${event.eventRangeStart}-${event.eventRangeEnd}',
+            '${event.clientId}/${event.siteId} ${event.month} • $configurationSummary${brandingHeadline == null ? '' : ' • $brandingHeadline'}${investigationHeadline == null ? '' : ' • $investigationHeadline'} • hash ${event.contentHash.substring(0, 12)}... range ${event.eventRangeStart}-${event.eventRangeEnd}',
       );
     }
     if (event is IntelligenceReceived) {
@@ -1471,6 +1480,12 @@ class _EventsPageState extends State<EventsPage> {
                   _reportSectionConfigurationHeadline(reportEvent),
                   color: _reportSectionConfigurationAccent(reportEvent),
                 ),
+              if (reportEvent != null &&
+                  _reportInvestigationContext(reportEvent) != null)
+                _pill(
+                  _reportInvestigationContextLabel(reportEvent),
+                  color: const Color(0xFF5DC8FF),
+                ),
             ],
           ),
           const SizedBox(height: 10),
@@ -1609,6 +1624,24 @@ class _EventsPageState extends State<EventsPage> {
         ? const Color(0xFF59D79B)
         : const Color(0xFFF6C067);
   }
+}
+
+ReportEntryContext? _reportInvestigationContext(ReportGenerated event) {
+  return ReportEntryContext.fromStorageValue(event.investigationContextKey);
+}
+
+String? _reportInvestigationHeadline(ReportGenerated event) {
+  return switch (_reportInvestigationContext(event)) {
+    ReportEntryContext.governanceBrandingDrift => 'governance handoff',
+    null => null,
+  };
+}
+
+String _reportInvestigationContextLabel(ReportGenerated event) {
+  return switch (_reportInvestigationContext(event)) {
+    ReportEntryContext.governanceBrandingDrift => 'Governance Handoff',
+    null => 'Routine Review',
+  };
 }
 
 class _ForensicRow {

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../application/report_entry_context.dart';
 import '../application/monitoring_scene_review_store.dart';
 import '../domain/crm/reporting/report_section_configuration.dart';
 import '../domain/events/decision_created.dart';
@@ -1434,6 +1435,10 @@ Map<String, Object?> _ledgerPayloadForEvent(
     payload['reportConfiguration'] = <String, Object?>{
       'tracked': tracked,
       'summary': _reportSectionConfigurationDetail(event),
+      'investigation_context_label': _reportInvestigationContextLabel(event),
+      'investigation_context_key': event.investigationContextKey.trim().isEmpty
+          ? 'routine_review'
+          : event.investigationContextKey.trim(),
       'branding_mode_label': _reportBrandingModeLabel(event),
       'branding_summary': _reportBrandingDetail(event),
       'branding_source_label': _reportBrandingSourceLabel(event),
@@ -1551,12 +1556,13 @@ String _eventTitle(DispatchEvent event) {
     final tracked = _hasTrackedReportSectionConfiguration(event);
     final omitted = _omittedReportSectionLabels(event.sectionConfiguration);
     final brandingHeadline = _reportBrandingHeadline(event);
+    final investigationHeadline = _reportInvestigationHeadline(event);
     final configSummary = !tracked
         ? 'legacy receipt config'
         : omitted.isEmpty
         ? 'all sections included'
         : '${omitted.length} sections omitted';
-    return '${event.siteId} ${event.month} • $configSummary${brandingHeadline == null ? '' : ' • $brandingHeadline'} • range ${event.eventRangeStart}-${event.eventRangeEnd}';
+    return '${event.siteId} ${event.month} • $configSummary${brandingHeadline == null ? '' : ' • $brandingHeadline'}${investigationHeadline == null ? '' : ' • $investigationHeadline'} • range ${event.eventRangeStart}-${event.eventRangeEnd}';
   }
   return event.eventId;
 }
@@ -1699,6 +1705,24 @@ String _reportBrandingDetail(ReportGenerated event) {
   return sourceLabel.isNotEmpty
       ? 'Branding: default partner lane $sourceLabel.'
       : 'Branding: configured partner label was used.';
+}
+
+ReportEntryContext? _reportInvestigationContext(ReportGenerated event) {
+  return ReportEntryContext.fromStorageValue(event.investigationContextKey);
+}
+
+String? _reportInvestigationHeadline(ReportGenerated event) {
+  return switch (_reportInvestigationContext(event)) {
+    ReportEntryContext.governanceBrandingDrift => 'governance handoff',
+    null => null,
+  };
+}
+
+String _reportInvestigationContextLabel(ReportGenerated event) {
+  return switch (_reportInvestigationContext(event)) {
+    ReportEntryContext.governanceBrandingDrift => 'Governance Handoff',
+    null => 'Routine Review',
+  };
 }
 
 String _clock(DateTime value) {

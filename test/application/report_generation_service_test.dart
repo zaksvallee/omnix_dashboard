@@ -30,11 +30,16 @@ void main() {
           includeAiDecisionLog: false,
           includeGuardMetrics: true,
         ),
+        investigationContextKey: 'governance_branding_drift',
       );
 
       expect(generated.receiptEvent.reportSchemaVersion, 3);
       expect(generated.receiptEvent.primaryBrandLabel, 'VISION Tactical');
       expect(generated.receiptEvent.endorsementLine, 'Powered by ONYX');
+      expect(
+        generated.receiptEvent.investigationContextKey,
+        'governance_branding_drift',
+      );
       expect(generated.receiptEvent.includeTimeline, isTrue);
       expect(generated.receiptEvent.includeDispatchSummary, isFalse);
       expect(generated.receiptEvent.includeCheckpointCompliance, isTrue);

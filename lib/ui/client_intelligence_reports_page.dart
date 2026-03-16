@@ -165,6 +165,7 @@ class _ClientIntelligenceReportsPageState
       nowUtc: DateTime.now().toUtc(),
       brandingConfiguration: _currentBrandingConfiguration,
       sectionConfiguration: _currentSectionConfiguration,
+      investigationContextKey: _entryContext?.storageValue ?? '',
     );
     final replayMatches = await _service.verifyReportHash(
       generated.receiptEvent,
@@ -181,7 +182,7 @@ class _ClientIntelligenceReportsPageState
         initialPdfBytes: generated.pdfBytes,
         receiptEvent: generated.receiptEvent,
         replayMatches: replayMatches,
-        entryContext: _entryContext,
+        entryContext: _effectiveEntryContextForReceipt(generated.receiptEvent),
       ),
     );
   }
@@ -199,7 +200,7 @@ class _ClientIntelligenceReportsPageState
         initialPdfBytes: regenerated.pdfBytes,
         receiptEvent: row.event,
         replayMatches: replayMatches,
-        entryContext: _entryContext,
+        entryContext: _effectiveEntryContextForReceipt(row.event),
       ),
     );
   }
@@ -980,6 +981,7 @@ class _ClientIntelligenceReportsPageState
     final trendLabel = _receiptPolicyTrendLabel(rows);
     final trendReason = _receiptPolicyTrendReason(rows);
     final current = rows.isEmpty ? null : rows.first;
+    final activeEntryContext = _activeReceiptPolicyEntryContext(rows);
     return OnyxSectionCard(
       title: 'Receipt Policy History',
       subtitle:
@@ -987,8 +989,8 @@ class _ClientIntelligenceReportsPageState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_entryContext != null) ...[
-            _receiptPolicyEntryContextBanner(),
+          if (activeEntryContext != null) ...[
+            _receiptPolicyEntryContextBanner(activeEntryContext),
             const SizedBox(height: 10),
           ],
           if (current != null)
@@ -1037,7 +1039,7 @@ class _ClientIntelligenceReportsPageState
             ),
           ],
           const SizedBox(height: 10),
-          _receiptPolicyInvestigationLensCard(),
+          _receiptPolicyInvestigationLensCard(activeEntryContext),
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
@@ -1067,9 +1069,11 @@ class _ClientIntelligenceReportsPageState
     );
   }
 
-  Widget _receiptPolicyInvestigationLensCard() {
+  Widget _receiptPolicyInvestigationLensCard(
+    ReportEntryContext? activeEntryContext,
+  ) {
     final governanceContext =
-        _entryContext == ReportEntryContext.governanceBrandingDrift;
+        activeEntryContext == ReportEntryContext.governanceBrandingDrift;
     final activeLabel = governanceContext
         ? 'OVERSIGHT HANDOFF'
         : 'ROUTINE REVIEW';
@@ -1138,11 +1142,7 @@ class _ClientIntelligenceReportsPageState
     );
   }
 
-  Widget _receiptPolicyEntryContextBanner() {
-    final entryContext = _entryContext;
-    if (entryContext == null) {
-      return const SizedBox.shrink();
-    }
+  Widget _receiptPolicyEntryContextBanner(ReportEntryContext entryContext) {
     final previewReceiptEventId = _previewReceiptEventId?.trim();
     return Container(
       key: const ValueKey('reports-receipt-policy-entry-context-banner'),
@@ -1209,6 +1209,7 @@ class _ClientIntelligenceReportsPageState
     final event = row.event;
     final accent = _receiptPolicyAccent(event);
     final focused = _receiptPolicyRowMatchesPreviewTarget(row);
+    final investigationContext = _storedEntryContextForReceipt(event);
     final backgroundColor = focused
         ? const Color(0x1428C3FF)
         : current
@@ -1266,7 +1267,7 @@ class _ClientIntelligenceReportsPageState
                 if (current) const SizedBox(width: 6),
                 _partnerScopeChip(
                   label:
-                      _entryContext ==
+                      _effectiveEntryContextForReceipt(event) ==
                           ReportEntryContext.governanceBrandingDrift
                       ? 'GOVERNANCE TARGET'
                       : 'FOCUSED',
@@ -1288,6 +1289,19 @@ class _ClientIntelligenceReportsPageState
                 label: _receiptPolicyBrandingChipLabel(event),
                 color: _receiptPolicyBrandingAccent(event),
               ),
+              if (investigationContext != null)
+                _partnerScopeChip(
+                  label:
+                      investigationContext ==
+                          ReportEntryContext.governanceBrandingDrift
+                      ? 'OVERSIGHT HANDOFF'
+                      : 'ROUTINE REVIEW',
+                  color:
+                      investigationContext ==
+                          ReportEntryContext.governanceBrandingDrift
+                      ? const Color(0xFF5DC8FF)
+                      : const Color(0xFF8EA4C2),
+                ),
               _partnerScopeChip(
                 label: '${event.eventCount} events',
                 color: const Color(0xFF8EA4C2),
@@ -3442,6 +3456,28 @@ class _ClientIntelligenceReportsPageState
 
   ReportPreviewSurface get _previewSurface => _shellBinding.previewSurface;
 
+  ReportEntryContext? _storedEntryContextForReceipt(ReportGenerated event) {
+    return ReportEntryContext.fromStorageValue(event.investigationContextKey);
+  }
+
+  ReportEntryContext? _effectiveEntryContextForReceipt(ReportGenerated event) {
+    return _entryContext ?? _storedEntryContextForReceipt(event);
+  }
+
+  ReportEntryContext? _activeReceiptPolicyEntryContext(List<_ReceiptRow> rows) {
+    if (_entryContext != null) {
+      return _entryContext;
+    }
+    final previewTarget = _targetReceiptByEventId(rows, _previewReceiptEventId);
+    if (previewTarget != null) {
+      return _storedEntryContextForReceipt(previewTarget.event);
+    }
+    if (rows.isEmpty) {
+      return null;
+    }
+    return _storedEntryContextForReceipt(rows.first.event);
+  }
+
   ReportSectionConfiguration get _currentSectionConfiguration =>
       ReportSectionConfiguration(
         includeTimeline: _includeTimeline,
@@ -4093,29 +4129,31 @@ class _ClientIntelligenceReportsPageState
   Map<String, Object?> _receiptPolicyHistoryExportPayload(
     List<_ReceiptRow> rows,
   ) {
+    final activeEntryContext = _activeReceiptPolicyEntryContext(rows);
     return <String, Object?>{
       'scope': <String, Object?>{
         'clientId': widget.selectedClient,
         'siteId': widget.selectedSite,
       },
-      if (_entryContext != null)
+      if (activeEntryContext != null)
         'entryContext': <String, Object?>{
-          'key': _entryContext!.storageValue,
-          'title': _entryContext!.bannerTitle,
-          'detail': _entryContext!.bannerDetail,
+          'key': activeEntryContext.storageValue,
+          'title': activeEntryContext.bannerTitle,
+          'detail': activeEntryContext.bannerDetail,
         },
       'investigationLens': <String, Object?>{
-        'modeKey': _entryContext?.storageValue ?? 'routine_review',
-        'modeLabel': _entryContext == ReportEntryContext.governanceBrandingDrift
+        'modeKey': activeEntryContext?.storageValue ?? 'routine_review',
+        'modeLabel':
+            activeEntryContext == ReportEntryContext.governanceBrandingDrift
             ? 'OVERSIGHT HANDOFF'
             : 'ROUTINE REVIEW',
         'modeDetail':
-            _entryContext == ReportEntryContext.governanceBrandingDrift
+            activeEntryContext == ReportEntryContext.governanceBrandingDrift
             ? 'This receipt investigation was opened from Governance branding drift, so operators can compare the current lane against the normal Reports receipt baseline.'
             : 'This receipt investigation was opened directly in Reports without a Governance oversight handoff.',
         'baselineLabel': 'ROUTINE BASELINE',
         'baselineDetail':
-            _entryContext == ReportEntryContext.governanceBrandingDrift
+            activeEntryContext == ReportEntryContext.governanceBrandingDrift
             ? 'Routine review is the default receipt-policy baseline when operators enter Reports without an oversight handoff.'
             : 'Governance-launched investigations will be labeled separately when a branding-drift handoff opens this lane.',
       },
@@ -4133,6 +4171,15 @@ class _ClientIntelligenceReportsPageState
               'headline': _receiptPolicyHistoryHeadline(row.event),
               'detail': _receiptPolicyHistoryDetail(row.event),
               'brandingSummary': _receiptPolicyBrandingSummary(row.event),
+              'investigationContextKey':
+                  row.event.investigationContextKey.trim().isEmpty
+                  ? 'routine_review'
+                  : row.event.investigationContextKey.trim(),
+              'investigationContextLabel':
+                  _storedEntryContextForReceipt(row.event) ==
+                      ReportEntryContext.governanceBrandingDrift
+                  ? 'OVERSIGHT HANDOFF'
+                  : 'ROUTINE REVIEW',
               'includedSections': _receiptIncludedSectionLabels(row.event),
               'omittedSections': _receiptOmittedSectionLabels(row.event),
               'eventCount': row.event.eventCount,
@@ -4190,17 +4237,19 @@ class _ClientIntelligenceReportsPageState
   }
 
   String _receiptPolicyHistoryExportCsv(List<_ReceiptRow> rows) {
+    final activeEntryContext = _activeReceiptPolicyEntryContext(rows);
     final lines = <String>[
       'metric,value',
       'client_id,${widget.selectedClient}',
       'site_id,${widget.selectedSite}',
-      if (_entryContext != null) 'entry_context,${_entryContext!.storageValue}',
-      if (_entryContext != null)
-        'entry_context_title,"${_entryContext!.bannerTitle.replaceAll('"', '""')}"',
-      if (_entryContext != null)
-        'entry_context_detail,"${_entryContext!.bannerDetail.replaceAll('"', '""')}"',
-      'investigation_mode,${_entryContext?.storageValue ?? 'routine_review'}',
-      'investigation_mode_label,"${(_entryContext == ReportEntryContext.governanceBrandingDrift ? 'OVERSIGHT HANDOFF' : 'ROUTINE REVIEW').replaceAll('"', '""')}"',
+      if (activeEntryContext != null)
+        'entry_context,${activeEntryContext.storageValue}',
+      if (activeEntryContext != null)
+        'entry_context_title,"${activeEntryContext.bannerTitle.replaceAll('"', '""')}"',
+      if (activeEntryContext != null)
+        'entry_context_detail,"${activeEntryContext.bannerDetail.replaceAll('"', '""')}"',
+      'investigation_mode,${activeEntryContext?.storageValue ?? 'routine_review'}',
+      'investigation_mode_label,"${(activeEntryContext == ReportEntryContext.governanceBrandingDrift ? 'OVERSIGHT HANDOFF' : 'ROUTINE REVIEW').replaceAll('"', '""')}"',
       'investigation_baseline_label,"ROUTINE BASELINE"',
       'trend_label,${_receiptPolicyTrendLabel(rows)}',
       'trend_reason,"${_receiptPolicyTrendReason(rows).replaceAll('"', '""')}"',
@@ -4208,7 +4257,7 @@ class _ClientIntelligenceReportsPageState
     for (var index = 0; index < rows.length; index++) {
       final row = rows[index];
       lines.add(
-        'receipt_${index + 1},"${row.event.eventId.replaceAll('"', '""')}",state=${_receiptPolicyStateChipLabel(row.event)},branding=${_receiptPolicyBrandingChipLabel(row.event)},headline=${_receiptPolicyHistoryHeadline(row.event).replaceAll('"', '""')},event_count=${row.event.eventCount}',
+        'receipt_${index + 1},"${row.event.eventId.replaceAll('"', '""')}",state=${_receiptPolicyStateChipLabel(row.event)},branding=${_receiptPolicyBrandingChipLabel(row.event)},investigation=${(row.event.investigationContextKey.trim().isEmpty ? 'routine_review' : row.event.investigationContextKey.trim())},headline=${_receiptPolicyHistoryHeadline(row.event).replaceAll('"', '""')},event_count=${row.event.eventCount}',
       );
       lines.add(
         'receipt_${index + 1}_detail,"${_receiptPolicyHistoryDetail(row.event).replaceAll('"', '""')}"',
@@ -4251,7 +4300,7 @@ class _ClientIntelligenceReportsPageState
       selectedReceiptEventId: _selectedReceiptEventId,
       previewReceiptEventId: _previewReceiptEventId,
       activeSectionConfiguration: _currentSectionConfiguration.toJson(),
-      entryContext: _entryContext,
+      entryContext: _effectiveEntryContextForReceipt(row.event),
     );
     final encoded = const JsonEncoder.withIndent('  ').convert(payload);
     Clipboard.setData(ClipboardData(text: encoded));
@@ -4293,7 +4342,7 @@ class _ClientIntelligenceReportsPageState
         selectedReceiptEventId: _selectedReceiptEventId,
         previewReceiptEventId: _previewReceiptEventId,
         activeSectionConfiguration: _currentSectionConfiguration.toJson(),
-        entryContext: _entryContext,
+        entryContext: _effectiveEntryContextForReceipt(row.event),
       );
       final encoded = const JsonEncoder.withIndent('  ').convert(payload);
       Clipboard.setData(ClipboardData(text: encoded));
