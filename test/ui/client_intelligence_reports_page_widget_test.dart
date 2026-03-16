@@ -938,6 +938,32 @@ void main() {
       ),
     );
 
+    final comparisonHistoryChip = find.byKey(
+      const ValueKey(
+        'reports-partner-comparison-history-CLIENT-001/SITE-SANDTON/PARTNER • Alpha-2026-03-15',
+      ),
+    );
+    await tester.ensureVisible(comparisonHistoryChip);
+    await tester.tap(comparisonHistoryChip);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Partner Shift Detail'), findsOneWidget);
+    expect(
+      find.text(
+        '2026-03-15 • CLIENT-001/SITE-SANDTON • PARTNER • Alpha',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Shift receipts'), findsOneWidget);
+    expect(find.text('Shift dispatch chains'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('reports-partner-shift-detail-close')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Partner Shift Detail'), findsNothing);
+
     final baselineWindowButton = find.byKey(
       const ValueKey('reports-partner-comparison-window-baseline'),
     );

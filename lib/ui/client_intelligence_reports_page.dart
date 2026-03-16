@@ -1567,7 +1567,7 @@ class _ClientIntelligenceReportsPageState
                       _partnerScopeHistoryRow(
                         historyPoints[index],
                         onOpenShift: () =>
-                            _openPartnerScopeShiftDetail(historyPoints[index]),
+                            _openPartnerShiftDetail(historyPoints[index]),
                       ),
                       if (index < historyPoints.length - 1)
                         const SizedBox(height: 6),
@@ -1606,11 +1606,20 @@ class _ClientIntelligenceReportsPageState
     );
   }
 
-  Future<void> _openPartnerScopeShiftDetail(
+  Future<void> _openPartnerShiftDetail(
     _PartnerScopeHistoryPoint point,
   ) async {
-    final receiptRows = _partnerScopeReceiptRowsForDate(point.reportDate);
-    final chains = _partnerScopeDispatchChainsForDate(point.reportDate);
+    final receiptRows = _partnerReceiptRowsForScopeDate(
+      clientId: point.row.clientId,
+      siteId: point.row.siteId,
+      reportDate: point.reportDate,
+    );
+    final chains = _partnerDispatchChainsForScopeDate(
+      clientId: point.row.clientId,
+      siteId: point.row.siteId,
+      partnerLabel: point.row.partnerLabel,
+      reportDate: point.reportDate,
+    );
     await showDialog<void>(
       context: context,
       builder: (context) {
@@ -1750,7 +1759,7 @@ class _ClientIntelligenceReportsPageState
                         ),
                         label: 'Copy Shift JSON',
                         icon: Icons.copy_all_rounded,
-                        onTap: () => _copyPartnerScopeShiftJson(point),
+                        onTap: () => _copyPartnerShiftJson(point),
                       ),
                       _actionButton(
                         key: ValueKey<String>(
@@ -1758,13 +1767,16 @@ class _ClientIntelligenceReportsPageState
                         ),
                         label: 'Copy Shift CSV',
                         icon: Icons.table_chart_rounded,
-                        onTap: () => _copyPartnerScopeShiftCsv(point),
+                        onTap: () => _copyPartnerShiftCsv(point),
                       ),
                     ],
                   ),
                   if (widget.onOpenEventsForScope != null &&
-                      _partnerScopeShiftEventIdsForDate(
-                        point.reportDate,
+                      _partnerShiftEventIdsForScopeDate(
+                        clientId: point.row.clientId,
+                        siteId: point.row.siteId,
+                        partnerLabel: point.row.partnerLabel,
+                        reportDate: point.reportDate,
                       ).isNotEmpty) ...[
                     const SizedBox(height: 12),
                     _actionButton(
@@ -1775,7 +1787,7 @@ class _ClientIntelligenceReportsPageState
                       icon: Icons.rule_folder_rounded,
                       onTap: () {
                         Navigator.of(context).pop();
-                        _openEventsForPartnerScopeShift(point.reportDate);
+                        _openEventsForPartnerShift(point);
                       },
                     ),
                   ],
@@ -2364,7 +2376,10 @@ class _ClientIntelligenceReportsPageState
               runSpacing: 6,
               children: [
                 for (final point in comparison.historyPoints.take(3))
-                  _partnerComparisonHistoryChip(point),
+                  _partnerComparisonHistoryChip(
+                    point,
+                    onTap: () => _openPartnerShiftDetail(point),
+                  ),
               ],
             ),
           ],
@@ -2396,9 +2411,12 @@ class _ClientIntelligenceReportsPageState
     );
   }
 
-  Widget _partnerComparisonHistoryChip(_PartnerScopeHistoryPoint point) {
+  Widget _partnerComparisonHistoryChip(
+    _PartnerScopeHistoryPoint point, {
+    VoidCallback? onTap,
+  }) {
     final summary = _partnerComparisonHistorySummary(point.row);
-    return Container(
+    final chip = Container(
       key: ValueKey<String>(
         'reports-partner-comparison-history-${point.row.clientId}/${point.row.siteId}/${point.row.partnerLabel}-${point.reportDate}',
       ),
@@ -2424,6 +2442,14 @@ class _ClientIntelligenceReportsPageState
           fontWeight: FontWeight.w600,
         ),
       ),
+    );
+    if (onTap == null) {
+      return chip;
+    }
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: chip,
     );
   }
 
@@ -2889,10 +2915,26 @@ class _ClientIntelligenceReportsPageState
   bool _partnerDispatchChainMatchesScope(
     SovereignReportPartnerDispatchChain chain,
   ) {
-    return chain.clientId.trim() == _partnerScopeClientId &&
-        chain.siteId.trim() == _partnerScopeSiteId &&
-        chain.partnerLabel.trim().toUpperCase() ==
-            (_partnerScopePartnerLabel ?? '').toUpperCase();
+    return _partnerDispatchChainMatchesScopeValues(
+      chain,
+      clientId: _partnerScopeClientId,
+      siteId: _partnerScopeSiteId,
+      partnerLabel: _partnerScopePartnerLabel,
+    );
+  }
+
+  bool _partnerDispatchChainMatchesScopeValues(
+    SovereignReportPartnerDispatchChain chain, {
+    required String? clientId,
+    required String? siteId,
+    required String? partnerLabel,
+  }) {
+    return clientId != null &&
+        siteId != null &&
+        partnerLabel != null &&
+        chain.clientId.trim() == clientId &&
+        chain.siteId.trim() == siteId &&
+        chain.partnerLabel.trim().toUpperCase() == partnerLabel.toUpperCase();
   }
 
   String _partnerScopeTrendLabel(List<_PartnerScopeHistoryPoint> points) {
@@ -4976,8 +5018,8 @@ class _ClientIntelligenceReportsPageState
     _showReceiptActionFeedback('Receipt policy CSV copied.');
   }
 
-  void _copyPartnerScopeShiftJson(_PartnerScopeHistoryPoint point) {
-    final payload = _partnerScopeShiftExportPayload(point);
+  void _copyPartnerShiftJson(_PartnerScopeHistoryPoint point) {
+    final payload = _partnerShiftExportPayload(point);
     final encoded = const JsonEncoder.withIndent('  ').convert(payload);
     Clipboard.setData(ClipboardData(text: encoded));
     logUiAction(
@@ -4992,8 +5034,8 @@ class _ClientIntelligenceReportsPageState
     _showReceiptActionFeedback('Partner shift JSON copied.');
   }
 
-  void _copyPartnerScopeShiftCsv(_PartnerScopeHistoryPoint point) {
-    final encoded = _partnerScopeShiftExportCsv(point);
+  void _copyPartnerShiftCsv(_PartnerScopeHistoryPoint point) {
+    final encoded = _partnerShiftExportCsv(point);
     Clipboard.setData(ClipboardData(text: encoded));
     logUiAction(
       'reports.copy_partner_shift_csv',
@@ -5054,12 +5096,26 @@ class _ClientIntelligenceReportsPageState
     };
   }
 
-  Map<String, Object?> _partnerScopeShiftExportPayload(
+  Map<String, Object?> _partnerShiftExportPayload(
     _PartnerScopeHistoryPoint point,
   ) {
-    final receiptRows = _partnerScopeReceiptRowsForDate(point.reportDate);
-    final chains = _partnerScopeDispatchChainsForDate(point.reportDate);
-    final eventIds = _partnerScopeShiftEventIdsForDate(point.reportDate);
+    final receiptRows = _partnerReceiptRowsForScopeDate(
+      clientId: point.row.clientId,
+      siteId: point.row.siteId,
+      reportDate: point.reportDate,
+    );
+    final chains = _partnerDispatchChainsForScopeDate(
+      clientId: point.row.clientId,
+      siteId: point.row.siteId,
+      partnerLabel: point.row.partnerLabel,
+      reportDate: point.reportDate,
+    );
+    final eventIds = _partnerShiftEventIdsForScopeDate(
+      clientId: point.row.clientId,
+      siteId: point.row.siteId,
+      partnerLabel: point.row.partnerLabel,
+      reportDate: point.reportDate,
+    );
     return <String, Object?>{
       'scope': <String, Object?>{
         'clientId': point.row.clientId,
@@ -5110,16 +5166,48 @@ class _ClientIntelligenceReportsPageState
         .toList(growable: false);
   }
 
-  List<_ReceiptRow> _partnerScopeReceiptRowsForDate(String reportDate) {
-    return _partnerScopeReceiptRows()
-        .where((row) => _formatDate(row.event.occurredAt.toUtc()) == reportDate)
+  List<_ReceiptRow> _partnerReceiptRowsForScopeDate({
+    required String clientId,
+    required String siteId,
+    required String reportDate,
+  }) {
+    final rows = _receipts.isNotEmpty ? _receipts : _sampleReceipts;
+    return rows
+        .where(
+          (row) =>
+              row.event.clientId.trim() == clientId &&
+              row.event.siteId.trim() == siteId &&
+              _formatDate(row.event.occurredAt.toUtc()) == reportDate,
+        )
         .toList(growable: false);
   }
 
-  List<SovereignReportPartnerDispatchChain> _partnerScopeDispatchChainsForDate(
-    String reportDate,
-  ) {
-    return _partnerScopeDispatchChains()
+  List<SovereignReportPartnerDispatchChain> _partnerDispatchChainsForScopeDate({
+    required String clientId,
+    required String siteId,
+    required String partnerLabel,
+    required String reportDate,
+  }) {
+    final reports = [...widget.morningSovereignReportHistory]
+      ..sort((a, b) {
+        final generatedCompare = b.generatedAtUtc.compareTo(a.generatedAtUtc);
+        if (generatedCompare != 0) {
+          return generatedCompare;
+        }
+        return b.date.compareTo(a.date);
+      });
+    if (reports.isEmpty) {
+      return const <SovereignReportPartnerDispatchChain>[];
+    }
+    return reports.first.partnerProgression.dispatchChains
+        .where(
+          (chain) => _partnerDispatchChainMatchesScopeValues(
+            chain,
+            clientId: clientId,
+            siteId: siteId,
+            partnerLabel: partnerLabel,
+          ),
+        )
         .where((chain) {
           final milestoneDates = <String>{
             _formatDate(chain.latestOccurredAtUtc.toUtc()),
@@ -5139,11 +5227,20 @@ class _ClientIntelligenceReportsPageState
         .toList(growable: false);
   }
 
-  List<String> _partnerScopeShiftEventIdsForDate(String reportDate) {
+  List<String> _partnerShiftEventIdsForScopeDate({
+    required String clientId,
+    required String siteId,
+    required String partnerLabel,
+    required String reportDate,
+  }) {
     final eventEntries = <({String id, DateTime occurredAt})>[];
     final seenIds = <String>{};
 
-    for (final row in _partnerScopeReceiptRowsForDate(reportDate)) {
+    for (final row in _partnerReceiptRowsForScopeDate(
+      clientId: clientId,
+      siteId: siteId,
+      reportDate: reportDate,
+    )) {
       final eventId = row.event.eventId.trim();
       if (eventId.isEmpty || !seenIds.add(eventId)) {
         continue;
@@ -5151,7 +5248,12 @@ class _ClientIntelligenceReportsPageState
       eventEntries.add((id: eventId, occurredAt: row.event.occurredAt.toUtc()));
     }
 
-    for (final chain in _partnerScopeDispatchChainsForDate(reportDate)) {
+    for (final chain in _partnerDispatchChainsForScopeDate(
+      clientId: clientId,
+      siteId: siteId,
+      partnerLabel: partnerLabel,
+      reportDate: reportDate,
+    )) {
       for (final event in _partnerDispatchChainEvents(chain)) {
         final eventId = event.eventId.trim();
         if (eventId.isEmpty || !seenIds.add(eventId)) {
@@ -5172,21 +5274,40 @@ class _ClientIntelligenceReportsPageState
     return eventEntries.map((entry) => entry.id).toList(growable: false);
   }
 
-  void _openEventsForPartnerScopeShift(String reportDate) {
-    final eventIds = _partnerScopeShiftEventIdsForDate(reportDate);
+  void _openEventsForPartnerShift(_PartnerScopeHistoryPoint point) {
+    final eventIds = _partnerShiftEventIdsForScopeDate(
+      clientId: point.row.clientId,
+      siteId: point.row.siteId,
+      partnerLabel: point.row.partnerLabel,
+      reportDate: point.reportDate,
+    );
     if (widget.onOpenEventsForScope == null || eventIds.isEmpty) {
       return;
     }
     widget.onOpenEventsForScope!(eventIds, eventIds.last);
     _showReceiptActionFeedback(
-      'Opening Events Review for $reportDate • ${_partnerScopePartnerLabel!}.',
+      'Opening Events Review for ${point.reportDate} • ${point.row.partnerLabel}.',
     );
   }
 
-  String _partnerScopeShiftExportCsv(_PartnerScopeHistoryPoint point) {
-    final receiptRows = _partnerScopeReceiptRowsForDate(point.reportDate);
-    final chains = _partnerScopeDispatchChainsForDate(point.reportDate);
-    final eventIds = _partnerScopeShiftEventIdsForDate(point.reportDate);
+  String _partnerShiftExportCsv(_PartnerScopeHistoryPoint point) {
+    final receiptRows = _partnerReceiptRowsForScopeDate(
+      clientId: point.row.clientId,
+      siteId: point.row.siteId,
+      reportDate: point.reportDate,
+    );
+    final chains = _partnerDispatchChainsForScopeDate(
+      clientId: point.row.clientId,
+      siteId: point.row.siteId,
+      partnerLabel: point.row.partnerLabel,
+      reportDate: point.reportDate,
+    );
+    final eventIds = _partnerShiftEventIdsForScopeDate(
+      clientId: point.row.clientId,
+      siteId: point.row.siteId,
+      partnerLabel: point.row.partnerLabel,
+      reportDate: point.reportDate,
+    );
     final lines = <String>[
       'metric,value',
       'client_id,${point.row.clientId}',
