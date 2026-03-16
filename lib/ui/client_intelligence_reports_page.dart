@@ -1564,7 +1564,11 @@ class _ClientIntelligenceReportsPageState
                     ),
                     const SizedBox(height: 6),
                     for (var index = 0; index < historyPoints.length; index++) ...[
-                      _partnerScopeHistoryRow(historyPoints[index]),
+                      _partnerScopeHistoryRow(
+                        historyPoints[index],
+                        onOpenShift: () =>
+                            _openPartnerScopeShiftDetail(historyPoints[index]),
+                      ),
                       if (index < historyPoints.length - 1)
                         const SizedBox(height: 6),
                     ],
@@ -1593,6 +1597,155 @@ class _ClientIntelligenceReportsPageState
           actions: [
             TextButton(
               key: const ValueKey('reports-partner-scorecard-drill-in-close'),
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _openPartnerScopeShiftDetail(
+    _PartnerScopeHistoryPoint point,
+  ) async {
+    final receiptRows = _partnerScopeReceiptRowsForDate(point.reportDate);
+    final chains = _partnerScopeDispatchChainsForDate(point.reportDate);
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF08111F),
+          title: Text(
+            'Partner Shift Detail',
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFE8F1FF),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          content: SizedBox(
+            width: 760,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${point.reportDate} • ${point.row.clientId}/${point.row.siteId} • ${point.row.partnerLabel}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFE8F1FF),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _partnerScopeChip(
+                        label: point.current ? 'CURRENT SHIFT' : 'SHIFT SNAPSHOT',
+                        color: point.current
+                            ? const Color(0xFF8FD1FF)
+                            : const Color(0xFF8EA4C2),
+                      ),
+                      _partnerScopeChip(
+                        label: _partnerScoreboardPrimaryLabel(point.row),
+                        color: _partnerTrendColor(
+                          _partnerScoreboardPrimaryLabel(point.row),
+                        ),
+                      ),
+                      _partnerScopeChip(
+                        label:
+                            '${receiptRows.length} receipt${receiptRows.length == 1 ? '' : 's'}',
+                        color: const Color(0xFF5DC8FF),
+                      ),
+                      _partnerScopeChip(
+                        label:
+                            '${chains.length} chain${chains.length == 1 ? '' : 's'}',
+                        color: const Color(0xFF8EA4C2),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    point.row.summaryLine,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF9CB2D1),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (point.receiptInvestigationSummary != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      point.receiptInvestigationSummary!.summaryLine,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF8FD1FF),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  Text(
+                    'Shift receipts',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFE8F1FF),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  if (receiptRows.isEmpty)
+                    Text(
+                      'No generated receipts were recorded for this shift.',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF8EA4C2),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    )
+                  else
+                    for (var index = 0; index < receiptRows.length; index++) ...[
+                      _receiptPolicyHistoryRow(
+                        receiptRows[index],
+                        current: index == 0,
+                      ),
+                      if (index < receiptRows.length - 1)
+                        const SizedBox(height: 8),
+                    ],
+                  const SizedBox(height: 12),
+                  Text(
+                    'Shift dispatch chains',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFE8F1FF),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  if (chains.isEmpty)
+                    Text(
+                      'No partner dispatch chains were recorded for this shift.',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF8EA4C2),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    )
+                  else
+                    for (var index = 0; index < chains.length; index++) ...[
+                      _partnerScopeDispatchChainRow(chains[index]),
+                      if (index < chains.length - 1) const SizedBox(height: 6),
+                    ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              key: const ValueKey('reports-partner-shift-detail-close'),
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Close'),
             ),
@@ -1987,7 +2140,10 @@ class _ClientIntelligenceReportsPageState
     );
   }
 
-  Widget _partnerScopeHistoryRow(_PartnerScopeHistoryPoint point) {
+  Widget _partnerScopeHistoryRow(
+    _PartnerScopeHistoryPoint point, {
+    VoidCallback? onOpenShift,
+  }) {
     return Container(
       key: ValueKey<String>(
         'reports-partner-scope-history-${point.reportDate}',
@@ -2034,6 +2190,17 @@ class _ClientIntelligenceReportsPageState
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
+            ),
+          ],
+          if (onOpenShift != null) ...[
+            const SizedBox(height: 8),
+            _actionButton(
+              key: ValueKey<String>(
+                'reports-partner-scope-history-open-${point.reportDate}',
+              ),
+              label: 'Open Shift',
+              icon: Icons.timeline_rounded,
+              onTap: onOpenShift,
             ),
           ],
         ],
@@ -3248,6 +3415,24 @@ class _ClientIntelligenceReportsPageState
       return '${row.strongCount} strong';
     }
     return '${row.dispatchCount} dispatches';
+  }
+
+  String _partnerScoreboardPrimaryLabel(
+    SovereignReportPartnerScoreboardRow row,
+  ) {
+    if (row.criticalCount > 0) {
+      return 'CRITICAL';
+    }
+    if (row.watchCount > 0) {
+      return 'WATCH';
+    }
+    if (row.onTrackCount > 0) {
+      return 'ON TRACK';
+    }
+    if (row.strongCount > 0) {
+      return 'STRONG';
+    }
+    return 'NO SCORE';
   }
 
   Color _partnerTrendColor(String label) {
@@ -4811,6 +4996,35 @@ class _ClientIntelligenceReportsPageState
               row.event.clientId.trim() == clientId &&
               row.event.siteId.trim() == siteId,
         )
+        .toList(growable: false);
+  }
+
+  List<_ReceiptRow> _partnerScopeReceiptRowsForDate(String reportDate) {
+    return _partnerScopeReceiptRows()
+        .where((row) => _formatDate(row.event.occurredAt.toUtc()) == reportDate)
+        .toList(growable: false);
+  }
+
+  List<SovereignReportPartnerDispatchChain> _partnerScopeDispatchChainsForDate(
+    String reportDate,
+  ) {
+    return _partnerScopeDispatchChains()
+        .where((chain) {
+          final milestoneDates = <String>{
+            _formatDate(chain.latestOccurredAtUtc.toUtc()),
+            if (chain.dispatchCreatedAtUtc != null)
+              _formatDate(chain.dispatchCreatedAtUtc!.toUtc()),
+            if (chain.acceptedAtUtc != null)
+              _formatDate(chain.acceptedAtUtc!.toUtc()),
+            if (chain.onSiteAtUtc != null)
+              _formatDate(chain.onSiteAtUtc!.toUtc()),
+            if (chain.allClearAtUtc != null)
+              _formatDate(chain.allClearAtUtc!.toUtc()),
+            if (chain.cancelledAtUtc != null)
+              _formatDate(chain.cancelledAtUtc!.toUtc()),
+          };
+          return milestoneDates.contains(reportDate);
+        })
         .toList(growable: false);
   }
 

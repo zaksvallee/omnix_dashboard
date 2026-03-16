@@ -403,7 +403,7 @@ void main() {
     );
     expect(
       find.byKey(const ValueKey('reports-partner-scope-chain-DSP-9001')),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(
       find.text('ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)'),
@@ -435,6 +435,43 @@ void main() {
       ),
       findsOneWidget,
     );
+
+    final openShiftButton = find.byKey(
+      const ValueKey('reports-partner-scope-history-open-2026-03-15'),
+    );
+    await tester.ensureVisible(openShiftButton);
+    await tester.tap(openShiftButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Partner Shift Detail'), findsOneWidget);
+    expect(
+      find.text(
+        '2026-03-15 • CLIENT-001/SITE-SANDTON • PARTNER • Alpha',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Shift receipts'), findsOneWidget);
+    expect(find.text('Shift dispatch chains'), findsOneWidget);
+    expect(find.text('CURRENT SHIFT'), findsOneWidget);
+    expect(
+      find.text('Receipt OVERSIGHT HANDOFF • Governance 1 • Routine 0'),
+      findsWidgets,
+    );
+    expect(
+      find.byKey(const ValueKey('reports-partner-scope-chain-DSP-9001')),
+      findsWidgets,
+    );
+    expect(
+      find.byKey(const ValueKey('reports-partner-shift-detail-close')),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('reports-partner-shift-detail-close')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Partner Shift Detail'), findsNothing);
 
     await tester.tap(
       find.byKey(const ValueKey('reports-partner-scorecard-drill-in-close')),
