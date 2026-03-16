@@ -880,6 +880,7 @@ void main() {
     expect(find.text('Partner Scorecard Lanes'), findsOneWidget);
     expect(find.text('Latest shift'), findsWidgets);
     expect(find.text('BEST CURRENT'), findsOneWidget);
+    expect(find.text('BEST SHIFT'), findsOneWidget);
     expect(
       find.byKey(
         const ValueKey(
@@ -893,6 +894,10 @@ void main() {
         'Dispatches 1 • Strong 1 • On track 0 • Watch 0 • Critical 0 • Avg accept 4.0m • Avg on site 10.0m',
       ),
       findsWidgets,
+    );
+    expect(
+      find.text('Latest shift is currently setting the site pace.'),
+      findsOneWidget,
     );
     expect(
       find.text('Receipt OVERSIGHT HANDOFF • Governance 1 • Routine 0'),

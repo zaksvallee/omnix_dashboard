@@ -2307,6 +2307,10 @@ class _ClientIntelligenceReportsPageState
     final latestPoint = comparison.historyPoints.isEmpty
         ? null
         : comparison.historyPoints.first;
+    final latestShiftPrimaryLabel =
+        latestPoint == null
+            ? 'NO SCORE'
+            : _partnerScoreboardPrimaryLabel(latestPoint.row);
     final latestShiftStripColor = comparison.isLeader
         ? const Color(0x1436C690)
         : comparison.trendLabel.trim().toUpperCase() == 'SLIPPING'
@@ -2322,6 +2326,14 @@ class _ClientIntelligenceReportsPageState
         : comparison.trendLabel.trim().isEmpty
         ? 'ACTIVE LANE'
         : '${comparison.trendLabel.trim().toUpperCase()} LANE';
+    final latestShiftPostureLabel = _partnerLatestShiftPostureLabel(
+      isLeader: comparison.isLeader,
+      primaryLabel: latestShiftPrimaryLabel,
+    );
+    final latestShiftPostureSummary = _partnerLatestShiftPostureSummary(
+      isLeader: comparison.isLeader,
+      primaryLabel: latestShiftPrimaryLabel,
+    );
     final deltaParts = <String>[
       if (!comparison.isLeader && comparison.acceptDeltaMinutes != null)
         'Accept +${comparison.acceptDeltaMinutes!.toStringAsFixed(1)}m',
@@ -2457,10 +2469,12 @@ class _ClientIntelligenceReportsPageState
                         color: latestShiftStripBorderColor,
                       ),
                       _partnerScopeChip(
-                        label: _partnerScoreboardPrimaryLabel(latestPoint.row),
-                        color: _partnerTrendColor(
-                          _partnerScoreboardPrimaryLabel(latestPoint.row),
-                        ),
+                        label: latestShiftPrimaryLabel,
+                        color: _partnerTrendColor(latestShiftPrimaryLabel),
+                      ),
+                      _partnerScopeChip(
+                        label: latestShiftPostureLabel,
+                        color: _partnerTrendColor(latestShiftPrimaryLabel),
                       ),
                     ],
                   ),
@@ -2473,6 +2487,17 @@ class _ClientIntelligenceReportsPageState
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+                  if (latestShiftPostureSummary.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      latestShiftPostureSummary,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF8EA4C2),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                   if (latestPoint.receiptInvestigationSummary != null) ...[
                     const SizedBox(height: 4),
                     Text(
@@ -3736,6 +3761,48 @@ class _ClientIntelligenceReportsPageState
       return 'STRONG';
     }
     return 'NO SCORE';
+  }
+
+  String _partnerLatestShiftPostureLabel({
+    required bool isLeader,
+    required String primaryLabel,
+  }) {
+    switch (primaryLabel.trim().toUpperCase()) {
+      case 'CRITICAL':
+        return 'ACTION NOW';
+      case 'WATCH':
+        return 'WATCH CLOSELY';
+      case 'ON TRACK':
+        return isLeader ? 'PACE SETTER' : 'STEADY SHIFT';
+      case 'STRONG':
+        return isLeader ? 'BEST SHIFT' : 'SOLID SHIFT';
+      default:
+        return isLeader ? 'LEAD SHIFT' : 'OPEN SHIFT';
+    }
+  }
+
+  String _partnerLatestShiftPostureSummary({
+    required bool isLeader,
+    required String primaryLabel,
+  }) {
+    switch (primaryLabel.trim().toUpperCase()) {
+      case 'CRITICAL':
+        return 'Latest shift needs immediate review before the lane slips further.';
+      case 'WATCH':
+        return 'Latest shift is still serviceable, but it needs closer supervision.';
+      case 'ON TRACK':
+        return isLeader
+            ? 'Latest shift is setting the steady site baseline.'
+            : 'Latest shift is stable, but still trails the site leader.';
+      case 'STRONG':
+        return isLeader
+            ? 'Latest shift is currently setting the site pace.'
+            : 'Latest shift is strong and worth comparing against the leader.';
+      default:
+        return isLeader
+            ? 'Latest shift is leading with an incomplete score picture.'
+            : 'Latest shift is active, but still needs score confirmation.';
+    }
   }
 
   Color _partnerTrendColor(String label) {
