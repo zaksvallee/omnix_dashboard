@@ -544,6 +544,7 @@ class AdministrationPage extends StatefulWidget {
   final String? videoIntegrityCertificateJsonPreview;
   final String? videoIntegrityCertificateMarkdownPreview;
   final String? wearableOpsPollHealth;
+  final String? listenerAlarmOpsPollHealth;
   final String? newsOpsPollHealth;
   final String telegramBridgeHealthLabel;
   final String? telegramBridgeHealthDetail;
@@ -682,6 +683,7 @@ class AdministrationPage extends StatefulWidget {
     this.videoIntegrityCertificateJsonPreview,
     this.videoIntegrityCertificateMarkdownPreview,
     this.wearableOpsPollHealth,
+    this.listenerAlarmOpsPollHealth,
     this.newsOpsPollHealth,
     this.telegramBridgeHealthLabel = 'disabled',
     this.telegramBridgeHealthDetail,
@@ -6994,6 +6996,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
     }
     if ((widget.wearableOpsPollHealth ?? '').trim().isNotEmpty) {
       rows.add(('Wearable', widget.wearableOpsPollHealth!.trim()));
+    }
+    if ((widget.listenerAlarmOpsPollHealth ?? '').trim().isNotEmpty) {
+      rows.add(('Listener Alarm', widget.listenerAlarmOpsPollHealth!.trim()));
     }
     if ((widget.newsOpsPollHealth ?? '').trim().isNotEmpty) {
       rows.add(('News', widget.newsOpsPollHealth!.trim()));

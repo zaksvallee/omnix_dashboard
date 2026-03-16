@@ -12,6 +12,7 @@ void main() {
       cctvContext:
           'provider frigate • recent video intel 5 (6h) • intrusion 2 • line_crossing 1 • motion 1 • fr 0 • lpr 0',
       wearableHealth: 'ok 1 • fail 0 • skip 0 • last 10:05:02 UTC',
+      listenerHealth: 'ok 1 • fail 0 • skip 0 • last 10:05:02 UTC',
       newsHealth: 'ok 4 • fail 0 • skip 0 • last 10:05:03 UTC',
       utcStamp: '2026-03-13T10:05:10Z',
     );
@@ -35,6 +36,7 @@ void main() {
       cctvContext:
           'provider hikvision-dvr • recent video intel 5 (6h) • intrusion 2 • line_crossing 1 • motion 1 • fr 0 • lpr 1',
       wearableHealth: 'ok 1 • fail 0 • skip 0 • last 10:05:02 UTC',
+      listenerHealth: 'ok 1 • fail 0 • skip 0 • last 10:05:02 UTC',
       newsHealth: 'ok 4 • fail 0 • skip 0 • last 10:05:03 UTC',
       utcStamp: '2026-03-13T10:05:10Z',
       videoLabel: 'DVR',

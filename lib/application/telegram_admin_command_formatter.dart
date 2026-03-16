@@ -8,6 +8,7 @@ class TelegramAdminCommandFormatter {
     String? cctvContext,
     String videoLabel = 'CCTV',
     required String wearableHealth,
+    required String listenerHealth,
     required String newsHealth,
     required String utcStamp,
   }) {
@@ -25,6 +26,7 @@ class TelegramAdminCommandFormatter {
         '• <b>$videoLabel:</b> $cctvHealth\n'
         '$cctvContextLine'
         '• <b>Wearable:</b> $wearableHealth\n'
+        '• <b>Listener Alarm:</b> $listenerHealth\n'
         '• <b>News:</b> $newsHealth\n'
         '\n---\n\n'
         '<b>Next</b>\n'

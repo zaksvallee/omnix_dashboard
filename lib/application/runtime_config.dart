@@ -23,6 +23,14 @@ class OnyxRuntimeConfig {
     return trimmed;
   }
 
+  static String usableListenerAlarmFeedUrl(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty || _isPlaceholderLiveFeedUrl(trimmed)) {
+      return '';
+    }
+    return trimmed;
+  }
+
   static bool hasPlaceholderSecret(String raw) {
     return _isPlaceholderSecret(raw.trim());
   }
@@ -32,6 +40,10 @@ class OnyxRuntimeConfig {
   }
 
   static bool hasPlaceholderLiveFeedUrl(String raw) {
+    return _isPlaceholderLiveFeedUrl(raw.trim());
+  }
+
+  static bool hasPlaceholderListenerAlarmFeedUrl(String raw) {
     return _isPlaceholderLiveFeedUrl(raw.trim());
   }
 

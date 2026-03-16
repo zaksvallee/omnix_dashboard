@@ -29,6 +29,7 @@ import 'application/guard_telemetry_ingestion_adapter.dart';
 import 'application/guard_telemetry_replay_fixture_service.dart';
 import 'application/intake_stress_service.dart';
 import 'application/listener_alarm_advisory_pipeline_service.dart';
+import 'application/listener_alarm_feed_service.dart';
 import 'application/listener_alarm_partner_advisory_service.dart';
 import 'application/listener_alarm_scope_mapping_service.dart';
 import 'application/listener_alarm_scope_registry_repository.dart';
@@ -248,6 +249,18 @@ class _RadioPendingRetryState {
       'last_error': lastError,
     };
   }
+}
+
+class _ListenerAlarmAdvisoryDeliveryResult {
+  final int targetCount;
+  final int deliveredCount;
+  final int failedCount;
+
+  const _ListenerAlarmAdvisoryDeliveryResult({
+    required this.targetCount,
+    required this.deliveredCount,
+    required this.failedCount,
+  });
 }
 
 class _TelegramBridgeTarget {
@@ -798,6 +811,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   final http.Client _radioBridgeHttpClient = http.Client();
   final http.Client _cctvBridgeHttpClient = http.Client();
   final http.Client _wearableBridgeHttpClient = http.Client();
+  final http.Client _listenerAlarmFeedHttpClient = http.Client();
   final http.Client _telegramBridgeHttpClient = http.Client();
   final http.Client _telegramAiHttpClient = http.Client();
   final http.Client _monitoringVisionHttpClient = http.Client();
@@ -850,6 +864,15 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   );
   static const _liveFeedPollHeadersJson = String.fromEnvironment(
     'ONYX_LIVE_FEED_HEADERS_JSON',
+  );
+  static const _listenerAlarmFeedUrl = String.fromEnvironment(
+    'ONYX_LISTENER_ALARM_FEED_URL',
+  );
+  static const _listenerAlarmFeedBearerToken = String.fromEnvironment(
+    'ONYX_LISTENER_ALARM_FEED_BEARER_TOKEN',
+  );
+  static const _listenerAlarmFeedHeadersJson = String.fromEnvironment(
+    'ONYX_LISTENER_ALARM_FEED_HEADERS_JSON',
   );
   static const _guardOutcomeGovernanceJson = String.fromEnvironment(
     'ONYX_GUARD_OUTCOME_GOVERNANCE_JSON',
@@ -1047,6 +1070,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   );
   final ListenerSerialIngestor _listenerAlarmSerialIngestor =
       const ListenerSerialIngestor();
+  late final ListenerAlarmFeedService _listenerAlarmFeedService =
+      ListenerAlarmFeedService(
+        feedUri: _listenerAlarmFeedUri,
+        headers: _listenerAlarmFeedHeaders,
+        client: _listenerAlarmFeedHttpClient,
+        serialIngestor: _listenerAlarmSerialIngestor,
+      );
   DateTime? _telegramAiLastHandledAtUtc;
   String? _telegramAiLastHandledSummary;
   String _clientAppBackendProbeStatusLabel = 'idle';
@@ -1198,6 +1228,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   _OpsIntegrationHealth _radioOpsHealth = const _OpsIntegrationHealth();
   _OpsIntegrationHealth _cctvOpsHealth = const _OpsIntegrationHealth();
   _OpsIntegrationHealth _wearableOpsHealth = const _OpsIntegrationHealth();
+  _OpsIntegrationHealth _listenerAlarmOpsHealth = const _OpsIntegrationHealth();
   _OpsIntegrationHealth _newsOpsHealth = const _OpsIntegrationHealth();
   VideoEvidenceProbeSnapshot _cctvEvidenceHealth =
       const VideoEvidenceProbeSnapshot();
@@ -2215,6 +2246,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final radioRaw = _asObjectMap(snapshot['radio']);
     final cctvRaw = _asObjectMap(snapshot['cctv']);
     final wearableRaw = _asObjectMap(snapshot['wearable']);
+    final listenerAlarmRaw = _asObjectMap(snapshot['listener_alarm']);
     final newsRaw = _asObjectMap(snapshot['news']);
     final cctvEvidenceRaw = cctvRaw == null
         ? null
@@ -2233,6 +2265,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       }
       if (wearableRaw != null) {
         _wearableOpsHealth = _OpsIntegrationHealth.fromJson(wearableRaw);
+      }
+      if (listenerAlarmRaw != null) {
+        _listenerAlarmOpsHealth = _OpsIntegrationHealth.fromJson(
+          listenerAlarmRaw,
+        );
       }
       if (newsRaw != null) {
         _newsOpsHealth = _OpsIntegrationHealth.fromJson(newsRaw);
@@ -2254,6 +2291,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       if (wearableRaw != null) {
         _wearableOpsHealth = _OpsIntegrationHealth.fromJson(wearableRaw);
       }
+      if (listenerAlarmRaw != null) {
+        _listenerAlarmOpsHealth = _OpsIntegrationHealth.fromJson(
+          listenerAlarmRaw,
+        );
+      }
       if (newsRaw != null) {
         _newsOpsHealth = _OpsIntegrationHealth.fromJson(newsRaw);
       }
@@ -2270,6 +2312,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'radio': _radioOpsHealth.toJson(),
       'cctv': cctvJson,
       'wearable': _wearableOpsHealth.toJson(),
+      'listener_alarm': _listenerAlarmOpsHealth.toJson(),
       'news': _newsOpsHealth.toJson(),
     });
   }
@@ -6613,6 +6656,187 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
   }
 
+  Future<_ListenerAlarmAdvisoryDeliveryResult> _deliverListenerAlarmAdvisory(
+    ListenerAlarmAdvisoryPipelineResult pipelineResult,
+  ) async {
+    final resolvedClientId = pipelineResult.resolution.envelope.clientId.trim();
+    final resolvedSiteId = pipelineResult.resolution.envelope.siteId.trim();
+    final targets = await _resolveTelegramPartnerTargets(
+      clientId: resolvedClientId,
+      siteId: resolvedSiteId,
+    );
+    var delivered = 0;
+    var failed = 0;
+    for (final target in targets) {
+      final sent = await _sendTelegramMessageWithChunks(
+        messageKeyPrefix:
+            'tg-listener-alarm-${pipelineResult.resolution.envelope.externalId}',
+        chatId: target.chatId,
+        messageThreadId: target.threadId,
+        responseText: pipelineResult.resolution.advisoryMessage,
+        failureContext: 'listener alarm advisory send',
+      );
+      if (sent) {
+        delivered += 1;
+      } else {
+        failed += 1;
+      }
+    }
+    if (delivered > 0) {
+      await _appendTelegramConversationMessage(
+        clientId: resolvedClientId,
+        siteId: resolvedSiteId,
+        author: 'ONYX Alarm Advisory',
+        body: pipelineResult.resolution.advisoryMessage,
+        occurredAtUtc: pipelineResult.resolution.envelope.occurredAtUtc,
+        roomKey: 'Security Desk',
+        viewerRole: ClientAppViewerRole.control.name,
+        incidentStatusLabel: 'Alarm Advisory Sent',
+        messageSource: 'telegram',
+        messageProvider: 'telegram_partner_alarm',
+      );
+    }
+
+    return _ListenerAlarmAdvisoryDeliveryResult(
+      targetCount: targets.length,
+      deliveredCount: delivered,
+      failedCount: failed,
+    );
+  }
+
+  String _listenerAlarmRejectSummary(Map<String, int> counts) {
+    if (counts.isEmpty) {
+      return '';
+    }
+    final entries = counts.entries.toList(growable: false)
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return entries
+        .take(2)
+        .map((entry) => '${entry.key} ${entry.value}')
+        .join(', ');
+  }
+
+  Future<_OpsIntegrationIngestResult> _ingestListenerAlarmSignals({
+    bool updateStatus = true,
+  }) async {
+    if (!_listenerAlarmFeedConfigured) {
+      if (updateStatus && mounted) {
+        setState(() {
+          _lastIntakeStatus =
+              'Listener alarm ingest unavailable: configure ONYX_LISTENER_ALARM_FEED_URL.';
+        });
+      }
+      return _recordOpsIntegrationHealth(
+        const _OpsIntegrationIngestResult(
+          source: 'listener',
+          success: false,
+          skipped: true,
+          detail: 'unconfigured',
+        ),
+      );
+    }
+    if (updateStatus && mounted) {
+      setState(() {
+        _lastIntakeStatus = 'Fetching listener alarm signals...';
+      });
+    }
+    try {
+      final batch = await _listenerAlarmFeedService.fetchLatest(
+        clientId: 'LISTENER-RAW',
+        regionId: _selectedRegion,
+        siteId: 'LISTENER-RAW',
+      );
+      var mapped = 0;
+      var unmapped = 0;
+      var appended = 0;
+      var duplicates = 0;
+      var normalizationSkipped = 0;
+      var delivered = 0;
+      var failed = 0;
+
+      for (final envelope in batch.envelopes) {
+        final pipelineResult = _listenerAlarmAdvisoryPipeline.process(
+          envelope: envelope,
+          disposition: ListenerAlarmAdvisoryDisposition.pending,
+        );
+        if (pipelineResult == null) {
+          unmapped += 1;
+          continue;
+        }
+        mapped += 1;
+        final normalizedIntel = pipelineResult.normalizedIntel;
+        if (normalizedIntel == null) {
+          normalizationSkipped += 1;
+          continue;
+        }
+
+        final outcome = service.ingestNormalizedIntelligence(
+          records: <NormalizedIntelRecord>[normalizedIntel],
+          autoGenerateDispatches: false,
+        );
+        if (outcome.appendedIntelligence <= 0) {
+          duplicates += 1;
+          continue;
+        }
+        appended += outcome.appendedIntelligence;
+
+        final delivery = await _deliverListenerAlarmAdvisory(pipelineResult);
+        delivered += delivery.deliveredCount;
+        failed += delivery.failedCount;
+      }
+
+      final rejectLabel = _listenerAlarmRejectSummary(batch.rejectReasonCounts);
+      final detail =
+          '$appended/${batch.acceptedCount} appended • '
+          'mapped $mapped • '
+          'unmapped $unmapped • '
+          'dup $duplicates • '
+          'rejected ${batch.rejectedCount}'
+          '${rejectLabel.isEmpty ? '' : ' ($rejectLabel)'} • '
+          'partner $delivered sent'
+          '${failed == 0 ? '' : ' / $failed failed'}'
+          '${normalizationSkipped == 0 ? '' : ' • normalization $normalizationSkipped'}';
+      if (updateStatus && mounted) {
+        setState(() {
+          _lastIntakeStatus = 'Listener alarms $detail.';
+        });
+      }
+      return _recordOpsIntegrationHealth(
+        _OpsIntegrationIngestResult(
+          source: 'listener',
+          success: true,
+          detail: detail,
+        ),
+      );
+    } on FormatException catch (error) {
+      if (updateStatus && mounted) {
+        setState(() {
+          _lastIntakeStatus = 'Listener alarm ingest failed: ${error.message}';
+        });
+      }
+      return _recordOpsIntegrationHealth(
+        _OpsIntegrationIngestResult(
+          source: 'listener',
+          success: false,
+          detail: error.message,
+        ),
+      );
+    } catch (error) {
+      if (updateStatus && mounted) {
+        setState(() {
+          _lastIntakeStatus = 'Listener alarm ingest failed: $error';
+        });
+      }
+      return _recordOpsIntegrationHealth(
+        _OpsIntegrationIngestResult(
+          source: 'listener',
+          success: false,
+          detail: error.toString(),
+        ),
+      );
+    }
+  }
+
   List<RadioAutomatedResponse> _mergePendingRadioAutomatedResponses(
     List<RadioAutomatedResponse> pending,
     List<RadioAutomatedResponse> latest,
@@ -6696,6 +6920,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         break;
       case 'wearable':
         _wearableOpsHealth = _wearableOpsHealth.record(result, nowUtc);
+        break;
+      case 'listener':
+        _listenerAlarmOpsHealth = _listenerAlarmOpsHealth.record(
+          result,
+          nowUtc,
+        );
         break;
       case 'news':
         _newsOpsHealth = _newsOpsHealth.record(result, nowUtc);
@@ -7645,6 +7875,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return _opsIntegrationProfile.radio.configured ||
         _activeVideoProfile.configured ||
         wearableConfigured ||
+        _listenerAlarmFeedConfigured ||
         _newsIntel.configuredProviders.isNotEmpty;
   }
 
@@ -7682,6 +7913,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       if (_wearableProviderEnv.trim().isNotEmpty &&
           _wearableBridgeUri != null) {
         results.add(await _ingestWearableSignals(updateStatus: false));
+      }
+      if (_listenerAlarmFeedConfigured) {
+        results.add(await _ingestListenerAlarmSignals(updateStatus: false));
       }
       if (_newsIntel.configuredProviders.isNotEmpty) {
         results.add(await _ingestNewsSignals(updateStatus: false));
@@ -12340,6 +12574,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       wearableHealth: _telegramHtmlEscape(
         _opsHealthSummary(_wearableOpsHealth),
       ),
+      listenerHealth: _telegramHtmlEscape(
+        _opsHealthSummary(_listenerAlarmOpsHealth),
+      ),
       newsHealth: _telegramHtmlEscape(_opsHealthSummary(_newsOpsHealth)),
       utcStamp: _telegramUtcStamp(),
     );
@@ -13749,43 +13986,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
     }
 
+    final delivery = await _deliverListenerAlarmAdvisory(pipelineResult);
     final resolvedClientId = pipelineResult.resolution.envelope.clientId.trim();
     final resolvedSiteId = pipelineResult.resolution.envelope.siteId.trim();
-    final targets = await _resolveTelegramPartnerTargets(
-      clientId: resolvedClientId,
-      siteId: resolvedSiteId,
-    );
-    var delivered = 0;
-    var failed = 0;
-    for (final target in targets) {
-      final sent = await _sendTelegramMessageWithChunks(
-        messageKeyPrefix:
-            'tg-listener-alarm-${pipelineResult.resolution.envelope.externalId}',
-        chatId: target.chatId,
-        messageThreadId: target.threadId,
-        responseText: pipelineResult.resolution.advisoryMessage,
-        failureContext: 'listener alarm advisory send',
-      );
-      if (sent) {
-        delivered += 1;
-      } else {
-        failed += 1;
-      }
-    }
-    if (delivered > 0) {
-      await _appendTelegramConversationMessage(
-        clientId: resolvedClientId,
-        siteId: resolvedSiteId,
-        author: 'ONYX Alarm Advisory',
-        body: pipelineResult.resolution.advisoryMessage,
-        occurredAtUtc: pipelineResult.resolution.envelope.occurredAtUtc,
-        roomKey: 'Security Desk',
-        viewerRole: ClientAppViewerRole.control.name,
-        incidentStatusLabel: 'Alarm Advisory Sent',
-        messageSource: 'telegram',
-        messageProvider: 'telegram_partner_alarm',
-      );
-    }
 
     return 'ONYX ALARMTEST\n'
         'parse=ok\n'
@@ -13795,8 +13998,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'event=${pipelineResult.resolution.eventLabel}\n'
         'intel=${normalizedIntel == null ? 'skipped' : 'recorded'}'
         '${outcome == null ? '' : ' (${outcome.appendedIntelligence}/${outcome.attemptedIntelligence})'}\n'
-        'partner_targets=${targets.length}\n'
-        'partner_delivery=$delivered sent / $failed failed\n'
+        'partner_targets=${delivery.targetCount}\n'
+        'partner_delivery=${delivery.deliveredCount} sent / ${delivery.failedCount} failed\n'
         'advisory=${pipelineResult.resolution.advisoryMessage}';
   }
 
@@ -17633,6 +17836,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           videoIntegrityCertificateMarkdownPreview:
               _videoIntegrityCertificateMarkdownPreview(events),
           wearableOpsPollHealth: _opsHealthSummary(_wearableOpsHealth),
+          listenerAlarmOpsPollHealth: _opsHealthSummary(
+            _listenerAlarmOpsHealth,
+          ),
           newsOpsPollHealth: _opsHealthSummary(_newsOpsHealth),
           telegramBridgeHealthLabel: _telegramBridgeHealthLabel,
           telegramBridgeHealthDetail: _telegramBridgeHealthDetail,
@@ -17888,6 +18094,52 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       OnyxRuntimeConfig.usableLiveFeedUrl(_liveFeedPollUrl);
 
   bool get _livePollingAvailable => _liveFeedPollEndpoint.isNotEmpty;
+
+  Uri? get _listenerAlarmFeedUri {
+    final endpoint = OnyxRuntimeConfig.usableListenerAlarmFeedUrl(
+      _listenerAlarmFeedUrl,
+    );
+    if (endpoint.isEmpty) {
+      return null;
+    }
+    return Uri.tryParse(endpoint);
+  }
+
+  bool get _listenerAlarmFeedConfigured => _listenerAlarmFeedUri != null;
+
+  Map<String, String> get _listenerAlarmFeedHeaders {
+    final headers = <String, String>{};
+    final bearerToken = OnyxRuntimeConfig.usableSecret(
+      _listenerAlarmFeedBearerToken,
+    );
+    if (bearerToken.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $bearerToken';
+    }
+
+    final rawHeaders = _listenerAlarmFeedHeadersJson.trim();
+    if (rawHeaders.isEmpty) {
+      return headers;
+    }
+
+    try {
+      final decoded = jsonDecode(rawHeaders);
+      if (decoded is Map) {
+        for (final entry in decoded.entries) {
+          final key = entry.key.toString().trim();
+          final value = entry.value?.toString().trim() ?? '';
+          if (key.isEmpty || value.isEmpty) {
+            continue;
+          }
+          headers[key] = value;
+        }
+      }
+    } catch (_) {
+      // Invalid header config should not crash startup; requests proceed
+      // without the malformed supplemental headers.
+    }
+
+    return headers;
+  }
 
   Map<String, String> get _liveFeedPollHeaders {
     final headers = <String, String>{};
