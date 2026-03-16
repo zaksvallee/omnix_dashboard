@@ -3303,6 +3303,11 @@ void main() {
         '"latestInvestigationSummary": "CLIENT-1/SITE-42 2026-03 remained routine report review."',
       ),
     );
+    expect(copiedPayload, contains('"investigationTrend"'));
+    expect(copiedPayload, contains('"trendLabel": "NEW"'));
+    expect(copiedPayload, contains('"currentModeLabel": "OVERSIGHT HANDOFF"'));
+    expect(copiedPayload, contains('"investigationHistory"'));
+    expect(copiedPayload, contains('"current": true'));
     expect(copiedPayload, contains('"vehicleThroughput"'));
     expect(copiedPayload, contains('"totalVisits": 18'));
     expect(
@@ -3352,6 +3357,17 @@ void main() {
       copiedPayload,
       contains(
         'receipt_latest_branding_summary,"CLIENT-1/SITE-42 2026-03 used custom branding override from Partner Alpha."',
+      ),
+    );
+    expect(copiedPayload, contains('receipt_investigation_trend_label,NEW'));
+    expect(
+      copiedPayload,
+      contains('receipt_investigation_trend_current_mode,"OVERSIGHT HANDOFF"'),
+    );
+    expect(
+      copiedPayload,
+      contains(
+        'receipt_investigation_history_1,"2026-03-10 • CURRENT • Reports 2 • Shift receipts 0 • Governance 1 • Routine 1',
       ),
     );
     expect(copiedPayload, contains('vehicle_total_visits,18'));

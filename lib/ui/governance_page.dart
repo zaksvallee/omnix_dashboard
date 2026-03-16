@@ -5886,6 +5886,42 @@ class _GovernancePageState extends State<GovernancePage> {
     };
   }
 
+  Map<String, Object?> _receiptInvestigationTrendJson(
+    _ReceiptInvestigationTrend trend,
+  ) {
+    return {
+      'trendLabel': trend.trendLabel,
+      'trendReason': trend.trendReason,
+      'summaryLine': trend.summaryLine,
+      'reportDays': trend.reportDays,
+      'currentModeLabel': trend.currentModeLabel,
+    };
+  }
+
+  Map<String, Object?> _receiptInvestigationHistoryJson(
+    _ReceiptInvestigationHistoryPoint point,
+  ) {
+    return {
+      'reportDate': point.reportDate,
+      'current': point.current,
+      'generatedReports': point.generatedReports,
+      'matchedReceiptCount': point.matchedReceiptCount,
+      'governanceHandoffReports': point.governanceHandoffReports,
+      'routineReviewReports': point.routineReviewReports,
+      'investigationExecutiveSummary': point.investigationExecutiveSummary,
+      'latestInvestigationSummary': point.latestInvestigationSummary,
+      'latestReceiptEventId': point.latestReceiptEventId,
+      'latestReceiptClientId': point.latestReceiptClientId,
+      'latestReceiptSiteId': point.latestReceiptSiteId,
+    };
+  }
+
+  String _receiptInvestigationHistoryCsvSummary(
+    _ReceiptInvestigationHistoryPoint point,
+  ) {
+    return '${point.reportDate} • ${point.current ? 'CURRENT' : 'HISTORY'} • Reports ${point.generatedReports} • Shift receipts ${point.matchedReceiptCount} • Governance ${point.governanceHandoffReports} • Routine ${point.routineReviewReports} • ${point.investigationExecutiveSummary.isEmpty ? point.latestInvestigationSummary : point.investigationExecutiveSummary}';
+  }
+
   Widget _card({
     required String title,
     required String subtitle,
@@ -6850,6 +6886,10 @@ class _GovernancePageState extends State<GovernancePage> {
     if (focusedSceneAction != null) {
       sceneReview['focusedLens'] = focusedSceneAction;
     }
+    final receiptInvestigationTrend = _receiptInvestigationTrendForReport(
+      report,
+    );
+    final receiptInvestigationHistory = _receiptInvestigationHistory(report);
     final payload = <String, Object?>{
       'date': report.reportDate,
       'generatedAtUtc': report.generatedAtUtc?.toIso8601String(),
@@ -6895,6 +6935,12 @@ class _GovernancePageState extends State<GovernancePage> {
         'latestReportSummary': report.latestReceiptPolicySummary,
         'latestBrandingSummary': report.latestReceiptBrandingSummary,
         'latestInvestigationSummary': report.latestReceiptInvestigationSummary,
+        'investigationTrend': _receiptInvestigationTrendJson(
+          receiptInvestigationTrend,
+        ),
+        'investigationHistory': receiptInvestigationHistory
+            .map(_receiptInvestigationHistoryJson)
+            .toList(growable: false),
       },
       'vehicleThroughput': {
         'totalVisits': report.vehicleVisits,
@@ -6952,6 +6998,10 @@ class _GovernancePageState extends State<GovernancePage> {
 
   String _morningReportCsv(_GovernanceReportView report) {
     final focusedSceneAction = _focusedSceneActionExport(report);
+    final receiptInvestigationHistory = _receiptInvestigationHistory(report);
+    final receiptInvestigationTrend = _receiptInvestigationTrendForReport(
+      report,
+    );
     final reasons = report.overrideReasons.entries.toList(growable: false)
       ..sort((a, b) => b.value.compareTo(a.value));
     final lines = <String>[
@@ -7001,6 +7051,13 @@ class _GovernancePageState extends State<GovernancePage> {
       'receipt_latest_report_summary,"${report.latestReceiptPolicySummary.replaceAll('"', '""')}"',
       'receipt_latest_branding_summary,"${report.latestReceiptBrandingSummary.replaceAll('"', '""')}"',
       'receipt_latest_investigation_summary,"${report.latestReceiptInvestigationSummary.replaceAll('"', '""')}"',
+      'receipt_investigation_trend_label,${receiptInvestigationTrend.trendLabel}',
+      'receipt_investigation_trend_current_mode,"${receiptInvestigationTrend.currentModeLabel.replaceAll('"', '""')}"',
+      'receipt_investigation_trend_reason,"${receiptInvestigationTrend.trendReason.replaceAll('"', '""')}"',
+      'receipt_investigation_trend_summary,"${receiptInvestigationTrend.summaryLine.replaceAll('"', '""')}"',
+      'receipt_investigation_trend_report_days,${receiptInvestigationTrend.reportDays}',
+      for (var i = 0; i < receiptInvestigationHistory.length; i++)
+        'receipt_investigation_history_${i + 1},"${_receiptInvestigationHistoryCsvSummary(receiptInvestigationHistory[i]).replaceAll('"', '""')}"',
       'vehicle_total_visits,${report.vehicleVisits}',
       'vehicle_completed_visits,${report.vehicleCompletedVisits}',
       'vehicle_active_visits,${report.vehicleActiveVisits}',
