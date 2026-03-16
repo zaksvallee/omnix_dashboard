@@ -11,6 +11,8 @@ import '../application/text_share_service.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_denied.dart';
+import '../domain/events/listener_alarm_advisory_recorded.dart';
+import '../domain/events/listener_alarm_feed_cycle_recorded.dart';
 import '../domain/events/partner_dispatch_status_declared.dart';
 import '../domain/events/report_generated.dart';
 import '../domain/events/vehicle_visit_review_recorded.dart';
@@ -2313,6 +2315,16 @@ class _GovernancePageState extends State<GovernancePage> {
     _GovernanceReportView report,
     double interventionRate,
   ) {
+    final listenerCycles = _listenerAlarmFeedCyclesForReport(report);
+    final listenerAdvisories = _listenerAlarmAdvisoriesForReport(report);
+    final latestListenerCycle = listenerCycles.isEmpty
+        ? null
+        : listenerCycles.first;
+    final listenerMissedCount = latestListenerCycle == null
+        ? 0
+        : latestListenerCycle.unmappedCount +
+              latestListenerCycle.rejectedCount +
+              latestListenerCycle.failedCount;
     final sceneReviewMetric = _reportMetric(
       key: const ValueKey('governance-metric-scene-review'),
       label: 'Scene Review',
@@ -2359,6 +2371,24 @@ class _GovernancePageState extends State<GovernancePage> {
         color: report.totalBlocked > 0
             ? const Color(0xFFEF4444)
             : const Color(0xFF10B981),
+      ),
+      _reportMetric(
+        key: const ValueKey('governance-metric-listener-alarm'),
+        label: 'Listener Alarm',
+        value: '${listenerAdvisories.length} advisories',
+        detail: _listenerAlarmMetricDetail(
+          listenerAdvisories: listenerAdvisories,
+          latestCycle: latestListenerCycle,
+        ),
+        color: listenerMissedCount > 0
+            ? const Color(0xFFF59E0B)
+            : listenerAdvisories.any(
+                (event) => event.dispositionLabel == 'suspicious',
+              )
+            ? const Color(0xFF22D3EE)
+            : listenerAdvisories.isEmpty
+            ? const Color(0xFF10B981)
+            : const Color(0xFF34D399),
       ),
       _reportMetric(
         key: const ValueKey('governance-metric-receipt-policy'),
@@ -2413,6 +2443,59 @@ class _GovernancePageState extends State<GovernancePage> {
       return [sceneReviewMetric, ...remainingMetrics];
     }
     return [...remainingMetrics, sceneReviewMetric];
+  }
+
+  List<ListenerAlarmFeedCycleRecorded> _listenerAlarmFeedCyclesForReport(
+    _GovernanceReportView report,
+  ) {
+    final startUtc = report.shiftWindowStartUtc?.toUtc();
+    final endUtc = report.shiftWindowEndUtc?.toUtc();
+    if (startUtc == null || endUtc == null) {
+      return const <ListenerAlarmFeedCycleRecorded>[];
+    }
+    final cycles = widget.events
+        .whereType<ListenerAlarmFeedCycleRecorded>()
+        .where(
+          (event) =>
+              !event.occurredAt.toUtc().isBefore(startUtc) &&
+              !event.occurredAt.toUtc().isAfter(endUtc),
+        )
+        .toList(growable: false);
+    return [...cycles]..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+  }
+
+  List<ListenerAlarmAdvisoryRecorded> _listenerAlarmAdvisoriesForReport(
+    _GovernanceReportView report,
+  ) {
+    final startUtc = report.shiftWindowStartUtc?.toUtc();
+    final endUtc = report.shiftWindowEndUtc?.toUtc();
+    if (startUtc == null || endUtc == null) {
+      return const <ListenerAlarmAdvisoryRecorded>[];
+    }
+    final advisories = widget.events
+        .whereType<ListenerAlarmAdvisoryRecorded>()
+        .where(
+          (event) =>
+              !event.occurredAt.toUtc().isBefore(startUtc) &&
+              !event.occurredAt.toUtc().isAfter(endUtc),
+        )
+        .toList(growable: false);
+    advisories.sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    return advisories;
+  }
+
+  String _listenerAlarmMetricDetail({
+    required List<ListenerAlarmAdvisoryRecorded> listenerAdvisories,
+    required ListenerAlarmFeedCycleRecorded? latestCycle,
+  }) {
+    if (latestCycle == null) {
+      return listenerAdvisories.isEmpty
+          ? 'No listener alarm cycles recorded in this shift'
+          : '${listenerAdvisories.length} advisories recorded without a matching feed-cycle summary';
+    }
+    return 'Latest cycle mapped ${latestCycle.mappedCount}/${latestCycle.acceptedCount} • '
+        'missed ${latestCycle.unmappedCount + latestCycle.rejectedCount + latestCycle.failedCount} • '
+        'clear ${latestCycle.clearCount} • suspicious ${latestCycle.suspiciousCount}';
   }
 
   String? _focusedSceneActionLabel(_GovernanceReportView report) {

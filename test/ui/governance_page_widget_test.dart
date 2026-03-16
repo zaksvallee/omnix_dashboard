@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/application/morning_sovereign_report_service.dart';
+import 'package:omnix_dashboard/domain/events/listener_alarm_advisory_recorded.dart';
+import 'package:omnix_dashboard/domain/events/listener_alarm_feed_cycle_recorded.dart';
 import 'package:omnix_dashboard/domain/events/partner_dispatch_status_declared.dart';
 import 'package:omnix_dashboard/domain/events/report_generated.dart';
 import 'package:omnix_dashboard/domain/events/vehicle_visit_review_recorded.dart';
@@ -943,6 +945,98 @@ void main() {
     expect(
       find.byKey(const ValueKey('governance-receipt-policy-dialog')),
       findsNothing,
+    );
+  });
+
+  testWidgets('governance page shows listener alarm metric from audit events', (
+    tester,
+  ) async {
+    final report = SovereignReport(
+      date: '2026-03-16',
+      generatedAtUtc: DateTime.utc(2026, 3, 16, 6, 0),
+      shiftWindowStartUtc: DateTime.utc(2026, 3, 16, 0, 0),
+      shiftWindowEndUtc: DateTime.utc(2026, 3, 16, 6, 0),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 12,
+        hashVerified: true,
+        integrityScore: 99,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 2,
+        humanOverrides: 0,
+        overrideReasons: <String, int>{},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 1,
+        driftDetected: 0,
+        avgMatchScore: 100,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 0,
+        pdpExpired: 0,
+        totalBlocked: 0,
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GovernancePage(
+          events: [
+            ListenerAlarmFeedCycleRecorded(
+              eventId: 'alarm-cycle-1',
+              sequence: 1,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 16, 2, 0),
+              sourceLabel: 'listener-http',
+              acceptedCount: 5,
+              mappedCount: 4,
+              unmappedCount: 1,
+              duplicateCount: 0,
+              rejectedCount: 0,
+              normalizationSkippedCount: 0,
+              deliveredCount: 4,
+              failedCount: 0,
+              clearCount: 3,
+              suspiciousCount: 1,
+              unavailableCount: 0,
+              pendingCount: 0,
+              rejectSummary: '',
+            ),
+            ListenerAlarmAdvisoryRecorded(
+              eventId: 'alarm-advisory-1',
+              sequence: 2,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 16, 2, 1),
+              clientId: 'CLIENT-1',
+              regionId: 'REGION-1',
+              siteId: 'SITE-1',
+              externalAlarmId: 'EXT-1',
+              accountNumber: '1234',
+              partition: '1',
+              zone: '004',
+              zoneLabel: 'Front gate',
+              eventLabel: 'Burglary',
+              dispositionLabel: 'suspicious',
+              summary: 'Person detected near the front gate camera.',
+              recommendation: 'Escalation recommended.',
+              deliveredCount: 1,
+              failedCount: 0,
+            ),
+          ],
+          morningSovereignReport: report,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('governance-metric-listener-alarm')),
+      findsOneWidget,
+    );
+    expect(find.text('1 advisories'), findsOneWidget);
+    expect(
+      find.textContaining('Latest cycle mapped 4/5 • missed 1'),
+      findsOneWidget,
     );
   });
 

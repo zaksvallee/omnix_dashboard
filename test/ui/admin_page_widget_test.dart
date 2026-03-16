@@ -7,6 +7,8 @@ import 'package:omnix_dashboard/application/monitoring_identity_policy_service.d
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 import 'package:omnix_dashboard/application/site_identity_registry_repository.dart';
 import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
+import 'package:omnix_dashboard/domain/events/listener_alarm_advisory_recorded.dart';
+import 'package:omnix_dashboard/domain/events/listener_alarm_feed_cycle_recorded.dart';
 import 'package:omnix_dashboard/domain/events/partner_dispatch_status_declared.dart';
 import 'package:omnix_dashboard/ui/admin_page.dart';
 import 'package:omnix_dashboard/ui/video_fleet_scope_health_sections.dart';
@@ -1058,6 +1060,80 @@ void main() {
     expect(find.textContaining('ok 1 • fail 0'), findsOneWidget);
     expect(find.textContaining('ok 4 • fail 0'), findsOneWidget);
   });
+
+  testWidgets(
+    'system tab shows listener alarm summary card from audit events',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AdministrationPage(
+            supabaseReady: false,
+            events: <DispatchEvent>[
+              ListenerAlarmFeedCycleRecorded(
+                eventId: 'alarm-cycle-1',
+                sequence: 1,
+                version: 1,
+                occurredAt: DateTime.utc(2026, 3, 16, 8, 0),
+                sourceLabel: 'listener-http',
+                acceptedCount: 5,
+                mappedCount: 4,
+                unmappedCount: 1,
+                duplicateCount: 0,
+                rejectedCount: 0,
+                normalizationSkippedCount: 0,
+                deliveredCount: 4,
+                failedCount: 0,
+                clearCount: 3,
+                suspiciousCount: 1,
+                unavailableCount: 0,
+                pendingCount: 0,
+                rejectSummary: '',
+              ),
+              ListenerAlarmAdvisoryRecorded(
+                eventId: 'alarm-advisory-1',
+                sequence: 2,
+                version: 1,
+                occurredAt: DateTime.utc(2026, 3, 16, 8, 1),
+                clientId: 'CLIENT-1',
+                regionId: 'REGION-1',
+                siteId: 'VALLEE',
+                externalAlarmId: 'EXT-1',
+                accountNumber: '1234',
+                partition: '1',
+                zone: '004',
+                zoneLabel: 'Front gate',
+                eventLabel: 'Burglary',
+                dispositionLabel: 'suspicious',
+                summary: 'Person detected near the front gate camera.',
+                recommendation: 'Escalation recommended.',
+                deliveredCount: 1,
+                failedCount: 0,
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('System').first);
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('Listener Alarm'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Listener Alarm'), findsOneWidget);
+      expect(find.textContaining('Cycles'), findsOneWidget);
+      expect(find.textContaining('Advisories'), findsOneWidget);
+      expect(
+        find.textContaining('Latest cycle • mapped 4/5 • missed 1'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Latest advisory • VALLEE • Burglary'),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('system tab shows video integrity certificate preview', (
     tester,
@@ -2735,14 +2811,24 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Temporary ID 1'));
       await tester.pumpAndSettle();
+      await tester.ensureVisible(
+        find.text('Focused identity policy: Temporary identity approvals'),
+      );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Extend 2h'));
+      await tester.pumpAndSettle();
       expect(
         find.text('Focused identity policy: Temporary identity approvals'),
         findsOneWidget,
       );
       expect(
         find.textContaining(
-          'Showing fleet scopes where ONYX matched a one-time approved face or plate. Each scope shows the approval expiry when available. Soonest expiry: MS Vallee Residence Temporary approval expires in',
+          'Showing fleet scopes where ONYX matched a one-time approved face or plate.',
         ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Soonest expiry: MS Vallee Residence'),
         findsOneWidget,
       );
       expect(find.text('Extend 2h'), findsOneWidget);

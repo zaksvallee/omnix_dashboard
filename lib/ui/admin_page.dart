@@ -15,6 +15,8 @@ import '../application/monitoring_watch_recovery_store.dart';
 import '../application/ops_integration_profile.dart';
 import '../application/site_identity_registry_repository.dart';
 import '../domain/events/dispatch_event.dart';
+import '../domain/events/listener_alarm_advisory_recorded.dart';
+import '../domain/events/listener_alarm_feed_cycle_recorded.dart';
 import '../domain/events/partner_dispatch_status_declared.dart';
 import 'onyx_surface.dart';
 import 'video_fleet_scope_health_card.dart';
@@ -4672,6 +4674,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
         const SizedBox(height: 10),
         _partnerScorecardSummaryCard(),
         const SizedBox(height: 10),
+        _listenerAlarmSummaryCard(),
+        const SizedBox(height: 10),
         _systemInfoCard(),
       ],
     );
@@ -4803,6 +4807,131 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   ),
               ],
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _listenerAlarmSummaryCard() {
+    final cycles = [
+      ...widget.events.whereType<ListenerAlarmFeedCycleRecorded>(),
+    ]..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    final advisories = [
+      ...widget.events.whereType<ListenerAlarmAdvisoryRecorded>(),
+    ]..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    final latestCycle = cycles.isEmpty ? null : cycles.first;
+    final clearCount = advisories
+        .where((event) => event.dispositionLabel == 'clear')
+        .length;
+    final suspiciousCount = advisories
+        .where((event) => event.dispositionLabel == 'suspicious')
+        .length;
+    final unavailableCount = advisories
+        .where((event) => event.dispositionLabel == 'unavailable')
+        .length;
+    final latestAdvisory = advisories.isEmpty ? null : advisories.first;
+    final latestCycleSummary = latestCycle == null
+        ? 'No listener alarm feed cycles have been recorded yet.'
+        : 'Latest cycle • mapped ${latestCycle.mappedCount}/${latestCycle.acceptedCount} • '
+              'missed ${latestCycle.unmappedCount + latestCycle.rejectedCount + latestCycle.failedCount} • '
+              'clear ${latestCycle.clearCount} • suspicious ${latestCycle.suspiciousCount}';
+    final latestAdvisorySummary = latestAdvisory == null
+        ? 'No listener alarm advisories have been delivered yet.'
+        : 'Latest advisory • ${latestAdvisory.siteId} • ${latestAdvisory.eventLabel} • '
+              '${latestAdvisory.summary}';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: _panelDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _subTitle('Listener Alarm'),
+          const SizedBox(height: 8),
+          Text(
+            'Parallel alarm intake health, verdict mix, and the latest partner advisory outcome.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB1CF),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _partnerScorecardChip(
+                label: 'Cycles',
+                value: '${cycles.length}',
+                color: const Color(0xFF8FD1FF),
+              ),
+              _partnerScorecardChip(
+                label: 'Advisories',
+                value: '${advisories.length}',
+                color: const Color(0xFF22D3EE),
+              ),
+              _partnerScorecardChip(
+                label: 'Clear',
+                value: '$clearCount',
+                color: const Color(0xFF34D399),
+              ),
+              _partnerScorecardChip(
+                label: 'Suspicious',
+                value: '$suspiciousCount',
+                color: const Color(0xFFF59E0B),
+              ),
+              _partnerScorecardChip(
+                label: 'Unavailable',
+                value: '$unavailableCount',
+                color: const Color(0xFFEF4444),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _listenerAlarmSummaryRow(label: 'Feed', value: latestCycleSummary),
+          const SizedBox(height: 8),
+          _listenerAlarmSummaryRow(
+            label: 'Partner',
+            value: latestAdvisorySummary,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _listenerAlarmSummaryRow({
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C1117),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: const Color(0x332B425F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9CB2D1),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );

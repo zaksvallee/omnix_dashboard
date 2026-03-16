@@ -79,6 +79,8 @@ import 'domain/events/execution_denied.dart';
 import 'domain/events/guard_checked_in.dart';
 import 'domain/events/incident_closed.dart';
 import 'domain/events/intelligence_received.dart';
+import 'domain/events/listener_alarm_advisory_recorded.dart';
+import 'domain/events/listener_alarm_feed_cycle_recorded.dart';
 import 'domain/events/partner_dispatch_status_declared.dart';
 import 'domain/events/patrol_completed.dart';
 import 'domain/events/response_arrived.dart';
@@ -6716,6 +6718,80 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     );
   }
 
+  void _appendListenerAlarmAdvisoryRecorded({
+    required ListenerAlarmAdvisoryPipelineResult pipelineResult,
+    required _ListenerAlarmAdvisoryDeliveryResult delivery,
+    required _ListenerAlarmCctvReviewResult cctvReview,
+  }) {
+    final envelope = pipelineResult.resolution.envelope;
+    final zoneLabel = pipelineResult.resolution.scope.resolvedZoneLabel;
+    final occurredAt = envelope.occurredAtUtc;
+    final suffix = envelope.externalId.trim().isEmpty
+        ? occurredAt.microsecondsSinceEpoch.toString()
+        : envelope.externalId.trim();
+    store.append(
+      ListenerAlarmAdvisoryRecorded(
+        eventId: 'listener-alarm-advisory-$suffix',
+        sequence: 0,
+        version: 1,
+        occurredAt: occurredAt,
+        clientId: envelope.clientId.trim(),
+        regionId: envelope.regionId.trim(),
+        siteId: envelope.siteId.trim(),
+        externalAlarmId: envelope.externalId.trim(),
+        accountNumber: envelope.accountNumber.trim(),
+        partition: envelope.partition.trim(),
+        zone: envelope.zone.trim(),
+        zoneLabel: zoneLabel,
+        eventLabel: pipelineResult.resolution.eventLabel.trim(),
+        dispositionLabel: cctvReview.disposition.name,
+        summary: cctvReview.summary.trim(),
+        recommendation: cctvReview.recommendation.trim(),
+        deliveredCount: delivery.deliveredCount,
+        failedCount: delivery.failedCount,
+      ),
+    );
+  }
+
+  void _appendListenerAlarmFeedCycleRecorded({
+    required DateTime occurredAtUtc,
+    required ListenerAlarmFeedBatch batch,
+    required int mapped,
+    required int unmapped,
+    required int duplicates,
+    required int normalizationSkipped,
+    required int delivered,
+    required int failed,
+    required int clearCount,
+    required int suspiciousCount,
+    required int unavailableCount,
+    required int pendingCount,
+    required String rejectSummary,
+  }) {
+    store.append(
+      ListenerAlarmFeedCycleRecorded(
+        eventId: 'listener-alarm-cycle-${occurredAtUtc.microsecondsSinceEpoch}',
+        sequence: 0,
+        version: 1,
+        occurredAt: occurredAtUtc,
+        sourceLabel: batch.sourceLabel,
+        acceptedCount: batch.acceptedCount,
+        mappedCount: mapped,
+        unmappedCount: unmapped,
+        duplicateCount: duplicates,
+        rejectedCount: batch.rejectedCount,
+        normalizationSkippedCount: normalizationSkipped,
+        deliveredCount: delivered,
+        failedCount: failed,
+        clearCount: clearCount,
+        suspiciousCount: suspiciousCount,
+        unavailableCount: unavailableCount,
+        pendingCount: pendingCount,
+        rejectSummary: rejectSummary,
+      ),
+    );
+  }
+
   String _listenerAlarmRejectSummary(Map<String, int> counts) {
     if (counts.isEmpty) {
       return '';
@@ -6850,11 +6926,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     const window = Duration(minutes: 15);
     final earliest = occurredAtUtc.subtract(window);
     final latest = occurredAtUtc.add(window);
-    final recent = scopedEvents.where((event) {
-      return !event.occurredAt.isBefore(earliest) &&
-          !event.occurredAt.isAfter(latest);
-    }).toList(growable: false)
-      ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    final recent =
+        scopedEvents
+            .where((event) {
+              return !event.occurredAt.isBefore(earliest) &&
+                  !event.occurredAt.isAfter(latest);
+            })
+            .toList(growable: false)
+          ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
     return recent;
   }
 
@@ -6940,6 +7019,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       var normalizationSkipped = 0;
       var delivered = 0;
       var failed = 0;
+      var clearCount = 0;
+      var suspiciousCount = 0;
+      var unavailableCount = 0;
+      var pendingCount = 0;
 
       for (final envelope in batch.envelopes) {
         final initialPipelineResult = _listenerAlarmAdvisoryPipeline.process(
@@ -6950,7 +7033,19 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           unmapped += 1;
           continue;
         }
-        final cctvReview = await _reviewListenerAlarmCctv(initialPipelineResult);
+        final cctvReview = await _reviewListenerAlarmCctv(
+          initialPipelineResult,
+        );
+        switch (cctvReview.disposition) {
+          case ListenerAlarmAdvisoryDisposition.clear:
+            clearCount += 1;
+          case ListenerAlarmAdvisoryDisposition.suspicious:
+            suspiciousCount += 1;
+          case ListenerAlarmAdvisoryDisposition.unavailable:
+            unavailableCount += 1;
+          case ListenerAlarmAdvisoryDisposition.pending:
+            pendingCount += 1;
+        }
         final pipelineResult = _listenerAlarmAdvisoryPipeline.process(
           envelope: envelope,
           disposition: cctvReview.disposition,
@@ -6980,9 +7075,29 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         final delivery = await _deliverListenerAlarmAdvisory(pipelineResult);
         delivered += delivery.deliveredCount;
         failed += delivery.failedCount;
+        _appendListenerAlarmAdvisoryRecorded(
+          pipelineResult: pipelineResult,
+          delivery: delivery,
+          cctvReview: cctvReview,
+        );
       }
 
       final rejectLabel = _listenerAlarmRejectSummary(batch.rejectReasonCounts);
+      _appendListenerAlarmFeedCycleRecorded(
+        occurredAtUtc: DateTime.now().toUtc(),
+        batch: batch,
+        mapped: mapped,
+        unmapped: unmapped,
+        duplicates: duplicates,
+        normalizationSkipped: normalizationSkipped,
+        delivered: delivered,
+        failed: failed,
+        clearCount: clearCount,
+        suspiciousCount: suspiciousCount,
+        unavailableCount: unavailableCount,
+        pendingCount: pendingCount,
+        rejectSummary: rejectLabel,
+      );
       final detail =
           '$appended/${batch.acceptedCount} appended • '
           'mapped $mapped • '
@@ -6990,6 +7105,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           'dup $duplicates • '
           'rejected ${batch.rejectedCount}'
           '${rejectLabel.isEmpty ? '' : ' ($rejectLabel)'} • '
+          'clear $clearCount • suspicious $suspiciousCount • unavailable $unavailableCount'
+          '${pendingCount == 0 ? '' : ' • pending $pendingCount'} • '
           'partner $delivered sent'
           '${failed == 0 ? '' : ' / $failed failed'}'
           '${normalizationSkipped == 0 ? '' : ' • normalization $normalizationSkipped'}';
