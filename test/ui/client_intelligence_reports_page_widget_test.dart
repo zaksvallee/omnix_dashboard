@@ -394,6 +394,14 @@ void main() {
     expect(find.text('Baseline Governance: 0.0'), findsWidgets);
     expect(find.text('Baseline Routine: 1.0'), findsWidgets);
     expect(
+      find.text('Receipt OVERSIGHT HANDOFF • Governance 1 • Routine 0'),
+      findsWidgets,
+    );
+    expect(
+      find.text('Receipt ROUTINE REVIEW • Governance 0 • Routine 1'),
+      findsWidgets,
+    );
+    expect(
       find.byKey(const ValueKey('reports-partner-scope-chain-DSP-9001')),
       findsOneWidget,
     );
@@ -423,6 +431,9 @@ void main() {
     expect(clipboardText, contains('"baselineGovernanceAverage": 0.0'));
     expect(clipboardText, contains('"baselineRoutineAverage": 1.0'));
     expect(clipboardText, contains('"baselineReceiptCount": 2'));
+    expect(clipboardText, contains('"historyRows": ['));
+    expect(clipboardText, contains('"modeLabel": "OVERSIGHT HANDOFF"'));
+    expect(clipboardText, contains('"modeLabel": "ROUTINE REVIEW"'));
     expect(clipboardText, contains('"dispatchId": "DSP-9001"'));
     expect(clipboardText, isNot(contains('CLIENT-002')));
 
@@ -460,6 +471,16 @@ void main() {
     expect(
       clipboardText,
       contains('receipt_investigation_baseline_receipt_count,2'),
+    );
+    expect(
+      clipboardText,
+      contains(
+        'history_row_1,"2026-03-15 • CURRENT • CLIENT-001/SITE-SANDTON • PARTNER • Alpha',
+      ),
+    );
+    expect(
+      clipboardText,
+      contains('Receipt OVERSIGHT HANDOFF • Governance 1 • Routine 0'),
     );
     expect(clipboardText, contains('dispatch_chain_1,"DSP-9001'));
 

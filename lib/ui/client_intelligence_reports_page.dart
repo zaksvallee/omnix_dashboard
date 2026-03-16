@@ -1841,6 +1841,17 @@ class _ClientIntelligenceReportsPageState
               fontWeight: FontWeight.w600,
             ),
           ),
+          if (point.receiptInvestigationSummary != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              point.receiptInvestigationSummary!.summaryLine,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8FD1FF),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -2295,6 +2306,11 @@ class _ClientIntelligenceReportsPageState
             reportDate: reportDate,
             row: row,
             current: reportDate == latestDate,
+            receiptInvestigationSummary: _receiptInvestigationHistorySummaryFor(
+              clientId: clientId,
+              siteId: siteId,
+              reportDate: reportDate,
+            ),
           ),
         );
       }
@@ -4625,6 +4641,36 @@ class _ClientIntelligenceReportsPageState
         .toList(growable: false);
   }
 
+  _ReceiptInvestigationHistorySummary? _receiptInvestigationHistorySummaryFor({
+    required String clientId,
+    required String siteId,
+    required String reportDate,
+  }) {
+    final rows = (_receipts.isNotEmpty ? _receipts : _sampleReceipts)
+        .where(
+          (row) =>
+              row.event.clientId.trim() == clientId &&
+              row.event.siteId.trim() == siteId &&
+              _formatDate(row.event.occurredAt.toUtc()) == reportDate,
+        )
+        .toList(growable: false);
+    if (rows.isEmpty) {
+      return null;
+    }
+    final governanceHandoffCount = _receiptGovernanceHandoffCount(rows);
+    final routineReviewCount = _receiptRoutineReviewCount(rows);
+    final modeLabel = governanceHandoffCount > 0 && routineReviewCount > 0
+        ? 'MIXED REVIEW'
+        : governanceHandoffCount > 0
+        ? 'OVERSIGHT HANDOFF'
+        : 'ROUTINE REVIEW';
+    return _ReceiptInvestigationHistorySummary(
+      governanceHandoffCount: governanceHandoffCount,
+      routineReviewCount: routineReviewCount,
+      modeLabel: modeLabel,
+    );
+  }
+
   Map<String, Object?> _partnerComparisonExportPayload() {
     final comparisons = _sitePartnerComparisonRows;
     final receiptRows = _siteScopeReceiptRows();
@@ -5205,11 +5251,13 @@ class _PartnerScopeHistoryPoint {
   final String reportDate;
   final SovereignReportPartnerScoreboardRow row;
   final bool current;
+  final _ReceiptInvestigationHistorySummary? receiptInvestigationSummary;
 
   const _PartnerScopeHistoryPoint({
     required this.reportDate,
     required this.row,
     required this.current,
+    this.receiptInvestigationSummary,
   });
 
   Map<String, Object?> toJson() {
@@ -5217,12 +5265,43 @@ class _PartnerScopeHistoryPoint {
       'reportDate': reportDate,
       'current': current,
       'row': row.toJson(),
+      if (receiptInvestigationSummary != null)
+        'receiptInvestigation': receiptInvestigationSummary!.toJson(),
     };
   }
 
   String toCsvSummary() {
     final currentLabel = current ? 'CURRENT' : 'HISTORY';
-    return '$reportDate • $currentLabel • ${row.clientId}/${row.siteId} • ${row.partnerLabel} • ${row.summaryLine}';
+    final receiptSummary = receiptInvestigationSummary?.summaryLine;
+    return [
+      '$reportDate • $currentLabel • ${row.clientId}/${row.siteId} • ${row.partnerLabel} • ${row.summaryLine}',
+      if (receiptSummary != null && receiptSummary.trim().isNotEmpty)
+        receiptSummary,
+    ].join(' • ');
+  }
+}
+
+class _ReceiptInvestigationHistorySummary {
+  final int governanceHandoffCount;
+  final int routineReviewCount;
+  final String modeLabel;
+
+  const _ReceiptInvestigationHistorySummary({
+    required this.governanceHandoffCount,
+    required this.routineReviewCount,
+    required this.modeLabel,
+  });
+
+  String get summaryLine =>
+      'Receipt $modeLabel • Governance $governanceHandoffCount • Routine $routineReviewCount';
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'modeLabel': modeLabel,
+      'governanceHandoffCount': governanceHandoffCount,
+      'routineReviewCount': routineReviewCount,
+      'summaryLine': summaryLine,
+    };
   }
 }
 
