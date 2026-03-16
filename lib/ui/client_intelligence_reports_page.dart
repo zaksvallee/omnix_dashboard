@@ -2487,6 +2487,29 @@ class _ClientIntelligenceReportsPageState
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _partnerScopeChip(
+                        label: '${latestPoint.row.dispatchCount} dispatches',
+                        color: const Color(0xFF8FD1FF),
+                      ),
+                      if (latestPoint.receiptInvestigationSummary != null) ...[
+                        _partnerScopeChip(
+                          label:
+                              'Gov ${latestPoint.receiptInvestigationSummary!.governanceHandoffCount}',
+                          color: const Color(0xFFFF7A7A),
+                        ),
+                        _partnerScopeChip(
+                          label:
+                              'Routine ${latestPoint.receiptInvestigationSummary!.routineReviewCount}',
+                          color: const Color(0xFF8EA4C2),
+                        ),
+                      ],
+                    ],
+                  ),
                   if (latestShiftPostureSummary.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(

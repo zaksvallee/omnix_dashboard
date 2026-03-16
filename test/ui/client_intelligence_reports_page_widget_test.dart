@@ -899,6 +899,9 @@ void main() {
       find.text('Latest shift is currently setting the site pace.'),
       findsOneWidget,
     );
+    expect(find.text('1 dispatches'), findsWidgets);
+    expect(find.text('Gov 1'), findsWidgets);
+    expect(find.text('Routine 0'), findsWidgets);
     expect(
       find.text('Receipt OVERSIGHT HANDOFF • Governance 1 • Routine 0'),
       findsWidgets,
