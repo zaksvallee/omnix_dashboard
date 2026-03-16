@@ -883,6 +883,33 @@ void main() {
       findsNothing,
     );
 
+    final comparisonCopyJsonButton = find.byKey(
+      const ValueKey(
+        'reports-partner-comparison-copy-json-CLIENT-001/SITE-SANDTON/PARTNER • Alpha',
+      ),
+    );
+    await tester.ensureVisible(comparisonCopyJsonButton);
+    await tester.tap(comparisonCopyJsonButton);
+    await tester.pumpAndSettle();
+
+    expect(clipboardText, isNotNull);
+    expect(clipboardText, contains('"clientId": "CLIENT-001"'));
+    expect(clipboardText, contains('"siteId": "SITE-SANDTON"'));
+    expect(clipboardText, contains('"partnerLabel": "PARTNER • Alpha"'));
+
+    final comparisonCopyCsvButton = find.byKey(
+      const ValueKey(
+        'reports-partner-comparison-copy-csv-CLIENT-001/SITE-SANDTON/PARTNER • Alpha',
+      ),
+    );
+    await tester.ensureVisible(comparisonCopyCsvButton);
+    await tester.tap(comparisonCopyCsvButton);
+    await tester.pumpAndSettle();
+
+    expect(clipboardText, contains('client_id,CLIENT-001'));
+    expect(clipboardText, contains('site_id,SITE-SANDTON'));
+    expect(clipboardText, contains('partner_label,"PARTNER • Alpha"'));
+
     final comparisonOpenEventsButton = find.byKey(
       const ValueKey(
         'reports-partner-comparison-open-events-CLIENT-001/SITE-SANDTON/PARTNER • Alpha',

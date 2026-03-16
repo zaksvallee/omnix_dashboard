@@ -2431,6 +2431,30 @@ class _ClientIntelligenceReportsPageState
             children: [
               _actionButton(
                 key: ValueKey<String>(
+                  'reports-partner-comparison-copy-json-${row.clientId}/${row.siteId}/${row.partnerLabel}',
+                ),
+                label: 'Copy JSON',
+                icon: Icons.data_object_rounded,
+                onTap: () => _copyPartnerDrillInJson(
+                  clientId: row.clientId,
+                  siteId: row.siteId,
+                  partnerLabel: row.partnerLabel,
+                ),
+              ),
+              _actionButton(
+                key: ValueKey<String>(
+                  'reports-partner-comparison-copy-csv-${row.clientId}/${row.siteId}/${row.partnerLabel}',
+                ),
+                label: 'Copy CSV',
+                icon: Icons.table_chart_rounded,
+                onTap: () => _copyPartnerDrillInCsv(
+                  clientId: row.clientId,
+                  siteId: row.siteId,
+                  partnerLabel: row.partnerLabel,
+                ),
+              ),
+              _actionButton(
+                key: ValueKey<String>(
                   'reports-partner-comparison-open-events-${row.clientId}/${row.siteId}/${row.partnerLabel}',
                 ),
                 label: 'Open Events',
