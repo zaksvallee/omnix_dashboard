@@ -17737,7 +17737,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         );
 
       case OnyxRoute.aiQueue:
-        return AIQueuePage(events: events, videoOpsLabel: _activeVideoOpsLabel);
+        return AIQueuePage(
+          events: events,
+          videoOpsLabel: _activeVideoOpsLabel,
+          sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
+        );
 
       case OnyxRoute.tactical:
         return TacticalPage(

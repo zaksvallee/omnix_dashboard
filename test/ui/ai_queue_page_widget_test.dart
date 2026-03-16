@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
+import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/ui/ai_queue_page.dart';
 
 void main() {
@@ -84,5 +86,62 @@ void main() {
       find.textContaining('Request DVR stream from perimeter cameras.'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('ai queue prioritizes real autonomy plans from scene reviews', (
+    tester,
+  ) async {
+    final events = [
+      IntelligenceReceived(
+        eventId: 'evt-1',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 16, 21, 14),
+        intelligenceId: 'intel-1',
+        provider: 'hikvision_dvr_monitor_only',
+        sourceType: 'dvr',
+        externalId: 'ext-1',
+        clientId: 'CLIENT-VALLEE',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-VALLEE',
+        cameraId: 'gate-cam',
+        faceMatchId: 'PERSON-44',
+        objectLabel: 'person',
+        objectConfidence: 0.95,
+        headline: 'HIKVISION LINE CROSSING',
+        summary: 'Boundary activity detected',
+        riskScore: 92,
+        snapshotUrl: 'https://edge.example.com/intel-1.jpg',
+        canonicalHash: 'hash-1',
+      ),
+    ];
+    final reviews = {
+      'intel-1': MonitoringSceneReviewRecord(
+        intelligenceId: 'intel-1',
+        sourceLabel: 'openai:gpt-5.4-mini',
+        postureLabel: 'boundary loitering concern',
+        decisionLabel: 'Escalation Candidate',
+        decisionSummary:
+            'Escalated for urgent review because person activity was detected.',
+        summary: 'Person visible near the boundary line.',
+        reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 15),
+      ),
+    };
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AIQueuePage(
+          events: events,
+          sceneReviewByIntelligenceId: reviews,
+          videoOpsLabel: 'Hikvision',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('GLOBAL POSTURE SHIFT'), findsOneWidget);
+    expect(find.text('AUTO-DISPATCH HOLD'), findsOneWidget);
+    expect(find.textContaining('HIKVISION evidence lock'), findsOneWidget);
+    expect(find.text('AUTO'), findsWidgets);
   });
 }

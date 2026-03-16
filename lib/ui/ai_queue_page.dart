@@ -3,10 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../application/monitoring_scene_review_store.dart';
+import '../application/monitoring_watch_autonomy_service.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_completed.dart';
 import '../domain/events/execution_denied.dart';
+import '../domain/events/intelligence_received.dart';
 import '../domain/events/incident_closed.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
@@ -81,11 +84,13 @@ class _AiQueueDailyStats {
 class AIQueuePage extends StatefulWidget {
   final List<DispatchEvent> events;
   final String videoOpsLabel;
+  final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
 
   const AIQueuePage({
     super.key,
     required this.events,
     this.videoOpsLabel = 'CCTV',
+    this.sceneReviewByIntelligenceId = const {},
   });
 
   @override
@@ -93,6 +98,7 @@ class AIQueuePage extends StatefulWidget {
 }
 
 class _AIQueuePageState extends State<AIQueuePage> {
+  static const _autonomyService = MonitoringWatchAutonomyService();
   late List<_AiQueueAction> _actions;
   late final _AiQueueDailyStats _stats;
   Timer? _ticker;
@@ -101,9 +107,24 @@ class _AIQueuePageState extends State<AIQueuePage> {
   @override
   void initState() {
     super.initState();
-    _actions = List<_AiQueueAction>.from(_seedActions(widget.events));
+    _actions = List<_AiQueueAction>.from(
+      _seedActions(widget.events, widget.sceneReviewByIntelligenceId),
+    );
     _stats = _buildDailyStats(widget.events);
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _onTick());
+  }
+
+  @override
+  void didUpdateWidget(covariant AIQueuePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.events != widget.events ||
+        oldWidget.videoOpsLabel != widget.videoOpsLabel ||
+        oldWidget.sceneReviewByIntelligenceId !=
+            widget.sceneReviewByIntelligenceId) {
+      _actions = List<_AiQueueAction>.from(
+        _seedActions(widget.events, widget.sceneReviewByIntelligenceId),
+      );
+    }
   }
 
   @override
@@ -1039,7 +1060,40 @@ class _AIQueuePageState extends State<AIQueuePage> {
     };
   }
 
-  List<_AiQueueAction> _seedActions(List<DispatchEvent> events) {
+  List<_AiQueueAction> _seedActions(
+    List<DispatchEvent> events,
+    Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId,
+  ) {
+    final autonomyPlans = _autonomyService.buildPlans(
+      events: events,
+      sceneReviewByIntelligenceId: sceneReviewByIntelligenceId,
+      videoOpsLabel: widget.videoOpsLabel,
+    );
+    if (autonomyPlans.isNotEmpty) {
+      return autonomyPlans.asMap().entries.map((entry) {
+        final plan = entry.value;
+        return _AiQueueAction(
+          id: plan.id,
+          incidentId: plan.incidentId,
+          incidentPriority: switch (plan.priority) {
+            MonitoringWatchAutonomyPriority.critical =>
+              _AiIncidentPriority.p1Critical,
+            MonitoringWatchAutonomyPriority.high => _AiIncidentPriority.p2High,
+            MonitoringWatchAutonomyPriority.medium =>
+              _AiIncidentPriority.p3Medium,
+          },
+          site: plan.siteId,
+          actionType: plan.actionType,
+          description: plan.description,
+          timeUntilExecutionSeconds: plan.countdownSeconds,
+          status: entry.key == 0
+              ? _AiActionStatus.executing
+              : _AiActionStatus.pending,
+          metadata: plan.metadata,
+        );
+      }).toList(growable: false);
+    }
+
     final decisions = events.whereType<DecisionCreated>().toList(
       growable: false,
     )..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
@@ -1144,7 +1198,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
     final nowUtc = DateTime.now().toUtc();
     final windowStart = nowUtc.subtract(const Duration(hours: 24));
     final decisions24h = events
-        .whereType<DecisionCreated>()
+        .whereType<DispatchEvent>()
+        .where((event) => event is DecisionCreated || event is IntelligenceReceived)
         .where((event) => event.occurredAt.isAfter(windowStart))
         .length;
     final executed24h = events
