@@ -28,6 +28,11 @@ import 'application/guard_telemetry_bridge_writer.dart';
 import 'application/guard_telemetry_ingestion_adapter.dart';
 import 'application/guard_telemetry_replay_fixture_service.dart';
 import 'application/intake_stress_service.dart';
+import 'application/listener_alarm_advisory_pipeline_service.dart';
+import 'application/listener_alarm_partner_advisory_service.dart';
+import 'application/listener_alarm_scope_mapping_service.dart';
+import 'application/listener_alarm_scope_registry_repository.dart';
+import 'application/listener_serial_ingestor.dart';
 import 'application/morning_sovereign_report_service.dart';
 import 'application/monitoring_shift_notification_service.dart';
 import 'application/monitoring_scene_review_store.dart';
@@ -1034,6 +1039,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   List<_TelegramAiPendingDraft> _telegramAiPendingDrafts = const [];
   List<_TelegramPartnerDispatchBinding> _telegramPartnerDispatchBindings =
       const [];
+  final ListenerAlarmScopeRegistryRepository _listenerAlarmScopeRegistry =
+      ListenerAlarmScopeRegistryRepository();
+  late final ListenerAlarmAdvisoryPipelineService
+  _listenerAlarmAdvisoryPipeline = ListenerAlarmAdvisoryPipelineService(
+    registryRepository: _listenerAlarmScopeRegistry,
+  );
+  final ListenerSerialIngestor _listenerAlarmSerialIngestor =
+      const ListenerSerialIngestor();
   DateTime? _telegramAiLastHandledAtUtc;
   String? _telegramAiLastHandledSummary;
   String _clientAppBackendProbeStatusLabel = 'idle';
@@ -2509,6 +2522,26 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             )
             .take(200)
             .toList(growable: false);
+    final alarmScopeBindingsRaw = state['listener_alarm_scope_bindings'];
+    final alarmScopeBindings =
+        <ListenerAlarmScopeMappingEntry>[
+              if (alarmScopeBindingsRaw is List)
+                for (final entry in alarmScopeBindingsRaw)
+                  if (entry is Map)
+                    ListenerAlarmScopeMappingEntry.fromJson(
+                      entry.cast<Object?, Object?>().map(
+                        (key, value) => MapEntry(key.toString(), value),
+                      ),
+                    ),
+            ]
+            .where(
+              (entry) =>
+                  entry.accountNumber.trim().isNotEmpty &&
+                  entry.clientId.trim().isNotEmpty &&
+                  entry.siteId.trim().isNotEmpty,
+            )
+            .take(500)
+            .toList(growable: false);
     if (!mounted) {
       _telegramAdminPollIntervalSecondsOverride = pollOverride;
       _telegramAdminCriticalReminderSecondsOverride = reminderOverride;
@@ -2529,6 +2562,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _telegramAiApprovalRequiredOverride = aiApprovalRequiredOverride;
       _telegramAiPendingDrafts = aiPendingDrafts;
       _telegramPartnerDispatchBindings = partnerBindings;
+      _listenerAlarmScopeRegistry.replaceAll(alarmScopeBindings);
       return;
     }
     setState(() {
@@ -2551,6 +2585,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _telegramAiApprovalRequiredOverride = aiApprovalRequiredOverride;
       _telegramAiPendingDrafts = aiPendingDrafts;
       _telegramPartnerDispatchBindings = partnerBindings;
+      _listenerAlarmScopeRegistry.replaceAll(alarmScopeBindings);
     });
   }
 
@@ -2750,6 +2785,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             .toList(growable: false),
       if (_telegramPartnerDispatchBindings.isNotEmpty)
         'partner_dispatch_bindings': _telegramPartnerDispatchBindings
+            .map((entry) => entry.toJson())
+            .toList(growable: false),
+      if (_listenerAlarmScopeRegistry.allEntries().isNotEmpty)
+        'listener_alarm_scope_bindings': _listenerAlarmScopeRegistry
+            .allEntries()
             .map((entry) => entry.toJson())
             .toList(growable: false),
     };
@@ -11169,6 +11209,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           command: 'bindpartner',
           arguments: arguments,
         );
+      case '/bindalarm':
+        return _TelegramAdminCommandParseResult(
+          command: 'bindalarm',
+          arguments: arguments,
+        );
       case '/linkchat':
         return _TelegramAdminCommandParseResult(
           command: 'linkchat',
@@ -11184,6 +11229,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           command: 'unlinkpartner',
           arguments: arguments,
         );
+      case '/unlinkalarm':
+        return _TelegramAdminCommandParseResult(
+          command: 'unlinkalarm',
+          arguments: arguments,
+        );
       case '/unlinkall':
         return _TelegramAdminCommandParseResult(
           command: 'unlinkall',
@@ -11197,6 +11247,16 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case '/partnercheck':
         return _TelegramAdminCommandParseResult(
           command: 'partnercheck',
+          arguments: arguments,
+        );
+      case '/alarmbindings':
+        return _TelegramAdminCommandParseResult(
+          command: 'alarmbindings',
+          arguments: arguments,
+        );
+      case '/alarmtest':
+        return _TelegramAdminCommandParseResult(
+          command: 'alarmtest',
           arguments: arguments,
         );
       case '/demoprep':
@@ -11398,12 +11458,16 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'watchend',
         'bindchat',
         'bindpartner',
+        'bindalarm',
         'linkchat',
         'unlinkchat',
         'unlinkpartner',
+        'unlinkalarm',
         'unlinkall',
         'chatcheck',
         'partnercheck',
+        'alarmbindings',
+        'alarmtest',
         'demoprep',
         'demoflow',
         'autodemo',
@@ -11577,10 +11641,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case 'watchend':
       case 'bindchat':
       case 'bindpartner':
+      case 'bindalarm':
       case 'linkchat':
       case 'unlinkchat':
       case 'unlinkpartner':
+      case 'unlinkalarm':
       case 'unlinkall':
+      case 'alarmtest':
       case 'setoperator':
       case 'demoflow':
       case 'autodemo':
@@ -11610,6 +11677,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case 'target':
       case 'guards':
       case 'bridges':
+      case 'alarmbindings':
       case 'aidrafts':
       case 'aiconv':
       case 'whoami':
@@ -11681,18 +11749,26 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         return _telegramAdminBindChatCommand(arguments, update);
       case 'bindpartner':
         return _telegramAdminBindPartnerCommand(arguments, update);
+      case 'bindalarm':
+        return _telegramAdminBindAlarmCommand(arguments);
       case 'linkchat':
         return _telegramAdminLinkChatCommand(arguments, update);
       case 'unlinkchat':
         return _telegramAdminUnlinkChatCommand(arguments, update);
       case 'unlinkpartner':
         return _telegramAdminUnlinkPartnerCommand(arguments, update);
+      case 'unlinkalarm':
+        return _telegramAdminUnlinkAlarmCommand(arguments);
       case 'unlinkall':
         return _telegramAdminUnlinkAllCommand(arguments);
       case 'chatcheck':
         return _telegramAdminChatCheckCommand(arguments, update);
       case 'partnercheck':
         return _telegramAdminPartnerCheckCommand(arguments, update);
+      case 'alarmbindings':
+        return _telegramAdminAlarmBindingsCommand(arguments);
+      case 'alarmtest':
+        return _telegramAdminAlarmTestCommand(arguments);
       case 'demoprep':
         return _telegramAdminDemoPrepCommand(arguments, update);
       case 'demoflow':
@@ -11822,6 +11898,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '• <code>/watchend [client_id site_id]</code>\n'
         '• <code>/bindpartner &lt;client_id&gt; &lt;site_id&gt; [label]</code>\n'
         '• <code>/unlinkpartner [client_id site_id]</code> | <code>/partnercheck [client_id site_id]</code>\n'
+        '• <code>/bindalarm &lt;account&gt; &lt;client_id&gt; &lt;site_id&gt; [partition] [zone] [zone label]</code>\n'
+        '• <code>/unlinkalarm &lt;account&gt; [partition] [zone]</code> | <code>/alarmbindings [account]</code>\n'
+        '• <code>/alarmtest &lt;clear|suspicious|pending|unavailable&gt; &lt;listener line&gt;</code>\n'
         '\n---\n\n'
         '<b>Admin</b>\n'
         '• <code>/exec [on|off|status|default]</code>\n'
@@ -13457,6 +13536,268 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     } catch (error) {
       return 'ONYX PARTNERCHECK\nFailed to verify partner endpoint: $error';
     }
+  }
+
+  ListenerAlarmAdvisoryDisposition? _listenerAlarmDispositionFromRaw(
+    String raw,
+  ) {
+    switch (raw.trim().toLowerCase()) {
+      case 'clear':
+        return ListenerAlarmAdvisoryDisposition.clear;
+      case 'suspicious':
+      case 'threat':
+      case 'escalate':
+        return ListenerAlarmAdvisoryDisposition.suspicious;
+      case 'pending':
+      case 'review':
+      case 'reviewing':
+        return ListenerAlarmAdvisoryDisposition.pending;
+      case 'unavailable':
+      case 'offline':
+      case 'down':
+        return ListenerAlarmAdvisoryDisposition.unavailable;
+      default:
+        return null;
+    }
+  }
+
+  String _telegramAdminBindAlarmCommand(String arguments) {
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (tokens.length < 3) {
+      return 'ONYX BINDALARM\n'
+          'Usage: /bindalarm <account> <client_id> <site_id> [partition] [zone] [zone label]';
+    }
+    final accountNumber = tokens[0].trim();
+    final clientId = tokens[1].trim();
+    final siteId = tokens[2].trim();
+    if (accountNumber.isEmpty ||
+        clientId.isEmpty ||
+        siteId.isEmpty ||
+        !RegExp(r'^\d+$').hasMatch(accountNumber)) {
+      return 'ONYX BINDALARM\n'
+          'Invalid binding. account must be numeric and scope values must be present.';
+    }
+    final partition = tokens.length > 3 && tokens[3] != '-'
+        ? tokens[3].trim()
+        : '';
+    final zone = tokens.length > 4 && tokens[4] != '-' ? tokens[4].trim() : '';
+    if (partition.isNotEmpty && !RegExp(r'^\d+$').hasMatch(partition)) {
+      return 'ONYX BINDALARM\nPartition must be numeric or "-".';
+    }
+    if (zone.isNotEmpty && !RegExp(r'^\d+$').hasMatch(zone)) {
+      return 'ONYX BINDALARM\nZone must be numeric or "-".';
+    }
+    final zoneLabel = tokens.length > 5 ? tokens.sublist(5).join(' ') : '';
+    final siteProfile = _monitoringSiteProfileFor(
+      clientId: clientId,
+      siteId: siteId,
+    );
+    final entry = ListenerAlarmScopeMappingEntry(
+      accountNumber: accountNumber,
+      partition: partition,
+      zone: zone,
+      zoneLabel: zoneLabel,
+      siteId: siteId,
+      siteName: siteProfile.siteName.trim().isEmpty
+          ? _humanizeScopeLabel(siteId)
+          : siteProfile.siteName.trim(),
+      clientId: clientId,
+      clientName: siteProfile.clientName.trim().isEmpty
+          ? _humanizeScopeLabel(clientId)
+          : siteProfile.clientName.trim(),
+      regionId: _selectedRegion,
+    );
+    _listenerAlarmScopeRegistry.upsert(entry);
+    unawaited(_persistTelegramAdminRuntimeState());
+    final scopeSuffix = [
+      if (partition.isNotEmpty) 'partition=$partition',
+      if (zone.isNotEmpty) 'zone=$zone',
+      if (zoneLabel.trim().isNotEmpty) 'zone_label=${zoneLabel.trim()}',
+    ].join(' • ');
+    return 'ONYX BINDALARM\n'
+        'account=$accountNumber\n'
+        'scope=$clientId/$siteId\n'
+        'site=${entry.siteName}\n'
+        'client=${entry.clientName}\n'
+        '${scopeSuffix.isEmpty ? 'match=account_only' : scopeSuffix}\n'
+        'bindings=${_listenerAlarmScopeRegistry.allEntries().length}\n'
+        'UTC: ${_telegramUtcStamp()}';
+  }
+
+  String _telegramAdminUnlinkAlarmCommand(String arguments) {
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (tokens.isEmpty || tokens.length > 3) {
+      return 'ONYX UNLINKALARM\n'
+          'Usage: /unlinkalarm <account> [partition] [zone]';
+    }
+    final accountNumber = tokens[0].trim();
+    final partition = tokens.length > 1 && tokens[1] != '-'
+        ? tokens[1].trim()
+        : '';
+    final zone = tokens.length > 2 && tokens[2] != '-' ? tokens[2].trim() : '';
+    final removed = _listenerAlarmScopeRegistry.remove(
+      accountNumber: accountNumber,
+      partition: partition,
+      zone: zone,
+    );
+    if (removed) {
+      unawaited(_persistTelegramAdminRuntimeState());
+    }
+    return 'ONYX UNLINKALARM\n'
+        'account=$accountNumber\n'
+        'partition=${partition.isEmpty ? 'any' : partition}\n'
+        'zone=${zone.isEmpty ? 'any' : zone}\n'
+        'removed=${removed ? 'yes' : 'no'}\n'
+        'bindings=${_listenerAlarmScopeRegistry.allEntries().length}\n'
+        'UTC: ${_telegramUtcStamp()}';
+  }
+
+  String _telegramAdminAlarmBindingsCommand(String arguments) {
+    final accountFilter = arguments.trim();
+    final entries = accountFilter.isEmpty
+        ? _listenerAlarmScopeRegistry.allEntries()
+        : _listenerAlarmScopeRegistry.entriesForAccount(accountFilter);
+    entries.sort((a, b) {
+      final accountCompare = a.accountNumber.compareTo(b.accountNumber);
+      if (accountCompare != 0) {
+        return accountCompare;
+      }
+      final partitionCompare = a.partition.compareTo(b.partition);
+      if (partitionCompare != 0) {
+        return partitionCompare;
+      }
+      return a.zone.compareTo(b.zone);
+    });
+    final rows = entries
+        .take(12)
+        .map((entry) {
+          final partition = entry.partition.trim().isEmpty
+              ? '*'
+              : entry.partition.trim();
+          final zone = entry.zone.trim().isEmpty ? '*' : entry.zone.trim();
+          final zoneLabel = entry.zoneLabel.trim().isEmpty
+              ? ''
+              : ' (${entry.zoneLabel.trim()})';
+          return '- acct ${entry.accountNumber} | p=$partition | z=$zone$zoneLabel | ${entry.clientId}/${entry.siteId}';
+        })
+        .join('\n');
+    return 'ONYX ALARMBINDINGS\n'
+        'filter=${accountFilter.isEmpty ? 'all' : accountFilter}\n'
+        'count=${entries.length}'
+        '${rows.isEmpty ? '\n(no alarm bindings configured)' : '\n$rows'}';
+  }
+
+  Future<String> _telegramAdminAlarmTestCommand(String arguments) async {
+    final raw = arguments.trim();
+    if (raw.isEmpty) {
+      return 'ONYX ALARMTEST\n'
+          'Usage: /alarmtest <clear|suspicious|pending|unavailable> <listener line>';
+    }
+    final firstSpace = raw.indexOf(RegExp(r'\s'));
+    if (firstSpace == -1) {
+      return 'ONYX ALARMTEST\n'
+          'Usage: /alarmtest <clear|suspicious|pending|unavailable> <listener line>';
+    }
+    final dispositionLabel = raw.substring(0, firstSpace).trim();
+    final listenerLine = raw.substring(firstSpace + 1).trim();
+    final disposition = _listenerAlarmDispositionFromRaw(dispositionLabel);
+    if (disposition == null || listenerLine.isEmpty) {
+      return 'ONYX ALARMTEST\n'
+          'Unknown disposition or missing listener line.\n'
+          'Usage: /alarmtest <clear|suspicious|pending|unavailable> <listener line>';
+    }
+    final parseAttempt = _listenerAlarmSerialIngestor.parseLineDetailed(
+      line: listenerLine,
+      clientId: 'LISTENER-RAW',
+      regionId: _selectedRegion,
+      siteId: 'LISTENER-RAW',
+    );
+    final envelope = parseAttempt.envelope;
+    if (envelope == null) {
+      return 'ONYX ALARMTEST\n'
+          'parse=failed\n'
+          'reason=${parseAttempt.rejectReason ?? 'unknown'}';
+    }
+    final pipelineResult = _listenerAlarmAdvisoryPipeline.process(
+      envelope: envelope,
+      disposition: disposition,
+    );
+    if (pipelineResult == null) {
+      return 'ONYX ALARMTEST\n'
+          'parse=ok\n'
+          'scope=unmapped\n'
+          'account=${envelope.accountNumber}\n'
+          'partition=${envelope.partition.isEmpty ? 'n/a' : envelope.partition}\n'
+          'zone=${envelope.zone.isEmpty ? 'n/a' : envelope.zone}\n'
+          'hint=Bind the alarm account with /bindalarm before retrying.';
+    }
+
+    final normalizedIntel = pipelineResult.normalizedIntel;
+    IntelligenceIngestionOutcome? outcome;
+    if (normalizedIntel != null) {
+      outcome = service.ingestNormalizedIntelligence(
+        records: <NormalizedIntelRecord>[normalizedIntel],
+        autoGenerateDispatches: false,
+      );
+    }
+
+    final resolvedClientId = pipelineResult.resolution.envelope.clientId.trim();
+    final resolvedSiteId = pipelineResult.resolution.envelope.siteId.trim();
+    final targets = await _resolveTelegramPartnerTargets(
+      clientId: resolvedClientId,
+      siteId: resolvedSiteId,
+    );
+    var delivered = 0;
+    var failed = 0;
+    for (final target in targets) {
+      final sent = await _sendTelegramMessageWithChunks(
+        messageKeyPrefix:
+            'tg-listener-alarm-${pipelineResult.resolution.envelope.externalId}',
+        chatId: target.chatId,
+        messageThreadId: target.threadId,
+        responseText: pipelineResult.resolution.advisoryMessage,
+        failureContext: 'listener alarm advisory send',
+      );
+      if (sent) {
+        delivered += 1;
+      } else {
+        failed += 1;
+      }
+    }
+    if (delivered > 0) {
+      await _appendTelegramConversationMessage(
+        clientId: resolvedClientId,
+        siteId: resolvedSiteId,
+        author: 'ONYX Alarm Advisory',
+        body: pipelineResult.resolution.advisoryMessage,
+        occurredAtUtc: pipelineResult.resolution.envelope.occurredAtUtc,
+        roomKey: 'Security Desk',
+        viewerRole: ClientAppViewerRole.control.name,
+        incidentStatusLabel: 'Alarm Advisory Sent',
+        messageSource: 'telegram',
+        messageProvider: 'telegram_partner_alarm',
+      );
+    }
+
+    return 'ONYX ALARMTEST\n'
+        'parse=ok\n'
+        'scope=$resolvedClientId/$resolvedSiteId\n'
+        'site=${pipelineResult.siteProfile.siteName}\n'
+        'match=${pipelineResult.resolution.scope.matchMode.name}\n'
+        'event=${pipelineResult.resolution.eventLabel}\n'
+        'intel=${normalizedIntel == null ? 'skipped' : 'recorded'}'
+        '${outcome == null ? '' : ' (${outcome.appendedIntelligence}/${outcome.attemptedIntelligence})'}\n'
+        'partner_targets=${targets.length}\n'
+        'partner_delivery=$delivered sent / $failed failed\n'
+        'advisory=${pipelineResult.resolution.advisoryMessage}';
   }
 
   Future<_TelegramDemoReadinessReport> _telegramAdminBuildDemoReadinessReport({
