@@ -1065,6 +1065,14 @@ class _ClientIntelligenceReportsPageState
             runSpacing: 8,
             children: [
               _actionButton(
+                key: const ValueKey(
+                  'reports-receipt-policy-open-investigation-history',
+                ),
+                label: 'Open Investigation History',
+                icon: Icons.manage_search_rounded,
+                onTap: () => _openReceiptInvestigationHistory(rows),
+              ),
+              _actionButton(
                 key: const ValueKey('reports-receipt-policy-copy-json'),
                 label: 'Copy Policy JSON',
                 icon: Icons.copy_all_rounded,
@@ -1085,6 +1093,105 @@ class _ClientIntelligenceReportsPageState
           ],
         ],
       ),
+    );
+  }
+
+  Future<void> _openReceiptInvestigationHistory(List<_ReceiptRow> rows) async {
+    final trendLabel = _receiptInvestigationTrendLabel(rows);
+    final trendReason = _receiptInvestigationTrendReason(rows);
+    final activeEntryContext = _activeReceiptPolicyEntryContext(rows);
+    final current = rows.isEmpty ? null : rows.first;
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF08111F),
+          title: Text(
+            'Receipt Investigation History',
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFE8F1FF),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          content: SizedBox(
+            width: 720,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (activeEntryContext != null) ...[
+                    _receiptPolicyEntryContextBanner(activeEntryContext),
+                    const SizedBox(height: 12),
+                  ],
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _partnerScopeChip(
+                        label: trendLabel,
+                        color: _receiptInvestigationTrendColor(trendLabel),
+                      ),
+                      _partnerScopeChip(
+                        label:
+                            activeEntryContext ==
+                                ReportEntryContext.governanceBrandingDrift
+                            ? 'OVERSIGHT HANDOFF'
+                            : 'ROUTINE REVIEW',
+                        color:
+                            activeEntryContext ==
+                                ReportEntryContext.governanceBrandingDrift
+                            ? const Color(0xFF5DC8FF)
+                            : const Color(0xFF8EA4C2),
+                      ),
+                      _partnerScopeChip(
+                        label: '${rows.length} receipts',
+                        color: const Color(0xFF8FD1FF),
+                      ),
+                    ],
+                  ),
+                  if (current != null) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      _receiptPolicyHistoryHeadline(current.event),
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFE8F1FF),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                  if (trendReason.trim().isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      trendReason,
+                      style: GoogleFonts.inter(
+                        color: _receiptInvestigationTrendColor(trendLabel),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  for (var index = 0; index < rows.length; index++) ...[
+                    _receiptPolicyHistoryRow(rows[index], current: index == 0),
+                    if (index < rows.length - 1) const SizedBox(height: 8),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              key: const ValueKey(
+                'reports-receipt-policy-investigation-history-close',
+              ),
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
     );
   }
 

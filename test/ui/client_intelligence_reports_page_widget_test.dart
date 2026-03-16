@@ -822,6 +822,35 @@ void main() {
     expect(find.text('CUSTOM BRANDING'), findsWidgets);
     expect(find.text('OVERSIGHT HANDOFF'), findsWidgets);
 
+    final openHistoryButton = find.byKey(
+      const ValueKey('reports-receipt-policy-open-investigation-history'),
+    );
+    await tester.ensureVisible(openHistoryButton);
+    await tester.tap(openHistoryButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Receipt Investigation History'), findsOneWidget);
+    expect(find.text('OVERSIGHT RISING'), findsWidgets);
+    expect(
+      find.byKey(
+        const ValueKey('reports-receipt-policy-investigation-history-close'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('reports-receipt-policy-row-RPT-1')),
+      findsNWidgets(2),
+    );
+
+    await tester.tap(
+      find.byKey(
+        const ValueKey('reports-receipt-policy-investigation-history-close'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Receipt Investigation History'), findsNothing);
+
     final copyJsonButton = find.byKey(
       const ValueKey('reports-receipt-policy-copy-json'),
     );
