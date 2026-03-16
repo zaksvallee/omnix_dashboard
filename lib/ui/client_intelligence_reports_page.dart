@@ -2304,6 +2304,9 @@ class _ClientIntelligenceReportsPageState
   Widget _partnerComparisonRow(_PartnerComparisonRow comparison) {
     final row = comparison.row;
     final isActive = _partnerScoreboardMatchesFocus(row);
+    final latestPoint = comparison.historyPoints.isEmpty
+        ? null
+        : comparison.historyPoints.first;
     final deltaParts = <String>[
       if (!comparison.isLeader && comparison.acceptDeltaMinutes != null)
         'Accept +${comparison.acceptDeltaMinutes!.toStringAsFixed(1)}m',
@@ -2398,6 +2401,68 @@ class _ClientIntelligenceReportsPageState
                 color: const Color(0xFF7D93B1),
                 fontSize: 10,
                 fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+          if (latestPoint != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF102337),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF223244)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        'Latest shift',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFE8F1FF),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      _partnerScopeChip(
+                        label: latestPoint.reportDate,
+                        color: const Color(0xFF8FD1FF),
+                      ),
+                      _partnerScopeChip(
+                        label: _partnerScoreboardPrimaryLabel(latestPoint.row),
+                        color: _partnerTrendColor(
+                          _partnerScoreboardPrimaryLabel(latestPoint.row),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    latestPoint.row.summaryLine,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF9CB2D1),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (latestPoint.receiptInvestigationSummary != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      latestPoint.receiptInvestigationSummary!.summaryLine,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF7D93B1),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
           ],

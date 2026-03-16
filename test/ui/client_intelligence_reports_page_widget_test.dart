@@ -878,6 +878,17 @@ void main() {
     expect(find.text('Baseline Governance: 0.0'), findsWidgets);
     expect(find.text('Baseline Routine: 1.0'), findsWidgets);
     expect(find.text('Partner Scorecard Lanes'), findsOneWidget);
+    expect(find.text('Latest shift'), findsWidgets);
+    expect(
+      find.text(
+        'Dispatches 1 • Strong 1 • On track 0 • Watch 0 • Critical 0 • Avg accept 4.0m • Avg on site 10.0m',
+      ),
+      findsWidgets,
+    );
+    expect(
+      find.text('Receipt OVERSIGHT HANDOFF • Governance 1 • Routine 0'),
+      findsWidgets,
+    );
     expect(find.text('Investigate'), findsWidgets);
     expect(find.text('Export'), findsWidgets);
     expect(
