@@ -984,6 +984,12 @@ class _ClientIntelligenceReportsPageState
 
   Widget _partnerComparisonCard() {
     final comparisons = _sitePartnerComparisonRows;
+    final receiptRows = _siteScopeReceiptRows();
+    final receiptInvestigationComparison =
+        _receiptInvestigationComparison(receiptRows);
+    final receiptInvestigationTrendLabel = _receiptInvestigationTrendLabel(
+      receiptRows,
+    );
     return OnyxSectionCard(
       title: 'Partner Comparison',
       subtitle:
@@ -1033,6 +1039,53 @@ class _ClientIntelligenceReportsPageState
               ),
             ],
           ),
+          if (receiptRows.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _partnerScopeChip(
+                  label:
+                      'Receipt ${receiptInvestigationTrendLabel.toUpperCase()}',
+                  color: _receiptInvestigationTrendColor(
+                    receiptInvestigationTrendLabel,
+                  ),
+                ),
+                _partnerScopeChip(
+                  label:
+                      'Current Governance: ${receiptInvestigationComparison.currentGovernanceCount}',
+                  color: const Color(0xFF5DC8FF),
+                ),
+                _partnerScopeChip(
+                  label:
+                      'Current Routine: ${receiptInvestigationComparison.currentRoutineCount}',
+                  color: const Color(0xFF8EA4C2),
+                ),
+                _partnerScopeChip(
+                  label:
+                      'Baseline Governance: ${receiptInvestigationComparison.baselineGovernanceAverage.toStringAsFixed(1)}',
+                  color: const Color(0xFF4F87BE),
+                ),
+                _partnerScopeChip(
+                  label:
+                      'Baseline Routine: ${receiptInvestigationComparison.baselineRoutineAverage.toStringAsFixed(1)}',
+                  color: const Color(0xFF7087A8),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _receiptInvestigationTrendReason(receiptRows),
+              style: GoogleFonts.inter(
+                color: _receiptInvestigationTrendColor(
+                  receiptInvestigationTrendLabel,
+                ),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
@@ -4561,8 +4614,22 @@ class _ClientIntelligenceReportsPageState
         .toList(growable: false);
   }
 
+  List<_ReceiptRow> _siteScopeReceiptRows() {
+    final rows = _receipts.isNotEmpty ? _receipts : _sampleReceipts;
+    return rows
+        .where(
+          (row) =>
+              row.event.clientId.trim() == widget.selectedClient &&
+              row.event.siteId.trim() == widget.selectedSite,
+        )
+        .toList(growable: false);
+  }
+
   Map<String, Object?> _partnerComparisonExportPayload() {
     final comparisons = _sitePartnerComparisonRows;
+    final receiptRows = _siteScopeReceiptRows();
+    final receiptInvestigationComparison =
+        _receiptInvestigationComparison(receiptRows);
     return <String, Object?>{
       'scope': <String, Object?>{
         'clientId': widget.selectedClient,
@@ -4570,6 +4637,21 @@ class _ClientIntelligenceReportsPageState
       },
       'comparisonWindow': _partnerComparisonWindow.name,
       'activePartnerLabel': _partnerScopePartnerLabel,
+      if (receiptRows.isNotEmpty)
+        'receiptInvestigation': <String, Object?>{
+          'trendLabel': _receiptInvestigationTrendLabel(receiptRows),
+          'trendReason': _receiptInvestigationTrendReason(receiptRows),
+          'currentGovernanceHandoffCount':
+              receiptInvestigationComparison.currentGovernanceCount,
+          'currentRoutineReviewCount':
+              receiptInvestigationComparison.currentRoutineCount,
+          'baselineGovernanceAverage':
+              receiptInvestigationComparison.baselineGovernanceAverage,
+          'baselineRoutineAverage':
+              receiptInvestigationComparison.baselineRoutineAverage,
+          'baselineReceiptCount':
+              receiptInvestigationComparison.baselineReceiptCount,
+        },
       'comparisons': comparisons
           .map(
             (comparison) => <String, Object?>{
@@ -4718,12 +4800,29 @@ class _ClientIntelligenceReportsPageState
 
   String _partnerComparisonExportCsv() {
     final comparisons = _sitePartnerComparisonRows;
+    final receiptRows = _siteScopeReceiptRows();
+    final receiptInvestigationComparison =
+        _receiptInvestigationComparison(receiptRows);
     final lines = <String>[
       'metric,value',
       'client_id,${widget.selectedClient}',
       'site_id,${widget.selectedSite}',
       'comparison_window,${_partnerComparisonWindow.name}',
       'active_partner_label,"${(_partnerScopePartnerLabel ?? '').replaceAll('"', '""')}"',
+      if (receiptRows.isNotEmpty)
+        'receipt_investigation_trend_label,"${_receiptInvestigationTrendLabel(receiptRows).replaceAll('"', '""')}"',
+      if (receiptRows.isNotEmpty)
+        'receipt_investigation_trend_reason,"${_receiptInvestigationTrendReason(receiptRows).replaceAll('"', '""')}"',
+      if (receiptRows.isNotEmpty)
+        'receipt_investigation_current_governance_handoff_count,${receiptInvestigationComparison.currentGovernanceCount}',
+      if (receiptRows.isNotEmpty)
+        'receipt_investigation_current_routine_review_count,${receiptInvestigationComparison.currentRoutineCount}',
+      if (receiptRows.isNotEmpty)
+        'receipt_investigation_baseline_governance_average,${receiptInvestigationComparison.baselineGovernanceAverage.toStringAsFixed(1)}',
+      if (receiptRows.isNotEmpty)
+        'receipt_investigation_baseline_routine_average,${receiptInvestigationComparison.baselineRoutineAverage.toStringAsFixed(1)}',
+      if (receiptRows.isNotEmpty)
+        'receipt_investigation_baseline_receipt_count,${receiptInvestigationComparison.baselineReceiptCount}',
     ];
     for (var index = 0; index < comparisons.length; index++) {
       final comparison = comparisons[index];

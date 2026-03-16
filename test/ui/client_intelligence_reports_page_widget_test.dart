@@ -388,7 +388,7 @@ void main() {
     );
     expect(find.text('Powered by ONYX'), findsOneWidget);
     expect(find.text('IMPROVING'), findsOneWidget);
-    expect(find.text('Receipt OVERSIGHT RISING'), findsOneWidget);
+    expect(find.text('Receipt OVERSIGHT RISING'), findsWidgets);
     expect(find.text('Current Governance: 1'), findsWidgets);
     expect(find.text('Current Routine: 0'), findsWidgets);
     expect(find.text('Baseline Governance: 0.0'), findsWidgets);
@@ -641,10 +641,67 @@ void main() {
       ),
     );
 
+    final store = InMemoryEventStore();
+    store.append(
+      ReportGenerated(
+        eventId: 'CMP-RPT-1',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 13, 23, 30),
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-SANDTON',
+        month: '2026-03',
+        contentHash: 'cmp-content-hash-1',
+        pdfHash: 'cmp-pdf-hash-1',
+        eventRangeStart: 1,
+        eventRangeEnd: 20,
+        eventCount: 20,
+        reportSchemaVersion: 3,
+        projectionVersion: 1,
+      ),
+    );
+    store.append(
+      ReportGenerated(
+        eventId: 'CMP-RPT-2',
+        sequence: 2,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 14, 23, 30),
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-SANDTON',
+        month: '2026-03',
+        contentHash: 'cmp-content-hash-2',
+        pdfHash: 'cmp-pdf-hash-2',
+        eventRangeStart: 21,
+        eventRangeEnd: 40,
+        eventCount: 20,
+        reportSchemaVersion: 3,
+        projectionVersion: 1,
+      ),
+    );
+    store.append(
+      ReportGenerated(
+        eventId: 'CMP-RPT-3',
+        sequence: 3,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 15, 23, 30),
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-SANDTON',
+        month: '2026-03',
+        contentHash: 'cmp-content-hash-3',
+        pdfHash: 'cmp-pdf-hash-3',
+        eventRangeStart: 41,
+        eventRangeEnd: 64,
+        eventCount: 24,
+        reportSchemaVersion: 3,
+        projectionVersion: 1,
+        investigationContextKey: 'governance_branding_drift',
+      ),
+    );
+
     await tester.pumpWidget(
       MaterialApp(
         home: ClientIntelligenceReportsPage(
-          store: InMemoryEventStore(),
+          store: store,
           selectedClient: 'CLIENT-001',
           selectedSite: 'SITE-SANDTON',
           morningSovereignReportHistory: [priorReport, currentReport],
@@ -668,6 +725,11 @@ void main() {
     expect(find.text('2026-03-15 • 1 strong'), findsOneWidget);
     expect(find.text('2026-03-14 • 1 on track'), findsOneWidget);
     expect(find.text('2026-03-15 • 1 on track'), findsOneWidget);
+    expect(find.text('Receipt OVERSIGHT RISING'), findsOneWidget);
+    expect(find.text('Current Governance: 1'), findsWidgets);
+    expect(find.text('Current Routine: 0'), findsWidgets);
+    expect(find.text('Baseline Governance: 0.0'), findsWidgets);
+    expect(find.text('Baseline Routine: 1.0'), findsWidgets);
     expect(find.text('Partner Scorecard Lanes'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('reports-partner-scope-banner')),
@@ -687,6 +749,13 @@ void main() {
     expect(clipboardText, contains('"isLeader": true'));
     expect(clipboardText, contains('"trendLabel": "IMPROVING"'));
     expect(clipboardText, contains('"reportDate": "2026-03-14"'));
+    expect(clipboardText, contains('"receiptInvestigation": {'));
+    expect(clipboardText, contains('"trendLabel": "OVERSIGHT RISING"'));
+    expect(clipboardText, contains('"currentGovernanceHandoffCount": 1'));
+    expect(clipboardText, contains('"currentRoutineReviewCount": 0'));
+    expect(clipboardText, contains('"baselineGovernanceAverage": 0.0'));
+    expect(clipboardText, contains('"baselineRoutineAverage": 1.0'));
+    expect(clipboardText, contains('"baselineReceiptCount": 2'));
 
     final copyComparisonCsvButton = find.byKey(
       const ValueKey('reports-partner-comparison-copy-csv'),
@@ -697,6 +766,30 @@ void main() {
 
     expect(clipboardText, contains('client_id,CLIENT-001'));
     expect(clipboardText, contains('site_id,SITE-SANDTON'));
+    expect(
+      clipboardText,
+      contains('receipt_investigation_trend_label,"OVERSIGHT RISING"'),
+    );
+    expect(
+      clipboardText,
+      contains('receipt_investigation_current_governance_handoff_count,1'),
+    );
+    expect(
+      clipboardText,
+      contains('receipt_investigation_current_routine_review_count,0'),
+    );
+    expect(
+      clipboardText,
+      contains('receipt_investigation_baseline_governance_average,0.0'),
+    );
+    expect(
+      clipboardText,
+      contains('receipt_investigation_baseline_routine_average,1.0'),
+    );
+    expect(
+      clipboardText,
+      contains('receipt_investigation_baseline_receipt_count,2'),
+    );
     expect(clipboardText, contains('comparison_1,"PARTNER • Alpha"'));
     expect(
       clipboardText,
