@@ -3,6 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/application/morning_sovereign_report_service.dart';
+import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
+import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
+import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/domain/events/listener_alarm_advisory_recorded.dart';
 import 'package:omnix_dashboard/domain/events/listener_alarm_feed_cycle_recorded.dart';
 import 'package:omnix_dashboard/domain/events/listener_alarm_parity_cycle_recorded.dart';
@@ -51,6 +54,59 @@ void main() {
     expect(find.text('VIGILANCE MONITOR'), findsOneWidget);
     expect(find.text('COMPLIANCE ALERTS'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('governance page shows global readiness metric from scene reviews', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GovernancePage(
+          events: <DispatchEvent>[
+            IntelligenceReceived(
+              eventId: 'evt-1',
+              sequence: 1,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 16, 22, 0),
+              intelligenceId: 'intel-1',
+              provider: 'hikvision_dvr_monitor_only',
+              sourceType: 'dvr',
+              externalId: 'ext-1',
+              clientId: 'CLIENT-1',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-VALLEE',
+              cameraId: 'gate-cam',
+              faceMatchId: 'PERSON-44',
+              objectLabel: 'person',
+              objectConfidence: 0.95,
+              headline: 'HIKVISION ALERT',
+              summary: 'Boundary activity detected',
+              riskScore: 93,
+              snapshotUrl: 'https://edge.example.com/intel-1.jpg',
+              canonicalHash: 'hash-1',
+            ),
+          ],
+          sceneReviewByIntelligenceId: {
+            'intel-1': MonitoringSceneReviewRecord(
+              intelligenceId: 'intel-1',
+              sourceLabel: 'openai:gpt-5.4-mini',
+              postureLabel: 'boundary identity concern',
+              decisionLabel: 'Escalation Candidate',
+              decisionSummary: 'Escalation posture requires response review.',
+              summary: 'Boundary activity at gate.',
+              reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 1),
+            ),
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('governance-metric-global-readiness')),
+      findsOneWidget,
+    );
+    expect(find.text('Global Readiness'), findsOneWidget);
   });
 
   testWidgets('governance page renders persisted morning report metadata', (

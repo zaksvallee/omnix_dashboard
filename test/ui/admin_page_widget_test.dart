@@ -7,6 +7,7 @@ import 'package:omnix_dashboard/application/monitoring_identity_policy_service.d
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 import 'package:omnix_dashboard/application/site_identity_registry_repository.dart';
 import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
+import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/domain/events/listener_alarm_advisory_recorded.dart';
 import 'package:omnix_dashboard/domain/events/listener_alarm_feed_cycle_recorded.dart';
 import 'package:omnix_dashboard/domain/events/listener_alarm_parity_cycle_recorded.dart';
@@ -420,7 +421,7 @@ void main() {
 
     expect(find.text('Partner Scorecard'), findsOneWidget);
     expect(find.text('Slipping: 0'), findsOneWidget);
-    expect(find.text('Critical: 0'), findsOneWidget);
+    expect(find.text('Critical: 0'), findsWidgets);
     expect(find.text('Improving: 1'), findsOneWidget);
     expect(find.text('Open Governance'), findsOneWidget);
     expect(find.text('Copy Scorecard JSON'), findsOneWidget);
@@ -1157,6 +1158,57 @@ void main() {
       );
     },
   );
+
+  testWidgets('system tab shows global readiness summary card', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AdministrationPage(
+          supabaseReady: false,
+          initialTab: AdministrationPageTab.system,
+          events: <DispatchEvent>[
+            IntelligenceReceived(
+              eventId: 'evt-1',
+              sequence: 1,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 16, 22, 0),
+              intelligenceId: 'intel-1',
+              provider: 'hikvision_dvr_monitor_only',
+              sourceType: 'dvr',
+              externalId: 'ext-1',
+              clientId: 'CLIENT-1',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-VALLEE',
+              cameraId: 'gate-cam',
+              faceMatchId: 'PERSON-44',
+              objectLabel: 'person',
+              objectConfidence: 0.95,
+              headline: 'HIKVISION ALERT',
+              summary: 'Boundary activity detected',
+              riskScore: 93,
+              snapshotUrl: 'https://edge.example.com/intel-1.jpg',
+              canonicalHash: 'hash-1',
+            ),
+          ],
+          sceneReviewByIntelligenceId: {
+            'intel-1': MonitoringSceneReviewRecord(
+              intelligenceId: 'intel-1',
+              sourceLabel: 'openai:gpt-5.4-mini',
+              postureLabel: 'boundary identity concern',
+              decisionLabel: 'Escalation Candidate',
+              decisionSummary: 'Escalation posture requires response review.',
+              summary: 'Boundary activity at gate.',
+              reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 1),
+            ),
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('admin-global-readiness-card')), findsOneWidget);
+    expect(find.text('Global Readiness'), findsOneWidget);
+    expect(find.textContaining('Latest intent'), findsOneWidget);
+  });
 
   testWidgets('system tab shows video integrity certificate preview', (
     tester,

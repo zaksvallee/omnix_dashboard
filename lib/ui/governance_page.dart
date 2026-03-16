@@ -7,6 +7,10 @@ import 'package:google_fonts/google_fonts.dart';
 import '../application/dispatch_snapshot_file_service.dart';
 import '../application/email_bridge_service.dart';
 import '../application/morning_sovereign_report_service.dart';
+import '../application/monitoring_global_posture_service.dart';
+import '../application/monitoring_orchestrator_service.dart';
+import '../application/monitoring_scene_review_store.dart';
+import '../application/monitoring_watch_action_plan.dart';
 import '../application/text_share_service.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
@@ -464,6 +468,7 @@ class _GovernanceReportView {
 
 class GovernancePage extends StatefulWidget {
   final List<DispatchEvent> events;
+  final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
   final SovereignReport? morningSovereignReport;
   final List<SovereignReport> morningSovereignReportHistory;
   final String? morningSovereignReportAutoRunKey;
@@ -486,6 +491,8 @@ class GovernancePage extends StatefulWidget {
   const GovernancePage({
     super.key,
     required this.events,
+    this.sceneReviewByIntelligenceId =
+        const <String, MonitoringSceneReviewRecord>{},
     this.morningSovereignReport,
     this.morningSovereignReportHistory = const <SovereignReport>[],
     this.morningSovereignReportAutoRunKey,
@@ -511,6 +518,8 @@ class _GovernancePageState extends State<GovernancePage> {
   static const _snapshotFiles = DispatchSnapshotFileService();
   static const _textShare = TextShareService();
   static const _emailBridge = EmailBridgeService();
+  static const _globalPostureService = MonitoringGlobalPostureService();
+  static const _orchestratorService = MonitoringOrchestratorService();
 
   bool _generatingMorningReport = false;
   GovernanceSceneActionFocus? _activeSceneActionFocus;
@@ -2319,6 +2328,8 @@ class _GovernancePageState extends State<GovernancePage> {
     final listenerCycles = _listenerAlarmFeedCyclesForReport(report);
     final listenerAdvisories = _listenerAlarmAdvisoriesForReport(report);
     final listenerParities = _listenerAlarmParityCyclesForReport(report);
+    final globalPosture = _globalReadinessSnapshotForReport(report);
+    final globalIntents = _globalReadinessIntentsForReport(report);
     final latestListenerCycle = listenerCycles.isEmpty
         ? null
         : listenerCycles.first;
@@ -2376,6 +2387,23 @@ class _GovernancePageState extends State<GovernancePage> {
         color: report.totalBlocked > 0
             ? const Color(0xFFEF4444)
             : const Color(0xFF10B981),
+      ),
+      _reportMetric(
+        key: const ValueKey('governance-metric-global-readiness'),
+        label: 'Global Readiness',
+        value:
+            '${globalPosture.criticalSiteCount} critical • ${globalIntents.length} intents',
+        detail: _globalReadinessMetricDetail(
+          snapshot: globalPosture,
+          intents: globalIntents,
+        ),
+        color: globalPosture.criticalSiteCount > 0
+            ? const Color(0xFFEF4444)
+            : globalPosture.elevatedSiteCount > 0
+            ? const Color(0xFFF59E0B)
+            : globalIntents.isEmpty
+            ? const Color(0xFF10B981)
+            : const Color(0xFF22D3EE),
       ),
       _reportMetric(
         key: const ValueKey('governance-metric-listener-alarm'),
@@ -2493,6 +2521,42 @@ class _GovernancePageState extends State<GovernancePage> {
     return advisories;
   }
 
+  MonitoringGlobalPostureSnapshot _globalReadinessSnapshotForReport(
+    _GovernanceReportView report,
+  ) {
+    final scopedEvents = _eventsScopedToReportWindow(report);
+    return _globalPostureService.buildSnapshot(
+      events: scopedEvents,
+      sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+      generatedAtUtc: report.generatedAtUtc,
+    );
+  }
+
+  List<MonitoringWatchAutonomyActionPlan> _globalReadinessIntentsForReport(
+    _GovernanceReportView report,
+  ) {
+    final scopedEvents = _eventsScopedToReportWindow(report);
+    return _orchestratorService.buildActionIntents(
+      events: scopedEvents,
+      sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+    );
+  }
+
+  List<DispatchEvent> _eventsScopedToReportWindow(_GovernanceReportView report) {
+    final startUtc = report.shiftWindowStartUtc?.toUtc();
+    final endUtc = report.shiftWindowEndUtc?.toUtc();
+    if (startUtc == null || endUtc == null) {
+      return widget.events;
+    }
+    return widget.events
+        .where(
+          (event) =>
+              !event.occurredAt.toUtc().isBefore(startUtc) &&
+              !event.occurredAt.toUtc().isAfter(endUtc),
+        )
+        .toList(growable: false);
+  }
+
   List<ListenerAlarmParityCycleRecorded> _listenerAlarmParityCyclesForReport(
     _GovernanceReportView report,
   ) {
@@ -2530,6 +2594,24 @@ class _GovernancePageState extends State<GovernancePage> {
     return 'Latest cycle mapped ${latestCycle.mappedCount}/${latestCycle.acceptedCount} • '
         'missed ${latestCycle.unmappedCount + latestCycle.rejectedCount + latestCycle.failedCount} • '
         'clear ${latestCycle.clearCount} • suspicious ${latestCycle.suspiciousCount}$paritySegment';
+  }
+
+  String _globalReadinessMetricDetail({
+    required MonitoringGlobalPostureSnapshot snapshot,
+    required List<MonitoringWatchAutonomyActionPlan> intents,
+  }) {
+    if (snapshot.totalSites <= 0) {
+      return 'No cross-site posture signals have been reviewed in this shift';
+    }
+    final leadRegion = snapshot.regions.isEmpty ? null : snapshot.regions.first;
+    final leadSite = snapshot.sites.isEmpty ? null : snapshot.sites.first;
+    final regionSegment = leadRegion == null
+        ? ''
+        : ' • region ${leadRegion.regionId} ${leadRegion.heatLevel.name}';
+    final siteSegment = leadSite == null
+        ? ''
+        : ' • lead ${leadSite.siteId} ${leadSite.dominantSignals.join('/')}';
+    return 'Sites ${snapshot.totalSites} • elevated ${snapshot.elevatedSiteCount} • critical ${snapshot.criticalSiteCount} • intents ${intents.length}$regionSegment$siteSegment';
   }
 
   void _showListenerAlarmParityDrillIn(_GovernanceReportView report) {

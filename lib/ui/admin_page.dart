@@ -8,7 +8,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../application/morning_sovereign_report_service.dart';
 import '../application/client_messaging_bridge_repository.dart';
+import '../application/monitoring_global_posture_service.dart';
 import '../application/monitoring_identity_policy_service.dart';
+import '../application/monitoring_orchestrator_service.dart';
 import '../application/monitoring_scene_review_store.dart';
 import '../application/monitoring_watch_recovery_policy.dart';
 import '../application/monitoring_watch_recovery_store.dart';
@@ -724,6 +726,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
   static const _partnerEndpointLabelPrefix = 'PARTNER';
   static const MonitoringWatchRecoveryStore _watchRecoveryStore =
       MonitoringWatchRecoveryStore(policy: MonitoringWatchRecoveryPolicy());
+  static const _globalPostureService = MonitoringGlobalPostureService();
+  static const _orchestratorService = MonitoringOrchestratorService();
 
   final TextEditingController _searchController = TextEditingController();
   late final TextEditingController _radioIntentPhrasesController =
@@ -4675,6 +4679,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
         const SizedBox(height: 10),
         _partnerScorecardSummaryCard(),
         const SizedBox(height: 10),
+        _globalReadinessSummaryCard(),
+        const SizedBox(height: 10),
         _listenerAlarmSummaryCard(),
         const SizedBox(height: 10),
         _systemInfoCard(),
@@ -4912,6 +4918,104 @@ class _AdministrationPageState extends State<AdministrationPage> {
           ),
           const SizedBox(height: 8),
           _listenerAlarmSummaryRow(label: 'Parity', value: latestParitySummary),
+        ],
+      ),
+    );
+  }
+
+  Widget _globalReadinessSummaryCard() {
+    final snapshot = _globalPostureService.buildSnapshot(
+      events: widget.events,
+      sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+    );
+    final intents = _orchestratorService.buildActionIntents(
+      events: widget.events,
+      sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+      videoOpsLabel: widget.videoOpsLabel,
+    );
+    final leadRegion = snapshot.regions.isEmpty ? null : snapshot.regions.first;
+    final leadSite = snapshot.sites.isEmpty ? null : snapshot.sites.first;
+    final summary = snapshot.totalSites <= 0
+        ? 'No cross-site posture signals are active yet.'
+        : 'Sites ${snapshot.totalSites} • elevated ${snapshot.elevatedSiteCount} • critical ${snapshot.criticalSiteCount} • intents ${intents.length}'
+            '${leadRegion == null ? '' : ' • region ${leadRegion.regionId} ${leadRegion.heatLevel.name.toUpperCase()}'}'
+            '${leadSite == null ? '' : ' • lead ${leadSite.siteId}'}';
+    return Container(
+      key: const ValueKey('admin-global-readiness-card'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: _panelDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _subTitle('Global Readiness'),
+          const SizedBox(height: 8),
+          Text(
+            'Cross-site posture and orchestrator interventions across the active video monitoring estate.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB1CF),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _partnerScorecardChip(
+                label: 'Sites',
+                value: '${snapshot.totalSites}',
+                color: const Color(0xFF8FD1FF),
+              ),
+              _partnerScorecardChip(
+                label: 'Elevated',
+                value: '${snapshot.elevatedSiteCount}',
+                color: const Color(0xFFF59E0B),
+              ),
+              _partnerScorecardChip(
+                label: 'Critical',
+                value: '${snapshot.criticalSiteCount}',
+                color: const Color(0xFFEF4444),
+              ),
+              _partnerScorecardChip(
+                label: 'Intents',
+                value: '${intents.length}',
+                color: const Color(0xFF22D3EE),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            summary,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF4FF),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (leadSite != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Lead posture • ${leadSite.siteId} • ${leadSite.heatLevel.name.toUpperCase()} • ${leadSite.latestSummary}',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          if (intents.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Latest intent • ${intents.first.actionType} • ${intents.first.description}',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFFDE68A),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ],
       ),
     );
