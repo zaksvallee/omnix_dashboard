@@ -6840,6 +6840,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         maxSkewSecondsObserved: report.maxSkewSecondsObserved,
         averageSkewSeconds: report.averageSkewSeconds,
         driftSummary: driftSummary,
+        driftReasonCounts: report.driftReasonCounts,
       ),
     );
   }

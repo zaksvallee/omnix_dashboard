@@ -13,6 +13,7 @@ class ListenerAlarmParityCycleRecorded extends DispatchEvent {
   final int maxSkewSecondsObserved;
   final double averageSkewSeconds;
   final String driftSummary;
+  final Map<String, int> driftReasonCounts;
 
   const ListenerAlarmParityCycleRecorded({
     required super.eventId,
@@ -31,6 +32,7 @@ class ListenerAlarmParityCycleRecorded extends DispatchEvent {
     required this.maxSkewSecondsObserved,
     required this.averageSkewSeconds,
     required this.driftSummary,
+    this.driftReasonCounts = const <String, int>{},
   });
 
   @override
@@ -52,6 +54,7 @@ class ListenerAlarmParityCycleRecorded extends DispatchEvent {
       maxSkewSecondsObserved: maxSkewSecondsObserved,
       averageSkewSeconds: averageSkewSeconds,
       driftSummary: driftSummary,
+      driftReasonCounts: driftReasonCounts,
     );
   }
 }

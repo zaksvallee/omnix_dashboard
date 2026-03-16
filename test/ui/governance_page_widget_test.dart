@@ -1040,6 +1040,7 @@ void main() {
               maxSkewSecondsObserved: 22,
               averageSkewSeconds: 8.4,
               driftSummary: 'serial 5 • legacy 5 • matched 4',
+              driftReasonCounts: const {'zone_mismatch': 1, 'skew_exceeded': 1},
             ),
           ],
           morningSovereignReport: report,
@@ -1058,6 +1059,23 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('parity ok 4/5'), findsOneWidget);
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('governance-metric-listener-alarm')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('governance-metric-listener-alarm')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('governance-listener-alarm-parity-dialog')),
+      findsOneWidget,
+    );
+    expect(find.text('LISTENER ALARM PARITY DRILL-IN'), findsOneWidget);
+    expect(find.text('zone_mismatch: 1'), findsOneWidget);
+    expect(find.text('skew_exceeded: 1'), findsOneWidget);
   });
 
   testWidgets('governance partner scorecard drill-in can open scoped reports', (

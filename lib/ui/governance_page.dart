@@ -2395,6 +2395,9 @@ class _GovernancePageState extends State<GovernancePage> {
             : listenerAdvisories.isEmpty
             ? const Color(0xFF10B981)
             : const Color(0xFF34D399),
+        onTap: latestListenerParity != null
+            ? () => _showListenerAlarmParityDrillIn(report)
+            : null,
       ),
       _reportMetric(
         key: const ValueKey('governance-metric-receipt-policy'),
@@ -2527,6 +2530,215 @@ class _GovernancePageState extends State<GovernancePage> {
     return 'Latest cycle mapped ${latestCycle.mappedCount}/${latestCycle.acceptedCount} • '
         'missed ${latestCycle.unmappedCount + latestCycle.rejectedCount + latestCycle.failedCount} • '
         'clear ${latestCycle.clearCount} • suspicious ${latestCycle.suspiciousCount}$paritySegment';
+  }
+
+  void _showListenerAlarmParityDrillIn(_GovernanceReportView report) {
+    final parities = _listenerAlarmParityCyclesForReport(report);
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: const Color(0xFF08111B),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 24,
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760, maxHeight: 720),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                key: const ValueKey('governance-listener-alarm-parity-dialog'),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'LISTENER ALARM PARITY DRILL-IN',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFFEAF4FF),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Compare ONYX listener intake against the legacy listener path for this shift.',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF9CB2D1),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        icon: const Icon(Icons.close, color: Color(0xFFEAF4FF)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (parities.isEmpty)
+                    Text(
+                      'No listener parity cycles were recorded in this shift.',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF8EA4C2),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (final parity in parities) ...[
+                              Container(
+                                key: ValueKey<String>(
+                                  'governance-listener-parity-${parity.eventId}',
+                                ),
+                                width: double.infinity,
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0x14000000),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: const Color(0x22FFFFFF),
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            '${parity.sourceLabel} vs ${parity.legacySourceLabel}',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFFEAF4FF),
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 7,
+                                            vertical: 3,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color:
+                                                (parity.statusLabel == 'ok'
+                                                        ? const Color(
+                                                            0xFF34D399,
+                                                          )
+                                                        : const Color(
+                                                            0xFFF59E0B,
+                                                          ))
+                                                    .withValues(alpha: 0.14),
+                                            borderRadius: BorderRadius.circular(
+                                              999,
+                                            ),
+                                            border: Border.all(
+                                              color:
+                                                  (parity.statusLabel == 'ok'
+                                                          ? const Color(
+                                                              0xFF34D399,
+                                                            )
+                                                          : const Color(
+                                                              0xFFF59E0B,
+                                                            ))
+                                                      .withValues(alpha: 0.5),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            parity.statusLabel.toUpperCase(),
+                                            style: GoogleFonts.inter(
+                                              color: parity.statusLabel == 'ok'
+                                                  ? const Color(0xFF34D399)
+                                                  : const Color(0xFFF59E0B),
+                                              fontSize: 8,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      'Matched ${parity.matchedCount}/${parity.legacyCount} • Serial-only ${parity.unmatchedSerialCount} • Legacy-only ${parity.unmatchedLegacyCount}',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF9CB2D1),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Max skew ${parity.maxSkewSecondsObserved}s of ${parity.maxAllowedSkewSeconds}s • Avg ${parity.averageSkewSeconds.toStringAsFixed(1)}s',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF8EA4C2),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    if (parity
+                                        .driftReasonCounts
+                                        .isNotEmpty) ...[
+                                      const SizedBox(height: 8),
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        children: [
+                                          for (final entry
+                                              in parity
+                                                  .driftReasonCounts
+                                                  .entries)
+                                            _partnerTrendMetricChip(
+                                              label: entry.key,
+                                              value: '${entry.value}',
+                                              color: const Color(0xFFF6C067),
+                                            ),
+                                        ],
+                                      ),
+                                    ],
+                                    if (parity.driftSummary
+                                        .trim()
+                                        .isNotEmpty) ...[
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        parity.driftSummary,
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFF8EA4C2),
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   String? _focusedSceneActionLabel(_GovernanceReportView report) {
