@@ -878,6 +878,8 @@ void main() {
     expect(find.text('Baseline Governance: 0.0'), findsWidgets);
     expect(find.text('Baseline Routine: 1.0'), findsWidgets);
     expect(find.text('Partner Scorecard Lanes'), findsOneWidget);
+    expect(find.text('Investigate'), findsWidgets);
+    expect(find.text('Export'), findsWidgets);
     expect(
       find.byKey(const ValueKey('reports-partner-scope-banner')),
       findsNothing,

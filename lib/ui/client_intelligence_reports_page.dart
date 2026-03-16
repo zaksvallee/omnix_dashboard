@@ -2424,35 +2424,20 @@ class _ClientIntelligenceReportsPageState
               ],
             ),
           ],
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
+          Text(
+            'Investigate',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFE8F1FF),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
-              _actionButton(
-                key: ValueKey<String>(
-                  'reports-partner-comparison-copy-json-${row.clientId}/${row.siteId}/${row.partnerLabel}',
-                ),
-                label: 'Copy JSON',
-                icon: Icons.data_object_rounded,
-                onTap: () => _copyPartnerDrillInJson(
-                  clientId: row.clientId,
-                  siteId: row.siteId,
-                  partnerLabel: row.partnerLabel,
-                ),
-              ),
-              _actionButton(
-                key: ValueKey<String>(
-                  'reports-partner-comparison-copy-csv-${row.clientId}/${row.siteId}/${row.partnerLabel}',
-                ),
-                label: 'Copy CSV',
-                icon: Icons.table_chart_rounded,
-                onTap: () => _copyPartnerDrillInCsv(
-                  clientId: row.clientId,
-                  siteId: row.siteId,
-                  partnerLabel: row.partnerLabel,
-                ),
-              ),
               _actionButton(
                 key: ValueKey<String>(
                   'reports-partner-comparison-open-events-${row.clientId}/${row.siteId}/${row.partnerLabel}',
@@ -2504,6 +2489,46 @@ class _ClientIntelligenceReportsPageState
                         siteId: row.siteId,
                         partnerLabel: row.partnerLabel,
                       ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Export',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9CB2D1),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _actionButton(
+                key: ValueKey<String>(
+                  'reports-partner-comparison-copy-json-${row.clientId}/${row.siteId}/${row.partnerLabel}',
+                ),
+                label: 'Copy JSON',
+                icon: Icons.data_object_rounded,
+                onTap: () => _copyPartnerDrillInJson(
+                  clientId: row.clientId,
+                  siteId: row.siteId,
+                  partnerLabel: row.partnerLabel,
+                ),
+              ),
+              _actionButton(
+                key: ValueKey<String>(
+                  'reports-partner-comparison-copy-csv-${row.clientId}/${row.siteId}/${row.partnerLabel}',
+                ),
+                label: 'Copy CSV',
+                icon: Icons.table_chart_rounded,
+                onTap: () => _copyPartnerDrillInCsv(
+                  clientId: row.clientId,
+                  siteId: row.siteId,
+                  partnerLabel: row.partnerLabel,
+                ),
               ),
             ],
           ),
