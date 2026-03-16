@@ -370,7 +370,15 @@ void main() {
       find.byKey(const ValueKey('governance-receipt-investigation-trend-card')),
       findsOneWidget,
     );
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('governance-receipt-investigation-trend-card')),
+    );
+    await tester.pumpAndSettle();
     expect(find.text('OVERSIGHT HANDOFF'), findsWidgets);
+    expect(find.text('Current Governance: 1'), findsOneWidget);
+    expect(find.text('Current Routine: 1'), findsOneWidget);
+    expect(find.text('Baseline Governance: 0.0'), findsOneWidget);
+    expect(find.text('Baseline Routine: 0.0'), findsOneWidget);
     expect(
       find.textContaining(
         'Governance-opened receipt investigations increased against recent shifts.',

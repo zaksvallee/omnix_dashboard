@@ -213,6 +213,18 @@ class _ReceiptInvestigationTrend {
   });
 }
 
+class _ReceiptInvestigationBaselineStats {
+  final double governanceAverage;
+  final double routineAverage;
+  final int reportDays;
+
+  const _ReceiptInvestigationBaselineStats({
+    required this.governanceAverage,
+    required this.routineAverage,
+    required this.reportDays,
+  });
+}
+
 class _ReceiptBrandingHistoryPoint {
   final String reportDate;
   final bool current;
@@ -4429,6 +4441,7 @@ class _GovernancePageState extends State<GovernancePage> {
 
   Widget _receiptInvestigationTrendCard(_GovernanceReportView report) {
     final trend = _receiptInvestigationTrendForReport(report);
+    final baseline = _receiptInvestigationBaselineStats(report);
     final trendColor = _partnerTrendColor(trend.trendLabel);
     final modeColor = _receiptInvestigationModeColor(trend.currentModeLabel);
     return InkWell(
@@ -4518,6 +4531,37 @@ class _GovernancePageState extends State<GovernancePage> {
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _partnerTrendMetricChip(
+                  label: 'Current Governance',
+                  value: '${report.governanceHandoffReports}',
+                  color: const Color(0xFFF6C067),
+                ),
+                _partnerTrendMetricChip(
+                  label: 'Current Routine',
+                  value: '${report.routineReviewReports}',
+                  color: const Color(0xFF63BDFF),
+                ),
+                _partnerTrendMetricChip(
+                  label: 'Baseline Governance',
+                  value: baseline.reportDays <= 0
+                      ? 'n/a'
+                      : baseline.governanceAverage.toStringAsFixed(1),
+                  color: const Color(0xFFF6C067),
+                ),
+                _partnerTrendMetricChip(
+                  label: 'Baseline Routine',
+                  value: baseline.reportDays <= 0
+                      ? 'n/a'
+                      : baseline.routineAverage.toStringAsFixed(1),
+                  color: const Color(0xFF63BDFF),
+                ),
+              ],
             ),
           ],
         ),
@@ -5773,6 +5817,48 @@ class _GovernancePageState extends State<GovernancePage> {
       summaryLine: summaryLine,
       reportDays: baseline.length,
       currentModeLabel: currentModeLabel,
+    );
+  }
+
+  _ReceiptInvestigationBaselineStats _receiptInvestigationBaselineStats(
+    _GovernanceReportView report,
+  ) {
+    final baselineReports =
+        widget.morningSovereignReportHistory
+            .where((item) {
+              if (item.generatedAtUtc == report.generatedAtUtc &&
+                  item.date == report.reportDate) {
+                return false;
+              }
+              return item.receiptPolicy.generatedReports > 0;
+            })
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
+    final baseline = baselineReports.take(3).toList(growable: false);
+    if (baseline.isEmpty) {
+      return const _ReceiptInvestigationBaselineStats(
+        governanceAverage: 0,
+        routineAverage: 0,
+        reportDays: 0,
+      );
+    }
+    final governanceAverage =
+        baseline
+            .map((item) => item.receiptPolicy.governanceHandoffReports)
+            .reduce((left, right) => left + right) /
+        baseline.length;
+    final routineAverage =
+        baseline
+            .map((item) => item.receiptPolicy.routineReviewReports)
+            .reduce((left, right) => left + right) /
+        baseline.length;
+    return _ReceiptInvestigationBaselineStats(
+      governanceAverage: governanceAverage,
+      routineAverage: routineAverage,
+      reportDays: baseline.length,
     );
   }
 
