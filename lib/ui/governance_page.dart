@@ -409,6 +409,17 @@ class _GovernanceReportView {
   final String latestReceiptPolicySummary;
   final String latestReceiptBrandingSummary;
   final String latestReceiptInvestigationSummary;
+  final int siteActivitySignals;
+  final int siteActivityPeople;
+  final int siteActivityVehicles;
+  final int siteActivityKnownIds;
+  final int siteActivityFlaggedIds;
+  final int siteActivityUnknownSignals;
+  final int siteActivityLongPresence;
+  final int siteActivityGuardInteractions;
+  final String siteActivityExecutiveSummary;
+  final String siteActivityHeadline;
+  final String siteActivitySummary;
   final int vehicleVisits;
   final int vehicleCompletedVisits;
   final int vehicleActiveVisits;
@@ -488,6 +499,17 @@ class _GovernanceReportView {
     required this.latestReceiptPolicySummary,
     required this.latestReceiptBrandingSummary,
     required this.latestReceiptInvestigationSummary,
+    required this.siteActivitySignals,
+    required this.siteActivityPeople,
+    required this.siteActivityVehicles,
+    required this.siteActivityKnownIds,
+    required this.siteActivityFlaggedIds,
+    required this.siteActivityUnknownSignals,
+    required this.siteActivityLongPresence,
+    required this.siteActivityGuardInteractions,
+    required this.siteActivityExecutiveSummary,
+    required this.siteActivityHeadline,
+    required this.siteActivitySummary,
     required this.vehicleVisits,
     required this.vehicleCompletedVisits,
     required this.vehicleActiveVisits,
@@ -2194,6 +2216,17 @@ class _GovernancePageState extends State<GovernancePage> {
       latestReceiptBrandingSummary: report.latestReceiptBrandingSummary,
       latestReceiptInvestigationSummary:
           report.latestReceiptInvestigationSummary,
+      siteActivitySignals: report.siteActivitySignals,
+      siteActivityPeople: report.siteActivityPeople,
+      siteActivityVehicles: report.siteActivityVehicles,
+      siteActivityKnownIds: report.siteActivityKnownIds,
+      siteActivityFlaggedIds: report.siteActivityFlaggedIds,
+      siteActivityUnknownSignals: report.siteActivityUnknownSignals,
+      siteActivityLongPresence: report.siteActivityLongPresence,
+      siteActivityGuardInteractions: report.siteActivityGuardInteractions,
+      siteActivityExecutiveSummary: report.siteActivityExecutiveSummary,
+      siteActivityHeadline: report.siteActivityHeadline,
+      siteActivitySummary: report.siteActivitySummary,
       vehicleVisits: report.vehicleVisits,
       vehicleCompletedVisits: report.vehicleCompletedVisits,
       vehicleActiveVisits: report.vehicleActiveVisits,
@@ -2513,6 +2546,20 @@ class _GovernancePageState extends State<GovernancePage> {
         onTap: report.generatedReports > 0
             ? () => _showReceiptPolicyDrillIn(report)
             : null,
+      ),
+      _reportMetric(
+        key: const ValueKey('governance-metric-site-activity'),
+        label: 'Site Activity',
+        value: '${report.siteActivitySignals} signals',
+        detail: _siteActivityMetricDetail(report),
+        color: report.siteActivityFlaggedIds > 0
+            ? const Color(0xFFEF4444)
+            : report.siteActivityUnknownSignals > 0 ||
+                  report.siteActivityLongPresence > 0
+            ? const Color(0xFFF59E0B)
+            : report.siteActivitySignals > 0
+            ? const Color(0xFF22D3EE)
+            : const Color(0xFF10B981),
       ),
       _reportMetric(
         key: const ValueKey('governance-metric-vehicle-throughput'),
@@ -3566,6 +3613,21 @@ class _GovernancePageState extends State<GovernancePage> {
       return latestParts.join(' • ');
     }
     return '${summaryParts.join(' • ')} • ${latestParts.join(' • ')}';
+  }
+
+  String _siteActivityMetricDetail(_GovernanceReportView report) {
+    final summaryParts = <String>[
+      if (report.siteActivityExecutiveSummary.trim().isNotEmpty)
+        report.siteActivityExecutiveSummary,
+      if (report.siteActivitySummary.trim().isNotEmpty)
+        report.siteActivitySummary,
+    ];
+    if (summaryParts.isEmpty && report.siteActivityHeadline.trim().isNotEmpty) {
+      summaryParts.add(report.siteActivityHeadline);
+    }
+    return summaryParts.isEmpty
+        ? 'No visitor or site-activity signals detected in this shift window.'
+        : summaryParts.join(' • ');
   }
 
   Color _receiptPolicyEventAccent(ReportGenerated event) {
@@ -7369,6 +7431,21 @@ class _GovernancePageState extends State<GovernancePage> {
               canonical.receiptPolicy.latestBrandingSummary,
           latestReceiptInvestigationSummary:
               canonical.receiptPolicy.latestInvestigationSummary,
+          siteActivitySignals: canonical.siteActivity.totalSignals,
+          siteActivityPeople: canonical.siteActivity.personSignals,
+          siteActivityVehicles: canonical.siteActivity.vehicleSignals,
+          siteActivityKnownIds: canonical.siteActivity.knownIdentitySignals,
+          siteActivityFlaggedIds:
+              canonical.siteActivity.flaggedIdentitySignals,
+          siteActivityUnknownSignals: canonical.siteActivity.unknownSignals,
+          siteActivityLongPresence:
+              canonical.siteActivity.longPresenceSignals,
+          siteActivityGuardInteractions:
+              canonical.siteActivity.guardInteractionSignals,
+          siteActivityExecutiveSummary:
+              canonical.siteActivity.executiveSummary,
+          siteActivityHeadline: canonical.siteActivity.headline,
+          siteActivitySummary: canonical.siteActivity.summaryLine,
           vehicleVisits: canonical.vehicleThroughput.totalVisits,
           vehicleCompletedVisits: canonical.vehicleThroughput.completedVisits,
           vehicleActiveVisits: canonical.vehicleThroughput.activeVisits,
@@ -7496,6 +7573,17 @@ class _GovernancePageState extends State<GovernancePage> {
         latestReceiptPolicySummary: '',
         latestReceiptBrandingSummary: '',
         latestReceiptInvestigationSummary: '',
+        siteActivitySignals: 0,
+        siteActivityPeople: 0,
+        siteActivityVehicles: 0,
+        siteActivityKnownIds: 0,
+        siteActivityFlaggedIds: 0,
+        siteActivityUnknownSignals: 0,
+        siteActivityLongPresence: 0,
+        siteActivityGuardInteractions: 0,
+        siteActivityExecutiveSummary: '',
+        siteActivityHeadline: '',
+        siteActivitySummary: 'No visitor or site-activity signals detected.',
         vehicleVisits: 0,
         vehicleCompletedVisits: 0,
         vehicleActiveVisits: 0,
@@ -8251,6 +8339,19 @@ class _GovernancePageState extends State<GovernancePage> {
             .map(_receiptInvestigationHistoryJson)
             .toList(growable: false),
       },
+      'siteActivity': {
+        'totalSignals': report.siteActivitySignals,
+        'personSignals': report.siteActivityPeople,
+        'vehicleSignals': report.siteActivityVehicles,
+        'knownIdentitySignals': report.siteActivityKnownIds,
+        'flaggedIdentitySignals': report.siteActivityFlaggedIds,
+        'unknownSignals': report.siteActivityUnknownSignals,
+        'longPresenceSignals': report.siteActivityLongPresence,
+        'guardInteractionSignals': report.siteActivityGuardInteractions,
+        'executiveSummary': report.siteActivityExecutiveSummary,
+        'headline': report.siteActivityHeadline,
+        'summaryLine': report.siteActivitySummary,
+      },
       'vehicleThroughput': {
         'totalVisits': report.vehicleVisits,
         'completedVisits': report.vehicleCompletedVisits,
@@ -8395,6 +8496,17 @@ class _GovernancePageState extends State<GovernancePage> {
       'receipt_investigation_trend_report_days,${receiptInvestigationTrend.reportDays}',
       for (var i = 0; i < receiptInvestigationHistory.length; i++)
         'receipt_investigation_history_${i + 1},"${_receiptInvestigationHistoryCsvSummary(receiptInvestigationHistory[i]).replaceAll('"', '""')}"',
+      'site_activity_total_signals,${report.siteActivitySignals}',
+      'site_activity_people,${report.siteActivityPeople}',
+      'site_activity_vehicles,${report.siteActivityVehicles}',
+      'site_activity_known_ids,${report.siteActivityKnownIds}',
+      'site_activity_flagged_ids,${report.siteActivityFlaggedIds}',
+      'site_activity_unknown_signals,${report.siteActivityUnknownSignals}',
+      'site_activity_long_presence,${report.siteActivityLongPresence}',
+      'site_activity_guard_interactions,${report.siteActivityGuardInteractions}',
+      'site_activity_executive_summary,"${report.siteActivityExecutiveSummary.replaceAll('"', '""')}"',
+      'site_activity_headline,"${report.siteActivityHeadline.replaceAll('"', '""')}"',
+      'site_activity_summary,"${report.siteActivitySummary.replaceAll('"', '""')}"',
       'vehicle_total_visits,${report.vehicleVisits}',
       'vehicle_completed_visits,${report.vehicleCompletedVisits}',
       'vehicle_active_visits,${report.vehicleActiveVisits}',

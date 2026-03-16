@@ -359,6 +359,21 @@ void main() {
         latestInvestigationSummary:
             'CLIENT-1/SITE-42 2026-03 remained routine report review.',
       ),
+      siteActivity: const SovereignReportSiteActivity(
+        totalSignals: 7,
+        personSignals: 4,
+        vehicleSignals: 3,
+        knownIdentitySignals: 2,
+        flaggedIdentitySignals: 1,
+        unknownSignals: 3,
+        longPresenceSignals: 1,
+        guardInteractionSignals: 1,
+        executiveSummary:
+            '3 vehicle signals • 4 person signals • 2 known identity hits • 1 flagged identity signal • 1 long-presence pattern • 1 guard interaction',
+        headline: '7 site-activity signals recorded',
+        summaryLine:
+            'Signals 7 • Vehicles 3 • People 4 • Known IDs 2 • Unknown 3 • Long presence 1 • Guard interactions 1 • Flagged IDs 1',
+      ),
       sceneReview: const SovereignReportSceneReview(
         totalReviews: 7,
         modelReviews: 5,
@@ -1038,6 +1053,21 @@ void main() {
             'CLIENT-1/SITE-42 2026-03 used custom branding override from Partner Alpha.',
         latestInvestigationSummary:
             'CLIENT-1/SITE-42 2026-03 remained routine report review.',
+      ),
+      siteActivity: const SovereignReportSiteActivity(
+        totalSignals: 7,
+        personSignals: 4,
+        vehicleSignals: 3,
+        knownIdentitySignals: 2,
+        flaggedIdentitySignals: 1,
+        unknownSignals: 3,
+        longPresenceSignals: 1,
+        guardInteractionSignals: 1,
+        executiveSummary:
+            '3 vehicle signals • 4 person signals • 2 known identity hits • 1 flagged identity signal • 1 long-presence pattern • 1 guard interaction',
+        headline: '7 site-activity signals recorded',
+        summaryLine:
+            'Signals 7 • Vehicles 3 • People 4 • Known IDs 2 • Unknown 3 • Long presence 1 • Guard interactions 1 • Flagged IDs 1',
       ),
       sceneReview: const SovereignReportSceneReview(
         totalReviews: 7,
@@ -1954,6 +1984,21 @@ void main() {
             'CLIENT-1/SITE-42 2026-03 used custom branding override from Partner Alpha.',
         latestInvestigationSummary:
             'CLIENT-1/SITE-42 2026-03 remained routine report review.',
+      ),
+      siteActivity: const SovereignReportSiteActivity(
+        totalSignals: 7,
+        personSignals: 4,
+        vehicleSignals: 3,
+        knownIdentitySignals: 2,
+        flaggedIdentitySignals: 1,
+        unknownSignals: 3,
+        longPresenceSignals: 1,
+        guardInteractionSignals: 1,
+        executiveSummary:
+            '3 vehicle signals • 4 person signals • 2 known identity hits • 1 flagged identity signal • 1 long-presence pattern • 1 guard interaction',
+        headline: '7 site-activity signals recorded',
+        summaryLine:
+            'Signals 7 • Vehicles 3 • People 4 • Known IDs 2 • Unknown 3 • Long presence 1 • Guard interactions 1 • Flagged IDs 1',
       ),
       sceneReview: const SovereignReportSceneReview(
         totalReviews: 7,
@@ -3476,6 +3521,21 @@ void main() {
         latestInvestigationSummary:
             'CLIENT-1/SITE-42 2026-03 remained routine report review.',
       ),
+      siteActivity: const SovereignReportSiteActivity(
+        totalSignals: 7,
+        personSignals: 4,
+        vehicleSignals: 3,
+        knownIdentitySignals: 2,
+        flaggedIdentitySignals: 1,
+        unknownSignals: 3,
+        longPresenceSignals: 1,
+        guardInteractionSignals: 1,
+        executiveSummary:
+            '3 vehicle signals • 4 person signals • 2 known identity hits • 1 flagged identity signal • 1 long-presence pattern • 1 guard interaction',
+        headline: '7 site-activity signals recorded',
+        summaryLine:
+            'Signals 7 • Vehicles 3 • People 4 • Known IDs 2 • Unknown 3 • Long presence 1 • Guard interactions 1 • Flagged IDs 1',
+      ),
       sceneReview: const SovereignReportSceneReview(
         totalReviews: 7,
         modelReviews: 5,
@@ -3708,6 +3768,17 @@ void main() {
     expect(copiedPayload, contains('"baselineReportDays": 0'));
     expect(copiedPayload, contains('"investigationHistory"'));
     expect(copiedPayload, contains('"current": true'));
+    expect(copiedPayload, contains('"siteActivity"'));
+    expect(copiedPayload, contains('"totalSignals": 7'));
+    expect(copiedPayload, contains('"personSignals": 4'));
+    expect(copiedPayload, contains('"vehicleSignals": 3'));
+    expect(copiedPayload, contains('"flaggedIdentitySignals": 1'));
+    expect(
+      copiedPayload,
+      contains(
+        '"summaryLine": "Signals 7 • Vehicles 3 • People 4 • Known IDs 2 • Unknown 3 • Long presence 1 • Guard interactions 1 • Flagged IDs 1"',
+      ),
+    );
     expect(copiedPayload, contains('"vehicleThroughput"'));
     expect(copiedPayload, contains('"totalVisits": 18'));
     expect(
@@ -3733,6 +3804,17 @@ void main() {
     await tester.ensureVisible(find.text('Copy Morning CSV (Recent Actions)'));
     await tester.tap(find.text('Copy Morning CSV (Recent Actions)'));
     await tester.pump();
+
+    expect(copiedPayload, contains('site_activity_total_signals,7'));
+    expect(copiedPayload, contains('site_activity_people,4'));
+    expect(copiedPayload, contains('site_activity_vehicles,3'));
+    expect(copiedPayload, contains('site_activity_flagged_ids,1'));
+    expect(
+      copiedPayload,
+      contains(
+        'site_activity_summary,"Signals 7 • Vehicles 3 • People 4 • Known IDs 2 • Unknown 3 • Long presence 1 • Guard interactions 1 • Flagged IDs 1"',
+      ),
+    );
 
     expect(copiedPayload, isNotNull);
     expect(copiedPayload, contains('scene_focused_lens_key,recentActions'));

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'monitoring_scene_review_store.dart';
+import 'site_activity_intelligence_service.dart';
 import 'vehicle_throughput_summary_formatter.dart';
 import 'vehicle_visit_ledger_projector.dart';
 import 'report_entry_context.dart';
@@ -317,6 +318,102 @@ class SovereignReportReceiptPolicy {
   }
 }
 
+class SovereignReportSiteActivity {
+  final int totalSignals;
+  final int personSignals;
+  final int vehicleSignals;
+  final int knownIdentitySignals;
+  final int flaggedIdentitySignals;
+  final int unknownSignals;
+  final int longPresenceSignals;
+  final int guardInteractionSignals;
+  final String executiveSummary;
+  final String headline;
+  final String summaryLine;
+
+  const SovereignReportSiteActivity({
+    required this.totalSignals,
+    required this.personSignals,
+    required this.vehicleSignals,
+    required this.knownIdentitySignals,
+    required this.flaggedIdentitySignals,
+    required this.unknownSignals,
+    required this.longPresenceSignals,
+    required this.guardInteractionSignals,
+    required this.executiveSummary,
+    required this.headline,
+    required this.summaryLine,
+  });
+
+  SovereignReportSiteActivity copyWith({
+    int? totalSignals,
+    int? personSignals,
+    int? vehicleSignals,
+    int? knownIdentitySignals,
+    int? flaggedIdentitySignals,
+    int? unknownSignals,
+    int? longPresenceSignals,
+    int? guardInteractionSignals,
+    String? executiveSummary,
+    String? headline,
+    String? summaryLine,
+  }) {
+    return SovereignReportSiteActivity(
+      totalSignals: totalSignals ?? this.totalSignals,
+      personSignals: personSignals ?? this.personSignals,
+      vehicleSignals: vehicleSignals ?? this.vehicleSignals,
+      knownIdentitySignals: knownIdentitySignals ?? this.knownIdentitySignals,
+      flaggedIdentitySignals:
+          flaggedIdentitySignals ?? this.flaggedIdentitySignals,
+      unknownSignals: unknownSignals ?? this.unknownSignals,
+      longPresenceSignals: longPresenceSignals ?? this.longPresenceSignals,
+      guardInteractionSignals:
+          guardInteractionSignals ?? this.guardInteractionSignals,
+      executiveSummary: executiveSummary ?? this.executiveSummary,
+      headline: headline ?? this.headline,
+      summaryLine: summaryLine ?? this.summaryLine,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'totalSignals': totalSignals,
+      'personSignals': personSignals,
+      'vehicleSignals': vehicleSignals,
+      'knownIdentitySignals': knownIdentitySignals,
+      'flaggedIdentitySignals': flaggedIdentitySignals,
+      'unknownSignals': unknownSignals,
+      'longPresenceSignals': longPresenceSignals,
+      'guardInteractionSignals': guardInteractionSignals,
+      'executiveSummary': executiveSummary,
+      'headline': headline,
+      'summaryLine': summaryLine,
+    };
+  }
+
+  factory SovereignReportSiteActivity.fromJson(Map<String, Object?> json) {
+    return SovereignReportSiteActivity(
+      totalSignals: (json['totalSignals'] as num?)?.toInt() ?? 0,
+      personSignals: (json['personSignals'] as num?)?.toInt() ?? 0,
+      vehicleSignals: (json['vehicleSignals'] as num?)?.toInt() ?? 0,
+      knownIdentitySignals:
+          (json['knownIdentitySignals'] as num?)?.toInt() ?? 0,
+      flaggedIdentitySignals:
+          (json['flaggedIdentitySignals'] as num?)?.toInt() ?? 0,
+      unknownSignals: (json['unknownSignals'] as num?)?.toInt() ?? 0,
+      longPresenceSignals:
+          (json['longPresenceSignals'] as num?)?.toInt() ?? 0,
+      guardInteractionSignals:
+          (json['guardInteractionSignals'] as num?)?.toInt() ?? 0,
+      executiveSummary: (json['executiveSummary'] as String? ?? '').trim(),
+      headline: (json['headline'] as String? ?? '').trim(),
+      summaryLine:
+          (json['summaryLine'] as String? ?? 'No visitor or site-activity signals detected.')
+              .trim(),
+    );
+  }
+}
+
 class SovereignReport {
   final String date;
   final DateTime generatedAtUtc;
@@ -328,6 +425,7 @@ class SovereignReport {
   final SovereignReportComplianceBlockage complianceBlockage;
   final SovereignReportSceneReview sceneReview;
   final SovereignReportReceiptPolicy receiptPolicy;
+  final SovereignReportSiteActivity siteActivity;
   final SovereignReportVehicleThroughput vehicleThroughput;
   final SovereignReportPartnerProgression partnerProgression;
 
@@ -362,6 +460,19 @@ class SovereignReport {
       headline: '',
       summaryLine: '',
       latestReportSummary: '',
+    ),
+    this.siteActivity = const SovereignReportSiteActivity(
+      totalSignals: 0,
+      personSignals: 0,
+      vehicleSignals: 0,
+      knownIdentitySignals: 0,
+      flaggedIdentitySignals: 0,
+      unknownSignals: 0,
+      longPresenceSignals: 0,
+      guardInteractionSignals: 0,
+      executiveSummary: '',
+      headline: '',
+      summaryLine: 'No visitor or site-activity signals detected.',
     ),
     this.vehicleThroughput = const SovereignReportVehicleThroughput(
       totalVisits: 0,
@@ -409,6 +520,7 @@ class SovereignReport {
     SovereignReportComplianceBlockage? complianceBlockage,
     SovereignReportSceneReview? sceneReview,
     SovereignReportReceiptPolicy? receiptPolicy,
+    SovereignReportSiteActivity? siteActivity,
     SovereignReportVehicleThroughput? vehicleThroughput,
     SovereignReportPartnerProgression? partnerProgression,
   }) {
@@ -423,6 +535,7 @@ class SovereignReport {
       complianceBlockage: complianceBlockage ?? this.complianceBlockage,
       sceneReview: sceneReview ?? this.sceneReview,
       receiptPolicy: receiptPolicy ?? this.receiptPolicy,
+      siteActivity: siteActivity ?? this.siteActivity,
       vehicleThroughput: vehicleThroughput ?? this.vehicleThroughput,
       partnerProgression: partnerProgression ?? this.partnerProgression,
     );
@@ -440,6 +553,7 @@ class SovereignReport {
       'complianceBlockage': complianceBlockage.toJson(),
       'sceneReview': sceneReview.toJson(),
       'receiptPolicy': receiptPolicy.toJson(),
+      'siteActivity': siteActivity.toJson(),
       'vehicleThroughput': vehicleThroughput.toJson(),
       'partnerProgression': partnerProgression.toJson(),
     };
@@ -452,6 +566,7 @@ class SovereignReport {
     final complianceRaw = json['complianceBlockage'];
     final sceneReviewRaw = json['sceneReview'];
     final receiptPolicyRaw = json['receiptPolicy'];
+    final siteActivityRaw = json['siteActivity'];
     final vehicleThroughputRaw = json['vehicleThroughput'];
     final partnerProgressionRaw = json['partnerProgression'];
     return SovereignReport(
@@ -546,6 +661,25 @@ class SovereignReport {
               headline: '',
               summaryLine: '',
               latestReportSummary: '',
+            ),
+      siteActivity: siteActivityRaw is Map
+          ? SovereignReportSiteActivity.fromJson(
+              siteActivityRaw.map(
+                (key, value) => MapEntry(key.toString(), value),
+              ),
+            )
+          : const SovereignReportSiteActivity(
+              totalSignals: 0,
+              personSignals: 0,
+              vehicleSignals: 0,
+              knownIdentitySignals: 0,
+              flaggedIdentitySignals: 0,
+              unknownSignals: 0,
+              longPresenceSignals: 0,
+              guardInteractionSignals: 0,
+              executiveSummary: '',
+              headline: '',
+              summaryLine: 'No visitor or site-activity signals detected.',
             ),
       vehicleThroughput: vehicleThroughputRaw is Map
           ? SovereignReportVehicleThroughput.fromJson(
@@ -1325,6 +1459,8 @@ String sovereignReportVehicleVisitExceptionKey(
 }
 
 class MorningSovereignReportService {
+  static const _siteActivityService = SiteActivityIntelligenceService();
+
   const MorningSovereignReportService();
 
   static DateTime latestCompletedNightShiftEndLocal(DateTime nowLocal) {
@@ -1459,6 +1595,7 @@ class MorningSovereignReportService {
     final receiptPolicy = _buildReceiptPolicy(
       events: nightEvents.whereType<ReportGenerated>().toList(growable: false),
     );
+    final siteActivity = _buildSiteActivity(events: nightIntel);
     final vehicleThroughput = _buildVehicleThroughput(
       nowUtc: nowUtc,
       events: nightIntel,
@@ -1516,6 +1653,7 @@ class MorningSovereignReportService {
         latestSuppressedPattern: latestSuppressedPattern,
       ),
       receiptPolicy: receiptPolicy,
+      siteActivity: siteActivity,
       vehicleThroughput: vehicleThroughput,
       partnerProgression: partnerProgression,
     );
@@ -1724,6 +1862,62 @@ class MorningSovereignReportService {
       null =>
         '${event.clientId}/${event.siteId} ${event.month} remained routine report review.',
     };
+  }
+
+  SovereignReportSiteActivity _buildSiteActivity({
+    required List<IntelligenceReceived> events,
+  }) {
+    final snapshot = _siteActivityService.buildSnapshot(events: events);
+    if (snapshot.totalSignals == 0) {
+      return const SovereignReportSiteActivity(
+        totalSignals: 0,
+        personSignals: 0,
+        vehicleSignals: 0,
+        knownIdentitySignals: 0,
+        flaggedIdentitySignals: 0,
+        unknownSignals: 0,
+        longPresenceSignals: 0,
+        guardInteractionSignals: 0,
+        executiveSummary: '',
+        headline: '',
+        summaryLine: 'No visitor or site-activity signals detected.',
+      );
+    }
+
+    final summaryParts = <String>[
+      if (snapshot.vehicleSignals > 0)
+        '${snapshot.vehicleSignals} ${snapshot.vehicleSignals == 1 ? 'vehicle signal' : 'vehicle signals'}',
+      if (snapshot.personSignals > 0)
+        '${snapshot.personSignals} ${snapshot.personSignals == 1 ? 'person signal' : 'person signals'}',
+      if (snapshot.knownIdentitySignals > 0)
+        '${snapshot.knownIdentitySignals} ${snapshot.knownIdentitySignals == 1 ? 'known identity hit' : 'known identity hits'}',
+      if (snapshot.flaggedIdentitySignals > 0)
+        '${snapshot.flaggedIdentitySignals} ${snapshot.flaggedIdentitySignals == 1 ? 'flagged identity signal' : 'flagged identity signals'}',
+      if (snapshot.longPresenceSignals > 0)
+        '${snapshot.longPresenceSignals} ${snapshot.longPresenceSignals == 1 ? 'long-presence pattern' : 'long-presence patterns'}',
+      if (snapshot.guardInteractionSignals > 0)
+        '${snapshot.guardInteractionSignals} ${snapshot.guardInteractionSignals == 1 ? 'guard interaction' : 'guard interactions'}',
+    ];
+    final executiveSummary = summaryParts.isEmpty
+        ? '${snapshot.totalSignals} site-activity signals recorded.'
+        : summaryParts.join(' • ');
+    final headline =
+        '${snapshot.totalSignals} ${snapshot.totalSignals == 1 ? 'site-activity signal' : 'site-activity signals'} recorded';
+
+    return SovereignReportSiteActivity(
+      totalSignals: snapshot.totalSignals,
+      personSignals: snapshot.personSignals,
+      vehicleSignals: snapshot.vehicleSignals,
+      knownIdentitySignals: snapshot.knownIdentitySignals,
+      flaggedIdentitySignals: snapshot.flaggedIdentitySignals,
+      unknownSignals:
+          snapshot.unknownPersonSignals + snapshot.unknownVehicleSignals,
+      longPresenceSignals: snapshot.longPresenceSignals,
+      guardInteractionSignals: snapshot.guardInteractionSignals,
+      executiveSummary: executiveSummary,
+      headline: headline,
+      summaryLine: snapshot.summaryLine,
+    );
   }
 
   SovereignReportPartnerProgression _buildPartnerProgression({

@@ -365,6 +365,25 @@ void main() {
         report.receiptPolicy.latestInvestigationSummary,
         'CLIENT-1/SITE-1 2026-03 remained routine report review.',
       );
+      expect(report.siteActivity.totalSignals, 4);
+      expect(report.siteActivity.personSignals, 0);
+      expect(report.siteActivity.vehicleSignals, 3);
+      expect(report.siteActivity.knownIdentitySignals, 3);
+      expect(report.siteActivity.unknownSignals, 0);
+      expect(report.siteActivity.longPresenceSignals, 0);
+      expect(report.siteActivity.guardInteractionSignals, 0);
+      expect(
+        report.siteActivity.executiveSummary,
+        '3 vehicle signals • 3 known identity hits',
+      );
+      expect(
+        report.siteActivity.headline,
+        '4 site-activity signals recorded',
+      );
+      expect(
+        report.siteActivity.summaryLine,
+        'Signals 4 • Vehicles 3 • Known IDs 3',
+      );
       expect(report.vehicleThroughput.totalVisits, 1);
       expect(report.vehicleThroughput.completedVisits, 1);
       expect(report.vehicleThroughput.uniqueVehicles, 1);
@@ -485,6 +504,13 @@ void main() {
         restored.receiptPolicy.latestInvestigationSummary,
         report.receiptPolicy.latestInvestigationSummary,
       );
+      expect(restored.siteActivity.totalSignals, 4);
+      expect(
+        restored.siteActivity.executiveSummary,
+        report.siteActivity.executiveSummary,
+      );
+      expect(restored.siteActivity.headline, report.siteActivity.headline);
+      expect(restored.siteActivity.summaryLine, report.siteActivity.summaryLine);
       expect(restored.sceneReview.escalationCandidates, 1);
       expect(
         restored.sceneReview.actionMixSummary,
