@@ -923,6 +923,28 @@ void main() {
     expect(openedEventsScope!['eventIds'], <String>['CMP-RPT-3']);
     expect(openedEventsScope!['selectedEventId'], 'CMP-RPT-3');
 
+    final comparisonOpenLatestShiftButton = find.byKey(
+      const ValueKey(
+        'reports-partner-comparison-open-latest-shift-CLIENT-001/SITE-SANDTON/PARTNER • Alpha',
+      ),
+    );
+    await tester.ensureVisible(comparisonOpenLatestShiftButton);
+    await tester.tap(comparisonOpenLatestShiftButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Partner Shift Detail'), findsOneWidget);
+    expect(
+      find.text('2026-03-15 • CLIENT-001/SITE-SANDTON • PARTNER • Alpha'),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('reports-partner-shift-detail-close')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Partner Shift Detail'), findsNothing);
+
     final comparisonOpenDrillInButton = find.byKey(
       const ValueKey(
         'reports-partner-comparison-open-drill-in-CLIENT-001/SITE-SANDTON/PARTNER • Beta',

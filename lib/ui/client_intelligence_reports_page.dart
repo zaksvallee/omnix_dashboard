@@ -2467,6 +2467,18 @@ class _ClientIntelligenceReportsPageState
               ),
               _actionButton(
                 key: ValueKey<String>(
+                  'reports-partner-comparison-open-latest-shift-${row.clientId}/${row.siteId}/${row.partnerLabel}',
+                ),
+                label: 'Open Latest Shift',
+                icon: Icons.schedule_rounded,
+                onTap: comparison.historyPoints.isEmpty
+                    ? null
+                    : () => _openPartnerShiftDetail(
+                        comparison.historyPoints.first,
+                      ),
+              ),
+              _actionButton(
+                key: ValueKey<String>(
                   'reports-partner-comparison-open-drill-in-${row.clientId}/${row.siteId}/${row.partnerLabel}',
                 ),
                 label: 'Open Drill-In',
