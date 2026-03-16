@@ -1,81 +1,77 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:omnix_dashboard/application/monitoring_orchestrator_service.dart';
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
-import 'package:omnix_dashboard/application/monitoring_watch_autonomy_service.dart';
 import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 
 void main() {
-  group('MonitoringWatchAutonomyService', () {
-    const service = MonitoringWatchAutonomyService();
+  group('MonitoringOrchestratorService', () {
+    const service = MonitoringOrchestratorService();
 
-    test('builds escalation-first plans from scene reviews', () {
+    test('emits regional action intents from heated posture', () {
       final events = <DispatchEvent>[
         _intel(
-          id: 'intel-escalate',
-          riskScore: 91,
+          id: 'intel-1',
+          regionId: 'REGION-GAUTENG',
           siteId: 'SITE-VALLEE',
+          riskScore: 92,
           cameraId: 'gate-cam',
           faceMatchId: 'PERSON-44',
         ),
         _intel(
-          id: 'intel-repeat',
-          riskScore: 80,
+          id: 'intel-2',
+          regionId: 'REGION-GAUTENG',
           siteId: 'SITE-VALLEE',
+          riskScore: 80,
           cameraId: 'driveway-cam',
         ),
       ];
       final reviews = <String, MonitoringSceneReviewRecord>{
-        'intel-escalate': MonitoringSceneReviewRecord(
-          intelligenceId: 'intel-escalate',
+        'intel-1': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-1',
           sourceLabel: 'openai:gpt-5.4-mini',
-          postureLabel: 'boundary loitering concern',
+          postureLabel: 'boundary identity concern',
           decisionLabel: 'Escalation Candidate',
-          decisionSummary:
-              'Escalated for urgent review because person activity was detected.',
-          summary: 'Person visible near the front gate.',
-          reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 15),
+          decisionSummary: 'Escalation posture requires response review.',
+          summary: 'Boundary activity at gate.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 30),
         ),
-        'intel-repeat': MonitoringSceneReviewRecord(
-          intelligenceId: 'intel-repeat',
+        'intel-2': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-2',
           sourceLabel: 'openai:gpt-5.4-mini',
           postureLabel: 'repeat monitored activity',
           decisionLabel: 'Repeat Activity',
-          decisionSummary:
-              'Repeat activity update sent because vehicle activity repeated.',
-          summary: 'Vehicle made multiple passes through the driveway.',
-          reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 16),
+          decisionSummary: 'Driveway activity repeated.',
+          summary: 'Vehicle repeating at driveway.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 31),
         ),
       };
 
-      final plans = service.buildPlans(
+      final intents = service.buildActionIntents(
         events: events,
         sceneReviewByIntelligenceId: reviews,
         videoOpsLabel: 'Hikvision',
       );
 
       expect(
-        plans.map((entry) => entry.actionType),
+        intents.map((entry) => entry.actionType),
         containsAll(<String>[
           'PREPOSITION RESPONSE',
-          'GLOBAL POSTURE SHIFT',
-          'AUTO-DISPATCH HOLD',
-          'PERSISTENCE SWEEP',
+          'RAISE PARTNER READINESS',
+          'DRAFT CLIENT WARNING',
+          'PROMOTE SCENE REVIEW',
         ]),
       );
-      final localEscalation = plans.firstWhere(
-        (entry) => entry.actionType == 'AUTO-DISPATCH HOLD',
-      );
-      expect(localEscalation.description, contains('HIKVISION evidence lock'));
-      expect(localEscalation.metadata['verdict'], 'Escalation Candidate');
-      expect(localEscalation.metadata['camera'], 'gate-cam');
+      expect(intents.first.metadata['scope'], 'ORCHESTRATOR');
     });
   });
 }
 
 IntelligenceReceived _intel({
   required String id,
-  required int riskScore,
+  required String regionId,
   required String siteId,
+  required int riskScore,
   required String cameraId,
   String faceMatchId = '',
 }) {
@@ -83,19 +79,19 @@ IntelligenceReceived _intel({
     eventId: 'evt-$id',
     sequence: 1,
     version: 1,
-    occurredAt: DateTime.utc(2026, 3, 16, 21, 14),
+    occurredAt: DateTime.utc(2026, 3, 16, 22, 25),
     intelligenceId: id,
     provider: 'hikvision_dvr_monitor_only',
     sourceType: 'dvr',
     externalId: 'ext-$id',
     clientId: 'CLIENT-VALLEE',
-    regionId: 'REGION-GAUTENG',
+    regionId: regionId,
     siteId: siteId,
     cameraId: cameraId,
     faceMatchId: faceMatchId.isEmpty ? null : faceMatchId,
     objectLabel: 'person',
-    objectConfidence: 0.92,
-    headline: 'HIKVISION LINE CROSSING',
+    objectConfidence: 0.94,
+    headline: 'HIKVISION ALERT',
     summary: 'Boundary activity detected',
     riskScore: riskScore,
     snapshotUrl: 'https://edge.example.com/$id.jpg',

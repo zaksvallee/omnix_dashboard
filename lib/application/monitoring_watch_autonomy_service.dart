@@ -1,36 +1,15 @@
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/intelligence_received.dart';
 import 'monitoring_global_posture_service.dart';
+import 'monitoring_orchestrator_service.dart';
 import 'monitoring_scene_review_store.dart';
-
-enum MonitoringWatchAutonomyPriority { critical, high, medium }
-
-class MonitoringWatchAutonomyActionPlan {
-  final String id;
-  final String incidentId;
-  final String siteId;
-  final MonitoringWatchAutonomyPriority priority;
-  final String actionType;
-  final String description;
-  final int countdownSeconds;
-  final Map<String, String> metadata;
-
-  const MonitoringWatchAutonomyActionPlan({
-    required this.id,
-    required this.incidentId,
-    required this.siteId,
-    required this.priority,
-    required this.actionType,
-    required this.description,
-    required this.countdownSeconds,
-    this.metadata = const <String, String>{},
-  });
-}
+import 'monitoring_watch_action_plan.dart';
 
 class MonitoringWatchAutonomyService {
   const MonitoringWatchAutonomyService();
 
   static const _globalPostureService = MonitoringGlobalPostureService();
+  static const _orchestratorService = MonitoringOrchestratorService();
 
   List<MonitoringWatchAutonomyActionPlan> buildPlans({
     required List<DispatchEvent> events,
@@ -75,7 +54,12 @@ class MonitoringWatchAutonomyService {
         .map((entry) => _buildPlan(entry, videoOpsLabel: videoOpsLabel))
         .toList(growable: false);
     final globalPlans = _buildGlobalPlans(snapshot, videoOpsLabel: videoOpsLabel);
-    return [...globalPlans, ...plans]
+    final orchestratedPlans = _orchestratorService.buildActionIntents(
+      events: events,
+      sceneReviewByIntelligenceId: sceneReviewByIntelligenceId,
+      videoOpsLabel: videoOpsLabel,
+    );
+    return [...orchestratedPlans, ...globalPlans, ...plans]
       ..sort((a, b) {
         final priorityCompare = _priorityWeight(b.priority).compareTo(
           _priorityWeight(a.priority),
