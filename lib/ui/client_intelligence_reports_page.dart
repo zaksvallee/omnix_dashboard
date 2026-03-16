@@ -1739,6 +1739,29 @@ class _ClientIntelligenceReportsPageState
                       _partnerScopeDispatchChainRow(chains[index]),
                       if (index < chains.length - 1) const SizedBox(height: 6),
                     ],
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _actionButton(
+                        key: ValueKey<String>(
+                          'reports-partner-shift-copy-json-${point.reportDate}',
+                        ),
+                        label: 'Copy Shift JSON',
+                        icon: Icons.copy_all_rounded,
+                        onTap: () => _copyPartnerScopeShiftJson(point),
+                      ),
+                      _actionButton(
+                        key: ValueKey<String>(
+                          'reports-partner-shift-copy-csv-${point.reportDate}',
+                        ),
+                        label: 'Copy Shift CSV',
+                        icon: Icons.table_chart_rounded,
+                        onTap: () => _copyPartnerScopeShiftCsv(point),
+                      ),
+                    ],
+                  ),
                   if (widget.onOpenEventsForScope != null &&
                       _partnerScopeShiftEventIdsForDate(
                         point.reportDate,
@@ -4953,6 +4976,37 @@ class _ClientIntelligenceReportsPageState
     _showReceiptActionFeedback('Receipt policy CSV copied.');
   }
 
+  void _copyPartnerScopeShiftJson(_PartnerScopeHistoryPoint point) {
+    final payload = _partnerScopeShiftExportPayload(point);
+    final encoded = const JsonEncoder.withIndent('  ').convert(payload);
+    Clipboard.setData(ClipboardData(text: encoded));
+    logUiAction(
+      'reports.copy_partner_shift_json',
+      context: <String, Object?>{
+        'client_id': point.row.clientId,
+        'site_id': point.row.siteId,
+        'partner_label': point.row.partnerLabel,
+        'report_date': point.reportDate,
+      },
+    );
+    _showReceiptActionFeedback('Partner shift JSON copied.');
+  }
+
+  void _copyPartnerScopeShiftCsv(_PartnerScopeHistoryPoint point) {
+    final encoded = _partnerScopeShiftExportCsv(point);
+    Clipboard.setData(ClipboardData(text: encoded));
+    logUiAction(
+      'reports.copy_partner_shift_csv',
+      context: <String, Object?>{
+        'client_id': point.row.clientId,
+        'site_id': point.row.siteId,
+        'partner_label': point.row.partnerLabel,
+        'report_date': point.reportDate,
+      },
+    );
+    _showReceiptActionFeedback('Partner shift CSV copied.');
+  }
+
   Map<String, Object?> _partnerScopeExportPayload() {
     final historyPoints = _partnerScopeHistoryPoints();
     final receiptRows = _partnerScopeReceiptRows();
@@ -4997,6 +5051,46 @@ class _ClientIntelligenceReportsPageState
       'dispatchChains': chains
           .map((chain) => chain.toJson())
           .toList(growable: false),
+    };
+  }
+
+  Map<String, Object?> _partnerScopeShiftExportPayload(
+    _PartnerScopeHistoryPoint point,
+  ) {
+    final receiptRows = _partnerScopeReceiptRowsForDate(point.reportDate);
+    final chains = _partnerScopeDispatchChainsForDate(point.reportDate);
+    final eventIds = _partnerScopeShiftEventIdsForDate(point.reportDate);
+    return <String, Object?>{
+      'scope': <String, Object?>{
+        'clientId': point.row.clientId,
+        'siteId': point.row.siteId,
+        'partnerLabel': point.row.partnerLabel,
+      },
+      'reportDate': point.reportDate,
+      'current': point.current,
+      'primaryLabel': _partnerScoreboardPrimaryLabel(point.row),
+      'summaryLine': point.row.summaryLine,
+      'scoreboardRow': point.row.toJson(),
+      if (point.receiptInvestigationSummary != null)
+        'receiptInvestigation': point.receiptInvestigationSummary!.toJson(),
+      'receipts': receiptRows
+          .map(
+            (row) => <String, Object?>{
+              'eventId': row.event.eventId,
+              'occurredAtUtc': row.event.occurredAt.toIso8601String(),
+              'stateLabel': _receiptPolicyStateChipLabel(row.event),
+              'brandingLabel': _receiptPolicyBrandingChipLabel(row.event),
+              'investigationContextKey': row.event.investigationContextKey,
+              'headline': _receiptPolicyHistoryHeadline(row.event),
+              'detail': _receiptPolicyHistoryDetail(row.event),
+              'eventCount': row.event.eventCount,
+            },
+          )
+          .toList(growable: false),
+      'dispatchChains': chains.map((chain) => chain.toJson()).toList(
+        growable: false,
+      ),
+      'eventIds': eventIds,
     };
   }
 
@@ -5087,6 +5181,38 @@ class _ClientIntelligenceReportsPageState
     _showReceiptActionFeedback(
       'Opening Events Review for $reportDate • ${_partnerScopePartnerLabel!}.',
     );
+  }
+
+  String _partnerScopeShiftExportCsv(_PartnerScopeHistoryPoint point) {
+    final receiptRows = _partnerScopeReceiptRowsForDate(point.reportDate);
+    final chains = _partnerScopeDispatchChainsForDate(point.reportDate);
+    final eventIds = _partnerScopeShiftEventIdsForDate(point.reportDate);
+    final lines = <String>[
+      'metric,value',
+      'client_id,${point.row.clientId}',
+      'site_id,${point.row.siteId}',
+      'partner_label,"${point.row.partnerLabel.replaceAll('"', '""')}"',
+      'report_date,${point.reportDate}',
+      'current_shift,${point.current}',
+      'primary_label,${_partnerScoreboardPrimaryLabel(point.row)}',
+      'summary_line,"${point.row.summaryLine.replaceAll('"', '""')}"',
+      'dispatch_count,${point.row.dispatchCount}',
+      'strong_count,${point.row.strongCount}',
+      'on_track_count,${point.row.onTrackCount}',
+      'watch_count,${point.row.watchCount}',
+      'critical_count,${point.row.criticalCount}',
+      'average_accepted_delay_minutes,${point.row.averageAcceptedDelayMinutes.toStringAsFixed(1)}',
+      'average_on_site_delay_minutes,${point.row.averageOnSiteDelayMinutes.toStringAsFixed(1)}',
+      if (point.receiptInvestigationSummary != null)
+        'receipt_investigation_summary,"${point.receiptInvestigationSummary!.summaryLine.replaceAll('"', '""')}"',
+      for (var index = 0; index < receiptRows.length; index++)
+        'receipt_${index + 1},"${receiptRows[index].event.eventId.replaceAll('"', '""')}",state=${_receiptPolicyStateChipLabel(receiptRows[index].event)},branding=${_receiptPolicyBrandingChipLabel(receiptRows[index].event)},headline=${_receiptPolicyHistoryHeadline(receiptRows[index].event).replaceAll('"', '""')}"',
+      for (var index = 0; index < chains.length; index++)
+        'dispatch_chain_${index + 1},"${_partnerScopeChainCsvSummary(chains[index]).replaceAll('"', '""')}"',
+      for (var index = 0; index < eventIds.length; index++)
+        'event_id_${index + 1},${eventIds[index]}',
+    ];
+    return lines.join('\n');
   }
 
   List<_ReceiptRow> _siteScopeReceiptRows() {

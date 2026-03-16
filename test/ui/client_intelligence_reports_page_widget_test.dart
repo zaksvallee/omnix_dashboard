@@ -466,6 +466,38 @@ void main() {
       findsOneWidget,
     );
 
+    final copyShiftJsonButton = find.byKey(
+      const ValueKey('reports-partner-shift-copy-json-2026-03-15'),
+    );
+    await tester.ensureVisible(copyShiftJsonButton);
+    await tester.tap(copyShiftJsonButton);
+    await tester.pumpAndSettle();
+
+    expect(clipboardText, isNotNull);
+    expect(clipboardText, contains('"reportDate": "2026-03-15"'));
+    expect(clipboardText, contains('"primaryLabel": "STRONG"'));
+    expect(clipboardText, contains('"eventIds": ['));
+    expect(clipboardText, contains('"PARTNER-EVT-1"'));
+    expect(clipboardText, contains('"PARTNER-RPT-3"'));
+
+    final copyShiftCsvButton = find.byKey(
+      const ValueKey('reports-partner-shift-copy-csv-2026-03-15'),
+    );
+    await tester.ensureVisible(copyShiftCsvButton);
+    await tester.tap(copyShiftCsvButton);
+    await tester.pumpAndSettle();
+
+    expect(clipboardText, contains('report_date,2026-03-15'));
+    expect(clipboardText, contains('primary_label,STRONG'));
+    expect(
+      clipboardText,
+      contains(
+        'receipt_investigation_summary,"Receipt OVERSIGHT HANDOFF • Governance 1 • Routine 0"',
+      ),
+    );
+    expect(clipboardText, contains('dispatch_chain_1,"DSP-9001'));
+    expect(clipboardText, contains('event_id_4,PARTNER-RPT-3'));
+
     final openShiftEventsButton = find.byKey(
       const ValueKey('reports-partner-shift-open-events-2026-03-15'),
     );
