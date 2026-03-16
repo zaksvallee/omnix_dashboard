@@ -197,6 +197,22 @@ class _ReceiptBrandingTrend {
   });
 }
 
+class _ReceiptInvestigationTrend {
+  final String trendLabel;
+  final String trendReason;
+  final String summaryLine;
+  final int reportDays;
+  final String currentModeLabel;
+
+  const _ReceiptInvestigationTrend({
+    required this.trendLabel,
+    required this.trendReason,
+    required this.summaryLine,
+    required this.reportDays,
+    required this.currentModeLabel,
+  });
+}
+
 class _ReceiptBrandingHistoryPoint {
   final String reportDate;
   final bool current;
@@ -241,6 +257,34 @@ class _PartnerScoreboardHistoryPoint {
   Map<String, Object?> toJson() {
     return {'reportDate': reportDate, 'current': current, 'row': row.toJson()};
   }
+}
+
+class _ReceiptInvestigationHistoryPoint {
+  final String reportDate;
+  final bool current;
+  final int generatedReports;
+  final int matchedReceiptCount;
+  final int governanceHandoffReports;
+  final int routineReviewReports;
+  final String investigationExecutiveSummary;
+  final String latestInvestigationSummary;
+  final String latestReceiptEventId;
+  final String latestReceiptClientId;
+  final String latestReceiptSiteId;
+
+  const _ReceiptInvestigationHistoryPoint({
+    required this.reportDate,
+    required this.current,
+    required this.generatedReports,
+    required this.matchedReceiptCount,
+    required this.governanceHandoffReports,
+    required this.routineReviewReports,
+    required this.investigationExecutiveSummary,
+    required this.latestInvestigationSummary,
+    required this.latestReceiptEventId,
+    required this.latestReceiptClientId,
+    required this.latestReceiptSiteId,
+  });
 }
 
 class _GovernanceReportView {
@@ -1282,6 +1326,17 @@ class _GovernancePageState extends State<GovernancePage> {
             ),
             const SizedBox(height: 6),
             _receiptBrandingTrendCard(report),
+            const SizedBox(height: 8),
+            Text(
+              'Receipt investigation drift (7 days)',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFEAF4FF),
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            _receiptInvestigationTrendCard(report),
           ],
           if (report.vehicleScopeBreakdowns.isNotEmpty) ...[
             const SizedBox(height: 8),
@@ -4372,6 +4427,104 @@ class _GovernancePageState extends State<GovernancePage> {
     );
   }
 
+  Widget _receiptInvestigationTrendCard(_GovernanceReportView report) {
+    final trend = _receiptInvestigationTrendForReport(report);
+    final trendColor = _partnerTrendColor(trend.trendLabel);
+    final modeColor = _receiptInvestigationModeColor(trend.currentModeLabel);
+    return InkWell(
+      key: const ValueKey('governance-receipt-investigation-trend-card'),
+      onTap: () => _showReceiptInvestigationDrillIn(report),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: const Color(0x14000000),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0x22FFFFFF)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    trend.summaryLine,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFEAF4FF),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: modeColor.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: modeColor.withValues(alpha: 0.5)),
+                  ),
+                  child: Text(
+                    trend.currentModeLabel,
+                    style: GoogleFonts.inter(
+                      color: modeColor,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: trendColor.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: trendColor.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Text(
+                    trend.trendLabel,
+                    style: GoogleFonts.inter(
+                      color: trendColor,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              trend.trendReason,
+              style: GoogleFonts.inter(
+                color: trendColor,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Compared against ${trend.reportDays} recent shift${trend.reportDays == 1 ? '' : 's'} • Tap to drill in.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _partnerTrendMetricChip({
     required String label,
     required String value,
@@ -4670,6 +4823,250 @@ class _GovernancePageState extends State<GovernancePage> {
                                     const SizedBox(height: 4),
                                     Text(
                                       point.latestBrandingSummary,
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF8EA4C2),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showReceiptInvestigationDrillIn(_GovernanceReportView report) {
+    final history = _receiptInvestigationHistory(report);
+    final trend = _receiptInvestigationTrendForReport(report);
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: const Color(0xFF08111B),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 24,
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760, maxHeight: 720),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                key: const ValueKey('governance-receipt-investigation-dialog'),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'RECEIPT INVESTIGATION DRILL-IN',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFFEAF4FF),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${trend.trendLabel} • ${trend.trendReason}',
+                              style: GoogleFonts.inter(
+                                color: _partnerTrendColor(trend.trendLabel),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        icon: const Icon(Icons.close, color: Color(0xFFEAF4FF)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _partnerTrendMetricChip(
+                        label: 'Current mode',
+                        value: trend.currentModeLabel,
+                        color: _receiptInvestigationModeColor(
+                          trend.currentModeLabel,
+                        ),
+                      ),
+                      _partnerTrendMetricChip(
+                        label: 'Reports',
+                        value: '${report.generatedReports}',
+                        color: const Color(0xFF8FD1FF),
+                      ),
+                      _partnerTrendMetricChip(
+                        label: 'Governance',
+                        value: '${report.governanceHandoffReports}',
+                        color: const Color(0xFFF6C067),
+                      ),
+                      _partnerTrendMetricChip(
+                        label: 'Routine',
+                        value: '${report.routineReviewReports}',
+                        color: const Color(0xFF63BDFF),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          for (final point in history) ...[
+                            Container(
+                              key: ValueKey<String>(
+                                'governance-receipt-investigation-history-${point.reportDate}',
+                              ),
+                              width: double.infinity,
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: point.current
+                                    ? const Color(0x1A0EA5E9)
+                                    : const Color(0x14000000),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: point.current
+                                      ? const Color(0x550EA5E9)
+                                      : const Color(0x22FFFFFF),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          point.reportDate,
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFEAF4FF),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ),
+                                      if (point.current)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 7,
+                                            vertical: 3,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: const Color(
+                                              0xFF8FD1FF,
+                                            ).withValues(alpha: 0.14),
+                                            borderRadius: BorderRadius.circular(
+                                              999,
+                                            ),
+                                            border: Border.all(
+                                              color: const Color(
+                                                0xFF8FD1FF,
+                                              ).withValues(alpha: 0.5),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            'CURRENT',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFF8FD1FF),
+                                              fontSize: 8,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ),
+                                      const SizedBox(width: 6),
+                                      Builder(
+                                        builder: (context) {
+                                          final modeLabel =
+                                              _receiptInvestigationModeLabel(
+                                                point.governanceHandoffReports,
+                                                point.routineReviewReports,
+                                              );
+                                          final modeColor =
+                                              _receiptInvestigationModeColor(
+                                                modeLabel,
+                                              );
+                                          return Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 7,
+                                              vertical: 3,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: modeColor.withValues(
+                                                alpha: 0.14,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
+                                              border: Border.all(
+                                                color: modeColor.withValues(
+                                                  alpha: 0.5,
+                                                ),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              modeLabel,
+                                              style: GoogleFonts.inter(
+                                                color: modeColor,
+                                                fontSize: 8,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Reports ${point.generatedReports} • Shift receipts ${point.matchedReceiptCount} • Governance ${point.governanceHandoffReports} • Routine ${point.routineReviewReports}',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFF9CB2D1),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  if (point.investigationExecutiveSummary
+                                      .trim()
+                                      .isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      point.investigationExecutiveSummary,
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFEAF4FF),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                  if (point.latestInvestigationSummary
+                                      .trim()
+                                      .isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      point.latestInvestigationSummary,
                                       style: GoogleFonts.inter(
                                         color: const Color(0xFF8EA4C2),
                                         fontSize: 10,
@@ -5315,6 +5712,136 @@ class _GovernancePageState extends State<GovernancePage> {
     return points;
   }
 
+  _ReceiptInvestigationTrend _receiptInvestigationTrendForReport(
+    _GovernanceReportView report,
+  ) {
+    final baselineReports =
+        widget.morningSovereignReportHistory
+            .where((item) {
+              if (item.generatedAtUtc == report.generatedAtUtc &&
+                  item.date == report.reportDate) {
+                return false;
+              }
+              return item.receiptPolicy.generatedReports > 0;
+            })
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
+    final baseline = baselineReports.take(3).toList(growable: false);
+    final currentModeLabel = _receiptInvestigationModeLabel(
+      report.governanceHandoffReports,
+      report.routineReviewReports,
+    );
+    final summaryLine =
+        'Current investigation lens • Governance ${report.governanceHandoffReports} • Routine ${report.routineReviewReports}';
+    if (baseline.isEmpty) {
+      return _ReceiptInvestigationTrend(
+        trendLabel: 'NEW',
+        trendReason:
+            'No prior receipt-investigation provenance snapshots are available for comparison.',
+        summaryLine: summaryLine,
+        reportDays: 1,
+        currentModeLabel: currentModeLabel,
+      );
+    }
+    final baselineGovernanceAverage =
+        baseline
+            .map((item) => item.receiptPolicy.governanceHandoffReports)
+            .reduce((left, right) => left + right) /
+        baseline.length;
+    final currentGovernance = report.governanceHandoffReports.toDouble();
+    final trendLabel = currentGovernance >= baselineGovernanceAverage + 0.5
+        ? 'SLIPPING'
+        : currentGovernance <= baselineGovernanceAverage - 0.5
+        ? 'IMPROVING'
+        : 'STABLE';
+    final trendReason = switch (trendLabel) {
+      'SLIPPING' =>
+        'Governance-opened receipt investigations increased against recent shifts.',
+      'IMPROVING' =>
+        report.governanceHandoffReports == 0 && baselineGovernanceAverage > 0
+            ? 'Current shift returned to routine receipt review with no Governance handoffs.'
+            : 'Governance-opened receipt investigations eased against recent shifts.',
+      _ =>
+        'Receipt investigation provenance is holding close to the recent baseline.',
+    };
+    return _ReceiptInvestigationTrend(
+      trendLabel: trendLabel,
+      trendReason: trendReason,
+      summaryLine: summaryLine,
+      reportDays: baseline.length,
+      currentModeLabel: currentModeLabel,
+    );
+  }
+
+  List<_ReceiptInvestigationHistoryPoint> _receiptInvestigationHistory(
+    _GovernanceReportView report,
+  ) {
+    final currentReceipts = _reportGeneratedEventsForShiftWindow(
+      report.shiftWindowStartUtc,
+      report.shiftWindowEndUtc,
+    );
+    final currentLatestReceipt = currentReceipts.isEmpty
+        ? null
+        : currentReceipts.first;
+    final points = <_ReceiptInvestigationHistoryPoint>[
+      _ReceiptInvestigationHistoryPoint(
+        reportDate: report.reportDate,
+        current: true,
+        generatedReports: report.generatedReports,
+        matchedReceiptCount: currentReceipts.length,
+        governanceHandoffReports: report.governanceHandoffReports,
+        routineReviewReports: report.routineReviewReports,
+        investigationExecutiveSummary:
+            report.receiptPolicyInvestigationExecutiveSummary,
+        latestInvestigationSummary: report.latestReceiptInvestigationSummary,
+        latestReceiptEventId: currentLatestReceipt?.eventId ?? '',
+        latestReceiptClientId: currentLatestReceipt?.clientId ?? '',
+        latestReceiptSiteId: currentLatestReceipt?.siteId ?? '',
+      ),
+    ];
+    for (final item in widget.morningSovereignReportHistory) {
+      if (item.receiptPolicy.generatedReports <= 0) {
+        continue;
+      }
+      if (item.generatedAtUtc == report.generatedAtUtc &&
+          item.date == report.reportDate) {
+        continue;
+      }
+      final receipts = _reportGeneratedEventsForShiftWindow(
+        item.shiftWindowStartUtc,
+        item.shiftWindowEndUtc,
+      );
+      final latestReceipt = receipts.isEmpty ? null : receipts.first;
+      points.add(
+        _ReceiptInvestigationHistoryPoint(
+          reportDate: item.date,
+          current: false,
+          generatedReports: item.receiptPolicy.generatedReports,
+          matchedReceiptCount: receipts.length,
+          governanceHandoffReports: item.receiptPolicy.governanceHandoffReports,
+          routineReviewReports: item.receiptPolicy.routineReviewReports,
+          investigationExecutiveSummary:
+              item.receiptPolicy.investigationExecutiveSummary,
+          latestInvestigationSummary:
+              item.receiptPolicy.latestInvestigationSummary,
+          latestReceiptEventId: latestReceipt?.eventId ?? '',
+          latestReceiptClientId: latestReceipt?.clientId ?? '',
+          latestReceiptSiteId: latestReceipt?.siteId ?? '',
+        ),
+      );
+    }
+    points.sort((left, right) {
+      if (left.current != right.current) {
+        return left.current ? -1 : 1;
+      }
+      return right.reportDate.compareTo(left.reportDate);
+    });
+    return points;
+  }
+
   String _receiptBrandingModeLabel(
     int standardBrandingReports,
     int defaultPartnerBrandingReports,
@@ -5329,11 +5856,32 @@ class _GovernancePageState extends State<GovernancePage> {
     return 'STANDARD BRANDING';
   }
 
+  String _receiptInvestigationModeLabel(
+    int governanceHandoffReports,
+    int routineReviewReports,
+  ) {
+    if (governanceHandoffReports > 0) {
+      return 'OVERSIGHT HANDOFF';
+    }
+    if (routineReviewReports > 0) {
+      return 'ROUTINE REVIEW';
+    }
+    return 'ROUTINE REVIEW';
+  }
+
   Color _receiptBrandingModeColor(String modeLabel) {
     return switch (modeLabel.trim().toUpperCase()) {
       'CUSTOM BRANDING' => const Color(0xFFF6C067),
       'DEFAULT BRANDING' => const Color(0xFF63BDFF),
       'STANDARD BRANDING' => const Color(0xFF8EA5C6),
+      _ => const Color(0xFF9CB2D1),
+    };
+  }
+
+  Color _receiptInvestigationModeColor(String modeLabel) {
+    return switch (modeLabel.trim().toUpperCase()) {
+      'OVERSIGHT HANDOFF' => const Color(0xFFF6C067),
+      'ROUTINE REVIEW' => const Color(0xFF63BDFF),
       _ => const Color(0xFF9CB2D1),
     };
   }

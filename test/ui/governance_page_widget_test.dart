@@ -89,6 +89,8 @@ void main() {
         standardBrandingReports: 1,
         defaultPartnerBrandingReports: 0,
         customBrandingOverrideReports: 1,
+        governanceHandoffReports: 1,
+        routineReviewReports: 1,
         executiveSummary:
             '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
         brandingExecutiveSummary: '1 receipt used custom branding override',
@@ -356,10 +358,22 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('CUSTOM BRANDING'), findsWidgets);
-    expect(find.text('SLIPPING'), findsOneWidget);
+    expect(find.text('SLIPPING'), findsWidgets);
     expect(
       find.textContaining(
         'Custom branding overrides increased against recent shifts.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Receipt investigation drift (7 days)'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('governance-receipt-investigation-trend-card')),
+      findsOneWidget,
+    );
+    expect(find.text('OVERSIGHT HANDOFF'), findsWidgets);
+    expect(
+      find.textContaining(
+        'Governance-opened receipt investigations increased against recent shifts.',
       ),
       findsOneWidget,
     );
@@ -399,6 +413,44 @@ void main() {
         '1 receipt used default partner branding • 1 receipt used standard ONYX branding',
       ),
       findsOneWidget,
+    );
+    await tester.tap(find.byIcon(Icons.close).last);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('governance-receipt-investigation-trend-card')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('governance-receipt-investigation-trend-card')),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('governance-receipt-investigation-dialog')),
+      findsOneWidget,
+    );
+    expect(find.text('RECEIPT INVESTIGATION DRILL-IN'), findsOneWidget);
+    expect(
+      find.byKey(
+        const ValueKey('governance-receipt-investigation-history-2026-03-10'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey('governance-receipt-investigation-history-2026-03-09'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'Reports 2 • Shift receipts 0 • Governance 1 • Routine 1',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        '1 receipt investigation came from Governance branding drift • 1 receipt investigation remained routine review',
+      ),
+      findsWidgets,
     );
     await tester.tap(find.byIcon(Icons.close).last);
     await tester.pumpAndSettle();
