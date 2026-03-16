@@ -3314,6 +3314,12 @@ void main() {
     expect(copiedPayload, contains('"investigationTrend"'));
     expect(copiedPayload, contains('"trendLabel": "NEW"'));
     expect(copiedPayload, contains('"currentModeLabel": "OVERSIGHT HANDOFF"'));
+    expect(copiedPayload, contains('"investigationComparison"'));
+    expect(copiedPayload, contains('"currentGovernanceHandoffReports": 1'));
+    expect(copiedPayload, contains('"currentRoutineReviewReports": 1'));
+    expect(copiedPayload, contains('"baselineGovernanceAverage": 0.0'));
+    expect(copiedPayload, contains('"baselineRoutineAverage": 0.0'));
+    expect(copiedPayload, contains('"baselineReportDays": 0'));
     expect(copiedPayload, contains('"investigationHistory"'));
     expect(copiedPayload, contains('"current": true'));
     expect(copiedPayload, contains('"vehicleThroughput"'));
@@ -3371,6 +3377,26 @@ void main() {
     expect(
       copiedPayload,
       contains('receipt_investigation_trend_current_mode,"OVERSIGHT HANDOFF"'),
+    );
+    expect(
+      copiedPayload,
+      contains('receipt_investigation_current_governance_reports,1'),
+    );
+    expect(
+      copiedPayload,
+      contains('receipt_investigation_current_routine_reports,1'),
+    );
+    expect(
+      copiedPayload,
+      contains('receipt_investigation_baseline_governance_average,0.0'),
+    );
+    expect(
+      copiedPayload,
+      contains('receipt_investigation_baseline_routine_average,0.0'),
+    );
+    expect(
+      copiedPayload,
+      contains('receipt_investigation_baseline_report_days,0'),
     );
     expect(
       copiedPayload,

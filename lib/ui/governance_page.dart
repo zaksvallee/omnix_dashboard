@@ -6975,6 +6975,9 @@ class _GovernancePageState extends State<GovernancePage> {
     final receiptInvestigationTrend = _receiptInvestigationTrendForReport(
       report,
     );
+    final receiptInvestigationBaseline = _receiptInvestigationBaselineStats(
+      report,
+    );
     final receiptInvestigationHistory = _receiptInvestigationHistory(report);
     final payload = <String, Object?>{
       'date': report.reportDate,
@@ -7021,6 +7024,14 @@ class _GovernancePageState extends State<GovernancePage> {
         'latestReportSummary': report.latestReceiptPolicySummary,
         'latestBrandingSummary': report.latestReceiptBrandingSummary,
         'latestInvestigationSummary': report.latestReceiptInvestigationSummary,
+        'investigationComparison': {
+          'currentGovernanceHandoffReports': report.governanceHandoffReports,
+          'currentRoutineReviewReports': report.routineReviewReports,
+          'baselineGovernanceAverage':
+              receiptInvestigationBaseline.governanceAverage,
+          'baselineRoutineAverage': receiptInvestigationBaseline.routineAverage,
+          'baselineReportDays': receiptInvestigationBaseline.reportDays,
+        },
         'investigationTrend': _receiptInvestigationTrendJson(
           receiptInvestigationTrend,
         ),
@@ -7088,6 +7099,9 @@ class _GovernancePageState extends State<GovernancePage> {
     final receiptInvestigationTrend = _receiptInvestigationTrendForReport(
       report,
     );
+    final receiptInvestigationBaseline = _receiptInvestigationBaselineStats(
+      report,
+    );
     final reasons = report.overrideReasons.entries.toList(growable: false)
       ..sort((a, b) => b.value.compareTo(a.value));
     final lines = <String>[
@@ -7137,6 +7151,11 @@ class _GovernancePageState extends State<GovernancePage> {
       'receipt_latest_report_summary,"${report.latestReceiptPolicySummary.replaceAll('"', '""')}"',
       'receipt_latest_branding_summary,"${report.latestReceiptBrandingSummary.replaceAll('"', '""')}"',
       'receipt_latest_investigation_summary,"${report.latestReceiptInvestigationSummary.replaceAll('"', '""')}"',
+      'receipt_investigation_current_governance_reports,${report.governanceHandoffReports}',
+      'receipt_investigation_current_routine_reports,${report.routineReviewReports}',
+      'receipt_investigation_baseline_governance_average,${receiptInvestigationBaseline.governanceAverage.toStringAsFixed(1)}',
+      'receipt_investigation_baseline_routine_average,${receiptInvestigationBaseline.routineAverage.toStringAsFixed(1)}',
+      'receipt_investigation_baseline_report_days,${receiptInvestigationBaseline.reportDays}',
       'receipt_investigation_trend_label,${receiptInvestigationTrend.trendLabel}',
       'receipt_investigation_trend_current_mode,"${receiptInvestigationTrend.currentModeLabel.replaceAll('"', '""')}"',
       'receipt_investigation_trend_reason,"${receiptInvestigationTrend.trendReason.replaceAll('"', '""')}"',
