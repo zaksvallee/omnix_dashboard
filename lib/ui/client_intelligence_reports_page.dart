@@ -980,6 +980,8 @@ class _ClientIntelligenceReportsPageState
   Widget _receiptPolicyHistoryCard(List<_ReceiptRow> rows) {
     final trendLabel = _receiptPolicyTrendLabel(rows);
     final trendReason = _receiptPolicyTrendReason(rows);
+    final investigationTrendLabel = _receiptInvestigationTrendLabel(rows);
+    final investigationTrendReason = _receiptInvestigationTrendReason(rows);
     final current = rows.isEmpty ? null : rows.first;
     final activeEntryContext = _activeReceiptPolicyEntryContext(rows);
     return OnyxSectionCard(
@@ -1011,6 +1013,12 @@ class _ClientIntelligenceReportsPageState
                   color: _receiptPolicyTrendColor(trendLabel),
                 ),
                 _partnerScopeChip(
+                  label: investigationTrendLabel,
+                  color: _receiptInvestigationTrendColor(
+                    investigationTrendLabel,
+                  ),
+                ),
+                _partnerScopeChip(
                   label: '${rows.length} receipts',
                   color: const Color(0xFF8FD1FF),
                 ),
@@ -1033,6 +1041,17 @@ class _ClientIntelligenceReportsPageState
               trendReason,
               style: GoogleFonts.inter(
                 color: const Color(0xFF8EA4C2),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          if (investigationTrendReason.trim().isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              investigationTrendReason,
+              style: GoogleFonts.inter(
+                color: _receiptInvestigationTrendColor(investigationTrendLabel),
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
@@ -2382,6 +2401,64 @@ class _ClientIntelligenceReportsPageState
     return '';
   }
 
+  double _receiptInvestigationSeverityScore(ReportGenerated event) {
+    return _storedEntryContextForReceipt(event) ==
+            ReportEntryContext.governanceBrandingDrift
+        ? 1.0
+        : 0.0;
+  }
+
+  String _receiptInvestigationTrendLabel(List<_ReceiptRow> rows) {
+    if (rows.isEmpty) {
+      return 'NO DATA';
+    }
+    if (rows.length == 1) {
+      return 'NEW';
+    }
+    final currentScore = _receiptInvestigationSeverityScore(rows.first.event);
+    final priorScores = rows
+        .skip(1)
+        .map((row) => _receiptInvestigationSeverityScore(row.event))
+        .toList(growable: false);
+    final priorAverage =
+        priorScores.reduce((left, right) => left + right) / priorScores.length;
+    if (currentScore >= priorAverage + 0.35) {
+      return 'OVERSIGHT RISING';
+    }
+    if (currentScore <= priorAverage - 0.35) {
+      return 'OVERSIGHT EASING';
+    }
+    return 'STABLE';
+  }
+
+  String _receiptInvestigationTrendReason(List<_ReceiptRow> rows) {
+    if (rows.isEmpty) {
+      return 'No receipt investigation provenance is available for this client and site.';
+    }
+    if (rows.length == 1) {
+      return 'This is the first recorded receipt investigation snapshot for this client and site.';
+    }
+    final current = rows.first.event;
+    final currentContext = _storedEntryContextForReceipt(current);
+    final trend = _receiptInvestigationTrendLabel(rows);
+    switch (trend) {
+      case 'OVERSIGHT RISING':
+        return currentContext == ReportEntryContext.governanceBrandingDrift
+            ? 'The latest receipt entered Reports through a Governance branding-drift handoff against a more routine recent baseline.'
+            : 'Governance-opened receipt investigations increased against the recent baseline.';
+      case 'OVERSIGHT EASING':
+        return currentContext == ReportEntryContext.governanceBrandingDrift
+            ? 'Governance-opened receipt investigations eased against recent history.'
+            : 'The latest receipt returned to routine review without a Governance handoff.';
+      case 'STABLE':
+        return 'Receipt investigation provenance is holding close to the recent baseline.';
+      case 'NEW':
+      case 'NO DATA':
+        return 'This is the first recorded receipt investigation snapshot for this client and site.';
+    }
+    return '';
+  }
+
   String _receiptPolicyBrandingChipLabel(ReportGenerated event) {
     if (!event.brandingConfiguration.isConfigured) {
       return 'STANDARD BRANDING';
@@ -2433,6 +2510,22 @@ class _ClientIntelligenceReportsPageState
         return const Color(0xFF59D79B);
       case 'SLIPPING':
         return const Color(0xFFF6C067);
+      case 'STABLE':
+        return const Color(0xFF8FD1FF);
+      case 'NEW':
+        return const Color(0xFF8EA5C6);
+      case 'NO DATA':
+      default:
+        return const Color(0xFF8EA4C2);
+    }
+  }
+
+  Color _receiptInvestigationTrendColor(String trendLabel) {
+    switch (trendLabel) {
+      case 'OVERSIGHT RISING':
+        return const Color(0xFFF6C067);
+      case 'OVERSIGHT EASING':
+        return const Color(0xFF59D79B);
       case 'STABLE':
         return const Color(0xFF8FD1FF);
       case 'NEW':
@@ -4130,6 +4223,8 @@ class _ClientIntelligenceReportsPageState
     List<_ReceiptRow> rows,
   ) {
     final activeEntryContext = _activeReceiptPolicyEntryContext(rows);
+    final investigationTrendLabel = _receiptInvestigationTrendLabel(rows);
+    final investigationTrendReason = _receiptInvestigationTrendReason(rows);
     return <String, Object?>{
       'scope': <String, Object?>{
         'clientId': widget.selectedClient,
@@ -4159,6 +4254,10 @@ class _ClientIntelligenceReportsPageState
       },
       'trendLabel': _receiptPolicyTrendLabel(rows),
       'trendReason': _receiptPolicyTrendReason(rows),
+      'investigationTrend': <String, Object?>{
+        'label': investigationTrendLabel,
+        'reason': investigationTrendReason,
+      },
       'receipts': rows
           .map(
             (row) => <String, Object?>{
@@ -4238,6 +4337,8 @@ class _ClientIntelligenceReportsPageState
 
   String _receiptPolicyHistoryExportCsv(List<_ReceiptRow> rows) {
     final activeEntryContext = _activeReceiptPolicyEntryContext(rows);
+    final investigationTrendLabel = _receiptInvestigationTrendLabel(rows);
+    final investigationTrendReason = _receiptInvestigationTrendReason(rows);
     final lines = <String>[
       'metric,value',
       'client_id,${widget.selectedClient}',
@@ -4253,6 +4354,8 @@ class _ClientIntelligenceReportsPageState
       'investigation_baseline_label,"ROUTINE BASELINE"',
       'trend_label,${_receiptPolicyTrendLabel(rows)}',
       'trend_reason,"${_receiptPolicyTrendReason(rows).replaceAll('"', '""')}"',
+      'investigation_trend_label,"${investigationTrendLabel.replaceAll('"', '""')}"',
+      'investigation_trend_reason,"${investigationTrendReason.replaceAll('"', '""')}"',
     ];
     for (var index = 0; index < rows.length; index++) {
       final row = rows[index];

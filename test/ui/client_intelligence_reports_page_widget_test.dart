@@ -802,6 +802,13 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(find.text('OVERSIGHT RISING'), findsOneWidget);
+    expect(
+      find.text(
+        'The latest receipt entered Reports through a Governance branding-drift handoff against a more routine recent baseline.',
+      ),
+      findsOneWidget,
+    );
     expect(
       find.byKey(const ValueKey('reports-receipt-policy-row-RPT-3')),
       findsOneWidget,
@@ -827,6 +834,14 @@ void main() {
     expect(clipboardText, contains('"modeKey": "governance_branding_drift"'));
     expect(clipboardText, contains('"modeLabel": "OVERSIGHT HANDOFF"'));
     expect(clipboardText, contains('"trendLabel": "SLIPPING"'));
+    expect(clipboardText, contains('"investigationTrend": {'));
+    expect(clipboardText, contains('"label": "OVERSIGHT RISING"'));
+    expect(
+      clipboardText,
+      contains(
+        '"reason": "The latest receipt entered Reports through a Governance branding-drift handoff against a more routine recent baseline."',
+      ),
+    );
     expect(clipboardText, contains('"eventId": "RPT-3"'));
     expect(clipboardText, contains('"brandingMode": "CUSTOM BRANDING"'));
     expect(
@@ -860,6 +875,16 @@ void main() {
     expect(
       clipboardText,
       contains('investigation_mode_label,"OVERSIGHT HANDOFF"'),
+    );
+    expect(
+      clipboardText,
+      contains('investigation_trend_label,"OVERSIGHT RISING"'),
+    );
+    expect(
+      clipboardText,
+      contains(
+        'investigation_trend_reason,"The latest receipt entered Reports through a Governance branding-drift handoff against a more routine recent baseline."',
+      ),
     );
     expect(clipboardText, contains('trend_label,SLIPPING'));
     expect(
