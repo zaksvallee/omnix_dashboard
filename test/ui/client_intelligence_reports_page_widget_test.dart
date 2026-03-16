@@ -879,6 +879,15 @@ void main() {
     expect(find.text('Baseline Routine: 1.0'), findsWidgets);
     expect(find.text('Partner Scorecard Lanes'), findsOneWidget);
     expect(find.text('Latest shift'), findsWidgets);
+    expect(find.text('BEST CURRENT'), findsOneWidget);
+    expect(
+      find.byKey(
+        const ValueKey(
+          'reports-partner-comparison-latest-shift-CLIENT-001/SITE-SANDTON/PARTNER • Alpha',
+        ),
+      ),
+      findsOneWidget,
+    );
     expect(
       find.text(
         'Dispatches 1 • Strong 1 • On track 0 • Watch 0 • Critical 0 • Avg accept 4.0m • Avg on site 10.0m',

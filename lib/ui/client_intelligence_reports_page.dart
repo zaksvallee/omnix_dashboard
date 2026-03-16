@@ -2307,6 +2307,21 @@ class _ClientIntelligenceReportsPageState
     final latestPoint = comparison.historyPoints.isEmpty
         ? null
         : comparison.historyPoints.first;
+    final latestShiftStripColor = comparison.isLeader
+        ? const Color(0x1436C690)
+        : comparison.trendLabel.trim().toUpperCase() == 'SLIPPING'
+        ? const Color(0x14FF7A7A)
+        : const Color(0xFF102337);
+    final latestShiftStripBorderColor = comparison.isLeader
+        ? const Color(0xFF59D79B)
+        : comparison.trendLabel.trim().toUpperCase() == 'SLIPPING'
+        ? const Color(0xFFFF7A7A)
+        : const Color(0xFF223244);
+    final latestShiftLensLabel = comparison.isLeader
+        ? 'BEST CURRENT'
+        : comparison.trendLabel.trim().isEmpty
+        ? 'ACTIVE LANE'
+        : '${comparison.trendLabel.trim().toUpperCase()} LANE';
     final deltaParts = <String>[
       if (!comparison.isLeader && comparison.acceptDeltaMinutes != null)
         'Accept +${comparison.acceptDeltaMinutes!.toStringAsFixed(1)}m',
@@ -2407,12 +2422,15 @@ class _ClientIntelligenceReportsPageState
           if (latestPoint != null) ...[
             const SizedBox(height: 10),
             Container(
+              key: ValueKey<String>(
+                'reports-partner-comparison-latest-shift-${row.clientId}/${row.siteId}/${row.partnerLabel}',
+              ),
               width: double.infinity,
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFF102337),
+                color: latestShiftStripColor,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFF223244)),
+                border: Border.all(color: latestShiftStripBorderColor),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2433,6 +2451,10 @@ class _ClientIntelligenceReportsPageState
                       _partnerScopeChip(
                         label: latestPoint.reportDate,
                         color: const Color(0xFF8FD1FF),
+                      ),
+                      _partnerScopeChip(
+                        label: latestShiftLensLabel,
+                        color: latestShiftStripBorderColor,
                       ),
                       _partnerScopeChip(
                         label: _partnerScoreboardPrimaryLabel(latestPoint.row),
