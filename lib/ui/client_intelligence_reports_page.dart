@@ -2502,11 +2502,25 @@ class _ClientIntelligenceReportsPageState
                               'Accept ${latestPoint.row.averageAcceptedDelayMinutes.toStringAsFixed(1)}m',
                           color: const Color(0xFFF6C067),
                         ),
+                      if (!comparison.isLeader &&
+                          comparison.acceptDeltaMinutes != null)
+                        _partnerScopeChip(
+                          label:
+                              'Accept Δ +${comparison.acceptDeltaMinutes!.toStringAsFixed(1)}m',
+                          color: const Color(0xFFFF7A7A),
+                        ),
                       if (latestPoint.row.averageOnSiteDelayMinutes > 0)
                         _partnerScopeChip(
                           label:
                               'On site ${latestPoint.row.averageOnSiteDelayMinutes.toStringAsFixed(1)}m',
                           color: const Color(0xFFFFB86C),
+                        ),
+                      if (!comparison.isLeader &&
+                          comparison.onSiteDeltaMinutes != null)
+                        _partnerScopeChip(
+                          label:
+                              'On site Δ +${comparison.onSiteDeltaMinutes!.toStringAsFixed(1)}m',
+                          color: const Color(0xFFFF7A7A),
                         ),
                       if (latestPoint.receiptInvestigationSummary != null) ...[
                         _partnerScopeChip(

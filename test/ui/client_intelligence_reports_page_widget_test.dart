@@ -902,6 +902,8 @@ void main() {
     expect(find.text('1 dispatches'), findsWidgets);
     expect(find.text('Accept 4.0m'), findsWidgets);
     expect(find.text('On site 10.0m'), findsWidgets);
+    expect(find.text('Accept Δ +2.0m'), findsWidgets);
+    expect(find.text('On site Δ +2.0m'), findsWidgets);
     expect(find.text('Gov 1'), findsWidgets);
     expect(find.text('Routine 0'), findsWidgets);
     expect(
