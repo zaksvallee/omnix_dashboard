@@ -889,6 +889,12 @@ class _ClientIntelligenceReportsPageState
                 onTap: _copyPartnerScopeCsv,
               ),
               _actionButton(
+                key: const ValueKey('reports-partner-scorecard-open-drill-in'),
+                label: 'Open Drill-In',
+                icon: Icons.manage_search_rounded,
+                onTap: _openPartnerScopeDrillIn,
+              ),
+              _actionButton(
                 key: const ValueKey('reports-partner-scorecard-clear-focus'),
                 label: 'Clear Focus',
                 icon: Icons.filter_alt_off_rounded,
@@ -1409,6 +1415,184 @@ class _ClientIntelligenceReportsPageState
               key: const ValueKey(
                 'reports-receipt-policy-investigation-history-close',
               ),
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _openPartnerScopeDrillIn() async {
+    if (!_hasPartnerScopeFocus) {
+      return;
+    }
+    final historyPoints = _partnerScopeHistoryPoints();
+    final currentChains = _partnerScopeDispatchChains();
+    final receiptRows = _partnerScopeReceiptRows();
+    final trendLabel = _partnerScopeTrendLabel(historyPoints);
+    final trendReason = _partnerScopeTrendReason(historyPoints);
+    final receiptInvestigationTrendLabel = _receiptInvestigationTrendLabel(
+      receiptRows,
+    );
+    final receiptInvestigationComparison =
+        _receiptInvestigationComparison(receiptRows);
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF08111F),
+          title: Text(
+            'Partner Scorecard Drill-In',
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFE8F1FF),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          content: SizedBox(
+            width: 760,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${_partnerScopeClientId!}/${_partnerScopeSiteId!} • ${_partnerScopePartnerLabel!}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFE8F1FF),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (trendLabel.isNotEmpty)
+                        _partnerScopeChip(
+                          label: trendLabel,
+                          color: _partnerTrendColor(trendLabel),
+                        ),
+                      _partnerScopeChip(
+                        label:
+                            '${historyPoints.length} day${historyPoints.length == 1 ? '' : 's'}',
+                      ),
+                      _partnerScopeChip(
+                        label:
+                            '${currentChains.length} chain${currentChains.length == 1 ? '' : 's'}',
+                      ),
+                    ],
+                  ),
+                  if (trendReason.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      trendReason,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF8EA4C2),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                  if (receiptRows.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      'Receipt provenance by shift',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFE8F1FF),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _partnerScopeChip(
+                          label:
+                              'Receipt ${receiptInvestigationTrendLabel.toUpperCase()}',
+                          color: _receiptInvestigationTrendColor(
+                            receiptInvestigationTrendLabel,
+                          ),
+                        ),
+                        _partnerScopeChip(
+                          label:
+                              'Current Governance: ${receiptInvestigationComparison.currentGovernanceCount}',
+                          color: const Color(0xFF5DC8FF),
+                        ),
+                        _partnerScopeChip(
+                          label:
+                              'Current Routine: ${receiptInvestigationComparison.currentRoutineCount}',
+                          color: const Color(0xFF8EA4C2),
+                        ),
+                        _partnerScopeChip(
+                          label:
+                              'Baseline Governance: ${receiptInvestigationComparison.baselineGovernanceAverage.toStringAsFixed(1)}',
+                          color: const Color(0xFF4F87BE),
+                        ),
+                        _partnerScopeChip(
+                          label:
+                              'Baseline Routine: ${receiptInvestigationComparison.baselineRoutineAverage.toStringAsFixed(1)}',
+                          color: const Color(0xFF7087A8),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _receiptInvestigationTrendReason(receiptRows),
+                      style: GoogleFonts.inter(
+                        color: _receiptInvestigationTrendColor(
+                          receiptInvestigationTrendLabel,
+                        ),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                  if (historyPoints.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      'Scorecard history',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFE8F1FF),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    for (var index = 0; index < historyPoints.length; index++) ...[
+                      _partnerScopeHistoryRow(historyPoints[index]),
+                      if (index < historyPoints.length - 1)
+                        const SizedBox(height: 6),
+                    ],
+                  ],
+                  if (currentChains.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      'Dispatch chains',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFE8F1FF),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    for (var index = 0; index < currentChains.length; index++) ...[
+                      _partnerScopeDispatchChainRow(currentChains[index]),
+                      if (index < currentChains.length - 1)
+                        const SizedBox(height: 6),
+                    ],
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              key: const ValueKey('reports-partner-scorecard-drill-in-close'),
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Close'),
             ),

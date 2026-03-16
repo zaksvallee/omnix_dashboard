@@ -414,6 +414,35 @@ void main() {
       findsOneWidget,
     );
 
+    final openDrillInButton = find.byKey(
+      const ValueKey('reports-partner-scorecard-open-drill-in'),
+    );
+    await tester.ensureVisible(openDrillInButton);
+    await tester.tap(openDrillInButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Partner Scorecard Drill-In'), findsOneWidget);
+    expect(find.text('Receipt provenance by shift'), findsOneWidget);
+    expect(find.text('Scorecard history'), findsWidgets);
+    expect(find.text('Dispatch chains'), findsOneWidget);
+    expect(
+      find.text('Receipt OVERSIGHT HANDOFF • Governance 1 • Routine 0'),
+      findsWidgets,
+    );
+    expect(
+      find.byKey(
+        const ValueKey('reports-partner-scorecard-drill-in-close'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('reports-partner-scorecard-drill-in-close')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Partner Scorecard Drill-In'), findsNothing);
+
     final copyJsonButton = find.byKey(
       const ValueKey('reports-partner-scorecard-copy-json'),
     );
