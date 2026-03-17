@@ -13,6 +13,7 @@ import '../application/monitoring_scene_review_store.dart';
 import '../application/monitoring_synthetic_war_room_service.dart';
 import '../application/monitoring_watch_action_plan.dart';
 import '../application/review_shortcut_contract.dart';
+import '../application/shadow_mo_dossier_contract.dart';
 import '../application/text_share_service.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
@@ -7769,35 +7770,14 @@ class _GovernancePageState extends State<GovernancePage> {
     _GovernanceReportView report,
     List<MonitoringGlobalSitePosture> shadowSites,
   ) {
-    return <String, Object?>{
-      'reportDate': report.reportDate,
-      'generatedAtUtc': report.generatedAtUtc?.toIso8601String(),
-      'shadowSiteCount': shadowSites.length,
-      'sites': shadowSites
-          .map(
-            (site) => <String, Object?>{
-              'siteId': site.siteId,
-              'regionId': site.regionId,
-              'heatLevel': site.heatLevel.name,
-              'matchCount': site.moShadowMatchCount,
-              'summary': site.moShadowSummary,
-              'matches': site.moShadowMatches
-                  .map(
-                    (match) => <String, Object?>{
-                      'moId': match.moId,
-                      'title': match.title,
-                      'incidentType': match.incidentType,
-                      'behaviorStage': match.behaviorStage,
-                      'matchScore': match.matchScore,
-                      'matchedIndicators': match.matchedIndicators,
-                      'recommendedActionPlans': match.recommendedActionPlans,
-                    },
-                  )
-                  .toList(growable: false),
-            },
-          )
-          .toList(growable: false),
-    };
+    return buildShadowMoDossierPayload(
+      sites: shadowSites,
+      generatedAtUtc: report.generatedAtUtc,
+      countKey: 'shadowSiteCount',
+      metadata: <String, Object?>{
+        'reportDate': report.reportDate,
+      },
+    );
   }
 
   void _showSyntheticWarRoomDrillIn(_GovernanceReportView report) {

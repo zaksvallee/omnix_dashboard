@@ -19,6 +19,7 @@ import '../domain/events/response_arrived.dart';
 import '../application/monitoring_scene_review_store.dart';
 import '../application/site_activity_intelligence_service.dart';
 import '../application/monitoring_watch_action_plan.dart';
+import '../application/shadow_mo_dossier_contract.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'ui_action_logger.dart';
@@ -1511,28 +1512,16 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     _IncidentRecord incident,
     MonitoringGlobalSitePosture sitePosture,
   ) {
-    return <String, Object?>{
+    return buildShadowMoSitePayload(
+      sitePosture,
+      metadata: <String, Object?>{
       'incidentId': incident.id,
       'clientId': incident.clientId,
       'regionId': incident.regionId,
       'siteId': incident.siteId,
       'siteHeat': sitePosture.heatLevel.name,
-      'matchCount': sitePosture.moShadowMatchCount,
-      'summary': sitePosture.moShadowSummary,
-      'matches': sitePosture.moShadowMatches
-          .map(
-            (match) => <String, Object?>{
-              'moId': match.moId,
-              'title': match.title,
-              'incidentType': match.incidentType,
-              'behaviorStage': match.behaviorStage,
-              'matchScore': match.matchScore,
-              'matchedIndicators': match.matchedIndicators,
-              'recommendedActionPlans': match.recommendedActionPlans,
-            },
-          )
-          .toList(growable: false),
-    };
+      },
+    );
   }
 
   Widget _siteActivityTruthCard(

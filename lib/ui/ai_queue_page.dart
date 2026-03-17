@@ -9,6 +9,7 @@ import '../application/monitoring_global_posture_service.dart';
 import '../application/monitoring_scene_review_store.dart';
 import '../application/monitoring_watch_action_plan.dart';
 import '../application/monitoring_watch_autonomy_service.dart';
+import '../application/shadow_mo_dossier_contract.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_completed.dart';
@@ -1143,34 +1144,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
   Map<String, Object?> _moShadowDossierPayload(
     List<MonitoringGlobalSitePosture> sites,
   ) {
-    return <String, Object?>{
-      'generatedAtUtc': DateTime.now().toUtc().toIso8601String(),
-      'siteCount': sites.length,
-      'sites': sites
-          .map(
-            (site) => <String, Object?>{
-              'siteId': site.siteId,
-              'regionId': site.regionId,
-              'heatLevel': site.heatLevel.name,
-              'matchCount': site.moShadowMatchCount,
-              'summary': site.moShadowSummary,
-              'matches': site.moShadowMatches
-                  .map(
-                    (match) => <String, Object?>{
-                      'moId': match.moId,
-                      'title': match.title,
-                      'incidentType': match.incidentType,
-                      'behaviorStage': match.behaviorStage,
-                      'matchScore': match.matchScore,
-                      'matchedIndicators': match.matchedIndicators,
-                      'recommendedActionPlans': match.recommendedActionPlans,
-                    },
-                  )
-                  .toList(growable: false),
-            },
-          )
-          .toList(growable: false),
-    };
+    return buildShadowMoDossierPayload(sites: sites);
   }
 
   Widget _statCard({
