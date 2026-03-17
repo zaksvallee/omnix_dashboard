@@ -60,6 +60,27 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
       widget.receiptEvent?.brandingConfiguration ??
       widget.bundle.brandingConfiguration;
 
+  bool get _isGovernanceHandoffPreview =>
+      widget.entryContext == ReportEntryContext.governanceBrandingDrift;
+
+  String get _previewHeaderTitle {
+    final primaryLabel = _brandingConfiguration.primaryLabel.trim();
+    if (_isGovernanceHandoffPreview) {
+      return primaryLabel.isEmpty
+          ? 'Governance Handoff PDF'
+          : '$primaryLabel Governance PDF';
+    }
+    return _brandingConfiguration.isConfigured
+        ? '${_brandingConfiguration.primaryLabel} PDF'
+        : 'Operational Intelligence PDF';
+  }
+
+  String get _previewHeaderSubtitle {
+    return _isGovernanceHandoffPreview
+        ? 'Preview, verify, print, and distribute deterministic report output from the Governance handoff lane.'
+        : 'Preview, verify, print, and distribute deterministic report output.';
+  }
+
   String get _pdfFileName {
     final primaryLabel = _brandingConfiguration.primaryLabel
         .trim()
@@ -67,10 +88,11 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
         .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
         .replaceAll(RegExp(r'_+'), '_')
         .replaceAll(RegExp(r'^_|_$'), '');
+    final suffix = _isGovernanceHandoffPreview ? '_governance_handoff' : '';
     if (primaryLabel.isEmpty) {
-      return 'onyx_intelligence_report.pdf';
+      return 'onyx_intelligence_report$suffix.pdf';
     }
-    return '${primaryLabel}_intelligence_report.pdf';
+    return '${primaryLabel}_intelligence_report$suffix.pdf';
   }
 
   Widget _entryContextPane() {
@@ -583,11 +605,8 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     OnyxPageHeader(
-                      title: _brandingConfiguration.isConfigured
-                          ? '${_brandingConfiguration.primaryLabel} PDF'
-                          : 'Operational Intelligence PDF',
-                      subtitle:
-                          'Preview, verify, print, and distribute deterministic report output.',
+                      title: _previewHeaderTitle,
+                      subtitle: _previewHeaderSubtitle,
                       actions: [
                         IconButton(
                           onPressed: () => Navigator.of(context).pop(),
@@ -725,11 +744,8 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   OnyxPageHeader(
-                    title: _brandingConfiguration.isConfigured
-                        ? '${_brandingConfiguration.primaryLabel} PDF'
-                        : 'Operational Intelligence PDF',
-                    subtitle:
-                        'Preview, verify, print, and distribute deterministic report output.',
+                    title: _previewHeaderTitle,
+                    subtitle: _previewHeaderSubtitle,
                     actions: [
                       IconButton(
                         onPressed: () => Navigator.of(context).pop(),
