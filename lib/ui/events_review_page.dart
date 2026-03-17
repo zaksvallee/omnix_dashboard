@@ -2155,6 +2155,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       sites: _shadowMoSitesForReport(currentReport),
       reportDate: (scopedReportDate ?? '').trim(),
     );
+    final promotionAnchor = _promotionShadowAnchorSummary(
+      promotionShadowContext,
+    );
     return _SyntheticScopeSummary(
       eventCount: scopedEvents.length,
       reportDate: scopedReportDate ?? '',
@@ -2189,18 +2192,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         previousShadowTomorrowUrgencySummary:
             previousShadowTomorrowUrgencySummary,
       ),
-      promotionCurrentValidationStatus:
-          (promotionShadowContext['validationStatus'] ?? '').trim(),
-      promotionCurrentStrengthSummary:
-          (promotionShadowContext['strengthSummary'] ?? '').trim(),
-      promotionShadowSelectedEventId:
-          (promotionShadowContext['selectedEventId'] ?? '').trim(),
-      promotionShadowReviewRefs:
-          (promotionShadowContext['reviewRefs'] ?? '').trim(),
-      promotionShadowReviewCommand:
-          (promotionShadowContext['reviewCommand'] ?? '').trim(),
-      promotionShadowCaseFileCommand:
-          (promotionShadowContext['caseFileCommand'] ?? '').trim(),
+      promotionAnchor: promotionAnchor,
       learningSummary: _syntheticWarRoomLearningSummary(plans),
       learningMemorySummary: _syntheticWarRoomLearningMemorySummary(
         currentLearningLabel: _syntheticWarRoomLearningLabel(plans),
@@ -2281,6 +2273,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       sites: shadowSites,
       reportDate: (scopedReportDate ?? '').trim(),
     );
+    final promotionAnchor = _promotionShadowAnchorSummary(
+      promotionShadowContext,
+    );
     return _ShadowScopeSummary(
       eventCount: scopedEvents.length,
       reportDate: scopedReportDate ?? '',
@@ -2296,18 +2291,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       previousTomorrowUrgencySummary: previousReports.isEmpty
           ? ''
           : _shadowTomorrowUrgencySummaryForReport(previousReports.first),
-      promotionCurrentValidationStatus:
-          (promotionShadowContext['validationStatus'] ?? '').trim(),
-      promotionCurrentStrengthSummary:
-          (promotionShadowContext['strengthSummary'] ?? '').trim(),
-      promotionShadowSelectedEventId:
-          (promotionShadowContext['selectedEventId'] ?? '').trim(),
-      promotionShadowReviewRefs:
-          (promotionShadowContext['reviewRefs'] ?? '').trim(),
-      promotionShadowReviewCommand:
-          (promotionShadowContext['reviewCommand'] ?? '').trim(),
-      promotionShadowCaseFileCommand:
-          (promotionShadowContext['caseFileCommand'] ?? '').trim(),
+      promotionAnchor: promotionAnchor,
       reviewRefs: reviewRefs,
       sites: shadowSites,
       history: _shadowHistorySummary(
@@ -2691,6 +2675,19 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       moId: moId,
       sites: sites,
       reportDate: reportDate,
+    );
+  }
+
+  _PromotionShadowAnchorSummary _promotionShadowAnchorSummary(
+    Map<String, String> context,
+  ) {
+    return _PromotionShadowAnchorSummary(
+      validationStatus: (context['validationStatus'] ?? '').trim(),
+      strengthSummary: (context['strengthSummary'] ?? '').trim(),
+      selectedEventId: (context['selectedEventId'] ?? '').trim(),
+      reviewRefs: (context['reviewRefs'] ?? '').trim(),
+      reviewCommand: (context['reviewCommand'] ?? '').trim(),
+      caseFileCommand: (context['caseFileCommand'] ?? '').trim(),
     );
   }
 
@@ -5067,14 +5064,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         : null;
     final orderedSites = sortShadowMoSites(summary.sites);
     final promotionAnchorPayload = buildPromotionShadowAnchorPayload(
-      context: <String, String>{
-        'validationStatus': summary.promotionCurrentValidationStatus,
-        'strengthSummary': summary.promotionCurrentStrengthSummary,
-        'selectedEventId': summary.promotionShadowSelectedEventId,
-        'reviewRefs': summary.promotionShadowReviewRefs,
-        'reviewCommand': summary.promotionShadowReviewCommand,
-        'caseFileCommand': summary.promotionShadowCaseFileCommand,
-      },
+      context: summary.promotionAnchor.asContext(),
     );
     final lines = <String>[
       'metric,value',
@@ -5164,14 +5154,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         : null;
     final promotionAnchorPayload = buildPromotionShadowAnchorPayload(
       promotionMoId: summary.promotionMoId,
-      context: <String, String>{
-        'validationStatus': summary.promotionCurrentValidationStatus,
-        'strengthSummary': summary.promotionCurrentStrengthSummary,
-        'selectedEventId': summary.promotionShadowSelectedEventId,
-        'reviewRefs': summary.promotionShadowReviewRefs,
-        'reviewCommand': summary.promotionShadowReviewCommand,
-        'caseFileCommand': summary.promotionShadowCaseFileCommand,
-      },
+      context: summary.promotionAnchor.asContext(),
     );
     final lines = <String>[
       'metric,value',
@@ -5438,14 +5421,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         ? widget.currentMorningSovereignReportDate
         : null;
     final promotionAnchorPayload = buildPromotionShadowAnchorPayload(
-      context: <String, String>{
-        'validationStatus': summary.promotionCurrentValidationStatus,
-        'strengthSummary': summary.promotionCurrentStrengthSummary,
-        'selectedEventId': summary.promotionShadowSelectedEventId,
-        'reviewRefs': summary.promotionShadowReviewRefs,
-        'reviewCommand': summary.promotionShadowReviewCommand,
-        'caseFileCommand': summary.promotionShadowCaseFileCommand,
-      },
+      context: summary.promotionAnchor.asContext(),
     );
     return {
       'shadowMoCaseFile': buildShadowMoDossierPayload(
@@ -5571,14 +5547,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         : null;
     final promotionAnchorPayload = buildPromotionShadowAnchorPayload(
       promotionMoId: summary.promotionMoId,
-      context: <String, String>{
-        'validationStatus': summary.promotionCurrentValidationStatus,
-        'strengthSummary': summary.promotionCurrentStrengthSummary,
-        'selectedEventId': summary.promotionShadowSelectedEventId,
-        'reviewRefs': summary.promotionShadowReviewRefs,
-        'reviewCommand': summary.promotionShadowReviewCommand,
-        'caseFileCommand': summary.promotionShadowCaseFileCommand,
-      },
+      context: summary.promotionAnchor.asContext(),
     );
     return {
       'syntheticCaseFile': {
@@ -6104,12 +6073,7 @@ class _ShadowScopeSummary {
   final String strengthSummary;
   final String tomorrowUrgencySummary;
   final String previousTomorrowUrgencySummary;
-  final String promotionCurrentValidationStatus;
-  final String promotionCurrentStrengthSummary;
-  final String promotionShadowSelectedEventId;
-  final String promotionShadowReviewRefs;
-  final String promotionShadowReviewCommand;
-  final String promotionShadowCaseFileCommand;
+  final _PromotionShadowAnchorSummary promotionAnchor;
   final List<String> reviewRefs;
   final List<MonitoringGlobalSitePosture> sites;
   final _ShadowHistorySummary? history;
@@ -6126,12 +6090,7 @@ class _ShadowScopeSummary {
     required this.strengthSummary,
     required this.tomorrowUrgencySummary,
     required this.previousTomorrowUrgencySummary,
-    required this.promotionCurrentValidationStatus,
-    required this.promotionCurrentStrengthSummary,
-    required this.promotionShadowSelectedEventId,
-    required this.promotionShadowReviewRefs,
-    required this.promotionShadowReviewCommand,
-    required this.promotionShadowCaseFileCommand,
+    required this.promotionAnchor,
     required this.reviewRefs,
     required this.sites,
     required this.history,
@@ -6212,12 +6171,7 @@ class _SyntheticScopeSummary {
   final String promotionTargetStatus;
   final String promotionDecisionStatus;
   final String promotionDecisionSummary;
-  final String promotionCurrentValidationStatus;
-  final String promotionCurrentStrengthSummary;
-  final String promotionShadowSelectedEventId;
-  final String promotionShadowReviewRefs;
-  final String promotionShadowReviewCommand;
-  final String promotionShadowCaseFileCommand;
+  final _PromotionShadowAnchorSummary promotionAnchor;
   final String learningSummary;
   final String learningMemorySummary;
   final String biasSummary;
@@ -6247,12 +6201,7 @@ class _SyntheticScopeSummary {
     required this.promotionTargetStatus,
     required this.promotionDecisionStatus,
     required this.promotionDecisionSummary,
-    required this.promotionCurrentValidationStatus,
-    required this.promotionCurrentStrengthSummary,
-    required this.promotionShadowSelectedEventId,
-    required this.promotionShadowReviewRefs,
-    required this.promotionShadowReviewCommand,
-    required this.promotionShadowCaseFileCommand,
+    required this.promotionAnchor,
     required this.learningSummary,
     required this.learningMemorySummary,
     required this.biasSummary,
@@ -6263,6 +6212,35 @@ class _SyntheticScopeSummary {
   String get bannerText {
     final evidenceWord = eventCount == 1 ? 'signal' : 'signals';
     return 'Synthetic war-room investigation active for $eventCount linked $evidenceWord.';
+  }
+}
+
+class _PromotionShadowAnchorSummary {
+  final String validationStatus;
+  final String strengthSummary;
+  final String selectedEventId;
+  final String reviewRefs;
+  final String reviewCommand;
+  final String caseFileCommand;
+
+  const _PromotionShadowAnchorSummary({
+    this.validationStatus = '',
+    this.strengthSummary = '',
+    this.selectedEventId = '',
+    this.reviewRefs = '',
+    this.reviewCommand = '',
+    this.caseFileCommand = '',
+  });
+
+  Map<String, String> asContext() {
+    return <String, String>{
+      'validationStatus': validationStatus,
+      'strengthSummary': strengthSummary,
+      'selectedEventId': selectedEventId,
+      'reviewRefs': reviewRefs,
+      'reviewCommand': reviewCommand,
+      'caseFileCommand': caseFileCommand,
+    };
   }
 }
 
