@@ -52,6 +52,8 @@ class DashboardPage extends StatelessWidget {
   final List<SovereignReport> morningSovereignReportHistory;
   final String? morningSovereignReportAutoStatusLabel;
   final Future<void> Function()? onGenerateMorningSovereignReport;
+  final void Function(List<String> eventIds, String? selectedEventId)?
+  onOpenEventsForScope;
 
   const DashboardPage({
     super.key,
@@ -86,6 +88,7 @@ class DashboardPage extends StatelessWidget {
     this.morningSovereignReportHistory = const [],
     this.morningSovereignReportAutoStatusLabel,
     this.onGenerateMorningSovereignReport,
+    this.onOpenEventsForScope,
   });
 
   @override
@@ -148,6 +151,7 @@ class DashboardPage extends StatelessWidget {
                     siteActivity: siteActivity,
                     onGenerateMorningSovereignReport:
                         onGenerateMorningSovereignReport,
+                    onOpenEventsForScope: onOpenEventsForScope,
                   );
                 }
                 return _DesktopDashboard(
@@ -192,6 +196,7 @@ class DashboardPage extends StatelessWidget {
                   siteActivity: siteActivity,
                   onGenerateMorningSovereignReport:
                       onGenerateMorningSovereignReport,
+                  onOpenEventsForScope: onOpenEventsForScope,
                 );
               },
             ),
@@ -352,6 +357,8 @@ class _DesktopDashboard extends StatelessWidget {
   final String? morningSovereignReportAutoStatusLabel;
   final SiteActivityIntelligenceSnapshot siteActivity;
   final Future<void> Function()? onGenerateMorningSovereignReport;
+  final void Function(List<String> eventIds, String? selectedEventId)?
+  onOpenEventsForScope;
 
   const _DesktopDashboard({
     required this.snapshot,
@@ -388,6 +395,7 @@ class _DesktopDashboard extends StatelessWidget {
     required this.morningSovereignReportAutoStatusLabel,
     required this.siteActivity,
     required this.onGenerateMorningSovereignReport,
+    required this.onOpenEventsForScope,
   });
 
   @override
@@ -427,6 +435,7 @@ class _DesktopDashboard extends StatelessWidget {
           morningSovereignReportAutoStatusLabel,
       siteActivity: siteActivity,
       onGenerateMorningSovereignReport: onGenerateMorningSovereignReport,
+      onOpenEventsForScope: onOpenEventsForScope,
     );
 
     return SingleChildScrollView(
@@ -520,6 +529,8 @@ class _CompactDashboard extends StatelessWidget {
   final String? morningSovereignReportAutoStatusLabel;
   final SiteActivityIntelligenceSnapshot siteActivity;
   final Future<void> Function()? onGenerateMorningSovereignReport;
+  final void Function(List<String> eventIds, String? selectedEventId)?
+  onOpenEventsForScope;
 
   const _CompactDashboard({
     required this.snapshot,
@@ -556,6 +567,7 @@ class _CompactDashboard extends StatelessWidget {
     required this.morningSovereignReportAutoStatusLabel,
     required this.siteActivity,
     required this.onGenerateMorningSovereignReport,
+    required this.onOpenEventsForScope,
   });
 
   @override
@@ -607,6 +619,7 @@ class _CompactDashboard extends StatelessWidget {
               morningSovereignReportAutoStatusLabel,
           siteActivity: siteActivity,
           onGenerateMorningSovereignReport: onGenerateMorningSovereignReport,
+          onOpenEventsForScope: onOpenEventsForScope,
         ),
       ],
     );
@@ -1069,6 +1082,8 @@ class _RightRail extends StatelessWidget {
   final String? morningSovereignReportAutoStatusLabel;
   final SiteActivityIntelligenceSnapshot siteActivity;
   final Future<void> Function()? onGenerateMorningSovereignReport;
+  final void Function(List<String> eventIds, String? selectedEventId)?
+  onOpenEventsForScope;
 
   const _RightRail({
     required this.snapshot,
@@ -1104,6 +1119,7 @@ class _RightRail extends StatelessWidget {
     required this.morningSovereignReportAutoStatusLabel,
     required this.siteActivity,
     required this.onGenerateMorningSovereignReport,
+    required this.onOpenEventsForScope,
   });
 
   String _guardFailureTraceClipboard(
@@ -1528,7 +1544,8 @@ class _RightRail extends StatelessWidget {
         'knownIdentitySignals': siteActivity.knownIdentitySignals,
         'flaggedIdentitySignals': siteActivity.flaggedIdentitySignals,
         'unknownSignals':
-            siteActivity.unknownPersonSignals + siteActivity.unknownVehicleSignals,
+            siteActivity.unknownPersonSignals +
+            siteActivity.unknownVehicleSignals,
         'longPresenceSignals': siteActivity.longPresenceSignals,
         'guardInteractionSignals': siteActivity.guardInteractionSignals,
         'summaryLine': siteActivity.summaryLine,
@@ -1576,6 +1593,44 @@ class _RightRail extends StatelessWidget {
       reportDate: sovereignReport?.date,
       trendLabel: siteActivityTrend?.label,
       trendSummary: siteActivityTrend?.summary,
+    );
+  }
+
+  String _siteActivityReviewJson() {
+    final sovereignReport = morningSovereignReport;
+    return const JsonEncoder.withIndent('  ').convert({
+      'scope': {
+        'reportDate': sovereignReport?.date,
+        'generatedAtUtc': sovereignReport?.generatedAtUtc.toIso8601String(),
+      },
+      'siteActivityReview': {
+        'summaryLine': siteActivity.summaryLine,
+        'eventIds': siteActivity.eventIds,
+        'selectedEventId': siteActivity.selectedEventId,
+        'evidenceEventIds': siteActivity.evidenceEventIds,
+        'topFlaggedIdentitySummary': siteActivity.topFlaggedIdentitySummary,
+        'topLongPresenceSummary': siteActivity.topLongPresenceSummary,
+        'topGuardInteractionSummary': siteActivity.topGuardInteractionSummary,
+      },
+    });
+  }
+
+  void _openSiteActivityEventsReview(BuildContext context) {
+    if (onOpenEventsForScope == null || siteActivity.eventIds.isEmpty) {
+      return;
+    }
+    onOpenEventsForScope!(siteActivity.eventIds, siteActivity.selectedEventId);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Opening Events Review for site activity truth.',
+          style: GoogleFonts.inter(
+            color: const Color(0xFFE7F0FF),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        backgroundColor: const Color(0xFF0E203A),
+      ),
     );
   }
 
@@ -2119,6 +2174,73 @@ class _RightRail extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: TextButton(
+                              onPressed: siteActivity.eventIds.isEmpty
+                                  ? null
+                                  : () async {
+                                      await Clipboard.setData(
+                                        ClipboardData(
+                                          text: _siteActivityReviewJson(),
+                                        ),
+                                      );
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Site activity review JSON copied',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFFE7F0FF),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          backgroundColor: const Color(
+                                            0xFF0E203A,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(0, 0),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                'Copy Site Activity Review JSON',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF8FD1FF),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (onOpenEventsForScope != null &&
+                              siteActivity.eventIds.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: TextButton(
+                                onPressed: () =>
+                                    _openSiteActivityEventsReview(context),
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  minimumSize: const Size(0, 0),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                child: Text(
+                                  'Open Site Activity Events Review',
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFF8FD1FF),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
                             child: TextButton(
@@ -3086,7 +3208,7 @@ class _RightRail extends StatelessWidget {
                     value:
                         sovereignReport.vehicleThroughput.workflowHeadline
                             .trim()
-                        .isNotEmpty
+                            .isNotEmpty
                         ? sovereignReport.vehicleThroughput.workflowHeadline
                         : sovereignReport.vehicleThroughput.summaryLine,
                   ),

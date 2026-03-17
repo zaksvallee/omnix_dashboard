@@ -14,7 +14,9 @@ class SiteActivityIntelligenceSnapshot {
   final String topFlaggedIdentitySummary;
   final String topLongPresenceSummary;
   final String topGuardInteractionSummary;
+  final List<String> eventIds;
   final List<String> evidenceEventIds;
+  final String? selectedEventId;
   final String summaryLine;
 
   const SiteActivityIntelligenceSnapshot({
@@ -30,7 +32,9 @@ class SiteActivityIntelligenceSnapshot {
     this.topFlaggedIdentitySummary = '',
     this.topLongPresenceSummary = '',
     this.topGuardInteractionSummary = '',
+    this.eventIds = const <String>[],
     this.evidenceEventIds = const <String>[],
+    this.selectedEventId,
     required this.summaryLine,
   });
 }
@@ -100,7 +104,9 @@ class SiteActivityIntelligenceService {
         topFlaggedIdentitySummary: '',
         topLongPresenceSummary: '',
         topGuardInteractionSummary: '',
+        eventIds: <String>[],
         evidenceEventIds: <String>[],
+        selectedEventId: null,
         summaryLine: 'No visitor or site-activity signals detected.',
       );
     }
@@ -112,18 +118,24 @@ class SiteActivityIntelligenceService {
     var unknownPersonSignals = 0;
     var unknownVehicleSignals = 0;
     var guardInteractionSignals = 0;
+    final eventEntries = <({String id, DateTime occurredAt})>[];
     IntelligenceReceived? topFlaggedIdentityEvent;
     IntelligenceReceived? topGuardInteractionEvent;
 
     final groupedPresence = <String, _PresenceAggregate>{};
 
     for (final event in scoped) {
+      eventEntries.add((
+        id: event.intelligenceId,
+        occurredAt: event.occurredAt.toUtc(),
+      ));
       final objectLabel = _normalizedObjectLabel(event.objectLabel);
       final hasKnownIdentity =
           (event.faceMatchId ?? '').trim().isNotEmpty ||
           (event.plateNumber ?? '').trim().isNotEmpty;
-      final signalText =
-          '${event.headline} ${event.summary}'.trim().toLowerCase();
+      final signalText = '${event.headline} ${event.summary}'
+          .trim()
+          .toLowerCase();
       final flaggedIdentity =
           signalText.contains('watchlist') ||
           signalText.contains('unauthorized') ||
@@ -188,16 +200,30 @@ class SiteActivityIntelligenceService {
       }
     }
 
-    final longPresenceEntries = groupedPresence.values
-        .where((entry) => entry.duration >= const Duration(hours: 2))
-        .toList(growable: false)
-      ..sort((left, right) => right.duration.compareTo(left.duration));
+    final longPresenceEntries =
+        groupedPresence.values
+            .where((entry) => entry.duration >= const Duration(hours: 2))
+            .toList(growable: false)
+          ..sort((left, right) => right.duration.compareTo(left.duration));
     final longPresenceSignals = longPresenceEntries.length;
     final topLongPresence = longPresenceEntries.isEmpty
         ? null
         : longPresenceEntries.first;
+    eventEntries.sort((left, right) {
+      final occurredCompare = left.occurredAt.compareTo(right.occurredAt);
+      if (occurredCompare != 0) {
+        return occurredCompare;
+      }
+      return left.id.compareTo(right.id);
+    });
+    final eventIds = eventEntries
+        .map((entry) => entry.id.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
     final evidenceEventIds = <String>[
-      if (topFlaggedIdentityEvent != null) topFlaggedIdentityEvent.intelligenceId,
+      if (topFlaggedIdentityEvent != null)
+        topFlaggedIdentityEvent.intelligenceId,
       if (topLongPresence != null) topLongPresence.latestEventId,
       if (topGuardInteractionEvent != null)
         topGuardInteractionEvent.intelligenceId,
@@ -235,7 +261,9 @@ class SiteActivityIntelligenceService {
       topGuardInteractionSummary: topGuardInteractionEvent == null
           ? ''
           : _guardInteractionSummaryFor(topGuardInteractionEvent),
+      eventIds: eventIds,
       evidenceEventIds: evidenceEventIds,
+      selectedEventId: eventIds.isEmpty ? null : eventIds.last,
       summaryLine: summaryParts.join(' • '),
     );
   }

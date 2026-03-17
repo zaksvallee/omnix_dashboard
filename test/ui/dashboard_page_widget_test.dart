@@ -417,7 +417,9 @@ void main() {
     expect(find.text('Vehicle throughput'), findsOneWidget);
     expect(find.text('Site activity'), findsOneWidget);
     expect(
-      find.text('Signals 2 • Vehicles 1 • People 1 • Known IDs 1 • Unknown 1 • Guard interactions 1'),
+      find.text(
+        'Signals 2 • Vehicles 1 • People 1 • Known IDs 1 • Unknown 1 • Guard interactions 1',
+      ),
       findsOneWidget,
     );
     expect(find.text('Site activity trend'), findsOneWidget);
@@ -441,6 +443,7 @@ void main() {
     expect(find.text('Share Coaching Pack'), findsOneWidget);
     expect(find.text('Copy Site Activity JSON'), findsOneWidget);
     expect(find.text('Copy Site Activity CSV'), findsOneWidget);
+    expect(find.text('Copy Site Activity Review JSON'), findsOneWidget);
     expect(find.text('Share Site Activity Pack'), findsOneWidget);
     expect(find.text('Copy Site Activity Telegram'), findsOneWidget);
     expect(find.text('Share Site Activity Telegram'), findsOneWidget);
@@ -632,7 +635,9 @@ void main() {
     expect(copiedPayload, contains('"label": "ACTIVITY RISING"'));
   });
 
-  testWidgets('dashboard copies site activity telegram summary', (tester) async {
+  testWidgets('dashboard copies site activity telegram summary', (
+    tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(1600, 1000));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -781,6 +786,118 @@ void main() {
     expect(copiedPayload, contains('1 known IDs • 1 unknown'));
     expect(copiedPayload, contains('1 guard interactions'));
     expect(copiedPayload, contains('Trend: ACTIVITY RISING -'));
+  });
+
+  testWidgets('dashboard opens and copies site activity review handoff', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1600, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    String? copiedPayload;
+    List<String>? openedEventIds;
+    String? openedSelectedEventId;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final args = call.arguments as Map<dynamic, dynamic>;
+          copiedPayload = args['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+
+    final store = InMemoryEventStore();
+    store.append(
+      IntelligenceReceived(
+        eventId: 'evt-activity-review-1',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 9, 0, 10),
+        intelligenceId: 'ACTIVITY-7',
+        provider: 'hikvision_dvr_monitor_only',
+        sourceType: 'dvr',
+        externalId: 'ext-activity-review-1',
+        clientId: 'CLIENT-1',
+        regionId: 'REGION-1',
+        siteId: 'SITE-1',
+        cameraId: 'gate-cam',
+        objectLabel: 'human',
+        objectConfidence: 0.91,
+        headline: 'Watchlist person observed',
+        summary: 'Watchlist person lingered at the gate.',
+        riskScore: 78,
+        snapshotUrl: 'https://edge.example.com/review-1.jpg',
+        canonicalHash: 'hash-activity-review-1',
+      ),
+    );
+    store.append(
+      IntelligenceReceived(
+        eventId: 'evt-activity-review-2',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 9, 3, 10),
+        intelligenceId: 'ACTIVITY-11',
+        provider: 'hikvision_dvr_monitor_only',
+        sourceType: 'dvr',
+        externalId: 'ext-activity-review-2',
+        clientId: 'CLIENT-1',
+        regionId: 'REGION-1',
+        siteId: 'SITE-1',
+        cameraId: 'gate-cam',
+        objectLabel: 'human',
+        objectConfidence: 0.86,
+        headline: 'Guard conversation observed',
+        summary: 'Guard interaction with an unknown person near the gate.',
+        riskScore: 66,
+        snapshotUrl: 'https://edge.example.com/review-2.jpg',
+        canonicalHash: 'hash-activity-review-2',
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DashboardPage(
+          eventStore: store,
+          onOpenEventsForScope: (eventIds, selectedEventId) {
+            openedEventIds = eventIds;
+            openedSelectedEventId = selectedEventId;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Advanced export and share'));
+    await tester.tap(find.text('Advanced export and share'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Copy Site Activity Review JSON'), findsOneWidget);
+    expect(find.text('Open Site Activity Events Review'), findsOneWidget);
+
+    await tester.tap(find.text('Copy Site Activity Review JSON'));
+    await tester.pump();
+
+    expect(copiedPayload, isNotNull);
+    expect(copiedPayload, contains('"siteActivityReview"'));
+    expect(copiedPayload, contains('"eventIds": ['));
+    expect(copiedPayload, contains('"ACTIVITY-7"'));
+    expect(copiedPayload, contains('"ACTIVITY-11"'));
+    expect(copiedPayload, contains('"selectedEventId": "ACTIVITY-11"'));
+    expect(copiedPayload, contains('"evidenceEventIds": ['));
+
+    await tester.tap(find.text('Open Site Activity Events Review'));
+    await tester.pumpAndSettle();
+
+    expect(openedEventIds, equals(const ['ACTIVITY-7', 'ACTIVITY-11']));
+    expect(openedSelectedEventId, 'ACTIVITY-11');
   });
 
   testWidgets('dashboard guard sync card respects alert thresholds', (
