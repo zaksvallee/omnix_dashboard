@@ -3102,28 +3102,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
 
   String _tomorrowPostureSummary(
     List<MonitoringWatchAutonomyActionPlan> drafts,
-  ) {
-    if (drafts.isEmpty) {
-      return '';
-    }
-    final leadDraft = drafts.first;
-    final leadSite = (leadDraft.metadata['lead_site'] ?? leadDraft.siteId)
-        .toString()
-        .trim();
-    final learningLabel = (leadDraft.metadata['learning_label'] ?? '')
-        .toString()
-        .trim();
-    final repeatCount = (leadDraft.metadata['learning_repeat_count'] ?? '')
-        .toString()
-        .trim();
-    final parts = <String>[
-      leadDraft.actionType.trim(),
-      if (leadSite.isNotEmpty) leadSite,
-      if (learningLabel.isNotEmpty) learningLabel,
-      if (repeatCount.isNotEmpty) 'x$repeatCount',
-    ];
-    return parts.join(' • ');
-  }
+  ) => buildTomorrowPostureSummaryForDraft(
+    draft: drafts.isEmpty ? null : drafts.first,
+  );
 
   String _tomorrowPostureLearningMemorySummary(
     MonitoringWatchAutonomyActionPlan draft,
@@ -3162,34 +3143,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   String _tomorrowPostureShadowSummary(
     SovereignReport report,
     MonitoringWatchAutonomyActionPlan draft,
-  ) {
-    final shadowLabel = (draft.metadata['shadow_mo_label'] ?? '')
-        .toString()
-        .trim();
-    if (shadowLabel.isEmpty) {
-      return '';
-    }
-    final leadSite = (draft.metadata['lead_site'] ?? draft.siteId)
-        .toString()
-        .trim();
-    final shadowTitle = (draft.metadata['shadow_mo_title'] ?? '')
-        .toString()
-        .trim();
-    final repeatCount = (draft.metadata['shadow_mo_repeat_count'] ?? '')
-        .toString()
-        .trim();
-    final strengthHandoff = _tomorrowPostureShadowStrengthHandoffSummary(
-      report,
-    );
-    final parts = <String>[
-      shadowLabel,
-      if (leadSite.isNotEmpty) leadSite,
-      if (shadowTitle.isNotEmpty) shadowTitle,
-      if (repeatCount.isNotEmpty) 'x$repeatCount',
-      if (strengthHandoff.isNotEmpty) strengthHandoff,
-    ];
-    return parts.join(' • ');
-  }
+  ) => buildTomorrowShadowSummaryForDraft(
+    draft: draft,
+    strengthHandoffSummary: _tomorrowPostureShadowStrengthHandoffSummary(report),
+  );
 
   String _tomorrowPostureHazardSummary(
     MonitoringWatchAutonomyActionPlan draft,
@@ -3203,29 +3160,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
 
   String _tomorrowPostureUrgencySummary(
     MonitoringWatchAutonomyActionPlan draft,
-  ) {
-    final strengthBias = (draft.metadata['shadow_strength_bias'] ?? '')
-        .toString()
-        .trim();
-    if (strengthBias.isEmpty) {
-      return '';
-    }
-    final strengthPriority = (draft.metadata['shadow_strength_priority'] ?? '')
-        .toString()
-        .trim();
-    final countdown =
-        (draft.metadata['draft_countdown'] ?? '').toString().trim().isNotEmpty
-        ? (draft.metadata['draft_countdown'] ?? '').toString().trim()
-        : draft.countdownSeconds > 0
-        ? draft.countdownSeconds.toString()
-        : '';
-    final parts = <String>[
-      strengthBias,
-      if (strengthPriority.isNotEmpty) strengthPriority,
-      if (countdown.isNotEmpty) '${countdown}s',
-    ];
-    return parts.join(' • ');
-  }
+  ) => buildTomorrowUrgencySummaryForDraft(draft: draft);
 
   String _syntheticWarRoomBiasSummaryForPlan(
     MonitoringWatchAutonomyActionPlan? plan,

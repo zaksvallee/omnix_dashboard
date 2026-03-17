@@ -3440,8 +3440,8 @@ class _GovernancePageState extends State<GovernancePage> {
 
   String _globalReadinessTomorrowPostureSummary(
     List<MonitoringWatchAutonomyActionPlan> intents,
-  ) {
-    final draft = intents.firstWhere(
+  ) => buildTomorrowPostureSummaryForDraft(
+    draft: intents.firstWhere(
       (plan) => plan.metadata['scope'] == 'NEXT_SHIFT',
       orElse: () => const MonitoringWatchAutonomyActionPlan(
         id: '',
@@ -3452,21 +3452,8 @@ class _GovernancePageState extends State<GovernancePage> {
         description: '',
         countdownSeconds: 0,
       ),
-    );
-    if (draft.actionType.trim().isEmpty) {
-      return '';
-    }
-    final leadSite = (draft.metadata['lead_site'] ?? draft.siteId).trim();
-    final learningLabel = (draft.metadata['learning_label'] ?? '').trim();
-    final repeatCount = (draft.metadata['learning_repeat_count'] ?? '').trim();
-    final parts = <String>[
-      draft.actionType.trim(),
-      if (leadSite.isNotEmpty) leadSite,
-      if (learningLabel.isNotEmpty) learningLabel,
-      if (repeatCount.isNotEmpty) 'x$repeatCount',
-    ];
-    return parts.join(' • ');
-  }
+    ),
+  );
 
   String _shadowMoStrengthHandoffSummaryForReport(
     _GovernanceReportView report,
@@ -3513,8 +3500,8 @@ class _GovernancePageState extends State<GovernancePage> {
   String _globalReadinessTomorrowShadowSummary(
     _GovernanceReportView report,
     List<MonitoringWatchAutonomyActionPlan> intents,
-  ) {
-    final draft = intents.firstWhere(
+  ) => buildTomorrowShadowSummaryForDraft(
+    draft: intents.firstWhere(
       (plan) =>
           plan.metadata['scope'] == 'NEXT_SHIFT' &&
           (plan.metadata['shadow_mo_label'] ?? '').trim().isNotEmpty,
@@ -3527,29 +3514,14 @@ class _GovernancePageState extends State<GovernancePage> {
         description: '',
         countdownSeconds: 0,
       ),
-    );
-    if (draft.actionType.trim().isEmpty) {
-      return '';
-    }
-    final leadSite = (draft.metadata['lead_site'] ?? draft.siteId).trim();
-    final shadowLabel = (draft.metadata['shadow_mo_label'] ?? '').trim();
-    final shadowTitle = (draft.metadata['shadow_mo_title'] ?? '').trim();
-    final repeatCount = (draft.metadata['shadow_mo_repeat_count'] ?? '').trim();
-    final strengthHandoff = _shadowMoStrengthHandoffSummaryForReport(report);
-    final parts = <String>[
-      if (shadowLabel.isNotEmpty) shadowLabel,
-      if (leadSite.isNotEmpty) leadSite,
-      if (shadowTitle.isNotEmpty) shadowTitle,
-      if (repeatCount.isNotEmpty) 'x$repeatCount',
-      if (strengthHandoff.isNotEmpty) strengthHandoff,
-    ];
-    return parts.join(' • ');
-  }
+    ),
+    strengthHandoffSummary: _shadowMoStrengthHandoffSummaryForReport(report),
+  );
 
   String _globalReadinessTomorrowUrgencySummary(
     List<MonitoringWatchAutonomyActionPlan> intents,
-  ) {
-    final draft = intents.firstWhere(
+  ) => buildTomorrowUrgencySummaryForDraft(
+    draft: intents.firstWhere(
       (plan) =>
           plan.metadata['scope'] == 'NEXT_SHIFT' &&
           (plan.metadata['shadow_strength_bias'] ?? '').trim().isNotEmpty,
@@ -3562,26 +3534,8 @@ class _GovernancePageState extends State<GovernancePage> {
         description: '',
         countdownSeconds: 0,
       ),
-    );
-    if (draft.actionType.trim().isEmpty) {
-      return '';
-    }
-    final strengthBias = (draft.metadata['shadow_strength_bias'] ?? '').trim();
-    final strengthPriority = (draft.metadata['shadow_strength_priority'] ?? '')
-        .trim();
-    final countdown =
-        (draft.metadata['draft_countdown'] ?? '').trim().isNotEmpty
-        ? (draft.metadata['draft_countdown'] ?? '').trim()
-        : draft.countdownSeconds > 0
-        ? draft.countdownSeconds.toString()
-        : '';
-    final parts = <String>[
-      if (strengthBias.isNotEmpty) strengthBias,
-      if (strengthPriority.isNotEmpty) strengthPriority,
-      if (countdown.isNotEmpty) '${countdown}s',
-    ];
-    return parts.join(' • ');
-  }
+    ),
+  );
 
   String _globalReadinessShadowBiasSummary(
     List<MonitoringWatchAutonomyActionPlan> intents,

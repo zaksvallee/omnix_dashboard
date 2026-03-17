@@ -248,6 +248,45 @@ void main() {
       );
     });
 
+    test('tomorrow posture helpers format draft, shadow, and urgency context', () {
+      const draft = MonitoringWatchAutonomyActionPlan(
+        id: 'NEXT-1',
+        incidentId: 'SITE-1',
+        siteId: 'SITE-1',
+        priority: MonitoringWatchAutonomyPriority.high,
+        actionType: 'DRAFT NEXT-SHIFT ACCESS HARDENING',
+        description: 'desc',
+        countdownSeconds: 22,
+        metadata: <String, String>{
+          'lead_site': 'SITE-ALPHA',
+          'learning_label': 'LOCK EARLY',
+          'learning_repeat_count': '2',
+          'shadow_mo_label': 'HARDEN ACCESS',
+          'shadow_mo_title': 'Badge tailgate pattern',
+          'shadow_mo_repeat_count': '3',
+          'shadow_strength_bias': 'strength rising',
+          'shadow_strength_priority': 'critical',
+          'draft_countdown': '18',
+        },
+      );
+
+      expect(
+        buildTomorrowPostureSummaryForDraft(draft: draft),
+        'DRAFT NEXT-SHIFT ACCESS HARDENING • SITE-ALPHA • LOCK EARLY • x2',
+      );
+      expect(
+        buildTomorrowShadowSummaryForDraft(
+          draft: draft,
+          strengthHandoffSummary: 'strength rising',
+        ),
+        'HARDEN ACCESS • SITE-ALPHA • Badge tailgate pattern • x3 • strength rising',
+      );
+      expect(
+        buildTomorrowUrgencySummaryForDraft(draft: draft),
+        'strength rising • critical • 18s',
+      );
+    });
+
     test('buildSyntheticPromotionSummaryFromPlans reads base summary from plan metadata', () {
       final plans = <MonitoringWatchAutonomyActionPlan>[
         const MonitoringWatchAutonomyActionPlan(

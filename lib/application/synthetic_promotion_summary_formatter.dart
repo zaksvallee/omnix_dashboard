@@ -106,6 +106,26 @@ String buildSyntheticPolicySummaryFromPlans({
       .firstWhere((value) => value.isNotEmpty, orElse: () => '');
 }
 
+String buildTomorrowPostureSummaryForDraft({
+  required MonitoringWatchAutonomyActionPlan? draft,
+}) {
+  final actionType = (draft?.actionType ?? '').trim();
+  if (actionType.isEmpty) {
+    return '';
+  }
+  final leadSite = ((draft?.metadata['lead_site'] ?? draft?.siteId) ?? '')
+      .trim();
+  final learningLabel = (draft?.metadata['learning_label'] ?? '').trim();
+  final repeatCount = (draft?.metadata['learning_repeat_count'] ?? '').trim();
+  final parts = <String>[
+    actionType,
+    if (leadSite.isNotEmpty) leadSite,
+    if (learningLabel.isNotEmpty) learningLabel,
+    if (repeatCount.isNotEmpty) 'x$repeatCount',
+  ];
+  return parts.join(' • ');
+}
+
 String buildSyntheticModeLabelFromPlans({
   required List<MonitoringWatchAutonomyActionPlan> plans,
 }) {
@@ -172,6 +192,52 @@ String buildHazardSimulationSummaryFromPlans({
     return '';
   }
   return '${buildHazardSignalLabel(signal)} rehearsal recommended';
+}
+
+String buildTomorrowShadowSummaryForDraft({
+  required MonitoringWatchAutonomyActionPlan? draft,
+  String strengthHandoffSummary = '',
+}) {
+  final shadowLabel = (draft?.metadata['shadow_mo_label'] ?? '').trim();
+  if (shadowLabel.isEmpty) {
+    return '';
+  }
+  final leadSite = ((draft?.metadata['lead_site'] ?? draft?.siteId) ?? '')
+      .trim();
+  final shadowTitle = (draft?.metadata['shadow_mo_title'] ?? '').trim();
+  final repeatCount = (draft?.metadata['shadow_mo_repeat_count'] ?? '').trim();
+  final strengthHandoff = strengthHandoffSummary.trim();
+  final parts = <String>[
+    shadowLabel,
+    if (leadSite.isNotEmpty) leadSite,
+    if (shadowTitle.isNotEmpty) shadowTitle,
+    if (repeatCount.isNotEmpty) 'x$repeatCount',
+    if (strengthHandoff.isNotEmpty) strengthHandoff,
+  ];
+  return parts.join(' • ');
+}
+
+String buildTomorrowUrgencySummaryForDraft({
+  required MonitoringWatchAutonomyActionPlan? draft,
+}) {
+  final strengthBias = (draft?.metadata['shadow_strength_bias'] ?? '').trim();
+  if (strengthBias.isEmpty) {
+    return '';
+  }
+  final strengthPriority = (draft?.metadata['shadow_strength_priority'] ?? '')
+      .trim();
+  final countdown =
+      (draft?.metadata['draft_countdown'] ?? '').trim().isNotEmpty
+      ? (draft?.metadata['draft_countdown'] ?? '').trim()
+      : (draft?.countdownSeconds ?? 0) > 0
+      ? draft!.countdownSeconds.toString()
+      : '';
+  final parts = <String>[
+    strengthBias,
+    if (strengthPriority.isNotEmpty) strengthPriority,
+    if (countdown.isNotEmpty) '${countdown}s',
+  ];
+  return parts.join(' • ');
 }
 
 String buildSyntheticShadowPostureBiasSummaryForPlan({
