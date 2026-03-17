@@ -8,6 +8,31 @@ class ChatCaseFileHistoryField {
   });
 }
 
+class ChatCaseFileHeaderField {
+  final String key;
+  final String value;
+
+  const ChatCaseFileHeaderField({
+    required this.key,
+    required this.value,
+  });
+}
+
+String buildChatCaseFileHeader({
+  required String title,
+  required List<ChatCaseFileHeaderField> fields,
+}) {
+  final buffer = StringBuffer('$title\n');
+  for (final field in fields) {
+    final value = field.value.trim();
+    if (value.isEmpty) {
+      continue;
+    }
+    buffer.writeln('${field.key}=$value');
+  }
+  return buffer.toString();
+}
+
 String buildChatCaseFileHistoryText({
   required List<Map<String, Object?>> rows,
   required List<ChatCaseFileHistoryField> fields,

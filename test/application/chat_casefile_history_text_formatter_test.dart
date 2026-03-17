@@ -2,6 +2,29 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:omnix_dashboard/application/chat_casefile_history_text_formatter.dart';
 
 void main() {
+  test('buildChatCaseFileHeader preserves order and skips empty values', () {
+    final text = buildChatCaseFileHeader(
+      title: 'ONYX SYNTHETICCASE JSON',
+      fields: const [
+        ChatCaseFileHeaderField(key: 'report_date', value: '2026-03-17'),
+        ChatCaseFileHeaderField(key: 'focus_summary', value: 'Policy shift'),
+        ChatCaseFileHeaderField(key: 'empty', value: ''),
+        ChatCaseFileHeaderField(
+          key: 'review_command',
+          value: '/syntheticreview 2026-03-17',
+        ),
+      ],
+    );
+
+    expect(
+      text,
+      'ONYX SYNTHETICCASE JSON\n'
+      'report_date=2026-03-17\n'
+      'focus_summary=Policy shift\n'
+      'review_command=/syntheticreview 2026-03-17\n',
+    );
+  });
+
   test('buildChatCaseFileHistoryText formats indexed non-empty rows', () {
     final text = buildChatCaseFileHistoryText(
       rows: const [

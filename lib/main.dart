@@ -17423,22 +17423,51 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       ],
     );
     if (format == 'csv') {
-      final header = 'ONYX READINESSCASE CSV\n'
-          'report_date=${report.date}\n'
-          '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
-          '${hazardSummary.isEmpty ? '' : 'hazard_summary=$hazardSummary\n'}'
-          '${shadowBiasSummary.isEmpty ? '' : 'shadow_bias_summary=$shadowBiasSummary\n'}'
-          'review_command=$reviewCommand\n'
-          'governance_command=$governanceCommand\n';
+      final header = buildChatCaseFileHeader(
+        title: 'ONYX READINESSCASE CSV',
+        fields: [
+          ChatCaseFileHeaderField(key: 'report_date', value: report.date),
+          ChatCaseFileHeaderField(
+            key: 'focus_summary',
+            value: focusSummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'hazard_summary',
+            value: hazardSummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'shadow_bias_summary',
+            value: shadowBiasSummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'review_command',
+            value: reviewCommand,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'governance_command',
+            value: governanceCommand,
+          ),
+        ],
+      );
       return '$header$historyText${_globalReadinessCaseFileCsv(reportDate: report.date)}';
     }
-    final header = 'ONYX READINESSCASE JSON\n'
-        'report_date=${report.date}\n'
-        '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
-        '${hazardSummary.isEmpty ? '' : 'hazard_summary=$hazardSummary\n'}'
-        '${shadowBiasSummary.isEmpty ? '' : 'shadow_bias_summary=$shadowBiasSummary\n'}'
-        'review_command=$reviewCommand\n'
-        'governance_command=$governanceCommand\n';
+    final header = buildChatCaseFileHeader(
+      title: 'ONYX READINESSCASE JSON',
+      fields: [
+        ChatCaseFileHeaderField(key: 'report_date', value: report.date),
+        ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
+        ChatCaseFileHeaderField(key: 'hazard_summary', value: hazardSummary),
+        ChatCaseFileHeaderField(
+          key: 'shadow_bias_summary',
+          value: shadowBiasSummary,
+        ),
+        ChatCaseFileHeaderField(key: 'review_command', value: reviewCommand),
+        ChatCaseFileHeaderField(
+          key: 'governance_command',
+          value: governanceCommand,
+        ),
+      ],
+    );
     return '$header$historyText${const JsonEncoder.withIndent('  ').convert(payload)}';
   }
 
@@ -17582,40 +17611,114 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       ],
     );
     if (format == 'csv') {
-      final header = 'ONYX SYNTHETICCASE CSV\n'
-          'report_date=${report.date}\n'
-          '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
-          '${hazardSummary.isEmpty ? '' : 'hazard_summary=$hazardSummary\n'}'
-          '${shadowSummary.isEmpty ? '' : 'shadow_summary=$shadowSummary\n'}'
-          '${shadowLearningSummary.isEmpty ? '' : 'shadow_learning_summary=$shadowLearningSummary\n'}'
-          '${shadowMemorySummary.isEmpty ? '' : 'shadow_memory_summary=$shadowMemorySummary\n'}'
-          '${promotionSummary.isEmpty ? '' : 'promotion_summary=$promotionSummary\n'}'
-          '${promotionDecisionStatus.isEmpty ? '' : 'promotion_decision_status=$promotionDecisionStatus\n'}'
-          '${promotionDecisionSummary.isEmpty ? '' : 'promotion_decision_summary=$promotionDecisionSummary\n'}'
-          '${learningSummary.isEmpty ? '' : 'learning_summary=$learningSummary\n'}'
-          '${learningMemorySummary.isEmpty ? '' : 'learning_memory_summary=$learningMemorySummary\n'}'
-          '${biasSummary.isEmpty ? '' : 'bias_summary=$biasSummary\n'}'
-          'review_command=$reviewCommand\n'
-          '${previousReviewCommand.isEmpty ? '' : 'previous_review_command=$previousReviewCommand\n'}'
-          '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}';
+      final header = buildChatCaseFileHeader(
+        title: 'ONYX SYNTHETICCASE CSV',
+        fields: [
+          ChatCaseFileHeaderField(key: 'report_date', value: report.date),
+          ChatCaseFileHeaderField(
+            key: 'focus_summary',
+            value: focusSummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'hazard_summary',
+            value: hazardSummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'shadow_summary',
+            value: shadowSummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'shadow_learning_summary',
+            value: shadowLearningSummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'shadow_memory_summary',
+            value: shadowMemorySummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'promotion_summary',
+            value: promotionSummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'promotion_decision_status',
+            value: promotionDecisionStatus,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'promotion_decision_summary',
+            value: promotionDecisionSummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'learning_summary',
+            value: learningSummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'learning_memory_summary',
+            value: learningMemorySummary,
+          ),
+          ChatCaseFileHeaderField(key: 'bias_summary', value: biasSummary),
+          ChatCaseFileHeaderField(
+            key: 'review_command',
+            value: reviewCommand,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'previous_review_command',
+            value: previousReviewCommand,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'previous_case_file_command',
+            value: previousCaseFileCommand,
+          ),
+        ],
+      );
       return '$header$historyText${_syntheticWarRoomCaseFileCsv(reportDate: report.date)}';
     }
-    final header = 'ONYX SYNTHETICCASE JSON\n'
-        'report_date=${report.date}\n'
-        '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
-        '${hazardSummary.isEmpty ? '' : 'hazard_summary=$hazardSummary\n'}'
-        '${shadowSummary.isEmpty ? '' : 'shadow_summary=$shadowSummary\n'}'
-        '${shadowLearningSummary.isEmpty ? '' : 'shadow_learning_summary=$shadowLearningSummary\n'}'
-        '${shadowMemorySummary.isEmpty ? '' : 'shadow_memory_summary=$shadowMemorySummary\n'}'
-        '${promotionSummary.isEmpty ? '' : 'promotion_summary=$promotionSummary\n'}'
-        '${promotionDecisionStatus.isEmpty ? '' : 'promotion_decision_status=$promotionDecisionStatus\n'}'
-        '${promotionDecisionSummary.isEmpty ? '' : 'promotion_decision_summary=$promotionDecisionSummary\n'}'
-        '${learningSummary.isEmpty ? '' : 'learning_summary=$learningSummary\n'}'
-        '${learningMemorySummary.isEmpty ? '' : 'learning_memory_summary=$learningMemorySummary\n'}'
-        '${biasSummary.isEmpty ? '' : 'bias_summary=$biasSummary\n'}'
-        'review_command=$reviewCommand\n'
-        '${previousReviewCommand.isEmpty ? '' : 'previous_review_command=$previousReviewCommand\n'}'
-        '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}';
+    final header = buildChatCaseFileHeader(
+      title: 'ONYX SYNTHETICCASE JSON',
+      fields: [
+        ChatCaseFileHeaderField(key: 'report_date', value: report.date),
+        ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
+        ChatCaseFileHeaderField(key: 'hazard_summary', value: hazardSummary),
+        ChatCaseFileHeaderField(key: 'shadow_summary', value: shadowSummary),
+        ChatCaseFileHeaderField(
+          key: 'shadow_learning_summary',
+          value: shadowLearningSummary,
+        ),
+        ChatCaseFileHeaderField(
+          key: 'shadow_memory_summary',
+          value: shadowMemorySummary,
+        ),
+        ChatCaseFileHeaderField(
+          key: 'promotion_summary',
+          value: promotionSummary,
+        ),
+        ChatCaseFileHeaderField(
+          key: 'promotion_decision_status',
+          value: promotionDecisionStatus,
+        ),
+        ChatCaseFileHeaderField(
+          key: 'promotion_decision_summary',
+          value: promotionDecisionSummary,
+        ),
+        ChatCaseFileHeaderField(
+          key: 'learning_summary',
+          value: learningSummary,
+        ),
+        ChatCaseFileHeaderField(
+          key: 'learning_memory_summary',
+          value: learningMemorySummary,
+        ),
+        ChatCaseFileHeaderField(key: 'bias_summary', value: biasSummary),
+        ChatCaseFileHeaderField(key: 'review_command', value: reviewCommand),
+        ChatCaseFileHeaderField(
+          key: 'previous_review_command',
+          value: previousReviewCommand,
+        ),
+        ChatCaseFileHeaderField(
+          key: 'previous_case_file_command',
+          value: previousCaseFileCommand,
+        ),
+      ],
+    );
     return '$header$historyText${const JsonEncoder.withIndent('  ').convert(payload)}';
   }
 
@@ -17737,24 +17840,65 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       ],
     );
     if (format == 'csv') {
-      final header = 'ONYX SHADOWCASE CSV\n'
-          'report_date=${report.date}\n'
-          '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
-          '${historyHeadline.isEmpty ? '' : 'history_headline=$historyHeadline\n'}'
-          '${historySummary.isEmpty ? '' : 'history_summary=$historySummary\n'}'
-          'review_command=/shadowreview ${report.date}\n'
-          '${previousReviewCommand.isEmpty ? '' : 'previous_review_command=$previousReviewCommand\n'}'
-          '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}';
+      final header = buildChatCaseFileHeader(
+        title: 'ONYX SHADOWCASE CSV',
+        fields: [
+          ChatCaseFileHeaderField(key: 'report_date', value: report.date),
+          ChatCaseFileHeaderField(
+            key: 'focus_summary',
+            value: focusSummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'history_headline',
+            value: historyHeadline,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'history_summary',
+            value: historySummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'review_command',
+            value: '/shadowreview ${report.date}',
+          ),
+          ChatCaseFileHeaderField(
+            key: 'previous_review_command',
+            value: previousReviewCommand,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'previous_case_file_command',
+            value: previousCaseFileCommand,
+          ),
+        ],
+      );
       return '$header$historyText${_shadowMoCaseFileCsv(reportDate: report.date)}';
     }
-    final header = 'ONYX SHADOWCASE JSON\n'
-        'report_date=${report.date}\n'
-        '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
-        '${historyHeadline.isEmpty ? '' : 'history_headline=$historyHeadline\n'}'
-        '${historySummary.isEmpty ? '' : 'history_summary=$historySummary\n'}'
-        'review_command=/shadowreview ${report.date}\n'
-        '${previousReviewCommand.isEmpty ? '' : 'previous_review_command=$previousReviewCommand\n'}'
-        '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}';
+    final header = buildChatCaseFileHeader(
+      title: 'ONYX SHADOWCASE JSON',
+      fields: [
+        ChatCaseFileHeaderField(key: 'report_date', value: report.date),
+        ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
+        ChatCaseFileHeaderField(
+          key: 'history_headline',
+          value: historyHeadline,
+        ),
+        ChatCaseFileHeaderField(
+          key: 'history_summary',
+          value: historySummary,
+        ),
+        ChatCaseFileHeaderField(
+          key: 'review_command',
+          value: '/shadowreview ${report.date}',
+        ),
+        ChatCaseFileHeaderField(
+          key: 'previous_review_command',
+          value: previousReviewCommand,
+        ),
+        ChatCaseFileHeaderField(
+          key: 'previous_case_file_command',
+          value: previousCaseFileCommand,
+        ),
+      ],
+    );
     return '$header$historyText${const JsonEncoder.withIndent('  ').convert(payload)}';
   }
 
@@ -17868,18 +18012,38 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       ],
     );
     if (format == 'csv') {
-      final header = 'ONYX TOMORROWCASE CSV\n'
-          'report_date=${report.date}\n'
-          '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
-          '${shadowSummary.isEmpty ? '' : 'shadow_summary=$shadowSummary\n'}'
-          'review_command=/tomorrowreview ${report.date}\n';
+      final header = buildChatCaseFileHeader(
+        title: 'ONYX TOMORROWCASE CSV',
+        fields: [
+          ChatCaseFileHeaderField(key: 'report_date', value: report.date),
+          ChatCaseFileHeaderField(
+            key: 'focus_summary',
+            value: focusSummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'shadow_summary',
+            value: shadowSummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'review_command',
+            value: '/tomorrowreview ${report.date}',
+          ),
+        ],
+      );
       return '$header$historyText${_tomorrowPostureCaseFileCsv(reportDate: report.date)}';
     }
-    final header = 'ONYX TOMORROWCASE JSON\n'
-        'report_date=${report.date}\n'
-        '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
-        '${shadowSummary.isEmpty ? '' : 'shadow_summary=$shadowSummary\n'}'
-        'review_command=/tomorrowreview ${report.date}\n';
+    final header = buildChatCaseFileHeader(
+      title: 'ONYX TOMORROWCASE JSON',
+      fields: [
+        ChatCaseFileHeaderField(key: 'report_date', value: report.date),
+        ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
+        ChatCaseFileHeaderField(key: 'shadow_summary', value: shadowSummary),
+        ChatCaseFileHeaderField(
+          key: 'review_command',
+          value: '/tomorrowreview ${report.date}',
+        ),
+      ],
+    );
     return '$header$historyText${const JsonEncoder.withIndent('  ').convert(payload)}';
   }
 
