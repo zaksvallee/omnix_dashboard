@@ -207,6 +207,58 @@ void main() {
     );
   });
 
+  test('builds promotion shadow anchor payload directly from sites', () {
+    final shadowSites = [
+      MonitoringGlobalSitePosture(
+        clientId: 'CLIENT-VALLEE',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-OFFICE',
+        heatLevel: MonitoringGlobalHeatLevel.elevated,
+        activityScore: 88,
+        intelligenceCount: 2,
+        escalationCount: 1,
+        repeatCount: 0,
+        suppressedCount: 0,
+        identitySignalCount: 0,
+        latestSummary: 'Service impersonation concern.',
+        lastActivityAtUtc: DateTime.utc(2026, 3, 17, 1, 0),
+        dominantSignals: const ['escalation', 'mo_shadow'],
+        moShadowMatchCount: 1,
+        moShadowSummary: 'Reviewed contractor roaming at office site.',
+        moShadowEventIds: const ['evt-office-2', 'evt-office-1'],
+        moShadowSelectedEventId: 'evt-office-1',
+        moShadowReviewRefs: const ['intel-office-1', 'intel-office-2'],
+        moShadowMatches: const [
+          OnyxMoShadowMatch(
+            moId: 'MO-REVIEWED-HIGH',
+            title: 'Reviewed contractor roaming',
+            incidentType: 'deception_led_intrusion',
+            behaviorStage: 'inside_behavior',
+            validationStatus: 'validated',
+            runtimeMatchBias: 'PROMOTED_VALIDATED',
+            matchScore: 0.88,
+            matchedIndicators: ['maintenance_impersonation'],
+            recommendedActionPlans: ['RAISE READINESS'],
+          ),
+        ],
+      ),
+    ];
+
+    final payload = buildPromotionShadowAnchorPayloadForSites(
+      promotionMoId: 'MO-REVIEWED-HIGH',
+      sites: shadowSites,
+      reportDate: '2026-03-17',
+    );
+
+    expect(payload['promotionMoId'], 'MO-REVIEWED-HIGH');
+    expect(payload['promotionCurrentValidationStatus'], 'validated');
+    expect(payload['promotionShadowSelectedEventId'], 'evt-office-1');
+    expect(
+      payload['promotionShadowReviewCommand'],
+      '/shadowreview 2026-03-17',
+    );
+  });
+
   test('orders shadow dossier sites by reviewed evidence strength', () {
     final newsHeavySite = MonitoringGlobalSitePosture(
       clientId: 'CLIENT-VALLEE',

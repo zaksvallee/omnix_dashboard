@@ -7013,15 +7013,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     );
     final promotionMoId =
         (syntheticPayload['promotionMoId'] ?? '').toString().trim();
-    final promotionShadowContext = promotionMoId.isEmpty
-        ? const <String, String>{}
-        : _activeShadowPromotionMatchContext(
-            moId: promotionMoId,
-            reportDate: report.date,
-          );
-    final promotionAnchorPayload = buildPromotionShadowAnchorPayload(
+    final promotionAnchorPayload = buildPromotionShadowAnchorPayloadForSites(
       promotionMoId: promotionMoId,
-      context: promotionShadowContext,
+      sites: shadowSites,
+      reportDate: report.date,
     );
     return buildShadowMoDossierPayload(
       sites: shadowSites,
@@ -7240,15 +7235,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             previousReport,
           );
     final promotionMoId = _syntheticWarRoomPromotionId(plans);
-    final promotionShadowContext = promotionMoId.isEmpty
-        ? const <String, String>{}
-        : _activeShadowPromotionMatchContext(
-            moId: promotionMoId,
-            reportDate: report.date,
-          );
-    final promotionAnchorPayload = buildPromotionShadowAnchorPayload(
+    final promotionAnchorPayload = buildPromotionShadowAnchorPayloadForSites(
       promotionMoId: promotionMoId,
-      context: promotionShadowContext,
+      sites: _shadowMoSitesForReport(report),
+      reportDate: report.date,
     );
     return <String, Object?>{
       'reportDate': report.date,

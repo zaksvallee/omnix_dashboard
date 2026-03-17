@@ -173,6 +173,21 @@ Map<String, Object?> buildPromotionShadowAnchorPayload({
   };
 }
 
+Map<String, Object?> buildPromotionShadowAnchorPayloadForSites({
+  required String promotionMoId,
+  required Iterable<MonitoringGlobalSitePosture> sites,
+  required String reportDate,
+}) {
+  return buildPromotionShadowAnchorPayload(
+    promotionMoId: promotionMoId,
+    context: buildPromotionShadowAnchorContext(
+      moId: promotionMoId,
+      sites: sites,
+      reportDate: reportDate,
+    ),
+  );
+}
+
 List<String> buildPromotionShadowAnchorCsvRows({
   required Map<String, Object?> payload,
   bool includeMoId = true,

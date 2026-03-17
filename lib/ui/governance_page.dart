@@ -11496,13 +11496,12 @@ class _GovernancePageState extends State<GovernancePage> {
     final syntheticPromotionMoId = _syntheticWarRoomPromotionId(
       syntheticWarRoomPlans,
     );
-    final syntheticPromotionShadowContext = _promotionShadowAnchorContextForReport(
-      report,
-      syntheticPromotionMoId,
-    );
     final syntheticPromotionAnchorPayload = buildPromotionShadowAnchorPayload(
       promotionMoId: syntheticPromotionMoId,
-      context: syntheticPromotionShadowContext,
+      context: _promotionShadowAnchorContextForReport(
+        report,
+        syntheticPromotionMoId,
+      ),
     );
     final siteActivityTrend = _siteActivityTrendForReport(report);
     final siteActivityBaseline = _siteActivityBaselineStats(report);
@@ -11872,19 +11871,18 @@ class _GovernancePageState extends State<GovernancePage> {
     final syntheticPromotionMoId = _syntheticWarRoomPromotionId(
       syntheticWarRoomPlans,
     );
-    final syntheticPromotionShadowContext = _promotionShadowAnchorContextForReport(
-      report,
-      syntheticPromotionMoId,
-    );
-    final syntheticPromotionAnchorPayload = buildPromotionShadowAnchorPayload(
+    final syntheticPromotionAnchorPayload =
+        buildPromotionShadowAnchorPayloadForSites(
       promotionMoId: syntheticPromotionMoId,
-      context: syntheticPromotionShadowContext,
+      sites: shadowSites,
+      reportDate: report.reportDate,
     );
     final shadowPromotionMoId = syntheticPromotionMoId;
-    final shadowPromotionContext = syntheticPromotionShadowContext;
-    final shadowPromotionAnchorPayload = buildPromotionShadowAnchorPayload(
+    final shadowPromotionAnchorPayload =
+        buildPromotionShadowAnchorPayloadForSites(
       promotionMoId: shadowPromotionMoId,
-      context: shadowPromotionContext,
+      sites: shadowSites,
+      reportDate: report.reportDate,
     );
     final siteActivityTrend = _siteActivityTrendForReport(report);
     final siteActivityBaseline = _siteActivityBaselineStats(report);
