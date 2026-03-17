@@ -11059,6 +11059,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     required String clientId,
     required String siteId,
     bool includeEvidenceHandoff = false,
+    bool includeReviewCommandHint = false,
     bool includeCaseFileHint = false,
   }) {
     final normalizedClientId = clientId.trim();
@@ -11080,6 +11081,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       trendLabel: trend?.label,
       trendSummary: trend?.summary,
       includeEvidenceHandoff: includeEvidenceHandoff,
+      reviewCommandHint: includeReviewCommandHint
+          ? '/activityreview $normalizedClientId $normalizedSiteId'
+          : null,
       caseFileHint: includeCaseFileHint
           ? '/activitycase $normalizedClientId $normalizedSiteId'
           : null,
@@ -11110,6 +11114,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           'reportDate': _morningSovereignReport?.date,
           'generatedAtUtc': _morningSovereignReport?.generatedAtUtc
               .toIso8601String(),
+          'reviewCommand': '/activityreview $normalizedClientId $normalizedSiteId',
+          'caseFileCommand': '/activitycase $normalizedClientId $normalizedSiteId',
         },
         'summaryLine': snapshot.summaryLine,
         'eventIds': snapshot.eventIds,
@@ -11166,6 +11172,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'site_id,${scope['siteId'] ?? ''}',
       'report_date,${scope['reportDate'] ?? ''}',
       'generated_at_utc,${scope['generatedAtUtc'] ?? ''}',
+      'review_command,${scope['reviewCommand'] ?? ''}',
+      'case_file_command,${scope['caseFileCommand'] ?? ''}',
       'summary_line,"${(caseFile['summaryLine'] as String? ?? '').replaceAll('"', '""')}"',
       'selected_event_id,${caseFile['selectedEventId'] ?? ''}',
       'review_refs,"${((caseFile['reviewRefs'] as List<Object?>? ?? const <Object?>[]).join(', ')).replaceAll('"', '""')}"',
@@ -11228,6 +11236,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       clientId: normalizedClientId,
       siteId: normalizedSiteId,
       includeEvidenceHandoff: true,
+      includeReviewCommandHint: true,
       includeCaseFileHint: true,
     );
     final stamp = DateTime.now().toUtc().microsecondsSinceEpoch;
@@ -12261,6 +12270,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           command: 'activitytruth',
           arguments: arguments,
         );
+      case '/activityreview':
+        return _TelegramAdminCommandParseResult(
+          command: 'activityreview',
+          arguments: arguments,
+        );
       case '/activitycase':
         return _TelegramAdminCommandParseResult(
           command: 'activitycase',
@@ -12481,6 +12495,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'alarmbindings',
         'alarmtest',
         'activitytruth',
+        'activityreview',
         'activitycase',
         'sendactivity',
         'demoprep',
@@ -12606,6 +12621,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     ])) {
       return const _TelegramAdminCommandParseResult(command: 'activitytruth');
     }
+    if (hasAny(const [
+      'activity review',
+      'open activity review',
+      'review activity',
+      'open events review',
+    ])) {
+      return const _TelegramAdminCommandParseResult(command: 'activityreview');
+    }
     if (hasAny(const ['activity case', 'case file', 'activity dossier'])) {
       return const _TelegramAdminCommandParseResult(command: 'activitycase');
     }
@@ -12706,6 +12729,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case 'bridges':
       case 'alarmbindings':
       case 'activitytruth':
+      case 'activityreview':
       case 'activitycase':
       case 'aidrafts':
       case 'aiconv':
@@ -12800,6 +12824,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         return _telegramAdminAlarmTestCommand(arguments);
       case 'activitytruth':
         return _telegramAdminActivityTruthCommand(arguments);
+      case 'activityreview':
+        return _telegramAdminActivityReviewCommand(arguments);
       case 'activitycase':
         return _telegramAdminActivityCaseCommand(arguments);
       case 'sendactivity':
@@ -12937,6 +12963,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '• <code>/unlinkalarm &lt;account&gt; [partition] [zone]</code> | <code>/alarmbindings [account]</code>\n'
         '• <code>/alarmtest &lt;clear|suspicious|pending|unavailable&gt; &lt;listener line&gt;</code>\n'
         '• <code>/activitytruth [client_id site_id]</code>\n'
+        '• <code>/activityreview [client_id site_id]</code>\n'
         '• <code>/activitycase [json|csv] [client_id site_id]</code>\n'
         '• <code>/sendactivity [client|partner|both] [client_id site_id]</code>\n'
         '\n---\n\n'
@@ -14820,11 +14847,42 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       clientId: normalizedClientId,
       siteId: normalizedSiteId,
       includeEvidenceHandoff: true,
+      includeReviewCommandHint: true,
       includeCaseFileHint: true,
     );
     return 'ONYX ACTIVITYTRUTH\n'
         'scope=$normalizedClientId/$normalizedSiteId\n'
         '$summary';
+  }
+
+  String _telegramAdminActivityReviewCommand(String arguments) {
+    final scope = _parseMonitoringWatchScope(arguments);
+    if (scope == null ||
+        scope.clientId.trim().isEmpty ||
+        scope.siteId.trim().isEmpty) {
+      return 'ONYX ACTIVITYREVIEW\nUsage: /activityreview [client_id site_id]';
+    }
+    final normalizedClientId = scope.clientId.trim();
+    final normalizedSiteId = scope.siteId.trim();
+    final snapshot = _siteActivityIntelligenceService.buildSnapshot(
+      events: store.allEvents(),
+      clientId: normalizedClientId,
+      siteId: normalizedSiteId,
+    );
+    if (snapshot.eventIds.isEmpty) {
+      return 'ONYX ACTIVITYREVIEW\n'
+          'scope=$normalizedClientId/$normalizedSiteId\n'
+          'No site-activity evidence is currently available for Events Review.';
+    }
+    _openEventsForScopedEventIds(
+      snapshot.eventIds,
+      selectedEventId: snapshot.selectedEventId,
+    );
+    return 'ONYX ACTIVITYREVIEW\n'
+        'scope=$normalizedClientId/$normalizedSiteId\n'
+        'selected=${snapshot.selectedEventId ?? snapshot.eventIds.first}\n'
+        'events=${snapshot.eventIds.length}\n'
+        'Opening Events Review for site activity investigation.';
   }
 
   String _telegramAdminActivityCaseCommand(String arguments) {

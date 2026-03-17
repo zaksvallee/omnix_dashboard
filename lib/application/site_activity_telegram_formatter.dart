@@ -10,6 +10,7 @@ class SiteActivityTelegramFormatter {
     String? trendLabel,
     String? trendSummary,
     bool includeEvidenceHandoff = false,
+    String? reviewCommandHint,
     String? caseFileHint,
   }) {
     final lines = <String>[
@@ -80,6 +81,9 @@ class SiteActivityTelegramFormatter {
 
     if (includeEvidenceHandoff && snapshot.evidenceEventIds.isNotEmpty) {
       lines.add('Review: ${snapshot.evidenceEventIds.join(', ')}');
+    }
+    if ((reviewCommandHint ?? '').trim().isNotEmpty) {
+      lines.add('Open review: ${reviewCommandHint!.trim()}');
     }
     if ((caseFileHint ?? '').trim().isNotEmpty) {
       lines.add('Case file: ${caseFileHint!.trim()}');

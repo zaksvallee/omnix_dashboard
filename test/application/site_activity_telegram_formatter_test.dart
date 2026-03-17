@@ -59,9 +59,14 @@ void main() {
       snapshot: snapshot,
       siteLabel: 'Vallee Residence',
       includeEvidenceHandoff: true,
+      reviewCommandHint: '/activityreview CLIENT-1 SITE-1',
       caseFileHint: '/activitycase CLIENT-1 SITE-1',
     );
     expect(operatorMessage, contains('Review: ACTIVITY-7, ACTIVITY-11'));
+    expect(
+      operatorMessage,
+      contains('Open review: /activityreview CLIENT-1 SITE-1'),
+    );
     expect(
       operatorMessage,
       contains('Case file: /activitycase CLIENT-1 SITE-1'),
