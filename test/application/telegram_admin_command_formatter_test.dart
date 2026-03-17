@@ -148,6 +148,7 @@ void main() {
           'DRAFT NEXT-SHIFT FIRE READINESS • site-alpha • ADVANCE FIRE • x2',
       globalReadinessTomorrowShadowSummary:
           'HARDEN ACCESS • site-alpha • Contractors moved floor to floor in office park • x1 • strength rising',
+      globalReadinessTomorrowUrgencySummary: 'strength rising • critical • 22s',
       currentShiftTomorrowPostureReviewCommand: '/tomorrowreview 2026-03-17',
       currentShiftTomorrowPostureCaseFileCommand:
           '/tomorrowcase json 2026-03-17',
@@ -276,6 +277,10 @@ void main() {
       contains(
         '<b>Tomorrow shadow:</b> HARDEN ACCESS • site-alpha • Contractors moved floor to floor in office park • x1 • strength rising',
       ),
+    );
+    expect(
+      response,
+      contains('<b>Tomorrow urgency:</b> strength rising • critical • 22s'),
     );
     expect(response, contains('<code>/tomorrowreview 2026-03-17</code>'));
     expect(response, contains('<code>/tomorrowcase json 2026-03-17</code>'));

@@ -5373,6 +5373,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           _globalReadinessTomorrowPostureSummary(readinessIntents),
       globalReadinessTomorrowShadowSummary:
           _globalReadinessTomorrowShadowSummary(report, readinessIntents),
+      globalReadinessTomorrowUrgencySummary:
+          _globalReadinessTomorrowUrgencySummary(readinessIntents),
       globalReadinessShadowSummary: (shadowMoCaseFile['summary'] ?? '')
           .toString(),
       globalReadinessShadowStatusSummary:
