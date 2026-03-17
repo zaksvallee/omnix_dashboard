@@ -7904,6 +7904,14 @@ class _GovernancePageState extends State<GovernancePage> {
     };
   }
 
+  String _siteActivityReviewCommand(String reportDate) {
+    return '/activityreview $reportDate';
+  }
+
+  String _siteActivityCaseFileCommand(String reportDate) {
+    return '/activitycase json $reportDate';
+  }
+
   Map<String, Object?> _siteActivityHistoryJson(_SiteActivityHistoryPoint point) {
     return {
       'reportDate': point.reportDate,
@@ -7920,6 +7928,9 @@ class _GovernancePageState extends State<GovernancePage> {
       'executiveSummary': point.executiveSummary,
       'headline': point.headline,
       'summaryLine': point.summaryLine,
+      'reviewCommand': _siteActivityReviewCommand(point.reportDate),
+      'caseFileCommand': _siteActivityCaseFileCommand(point.reportDate),
+      'targetScopeRequired': true,
     };
   }
 
@@ -8966,6 +8977,12 @@ class _GovernancePageState extends State<GovernancePage> {
     final siteActivityTrend = _siteActivityTrendForReport(report);
     final siteActivityBaseline = _siteActivityBaselineStats(report);
     final siteActivityHistory = _siteActivityHistory(report);
+    final currentSiteActivityPoint = siteActivityHistory.isEmpty
+        ? null
+        : siteActivityHistory.first;
+    final previousSiteActivityPoint = siteActivityHistory.length > 1
+        ? siteActivityHistory[1]
+        : null;
     final payload = <String, Object?>{
       'date': report.reportDate,
       'generatedAtUtc': report.generatedAtUtc?.toIso8601String(),
@@ -9083,6 +9100,25 @@ class _GovernancePageState extends State<GovernancePage> {
               siteActivityBaseline.guardInteractionAverage,
           'baselineReportDays': siteActivityBaseline.reportDays,
         },
+        'reviewShortcuts': {
+          if (currentSiteActivityPoint != null)
+            'currentShiftReviewCommand': _siteActivityReviewCommand(
+              currentSiteActivityPoint.reportDate,
+            ),
+          if (currentSiteActivityPoint != null)
+            'currentShiftCaseFileCommand': _siteActivityCaseFileCommand(
+              currentSiteActivityPoint.reportDate,
+            ),
+          if (previousSiteActivityPoint != null)
+            'previousShiftReviewCommand': _siteActivityReviewCommand(
+              previousSiteActivityPoint.reportDate,
+            ),
+          if (previousSiteActivityPoint != null)
+            'previousShiftCaseFileCommand': _siteActivityCaseFileCommand(
+              previousSiteActivityPoint.reportDate,
+            ),
+          'targetScopeRequired': true,
+        },
         'trend': _siteActivityTrendJson(siteActivityTrend),
         'history': siteActivityHistory
             .map(_siteActivityHistoryJson)
@@ -9159,6 +9195,12 @@ class _GovernancePageState extends State<GovernancePage> {
     final siteActivityTrend = _siteActivityTrendForReport(report);
     final siteActivityBaseline = _siteActivityBaselineStats(report);
     final siteActivityHistory = _siteActivityHistory(report);
+    final currentSiteActivityPoint = siteActivityHistory.isEmpty
+        ? null
+        : siteActivityHistory.first;
+    final previousSiteActivityPoint = siteActivityHistory.length > 1
+        ? siteActivityHistory[1]
+        : null;
     final reasons = report.overrideReasons.entries.toList(growable: false)
       ..sort((a, b) => b.value.compareTo(a.value));
     final lines = <String>[
@@ -9256,8 +9298,21 @@ class _GovernancePageState extends State<GovernancePage> {
       'site_activity_baseline_flagged_average,${siteActivityBaseline.flaggedAverage.toStringAsFixed(1)}',
       'site_activity_baseline_guard_interactions_average,${siteActivityBaseline.guardInteractionAverage.toStringAsFixed(1)}',
       'site_activity_baseline_report_days,${siteActivityBaseline.reportDays}',
+      'site_activity_target_scope_required,true',
+      if (currentSiteActivityPoint != null)
+        'site_activity_current_review_command,${_siteActivityReviewCommand(currentSiteActivityPoint.reportDate)}',
+      if (currentSiteActivityPoint != null)
+        'site_activity_current_case_file_command,${_siteActivityCaseFileCommand(currentSiteActivityPoint.reportDate)}',
+      if (previousSiteActivityPoint != null)
+        'site_activity_previous_review_command,${_siteActivityReviewCommand(previousSiteActivityPoint.reportDate)}',
+      if (previousSiteActivityPoint != null)
+        'site_activity_previous_case_file_command,${_siteActivityCaseFileCommand(previousSiteActivityPoint.reportDate)}',
       for (var i = 0; i < siteActivityHistory.length; i++)
         'site_activity_history_${i + 1},"${_siteActivityHistoryCsvSummary(siteActivityHistory[i]).replaceAll('"', '""')}"',
+      for (var i = 0; i < siteActivityHistory.length; i++)
+        'site_activity_history_${i + 1}_review_command,${_siteActivityReviewCommand(siteActivityHistory[i].reportDate)}',
+      for (var i = 0; i < siteActivityHistory.length; i++)
+        'site_activity_history_${i + 1}_case_file_command,${_siteActivityCaseFileCommand(siteActivityHistory[i].reportDate)}',
       'vehicle_total_visits,${report.vehicleVisits}',
       'vehicle_completed_visits,${report.vehicleCompletedVisits}',
       'vehicle_active_visits,${report.vehicleActiveVisits}',

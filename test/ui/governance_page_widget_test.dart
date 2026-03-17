@@ -3905,6 +3905,18 @@ void main() {
     expect(copiedPayload, contains('"comparison"'));
     expect(copiedPayload, contains('"baselineSignalsAverage": 0.0'));
     expect(copiedPayload, contains('"baselineUnknownAverage": 0.0'));
+    expect(copiedPayload, contains('"reviewShortcuts"'));
+    expect(
+      copiedPayload,
+      contains('"currentShiftReviewCommand": "/activityreview 2026-03-10"'),
+    );
+    expect(
+      copiedPayload,
+      contains(
+        '"currentShiftCaseFileCommand": "/activitycase json 2026-03-10"',
+      ),
+    );
+    expect(copiedPayload, contains('"targetScopeRequired": true'));
     expect(copiedPayload, contains('"trend"'));
     expect(copiedPayload, contains('"currentModeLabel": "FLAGGED TRAFFIC"'));
     expect(copiedPayload, contains('"history"'));
@@ -3913,6 +3925,14 @@ void main() {
       contains(
         '"summaryLine": "Signals 7 • Vehicles 3 • People 4 • Known IDs 2 • Unknown 3 • Long presence 1 • Guard interactions 1 • Flagged IDs 1"',
       ),
+    );
+    expect(
+      copiedPayload,
+      contains('"reviewCommand": "/activityreview 2026-03-10"'),
+    );
+    expect(
+      copiedPayload,
+      contains('"caseFileCommand": "/activitycase json 2026-03-10"'),
     );
     expect(copiedPayload, contains('"vehicleThroughput"'));
     expect(copiedPayload, contains('"totalVisits": 18'));
@@ -3950,10 +3970,33 @@ void main() {
       contains('site_activity_trend_current_mode,"FLAGGED TRAFFIC"'),
     );
     expect(copiedPayload, contains('site_activity_baseline_signals_average,0.0'));
+    expect(copiedPayload, contains('site_activity_target_scope_required,true'));
+    expect(
+      copiedPayload,
+      contains('site_activity_current_review_command,/activityreview 2026-03-10'),
+    );
+    expect(
+      copiedPayload,
+      contains(
+        'site_activity_current_case_file_command,/activitycase json 2026-03-10',
+      ),
+    );
     expect(
       copiedPayload,
       contains(
         'site_activity_history_1,"2026-03-10 • CURRENT • Signals 7 • Vehicles 3 • People 4 • Known IDs 2 • Unknown 3 • Guard interactions 1 • Flagged IDs 1 • FLAGGED TRAFFIC"',
+      ),
+    );
+    expect(
+      copiedPayload,
+      contains(
+        'site_activity_history_1_review_command,/activityreview 2026-03-10',
+      ),
+    );
+    expect(
+      copiedPayload,
+      contains(
+        'site_activity_history_1_case_file_command,/activitycase json 2026-03-10',
       ),
     );
     expect(
