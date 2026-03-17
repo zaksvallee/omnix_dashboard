@@ -14,6 +14,7 @@ import 'application/client_messaging_bridge_repository.dart';
 import 'application/cctv_bridge_service.dart';
 import 'application/cctv_evidence_probe_service.dart';
 import 'application/cctv_false_positive_policy.dart';
+import 'application/chat_casefile_history_text_formatter.dart';
 import 'application/dvr_bridge_service.dart';
 import 'application/dvr_evidence_probe_service.dart';
 import 'application/dvr_http_auth.dart';
@@ -17375,68 +17376,52 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final historyRows =
         ((payload['history'] as List<Object?>?) ?? const <Object?>[])
             .cast<Map<String, Object?>>();
-    final historyText = historyRows.asMap().entries.map((entry) {
-      final index = entry.key + 1;
-      final row = entry.value;
-      final buffer = StringBuffer();
-      final rowReportDate = (row['reportDate'] ?? '').toString().trim();
-      final summary = (row['summary'] ?? '').toString().trim();
-      final focusState = (row['focusState'] ?? '').toString().trim();
-      final focusSummary = (row['focusSummary'] ?? '').toString().trim();
-      final topIntentSummary = (row['topIntentSummary'] ?? '')
-          .toString()
-          .trim();
-      final hazardSummary = (row['hazardSummary'] ?? '').toString().trim();
-      final shadowBiasSummary = (row['shadowBiasSummary'] ?? '')
-          .toString()
-          .trim();
-      final posturalEchoCount = (row['posturalEchoCount'] ?? '')
-          .toString()
-          .trim();
-      final reviewCommand = (row['reviewCommand'] ?? '').toString().trim();
-      final caseFileCommand = (row['caseFileCommand'] ?? '')
-          .toString()
-          .trim();
-      final governanceCommand = (row['governanceCommand'] ?? '')
-          .toString()
-          .trim();
-      if (rowReportDate.isNotEmpty) {
-        buffer.write('history_${index}_report_date=$rowReportDate\n');
-      }
-      if (summary.isNotEmpty) {
-        buffer.write('history_${index}_summary=$summary\n');
-      }
-      if (focusState.isNotEmpty) {
-        buffer.write('history_${index}_focus_state=$focusState\n');
-      }
-      if (focusSummary.isNotEmpty) {
-        buffer.write('history_${index}_focus_summary=$focusSummary\n');
-      }
-      if (topIntentSummary.isNotEmpty) {
-        buffer.write('history_${index}_top_intent_summary=$topIntentSummary\n');
-      }
-      if (hazardSummary.isNotEmpty) {
-        buffer.write('history_${index}_hazard_summary=$hazardSummary\n');
-      }
-      if (shadowBiasSummary.isNotEmpty) {
-        buffer.write(
-          'history_${index}_shadow_bias_summary=$shadowBiasSummary\n',
-        );
-      }
-      if (posturalEchoCount.isNotEmpty) {
-        buffer.write('history_${index}_postural_echo_count=$posturalEchoCount\n');
-      }
-      if (reviewCommand.isNotEmpty) {
-        buffer.write('history_${index}_review_command=$reviewCommand\n');
-      }
-      if (caseFileCommand.isNotEmpty) {
-        buffer.write('history_${index}_case_file_command=$caseFileCommand\n');
-      }
-      if (governanceCommand.isNotEmpty) {
-        buffer.write('history_${index}_governance_command=$governanceCommand\n');
-      }
-      return buffer.toString();
-    }).join();
+    final historyText = buildChatCaseFileHistoryText(
+      rows: historyRows,
+      fields: const [
+        ChatCaseFileHistoryField(
+          inputKey: 'reportDate',
+          outputKey: 'report_date',
+        ),
+        ChatCaseFileHistoryField(inputKey: 'summary', outputKey: 'summary'),
+        ChatCaseFileHistoryField(
+          inputKey: 'focusState',
+          outputKey: 'focus_state',
+        ),
+        ChatCaseFileHistoryField(
+          inputKey: 'focusSummary',
+          outputKey: 'focus_summary',
+        ),
+        ChatCaseFileHistoryField(
+          inputKey: 'topIntentSummary',
+          outputKey: 'top_intent_summary',
+        ),
+        ChatCaseFileHistoryField(
+          inputKey: 'hazardSummary',
+          outputKey: 'hazard_summary',
+        ),
+        ChatCaseFileHistoryField(
+          inputKey: 'shadowBiasSummary',
+          outputKey: 'shadow_bias_summary',
+        ),
+        ChatCaseFileHistoryField(
+          inputKey: 'posturalEchoCount',
+          outputKey: 'postural_echo_count',
+        ),
+        ChatCaseFileHistoryField(
+          inputKey: 'reviewCommand',
+          outputKey: 'review_command',
+        ),
+        ChatCaseFileHistoryField(
+          inputKey: 'caseFileCommand',
+          outputKey: 'case_file_command',
+        ),
+        ChatCaseFileHistoryField(
+          inputKey: 'governanceCommand',
+          outputKey: 'governance_command',
+        ),
+      ],
+    );
     if (format == 'csv') {
       final header = 'ONYX READINESSCASE CSV\n'
           'report_date=${report.date}\n'
@@ -17575,38 +17560,27 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final historyRows =
         ((payload['history'] as List<Object?>?) ?? const <Object?>[])
             .cast<Map<String, Object?>>();
-    final historyText = historyRows.asMap().entries.map((entry) {
-      final index = entry.key + 1;
-      final row = entry.value;
-      final buffer = StringBuffer();
-      final reportDate = (row['reportDate'] ?? '').toString().trim();
-      final promotionSummary = (row['promotionSummary'] ?? '')
-          .toString()
-          .trim();
-      final promotionDecisionStatus = (row['promotionDecisionStatus'] ?? '')
-          .toString()
-          .trim();
-      final promotionDecisionSummary = (row['promotionDecisionSummary'] ?? '')
-          .toString()
-          .trim();
-      if (reportDate.isNotEmpty) {
-        buffer.write('history_${index}_report_date=$reportDate\n');
-      }
-      if (promotionSummary.isNotEmpty) {
-        buffer.write('history_${index}_promotion_summary=$promotionSummary\n');
-      }
-      if (promotionDecisionStatus.isNotEmpty) {
-        buffer.write(
-          'history_${index}_promotion_decision_status=$promotionDecisionStatus\n',
-        );
-      }
-      if (promotionDecisionSummary.isNotEmpty) {
-        buffer.write(
-          'history_${index}_promotion_decision_summary=$promotionDecisionSummary\n',
-        );
-      }
-      return buffer.toString();
-    }).join();
+    final historyText = buildChatCaseFileHistoryText(
+      rows: historyRows,
+      fields: const [
+        ChatCaseFileHistoryField(
+          inputKey: 'reportDate',
+          outputKey: 'report_date',
+        ),
+        ChatCaseFileHistoryField(
+          inputKey: 'promotionSummary',
+          outputKey: 'promotion_summary',
+        ),
+        ChatCaseFileHistoryField(
+          inputKey: 'promotionDecisionStatus',
+          outputKey: 'promotion_decision_status',
+        ),
+        ChatCaseFileHistoryField(
+          inputKey: 'promotionDecisionSummary',
+          outputKey: 'promotion_decision_summary',
+        ),
+      ],
+    );
     if (format == 'csv') {
       final header = 'ONYX SYNTHETICCASE CSV\n'
           'report_date=${report.date}\n'
@@ -17740,32 +17714,28 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final historyRows =
         ((payload['history'] as List<Object?>?) ?? const <Object?>[])
             .cast<Map<String, Object?>>();
-    final historyText = historyRows.asMap().entries.map((entry) {
-      final index = entry.key + 1;
-      final row = entry.value;
-      final buffer = StringBuffer();
-      final rowReportDate = (row['reportDate'] ?? '').toString().trim();
-      final matchCount = (row['matchCount'] ?? '').toString().trim();
-      final summary = (row['summary'] ?? '').toString().trim();
-      final reviewCommand = (row['reviewCommand'] ?? '').toString().trim();
-      final caseFileCommand = (row['caseFileCommand'] ?? '').toString().trim();
-      if (rowReportDate.isNotEmpty) {
-        buffer.write('history_${index}_report_date=$rowReportDate\n');
-      }
-      if (matchCount.isNotEmpty) {
-        buffer.write('history_${index}_match_count=$matchCount\n');
-      }
-      if (summary.isNotEmpty) {
-        buffer.write('history_${index}_summary=$summary\n');
-      }
-      if (reviewCommand.isNotEmpty) {
-        buffer.write('history_${index}_review_command=$reviewCommand\n');
-      }
-      if (caseFileCommand.isNotEmpty) {
-        buffer.write('history_${index}_case_file_command=$caseFileCommand\n');
-      }
-      return buffer.toString();
-    }).join();
+    final historyText = buildChatCaseFileHistoryText(
+      rows: historyRows,
+      fields: const [
+        ChatCaseFileHistoryField(
+          inputKey: 'reportDate',
+          outputKey: 'report_date',
+        ),
+        ChatCaseFileHistoryField(
+          inputKey: 'matchCount',
+          outputKey: 'match_count',
+        ),
+        ChatCaseFileHistoryField(inputKey: 'summary', outputKey: 'summary'),
+        ChatCaseFileHistoryField(
+          inputKey: 'reviewCommand',
+          outputKey: 'review_command',
+        ),
+        ChatCaseFileHistoryField(
+          inputKey: 'caseFileCommand',
+          outputKey: 'case_file_command',
+        ),
+      ],
+    );
     if (format == 'csv') {
       final header = 'ONYX SHADOWCASE CSV\n'
           'report_date=${report.date}\n'
@@ -17871,36 +17841,32 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final historyRows =
         ((payload['history'] as List<Object?>?) ?? const <Object?>[])
             .cast<Map<String, Object?>>();
-    final historyText = historyRows.asMap().entries.map((entry) {
-      final index = entry.key + 1;
-      final row = entry.value;
-      final buffer = StringBuffer();
-      final rowReportDate = (row['reportDate'] ?? '').toString().trim();
-      final summary = (row['summary'] ?? '').toString().trim();
-      final rowShadowSummary = (row['shadowSummary'] ?? '').toString().trim();
-      final draftCount = (row['draftCount'] ?? '').toString().trim();
-      final reviewCommand = (row['reviewCommand'] ?? '').toString().trim();
-      final caseFileCommand = (row['caseFileCommand'] ?? '').toString().trim();
-      if (rowReportDate.isNotEmpty) {
-        buffer.write('history_${index}_report_date=$rowReportDate\n');
-      }
-      if (summary.isNotEmpty) {
-        buffer.write('history_${index}_summary=$summary\n');
-      }
-      if (rowShadowSummary.isNotEmpty) {
-        buffer.write('history_${index}_shadow_summary=$rowShadowSummary\n');
-      }
-      if (draftCount.isNotEmpty) {
-        buffer.write('history_${index}_draft_count=$draftCount\n');
-      }
-      if (reviewCommand.isNotEmpty) {
-        buffer.write('history_${index}_review_command=$reviewCommand\n');
-      }
-      if (caseFileCommand.isNotEmpty) {
-        buffer.write('history_${index}_case_file_command=$caseFileCommand\n');
-      }
-      return buffer.toString();
-    }).join();
+    final historyText = buildChatCaseFileHistoryText(
+      rows: historyRows,
+      fields: const [
+        ChatCaseFileHistoryField(
+          inputKey: 'reportDate',
+          outputKey: 'report_date',
+        ),
+        ChatCaseFileHistoryField(inputKey: 'summary', outputKey: 'summary'),
+        ChatCaseFileHistoryField(
+          inputKey: 'shadowSummary',
+          outputKey: 'shadow_summary',
+        ),
+        ChatCaseFileHistoryField(
+          inputKey: 'draftCount',
+          outputKey: 'draft_count',
+        ),
+        ChatCaseFileHistoryField(
+          inputKey: 'reviewCommand',
+          outputKey: 'review_command',
+        ),
+        ChatCaseFileHistoryField(
+          inputKey: 'caseFileCommand',
+          outputKey: 'case_file_command',
+        ),
+      ],
+    );
     if (format == 'csv') {
       final header = 'ONYX TOMORROWCASE CSV\n'
           'report_date=${report.date}\n'
