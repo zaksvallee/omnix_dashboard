@@ -7008,6 +7008,17 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final selectedEventId = shadowSites
         .map((site) => site.moShadowSelectedEventId?.trim() ?? '')
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    final syntheticPayload = _syntheticWarRoomCaseFilePayload(
+      reportDate: report.date,
+    );
+    final promotionMoId =
+        (syntheticPayload['promotionMoId'] ?? '').toString().trim();
+    final promotionShadowContext = promotionMoId.isEmpty
+        ? const <String, String>{}
+        : _activeShadowPromotionMatchContext(
+            moId: promotionMoId,
+            reportDate: report.date,
+          );
     return buildShadowMoDossierPayload(
       sites: shadowSites,
       generatedAtUtc: report.generatedAtUtc,
@@ -7030,6 +7041,19 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'eventIds': eventIds,
         'reviewRefs': reviewRefs,
         'selectedEventId': selectedEventId.isEmpty ? null : selectedEventId,
+        'promotionMoId': promotionMoId,
+        'promotionCurrentValidationStatus':
+            (promotionShadowContext['validationStatus'] ?? '').trim(),
+        'promotionCurrentStrengthSummary':
+            (promotionShadowContext['strengthSummary'] ?? '').trim(),
+        'promotionShadowSelectedEventId':
+            (promotionShadowContext['selectedEventId'] ?? '').trim(),
+        'promotionShadowReviewRefs':
+            (promotionShadowContext['reviewRefs'] ?? '').trim(),
+        'promotionShadowReviewCommand':
+            (promotionShadowContext['reviewCommand'] ?? '').trim(),
+        'promotionShadowCaseFileCommand':
+            (promotionShadowContext['caseFileCommand'] ?? '').trim(),
         'reviewCommand': '/shadowreview ${report.date}',
         'caseFileCommand': '/shadowcase json ${report.date}',
         'previousReviewCommand': previousReport == null
@@ -7093,6 +7117,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'strength_history_summary,"${(payload['strengthHistorySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'tomorrow_urgency_summary,"${(payload['tomorrowUrgencySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'previous_tomorrow_urgency_summary,"${(payload['previousTomorrowUrgencySummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'promotion_mo_id,${payload['promotionMoId'] ?? ''}',
+      'promotion_current_validation_status,${payload['promotionCurrentValidationStatus'] ?? ''}',
+      'promotion_current_strength_summary,"${(payload['promotionCurrentStrengthSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'promotion_shadow_selected_event_id,${payload['promotionShadowSelectedEventId'] ?? ''}',
+      'promotion_shadow_review_refs,"${(payload['promotionShadowReviewRefs'] ?? '').toString().replaceAll('"', '""')}"',
+      'promotion_shadow_review_command,${payload['promotionShadowReviewCommand'] ?? ''}',
+      'promotion_shadow_case_file_command,${payload['promotionShadowCaseFileCommand'] ?? ''}',
       'history_headline,"${(payload['historyHeadline'] ?? '').toString().replaceAll('"', '""')}"',
       'history_summary,"${(payload['historySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'selected_event_id,${payload['selectedEventId'] ?? ''}',
@@ -7222,6 +7253,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         : _syntheticWarRoomShadowTomorrowUrgencySummaryForReport(
             previousReport,
           );
+    final promotionMoId = _syntheticWarRoomPromotionId(plans);
+    final promotionShadowContext = promotionMoId.isEmpty
+        ? const <String, String>{}
+        : _activeShadowPromotionMatchContext(
+            moId: promotionMoId,
+            reportDate: report.date,
+          );
     return <String, Object?>{
       'reportDate': report.date,
       'available': true,
@@ -7249,7 +7287,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         previousShadowTomorrowUrgencySummary:
             previousShadowTomorrowUrgencySummary,
       ),
-      'promotionMoId': _syntheticWarRoomPromotionId(plans),
+      'promotionMoId': promotionMoId,
       'promotionTargetStatus': _syntheticWarRoomPromotionTargetStatus(plans),
       'promotionDecisionStatus': _syntheticWarRoomPromotionDecisionStatus(
         plans,
@@ -7260,6 +7298,18 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         previousShadowTomorrowUrgencySummary:
             previousShadowTomorrowUrgencySummary,
       ),
+      'promotionCurrentValidationStatus':
+          (promotionShadowContext['validationStatus'] ?? '').trim(),
+      'promotionCurrentStrengthSummary':
+          (promotionShadowContext['strengthSummary'] ?? '').trim(),
+      'promotionShadowSelectedEventId':
+          (promotionShadowContext['selectedEventId'] ?? '').trim(),
+      'promotionShadowReviewRefs':
+          (promotionShadowContext['reviewRefs'] ?? '').trim(),
+      'promotionShadowReviewCommand':
+          (promotionShadowContext['reviewCommand'] ?? '').trim(),
+      'promotionShadowCaseFileCommand':
+          (promotionShadowContext['caseFileCommand'] ?? '').trim(),
       'learningLabel': learningLabel,
       'learningSummary': _syntheticWarRoomLearningSummary(plans),
       'learningMemorySummary': _syntheticWarRoomLearningMemorySummary(
@@ -7431,6 +7481,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'promotion_target_status,${payload['promotionTargetStatus'] ?? ''}',
       'promotion_decision_status,${payload['promotionDecisionStatus'] ?? ''}',
       'promotion_decision_summary,"${(payload['promotionDecisionSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'promotion_current_validation_status,${payload['promotionCurrentValidationStatus'] ?? ''}',
+      'promotion_current_strength_summary,"${(payload['promotionCurrentStrengthSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'promotion_shadow_selected_event_id,${payload['promotionShadowSelectedEventId'] ?? ''}',
+      'promotion_shadow_review_refs,"${(payload['promotionShadowReviewRefs'] ?? '').toString().replaceAll('"', '""')}"',
+      'promotion_shadow_review_command,${payload['promotionShadowReviewCommand'] ?? ''}',
+      'promotion_shadow_case_file_command,${payload['promotionShadowCaseFileCommand'] ?? ''}',
       'learning_label,${payload['learningLabel'] ?? ''}',
       'learning_summary,"${(payload['learningSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'learning_memory_summary,"${(payload['learningMemorySummary'] ?? '').toString().replaceAll('"', '""')}"',
@@ -18809,45 +18865,28 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     if (report == null) {
       return const <String, String>{};
     }
-    final payload = _shadowMoCaseFilePayload(reportDate: report.date);
-    final sites = payload['sites'];
-    if (sites is! List) {
-      return const <String, String>{};
-    }
-    final selectedEventId = (payload['selectedEventId'] ?? '').toString().trim();
-    final reviewRefs = switch (payload['reviewRefs']) {
-      final List refs => refs
-          .map((value) => value.toString().trim())
-          .where((value) => value.isNotEmpty)
-          .join(','),
-      _ => '',
-    };
-    for (final site in sites) {
-      if (site is! Map) {
-        continue;
-      }
-      final matches = site['matches'];
-      if (matches is! List) {
-        continue;
-      }
-      for (final match in matches) {
-        if (match is! Map) {
-          continue;
-        }
-        final matchMoId = (match['moId'] ?? '').toString().trim();
-        if (matchMoId != moId.trim()) {
+    final shadowSites = _shadowMoSitesForReport(report);
+    final selectedEventId = shadowSites
+        .map((site) => site.moShadowSelectedEventId?.trim() ?? '')
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    final reviewRefs = shadowSites
+        .expand((site) => site.moShadowReviewRefs)
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .join(',');
+    for (final site in shadowSites) {
+      for (final match in site.moShadowMatches) {
+        if (match.moId.trim() != moId.trim()) {
           continue;
         }
         return <String, String>{
-          'validationStatus': (match['validationStatus'] ?? '')
-              .toString()
-              .trim(),
-          'strengthSummary': (match['strengthSummary'] ?? '').toString().trim(),
+          'validationStatus': match.validationStatus.trim(),
+          'strengthSummary': shadowMoStrengthSummary(match),
           'selectedEventId': selectedEventId,
           'reviewRefs': reviewRefs,
-          'reviewCommand': (payload['reviewCommand'] ?? '').toString().trim(),
-          'caseFileCommand':
-              (payload['caseFileCommand'] ?? '').toString().trim(),
+          'reviewCommand': '/shadowreview ${report.date}',
+          'caseFileCommand': '/shadowcase json ${report.date}',
         };
       }
     }
