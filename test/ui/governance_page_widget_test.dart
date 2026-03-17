@@ -166,6 +166,10 @@ void main() {
       date: '2026-03-17',
       generatedAtUtc: DateTime.utc(2026, 3, 17, 6, 0),
     );
+    promotionDecisionStore.accept(
+      moId: 'MO-EXT-INTEL-NEWS',
+      targetValidationStatus: 'validated',
+    );
 
     await tester.pumpWidget(
       MaterialApp(
@@ -331,6 +335,7 @@ void main() {
       find.text('Contractors moved floor to floor in office park'),
       findsWidgets,
     );
+    expect(find.text('Status VALIDATED'), findsWidgets);
 
     final openEvidenceButton = find.text('OPEN EVIDENCE').last;
     await tester.ensureVisible(openEvidenceButton);

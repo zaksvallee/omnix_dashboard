@@ -31,6 +31,7 @@ void main() {
           title: 'Contractors moved floor to floor in office park',
           incidentType: 'deception_led_intrusion',
           behaviorStage: 'inside_behavior',
+          validationStatus: 'validated',
           matchScore: 0.89,
           matchedIndicators: ['office_building', 'route_anomalies'],
           recommendedActionPlans: ['RAISE READINESS', 'PREPOSITION RESPONSE'],
@@ -52,6 +53,10 @@ void main() {
     expect(payload['reviewRefs'], ['intel-office']);
     final matches = payload['matches'] as List<Object?>;
     expect(matches, hasLength(1));
+    expect(
+      (matches.first as Map<Object?, Object?>)['validationStatus'],
+      'validated',
+    );
   });
 
   test('builds shadow MO dossier payload with configurable count key', () {

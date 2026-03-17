@@ -1524,6 +1524,17 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
+                              if (match.validationStatus.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Status ${match.validationStatus.toUpperCase()}',
+                                  style: GoogleFonts.robotoMono(
+                                    color: const Color(0xFF8FD1FF),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
                               if (match.recommendedActionPlans.isNotEmpty) ...[
                                 const SizedBox(height: 2),
                                 Text(

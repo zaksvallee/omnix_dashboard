@@ -91,6 +91,7 @@ Map<String, Object?> buildShadowMoSitePayload(
             'title': match.title,
             'incidentType': match.incidentType,
             'behaviorStage': match.behaviorStage,
+            'validationStatus': match.validationStatus,
             'matchScore': match.matchScore,
             'matchedIndicators': match.matchedIndicators,
             'recommendedActionPlans': match.recommendedActionPlans,
