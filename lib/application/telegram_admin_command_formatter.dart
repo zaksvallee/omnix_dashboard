@@ -77,8 +77,10 @@ class TelegramAdminCommandFormatter {
     String? globalReadinessTopIntentSummary,
     String? currentShiftReadinessReviewCommand,
     String? currentShiftReadinessCaseFileCommand,
+    String? currentShiftReadinessGovernanceCommand,
     String? previousShiftReadinessReviewCommand,
     String? previousShiftReadinessCaseFileCommand,
+    String? previousShiftReadinessGovernanceCommand,
     required String siteActivityHeadline,
     required String siteActivitySummary,
     required String currentShiftReviewCommand,
@@ -99,10 +101,14 @@ class TelegramAdminCommandFormatter {
         globalReadinessTopIntentSummary?.trim() ?? '';
     final readinessReview = currentShiftReadinessReviewCommand?.trim() ?? '';
     final readinessCase = currentShiftReadinessCaseFileCommand?.trim() ?? '';
+    final readinessGovernance =
+        currentShiftReadinessGovernanceCommand?.trim() ?? '';
     final previousReadinessReview =
         previousShiftReadinessReviewCommand?.trim() ?? '';
     final previousReadinessCase =
         previousShiftReadinessCaseFileCommand?.trim() ?? '';
+    final previousReadinessGovernance =
+        previousShiftReadinessGovernanceCommand?.trim() ?? '';
     final targetLine = normalizedTargetScope.isEmpty
         ? '• <b>Target scope:</b> required\n'
         : '• <b>Target scope:</b> <code>${_escapeHtml(normalizedTargetScope)}</code>\n';
@@ -125,8 +131,10 @@ class TelegramAdminCommandFormatter {
               '${readinessTopIntentSummary.isEmpty ? '' : '• <b>Top intent:</b> ${_escapeHtml(readinessTopIntentSummary)}\n'}'
               '• <b>Current review:</b> <code>${_escapeHtml(readinessReview)}</code>\n'
               '${readinessCase.isEmpty ? '' : '• <b>Current case:</b> <code>${_escapeHtml(readinessCase)}</code>\n'}'
+              '${readinessGovernance.isEmpty ? '' : '• <b>Open governance:</b> <code>${_escapeHtml(readinessGovernance)}</code>\n'}'
               '${previousReadinessReview.isEmpty ? '' : '• <b>Previous review:</b> <code>${_escapeHtml(previousReadinessReview)}</code>\n'}'
               '${previousReadinessCase.isEmpty ? '' : '• <b>Previous case:</b> <code>${_escapeHtml(previousReadinessCase)}</code>\n'}'
+              '${previousReadinessGovernance.isEmpty ? '' : '• <b>Previous governance:</b> <code>${_escapeHtml(previousReadinessGovernance)}</code>\n'}'
               '\n';
     return '🛰️ <b>ONYX MORNING GOVERNANCE</b>\n\n'
         '<b>Signal</b>\n'

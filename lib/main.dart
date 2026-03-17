@@ -5337,21 +5337,24 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         readinessIntents,
       ),
       globalReadinessSummary: readinessSummary,
-      globalReadinessEchoSummary: _globalReadinessEchoSummary(
-        readinessIntents,
-      ),
+      globalReadinessEchoSummary: _globalReadinessEchoSummary(readinessIntents),
       globalReadinessTopIntentSummary: _globalReadinessTopIntentSummary(
         readinessIntents,
       ),
       currentShiftReadinessReviewCommand: '/readinessreview ${report.date}',
       currentShiftReadinessCaseFileCommand:
           '/readinesscase json ${report.date}',
+      currentShiftReadinessGovernanceCommand:
+          '/readinessgovernance ${report.date}',
       previousShiftReadinessReviewCommand: previousReport == null
           ? null
           : '/readinessreview ${previousReport.date}',
       previousShiftReadinessCaseFileCommand: previousReport == null
           ? null
           : '/readinesscase json ${previousReport.date}',
+      previousShiftReadinessGovernanceCommand: previousReport == null
+          ? null
+          : '/readinessgovernance ${previousReport.date}',
       siteActivityHeadline: siteActivityHeadline,
       siteActivitySummary: siteActivitySummary,
       currentShiftReviewCommand: '/activityreview ${report.date}',
@@ -5407,7 +5410,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     if (startUtc == null || endUtc == null) {
       return store.allEvents();
     }
-    return store.allEvents()
+    return store
+        .allEvents()
         .where(
           (event) =>
               !event.occurredAt.toUtc().isBefore(startUtc) &&
@@ -5480,7 +5484,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     List<MonitoringWatchAutonomyActionPlan> intents,
   ) {
     final echoes = intents
-        .where((intent) => intent.actionType.trim().toUpperCase() == 'POSTURAL ECHO')
+        .where(
+          (intent) => intent.actionType.trim().toUpperCase() == 'POSTURAL ECHO',
+        )
         .toList(growable: false);
     if (echoes.isEmpty) {
       return '';
@@ -5491,7 +5497,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         .toSet()
         .toList(growable: false);
     final targets = echoes
-        .map((intent) => (intent.metadata['echo_target'] ?? intent.siteId).trim())
+        .map(
+          (intent) => (intent.metadata['echo_target'] ?? intent.siteId).trim(),
+        )
         .where((value) => value.isNotEmpty)
         .take(3)
         .toList(growable: false);
@@ -5523,15 +5531,16 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       report.shiftWindowStartUtc,
       report.shiftWindowEndUtc,
     );
-    final reviewed = scopedEvents
-        .whereType<IntelligenceReceived>()
-        .where(
-          (event) => _monitoringSceneReviewByIntelligenceId.containsKey(
-            event.intelligenceId.trim(),
-          ),
-        )
-        .toList(growable: false)
-      ..sort((left, right) => right.occurredAt.compareTo(left.occurredAt));
+    final reviewed =
+        scopedEvents
+            .whereType<IntelligenceReceived>()
+            .where(
+              (event) => _monitoringSceneReviewByIntelligenceId.containsKey(
+                event.intelligenceId.trim(),
+              ),
+            )
+            .toList(growable: false)
+          ..sort((left, right) => right.occurredAt.compareTo(left.occurredAt));
     return reviewed;
   }
 
@@ -5611,7 +5620,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final snapshot = _globalReadinessSnapshotForReport(report);
     final intents = _globalReadinessIntentsForReport(report);
     final posturalEchoes = intents
-        .where((intent) => intent.actionType.trim().toUpperCase() == 'POSTURAL ECHO')
+        .where(
+          (intent) => intent.actionType.trim().toUpperCase() == 'POSTURAL ECHO',
+        )
         .toList(growable: false);
     final leadRegion = snapshot.regions.isEmpty ? null : snapshot.regions.first;
     final leadSite = snapshot.sites.isEmpty ? null : snapshot.sites.first;
@@ -5635,15 +5646,19 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             report: report,
             siteId: leadSite.siteId,
           );
-    final primaryEvidence = ((leadSiteEvidence['eventIds'] as List<Object?>?) ??
-                const <Object?>[])
+    final primaryEvidence =
+        ((leadSiteEvidence['eventIds'] as List<Object?>?) ?? const <Object?>[])
             .isNotEmpty
         ? leadSiteEvidence
         : leadRegionEvidence;
-    final history = _morningSovereignReportHistory
-        .where((item) => item.date.trim() != report.date.trim())
-        .toList(growable: false)
-      ..sort((left, right) => right.generatedAtUtc.compareTo(left.generatedAtUtc));
+    final history =
+        _morningSovereignReportHistory
+            .where((item) => item.date.trim() != report.date.trim())
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
     return <String, Object?>{
       'reportDate': report.date,
       'generatedAtUtc': report.generatedAtUtc.toIso8601String(),
@@ -5681,12 +5696,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               'dominantSignals': leadSite.dominantSignals,
               'heatLevel': leadSite.heatLevel.name,
               'eventIds': leadSiteEvidence['eventIds'] ?? const <Object?>[],
-              'reviewRefs':
-                  leadSiteEvidence['reviewRefs'] ?? const <Object?>[],
+              'reviewRefs': leadSiteEvidence['reviewRefs'] ?? const <Object?>[],
               'selectedEventId': leadSiteEvidence['selectedEventId'],
             },
       'reviewCommand': '/readinessreview ${report.date}',
       'caseFileCommand': '/readinesscase json ${report.date}',
+      'governanceCommand': '/readinessgovernance ${report.date}',
       'topIntents': intents
           .take(5)
           .map(
@@ -5714,33 +5729,38 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               'echoSignals': intent.metadata['echo_signals'] ?? '',
               'incidentId': intent.incidentId,
               'reviewRefs': <String>[
-                if (intent.incidentId.trim().isNotEmpty) intent.incidentId.trim(),
+                if (intent.incidentId.trim().isNotEmpty)
+                  intent.incidentId.trim(),
               ],
             },
           )
           .toList(growable: false),
-      'history': history.take(3).map((item) {
-        final itemSnapshot = _globalReadinessSnapshotForReport(item);
-        final itemIntents = _globalReadinessIntentsForReport(item);
-        final itemEchoCount = itemIntents
-            .where(
-              (intent) =>
-                  intent.actionType.trim().toUpperCase() == 'POSTURAL ECHO',
-            )
-            .length;
-        return <String, Object?>{
-          'reportDate': item.date,
-          'modeLabel': _globalReadinessModeLabel(itemSnapshot, itemIntents),
-          'summary': _globalReadinessSummaryForReport(
-            snapshot: itemSnapshot,
-            intents: itemIntents,
-          ),
-          'posturalEchoCount': itemEchoCount,
-          'topIntentSummary': _globalReadinessTopIntentSummary(itemIntents),
-          'reviewCommand': '/readinessreview ${item.date}',
-          'caseFileCommand': '/readinesscase json ${item.date}',
-        };
-      }).toList(growable: false),
+      'history': history
+          .take(3)
+          .map((item) {
+            final itemSnapshot = _globalReadinessSnapshotForReport(item);
+            final itemIntents = _globalReadinessIntentsForReport(item);
+            final itemEchoCount = itemIntents
+                .where(
+                  (intent) =>
+                      intent.actionType.trim().toUpperCase() == 'POSTURAL ECHO',
+                )
+                .length;
+            return <String, Object?>{
+              'reportDate': item.date,
+              'modeLabel': _globalReadinessModeLabel(itemSnapshot, itemIntents),
+              'summary': _globalReadinessSummaryForReport(
+                snapshot: itemSnapshot,
+                intents: itemIntents,
+              ),
+              'posturalEchoCount': itemEchoCount,
+              'topIntentSummary': _globalReadinessTopIntentSummary(itemIntents),
+              'reviewCommand': '/readinessreview ${item.date}',
+              'caseFileCommand': '/readinesscase json ${item.date}',
+              'governanceCommand': '/readinessgovernance ${item.date}',
+            };
+          })
+          .toList(growable: false),
     };
   }
 
@@ -5767,6 +5787,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'lead_site_review_refs,"${(((payload['leadSite'] as Map<Object?, Object?>?)?['reviewRefs'] as List<Object?>?) ?? const <Object?>[]).join(', ').replaceAll('"', '""')}"',
       'review_command,${payload['reviewCommand'] ?? ''}',
       'case_file_command,${payload['caseFileCommand'] ?? ''}',
+      'governance_command,${payload['governanceCommand'] ?? ''}',
     ];
     final topIntents = (payload['topIntents'] as List<Object?>?) ?? const [];
     for (var i = 0; i < topIntents.length; i += 1) {
@@ -5799,9 +5820,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       lines.add(
         'history_${i + 1}_top_intent_summary,"${(row['topIntentSummary'] ?? '').toString().replaceAll('"', '""')}"',
       );
-      lines.add('history_${i + 1}_review_command,${row['reviewCommand'] ?? ''}');
+      lines.add(
+        'history_${i + 1}_review_command,${row['reviewCommand'] ?? ''}',
+      );
       lines.add(
         'history_${i + 1}_case_file_command,${row['caseFileCommand'] ?? ''}',
+      );
+      lines.add(
+        'history_${i + 1}_governance_command,${row['governanceCommand'] ?? ''}',
       );
     }
     return lines.join('\n');
@@ -11739,12 +11765,15 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         .toList(growable: false);
   }
 
-  List<({
-    String reportDate,
-    SiteActivityIntelligenceSnapshot snapshot,
-    List<String> eventIds,
-    bool current,
-  })> _siteActivityHistoryPointsForScope({
+  List<
+    ({
+      String reportDate,
+      SiteActivityIntelligenceSnapshot snapshot,
+      List<String> eventIds,
+      bool current,
+    })
+  >
+  _siteActivityHistoryPointsForScope({
     required String clientId,
     required String siteId,
   }) {
@@ -11753,36 +11782,44 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       siteId: siteId,
     );
     if (scopedEvents.isEmpty) {
-      return const <({
-        String reportDate,
-        SiteActivityIntelligenceSnapshot snapshot,
-        List<String> eventIds,
-        bool current,
-      })>[];
+      return const <
+        ({
+          String reportDate,
+          SiteActivityIntelligenceSnapshot snapshot,
+          List<String> eventIds,
+          bool current,
+        })
+      >[];
     }
     final grouped = <String, List<IntelligenceReceived>>{};
     for (final event in scopedEvents) {
       final reportDate = _siteActivityReportDate(event.occurredAt);
-      grouped.putIfAbsent(reportDate, () => <IntelligenceReceived>[]).add(event);
+      grouped
+          .putIfAbsent(reportDate, () => <IntelligenceReceived>[])
+          .add(event);
     }
-    final reportDates =
-        grouped.keys.toList(growable: false)..sort((a, b) => b.compareTo(a));
+    final reportDates = grouped.keys.toList(growable: false)
+      ..sort((a, b) => b.compareTo(a));
     final latestDate = reportDates.first;
-    return reportDates.map((reportDate) {
-      final rows = grouped[reportDate]!.toList(growable: false)
-        ..sort(_compareDispatchEventsByOccurredAtThenSequence);
-      final snapshot = _siteActivityIntelligenceService.buildSnapshot(
-        events: rows,
-        clientId: clientId,
-        siteId: siteId,
-      );
-      return (
-        reportDate: reportDate,
-        snapshot: snapshot,
-        eventIds: rows.map((event) => event.eventId).toList(growable: false),
-        current: reportDate == latestDate,
-      );
-    }).toList(growable: false);
+    return reportDates
+        .map((reportDate) {
+          final rows = grouped[reportDate]!.toList(growable: false)
+            ..sort(_compareDispatchEventsByOccurredAtThenSequence);
+          final snapshot = _siteActivityIntelligenceService.buildSnapshot(
+            events: rows,
+            clientId: clientId,
+            siteId: siteId,
+          );
+          return (
+            reportDate: reportDate,
+            snapshot: snapshot,
+            eventIds: rows
+                .map((event) => event.eventId)
+                .toList(growable: false),
+            current: reportDate == latestDate,
+          );
+        })
+        .toList(growable: false);
   }
 
   ({
@@ -11790,7 +11827,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     SiteActivityIntelligenceSnapshot snapshot,
     List<String> eventIds,
     bool current,
-  })? _siteActivityHistoryPointForScope({
+  })?
+  _siteActivityHistoryPointForScope({
     required String clientId,
     required String siteId,
     String? reportDate,
@@ -11870,10 +11908,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'topGuardInteractionSummary': snapshot.topGuardInteractionSummary,
         'trend': trend == null
             ? null
-            : {
-                'label': trend.label,
-                'summary': trend.summary,
-              },
+            : {'label': trend.label, 'summary': trend.summary},
         'history': history
             .take(3)
             .map(
@@ -11945,7 +11980,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       lines.add(
         'history_${row}_summary,"${(point['summaryLine'] as String? ?? '').replaceAll('"', '""')}"',
       );
-      lines.add('history_${row}_review_command,${point['reviewCommand'] ?? ''}');
+      lines.add(
+        'history_${row}_review_command,${point['reviewCommand'] ?? ''}',
+      );
       lines.add(
         'history_${row}_case_file_command,${point['caseFileCommand'] ?? ''}',
       );
@@ -13044,6 +13081,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           command: 'readinessreview',
           arguments: arguments,
         );
+      case '/readinessgovernance':
+        return _TelegramAdminCommandParseResult(
+          command: 'readinessgovernance',
+          arguments: arguments,
+        );
       case '/readinesscase':
         return _TelegramAdminCommandParseResult(
           command: 'readinesscase',
@@ -13267,6 +13309,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'activityreview',
         'activitycase',
         'readinessreview',
+        'readinessgovernance',
         'readinesscase',
         'sendactivity',
         'demoprep',
@@ -13411,6 +13454,16 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       return const _TelegramAdminCommandParseResult(command: 'readinessreview');
     }
     if (hasAny(const [
+      'readiness governance',
+      'open readiness governance',
+      'open governance',
+      'governance readiness',
+    ])) {
+      return const _TelegramAdminCommandParseResult(
+        command: 'readinessgovernance',
+      );
+    }
+    if (hasAny(const [
       'readiness case',
       'readiness dossier',
       'global readiness case',
@@ -13517,6 +13570,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case 'activityreview':
       case 'activitycase':
       case 'readinessreview':
+      case 'readinessgovernance':
       case 'readinesscase':
       case 'aidrafts':
       case 'aiconv':
@@ -13617,6 +13671,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         return _telegramAdminActivityCaseCommand(arguments);
       case 'readinessreview':
         return _telegramAdminReadinessReviewCommand(arguments);
+      case 'readinessgovernance':
+        return _telegramAdminReadinessGovernanceCommand(arguments);
       case 'readinesscase':
         return _telegramAdminReadinessCaseCommand(arguments);
       case 'sendactivity':
@@ -13757,6 +13813,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '• <code>/activityreview [client_id site_id] [report_date]</code>\n'
         '• <code>/activitycase [json|csv] [client_id site_id] [report_date]</code>\n'
         '• <code>/readinessreview [report_date]</code>\n'
+        '• <code>/readinessgovernance [report_date]</code>\n'
         '• <code>/readinesscase [json|csv] [report_date]</code>\n'
         '• <code>/sendactivity [client|partner|both] [client_id site_id]</code>\n'
         '\n---\n\n'
@@ -15696,7 +15753,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         index = 1;
       }
     }
-    final scope = _parseSiteActivityScopeRequest(tokens.sublist(index).join(' '));
+    final scope = _parseSiteActivityScopeRequest(
+      tokens.sublist(index).join(' '),
+    );
     if (scope == null ||
         scope.clientId.trim().isEmpty ||
         scope.siteId.trim().isEmpty) {
@@ -15729,15 +15788,19 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final snapshot = _globalReadinessSnapshotForReport(report);
     final intents = _globalReadinessIntentsForReport(report);
     final payload = _globalReadinessCaseFilePayload(reportDate: report.date);
-    final eventIds = ((payload['eventIds'] as List<Object?>?) ?? const <Object?>[])
-        .map((value) => value.toString().trim())
-        .where((value) => value.isNotEmpty)
-        .toList(growable: false);
-    final selectedEventId = (payload['selectedEventId'] ?? '').toString().trim();
-    final reviewRefs = ((payload['reviewRefs'] as List<Object?>?) ?? const <Object?>[])
-        .map((value) => value.toString().trim())
-        .where((value) => value.isNotEmpty)
-        .toList(growable: false);
+    final eventIds =
+        ((payload['eventIds'] as List<Object?>?) ?? const <Object?>[])
+            .map((value) => value.toString().trim())
+            .where((value) => value.isNotEmpty)
+            .toList(growable: false);
+    final selectedEventId = (payload['selectedEventId'] ?? '')
+        .toString()
+        .trim();
+    final reviewRefs =
+        ((payload['reviewRefs'] as List<Object?>?) ?? const <Object?>[])
+            .map((value) => value.toString().trim())
+            .where((value) => value.isNotEmpty)
+            .toList(growable: false);
     if (eventIds.isNotEmpty) {
       _openEventsForScopedEventIds(
         eventIds,
@@ -15749,6 +15812,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           'mode=${_globalReadinessModeLabel(snapshot, intents)}\n'
           'summary=${_globalReadinessSummaryForReport(snapshot: snapshot, intents: intents)}\n'
           'review_refs=${reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', ')}\n'
+          'governance_command=/readinessgovernance ${report.date}\n'
           'events=${eventIds.length}\n'
           'Opening Events Review for global readiness evidence.';
     }
@@ -15757,6 +15821,27 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'report_date=${report.date}\n'
         'mode=${_globalReadinessModeLabel(snapshot, intents)}\n'
         'summary=${_globalReadinessSummaryForReport(snapshot: snapshot, intents: intents)}\n'
+        'governance_command=/readinessgovernance ${report.date}\n'
+        'Opening Governance for global readiness oversight.';
+  }
+
+  String _telegramAdminReadinessGovernanceCommand(String arguments) {
+    final normalizedReportDate = arguments.trim();
+    final report = _morningSovereignReportForDate(normalizedReportDate);
+    if (report == null) {
+      return 'ONYX READINESSGOVERNANCE\n'
+          'Usage: /readinessgovernance [report_date]\n'
+          'No morning sovereign report is available for that shift.';
+    }
+    final snapshot = _globalReadinessSnapshotForReport(report);
+    final intents = _globalReadinessIntentsForReport(report);
+    _openGovernanceFromAdmin();
+    return 'ONYX READINESSGOVERNANCE\n'
+        'report_date=${report.date}\n'
+        'mode=${_globalReadinessModeLabel(snapshot, intents)}\n'
+        'summary=${_globalReadinessSummaryForReport(snapshot: snapshot, intents: intents)}\n'
+        'review_command=/readinessreview ${report.date}\n'
+        'case_file_command=/readinesscase json ${report.date}\n'
         'Opening Governance for global readiness oversight.';
   }
 
@@ -15775,7 +15860,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         index = 1;
       }
     }
-    final reportDate = tokens.length > index ? tokens.sublist(index).join(' ') : '';
+    final reportDate = tokens.length > index
+        ? tokens.sublist(index).join(' ')
+        : '';
     final normalizedReportDate = reportDate.trim();
     final report = _morningSovereignReportForDate(normalizedReportDate);
     if (report == null) {
@@ -15783,13 +15870,19 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           'Usage: /readinesscase [json|csv] [report_date]\n'
           'No morning sovereign report is available for that shift.';
     }
+    final reviewCommand = '/readinessreview ${report.date}';
+    final governanceCommand = '/readinessgovernance ${report.date}';
     if (format == 'csv') {
       return 'ONYX READINESSCASE CSV\n'
           'report_date=${report.date}\n'
+          'review_command=$reviewCommand\n'
+          'governance_command=$governanceCommand\n'
           '${_globalReadinessCaseFileCsv(reportDate: report.date)}';
     }
     return 'ONYX READINESSCASE JSON\n'
         'report_date=${report.date}\n'
+        'review_command=$reviewCommand\n'
+        'governance_command=$governanceCommand\n'
         '${const JsonEncoder.withIndent('  ').convert(_globalReadinessCaseFilePayload(reportDate: report.date))}';
   }
 
