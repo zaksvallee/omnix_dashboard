@@ -18002,13 +18002,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final promotionDecisionSummary = (payload['promotionDecisionSummary'] ?? '')
         .toString()
         .trim();
-    final promotionMoId = (payload['promotionMoId'] ?? '').toString().trim();
-    final promotionShadowContext = promotionMoId.isEmpty
-        ? const <String, String>{}
-        : _activeShadowPromotionMatchContext(
-            moId: promotionMoId,
-            reportDate: report.date,
-          );
     final learningMemorySummary = (payload['learningMemorySummary'] ?? '')
         .toString()
         .trim();
@@ -18098,36 +18091,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             key: 'promotion_decision_summary',
             value: promotionDecisionSummary,
           ),
-          if ((promotionShadowContext['validationStatus'] ?? '').isNotEmpty)
-            ChatCaseFileHeaderField(
-              key: 'promotion_current_validation_status',
-              value: promotionShadowContext['validationStatus']!,
-            ),
-          if ((promotionShadowContext['strengthSummary'] ?? '').isNotEmpty)
-            ChatCaseFileHeaderField(
-              key: 'promotion_current_strength_summary',
-              value: promotionShadowContext['strengthSummary']!,
-            ),
-          if ((promotionShadowContext['selectedEventId'] ?? '').isNotEmpty)
-            ChatCaseFileHeaderField(
-              key: 'promotion_shadow_selected_event_id',
-              value: promotionShadowContext['selectedEventId']!,
-            ),
-          if ((promotionShadowContext['reviewRefs'] ?? '').isNotEmpty)
-            ChatCaseFileHeaderField(
-              key: 'promotion_shadow_review_refs',
-              value: promotionShadowContext['reviewRefs']!,
-            ),
-          if ((promotionShadowContext['reviewCommand'] ?? '').isNotEmpty)
-            ChatCaseFileHeaderField(
-              key: 'promotion_shadow_review_command',
-              value: promotionShadowContext['reviewCommand']!,
-            ),
-          if ((promotionShadowContext['caseFileCommand'] ?? '').isNotEmpty)
-            ChatCaseFileHeaderField(
-              key: 'promotion_shadow_case_file_command',
-              value: promotionShadowContext['caseFileCommand']!,
-            ),
+          ...buildPromotionShadowHeaderFields(payload: payload),
           ChatCaseFileHeaderField(
             key: 'learning_summary',
             value: learningSummary,
@@ -18193,36 +18157,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           key: 'promotion_decision_summary',
           value: promotionDecisionSummary,
         ),
-        if ((promotionShadowContext['validationStatus'] ?? '').isNotEmpty)
-          ChatCaseFileHeaderField(
-            key: 'promotion_current_validation_status',
-            value: promotionShadowContext['validationStatus']!,
-          ),
-        if ((promotionShadowContext['strengthSummary'] ?? '').isNotEmpty)
-          ChatCaseFileHeaderField(
-            key: 'promotion_current_strength_summary',
-            value: promotionShadowContext['strengthSummary']!,
-          ),
-        if ((promotionShadowContext['selectedEventId'] ?? '').isNotEmpty)
-          ChatCaseFileHeaderField(
-            key: 'promotion_shadow_selected_event_id',
-            value: promotionShadowContext['selectedEventId']!,
-          ),
-        if ((promotionShadowContext['reviewRefs'] ?? '').isNotEmpty)
-          ChatCaseFileHeaderField(
-            key: 'promotion_shadow_review_refs',
-            value: promotionShadowContext['reviewRefs']!,
-          ),
-        if ((promotionShadowContext['reviewCommand'] ?? '').isNotEmpty)
-          ChatCaseFileHeaderField(
-            key: 'promotion_shadow_review_command',
-            value: promotionShadowContext['reviewCommand']!,
-          ),
-        if ((promotionShadowContext['caseFileCommand'] ?? '').isNotEmpty)
-          ChatCaseFileHeaderField(
-            key: 'promotion_shadow_case_file_command',
-            value: promotionShadowContext['caseFileCommand']!,
-          ),
+        ...buildPromotionShadowHeaderFields(payload: payload),
         ChatCaseFileHeaderField(
           key: 'learning_summary',
           value: learningSummary,
@@ -18352,17 +18287,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         .trim();
     final previousTomorrowUrgencySummary =
         (payload['previousTomorrowUrgencySummary'] ?? '').toString().trim();
-    final syntheticPayload = _syntheticWarRoomCaseFilePayload(
-      reportDate: report.date,
-    );
-    final promotionMoId =
-        (syntheticPayload['promotionMoId'] ?? '').toString().trim();
-    final promotionShadowContext = promotionMoId.isEmpty
-        ? const <String, String>{}
-        : _activeShadowPromotionMatchContext(
-            moId: promotionMoId,
-            reportDate: report.date,
-          );
     final previousReviewCommand = (payload['previousReviewCommand'] ?? '')
         .toString()
         .trim();
@@ -18440,36 +18364,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             key: 'previous_tomorrow_urgency_summary',
             value: previousTomorrowUrgencySummary,
           ),
-          if ((promotionShadowContext['validationStatus'] ?? '').isNotEmpty)
-            ChatCaseFileHeaderField(
-              key: 'promotion_current_validation_status',
-              value: promotionShadowContext['validationStatus']!,
-            ),
-          if ((promotionShadowContext['strengthSummary'] ?? '').isNotEmpty)
-            ChatCaseFileHeaderField(
-              key: 'promotion_current_strength_summary',
-              value: promotionShadowContext['strengthSummary']!,
-            ),
-          if ((promotionShadowContext['selectedEventId'] ?? '').isNotEmpty)
-            ChatCaseFileHeaderField(
-              key: 'promotion_shadow_selected_event_id',
-              value: promotionShadowContext['selectedEventId']!,
-            ),
-          if ((promotionShadowContext['reviewRefs'] ?? '').isNotEmpty)
-            ChatCaseFileHeaderField(
-              key: 'promotion_shadow_review_refs',
-              value: promotionShadowContext['reviewRefs']!,
-            ),
-          if ((promotionShadowContext['reviewCommand'] ?? '').isNotEmpty)
-            ChatCaseFileHeaderField(
-              key: 'promotion_shadow_review_command',
-              value: promotionShadowContext['reviewCommand']!,
-            ),
-          if ((promotionShadowContext['caseFileCommand'] ?? '').isNotEmpty)
-            ChatCaseFileHeaderField(
-              key: 'promotion_shadow_case_file_command',
-              value: promotionShadowContext['caseFileCommand']!,
-            ),
+          ...buildPromotionShadowHeaderFields(payload: payload),
           ChatCaseFileHeaderField(
             key: 'review_command',
             value: '/shadowreview ${report.date}',
@@ -18516,36 +18411,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           key: 'previous_tomorrow_urgency_summary',
           value: previousTomorrowUrgencySummary,
         ),
-        if ((promotionShadowContext['validationStatus'] ?? '').isNotEmpty)
-          ChatCaseFileHeaderField(
-            key: 'promotion_current_validation_status',
-            value: promotionShadowContext['validationStatus']!,
-          ),
-        if ((promotionShadowContext['strengthSummary'] ?? '').isNotEmpty)
-          ChatCaseFileHeaderField(
-            key: 'promotion_current_strength_summary',
-            value: promotionShadowContext['strengthSummary']!,
-          ),
-        if ((promotionShadowContext['selectedEventId'] ?? '').isNotEmpty)
-          ChatCaseFileHeaderField(
-            key: 'promotion_shadow_selected_event_id',
-            value: promotionShadowContext['selectedEventId']!,
-          ),
-        if ((promotionShadowContext['reviewRefs'] ?? '').isNotEmpty)
-          ChatCaseFileHeaderField(
-            key: 'promotion_shadow_review_refs',
-            value: promotionShadowContext['reviewRefs']!,
-          ),
-        if ((promotionShadowContext['reviewCommand'] ?? '').isNotEmpty)
-          ChatCaseFileHeaderField(
-            key: 'promotion_shadow_review_command',
-            value: promotionShadowContext['reviewCommand']!,
-          ),
-        if ((promotionShadowContext['caseFileCommand'] ?? '').isNotEmpty)
-          ChatCaseFileHeaderField(
-            key: 'promotion_shadow_case_file_command',
-            value: promotionShadowContext['caseFileCommand']!,
-          ),
+        ...buildPromotionShadowHeaderFields(payload: payload),
         ChatCaseFileHeaderField(
           key: 'review_command',
           value: '/shadowreview ${report.date}',

@@ -33,6 +33,48 @@ String buildChatCaseFileHeader({
   return buffer.toString();
 }
 
+List<ChatCaseFileHeaderField> buildPromotionShadowHeaderFields({
+  required Map<String, Object?> payload,
+  String keyPrefix = 'promotion_',
+}) {
+  return <ChatCaseFileHeaderField>[
+    ChatCaseFileHeaderField(
+      key: '${keyPrefix}current_validation_status',
+      value: (payload['promotionCurrentValidationStatus'] ?? '')
+          .toString()
+          .trim(),
+    ),
+    ChatCaseFileHeaderField(
+      key: '${keyPrefix}current_strength_summary',
+      value: (payload['promotionCurrentStrengthSummary'] ?? '')
+          .toString()
+          .trim(),
+    ),
+    ChatCaseFileHeaderField(
+      key: '${keyPrefix}shadow_selected_event_id',
+      value: (payload['promotionShadowSelectedEventId'] ?? '')
+          .toString()
+          .trim(),
+    ),
+    ChatCaseFileHeaderField(
+      key: '${keyPrefix}shadow_review_refs',
+      value: (payload['promotionShadowReviewRefs'] ?? '').toString().trim(),
+    ),
+    ChatCaseFileHeaderField(
+      key: '${keyPrefix}shadow_review_command',
+      value: (payload['promotionShadowReviewCommand'] ?? '')
+          .toString()
+          .trim(),
+    ),
+    ChatCaseFileHeaderField(
+      key: '${keyPrefix}shadow_case_file_command',
+      value: (payload['promotionShadowCaseFileCommand'] ?? '')
+          .toString()
+          .trim(),
+    ),
+  ];
+}
+
 String buildChatCaseFileHistoryText({
   required List<Map<String, Object?>> rows,
   required List<ChatCaseFileHistoryField> fields,

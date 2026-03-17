@@ -65,4 +65,31 @@ void main() {
     expect(text, isNot(contains('history_1_empty=')));
     expect(text, isNot(contains('history_2_review_command=')));
   });
+
+  test('buildPromotionShadowHeaderFields preserves promotion anchor order', () {
+    final header = buildChatCaseFileHeader(
+      title: 'ONYX SYNTHETICCASE JSON',
+      fields: buildPromotionShadowHeaderFields(
+        payload: const <String, Object?>{
+          'promotionCurrentValidationStatus': 'validated',
+          'promotionCurrentStrengthSummary': 'PROMOTED VALIDATED • 0.88',
+          'promotionShadowSelectedEventId': 'evt-office-1',
+          'promotionShadowReviewRefs': 'intel-office-1,intel-office-2',
+          'promotionShadowReviewCommand': '/shadowreview 2026-03-17',
+          'promotionShadowCaseFileCommand': '/shadowcase json 2026-03-17',
+        },
+      ),
+    );
+
+    expect(
+      header,
+      'ONYX SYNTHETICCASE JSON\n'
+      'promotion_current_validation_status=validated\n'
+      'promotion_current_strength_summary=PROMOTED VALIDATED • 0.88\n'
+      'promotion_shadow_selected_event_id=evt-office-1\n'
+      'promotion_shadow_review_refs=intel-office-1,intel-office-2\n'
+      'promotion_shadow_review_command=/shadowreview 2026-03-17\n'
+      'promotion_shadow_case_file_command=/shadowcase json 2026-03-17\n',
+    );
+  });
 }
