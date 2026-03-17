@@ -75,6 +75,41 @@ String buildSyntheticShadowSummaryFromPlans({
   return parts.join(' • ');
 }
 
+String buildSyntheticModeLabelFromPlans({
+  required List<MonitoringWatchAutonomyActionPlan> plans,
+}) {
+  final policyCount = plans
+      .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
+      .length;
+  if (policyCount > 0) {
+    return 'POLICY SHIFT';
+  }
+  if (plans.isNotEmpty) {
+    return 'SIMULATION ACTIVE';
+  }
+  return 'QUIET REHEARSAL';
+}
+
+String buildSyntheticSummaryFromPlans({
+  required List<MonitoringWatchAutonomyActionPlan> plans,
+}) {
+  if (plans.isEmpty) {
+    return '';
+  }
+  final lead = plans.first;
+  final summary = <String>[
+    'Plans ${plans.length}',
+    if ((lead.metadata['region'] ?? '').trim().isNotEmpty)
+      'region ${(lead.metadata['region'] ?? '').trim()}',
+    if ((lead.metadata['lead_site'] ?? '').trim().isNotEmpty)
+      'lead ${(lead.metadata['lead_site'] ?? '').trim()}',
+    if ((lead.metadata['top_intent'] ?? '').trim().isNotEmpty &&
+        (lead.metadata['top_intent'] ?? '').trim() != 'NONE')
+      'top intent ${(lead.metadata['top_intent'] ?? '').trim()}',
+  ];
+  return summary.join(' • ');
+}
+
 String buildSyntheticShadowPostureBiasSummaryForPlan({
   MonitoringWatchAutonomyActionPlan? plan,
 }) {

@@ -160,6 +160,31 @@ void main() {
       );
     });
 
+    test('buildSyntheticModeLabelFromPlans and summary helper read plan shape', () {
+      final plans = <MonitoringWatchAutonomyActionPlan>[
+        const MonitoringWatchAutonomyActionPlan(
+          id: 'SIM-1',
+          incidentId: 'SITE-1',
+          siteId: 'SITE-1',
+          priority: MonitoringWatchAutonomyPriority.high,
+          actionType: 'POLICY RECOMMENDATION',
+          description: 'desc',
+          countdownSeconds: 22,
+          metadata: <String, String>{
+            'region': 'REGION-GAUTENG',
+            'lead_site': 'SITE-ALPHA',
+            'top_intent': 'NEXT_SHIFT',
+          },
+        ),
+      ];
+
+      expect(buildSyntheticModeLabelFromPlans(plans: plans), 'POLICY SHIFT');
+      expect(
+        buildSyntheticSummaryFromPlans(plans: plans),
+        'Plans 1 • region REGION-GAUTENG • lead SITE-ALPHA • top intent NEXT_SHIFT',
+      );
+    });
+
     test('buildSyntheticPromotionSummaryFromPlans reads base summary from plan metadata', () {
       final plans = <MonitoringWatchAutonomyActionPlan>[
         const MonitoringWatchAutonomyActionPlan(

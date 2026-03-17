@@ -3002,38 +3002,11 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
 
   String _syntheticWarRoomModeLabel(
     List<MonitoringWatchAutonomyActionPlan> plans,
-  ) {
-    final policyCount = plans
-        .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
-        .length;
-    if (policyCount > 0) {
-      return 'POLICY SHIFT';
-    }
-    if (plans.isNotEmpty) {
-      return 'SIMULATION ACTIVE';
-    }
-    return 'QUIET REHEARSAL';
-  }
+  ) => buildSyntheticModeLabelFromPlans(plans: plans);
 
   String _syntheticWarRoomSummary(
     List<MonitoringWatchAutonomyActionPlan> plans,
-  ) {
-    if (plans.isEmpty) {
-      return '';
-    }
-    final lead = plans.first;
-    final summary = <String>[
-      'Plans ${plans.length}',
-      if ((lead.metadata['region'] ?? '').toString().trim().isNotEmpty)
-        'region ${(lead.metadata['region'] ?? '').toString().trim()}',
-      if ((lead.metadata['lead_site'] ?? '').toString().trim().isNotEmpty)
-        'lead ${(lead.metadata['lead_site'] ?? '').toString().trim()}',
-      if ((lead.metadata['top_intent'] ?? '').toString().trim().isNotEmpty &&
-          (lead.metadata['top_intent'] ?? '').toString().trim() != 'NONE')
-        'top intent ${(lead.metadata['top_intent'] ?? '').toString().trim()}',
-    ];
-    return summary.join(' • ');
-  }
+  ) => buildSyntheticSummaryFromPlans(plans: plans);
 
   String _syntheticWarRoomLearningSummary(
     List<MonitoringWatchAutonomyActionPlan> plans,

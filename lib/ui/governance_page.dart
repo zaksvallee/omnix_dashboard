@@ -4796,18 +4796,7 @@ class _GovernancePageState extends State<GovernancePage> {
 
   String _syntheticWarRoomModeLabel(
     List<MonitoringWatchAutonomyActionPlan> plans,
-  ) {
-    final policyCount = plans
-        .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
-        .length;
-    if (policyCount > 0) {
-      return 'POLICY SHIFT';
-    }
-    if (plans.isNotEmpty) {
-      return 'SIMULATION ACTIVE';
-    }
-    return 'QUIET REHEARSAL';
-  }
+  ) => buildSyntheticModeLabelFromPlans(plans: plans);
 
   String _siteActivityModeLabel(_GovernanceReportView report) {
     return _siteActivityModeLabelFromSignals(
