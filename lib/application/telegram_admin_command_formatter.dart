@@ -85,6 +85,9 @@ class TelegramAdminCommandFormatter {
     String? globalReadinessTomorrowPostureSummary,
     String? globalReadinessTomorrowShadowSummary,
     String? globalReadinessTomorrowUrgencySummary,
+    String? previousShiftTomorrowPostureSummary,
+    String? previousShiftTomorrowShadowSummary,
+    String? previousShiftTomorrowUrgencySummary,
     String? globalReadinessShadowSummary,
     String? globalReadinessShadowStatusSummary,
     String? globalReadinessShadowHistoryHeadline,
@@ -156,6 +159,12 @@ class TelegramAdminCommandFormatter {
         globalReadinessTomorrowShadowSummary?.trim() ?? '';
     final readinessTomorrowUrgencySummary =
         globalReadinessTomorrowUrgencySummary?.trim() ?? '';
+    final previousTomorrowPostureSummary =
+        previousShiftTomorrowPostureSummary?.trim() ?? '';
+    final previousTomorrowShadowSummary =
+        previousShiftTomorrowShadowSummary?.trim() ?? '';
+    final previousTomorrowUrgencySummary =
+        previousShiftTomorrowUrgencySummary?.trim() ?? '';
     final readinessShadowSummary = globalReadinessShadowSummary?.trim() ?? '';
     final readinessShadowStatusSummary =
         globalReadinessShadowStatusSummary?.trim() ?? '';
@@ -258,6 +267,9 @@ class TelegramAdminCommandFormatter {
               '${readinessTomorrowPostureSummary.isEmpty ? '' : '• <b>Tomorrow posture:</b> ${_escapeHtml(readinessTomorrowPostureSummary)}\n'}'
               '${readinessTomorrowShadowSummary.isEmpty ? '' : '• <b>Tomorrow shadow:</b> ${_escapeHtml(readinessTomorrowShadowSummary)}\n'}'
               '${readinessTomorrowUrgencySummary.isEmpty ? '' : '• <b>Tomorrow urgency:</b> ${_escapeHtml(readinessTomorrowUrgencySummary)}\n'}'
+              '${previousTomorrowPostureSummary.isEmpty ? '' : '• <b>Previous tomorrow posture:</b> ${_escapeHtml(previousTomorrowPostureSummary)}\n'}'
+              '${previousTomorrowShadowSummary.isEmpty ? '' : '• <b>Previous tomorrow shadow:</b> ${_escapeHtml(previousTomorrowShadowSummary)}\n'}'
+              '${previousTomorrowUrgencySummary.isEmpty ? '' : '• <b>Previous tomorrow urgency:</b> ${_escapeHtml(previousTomorrowUrgencySummary)}\n'}'
               '${tomorrowPostureReview.isEmpty ? '' : '• <b>Tomorrow review:</b> <code>${_escapeHtml(tomorrowPostureReview)}</code>\n'}'
               '${tomorrowPostureCase.isEmpty ? '' : '• <b>Tomorrow case:</b> <code>${_escapeHtml(tomorrowPostureCase)}</code>\n'}'
               '• <b>Current review:</b> <code>${_escapeHtml(readinessReview)}</code>\n'

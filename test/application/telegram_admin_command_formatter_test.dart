@@ -149,6 +149,11 @@ void main() {
       globalReadinessTomorrowShadowSummary:
           'HARDEN ACCESS • site-alpha • Contractors moved floor to floor in office park • x1 • strength rising',
       globalReadinessTomorrowUrgencySummary: 'strength rising • critical • 22s',
+      previousShiftTomorrowPostureSummary:
+          'DRAFT NEXT-SHIFT ACCESS HARDENING • site-alpha • x1',
+      previousShiftTomorrowShadowSummary:
+          'HARDEN ACCESS • site-alpha • Contractors moved floor to floor in office park • x1',
+      previousShiftTomorrowUrgencySummary: 'strength stable • high • 28s',
       currentShiftTomorrowPostureReviewCommand: '/tomorrowreview 2026-03-17',
       currentShiftTomorrowPostureCaseFileCommand:
           '/tomorrowcase json 2026-03-17',
@@ -281,6 +286,24 @@ void main() {
     expect(
       response,
       contains('<b>Tomorrow urgency:</b> strength rising • critical • 22s'),
+    );
+    expect(
+      response,
+      contains(
+        '<b>Previous tomorrow posture:</b> DRAFT NEXT-SHIFT ACCESS HARDENING • site-alpha • x1',
+      ),
+    );
+    expect(
+      response,
+      contains(
+        '<b>Previous tomorrow shadow:</b> HARDEN ACCESS • site-alpha • Contractors moved floor to floor in office park • x1',
+      ),
+    );
+    expect(
+      response,
+      contains(
+        '<b>Previous tomorrow urgency:</b> strength stable • high • 28s',
+      ),
     );
     expect(response, contains('<code>/tomorrowreview 2026-03-17</code>'));
     expect(response, contains('<code>/tomorrowcase json 2026-03-17</code>'));
