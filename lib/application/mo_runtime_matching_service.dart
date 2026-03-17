@@ -12,6 +12,7 @@ class OnyxMoShadowMatch {
   final String incidentType;
   final String behaviorStage;
   final String validationStatus;
+  final String runtimeMatchBias;
   final double matchScore;
   final List<String> matchedIndicators;
   final List<String> recommendedActionPlans;
@@ -22,6 +23,7 @@ class OnyxMoShadowMatch {
     required this.incidentType,
     required this.behaviorStage,
     this.validationStatus = '',
+    this.runtimeMatchBias = '',
     required this.matchScore,
     this.matchedIndicators = const <String>[],
     this.recommendedActionPlans = const <String>[],
@@ -158,6 +160,9 @@ class MoRuntimeMatchingService {
           incidentType: candidate.incidentType,
           behaviorStage: candidate.behaviorStage,
           validationStatus: candidate.validationStatus.name,
+          runtimeMatchBias: (candidate.metadata['runtime_match_bias'] ?? '')
+              .toString()
+              .trim(),
           matchScore: score > 1 ? 1 : score,
           matchedIndicators: indicators.toList(growable: false)..sort(),
           recommendedActionPlans: candidate.recommendedActionPlans,

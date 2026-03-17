@@ -342,98 +342,96 @@ void main() {
     );
   });
 
-  testWidgets('live operations shows shadow readiness bias for repeated MO pressure', (
-    tester,
-  ) async {
-    final now = DateTime.now().toUtc();
-    await tester.pumpWidget(
-      MaterialApp(
-        home: LiveOperationsPage(
-          historicalShadowMoLabels: const ['HARDEN ACCESS'],
-          events: [
-            DecisionCreated(
-              eventId: 'decision-shadow',
-              sequence: 1,
-              version: 1,
-              occurredAt: now.subtract(const Duration(minutes: 3)),
-              dispatchId: 'D-3001',
-              clientId: 'CLIENT-001',
-              regionId: 'REGION-GAUTENG',
-              siteId: 'SITE-OFFICE',
-            ),
-            IntelligenceReceived(
-              eventId: 'intel-shadow-news',
-              sequence: 2,
-              version: 1,
-              occurredAt: now.subtract(const Duration(minutes: 2)),
-              intelligenceId: 'INT-SHADOW-NEWS',
-              provider: 'news_feed_monitor',
-              sourceType: 'news',
-              externalId: 'ext-shadow-news',
-              clientId: 'CLIENT-001',
-              regionId: 'REGION-GAUTENG',
-              siteId: 'SITE-OFFICE',
-              cameraId: 'feed-news',
-              objectLabel: 'person',
-              objectConfidence: 0.70,
-              headline: 'Contractors moved floor to floor in office park',
-              summary:
-                  'Suspects posed as maintenance contractors before moving across restricted office zones.',
-              riskScore: 67,
-              snapshotUrl: 'https://edge.example.com/shadow-news.jpg',
-              canonicalHash: 'hash-shadow-news',
-            ),
-            IntelligenceReceived(
-              eventId: 'intel-shadow-live',
-              sequence: 3,
-              version: 1,
-              occurredAt: now.subtract(const Duration(minutes: 1)),
-              intelligenceId: 'INT-SHADOW-LIVE',
-              provider: 'hikvision_dvr_monitor_only',
-              sourceType: 'dvr',
-              externalId: 'ext-shadow-live',
-              clientId: 'CLIENT-001',
-              regionId: 'REGION-GAUTENG',
-              siteId: 'SITE-OFFICE',
-              cameraId: 'office-cam',
-              objectLabel: 'person',
-              objectConfidence: 0.95,
-              headline: 'Maintenance contractor probing office doors',
-              summary:
-                  'Contractor-like person moved floor to floor and tried several restricted office doors.',
-              riskScore: 86,
-              snapshotUrl: 'https://edge.example.com/shadow-live.jpg',
-              canonicalHash: 'hash-shadow-live',
-            ),
-          ],
-          sceneReviewByIntelligenceId: {
-            'INT-SHADOW-LIVE': MonitoringSceneReviewRecord(
-              intelligenceId: 'INT-SHADOW-LIVE',
-              sourceLabel: 'openai:gpt-5.4-mini',
-              postureLabel: 'service impersonation and roaming concern',
-              decisionLabel: 'Escalation Candidate',
-              decisionSummary:
-                  'Likely spoofed service access with abnormal roaming.',
-              summary:
-                  'Likely maintenance impersonation moving across office zones.',
-              reviewedAtUtc: now,
-            ),
-          },
+  testWidgets(
+    'live operations shows shadow readiness bias for repeated MO pressure',
+    (tester) async {
+      final now = DateTime.now().toUtc();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            historicalShadowMoLabels: const ['HARDEN ACCESS'],
+            events: [
+              DecisionCreated(
+                eventId: 'decision-shadow',
+                sequence: 1,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 3)),
+                dispatchId: 'D-3001',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-OFFICE',
+              ),
+              IntelligenceReceived(
+                eventId: 'intel-shadow-news',
+                sequence: 2,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 2)),
+                intelligenceId: 'INT-SHADOW-NEWS',
+                provider: 'news_feed_monitor',
+                sourceType: 'news',
+                externalId: 'ext-shadow-news',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-OFFICE',
+                cameraId: 'feed-news',
+                objectLabel: 'person',
+                objectConfidence: 0.70,
+                headline: 'Contractors moved floor to floor in office park',
+                summary:
+                    'Suspects posed as maintenance contractors before moving across restricted office zones.',
+                riskScore: 67,
+                snapshotUrl: 'https://edge.example.com/shadow-news.jpg',
+                canonicalHash: 'hash-shadow-news',
+              ),
+              IntelligenceReceived(
+                eventId: 'intel-shadow-live',
+                sequence: 3,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 1)),
+                intelligenceId: 'INT-SHADOW-LIVE',
+                provider: 'hikvision_dvr_monitor_only',
+                sourceType: 'dvr',
+                externalId: 'ext-shadow-live',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-OFFICE',
+                cameraId: 'office-cam',
+                objectLabel: 'person',
+                objectConfidence: 0.95,
+                headline: 'Maintenance contractor probing office doors',
+                summary:
+                    'Contractor-like person moved floor to floor and tried several restricted office doors.',
+                riskScore: 86,
+                snapshotUrl: 'https://edge.example.com/shadow-live.jpg',
+                canonicalHash: 'hash-shadow-live',
+              ),
+            ],
+            sceneReviewByIntelligenceId: {
+              'INT-SHADOW-LIVE': MonitoringSceneReviewRecord(
+                intelligenceId: 'INT-SHADOW-LIVE',
+                sourceLabel: 'openai:gpt-5.4-mini',
+                postureLabel: 'service impersonation and roaming concern',
+                decisionLabel: 'Escalation Candidate',
+                decisionSummary:
+                    'Likely spoofed service access with abnormal roaming.',
+                summary:
+                    'Likely maintenance impersonation moving across office zones.',
+                reviewedAtUtc: now,
+              ),
+            },
+          ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('Next-Shift Drafts'), findsOneWidget);
-    expect(find.text('DRAFT NEXT-SHIFT ACCESS HARDENING'), findsOneWidget);
-    expect(find.text('Shadow'), findsOneWidget);
-    expect(find.textContaining('HARDEN ACCESS'), findsWidgets);
-    expect(find.text('Readiness bias'), findsOneWidget);
-    expect(
-      find.textContaining('earlier access hardening'),
-      findsOneWidget,
-    );
-  });
+      expect(find.text('Next-Shift Drafts'), findsOneWidget);
+      expect(find.text('DRAFT NEXT-SHIFT ACCESS HARDENING'), findsOneWidget);
+      expect(find.text('Shadow'), findsOneWidget);
+      expect(find.textContaining('HARDEN ACCESS'), findsWidgets);
+      expect(find.text('Readiness bias'), findsOneWidget);
+      expect(find.textContaining('earlier access hardening'), findsOneWidget);
+    },
+  );
 
   testWidgets(
     'live operations switches latest intel and ladder labels for DVR',
@@ -666,6 +664,7 @@ void main() {
         find.textContaining('Actions RAISE READINESS • PREPOSITION RESPONSE'),
         findsWidgets,
       );
+      expect(find.textContaining('Strength'), findsWidgets);
 
       await tester.tap(find.text('OPEN EVIDENCE').last);
       await tester.pumpAndSettle();

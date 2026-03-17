@@ -175,7 +175,10 @@ void main() {
     expect(find.text('POSTURAL ECHO'), findsOneWidget);
     expect(find.text('AUTO-DISPATCH HOLD'), findsOneWidget);
     expect(find.textContaining('HIKVISION evidence lock'), findsOneWidget);
-    expect(find.textContaining('Replay the next-shift posture'), findsOneWidget);
+    expect(
+      find.textContaining('Replay the next-shift posture'),
+      findsOneWidget,
+    );
     expect(find.text('AUTO'), findsWidgets);
   });
 
@@ -248,90 +251,93 @@ void main() {
     expect(find.textContaining('HIKVISION evidence'), findsOneWidget);
   });
 
-  testWidgets('ai queue prioritizes shadow readiness bias from repeated MO memory', (
-    tester,
-  ) async {
-    final events = [
-      IntelligenceReceived(
-        eventId: 'evt-shadow-news',
-        sequence: 1,
-        version: 1,
-        occurredAt: DateTime.utc(2026, 3, 16, 20, 50),
-        intelligenceId: 'intel-shadow-news',
-        provider: 'news_feed_monitor',
-        sourceType: 'news',
-        externalId: 'ext-shadow-news',
-        clientId: 'CLIENT-VALLEE',
-        regionId: 'REGION-GAUTENG',
-        siteId: 'SITE-OFFICE',
-        cameraId: 'feed-news',
-        objectLabel: 'person',
-        objectConfidence: 0.70,
-        headline: 'Contractors moved floor to floor in office park',
-        summary:
-            'Suspects posed as maintenance contractors before moving across restricted office zones.',
-        riskScore: 67,
-        snapshotUrl: 'https://edge.example.com/shadow-news.jpg',
-        canonicalHash: 'hash-shadow-news',
-      ),
-      IntelligenceReceived(
-        eventId: 'evt-shadow-live',
-        sequence: 2,
-        version: 1,
-        occurredAt: DateTime.utc(2026, 3, 16, 21, 14),
-        intelligenceId: 'intel-shadow-live',
-        provider: 'hikvision_dvr_monitor_only',
-        sourceType: 'dvr',
-        externalId: 'ext-shadow-live',
-        clientId: 'CLIENT-VALLEE',
-        regionId: 'REGION-GAUTENG',
-        siteId: 'SITE-OFFICE',
-        cameraId: 'lobby-cam',
-        objectLabel: 'person',
-        objectConfidence: 0.95,
-        headline: 'Unplanned contractor roaming',
-        summary:
-            'Maintenance-like subject moved across restricted office doors.',
-        riskScore: 91,
-        snapshotUrl: 'https://edge.example.com/shadow-live.jpg',
-        canonicalHash: 'hash-shadow-live',
-      ),
-    ];
-    final reviews = {
-      'intel-shadow-live': MonitoringSceneReviewRecord(
-        intelligenceId: 'intel-shadow-live',
-        sourceLabel: 'openai:gpt-5.4-mini',
-        postureLabel: 'service impersonation and roaming concern',
-        decisionLabel: 'Escalation Candidate',
-        decisionSummary: 'Likely spoofed service access with abnormal roaming.',
-        summary: 'Likely maintenance impersonation moving across office zones.',
-        reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 15),
-      ),
-    };
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: AIQueuePage(
-          events: events,
-          historicalShadowMoLabels: const ['HARDEN ACCESS'],
-          sceneReviewByIntelligenceId: reviews,
-          videoOpsLabel: 'Hikvision',
+  testWidgets(
+    'ai queue prioritizes shadow readiness bias from repeated MO memory',
+    (tester) async {
+      final events = [
+        IntelligenceReceived(
+          eventId: 'evt-shadow-news',
+          sequence: 1,
+          version: 1,
+          occurredAt: DateTime.utc(2026, 3, 16, 20, 50),
+          intelligenceId: 'intel-shadow-news',
+          provider: 'news_feed_monitor',
+          sourceType: 'news',
+          externalId: 'ext-shadow-news',
+          clientId: 'CLIENT-VALLEE',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-OFFICE',
+          cameraId: 'feed-news',
+          objectLabel: 'person',
+          objectConfidence: 0.70,
+          headline: 'Contractors moved floor to floor in office park',
+          summary:
+              'Suspects posed as maintenance contractors before moving across restricted office zones.',
+          riskScore: 67,
+          snapshotUrl: 'https://edge.example.com/shadow-news.jpg',
+          canonicalHash: 'hash-shadow-news',
         ),
-      ),
-    );
-    await tester.pump(const Duration(milliseconds: 100));
+        IntelligenceReceived(
+          eventId: 'evt-shadow-live',
+          sequence: 2,
+          version: 1,
+          occurredAt: DateTime.utc(2026, 3, 16, 21, 14),
+          intelligenceId: 'intel-shadow-live',
+          provider: 'hikvision_dvr_monitor_only',
+          sourceType: 'dvr',
+          externalId: 'ext-shadow-live',
+          clientId: 'CLIENT-VALLEE',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-OFFICE',
+          cameraId: 'lobby-cam',
+          objectLabel: 'person',
+          objectConfidence: 0.95,
+          headline: 'Unplanned contractor roaming',
+          summary:
+              'Maintenance-like subject moved across restricted office doors.',
+          riskScore: 91,
+          snapshotUrl: 'https://edge.example.com/shadow-live.jpg',
+          canonicalHash: 'hash-shadow-live',
+        ),
+      ];
+      final reviews = {
+        'intel-shadow-live': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-shadow-live',
+          sourceLabel: 'openai:gpt-5.4-mini',
+          postureLabel: 'service impersonation and roaming concern',
+          decisionLabel: 'Escalation Candidate',
+          decisionSummary:
+              'Likely spoofed service access with abnormal roaming.',
+          summary:
+              'Likely maintenance impersonation moving across office zones.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 15),
+        ),
+      };
 
-    expect(find.text('SHADOW READINESS BIAS'), findsOneWidget);
-    expect(find.text('DRAFT NEXT-SHIFT ACCESS HARDENING'), findsWidgets);
-    expect(find.text('SHADOW'), findsOneWidget);
-    expect(find.textContaining('HARDEN ACCESS'), findsWidgets);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AIQueuePage(
+            events: events,
+            historicalShadowMoLabels: const ['HARDEN ACCESS'],
+            sceneReviewByIntelligenceId: reviews,
+            videoOpsLabel: 'Hikvision',
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
 
-    final biasTopLeft = tester.getTopLeft(find.text('SHADOW READINESS BIAS'));
-    final draftTopLeft = tester.getTopLeft(
-      find.text('DRAFT NEXT-SHIFT ACCESS HARDENING').first,
-    );
-    expect(biasTopLeft.dy, lessThan(draftTopLeft.dy));
-  });
+      expect(find.text('SHADOW READINESS BIAS'), findsOneWidget);
+      expect(find.text('DRAFT NEXT-SHIFT ACCESS HARDENING'), findsWidgets);
+      expect(find.text('SHADOW'), findsOneWidget);
+      expect(find.textContaining('HARDEN ACCESS'), findsWidgets);
+
+      final biasTopLeft = tester.getTopLeft(find.text('SHADOW READINESS BIAS'));
+      final draftTopLeft = tester.getTopLeft(
+        find.text('DRAFT NEXT-SHIFT ACCESS HARDENING').first,
+      );
+      expect(biasTopLeft.dy, lessThan(draftTopLeft.dy));
+    },
+  );
 
   testWidgets('ai queue surfaces shadow MO intelligence from external patterns', (
     tester,
@@ -411,10 +417,15 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('ai-queue-mo-shadow-card')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('ai-queue-mo-shadow-card')),
+      findsOneWidget,
+    );
     expect(find.text('Shadow MO Intelligence'), findsOneWidget);
     expect(
-      find.textContaining('SITE-OFFICE • Contractors moved floor to floor in office park'),
+      find.textContaining(
+        'SITE-OFFICE • Contractors moved floor to floor in office park',
+      ),
       findsOneWidget,
     );
     expect(find.text('mo_shadow'), findsOneWidget);
@@ -424,7 +435,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('ai-queue-mo-shadow-dialog')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('ai-queue-mo-shadow-dialog')),
+      findsOneWidget,
+    );
     expect(find.text('SHADOW MO DOSSIER'), findsOneWidget);
     expect(
       find.text('Contractors moved floor to floor in office park'),
@@ -434,6 +448,7 @@ void main() {
       find.textContaining('Actions RAISE READINESS • PREPOSITION RESPONSE'),
       findsWidgets,
     );
+    expect(find.textContaining('Strength'), findsWidgets);
 
     await tester.tap(find.text('OPEN EVIDENCE').last);
     await tester.pumpAndSettle();

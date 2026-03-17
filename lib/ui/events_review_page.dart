@@ -1265,7 +1265,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             ),
                             if (match.validationStatus.isNotEmpty)
                               Text(
-                                'Status ${match.validationStatus.toUpperCase()}',
+                                'Strength ${shadowMoStrengthSummary(match)}',
                                 style: GoogleFonts.robotoMono(
                                   color: const Color(0xFF8FD1FF),
                                   fontSize: 10,

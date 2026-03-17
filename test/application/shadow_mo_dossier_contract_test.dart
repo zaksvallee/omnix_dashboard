@@ -32,6 +32,7 @@ void main() {
           incidentType: 'deception_led_intrusion',
           behaviorStage: 'inside_behavior',
           validationStatus: 'validated',
+          runtimeMatchBias: 'PROMOTED_VALIDATED',
           matchScore: 0.89,
           matchedIndicators: ['office_building', 'route_anomalies'],
           recommendedActionPlans: ['RAISE READINESS', 'PREPOSITION RESPONSE'],
@@ -56,6 +57,14 @@ void main() {
     expect(
       (matches.first as Map<Object?, Object?>)['validationStatus'],
       'validated',
+    );
+    expect(
+      (matches.first as Map<Object?, Object?>)['runtimeMatchBias'],
+      'PROMOTED_VALIDATED',
+    );
+    expect(
+      (matches.first as Map<Object?, Object?>)['strengthSummary'],
+      'PROMOTED VALIDATED • 0.89',
     );
   });
 
@@ -173,7 +182,10 @@ void main() {
           incidentType: 'deception_led_intrusion',
           behaviorStage: 'inside_behavior',
           matchScore: 0.88,
-          matchedIndicators: ['maintenance_impersonation', 'multi_zone_roaming'],
+          matchedIndicators: [
+            'maintenance_impersonation',
+            'multi_zone_roaming',
+          ],
           recommendedActionPlans: ['RAISE READINESS', 'OPEN EVIDENCE'],
         ),
       ],

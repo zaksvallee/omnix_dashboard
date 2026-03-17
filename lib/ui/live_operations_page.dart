@@ -1111,7 +1111,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         const SizedBox(height: 8),
         _siteActivityTruthCard(incident, siteActivity),
       ],
-      if (moShadowPosture != null && moShadowPosture.moShadowMatchCount > 0) ...[
+      if (moShadowPosture != null &&
+          moShadowPosture.moShadowMatchCount > 0) ...[
         const SizedBox(height: 8),
         _moShadowCard(incident, moShadowPosture),
       ],
@@ -1271,7 +1272,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               plan.siteId.trim() == incident.siteId.trim() ||
               (plan.metadata['lead_site'] ?? '').trim() ==
                   incident.siteId.trim() ||
-              (plan.metadata['region'] ?? '').trim() == incident.regionId.trim(),
+              (plan.metadata['region'] ?? '').trim() ==
+                  incident.regionId.trim(),
         )
         .toList(growable: false);
   }
@@ -1297,7 +1299,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               plan.siteId.trim() == incident.siteId.trim() ||
               (plan.metadata['lead_site'] ?? '').trim() ==
                   incident.siteId.trim() ||
-              (plan.metadata['region'] ?? '').trim() == incident.regionId.trim(),
+              (plan.metadata['region'] ?? '').trim() ==
+                  incident.regionId.trim(),
         )
         .toList(growable: false);
   }
@@ -1361,7 +1364,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               '$shadowLabel${shadowRepeatCount.isEmpty ? '' : ' • x$shadowRepeatCount'}',
             ),
           if (leadBias != null)
-            _metaRow('Readiness bias', _compactContextLabel(leadBias.description)),
+            _metaRow(
+              'Readiness bias',
+              _compactContextLabel(leadBias.description),
+            ),
           _metaRow('Lead Draft', leadDraft.actionType),
           _metaRow('Bias', _compactContextLabel(leadDraft.description)),
           if (drafts.length > 1)
@@ -1438,7 +1444,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       builder: (dialogContext) {
         return Dialog(
           backgroundColor: const Color(0xFF08111B),
-          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 24,
+          ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 760, maxHeight: 720),
             child: Padding(
@@ -1527,7 +1536,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                               if (match.validationStatus.isNotEmpty) ...[
                                 const SizedBox(height: 2),
                                 Text(
-                                  'Status ${match.validationStatus.toUpperCase()}',
+                                  'Strength ${shadowMoStrengthSummary(match)}',
                                   style: GoogleFonts.robotoMono(
                                     color: const Color(0xFF8FD1FF),
                                     fontSize: 10,
@@ -1543,9 +1552,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                     color: const Color(0xFF8FD1FF),
                                     fontSize: 10,
                                     fontWeight: FontWeight.w600,
-                                    ),
                                   ),
-                                ],
+                                ),
+                              ],
                               if (widget.onOpenEventsForScope != null &&
                                   sitePosture.moShadowEventIds.isNotEmpty) ...[
                                 const SizedBox(height: 6),
@@ -1585,11 +1594,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     return buildShadowMoSitePayload(
       sitePosture,
       metadata: <String, Object?>{
-      'incidentId': incident.id,
-      'clientId': incident.clientId,
-      'regionId': incident.regionId,
-      'siteId': incident.siteId,
-      'siteHeat': sitePosture.heatLevel.name,
+        'incidentId': incident.id,
+        'clientId': incident.clientId,
+        'regionId': incident.regionId,
+        'siteId': incident.siteId,
+        'siteHeat': sitePosture.heatLevel.name,
       },
     );
   }
@@ -4152,7 +4161,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       >= 50 => _IncidentPriority.p3Medium,
       _ => _IncidentPriority.p4Low,
     };
-    final posture = (latestSceneReview?.postureLabel ?? '').trim().toLowerCase();
+    final posture = (latestSceneReview?.postureLabel ?? '')
+        .trim()
+        .toLowerCase();
     if (posture.contains('fire') || posture.contains('smoke')) {
       return _IncidentPriority.p1Critical;
     }
@@ -4160,7 +4171,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       return _IncidentPriority.p1Critical;
     }
     if (posture.contains('hazard')) {
-      if (_priorityRank(basePriority) > _priorityRank(_IncidentPriority.p2High)) {
+      if (_priorityRank(basePriority) >
+          _priorityRank(_IncidentPriority.p2High)) {
         return _IncidentPriority.p2High;
       }
     }
@@ -4171,7 +4183,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     int risk, {
     required MonitoringSceneReviewRecord? latestSceneReview,
   }) {
-    final posture = (latestSceneReview?.postureLabel ?? '').trim().toLowerCase();
+    final posture = (latestSceneReview?.postureLabel ?? '')
+        .trim()
+        .toLowerCase();
     if (posture.contains('fire') || posture.contains('smoke')) {
       return 'Fire / Smoke Emergency';
     }

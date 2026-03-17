@@ -8257,7 +8257,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                           .isNotEmpty) ...[
                                         const SizedBox(height: 2),
                                         Text(
-                                          'Status ${match.validationStatus.toUpperCase()}',
+                                          'Strength ${shadowMoStrengthSummary(match)}',
                                           style: GoogleFonts.robotoMono(
                                             color: const Color(0xFF8FD1FF),
                                             fontSize: 10,

@@ -133,8 +133,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
     if (oldWidget.events != widget.events ||
         oldWidget.historicalSyntheticLearningLabels !=
             widget.historicalSyntheticLearningLabels ||
-        oldWidget.historicalShadowMoLabels !=
-            widget.historicalShadowMoLabels ||
+        oldWidget.historicalShadowMoLabels != widget.historicalShadowMoLabels ||
         oldWidget.videoOpsLabel != widget.videoOpsLabel ||
         oldWidget.sceneReviewByIntelligenceId !=
             widget.sceneReviewByIntelligenceId) {
@@ -914,8 +913,12 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     ].join(' • '),
                   ),
                 if ((leadDraft.metadata['learning_label'] ?? '').isNotEmpty)
-                  _detailCell('Learning', leadDraft.metadata['learning_label']!),
-                if ((leadDraft.metadata['learning_repeat_count'] ?? '').isNotEmpty)
+                  _detailCell(
+                    'Learning',
+                    leadDraft.metadata['learning_label']!,
+                  ),
+                if ((leadDraft.metadata['learning_repeat_count'] ?? '')
+                    .isNotEmpty)
                   _detailCell(
                     'Memory',
                     'x${leadDraft.metadata['learning_repeat_count']}',
@@ -1039,7 +1042,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
       builder: (dialogContext) {
         return Dialog(
           backgroundColor: const Color(0xFF08111B),
-          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 24,
+          ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 760, maxHeight: 720),
             child: Padding(
@@ -1133,7 +1139,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                                 if (match.validationStatus.isNotEmpty) ...[
                                   const SizedBox(height: 2),
                                   Text(
-                                    'Status ${match.validationStatus.toUpperCase()}',
+                                    'Strength ${shadowMoStrengthSummary(match)}',
                                     style: GoogleFonts.robotoMono(
                                       color: const Color(0xFF8FD1FF),
                                       fontSize: 10,
@@ -1141,10 +1147,12 @@ class _AIQueuePageState extends State<AIQueuePage> {
                                     ),
                                   ),
                                 ],
-                              if (match.recommendedActionPlans.isNotEmpty) ...[
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Actions ${match.recommendedActionPlans.join(' • ')}',
+                                if (match
+                                    .recommendedActionPlans
+                                    .isNotEmpty) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Actions ${match.recommendedActionPlans.join(' • ')}',
                                     style: GoogleFonts.inter(
                                       color: const Color(0xFF8FD1FF),
                                       fontSize: 10,
@@ -1338,19 +1346,17 @@ class _AIQueuePageState extends State<AIQueuePage> {
       return;
     }
     setState(() {
-      _actions = _actions
-          .map((action) {
-            if (action.status != _AiActionStatus.executing) {
-              return action;
-            }
-            if (action.timeUntilExecutionSeconds <= 0) {
-              return action;
-            }
-            return action.copyWith(
-              timeUntilExecutionSeconds: action.timeUntilExecutionSeconds - 1,
-            );
-          })
-          .toList();
+      _actions = _actions.map((action) {
+        if (action.status != _AiActionStatus.executing) {
+          return action;
+        }
+        if (action.timeUntilExecutionSeconds <= 0) {
+          return action;
+        }
+        return action.copyWith(
+          timeUntilExecutionSeconds: action.timeUntilExecutionSeconds - 1,
+        );
+      }).toList();
 
       final expiredActionIds = _actions
           .where(
@@ -1385,20 +1391,18 @@ class _AIQueuePageState extends State<AIQueuePage> {
 
   void _togglePause(String actionId) {
     setState(() {
-      _actions = _actions
-          .map((action) {
-            if (action.id != actionId) {
-              return action;
-            }
-            if (action.status == _AiActionStatus.paused) {
-              return action.copyWith(status: _AiActionStatus.executing);
-            }
-            if (action.status == _AiActionStatus.executing) {
-              return action.copyWith(status: _AiActionStatus.paused);
-            }
-            return action;
-          })
-          .toList();
+      _actions = _actions.map((action) {
+        if (action.id != actionId) {
+          return action;
+        }
+        if (action.status == _AiActionStatus.paused) {
+          return action.copyWith(status: _AiActionStatus.executing);
+        }
+        if (action.status == _AiActionStatus.executing) {
+          return action.copyWith(status: _AiActionStatus.paused);
+        }
+        return action;
+      }).toList();
       _queuePaused = _actions.any(
         (action) => action.status == _AiActionStatus.paused,
       );
@@ -1463,48 +1467,54 @@ class _AIQueuePageState extends State<AIQueuePage> {
     List<DispatchEvent> events,
     Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId,
   ) {
-    final autonomyPlans = _autonomyService
-        .buildPlans(
-          events: events,
-          sceneReviewByIntelligenceId: sceneReviewByIntelligenceId,
-          videoOpsLabel: widget.videoOpsLabel,
-          historicalSyntheticLearningLabels:
-              widget.historicalSyntheticLearningLabels,
-          historicalShadowMoLabels: widget.historicalShadowMoLabels,
-        )
-        .toList(growable: true)
-      ..sort((left, right) {
-        final byPriority = _autonomyPlanRank(left).compareTo(
-          _autonomyPlanRank(right),
-        );
-        if (byPriority != 0) {
-          return byPriority;
-        }
-        return left.countdownSeconds.compareTo(right.countdownSeconds);
-      });
+    final autonomyPlans =
+        _autonomyService
+            .buildPlans(
+              events: events,
+              sceneReviewByIntelligenceId: sceneReviewByIntelligenceId,
+              videoOpsLabel: widget.videoOpsLabel,
+              historicalSyntheticLearningLabels:
+                  widget.historicalSyntheticLearningLabels,
+              historicalShadowMoLabels: widget.historicalShadowMoLabels,
+            )
+            .toList(growable: true)
+          ..sort((left, right) {
+            final byPriority = _autonomyPlanRank(
+              left,
+            ).compareTo(_autonomyPlanRank(right));
+            if (byPriority != 0) {
+              return byPriority;
+            }
+            return left.countdownSeconds.compareTo(right.countdownSeconds);
+          });
     if (autonomyPlans.isNotEmpty) {
-      return autonomyPlans.asMap().entries.map((entry) {
-        final plan = entry.value;
-        return _AiQueueAction(
-          id: plan.id,
-          incidentId: plan.incidentId,
-          incidentPriority: switch (plan.priority) {
-            MonitoringWatchAutonomyPriority.critical =>
-              _AiIncidentPriority.p1Critical,
-            MonitoringWatchAutonomyPriority.high => _AiIncidentPriority.p2High,
-            MonitoringWatchAutonomyPriority.medium =>
-              _AiIncidentPriority.p3Medium,
-          },
-          site: plan.siteId,
-          actionType: plan.actionType,
-          description: plan.description,
-          timeUntilExecutionSeconds: plan.countdownSeconds,
-          status: entry.key == 0
-              ? _AiActionStatus.executing
-              : _AiActionStatus.pending,
-          metadata: plan.metadata,
-        );
-      }).toList(growable: false);
+      return autonomyPlans
+          .asMap()
+          .entries
+          .map((entry) {
+            final plan = entry.value;
+            return _AiQueueAction(
+              id: plan.id,
+              incidentId: plan.incidentId,
+              incidentPriority: switch (plan.priority) {
+                MonitoringWatchAutonomyPriority.critical =>
+                  _AiIncidentPriority.p1Critical,
+                MonitoringWatchAutonomyPriority.high =>
+                  _AiIncidentPriority.p2High,
+                MonitoringWatchAutonomyPriority.medium =>
+                  _AiIncidentPriority.p3Medium,
+              },
+              site: plan.siteId,
+              actionType: plan.actionType,
+              description: plan.description,
+              timeUntilExecutionSeconds: plan.countdownSeconds,
+              status: entry.key == 0
+                  ? _AiActionStatus.executing
+                  : _AiActionStatus.pending,
+              metadata: plan.metadata,
+            );
+          })
+          .toList(growable: false);
     }
 
     final decisions = events.whereType<DecisionCreated>().toList(
@@ -1627,7 +1637,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
     final windowStart = nowUtc.subtract(const Duration(hours: 24));
     final decisions24h = events
         .whereType<DispatchEvent>()
-        .where((event) => event is DecisionCreated || event is IntelligenceReceived)
+        .where(
+          (event) => event is DecisionCreated || event is IntelligenceReceived,
+        )
         .where((event) => event.occurredAt.isAfter(windowStart))
         .length;
     final executed24h = events

@@ -32,7 +32,9 @@ List<MonitoringGlobalSitePosture> sortShadowMoSites(
     if (byActivity != 0) {
       return byActivity;
     }
-    final byActivityTime = right.lastActivityAtUtc.compareTo(left.lastActivityAtUtc);
+    final byActivityTime = right.lastActivityAtUtc.compareTo(
+      left.lastActivityAtUtc,
+    );
     if (byActivityTime != 0) {
       return byActivityTime;
     }
@@ -41,7 +43,9 @@ List<MonitoringGlobalSitePosture> sortShadowMoSites(
   return siteList;
 }
 
-List<OnyxMoShadowMatch> sortShadowMoMatches(Iterable<OnyxMoShadowMatch> matches) {
+List<OnyxMoShadowMatch> sortShadowMoMatches(
+  Iterable<OnyxMoShadowMatch> matches,
+) {
   final matchList = matches.toList(growable: true);
   matchList.sort((left, right) {
     final byScore = right.matchScore.compareTo(left.matchScore);
@@ -92,7 +96,9 @@ Map<String, Object?> buildShadowMoSitePayload(
             'incidentType': match.incidentType,
             'behaviorStage': match.behaviorStage,
             'validationStatus': match.validationStatus,
+            'runtimeMatchBias': match.runtimeMatchBias,
             'matchScore': match.matchScore,
+            'strengthSummary': shadowMoStrengthSummary(match),
             'matchedIndicators': match.matchedIndicators,
             'recommendedActionPlans': match.recommendedActionPlans,
           },
@@ -109,7 +115,8 @@ Map<String, Object?> buildShadowMoDossierPayload({
 }) {
   final siteList = sortShadowMoSites(sites);
   return <String, Object?>{
-    'generatedAtUtc': (generatedAtUtc ?? DateTime.now().toUtc()).toIso8601String(),
+    'generatedAtUtc': (generatedAtUtc ?? DateTime.now().toUtc())
+        .toIso8601String(),
     countKey: siteList.length,
     ...metadata,
     'sites': siteList
@@ -138,8 +145,51 @@ List<String> _orderedEventIds({
     }
     remaining.add(normalized);
   }
-  return [
-    if (normalizedSelected.isNotEmpty) normalizedSelected,
-    ...remaining,
-  ];
+  return [if (normalizedSelected.isNotEmpty) normalizedSelected, ...remaining];
+}
+
+String shadowMoStrengthSummary(OnyxMoShadowMatch match) {
+  final bias = match.runtimeMatchBias.trim();
+  final status = match.validationStatus.trim();
+  final score = match.matchScore.toStringAsFixed(2);
+  if (bias.isNotEmpty) {
+    return '${_humanizeRuntimeMatchBias(bias)} • $score';
+  }
+  if (status.isNotEmpty) {
+    return '${_humanizeValidationStatus(status)} • $score';
+  }
+  return 'MATCHED • $score';
+}
+
+String _humanizeRuntimeMatchBias(String bias) {
+  switch (bias) {
+    case 'PROMOTED_PRODUCTION':
+      return 'PROMOTED PRODUCTION';
+    case 'PROMOTED_VALIDATED':
+      return 'PROMOTED VALIDATED';
+    case 'PROMOTED_SHADOW':
+      return 'PROMOTED SHADOW';
+    case 'PROMOTED_CANDIDATE':
+      return 'PROMOTED CANDIDATE';
+    case 'REVIEW_HOLD':
+      return 'REVIEW HOLD';
+    default:
+      final normalized = bias.trim().replaceAll('_', ' ');
+      return normalized.toUpperCase();
+  }
+}
+
+String _humanizeValidationStatus(String status) {
+  switch (status) {
+    case 'shadowMode':
+      return 'SHADOW MODE';
+    case 'validated':
+      return 'VALIDATED';
+    case 'production':
+      return 'PRODUCTION';
+    case 'candidate':
+      return 'CANDIDATE';
+    default:
+      return status.trim().toUpperCase();
+  }
 }
