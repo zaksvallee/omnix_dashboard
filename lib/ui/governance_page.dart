@@ -3006,6 +3006,9 @@ class _GovernancePageState extends State<GovernancePage> {
     return _syntheticWarRoomService.buildSimulationPlans(
       events: scopedEvents,
       sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+      historicalLearningLabels: _syntheticHistoricalLearningLabelsForView(
+        report,
+      ),
     );
   }
 
@@ -3293,10 +3296,7 @@ class _GovernancePageState extends State<GovernancePage> {
     final baselinePressure =
         baseline
             .map((item) {
-              final plans = _syntheticWarRoomPlansForWindow(
-                item.shiftWindowStartUtc,
-                item.shiftWindowEndUtc,
-              );
+              final plans = _syntheticWarRoomPlansForStoredReport(item);
               final policyCount = plans
                   .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
                   .length;
@@ -3493,20 +3493,14 @@ class _GovernancePageState extends State<GovernancePage> {
     final planAverage =
         baseline
             .map(
-              (item) => _syntheticWarRoomPlansForWindow(
-                item.shiftWindowStartUtc,
-                item.shiftWindowEndUtc,
-              ).length,
+              (item) => _syntheticWarRoomPlansForStoredReport(item).length,
             )
             .reduce((left, right) => left + right) /
         baseline.length;
     final policyAverage =
         baseline
             .map((item) {
-              final plans = _syntheticWarRoomPlansForWindow(
-                item.shiftWindowStartUtc,
-                item.shiftWindowEndUtc,
-              );
+              final plans = _syntheticWarRoomPlansForStoredReport(item);
               return plans
                   .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
                   .length;
@@ -3673,10 +3667,7 @@ class _GovernancePageState extends State<GovernancePage> {
           item.date == report.reportDate) {
         continue;
       }
-      final plans = _syntheticWarRoomPlansForWindow(
-        item.shiftWindowStartUtc,
-        item.shiftWindowEndUtc,
-      );
+      final plans = _syntheticWarRoomPlansForStoredReport(item);
       final policyCount = plans
           .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
           .length;
@@ -3788,15 +3779,77 @@ class _GovernancePageState extends State<GovernancePage> {
     return 'STABLE POSTURE';
   }
 
-  List<MonitoringWatchAutonomyActionPlan> _syntheticWarRoomPlansForWindow(
-    DateTime? startUtc,
-    DateTime? endUtc,
-  ) {
-    final scopedEvents = _eventsScopedToWindow(startUtc, endUtc);
+  List<MonitoringWatchAutonomyActionPlan> _syntheticWarRoomPlansForStoredReport(
+    SovereignReport report, {
+    bool includeMemory = true,
+  }) {
     return _syntheticWarRoomService.buildSimulationPlans(
-      events: scopedEvents,
+      events: _eventsScopedToWindow(
+        report.shiftWindowStartUtc,
+        report.shiftWindowEndUtc,
+      ),
       sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+      historicalLearningLabels: includeMemory
+          ? _syntheticHistoricalLearningLabelsForStoredReport(report)
+          : const <String>[],
     );
+  }
+
+  List<String> _syntheticHistoricalLearningLabelsForStoredReport(
+    SovereignReport report,
+  ) {
+    final baseline = widget.morningSovereignReportHistory
+        .where(
+          (item) =>
+              item.date.trim() != report.date.trim() &&
+              item.generatedAtUtc.isBefore(report.generatedAtUtc),
+        )
+        .toList(growable: false)
+      ..sort((left, right) => right.generatedAtUtc.compareTo(left.generatedAtUtc));
+    return baseline
+        .take(3)
+        .map(
+          (item) => _syntheticWarRoomLearningLabel(
+            _syntheticWarRoomPlansForStoredReport(item, includeMemory: false),
+          ),
+        )
+        .where((label) => label.trim().isNotEmpty)
+        .toList(growable: false);
+  }
+
+  List<String> _syntheticHistoricalLearningLabelsForView(
+    _GovernanceReportView report,
+  ) {
+    final generatedAtUtc = report.generatedAtUtc;
+    final baseline = widget.morningSovereignReportHistory
+        .where((item) {
+          if (item.date.trim() == report.reportDate.trim()) {
+            return false;
+          }
+          if (generatedAtUtc == null) {
+            return true;
+          }
+          return item.generatedAtUtc.isBefore(generatedAtUtc);
+        })
+        .toList(growable: false)
+      ..sort((left, right) => right.generatedAtUtc.compareTo(left.generatedAtUtc));
+    return baseline
+        .take(3)
+        .map(
+          (item) => _syntheticWarRoomLearningLabel(
+            _syntheticWarRoomPlansForStoredReport(item, includeMemory: false),
+          ),
+        )
+        .where((label) => label.trim().isNotEmpty)
+        .toList(growable: false);
+  }
+
+  String _syntheticWarRoomLearningLabel(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    return plans
+        .map((plan) => (plan.metadata['learning_label'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
   }
 
   String _syntheticWarRoomLearningMemorySummary(

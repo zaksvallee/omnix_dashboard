@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 import 'package:omnix_dashboard/application/monitoring_synthetic_war_room_service.dart';
+import 'package:omnix_dashboard/application/monitoring_watch_action_plan.dart';
 import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 
@@ -195,6 +196,57 @@ void main() {
       expect(
         policy.description,
         'Recommend rehearsing earlier fire brigade staging, occupant welfare checks, and fire spread rehearsal across REGION-GAUTENG after simulation so tomorrow’s shift starts ahead of the posture curve. Learned bias: stage fire response one step earlier next shift.',
+      );
+    });
+
+    test('boosts synthetic policy priority when memory bias repeats', () {
+      final events = <DispatchEvent>[
+        _intel(
+          id: 'intel-fire-memory',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-VALLEE',
+          riskScore: 90,
+          cameraId: 'generator-room-cam',
+          headline: 'HIKVISION FIRE ALERT',
+          summary: 'Smoke visible in the generator room.',
+        ),
+      ];
+      final reviews = <String, MonitoringSceneReviewRecord>{
+        'intel-fire-memory': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-fire-memory',
+          sourceLabel: 'openai:gpt-5.4-mini',
+          postureLabel: 'fire and smoke emergency',
+          decisionLabel: 'Escalation Candidate',
+          decisionSummary:
+              'Escalated for urgent review because fire or smoke indicators were detected.',
+          summary: 'Smoke plume visible inside the generator room.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 23, 0),
+        ),
+      };
+
+      final plans = service.buildSimulationPlans(
+        events: events,
+        sceneReviewByIntelligenceId: reviews,
+        videoOpsLabel: 'Hikvision',
+        historicalLearningLabels: const <String>[
+          'ADVANCE FIRE',
+          'ADVANCE FIRE',
+        ],
+      );
+
+      final policy = plans.firstWhere(
+        (entry) => entry.actionType == 'POLICY RECOMMENDATION',
+      );
+      expect(policy.priority, MonitoringWatchAutonomyPriority.critical);
+      expect(policy.metadata['memory_repeat_count'], '2');
+      expect(policy.metadata['memory_priority_boost'], 'CRITICAL');
+      expect(
+        policy.metadata['memory_summary'],
+        'Memory bias: ADVANCE FIRE repeated in 2 recent shifts.',
+      );
+      expect(
+        policy.description,
+        contains('Memory bias: ADVANCE FIRE repeated in 2 recent shifts.'),
       );
     });
   });

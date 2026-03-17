@@ -5636,7 +5636,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }
 
   List<MonitoringWatchAutonomyActionPlan> _syntheticWarRoomPlansForReport(
-    SovereignReport report,
+    SovereignReport report, {
+    bool includeMemory = true,
+  }
   ) {
     final scopedEvents = _eventsScopedToWindow(
       report.shiftWindowStartUtc,
@@ -5646,7 +5648,32 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       events: scopedEvents,
       sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
       videoOpsLabel: _activeVideoOpsLabel,
+      historicalLearningLabels: includeMemory
+          ? _syntheticHistoricalLearningLabelsForReport(report)
+          : const <String>[],
     );
+  }
+
+  List<String> _syntheticHistoricalLearningLabelsForReport(
+    SovereignReport report,
+  ) {
+    final baseline = _morningSovereignReportHistory
+        .where(
+          (item) =>
+              item.date.trim() != report.date.trim() &&
+              item.generatedAtUtc.isBefore(report.generatedAtUtc),
+        )
+        .toList(growable: false)
+      ..sort((left, right) => right.generatedAtUtc.compareTo(left.generatedAtUtc));
+    return baseline
+        .take(3)
+        .map(
+          (item) => _syntheticWarRoomLearningLabel(
+            _syntheticWarRoomPlansForReport(item, includeMemory: false),
+          ),
+        )
+        .where((label) => label.trim().isNotEmpty)
+        .toList(growable: false);
   }
 
   String _syntheticWarRoomModeLabel(
@@ -5754,7 +5781,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         .where(
           (item) =>
               _syntheticWarRoomLearningLabel(
-                _syntheticWarRoomPlansForReport(item),
+                _syntheticWarRoomPlansForReport(item, includeMemory: false),
               ) ==
               label,
         )

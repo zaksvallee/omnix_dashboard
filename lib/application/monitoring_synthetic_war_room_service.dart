@@ -21,6 +21,7 @@ class MonitoringSyntheticWarRoomService {
     required List<DispatchEvent> events,
     required Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId,
     String videoOpsLabel = 'CCTV',
+    List<String> historicalLearningLabels = const <String>[],
   }) {
     final snapshot = _globalPostureService.buildSnapshot(
       events: events,
@@ -114,6 +115,21 @@ class MonitoringSyntheticWarRoomService {
           hasExternalPressure: hasExternalPressure,
           hazardSignal: hazardSignal,
         );
+        final repeatedLearningCount = learningSignal.label.trim().isEmpty
+            ? 0
+            : historicalLearningLabels
+                .where((label) => label.trim() == learningSignal.label)
+                .length;
+        final policyPriority = repeatedLearningCount >= 2
+            ? MonitoringWatchAutonomyPriority.critical
+            : repeatedLearningCount == 1
+            ? MonitoringWatchAutonomyPriority.high
+            : MonitoringWatchAutonomyPriority.medium;
+        final memorySummary = repeatedLearningCount <= 0
+            ? ''
+            : repeatedLearningCount == 1
+            ? 'Memory bias: ${learningSignal.label} repeated in the previous shift.'
+            : 'Memory bias: ${learningSignal.label} repeated in $repeatedLearningCount recent shifts.';
         final recommendation = hazardSignal.isNotEmpty
             ? _hazardDirectiveService
                 .buildForSignal(
@@ -131,10 +147,10 @@ class MonitoringSyntheticWarRoomService {
             id: 'SIM-POLICY-${region.regionId}',
             incidentId: leadSite.siteId,
             siteId: leadSite.siteId,
-            priority: MonitoringWatchAutonomyPriority.medium,
+            priority: policyPriority,
             actionType: 'POLICY RECOMMENDATION',
             description:
-                'Recommend rehearsing $recommendation across ${region.regionId} after simulation so tomorrow’s shift starts ahead of the posture curve. ${learningSignal.summary}',
+                'Recommend rehearsing $recommendation across ${region.regionId} after simulation so tomorrow’s shift starts ahead of the posture curve. ${learningSignal.summary}${memorySummary.isEmpty ? '' : ' $memorySummary'}',
             countdownSeconds: 64,
             metadata: <String, String>{
               'mode': 'SIMULATION',
@@ -144,6 +160,11 @@ class MonitoringSyntheticWarRoomService {
               'recommendation': recommendation,
               'learning_label': learningSignal.label,
               'learning_summary': learningSignal.summary,
+              'memory_repeat_count': repeatedLearningCount.toString(),
+              'memory_priority_boost': repeatedLearningCount <= 0
+                  ? 'NONE'
+                  : policyPriority.name.toUpperCase(),
+              if (memorySummary.isNotEmpty) 'memory_summary': memorySummary,
               'top_intent': topIntent?.actionType ?? 'NONE',
               if (hazardSignal.isNotEmpty) 'hazard_signal': hazardSignal,
             },
