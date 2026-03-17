@@ -48,6 +48,16 @@ class ClientTelegramEndpointTarget {
   });
 }
 
+class ClientTelegramScopeTarget {
+  final String clientId;
+  final String siteId;
+
+  const ClientTelegramScopeTarget({
+    required this.clientId,
+    required this.siteId,
+  });
+}
+
 class SupabaseClientMessagingBridgeRepository {
   final SupabaseClient client;
 
@@ -158,6 +168,31 @@ class SupabaseClientMessagingBridgeRepository {
       );
     }
     return targets;
+  }
+
+  Future<List<ClientTelegramScopeTarget>> readActiveTelegramScopes() async {
+    final rowsRaw = await client
+        .from('client_messaging_endpoints')
+        .select('client_id, site_id')
+        .eq('provider', 'telegram')
+        .eq('is_active', true)
+        .order('created_at');
+    final rows = List<Map<String, dynamic>>.from(rowsRaw);
+    final dedupe = <String>{};
+    final scopes = <ClientTelegramScopeTarget>[];
+    for (final row in rows) {
+      final clientId = (row['client_id'] ?? '').toString().trim();
+      final siteId = (row['site_id'] ?? '').toString().trim();
+      if (clientId.isEmpty || siteId.isEmpty) {
+        continue;
+      }
+      final key = '$clientId|$siteId';
+      if (!dedupe.add(key)) {
+        continue;
+      }
+      scopes.add(ClientTelegramScopeTarget(clientId: clientId, siteId: siteId));
+    }
+    return scopes;
   }
 
   Future<int> deactivateTelegramEndpointsByChat({

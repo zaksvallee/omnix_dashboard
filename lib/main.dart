@@ -5217,6 +5217,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     await _persistMorningSovereignReport();
     await _persistMorningSovereignReportHistory();
     await _persistMorningSovereignReportAutoRunKey();
+    if (automated) {
+      await _autoSendMorningSiteActivityDigests();
+    }
     await _recordGuardExportAuditEvent(
       exportType: 'morning_sovereign_report',
       payload: {
@@ -5227,6 +5230,45 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'auto_generated': automated,
       },
     );
+  }
+
+  Future<void> _autoSendMorningSiteActivityDigests() async {
+    if (!_telegramBridge.isConfigured) {
+      return;
+    }
+    final scopes = <ClientTelegramScopeTarget>[];
+    if (widget.supabaseReady) {
+      try {
+        final repository = SupabaseClientMessagingBridgeRepository(
+          Supabase.instance.client,
+        );
+        scopes.addAll(await repository.readActiveTelegramScopes());
+      } catch (_) {
+        // Fall back to the current target when scope enumeration is unavailable.
+      }
+    }
+    if (scopes.isEmpty &&
+        _telegramAdminTargetClientId.trim().isNotEmpty &&
+        _telegramAdminTargetSiteId.trim().isNotEmpty) {
+      scopes.add(
+        ClientTelegramScopeTarget(
+          clientId: _telegramAdminTargetClientId,
+          siteId: _telegramAdminTargetSiteId,
+        ),
+      );
+    }
+    for (final scope in scopes) {
+      try {
+        await _deliverSiteActivityTelegramSummary(
+          clientId: scope.clientId,
+          siteId: scope.siteId,
+          sendClient: true,
+          sendPartner: true,
+        );
+      } catch (_) {
+        // Automatic digest delivery must not block morning report generation.
+      }
+    }
   }
 
   // ignore: unused_element
