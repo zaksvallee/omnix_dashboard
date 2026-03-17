@@ -6598,6 +6598,27 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return _singleLine(segments.join(' • '), maxLength: 220);
   }
 
+  String _syntheticWarRoomShadowPostureBiasSummaryForPlan(
+    MonitoringWatchAutonomyActionPlan? plan,
+  ) {
+    final postureBias = (plan?.metadata['shadow_posture_bias'] ?? '').trim();
+    final posturePriority = (plan?.metadata['shadow_posture_priority'] ?? '')
+        .trim();
+    final postureCountdown = (plan?.metadata['shadow_posture_countdown'] ?? '')
+        .trim();
+    if (postureBias.isEmpty &&
+        posturePriority.isEmpty &&
+        postureCountdown.isEmpty) {
+      return '';
+    }
+    final segments = <String>[
+      if (postureBias.isNotEmpty) postureBias,
+      if (posturePriority.isNotEmpty) posturePriority,
+      if (postureCountdown.isNotEmpty) '${postureCountdown}s',
+    ];
+    return _singleLine(segments.join(' • '), maxLength: 220);
+  }
+
   String _hazardSignalLabel(String signal) {
     return switch (signal.trim().toLowerCase()) {
       'fire' => 'fire',
@@ -7284,6 +7305,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           previousShadowTomorrowUrgencySummary,
       'shadowLearningSummary': _syntheticWarRoomShadowLearningSummary(plans),
       'shadowMemorySummary': _syntheticWarRoomShadowMemorySummary(plans),
+      'shadowPostureBiasSummary':
+          _syntheticWarRoomShadowPostureBiasSummaryForPlan(
+            leadPolicyPlan?.id.isEmpty ?? true ? null : leadPolicyPlan,
+          ),
       'promotionSummary': _syntheticWarRoomPromotionSummary(
         plans,
         shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
@@ -7401,6 +7426,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               'shadowMemorySummary': _syntheticWarRoomShadowMemorySummary(
                 itemPlans,
               ),
+              'shadowPostureBiasSummary':
+                  _syntheticWarRoomShadowPostureBiasSummaryForPlan(
+                    itemPolicyPlan.id.isEmpty ? null : itemPolicyPlan,
+                  ),
               'promotionSummary': _syntheticWarRoomPromotionSummary(
                 itemPlans,
                 shadowTomorrowUrgencySummary: itemShadowTomorrowUrgencySummary,
@@ -7470,6 +7499,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'previous_shadow_tomorrow_urgency_summary,"${(payload['previousShadowTomorrowUrgencySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'shadow_learning_summary,"${(payload['shadowLearningSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'shadow_memory_summary,"${(payload['shadowMemorySummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'shadow_posture_bias_summary,"${(payload['shadowPostureBiasSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'promotion_summary,"${(payload['promotionSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'promotion_target_status,${payload['promotionTargetStatus'] ?? ''}',
       'promotion_decision_status,${payload['promotionDecisionStatus'] ?? ''}',
@@ -7535,6 +7565,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       lines.add(
         'history_${i + 1}_shadow_memory_summary,"${(row['shadowMemorySummary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add(
+        'history_${i + 1}_shadow_posture_bias_summary,"${(row['shadowPostureBiasSummary'] ?? '').toString().replaceAll('"', '""')}"',
       );
       lines.add(
         'history_${i + 1}_promotion_summary,"${(row['promotionSummary'] ?? '').toString().replaceAll('"', '""')}"',
@@ -18030,6 +18063,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final shadowMemorySummary = (payload['shadowMemorySummary'] ?? '')
         .toString()
         .trim();
+    final shadowPostureBiasSummary =
+        (payload['shadowPostureBiasSummary'] ?? '').toString().trim();
     final promotionSummary = (payload['promotionSummary'] ?? '')
         .toString()
         .trim();
@@ -18073,6 +18108,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         ChatCaseFileHistoryField(
           inputKey: 'shadowTomorrowUrgencySummary',
           outputKey: 'shadow_tomorrow_urgency_summary',
+        ),
+        ChatCaseFileHistoryField(
+          inputKey: 'shadowPostureBiasSummary',
+          outputKey: 'shadow_posture_bias_summary',
         ),
         ChatCaseFileHistoryField(
           inputKey: 'promotionSummary',
@@ -18123,6 +18162,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           ChatCaseFileHeaderField(
             key: 'shadow_memory_summary',
             value: shadowMemorySummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'shadow_posture_bias_summary',
+            value: shadowPostureBiasSummary,
           ),
           ChatCaseFileHeaderField(
             key: 'promotion_summary',
@@ -18193,6 +18236,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         ChatCaseFileHeaderField(
           key: 'shadow_memory_summary',
           value: shadowMemorySummary,
+        ),
+        ChatCaseFileHeaderField(
+          key: 'shadow_posture_bias_summary',
+          value: shadowPostureBiasSummary,
         ),
         ChatCaseFileHeaderField(
           key: 'promotion_summary',

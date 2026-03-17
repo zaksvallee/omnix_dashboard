@@ -4959,6 +4959,10 @@ void main() {
     );
     expect(
       copiedPayload,
+      contains('synthetic_war_room_shadow_posture_bias_summary,""'),
+    );
+    expect(
+      copiedPayload,
       contains('synthetic_war_room_shadow_validation_summary,""'),
     );
     expect(
