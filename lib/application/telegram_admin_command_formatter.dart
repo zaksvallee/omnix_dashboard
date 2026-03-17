@@ -85,6 +85,8 @@ class TelegramAdminCommandFormatter {
     String? globalReadinessTomorrowPostureSummary,
     String? globalReadinessTomorrowShadowSummary,
     String? globalReadinessShadowSummary,
+    String? globalReadinessShadowHistoryHeadline,
+    String? globalReadinessShadowHistorySummary,
     String? currentShiftShadowReviewCommand,
     String? currentShiftShadowCaseFileCommand,
     String? previousShiftShadowReviewCommand,
@@ -144,6 +146,10 @@ class TelegramAdminCommandFormatter {
         globalReadinessTomorrowShadowSummary?.trim() ?? '';
     final readinessShadowSummary =
         globalReadinessShadowSummary?.trim() ?? '';
+    final readinessShadowHistoryHeadline =
+        globalReadinessShadowHistoryHeadline?.trim() ?? '';
+    final readinessShadowHistorySummary =
+        globalReadinessShadowHistorySummary?.trim() ?? '';
     final shadowReview = currentShiftShadowReviewCommand?.trim() ?? '';
     final shadowCase = currentShiftShadowCaseFileCommand?.trim() ?? '';
     final previousShadowReview =
@@ -216,6 +222,8 @@ class TelegramAdminCommandFormatter {
               '${readinessHazardSummary.isEmpty ? '' : '• <b>Hazard lane:</b> ${_escapeHtml(readinessHazardSummary)}\n'}'
               '${readinessShadowBiasSummary.isEmpty ? '' : '• <b>Shadow bias:</b> ${_escapeHtml(readinessShadowBiasSummary)}\n'}'
               '${readinessShadowSummary.isEmpty ? '' : '• <b>Shadow intelligence:</b> ${_escapeHtml(readinessShadowSummary)}\n'}'
+              '${readinessShadowHistoryHeadline.isEmpty ? '' : '• <b>Shadow trend:</b> ${_escapeHtml(readinessShadowHistoryHeadline)}\n'}'
+              '${readinessShadowHistorySummary.isEmpty ? '' : '• <b>Shadow history:</b> ${_escapeHtml(readinessShadowHistorySummary)}\n'}'
               '${shadowReview.isEmpty ? '' : '• <b>Shadow review:</b> <code>${_escapeHtml(shadowReview)}</code>\n'}'
               '${shadowCase.isEmpty ? '' : '• <b>Shadow case:</b> <code>${_escapeHtml(shadowCase)}</code>\n'}'
               '${previousShadowReview.isEmpty ? '' : '• <b>Previous shadow review:</b> <code>${_escapeHtml(previousShadowReview)}</code>\n'}'

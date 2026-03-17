@@ -3083,6 +3083,56 @@ class _GovernancePageState extends State<GovernancePage> {
         .toList(growable: false);
   }
 
+  ({String headline, String summary}) _shadowMoHistoryForView(
+    _GovernanceReportView report,
+  ) {
+    final currentSnapshot = _globalReadinessSnapshotForReport(report);
+    final currentSites = currentSnapshot.sites
+        .where((site) => site.moShadowMatchCount > 0)
+        .toList(growable: false);
+    final currentMatchCount = currentSites.fold<int>(
+      0,
+      (current, site) => current + site.moShadowMatchCount,
+    );
+    final reportGeneratedAtUtc = report.generatedAtUtc ?? DateTime.now().toUtc();
+    final baselineReports = widget.morningSovereignReportHistory
+        .where(
+          (item) =>
+              item.date.trim() != report.reportDate.trim() &&
+              item.generatedAtUtc.isBefore(reportGeneratedAtUtc),
+        )
+        .toList(growable: false)
+      ..sort((left, right) => right.generatedAtUtc.compareTo(left.generatedAtUtc));
+    final baseline = baselineReports
+        .take(3)
+        .map((item) {
+          final snapshot = _globalReadinessSnapshotForWindow(
+            item.shiftWindowStartUtc,
+            item.shiftWindowEndUtc,
+            generatedAtUtc: item.generatedAtUtc,
+          );
+          return snapshot.sites.fold<int>(
+            0,
+            (current, site) => current + site.moShadowMatchCount,
+          );
+        })
+        .toList(growable: false);
+    final baselineAverage = baseline.isEmpty
+        ? null
+        : baseline.reduce((left, right) => left + right) / baseline.length;
+    final headline = baselineAverage == null
+        ? 'NEW • 1d'
+        : currentMatchCount > baselineAverage
+        ? 'RISING • ${baseline.length + 1}d'
+        : currentMatchCount < baselineAverage
+        ? 'EASING • ${baseline.length + 1}d'
+        : 'STABLE • ${baseline.length + 1}d';
+    final summary = baselineAverage == null
+        ? 'Current matches $currentMatchCount • Baseline n/a • No prior shadow-MO history is available yet.'
+        : 'Current matches $currentMatchCount • Baseline ${baselineAverage.toStringAsFixed(1)} • ${currentMatchCount > baselineAverage ? 'Shadow-MO match pressure is increasing against recent shifts.' : currentMatchCount < baselineAverage ? 'Shadow-MO match pressure eased against recent shifts.' : 'Shadow-MO match pressure is holding close to the recent baseline.'}';
+    return (headline: headline, summary: summary);
+  }
+
   List<DispatchEvent> _eventsScopedToWindow(
     DateTime? startUtcValue,
     DateTime? endUtcValue,
@@ -10458,6 +10508,7 @@ class _GovernancePageState extends State<GovernancePage> {
     final shadowSites = globalReadinessSnapshot.sites
         .where((site) => site.moShadowMatchCount > 0)
         .toList(growable: false);
+    final shadowHistory = _shadowMoHistoryForView(report);
     final previousShadowReportDate = widget.morningSovereignReportHistory
         .where((item) => item.date.trim() != report.reportDate.trim())
         .map((item) => item.date.trim())
@@ -10541,6 +10592,8 @@ class _GovernancePageState extends State<GovernancePage> {
             'summary': shadowSites.isEmpty
                 ? ''
                 : '${shadowSites.length} sites • ${shadowSites.first.moShadowSummary}',
+            'historyHeadline': shadowHistory.headline,
+            'historySummary': shadowHistory.summary,
             'reviewShortcuts': buildReviewShortcuts(
               currentReportDate: report.reportDate,
               previousReportDate: previousShadowReportDate.isEmpty
@@ -10772,6 +10825,7 @@ class _GovernancePageState extends State<GovernancePage> {
     final shadowSites = globalReadinessSnapshot.sites
         .where((site) => site.moShadowMatchCount > 0)
         .toList(growable: false);
+    final shadowHistory = _shadowMoHistoryForView(report);
     final previousShadowReportDate = widget.morningSovereignReportHistory
         .where((item) => item.date.trim() != report.reportDate.trim())
         .map((item) => item.date.trim())
@@ -10838,6 +10892,8 @@ class _GovernancePageState extends State<GovernancePage> {
       'global_readiness_tomorrow_review_command,/tomorrowreview ${report.reportDate}',
       'global_readiness_tomorrow_case_file_command,/tomorrowcase json ${report.reportDate}',
       'global_readiness_shadow_summary,"${(shadowSites.isEmpty ? '' : '${shadowSites.length} sites • ${shadowSites.first.moShadowSummary}').replaceAll('"', '""')}"',
+      'global_readiness_shadow_history_headline,"${shadowHistory.headline.replaceAll('"', '""')}"',
+      'global_readiness_shadow_history_summary,"${shadowHistory.summary.replaceAll('"', '""')}"',
       'global_readiness_focus_state,${_globalReadinessFocusState(report)}',
       'global_readiness_historical_focus,${_isHistoricalGlobalReadinessFocus(report)}',
       'global_readiness_focus_summary,"${_globalReadinessFocusSummary(report).replaceAll('"', '""')}"',

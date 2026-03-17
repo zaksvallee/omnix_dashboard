@@ -4486,6 +4486,13 @@ void main() {
       copiedPayload,
       contains('"currentShiftCaseFileCommand": "/shadowcase json 2026-03-10"'),
     );
+    expect(copiedPayload, contains('"historyHeadline": "STABLE • 2d"'));
+    expect(
+      copiedPayload,
+      contains(
+        '"historySummary": "Current matches 0 • Baseline 0.0 • Shadow-MO match pressure is holding close to the recent baseline."',
+      ),
+    );
     expect(copiedPayload, contains('"planCount": 0'));
     expect(copiedPayload, contains('"policyCount": 0'));
     expect(copiedPayload, contains('"modeLabel": "QUIET REHEARSAL"'));
@@ -4626,6 +4633,16 @@ void main() {
       copiedPayload,
       contains(
         'global_readiness_shadow_case_file_command,/shadowcase json 2026-03-10',
+      ),
+    );
+    expect(
+      copiedPayload,
+      contains('global_readiness_shadow_history_headline,"STABLE • 2d"'),
+    );
+    expect(
+      copiedPayload,
+      contains(
+        'global_readiness_shadow_history_summary,"Current matches 0 • Baseline 0.0 • Shadow-MO match pressure is holding close to the recent baseline."',
       ),
     );
     expect(copiedPayload, contains('synthetic_war_room_plan_count,0'));

@@ -134,6 +134,9 @@ void main() {
           'HARDEN ACCESS • site-alpha • Contractors moved floor to floor in office park • x1',
       globalReadinessShadowSummary:
           'Sites 1 • Matches 2 • SITE-ALPHA • service impersonation and roaming concern',
+      globalReadinessShadowHistoryHeadline: 'RISING • 3d',
+      globalReadinessShadowHistorySummary:
+          'Current matches 2 • Baseline 0.0 • Shadow-MO match pressure is increasing against recent shifts.',
       currentShiftShadowReviewCommand: '/shadowreview 2026-03-17',
       currentShiftShadowCaseFileCommand: '/shadowcase json 2026-03-17',
       previousShiftShadowReviewCommand: '/shadowreview 2026-03-16',
@@ -222,6 +225,13 @@ void main() {
       response,
       contains(
         '<b>Shadow intelligence:</b> Sites 1 • Matches 2 • SITE-ALPHA • service impersonation and roaming concern',
+      ),
+    );
+    expect(response, contains('<b>Shadow trend:</b> RISING • 3d'));
+    expect(
+      response,
+      contains(
+        '<b>Shadow history:</b> Current matches 2 • Baseline 0.0 • Shadow-MO match pressure is increasing against recent shifts.',
       ),
     );
     expect(response, contains('<code>/shadowreview 2026-03-17</code>'));
