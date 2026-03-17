@@ -1,5 +1,6 @@
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/intelligence_received.dart';
+import 'hazard_response_directive_service.dart';
 import 'monitoring_global_posture_service.dart';
 import 'monitoring_scene_review_store.dart';
 import 'monitoring_watch_action_plan.dart';
@@ -8,6 +9,7 @@ class MonitoringOrchestratorService {
   const MonitoringOrchestratorService();
 
   static const _globalPostureService = MonitoringGlobalPostureService();
+  static const _hazardDirectiveService = HazardResponseDirectiveService();
 
   List<MonitoringWatchAutonomyActionPlan> buildActionIntents({
     required List<DispatchEvent> events,
@@ -43,6 +45,17 @@ class MonitoringOrchestratorService {
           leadSite.dominantSignals.contains('water_leak');
       final hasEnvironmentalHazardPressure =
           leadSite.dominantSignals.contains('environment_hazard');
+      final hazardSignal = hasFirePressure
+          ? 'fire'
+          : hasWaterLeakPressure
+          ? 'water_leak'
+          : hasEnvironmentalHazardPressure
+          ? 'environment_hazard'
+          : '';
+      final hazardDirectives = _hazardDirectiveService.buildForSignal(
+        signal: hazardSignal,
+        siteName: leadSite.siteId,
+      );
 
       if (hasFirePressure || hasWaterLeakPressure || hasEnvironmentalHazardPressure) {
         actionIntents.add(
@@ -51,16 +64,11 @@ class MonitoringOrchestratorService {
             incidentId: latest?.intelligenceId ?? leadSite.siteId,
             siteId: leadSite.siteId,
             priority: MonitoringWatchAutonomyPriority.critical,
-            actionType: hasFirePressure
-                ? 'ACTIVATE FIRE PLAYBOOK'
-                : hasWaterLeakPressure
-                ? 'ACTIVATE LEAK PLAYBOOK'
-                : 'ACTIVATE HAZARD PLAYBOOK',
-            description: hasFirePressure
-                ? 'Lock ${videoOpsLabel.toUpperCase()} fire verification on ${leadSite.siteId}, pre-stage emergency response, and raise a client safety warning before spread compounds.'
-                : hasWaterLeakPressure
-                ? 'Lock ${videoOpsLabel.toUpperCase()} leak verification on ${leadSite.siteId}, pre-stage containment, and raise a client safety warning before water loss compounds.'
-                : 'Lock ${videoOpsLabel.toUpperCase()} hazard verification on ${leadSite.siteId}, pre-stage site safety response, and raise a client warning before conditions worsen.',
+            actionType: hazardDirectives.playbookActionType,
+            description: hazardDirectives.playbookDescription.replaceAll(
+              'CCTV',
+              videoOpsLabel.toUpperCase(),
+            ),
             countdownSeconds: hasFirePressure
                 ? 6
                 : hasWaterLeakPressure
@@ -72,11 +80,7 @@ class MonitoringOrchestratorService {
               'region': region.regionId,
               'lead_site': leadSite.siteId,
               'heat': region.heatLevel.name.toUpperCase(),
-              'hazard_signal': hasFirePressure
-                  ? 'fire'
-                  : hasWaterLeakPressure
-                  ? 'water_leak'
-                  : 'environment_hazard',
+              'hazard_signal': hazardSignal,
               'signals': leadSite.dominantSignals.join(', '),
             },
           ),
@@ -88,16 +92,11 @@ class MonitoringOrchestratorService {
             incidentId: latest?.intelligenceId ?? leadSite.siteId,
             siteId: leadSite.siteId,
             priority: MonitoringWatchAutonomyPriority.critical,
-            actionType: hasFirePressure
-                ? 'DISPATCH FIRE RESPONSE'
-                : hasWaterLeakPressure
-                ? 'DISPATCH LEAK RESPONSE'
-                : 'DISPATCH SAFETY RESPONSE',
-            description: hasFirePressure
-                ? 'Stage fire response for ${leadSite.siteId}, hold ${videoOpsLabel.toUpperCase()} smoke verification, and keep the client safety call hot while spread risk is still containable.'
-                : hasWaterLeakPressure
-                ? 'Stage leak containment for ${leadSite.siteId}, hold ${videoOpsLabel.toUpperCase()} water-loss verification, and move before pooling damages the site.'
-                : 'Stage site safety response for ${leadSite.siteId}, hold ${videoOpsLabel.toUpperCase()} hazard verification, and move before conditions worsen for people on site.',
+            actionType: hazardDirectives.dispatchActionType,
+            description: hazardDirectives.dispatchPlanDescription.replaceAll(
+              'CCTV',
+              videoOpsLabel.toUpperCase(),
+            ),
             countdownSeconds: hasFirePressure
                 ? 4
                 : hasWaterLeakPressure
@@ -108,16 +107,8 @@ class MonitoringOrchestratorService {
               'scope': 'ORCHESTRATOR',
               'region': region.regionId,
               'lead_site': leadSite.siteId,
-              'hazard_signal': hasFirePressure
-                  ? 'fire'
-                  : hasWaterLeakPressure
-                  ? 'water_leak'
-                  : 'environment_hazard',
-              'response_policy': hasFirePressure
-                  ? 'fire_emergency_dispatch'
-                  : hasWaterLeakPressure
-                  ? 'leak_containment_dispatch'
-                  : 'hazard_safety_dispatch',
+              'hazard_signal': hazardSignal,
+              'response_policy': hazardDirectives.responsePolicy,
             },
           ),
         );
@@ -129,11 +120,7 @@ class MonitoringOrchestratorService {
             siteId: leadSite.siteId,
             priority: MonitoringWatchAutonomyPriority.high,
             actionType: 'TRIGGER OCCUPANT WELFARE CHECK',
-            description: hasFirePressure
-                ? 'Trigger immediate occupant welfare verification for ${leadSite.siteId} while fire response staging is underway.'
-                : hasWaterLeakPressure
-                ? 'Trigger immediate occupant welfare verification for ${leadSite.siteId} while leak containment staging is underway.'
-                : 'Trigger immediate occupant welfare verification for ${leadSite.siteId} while the safety response is staging.',
+            description: hazardDirectives.welfarePlanDescription,
             countdownSeconds: hasFirePressure
                 ? 7
                 : hasWaterLeakPressure
@@ -144,11 +131,7 @@ class MonitoringOrchestratorService {
               'scope': 'ORCHESTRATOR',
               'region': region.regionId,
               'lead_site': leadSite.siteId,
-              'hazard_signal': hasFirePressure
-                  ? 'fire'
-                  : hasWaterLeakPressure
-                  ? 'water_leak'
-                  : 'environment_hazard',
+              'hazard_signal': hazardSignal,
               'response_policy': 'occupant_welfare_check',
             },
           ),
@@ -264,11 +247,7 @@ class MonitoringOrchestratorService {
             siteId: leadSite.siteId,
             priority: MonitoringWatchAutonomyPriority.high,
             actionType: 'DRAFT SAFETY WARNING',
-            description: hasFirePressure
-                ? 'Prepare a client and operator fire safety warning for ${leadSite.siteId} with emergency evidence held for human veto.'
-                : hasWaterLeakPressure
-                ? 'Prepare a client and operator leak safety warning for ${leadSite.siteId} with containment evidence held for human veto.'
-                : 'Prepare a client and operator hazard safety warning for ${leadSite.siteId} with evidence held for human veto.',
+            description: hazardDirectives.safetyWarningDescription,
             countdownSeconds: hasFirePressure
                 ? 10
                 : hasWaterLeakPressure
@@ -279,11 +258,7 @@ class MonitoringOrchestratorService {
               'scope': 'ORCHESTRATOR',
               'region': region.regionId,
               'lead_site': leadSite.siteId,
-              'hazard_signal': hasFirePressure
-                  ? 'fire'
-                  : hasWaterLeakPressure
-                  ? 'water_leak'
-                  : 'environment_hazard',
+              'hazard_signal': hazardSignal,
             },
           ),
         );

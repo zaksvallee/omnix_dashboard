@@ -180,15 +180,34 @@ void main() {
       );
       expect(playbook.priority, MonitoringWatchAutonomyPriority.critical);
       expect(playbook.metadata['hazard_signal'], 'fire');
+      expect(
+        playbook.description,
+        'Lock HIKVISION fire verification on SITE-VALLEE, pre-stage emergency response, and raise a client safety warning before spread compounds.',
+      );
       final dispatch = intents.firstWhere(
         (entry) => entry.actionType == 'DISPATCH FIRE RESPONSE',
       );
       expect(dispatch.priority, MonitoringWatchAutonomyPriority.critical);
       expect(dispatch.metadata['response_policy'], 'fire_emergency_dispatch');
+      expect(
+        dispatch.description,
+        'Stage fire response for SITE-VALLEE, hold HIKVISION smoke verification, and keep the client safety call hot while spread risk is still containable.',
+      );
       final welfare = intents.firstWhere(
         (entry) => entry.actionType == 'TRIGGER OCCUPANT WELFARE CHECK',
       );
       expect(welfare.metadata['response_policy'], 'occupant_welfare_check');
+      expect(
+        welfare.description,
+        'Trigger immediate occupant welfare verification for SITE-VALLEE while fire response staging is underway.',
+      );
+      final safetyWarning = intents.firstWhere(
+        (entry) => entry.actionType == 'DRAFT SAFETY WARNING',
+      );
+      expect(
+        safetyWarning.description,
+        'Prepare a client and operator fire safety warning for SITE-VALLEE with emergency evidence held for human veto.',
+      );
     });
   });
 }

@@ -1,4 +1,5 @@
 import '../domain/events/dispatch_event.dart';
+import 'hazard_response_directive_service.dart';
 import 'monitoring_global_posture_service.dart';
 import 'monitoring_orchestrator_service.dart';
 import 'monitoring_scene_review_store.dart';
@@ -9,6 +10,7 @@ class MonitoringSyntheticWarRoomService {
 
   static const _globalPostureService = MonitoringGlobalPostureService();
   static const _orchestratorService = MonitoringOrchestratorService();
+  static const _hazardDirectiveService = HazardResponseDirectiveService();
   static const _externalPressureSignals = <String>{
     'news_pressure',
     'community_watch',
@@ -99,12 +101,20 @@ class MonitoringSyntheticWarRoomService {
           hasFirePressure ||
           hasWaterLeakPressure ||
           hasEnvironmentalHazardPressure) {
-        final recommendation = hasFirePressure
-            ? 'earlier fire brigade staging, occupant welfare checks, and fire spread rehearsal'
+        final hazardSignal = hasFirePressure
+            ? 'fire'
             : hasWaterLeakPressure
-            ? 'earlier leak containment dispatch, occupant welfare checks, and water-loss rehearsal'
+            ? 'water_leak'
             : hasEnvironmentalHazardPressure
-            ? 'earlier safety dispatch, occupant welfare checks, and hazard isolation rehearsal'
+            ? 'environment_hazard'
+            : '';
+        final recommendation = hazardSignal.isNotEmpty
+            ? _hazardDirectiveService
+                .buildForSignal(
+                  signal: hazardSignal,
+                  siteName: leadSite.siteId,
+                )
+                .syntheticRecommendation
             : hasExternalPressure
             ? 'earlier regional readiness before external pressure lands on-site'
             : posturalEchoCount > 0
@@ -127,10 +137,7 @@ class MonitoringSyntheticWarRoomService {
               'lead_site': leadSite.siteId,
               'recommendation': recommendation,
               'top_intent': topIntent?.actionType ?? 'NONE',
-              if (hasFirePressure) 'hazard_signal': 'fire',
-              if (hasWaterLeakPressure) 'hazard_signal': 'water_leak',
-              if (hasEnvironmentalHazardPressure)
-                'hazard_signal': 'environment_hazard',
+              if (hazardSignal.isNotEmpty) 'hazard_signal': hazardSignal,
             },
           ),
         );
