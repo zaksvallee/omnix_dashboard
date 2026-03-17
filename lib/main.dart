@@ -17507,8 +17507,43 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final previousCaseFileCommand = (payload['previousCaseFileCommand'] ?? '')
         .toString()
         .trim();
+    final historyRows =
+        ((payload['history'] as List<Object?>?) ?? const <Object?>[])
+            .cast<Map<String, Object?>>();
+    final historyText = historyRows.asMap().entries.map((entry) {
+      final index = entry.key + 1;
+      final row = entry.value;
+      final buffer = StringBuffer();
+      final reportDate = (row['reportDate'] ?? '').toString().trim();
+      final promotionSummary = (row['promotionSummary'] ?? '')
+          .toString()
+          .trim();
+      final promotionDecisionStatus = (row['promotionDecisionStatus'] ?? '')
+          .toString()
+          .trim();
+      final promotionDecisionSummary = (row['promotionDecisionSummary'] ?? '')
+          .toString()
+          .trim();
+      if (reportDate.isNotEmpty) {
+        buffer.write('history_${index}_report_date=$reportDate\n');
+      }
+      if (promotionSummary.isNotEmpty) {
+        buffer.write('history_${index}_promotion_summary=$promotionSummary\n');
+      }
+      if (promotionDecisionStatus.isNotEmpty) {
+        buffer.write(
+          'history_${index}_promotion_decision_status=$promotionDecisionStatus\n',
+        );
+      }
+      if (promotionDecisionSummary.isNotEmpty) {
+        buffer.write(
+          'history_${index}_promotion_decision_summary=$promotionDecisionSummary\n',
+        );
+      }
+      return buffer.toString();
+    }).join();
     if (format == 'csv') {
-      return 'ONYX SYNTHETICCASE CSV\n'
+      final header = 'ONYX SYNTHETICCASE CSV\n'
           'report_date=${report.date}\n'
           '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
           '${hazardSummary.isEmpty ? '' : 'hazard_summary=$hazardSummary\n'}'
@@ -17523,10 +17558,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           '${biasSummary.isEmpty ? '' : 'bias_summary=$biasSummary\n'}'
           'review_command=$reviewCommand\n'
           '${previousReviewCommand.isEmpty ? '' : 'previous_review_command=$previousReviewCommand\n'}'
-          '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}'
-          '${_syntheticWarRoomCaseFileCsv(reportDate: report.date)}';
+          '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}';
+      return '$header$historyText${_syntheticWarRoomCaseFileCsv(reportDate: report.date)}';
     }
-    return 'ONYX SYNTHETICCASE JSON\n'
+    final header = 'ONYX SYNTHETICCASE JSON\n'
         'report_date=${report.date}\n'
         '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
         '${hazardSummary.isEmpty ? '' : 'hazard_summary=$hazardSummary\n'}'
@@ -17541,8 +17576,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '${biasSummary.isEmpty ? '' : 'bias_summary=$biasSummary\n'}'
         'review_command=$reviewCommand\n'
         '${previousReviewCommand.isEmpty ? '' : 'previous_review_command=$previousReviewCommand\n'}'
-        '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}'
-        '${const JsonEncoder.withIndent('  ').convert(payload)}';
+        '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}';
+    return '$header$historyText${const JsonEncoder.withIndent('  ').convert(payload)}';
   }
 
   String _telegramAdminShadowReviewCommand(String arguments) {
