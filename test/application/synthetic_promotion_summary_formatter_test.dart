@@ -94,6 +94,43 @@ void main() {
       );
     });
 
+    test('learning and shadow summary helpers read plan metadata', () {
+      final plans = <MonitoringWatchAutonomyActionPlan>[
+        const MonitoringWatchAutonomyActionPlan(
+          id: 'SIM-1',
+          incidentId: 'SITE-1',
+          siteId: 'SITE-1',
+          priority: MonitoringWatchAutonomyPriority.high,
+          actionType: 'POLICY RECOMMENDATION',
+          description: 'desc',
+          countdownSeconds: 22,
+          metadata: <String, String>{
+            'learning_label': 'HARDEN ACCESS EARLIER',
+            'learning_summary': 'Learned bias: start checks sooner.',
+            'shadow_learning_summary': 'Shadow lesson: watch contractor drift.',
+            'shadow_memory_summary': 'Shadow bias: HARDEN ACCESS',
+          },
+        ),
+      ];
+
+      expect(
+        buildSyntheticLearningLabelFromPlans(plans: plans),
+        'HARDEN ACCESS EARLIER',
+      );
+      expect(
+        buildSyntheticLearningSummaryFromPlans(plans: plans),
+        'Learned bias: start checks sooner.',
+      );
+      expect(
+        buildSyntheticShadowLearningSummaryFromPlans(plans: plans),
+        'Shadow lesson: watch contractor drift.',
+      );
+      expect(
+        buildSyntheticShadowMemorySummaryFromPlans(plans: plans),
+        'Shadow bias: HARDEN ACCESS',
+      );
+    });
+
     test('buildSyntheticPromotionSummaryFromPlans reads base summary from plan metadata', () {
       final plans = <MonitoringWatchAutonomyActionPlan>[
         const MonitoringWatchAutonomyActionPlan(

@@ -3037,46 +3037,19 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
 
   String _syntheticWarRoomLearningSummary(
     List<MonitoringWatchAutonomyActionPlan> plans,
-  ) {
-    return plans
-        .map(
-          (plan) => (plan.metadata['learning_summary'] ?? '').toString().trim(),
-        )
-        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
-  }
+  ) => buildSyntheticLearningSummaryFromPlans(plans: plans);
 
   String _syntheticWarRoomLearningLabel(
     List<MonitoringWatchAutonomyActionPlan> plans,
-  ) {
-    return plans
-        .map(
-          (plan) => (plan.metadata['learning_label'] ?? '').toString().trim(),
-        )
-        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
-  }
+  ) => buildSyntheticLearningLabelFromPlans(plans: plans);
 
   String _syntheticWarRoomShadowLearningSummary(
     List<MonitoringWatchAutonomyActionPlan> plans,
-  ) {
-    return plans
-        .map(
-          (plan) => (plan.metadata['shadow_learning_summary'] ?? '')
-              .toString()
-              .trim(),
-        )
-        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
-  }
+  ) => buildSyntheticShadowLearningSummaryFromPlans(plans: plans);
 
   String _syntheticWarRoomShadowMemorySummary(
     List<MonitoringWatchAutonomyActionPlan> plans,
-  ) {
-    return plans
-        .map(
-          (plan) =>
-              (plan.metadata['shadow_memory_summary'] ?? '').toString().trim(),
-        )
-        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
-  }
+  ) => buildSyntheticShadowMemorySummaryFromPlans(plans: plans);
 
   String _syntheticWarRoomPromotionSummary(
     List<MonitoringWatchAutonomyActionPlan> plans, {

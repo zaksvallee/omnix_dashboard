@@ -4667,11 +4667,7 @@ class _GovernancePageState extends State<GovernancePage> {
 
   String _syntheticWarRoomLearningLabel(
     List<MonitoringWatchAutonomyActionPlan> plans,
-  ) {
-    return plans
-        .map((plan) => (plan.metadata['learning_label'] ?? '').trim())
-        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
-  }
+  ) => buildSyntheticLearningLabelFromPlans(plans: plans);
 
   String _syntheticWarRoomLearningMemorySummary(
     List<_SyntheticWarRoomHistoryPoint> history,
@@ -4731,19 +4727,11 @@ class _GovernancePageState extends State<GovernancePage> {
 
   String _syntheticWarRoomShadowLearningSummary(
     List<MonitoringWatchAutonomyActionPlan> plans,
-  ) {
-    return plans
-        .map((plan) => (plan.metadata['shadow_learning_summary'] ?? '').trim())
-        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
-  }
+  ) => buildSyntheticShadowLearningSummaryFromPlans(plans: plans);
 
   String _syntheticWarRoomShadowMemorySummary(
     List<MonitoringWatchAutonomyActionPlan> plans,
-  ) {
-    return plans
-        .map((plan) => (plan.metadata['shadow_memory_summary'] ?? '').trim())
-        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
-  }
+  ) => buildSyntheticShadowMemorySummaryFromPlans(plans: plans);
 
   String _syntheticWarRoomShadowTomorrowUrgencySummaryForReport(
     _GovernanceReportView report,

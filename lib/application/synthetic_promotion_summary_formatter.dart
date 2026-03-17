@@ -28,6 +28,22 @@ String buildSyntheticPromotionDecisionStatusFromPlans({
   return decisionStatusLookup(moId);
 }
 
+String buildSyntheticLearningSummaryFromPlans({
+  required List<MonitoringWatchAutonomyActionPlan> plans,
+}) => _firstSyntheticPlanMetadata(plans, 'learning_summary');
+
+String buildSyntheticLearningLabelFromPlans({
+  required List<MonitoringWatchAutonomyActionPlan> plans,
+}) => _firstSyntheticPlanMetadata(plans, 'learning_label');
+
+String buildSyntheticShadowLearningSummaryFromPlans({
+  required List<MonitoringWatchAutonomyActionPlan> plans,
+}) => _firstSyntheticPlanMetadata(plans, 'shadow_learning_summary');
+
+String buildSyntheticShadowMemorySummaryFromPlans({
+  required List<MonitoringWatchAutonomyActionPlan> plans,
+}) => _firstSyntheticPlanMetadata(plans, 'shadow_memory_summary');
+
 String buildSyntheticShadowPostureBiasSummaryForPlan({
   MonitoringWatchAutonomyActionPlan? plan,
 }) {
