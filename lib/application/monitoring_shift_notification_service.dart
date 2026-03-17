@@ -292,27 +292,22 @@ class MonitoringShiftNotificationService {
   }
 
   bool _isFireEmergency(MonitoringIncidentUpdate incident) {
-    final posture = incident.postureLabel.trim().toLowerCase();
-    final object = incident.objectLabel.trim().toLowerCase();
-    return posture.contains('fire') ||
-        posture.contains('smoke') ||
-        object == 'fire' ||
-        object == 'smoke';
+    return _hazardSignalFor(incident) == 'fire';
   }
 
   bool _isLeakEmergency(MonitoringIncidentUpdate incident) {
-    final posture = incident.postureLabel.trim().toLowerCase();
-    final object = incident.objectLabel.trim().toLowerCase();
-    return posture.contains('flood') ||
-        posture.contains('leak') ||
-        object == 'water' ||
-        object == 'leak';
+    return _hazardSignalFor(incident) == 'water_leak';
   }
 
   bool _isEnvironmentHazard(MonitoringIncidentUpdate incident) {
-    final posture = incident.postureLabel.trim().toLowerCase();
-    final object = incident.objectLabel.trim().toLowerCase();
-    return posture.contains('hazard') || object == 'equipment';
+    return _hazardSignalFor(incident) == 'environment_hazard';
+  }
+
+  String _hazardSignalFor(MonitoringIncidentUpdate incident) {
+    return _hazardDirectiveService.hazardSignal(
+      postureLabel: incident.postureLabel,
+      objectLabel: incident.objectLabel,
+    );
   }
 
   String _incidentLeadLine(MonitoringIncidentUpdate incident) {
