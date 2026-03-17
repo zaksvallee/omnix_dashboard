@@ -18010,6 +18010,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
     final hazardSummary = (payload['hazardSummary'] ?? '').toString().trim();
     final shadowSummary = (payload['shadowSummary'] ?? '').toString().trim();
+    final shadowPostureSummary = (payload['shadowPostureSummary'] ?? '')
+        .toString()
+        .trim();
     final shadowValidationSummary = (payload['shadowValidationSummary'] ?? '')
         .toString()
         .trim();
@@ -18064,6 +18067,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           outputKey: 'shadow_validation_summary',
         ),
         ChatCaseFileHistoryField(
+          inputKey: 'shadowPostureSummary',
+          outputKey: 'shadow_posture_summary',
+        ),
+        ChatCaseFileHistoryField(
           inputKey: 'shadowTomorrowUrgencySummary',
           outputKey: 'shadow_tomorrow_urgency_summary',
         ),
@@ -18089,6 +18096,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
           ChatCaseFileHeaderField(key: 'hazard_summary', value: hazardSummary),
           ChatCaseFileHeaderField(key: 'shadow_summary', value: shadowSummary),
+          ChatCaseFileHeaderField(
+            key: 'shadow_posture_summary',
+            value: shadowPostureSummary,
+          ),
           ChatCaseFileHeaderField(
             key: 'shadow_validation_summary',
             value: shadowValidationSummary,
@@ -18155,6 +18166,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
         ChatCaseFileHeaderField(key: 'hazard_summary', value: hazardSummary),
         ChatCaseFileHeaderField(key: 'shadow_summary', value: shadowSummary),
+        ChatCaseFileHeaderField(
+          key: 'shadow_posture_summary',
+          value: shadowPostureSummary,
+        ),
         ChatCaseFileHeaderField(
           key: 'shadow_validation_summary',
           value: shadowValidationSummary,
@@ -18552,6 +18567,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final payload = _tomorrowPostureCaseFilePayload(reportDate: report.date);
     final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
     final shadowSummary = (payload['shadowSummary'] ?? '').toString().trim();
+    final shadowPostureSummary = (payload['shadowPostureSummary'] ?? '')
+        .toString()
+        .trim();
     final urgencySummary = (payload['urgencySummary'] ?? '').toString().trim();
     final historyRows =
         ((payload['history'] as List<Object?>?) ?? const <Object?>[])
@@ -18567,6 +18585,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         ChatCaseFileHistoryField(
           inputKey: 'shadowSummary',
           outputKey: 'shadow_summary',
+        ),
+        ChatCaseFileHistoryField(
+          inputKey: 'shadowPostureSummary',
+          outputKey: 'shadow_posture_summary',
         ),
         ChatCaseFileHistoryField(
           inputKey: 'urgencySummary',
@@ -18594,6 +18616,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
           ChatCaseFileHeaderField(key: 'shadow_summary', value: shadowSummary),
           ChatCaseFileHeaderField(
+            key: 'shadow_posture_summary',
+            value: shadowPostureSummary,
+          ),
+          ChatCaseFileHeaderField(
             key: 'urgency_summary',
             value: urgencySummary,
           ),
@@ -18611,6 +18637,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         ChatCaseFileHeaderField(key: 'report_date', value: report.date),
         ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
         ChatCaseFileHeaderField(key: 'shadow_summary', value: shadowSummary),
+        ChatCaseFileHeaderField(
+          key: 'shadow_posture_summary',
+          value: shadowPostureSummary,
+        ),
         ChatCaseFileHeaderField(key: 'urgency_summary', value: urgencySummary),
         ChatCaseFileHeaderField(
           key: 'review_command',

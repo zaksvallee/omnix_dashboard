@@ -66,6 +66,45 @@ void main() {
     expect(text, isNot(contains('history_2_review_command=')));
   });
 
+  test('buildChatCaseFileHistoryText preserves shadow posture fields', () {
+    final text = buildChatCaseFileHistoryText(
+      rows: const [
+        <String, Object?>{
+          'reportDate': '2026-03-17',
+          'shadowSummary': 'HARDEN ACCESS • SITE-ALPHA',
+          'shadowPostureSummary': 'weight 41 • elevated heat • activity 88',
+          'urgencySummary': 'strength rising • critical • 22s',
+        },
+      ],
+      fields: const [
+        ChatCaseFileHistoryField(
+          inputKey: 'reportDate',
+          outputKey: 'report_date',
+        ),
+        ChatCaseFileHistoryField(
+          inputKey: 'shadowSummary',
+          outputKey: 'shadow_summary',
+        ),
+        ChatCaseFileHistoryField(
+          inputKey: 'shadowPostureSummary',
+          outputKey: 'shadow_posture_summary',
+        ),
+        ChatCaseFileHistoryField(
+          inputKey: 'urgencySummary',
+          outputKey: 'urgency_summary',
+        ),
+      ],
+    );
+
+    expect(
+      text,
+      'history_1_report_date=2026-03-17\n'
+      'history_1_shadow_summary=HARDEN ACCESS • SITE-ALPHA\n'
+      'history_1_shadow_posture_summary=weight 41 • elevated heat • activity 88\n'
+      'history_1_urgency_summary=strength rising • critical • 22s\n',
+    );
+  });
+
   test('buildPromotionShadowHeaderFields preserves promotion anchor order', () {
     final header = buildChatCaseFileHeader(
       title: 'ONYX SYNTHETICCASE JSON',
