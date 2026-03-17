@@ -6013,6 +6013,33 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             (left, right) =>
                 right.generatedAtUtc.compareTo(left.generatedAtUtc),
           );
+    final baseline = history.take(3).toList(growable: false);
+    final baselinePressure = baseline.isEmpty
+        ? null
+        : baseline
+                  .map((item) {
+                    final itemPlans = _syntheticWarRoomPlansForReport(item);
+                    final itemPolicyCount = itemPlans
+                        .where(
+                          (plan) =>
+                              plan.actionType == 'POLICY RECOMMENDATION',
+                        )
+                        .length;
+                    return itemPlans.length + itemPolicyCount;
+                  })
+                  .reduce((left, right) => left + right) /
+              baseline.length;
+    final currentPressure = plans.length + policyPlans.length;
+    final historyHeadline = baselinePressure == null
+        ? 'NEW • ${history.isEmpty ? 1 : history.take(3).length + 1}d'
+        : currentPressure >= baselinePressure + 1
+        ? 'RISING • ${history.take(3).length + 1}d'
+        : currentPressure <= baselinePressure - 1
+        ? 'EASING • ${history.take(3).length + 1}d'
+        : 'STABLE • ${history.take(3).length + 1}d';
+    final historySummary = baselinePressure == null
+        ? 'Current pressure $currentPressure • Baseline n/a • No prior synthetic rehearsal history is available yet.'
+        : 'Current pressure $currentPressure • Baseline ${baselinePressure.toStringAsFixed(1)} • ${currentPressure >= baselinePressure + 1 ? 'Synthetic rehearsal is recommending stronger action than recent shifts.' : currentPressure <= baselinePressure - 1 ? 'Synthetic rehearsal pressure eased against recent shifts.' : 'Synthetic rehearsal pressure is holding close to the recent baseline.'}';
     return <String, Object?>{
       'reportDate': report.date,
       'available': true,
@@ -6032,6 +6059,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           (leadPlan?.metadata['top_intent'] ?? '').toString().trim(),
       'reviewCommand': '/syntheticreview ${report.date}',
       'caseFileCommand': '/syntheticcase json ${report.date}',
+      'historyHeadline': historyHeadline,
+      'historySummary': historySummary,
       'plans': plans
           .take(5)
           .map(
@@ -6093,6 +6122,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'top_intent_summary,"${(payload['topIntentSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'review_command,${payload['reviewCommand'] ?? ''}',
       'case_file_command,${payload['caseFileCommand'] ?? ''}',
+      'history_headline,"${(payload['historyHeadline'] ?? '').toString().replaceAll('"', '""')}"',
+      'history_summary,"${(payload['historySummary'] ?? '').toString().replaceAll('"', '""')}"',
     ];
     final plans = (payload['plans'] as List<Object?>?) ?? const [];
     for (var i = 0; i < plans.length; i += 1) {
