@@ -44,6 +44,37 @@ String buildSyntheticShadowMemorySummaryFromPlans({
   required List<MonitoringWatchAutonomyActionPlan> plans,
 }) => _firstSyntheticPlanMetadata(plans, 'shadow_memory_summary');
 
+String buildSyntheticShadowSummaryFromPlans({
+  required List<MonitoringWatchAutonomyActionPlan> plans,
+}) {
+  final plan = plans.firstWhere(
+    (entry) => (entry.metadata['shadow_mo_label'] ?? '').trim().isNotEmpty,
+    orElse: () => const MonitoringWatchAutonomyActionPlan(
+      id: '',
+      incidentId: '',
+      siteId: '',
+      priority: MonitoringWatchAutonomyPriority.medium,
+      actionType: '',
+      description: '',
+      countdownSeconds: 0,
+    ),
+  );
+  if (plan.id.isEmpty) {
+    return '';
+  }
+  final leadSite = (plan.metadata['lead_site'] ?? plan.siteId).trim();
+  final shadowLabel = (plan.metadata['shadow_mo_label'] ?? '').trim();
+  final shadowTitle = (plan.metadata['shadow_mo_title'] ?? '').trim();
+  final repeatCount = (plan.metadata['shadow_mo_repeat_count'] ?? '').trim();
+  final parts = <String>[
+    if (shadowLabel.isNotEmpty) shadowLabel,
+    if (leadSite.isNotEmpty) leadSite,
+    if (shadowTitle.isNotEmpty) shadowTitle,
+    if (repeatCount.isNotEmpty && repeatCount != '0') 'x$repeatCount',
+  ];
+  return parts.join(' • ');
+}
+
 String buildSyntheticShadowPostureBiasSummaryForPlan({
   MonitoringWatchAutonomyActionPlan? plan,
 }) {

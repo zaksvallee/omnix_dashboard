@@ -129,6 +129,35 @@ void main() {
         buildSyntheticShadowMemorySummaryFromPlans(plans: plans),
         'Shadow bias: HARDEN ACCESS',
       );
+      expect(
+        buildSyntheticShadowSummaryFromPlans(plans: plans),
+        '',
+      );
+    });
+
+    test('buildSyntheticShadowSummaryFromPlans reads shadow label context', () {
+      final plans = <MonitoringWatchAutonomyActionPlan>[
+        const MonitoringWatchAutonomyActionPlan(
+          id: 'SIM-1',
+          incidentId: 'SITE-1',
+          siteId: 'SITE-1',
+          priority: MonitoringWatchAutonomyPriority.high,
+          actionType: 'POLICY RECOMMENDATION',
+          description: 'desc',
+          countdownSeconds: 22,
+          metadata: <String, String>{
+            'lead_site': 'SITE-ALPHA',
+            'shadow_mo_label': 'HARDEN ACCESS',
+            'shadow_mo_title': 'Office contractor roaming',
+            'shadow_mo_repeat_count': '2',
+          },
+        ),
+      ];
+
+      expect(
+        buildSyntheticShadowSummaryFromPlans(plans: plans),
+        'HARDEN ACCESS • SITE-ALPHA • Office contractor roaming • x2',
+      );
     });
 
     test('buildSyntheticPromotionSummaryFromPlans reads base summary from plan metadata', () {
