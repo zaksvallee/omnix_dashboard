@@ -111,4 +111,33 @@ void main() {
       '\nshadow_selected_event_id=evt-office-1\n',
     );
   });
+
+  test('buildChatReviewHeaderFields preserves order and optional fields', () {
+    final header = buildChatCaseFileHeader(
+      title: 'ONYX SHADOWREVIEW',
+      fields: buildChatReviewHeaderFields(
+        reportDate: '2026-03-17',
+        summary: 'Shadow MO pressure rising',
+        focusSummary: 'Viewing command-targeted shift.',
+        historyHeadline: 'RISING • 3d',
+        historySummary: 'Shadow-MO pressure is increasing.',
+        caseFileCommand: '/shadowcase json 2026-03-17',
+        reviewRefs: const ['intel-1', 'intel-2'],
+        eventCount: 2,
+      ),
+    );
+
+    expect(
+      header,
+      'ONYX SHADOWREVIEW\n'
+      'report_date=2026-03-17\n'
+      'summary=Shadow MO pressure rising\n'
+      'focus_summary=Viewing command-targeted shift.\n'
+      'history_headline=RISING • 3d\n'
+      'history_summary=Shadow-MO pressure is increasing.\n'
+      'review_refs=intel-1, intel-2\n'
+      'case_file_command=/shadowcase json 2026-03-17\n'
+      'events=2\n',
+    );
+  });
 }

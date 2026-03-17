@@ -17708,33 +17708,33 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       return '${buildChatCaseFileHeader(
         title: 'ONYX READINESSREVIEW',
-        fields: [
-          ChatCaseFileHeaderField(key: 'report_date', value: report.date),
-          ChatCaseFileHeaderField(key: 'mode', value: _globalReadinessModeLabel(snapshot, intents)),
-          ChatCaseFileHeaderField(
-            key: 'summary',
-            value: _globalReadinessSummaryForReport(snapshot: snapshot, intents: intents),
+        fields: buildChatReviewHeaderFields(
+          reportDate: report.date,
+          mode: _globalReadinessModeLabel(snapshot, intents),
+          summary: _globalReadinessSummaryForReport(
+            snapshot: snapshot,
+            intents: intents,
           ),
-          ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
-          ChatCaseFileHeaderField(key: 'review_refs', value: reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', ')),
-          ChatCaseFileHeaderField(key: 'governance_command', value: '/readinessgovernance ${report.date}'),
-          ChatCaseFileHeaderField(key: 'events', value: eventIds.length.toString()),
-        ],
+          focusSummary: focusSummary,
+          governanceCommand: '/readinessgovernance ${report.date}',
+          reviewRefs: reviewRefs,
+          eventCount: eventIds.length,
+        ),
       )}Opening Events Review for global readiness evidence.';
     }
     _openGovernanceForReportDate(report.date);
     return '${buildChatCaseFileHeader(
       title: 'ONYX READINESSREVIEW',
-      fields: [
-        ChatCaseFileHeaderField(key: 'report_date', value: report.date),
-        ChatCaseFileHeaderField(key: 'mode', value: _globalReadinessModeLabel(snapshot, intents)),
-        ChatCaseFileHeaderField(
-          key: 'summary',
-          value: _globalReadinessSummaryForReport(snapshot: snapshot, intents: intents),
+      fields: buildChatReviewHeaderFields(
+        reportDate: report.date,
+        mode: _globalReadinessModeLabel(snapshot, intents),
+        summary: _globalReadinessSummaryForReport(
+          snapshot: snapshot,
+          intents: intents,
         ),
-        ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
-        ChatCaseFileHeaderField(key: 'governance_command', value: '/readinessgovernance ${report.date}'),
-      ],
+        focusSummary: focusSummary,
+        governanceCommand: '/readinessgovernance ${report.date}',
+      ),
     )}Opening Governance for global readiness oversight.';
   }
 
@@ -17919,30 +17919,30 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       return '${buildChatCaseFileHeader(
         title: 'ONYX SYNTHETICREVIEW',
-        fields: [
-          ChatCaseFileHeaderField(key: 'report_date', value: report.date),
-          ChatCaseFileHeaderField(key: 'mode', value: _syntheticWarRoomModeLabel(plans)),
-          ChatCaseFileHeaderField(key: 'summary', value: _syntheticWarRoomSummary(plans)),
-          ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
-          ChatCaseFileHeaderField(key: 'learning_summary', value: learningSummary),
-          ChatCaseFileHeaderField(key: 'learning_memory_summary', value: learningMemorySummary),
-          ChatCaseFileHeaderField(key: 'review_refs', value: reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', ')),
-          ChatCaseFileHeaderField(key: 'case_file_command', value: '/syntheticcase json ${report.date}'),
-        ],
+        fields: buildChatReviewHeaderFields(
+          reportDate: report.date,
+          mode: _syntheticWarRoomModeLabel(plans),
+          summary: _syntheticWarRoomSummary(plans),
+          focusSummary: focusSummary,
+          learningSummary: learningSummary,
+          learningMemorySummary: learningMemorySummary,
+          caseFileCommand: '/syntheticcase json ${report.date}',
+          reviewRefs: reviewRefs,
+        ),
       )}Opening Events Review for synthetic war-room evidence.';
     }
     _openGovernanceForReportDate(report.date);
     return '${buildChatCaseFileHeader(
       title: 'ONYX SYNTHETICREVIEW',
-      fields: [
-        ChatCaseFileHeaderField(key: 'report_date', value: report.date),
-        ChatCaseFileHeaderField(key: 'mode', value: _syntheticWarRoomModeLabel(plans)),
-        ChatCaseFileHeaderField(key: 'summary', value: _syntheticWarRoomSummary(plans)),
-        ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
-        ChatCaseFileHeaderField(key: 'learning_summary', value: learningSummary),
-        ChatCaseFileHeaderField(key: 'learning_memory_summary', value: learningMemorySummary),
-        ChatCaseFileHeaderField(key: 'case_file_command', value: '/syntheticcase json ${report.date}'),
-      ],
+      fields: buildChatReviewHeaderFields(
+        reportDate: report.date,
+        mode: _syntheticWarRoomModeLabel(plans),
+        summary: _syntheticWarRoomSummary(plans),
+        focusSummary: focusSummary,
+        learningSummary: learningSummary,
+        learningMemorySummary: learningMemorySummary,
+        caseFileCommand: '/syntheticcase json ${report.date}',
+      ),
     )}Opening Governance for synthetic war-room oversight.';
   }
 
@@ -18216,29 +18216,29 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       return '${buildChatCaseFileHeader(
         title: 'ONYX SHADOWREVIEW',
-        fields: [
-          ChatCaseFileHeaderField(key: 'report_date', value: report.date),
-          ChatCaseFileHeaderField(key: 'summary', value: (payload['summary'] ?? '').toString()),
-          ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
-          ChatCaseFileHeaderField(key: 'history_headline', value: historyHeadline),
-          ChatCaseFileHeaderField(key: 'history_summary', value: historySummary),
-          ChatCaseFileHeaderField(key: 'review_refs', value: reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', ')),
-          ChatCaseFileHeaderField(key: 'case_file_command', value: '/shadowcase json ${report.date}'),
-          ChatCaseFileHeaderField(key: 'events', value: eventIds.length.toString()),
-        ],
+        fields: buildChatReviewHeaderFields(
+          reportDate: report.date,
+          summary: (payload['summary'] ?? '').toString(),
+          focusSummary: focusSummary,
+          historyHeadline: historyHeadline,
+          historySummary: historySummary,
+          caseFileCommand: '/shadowcase json ${report.date}',
+          reviewRefs: reviewRefs,
+          eventCount: eventIds.length,
+        ),
       )}Opening Events Review for shadow MO evidence.';
     }
     _openGovernanceForReportDate(report.date);
     return '${buildChatCaseFileHeader(
       title: 'ONYX SHADOWREVIEW',
-      fields: [
-        ChatCaseFileHeaderField(key: 'report_date', value: report.date),
-        ChatCaseFileHeaderField(key: 'summary', value: (payload['summary'] ?? '').toString()),
-        ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
-        ChatCaseFileHeaderField(key: 'history_headline', value: historyHeadline),
-        ChatCaseFileHeaderField(key: 'history_summary', value: historySummary),
-        ChatCaseFileHeaderField(key: 'case_file_command', value: '/shadowcase json ${report.date}'),
-      ],
+      fields: buildChatReviewHeaderFields(
+        reportDate: report.date,
+        summary: (payload['summary'] ?? '').toString(),
+        focusSummary: focusSummary,
+        historyHeadline: historyHeadline,
+        historySummary: historySummary,
+        caseFileCommand: '/shadowcase json ${report.date}',
+      ),
     )}Opening Governance for shadow MO oversight.';
   }
 
@@ -18462,31 +18462,31 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       return '${buildChatCaseFileHeader(
         title: 'ONYX TOMORROWREVIEW',
-        fields: [
-          ChatCaseFileHeaderField(key: 'report_date', value: report.date),
-          ChatCaseFileHeaderField(key: 'summary', value: (payload['summary'] ?? '').toString()),
-          ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
-          ChatCaseFileHeaderField(key: 'shadow_summary', value: shadowSummary),
-          ChatCaseFileHeaderField(key: 'urgency_summary', value: urgencySummary),
-          ChatCaseFileHeaderField(key: 'review_refs', value: reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', ')),
-          ChatCaseFileHeaderField(key: 'case_file_command', value: '/tomorrowcase json ${report.date}'),
-          ChatCaseFileHeaderField(key: 'governance_command', value: '/readinessgovernance ${report.date}'),
-          ChatCaseFileHeaderField(key: 'events', value: eventIds.length.toString()),
-        ],
+        fields: buildChatReviewHeaderFields(
+          reportDate: report.date,
+          summary: (payload['summary'] ?? '').toString(),
+          focusSummary: focusSummary,
+          shadowSummary: shadowSummary,
+          urgencySummary: urgencySummary,
+          caseFileCommand: '/tomorrowcase json ${report.date}',
+          governanceCommand: '/readinessgovernance ${report.date}',
+          reviewRefs: reviewRefs,
+          eventCount: eventIds.length,
+        ),
       )}Opening Events Review for tomorrow-posture evidence.';
     }
     _openGovernanceForReportDate(report.date);
     return '${buildChatCaseFileHeader(
       title: 'ONYX TOMORROWREVIEW',
-      fields: [
-        ChatCaseFileHeaderField(key: 'report_date', value: report.date),
-        ChatCaseFileHeaderField(key: 'summary', value: (payload['summary'] ?? '').toString()),
-        ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
-        ChatCaseFileHeaderField(key: 'shadow_summary', value: shadowSummary),
-        ChatCaseFileHeaderField(key: 'urgency_summary', value: urgencySummary),
-        ChatCaseFileHeaderField(key: 'case_file_command', value: '/tomorrowcase json ${report.date}'),
-        ChatCaseFileHeaderField(key: 'governance_command', value: '/readinessgovernance ${report.date}'),
-      ],
+      fields: buildChatReviewHeaderFields(
+        reportDate: report.date,
+        summary: (payload['summary'] ?? '').toString(),
+        focusSummary: focusSummary,
+        shadowSummary: shadowSummary,
+        urgencySummary: urgencySummary,
+        caseFileCommand: '/tomorrowcase json ${report.date}',
+        governanceCommand: '/readinessgovernance ${report.date}',
+      ),
     )}Opening Governance for tomorrow-posture oversight.';
   }
 

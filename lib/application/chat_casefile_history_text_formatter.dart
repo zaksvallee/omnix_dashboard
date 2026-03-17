@@ -98,6 +98,51 @@ String buildPromotionShadowFieldText({
   );
 }
 
+List<ChatCaseFileHeaderField> buildChatReviewHeaderFields({
+  required String reportDate,
+  String mode = '',
+  String summary = '',
+  String focusSummary = '',
+  String learningSummary = '',
+  String learningMemorySummary = '',
+  String historyHeadline = '',
+  String historySummary = '',
+  String shadowSummary = '',
+  String urgencySummary = '',
+  String caseFileCommand = '',
+  String governanceCommand = '',
+  List<String>? reviewRefs,
+  int? eventCount,
+}) {
+  return <ChatCaseFileHeaderField>[
+    ChatCaseFileHeaderField(key: 'report_date', value: reportDate),
+    ChatCaseFileHeaderField(key: 'mode', value: mode),
+    ChatCaseFileHeaderField(key: 'summary', value: summary),
+    ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
+    ChatCaseFileHeaderField(key: 'learning_summary', value: learningSummary),
+    ChatCaseFileHeaderField(
+      key: 'learning_memory_summary',
+      value: learningMemorySummary,
+    ),
+    ChatCaseFileHeaderField(key: 'history_headline', value: historyHeadline),
+    ChatCaseFileHeaderField(key: 'history_summary', value: historySummary),
+    ChatCaseFileHeaderField(key: 'shadow_summary', value: shadowSummary),
+    ChatCaseFileHeaderField(key: 'urgency_summary', value: urgencySummary),
+    if (reviewRefs != null)
+      ChatCaseFileHeaderField(
+        key: 'review_refs',
+        value: reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', '),
+      ),
+    ChatCaseFileHeaderField(key: 'case_file_command', value: caseFileCommand),
+    ChatCaseFileHeaderField(
+      key: 'governance_command',
+      value: governanceCommand,
+    ),
+    if (eventCount != null)
+      ChatCaseFileHeaderField(key: 'events', value: eventCount.toString()),
+  ];
+}
+
 String buildChatCaseFileHistoryText({
   required List<Map<String, Object?>> rows,
   required List<ChatCaseFileHistoryField> fields,
