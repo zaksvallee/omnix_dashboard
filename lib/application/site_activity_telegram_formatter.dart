@@ -12,6 +12,7 @@ class SiteActivityTelegramFormatter {
     bool includeEvidenceHandoff = false,
     String? reviewCommandHint,
     String? caseFileHint,
+    List<String> historyReviewHints = const <String>[],
   }) {
     final lines = <String>[
       if ((siteLabel ?? '').trim().isNotEmpty)
@@ -84,6 +85,12 @@ class SiteActivityTelegramFormatter {
     }
     if ((reviewCommandHint ?? '').trim().isNotEmpty) {
       lines.add('Open review: ${reviewCommandHint!.trim()}');
+    }
+    for (final hint in historyReviewHints) {
+      final trimmed = hint.trim();
+      if (trimmed.isNotEmpty) {
+        lines.add(trimmed);
+      }
     }
     if ((caseFileHint ?? '').trim().isNotEmpty) {
       lines.add('Case file: ${caseFileHint!.trim()}');

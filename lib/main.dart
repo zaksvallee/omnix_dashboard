@@ -11074,6 +11074,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       siteId: normalizedSiteId,
     );
     final trend = _siteActivityTrendSnapshotFor(snapshot);
+    final historyReviewHints = includeReviewCommandHint
+        ? _siteActivityHistoricalReviewHintsForScope(
+            clientId: normalizedClientId,
+            siteId: normalizedSiteId,
+          )
+        : const <String>[];
     return _siteActivityTelegramFormatter.formatSummary(
       snapshot: snapshot,
       siteLabel: siteProfile.siteName,
@@ -11084,10 +11090,33 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       reviewCommandHint: includeReviewCommandHint
           ? '/activityreview $normalizedClientId $normalizedSiteId'
           : null,
+      historyReviewHints: historyReviewHints,
       caseFileHint: includeCaseFileHint
           ? '/activitycase $normalizedClientId $normalizedSiteId'
           : null,
     );
+  }
+
+  List<String> _siteActivityHistoricalReviewHintsForScope({
+    required String clientId,
+    required String siteId,
+  }) {
+    final history = _siteActivityHistoryPointsForScope(
+      clientId: clientId,
+      siteId: siteId,
+    );
+    if (history.isEmpty) {
+      return const <String>[];
+    }
+    final hints = <String>[
+      'Current shift: /activityreview $clientId $siteId ${history.first.reportDate}',
+    ];
+    if (history.length > 1) {
+      hints.add(
+        'Previous shift: /activityreview $clientId $siteId ${history[1].reportDate}',
+      );
+    }
+    return hints;
   }
 
   bool _looksLikeSiteActivityReportDate(String value) {
