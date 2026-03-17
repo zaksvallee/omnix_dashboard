@@ -1369,6 +1369,19 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               'Shadow',
               '$shadowLabel${shadowRepeatCount.isEmpty ? '' : ' • x$shadowRepeatCount'}',
             ),
+          if ((leadDraft.metadata['shadow_strength_bias'] ?? '')
+              .trim()
+              .isNotEmpty)
+            _metaRow(
+              'Urgency',
+              [
+                (leadDraft.metadata['shadow_strength_bias'] ?? '').trim(),
+                if ((leadDraft.metadata['shadow_strength_priority'] ?? '')
+                    .trim()
+                    .isNotEmpty)
+                  (leadDraft.metadata['shadow_strength_priority'] ?? '').trim(),
+              ].join(' • '),
+            ),
           if (leadBias != null)
             _metaRow(
               'Readiness bias',

@@ -319,6 +319,7 @@ void main() {
           home: AIQueuePage(
             events: events,
             historicalShadowMoLabels: const ['HARDEN ACCESS'],
+            historicalShadowStrengthLabels: const ['strength rising'],
             sceneReviewByIntelligenceId: reviews,
             videoOpsLabel: 'Hikvision',
           ),
@@ -330,6 +331,8 @@ void main() {
       expect(find.text('DRAFT NEXT-SHIFT ACCESS HARDENING'), findsWidgets);
       expect(find.text('SHADOW'), findsOneWidget);
       expect(find.textContaining('HARDEN ACCESS'), findsWidgets);
+      expect(find.text('URGENCY'), findsOneWidget);
+      expect(find.textContaining('strength rising • critical'), findsOneWidget);
 
       final biasTopLeft = tester.getTopLeft(find.text('SHADOW READINESS BIAS'));
       final draftTopLeft = tester.getTopLeft(

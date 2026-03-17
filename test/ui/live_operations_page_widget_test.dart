@@ -350,6 +350,7 @@ void main() {
         MaterialApp(
           home: LiveOperationsPage(
             historicalShadowMoLabels: const ['HARDEN ACCESS'],
+            historicalShadowStrengthLabels: const ['strength rising'],
             events: [
               DecisionCreated(
                 eventId: 'decision-shadow',
@@ -428,6 +429,8 @@ void main() {
       expect(find.text('DRAFT NEXT-SHIFT ACCESS HARDENING'), findsOneWidget);
       expect(find.text('Shadow'), findsOneWidget);
       expect(find.textContaining('HARDEN ACCESS'), findsWidgets);
+      expect(find.text('Urgency'), findsOneWidget);
+      expect(find.textContaining('strength rising • critical'), findsOneWidget);
       expect(find.text('Readiness bias'), findsOneWidget);
       expect(find.textContaining('earlier access hardening'), findsOneWidget);
     },

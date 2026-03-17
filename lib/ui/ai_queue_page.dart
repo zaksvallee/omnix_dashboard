@@ -932,6 +932,17 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     'Countdown',
                     '${leadDraft.metadata['draft_countdown']}s',
                   ),
+                if ((leadDraft.metadata['shadow_strength_bias'] ?? '')
+                    .isNotEmpty)
+                  _detailCell(
+                    'Urgency',
+                    [
+                      leadDraft.metadata['shadow_strength_bias']!,
+                      if ((leadDraft.metadata['shadow_strength_priority'] ?? '')
+                          .isNotEmpty)
+                        leadDraft.metadata['shadow_strength_priority']!,
+                    ].join(' • '),
+                  ),
               ],
             ),
           ],
