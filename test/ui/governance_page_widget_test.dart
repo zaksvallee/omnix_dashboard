@@ -1203,6 +1203,13 @@ void main() {
         ),
         findsOneWidget,
       );
+      expect(
+        find.descendant(
+          of: currentHistoryCard,
+          matching: find.textContaining('Shadow validation •'),
+        ),
+        findsOneWidget,
+      );
       await tester.tap(
         find.byKey(
           const ValueKey('governance-synthetic-promotion-accept-action'),
@@ -4727,6 +4734,7 @@ void main() {
     expect(copiedPayload, contains('"learningLabel": ""'));
     expect(copiedPayload, contains('"learningSummary": ""'));
     expect(copiedPayload, contains('"shadowSummary": ""'));
+    expect(copiedPayload, contains('"shadowValidationSummary": ""'));
     expect(copiedPayload, contains('"shadowLearningSummary": ""'));
     expect(copiedPayload, contains('"shadowMemorySummary": ""'));
     expect(copiedPayload, contains('"promotionSummary": ""'));
@@ -4910,6 +4918,10 @@ void main() {
     );
     expect(copiedPayload, contains('synthetic_war_room_learning_label,'));
     expect(copiedPayload, contains('synthetic_war_room_learning_summary,""'));
+    expect(
+      copiedPayload,
+      contains('synthetic_war_room_shadow_validation_summary,""'),
+    );
     expect(
       copiedPayload,
       contains('synthetic_war_room_learning_memory_summary,""'),

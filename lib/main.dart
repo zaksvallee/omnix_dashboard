@@ -6985,6 +6985,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'policySummary': _syntheticWarRoomPolicySummary(plans),
       'hazardSummary': _syntheticWarRoomHazardSummary(plans),
       'shadowSummary': _syntheticWarRoomShadowSummary(plans),
+      'shadowValidationSummary': _shadowMoValidationSummaryForSites(
+        _shadowMoSitesForReport(report),
+      ),
       'shadowLearningSummary': _syntheticWarRoomShadowLearningSummary(plans),
       'shadowMemorySummary': _syntheticWarRoomShadowMemorySummary(plans),
       'promotionSummary': _syntheticWarRoomPromotionSummary(plans),
@@ -7081,6 +7084,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               'policySummary': _syntheticWarRoomPolicySummary(itemPlans),
               'hazardSummary': _syntheticWarRoomHazardSummary(itemPlans),
               'shadowSummary': _syntheticWarRoomShadowSummary(itemPlans),
+              'shadowValidationSummary': _shadowMoValidationSummaryForSites(
+                _shadowMoSitesForReport(item),
+              ),
               'shadowLearningSummary': _syntheticWarRoomShadowLearningSummary(
                 itemPlans,
               ),
@@ -7143,6 +7149,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'policy_summary,"${(payload['policySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'hazard_summary,"${(payload['hazardSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'shadow_summary,"${(payload['shadowSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'shadow_validation_summary,"${(payload['shadowValidationSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'shadow_learning_summary,"${(payload['shadowLearningSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'shadow_memory_summary,"${(payload['shadowMemorySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'promotion_summary,"${(payload['promotionSummary'] ?? '').toString().replaceAll('"', '""')}"',
@@ -7195,6 +7202,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       lines.add(
         'history_${i + 1}_shadow_summary,"${(row['shadowSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add(
+        'history_${i + 1}_shadow_validation_summary,"${(row['shadowValidationSummary'] ?? '').toString().replaceAll('"', '""')}"',
       );
       lines.add(
         'history_${i + 1}_shadow_learning_summary,"${(row['shadowLearningSummary'] ?? '').toString().replaceAll('"', '""')}"',
@@ -17751,6 +17761,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
     final hazardSummary = (payload['hazardSummary'] ?? '').toString().trim();
     final shadowSummary = (payload['shadowSummary'] ?? '').toString().trim();
+    final shadowValidationSummary = (payload['shadowValidationSummary'] ?? '')
+        .toString()
+        .trim();
     final shadowLearningSummary = (payload['shadowLearningSummary'] ?? '')
         .toString()
         .trim();
@@ -17790,6 +17803,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           outputKey: 'report_date',
         ),
         ChatCaseFileHistoryField(
+          inputKey: 'shadowValidationSummary',
+          outputKey: 'shadow_validation_summary',
+        ),
+        ChatCaseFileHistoryField(
           inputKey: 'promotionSummary',
           outputKey: 'promotion_summary',
         ),
@@ -17819,6 +17836,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           ChatCaseFileHeaderField(
             key: 'shadow_summary',
             value: shadowSummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'shadow_validation_summary',
+            value: shadowValidationSummary,
           ),
           ChatCaseFileHeaderField(
             key: 'shadow_learning_summary',
@@ -17872,6 +17893,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
         ChatCaseFileHeaderField(key: 'hazard_summary', value: hazardSummary),
         ChatCaseFileHeaderField(key: 'shadow_summary', value: shadowSummary),
+        ChatCaseFileHeaderField(
+          key: 'shadow_validation_summary',
+          value: shadowValidationSummary,
+        ),
         ChatCaseFileHeaderField(
           key: 'shadow_learning_summary',
           value: shadowLearningSummary,

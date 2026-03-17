@@ -878,6 +878,19 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                           ),
                         ],
                         if (syntheticScopeSummary
+                            .shadowValidationSummary
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Shadow validation: ${syntheticScopeSummary.shadowValidationSummary}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF93C5FD),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                        if (syntheticScopeSummary
                             .learningMemorySummary
                             .isNotEmpty) ...[
                           const SizedBox(height: 4),
@@ -1024,6 +1037,19 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                                       point.biasSummary,
                                       style: GoogleFonts.inter(
                                         color: const Color(0xFFFDE68A),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                  if (point
+                                      .shadowValidationSummary
+                                      .isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Shadow validation: ${point.shadowValidationSummary}',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF93C5FD),
                                         fontSize: 10,
                                         fontWeight: FontWeight.w700,
                                       ),
@@ -1961,6 +1987,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       policySummary: policySummary,
       topIntentSummary: leadPlan.description,
       hazardSummary: hazardSummary,
+      shadowValidationSummary: _shadowValidationSummaryForSites(
+        _shadowMoSitesForReport(_reportForDate(scopedReportDate)),
+      ),
       shadowLearningSummary: _syntheticWarRoomShadowLearningSummary(plans),
       shadowMemorySummary: _syntheticWarRoomShadowMemorySummary(plans),
       promotionSummary: _syntheticWarRoomPromotionSummary(plans),
@@ -2220,6 +2249,39 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             .toList(growable: false)
           ..sort();
     return dates.length == 1 ? dates.first : dates.last;
+  }
+
+  SovereignReport _reportForDate(String? reportDate) {
+    final normalizedReportDate = (reportDate ?? '').trim();
+    return widget.morningSovereignReportHistory.firstWhere(
+      (report) => report.date.trim() == normalizedReportDate,
+      orElse: () => SovereignReport(
+        date: normalizedReportDate,
+        generatedAtUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        shiftWindowStartUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        shiftWindowEndUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        ledgerIntegrity: const SovereignReportLedgerIntegrity(
+          totalEvents: 0,
+          hashVerified: false,
+          integrityScore: 0,
+        ),
+        aiHumanDelta: const SovereignReportAiHumanDelta(
+          aiDecisions: 0,
+          humanOverrides: 0,
+          overrideReasons: <String, int>{},
+        ),
+        normDrift: const SovereignReportNormDrift(
+          sitesMonitored: 0,
+          driftDetected: 0,
+          avgMatchScore: 0,
+        ),
+        complianceBlockage: const SovereignReportComplianceBlockage(
+          psiraExpired: 0,
+          pdpExpired: 0,
+          totalBlocked: 0,
+        ),
+      ),
+    );
   }
 
   String _activityReviewCommand(String reportDate) =>
@@ -2800,6 +2862,38 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     }
     final points = <_SyntheticHistoryPoint>[];
     if (normalizedReportDate.isNotEmpty) {
+      final currentReport = widget.morningSovereignReportHistory.firstWhere(
+        (report) => report.date.trim() == normalizedReportDate,
+        orElse: () => SovereignReport(
+          date: normalizedReportDate,
+          generatedAtUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+          shiftWindowStartUtc: DateTime.fromMillisecondsSinceEpoch(
+            0,
+            isUtc: true,
+          ),
+          shiftWindowEndUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+          ledgerIntegrity: const SovereignReportLedgerIntegrity(
+            totalEvents: 0,
+            hashVerified: false,
+            integrityScore: 0,
+          ),
+          aiHumanDelta: const SovereignReportAiHumanDelta(
+            aiDecisions: 0,
+            humanOverrides: 0,
+            overrideReasons: <String, int>{},
+          ),
+          normDrift: const SovereignReportNormDrift(
+            sitesMonitored: 0,
+            driftDetected: 0,
+            avgMatchScore: 0,
+          ),
+          complianceBlockage: const SovereignReportComplianceBlockage(
+            psiraExpired: 0,
+            pdpExpired: 0,
+            totalBlocked: 0,
+          ),
+        ),
+      );
       final currentPlans = _syntheticWarRoomService.buildSimulationPlans(
         events: scopedEvents,
         sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
@@ -2833,6 +2927,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               : _syntheticWarRoomSummary(currentPlans),
           biasSummary: _syntheticWarRoomBiasSummaryForPlan(
             currentPolicyPlan.id.isEmpty ? null : currentPolicyPlan,
+          ),
+          shadowValidationSummary: _shadowValidationSummaryForSites(
+            _shadowMoSitesForReport(currentReport),
           ),
           promotionSummary: _syntheticWarRoomPromotionSummary(currentPlans),
           promotionDecisionStatus: _syntheticWarRoomPromotionDecisionStatus(
@@ -2883,6 +2980,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               : _syntheticWarRoomSummary(plans),
           biasSummary: _syntheticWarRoomBiasSummaryForPlan(
             policyPlan.id.isEmpty ? null : policyPlan,
+          ),
+          shadowValidationSummary: _shadowValidationSummaryForSites(
+            _shadowMoSitesForReport(report),
           ),
           promotionSummary: _syntheticWarRoomPromotionSummary(plans),
           promotionDecisionStatus: _syntheticWarRoomPromotionDecisionStatus(
@@ -4563,6 +4663,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       'promotion_target_status,${summary.promotionTargetStatus}',
       'promotion_decision_status,${summary.promotionDecisionStatus}',
       'promotion_decision_summary,"${summary.promotionDecisionSummary.replaceAll('"', '""')}"',
+      'shadow_validation_summary,"${summary.shadowValidationSummary.replaceAll('"', '""')}"',
       'learning_summary,"${summary.learningSummary.replaceAll('"', '""')}"',
       'learning_memory_summary,"${summary.learningMemorySummary.replaceAll('"', '""')}"',
       'bias_summary,"${summary.biasSummary.replaceAll('"', '""')}"',
@@ -4592,6 +4693,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         );
         lines.add(
           'history_${row}_bias_summary,"${point.biasSummary.replaceAll('"', '""')}"',
+        );
+        lines.add(
+          'history_${row}_shadow_validation_summary,"${point.shadowValidationSummary.replaceAll('"', '""')}"',
         );
         lines.add(
           'history_${row}_promotion_summary,"${point.promotionSummary.replaceAll('"', '""')}"',
@@ -4917,6 +5021,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'policySummary': summary.policySummary,
         'topIntentSummary': summary.topIntentSummary,
         'hazardSummary': summary.hazardSummary,
+        'shadowValidationSummary': summary.shadowValidationSummary,
         'shadowLearningSummary': summary.shadowLearningSummary,
         'shadowMemorySummary': summary.shadowMemorySummary,
         'promotionSummary': summary.promotionSummary,
@@ -4948,6 +5053,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         'modeLabel': point.modeLabel,
                         'summaryLine': point.summaryLine,
                         'biasSummary': point.biasSummary,
+                        'shadowValidationSummary':
+                            point.shadowValidationSummary,
                         'promotionSummary': point.promotionSummary,
                         'promotionDecisionStatus':
                             point.promotionDecisionStatus,
@@ -5494,6 +5601,7 @@ class _SyntheticScopeSummary {
   final String policySummary;
   final String topIntentSummary;
   final String hazardSummary;
+  final String shadowValidationSummary;
   final String shadowLearningSummary;
   final String shadowMemorySummary;
   final String promotionSummary;
@@ -5519,6 +5627,7 @@ class _SyntheticScopeSummary {
     required this.policySummary,
     required this.topIntentSummary,
     required this.hazardSummary,
+    required this.shadowValidationSummary,
     required this.shadowLearningSummary,
     required this.shadowMemorySummary,
     required this.promotionSummary,
@@ -5655,6 +5764,7 @@ class _SyntheticHistoryPoint {
   final String modeLabel;
   final String summaryLine;
   final String biasSummary;
+  final String shadowValidationSummary;
   final String promotionSummary;
   final String promotionDecisionStatus;
   final String promotionDecisionSummary;
@@ -5666,6 +5776,7 @@ class _SyntheticHistoryPoint {
     required this.modeLabel,
     required this.summaryLine,
     required this.biasSummary,
+    required this.shadowValidationSummary,
     required this.promotionSummary,
     required this.promotionDecisionStatus,
     required this.promotionDecisionSummary,

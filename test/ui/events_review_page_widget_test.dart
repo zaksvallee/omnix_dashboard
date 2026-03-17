@@ -1938,6 +1938,7 @@ void main() {
     expect(copiedClipboardPayload, contains('"modeLabel": "POLICY SHIFT"'));
     expect(copiedClipboardPayload, contains('"historicalFocus": true'));
     expect(copiedClipboardPayload, contains('"hazardSummary": ""'));
+    expect(copiedClipboardPayload, contains('"shadowValidationSummary": ""'));
     expect(copiedClipboardPayload, contains('"shadowLearningSummary": ""'));
     expect(copiedClipboardPayload, contains('"shadowMemorySummary": ""'));
     expect(copiedClipboardPayload, contains('"promotionSummary": ""'));
@@ -1974,6 +1975,7 @@ void main() {
     expect(copiedClipboardPayload, contains('"history": {'));
     expect(copiedClipboardPayload, contains('"headline": "RISING • 2d"'));
     expect(copiedClipboardPayload, contains('"date": "2026-03-16"'));
+    expect(copiedClipboardPayload, contains('"shadowValidationSummary": "'));
     expect(
       copiedClipboardPayload,
       contains('"reviewCommand": "/syntheticreview 2026-03-16"'),
@@ -2000,6 +2002,7 @@ void main() {
     );
     expect(copiedClipboardPayload, contains('historical_focus,true'));
     expect(copiedClipboardPayload, contains('hazard_summary,""'));
+    expect(copiedClipboardPayload, contains('shadow_validation_summary,""'));
     expect(copiedClipboardPayload, contains('learning_summary,"'));
     expect(copiedClipboardPayload, contains('learning_memory_summary,"'));
     expect(copiedClipboardPayload, contains('bias_summary,"'));
@@ -2028,6 +2031,10 @@ void main() {
       contains('previous_case_file_command,/syntheticcase json 2026-03-16'),
     );
     expect(copiedClipboardPayload, contains('history_1_date,2026-03-17'));
+    expect(
+      copiedClipboardPayload,
+      contains('history_1_shadow_validation_summary,"'),
+    );
     expect(
       copiedClipboardPayload,
       contains('history_1_review_command,/syntheticreview 2026-03-17'),
@@ -2271,6 +2278,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Accepted toward '), findsWidgets);
+      expect(find.textContaining('Shadow validation:'), findsWidgets);
 
       await tester.tap(
         find.byKey(
@@ -2283,6 +2291,10 @@ void main() {
       expect(
         copiedClipboardPayload,
         contains('"promotionDecisionSummary": "Accepted toward '),
+      );
+      expect(
+        copiedClipboardPayload,
+        contains('"shadowValidationSummary": "'),
       );
 
       await tester.tap(
@@ -2299,6 +2311,10 @@ void main() {
       expect(
         copiedClipboardPayload,
         contains('history_1_promotion_decision_summary,"Accepted toward '),
+      );
+      expect(
+        copiedClipboardPayload,
+        contains('history_1_shadow_validation_summary,"'),
       );
     },
   );
