@@ -318,6 +318,32 @@ void main() {
       );
     });
 
+    test('global readiness shadow bias helper reads active bias plan', () {
+      const plans = <MonitoringWatchAutonomyActionPlan>[
+        MonitoringWatchAutonomyActionPlan(
+          id: 'READINESS-1',
+          incidentId: 'SITE-1',
+          siteId: 'SITE-1',
+          priority: MonitoringWatchAutonomyPriority.high,
+          actionType: 'SHADOW READINESS BIAS',
+          description: 'desc',
+          countdownSeconds: 20,
+          metadata: <String, String>{
+            'lead_site': 'SITE-ALPHA',
+            'shadow_mo_label': 'HARDEN ACCESS',
+            'shadow_mo_title': 'Badge tailgate pattern',
+            'shadow_mo_repeat_count': '3',
+            'readiness_bias': 'ACTIVE',
+          },
+        ),
+      ];
+
+      expect(
+        buildGlobalReadinessShadowBiasSummaryFromPlans(plans: plans),
+        'HARDEN ACCESS • SITE-ALPHA • Badge tailgate pattern • x3',
+      );
+    });
+
     test('buildSyntheticPromotionSummaryFromPlans reads base summary from plan metadata', () {
       final plans = <MonitoringWatchAutonomyActionPlan>[
         const MonitoringWatchAutonomyActionPlan(

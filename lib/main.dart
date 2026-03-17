@@ -5855,37 +5855,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   String _globalReadinessShadowBiasSummary(
     List<MonitoringWatchAutonomyActionPlan> intents,
-  ) {
-    final bias = intents.firstWhere(
-      (plan) =>
-          plan.actionType.trim().toUpperCase() == 'SHADOW READINESS BIAS' ||
-          (plan.metadata['readiness_bias'] ?? '').trim().toUpperCase() ==
-              'ACTIVE',
-      orElse: () => const MonitoringWatchAutonomyActionPlan(
-        id: '',
-        incidentId: '',
-        siteId: '',
-        priority: MonitoringWatchAutonomyPriority.medium,
-        actionType: '',
-        description: '',
-        countdownSeconds: 0,
-      ),
-    );
-    if (bias.actionType.trim().isEmpty) {
-      return '';
-    }
-    final leadSite = (bias.metadata['lead_site'] ?? bias.siteId).trim();
-    final shadowLabel = (bias.metadata['shadow_mo_label'] ?? '').trim();
-    final shadowTitle = (bias.metadata['shadow_mo_title'] ?? '').trim();
-    final repeatCount = (bias.metadata['shadow_mo_repeat_count'] ?? '').trim();
-    final parts = <String>[
-      if (shadowLabel.isNotEmpty) shadowLabel,
-      if (leadSite.isNotEmpty) leadSite,
-      if (shadowTitle.isNotEmpty) shadowTitle,
-      if (repeatCount.isNotEmpty) 'x$repeatCount',
-    ];
-    return _singleLine(parts.join(' • '), maxLength: 220);
-  }
+  ) => _singleLine(
+    buildGlobalReadinessShadowBiasSummaryFromPlans(plans: intents),
+    maxLength: 220,
+  );
 
   List<MonitoringWatchAutonomyActionPlan> _syntheticWarRoomPlansForReport(
     SovereignReport report, {
