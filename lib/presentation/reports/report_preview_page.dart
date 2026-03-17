@@ -89,6 +89,12 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
         : 'Preview, verify, print, and distribute deterministic report output.';
   }
 
+  String get _printActionLabel =>
+      _isGovernanceHandoffPreview ? 'Print Governance PDF' : 'Print';
+
+  String get _downloadActionLabel =>
+      _isGovernanceHandoffPreview ? 'Download Governance PDF' : 'Download';
+
   String get _pdfFileName {
     final primaryLabel = _brandingConfiguration.primaryLabel
         .trim()
@@ -652,7 +658,7 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
                             ),
                           ),
                           icon: const Icon(Icons.print_rounded),
-                          label: const Text('Print'),
+                          label: Text(_printActionLabel),
                         ),
                         ElevatedButton.icon(
                           onPressed: () async {
@@ -673,7 +679,7 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
                             ),
                           ),
                           icon: const Icon(Icons.download_rounded),
-                          label: const Text('Download'),
+                          label: Text(_downloadActionLabel),
                         ),
                       ],
                     ),
@@ -798,7 +804,7 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
                           ),
                         ),
                         icon: const Icon(Icons.print_rounded),
-                        label: const Text('Print'),
+                        label: Text(_printActionLabel),
                       ),
                       ElevatedButton.icon(
                         onPressed: () async {
@@ -819,7 +825,7 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
                           ),
                         ),
                         icon: const Icon(Icons.download_rounded),
-                        label: const Text('Download'),
+                        label: Text(_downloadActionLabel),
                       ),
                     ],
                   ),

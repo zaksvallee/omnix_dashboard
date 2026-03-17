@@ -121,6 +121,8 @@ void main() {
     expect(find.text('Preview Context'), findsOneWidget);
     expect(find.text('Governance Handoff PDF'), findsOneWidget);
     expect(find.textContaining('Governance handoff lane'), findsWidgets);
+    expect(find.text('Print Governance PDF'), findsOneWidget);
+    expect(find.text('Download Governance PDF'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('report-preview-entry-context-banner')),
       findsOneWidget,
@@ -429,7 +431,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 250));
 
-      await tester.tap(find.text('Download').first);
+      await tester.tap(find.text('Download Governance PDF').first);
       await tester.pump();
 
       expect(capturedCall, isNotNull);
