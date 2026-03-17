@@ -1978,6 +1978,7 @@ void main() {
     );
     expect(copiedClipboardPayload, contains('"shadowLearningSummary": ""'));
     expect(copiedClipboardPayload, contains('"shadowMemorySummary": ""'));
+    expect(copiedClipboardPayload, contains('"promotionPressureSummary": ""'));
     expect(copiedClipboardPayload, contains('"promotionSummary": ""'));
     expect(copiedClipboardPayload, contains('"learningSummary":'));
     expect(copiedClipboardPayload, contains('"learningMemorySummary":'));
@@ -2057,6 +2058,10 @@ void main() {
       copiedClipboardPayload,
       contains('previous_shadow_tomorrow_urgency_summary,"'),
     );
+    expect(
+      copiedClipboardPayload,
+      contains('promotion_pressure_summary,""'),
+    );
     expect(copiedClipboardPayload, contains('shadow_validation_summary,""'));
     expect(copiedClipboardPayload, contains('learning_summary,"'));
     expect(copiedClipboardPayload, contains('learning_memory_summary,"'));
@@ -2089,6 +2094,10 @@ void main() {
     expect(
       copiedClipboardPayload,
       contains('history_1_shadow_validation_summary,"'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('history_1_promotion_pressure_summary,"'),
     );
     expect(
       copiedClipboardPayload,
@@ -2333,6 +2342,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Accepted toward '), findsWidgets);
+    expect(find.textContaining('Promotion pressure:'), findsWidgets);
     expect(find.textContaining('posture POSTURE SURGE'), findsWidgets);
     expect(find.textContaining('Shadow validation:'), findsWidgets);
     expect(find.textContaining('Shadow posture:'), findsWidgets);
@@ -2351,6 +2361,10 @@ void main() {
     expect(
       copiedClipboardPayload,
       contains('"promotionDecisionSummary": "Accepted toward '),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('"promotionPressureSummary": "'),
     );
     expect(
       copiedClipboardPayload,
