@@ -6047,6 +6047,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final historySummary = baselinePressure == null
         ? 'Current pressure $currentPressure • Baseline n/a • No prior synthetic rehearsal history is available yet.'
         : 'Current pressure $currentPressure • Baseline ${baselinePressure.toStringAsFixed(1)} • ${currentPressure >= baselinePressure + 1 ? 'Synthetic rehearsal is recommending stronger action than recent shifts.' : currentPressure <= baselinePressure - 1 ? 'Synthetic rehearsal pressure eased against recent shifts.' : 'Synthetic rehearsal pressure is holding close to the recent baseline.'}';
+    final previousReport = history.isEmpty ? null : history.first;
     return <String, Object?>{
       'reportDate': report.date,
       'available': true,
@@ -6066,6 +6067,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           (leadPlan?.metadata['top_intent'] ?? '').toString().trim(),
       'reviewCommand': '/syntheticreview ${report.date}',
       'caseFileCommand': '/syntheticcase json ${report.date}',
+      'previousReviewCommand': previousReport == null
+          ? ''
+          : '/syntheticreview ${previousReport.date}',
+      'previousCaseFileCommand': previousReport == null
+          ? ''
+          : '/syntheticcase json ${previousReport.date}',
       'historyHeadline': historyHeadline,
       'historySummary': historySummary,
       'plans': plans
@@ -6129,6 +6136,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'top_intent_summary,"${(payload['topIntentSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'review_command,${payload['reviewCommand'] ?? ''}',
       'case_file_command,${payload['caseFileCommand'] ?? ''}',
+      'previous_review_command,${payload['previousReviewCommand'] ?? ''}',
+      'previous_case_file_command,${payload['previousCaseFileCommand'] ?? ''}',
       'history_headline,"${(payload['historyHeadline'] ?? '').toString().replaceAll('"', '""')}"',
       'history_summary,"${(payload['historySummary'] ?? '').toString().replaceAll('"', '""')}"',
     ];
@@ -16339,17 +16348,27 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final reviewCommand = '/syntheticreview ${report.date}';
     final payload = _syntheticWarRoomCaseFilePayload(reportDate: report.date);
     final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
+    final previousReviewCommand = (payload['previousReviewCommand'] ?? '')
+        .toString()
+        .trim();
+    final previousCaseFileCommand = (payload['previousCaseFileCommand'] ?? '')
+        .toString()
+        .trim();
     if (format == 'csv') {
       return 'ONYX SYNTHETICCASE CSV\n'
           'report_date=${report.date}\n'
           '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
           'review_command=$reviewCommand\n'
+          '${previousReviewCommand.isEmpty ? '' : 'previous_review_command=$previousReviewCommand\n'}'
+          '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}'
           '${_syntheticWarRoomCaseFileCsv(reportDate: report.date)}';
     }
     return 'ONYX SYNTHETICCASE JSON\n'
         'report_date=${report.date}\n'
         '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
         'review_command=$reviewCommand\n'
+        '${previousReviewCommand.isEmpty ? '' : 'previous_review_command=$previousReviewCommand\n'}'
+        '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}'
         '${const JsonEncoder.withIndent('  ').convert(payload)}';
   }
 
