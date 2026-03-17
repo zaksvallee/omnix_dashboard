@@ -150,6 +150,8 @@ void main() {
           'DRAFT NEXT-SHIFT FIRE READINESS • site-alpha • ADVANCE FIRE • x2',
       globalReadinessTomorrowShadowSummary:
           'HARDEN ACCESS • site-alpha • Contractors moved floor to floor in office park • x1 • strength rising',
+      globalReadinessTomorrowShadowPostureSummary:
+          'weight 41 • elevated heat • activity 88',
       globalReadinessTomorrowUrgencySummary: 'strength rising • critical • 22s',
       previousShiftTomorrowPostureSummary:
           'DRAFT NEXT-SHIFT ACCESS HARDENING • site-alpha • x1',
@@ -178,6 +180,8 @@ void main() {
       syntheticWarRoomHazardSummary: 'fire rehearsal recommended',
       syntheticWarRoomShadowSummary:
           'HARDEN ACCESS • site-alpha • Contractors moved floor to floor in office park • x1',
+      syntheticWarRoomShadowPostureSummary:
+          'weight 41 • elevated heat • activity 88',
       syntheticWarRoomShadowValidationSummary:
           'Validated 1 • Shadow mode 1 • Drift validated rising',
       syntheticWarRoomShadowTomorrowUrgencySummary:
@@ -297,6 +301,12 @@ void main() {
     );
     expect(
       response,
+      contains(
+        '<b>Tomorrow shadow posture:</b> weight 41 • elevated heat • activity 88',
+      ),
+    );
+    expect(
+      response,
       contains('<b>Tomorrow urgency:</b> strength rising • critical • 22s'),
     );
     expect(
@@ -335,6 +345,12 @@ void main() {
       response,
       contains(
         '<b>Shadow rehearsal:</b> HARDEN ACCESS • site-alpha • Contractors moved floor to floor in office park • x1',
+      ),
+    );
+    expect(
+      response,
+      contains(
+        '<b>Shadow posture:</b> weight 41 • elevated heat • activity 88',
       ),
     );
     expect(

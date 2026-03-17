@@ -2333,6 +2333,7 @@ void main() {
 
     expect(find.textContaining('Accepted toward '), findsWidgets);
     expect(find.textContaining('Shadow validation:'), findsWidgets);
+    expect(find.textContaining('Shadow posture:'), findsWidgets);
 
     await tester.tap(
       find.byKey(
@@ -2358,6 +2359,7 @@ void main() {
       contains('"promotionShadowReviewCommand": "/shadowreview 2026-03-17"'),
     );
     expect(copiedClipboardPayload, contains('"shadowValidationSummary": "'));
+    expect(copiedClipboardPayload, contains('"shadowPostureSummary": "'));
 
     await tester.tap(
       find.byKey(
@@ -2377,6 +2379,10 @@ void main() {
     expect(
       copiedClipboardPayload,
       contains('history_1_shadow_validation_summary,"'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('history_1_shadow_posture_summary,"'),
     );
   });
 
@@ -2637,6 +2643,7 @@ void main() {
         '"learningMemorySummary": "Memory: ADVANCE FIRE repeated across 2 linked shifts."',
       ),
     );
+    expect(copiedClipboardPayload, contains('"shadowPostureSummary": "'));
     expect(copiedClipboardPayload, contains('"urgencySummary": ""'));
     expect(
       copiedClipboardPayload,
@@ -2702,6 +2709,7 @@ void main() {
         'learning_memory_summary,"Memory: ADVANCE FIRE repeated across 2 linked shifts."',
       ),
     );
+    expect(copiedClipboardPayload, contains('shadow_posture_summary,"'));
     expect(copiedClipboardPayload, contains('urgency_summary,""'));
     expect(
       copiedClipboardPayload,
@@ -2730,6 +2738,10 @@ void main() {
     expect(
       copiedClipboardPayload,
       contains('history_1_case_file_command,/tomorrowcase json 2026-03-17'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('history_1_shadow_posture_summary,"'),
     );
     expect(
       copiedClipboardPayload,

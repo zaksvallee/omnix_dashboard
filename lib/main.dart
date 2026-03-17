@@ -5316,6 +5316,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final syntheticWarRoomCaseFile = _syntheticWarRoomCaseFilePayload(
       reportDate: report.date,
     );
+    final tomorrowPostureCaseFile = _tomorrowPostureCaseFilePayload(
+      reportDate: report.date,
+    );
     final shadowMoCaseFile = _shadowMoCaseFilePayload(reportDate: report.date);
     final readinessSummary = _globalReadinessSummaryForReport(
       snapshot: readinessSnapshot,
@@ -5374,6 +5377,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           _globalReadinessTomorrowPostureSummary(readinessIntents),
       globalReadinessTomorrowShadowSummary:
           _globalReadinessTomorrowShadowSummary(report, readinessIntents),
+      globalReadinessTomorrowShadowPostureSummary:
+          (tomorrowPostureCaseFile['shadowPostureSummary'] ?? '').toString(),
       globalReadinessTomorrowUrgencySummary:
           _globalReadinessTomorrowUrgencySummary(readinessIntents),
       previousShiftTomorrowPostureSummary: previousReport == null
@@ -5447,6 +5452,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       syntheticWarRoomShadowSummary: _syntheticWarRoomShadowSummary(
         syntheticWarRoomPlans,
       ),
+      syntheticWarRoomShadowPostureSummary:
+          (syntheticWarRoomCaseFile['shadowPostureSummary'] ?? '').toString(),
       syntheticWarRoomShadowValidationSummary:
           (syntheticWarRoomCaseFile['shadowValidationSummary'] ?? '')
               .toString(),
@@ -5706,6 +5713,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         )
         .toList(growable: false);
     return _singleLine(parts.join(' • '), maxLength: 220);
+  }
+
+  String _shadowMoPostureSummaryForReport(SovereignReport report) {
+    return _singleLine(
+      shadowMoPostureStrengthSummaryForSites(_shadowMoSitesForReport(report)),
+      maxLength: 220,
+    );
   }
 
   String _humanizeShadowValidationStatus(String status) {
@@ -6247,6 +6261,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               item,
               itemDrafts,
             ),
+            'shadowPostureSummary': _shadowMoPostureSummaryForReport(item),
             'urgencySummary': _globalReadinessTomorrowUrgencySummary(
               itemDrafts,
             ),
@@ -6266,6 +6281,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'focusSummary': _readinessFocusSummary(report.date),
       'summary': _globalReadinessTomorrowPostureSummary(drafts),
       'shadowSummary': _globalReadinessTomorrowShadowSummary(report, drafts),
+      'shadowPostureSummary': _shadowMoPostureSummaryForReport(report),
       'urgencySummary': _globalReadinessTomorrowUrgencySummary(drafts),
       'draftCount': drafts.length,
       'eventIds': readinessEvidence['eventIds'] ?? const <Object?>[],
@@ -6311,6 +6327,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'focus_summary,"${(payload['focusSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'summary,"${(payload['summary'] ?? '').toString().replaceAll('"', '""')}"',
       'shadow_summary,"${(payload['shadowSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'shadow_posture_summary,"${(payload['shadowPostureSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'urgency_summary,"${(payload['urgencySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'draft_count,${payload['draftCount'] ?? 0}',
       'selected_event_id,${payload['selectedEventId'] ?? ''}',
@@ -6351,6 +6368,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       lines.add(
         'history_${i + 1}_shadow_summary,"${(row['shadowSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add(
+        'history_${i + 1}_shadow_posture_summary,"${(row['shadowPostureSummary'] ?? '').toString().replaceAll('"', '""')}"',
       );
       lines.add(
         'history_${i + 1}_urgency_summary,"${(row['urgencySummary'] ?? '').toString().replaceAll('"', '""')}"',
@@ -7255,6 +7275,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'policySummary': _syntheticWarRoomPolicySummary(plans),
       'hazardSummary': _syntheticWarRoomHazardSummary(plans),
       'shadowSummary': _syntheticWarRoomShadowSummary(plans),
+      'shadowPostureSummary': _shadowMoPostureSummaryForReport(report),
       'shadowValidationSummary': shadowValidationDrift.summary,
       'shadowValidationHeadline': shadowValidationDrift.headline,
       'shadowValidationHistorySummary': shadowValidationDrift.historySummary,
@@ -7368,6 +7389,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               'policySummary': _syntheticWarRoomPolicySummary(itemPlans),
               'hazardSummary': _syntheticWarRoomHazardSummary(itemPlans),
               'shadowSummary': _syntheticWarRoomShadowSummary(itemPlans),
+              'shadowPostureSummary': _shadowMoPostureSummaryForReport(item),
               'shadowValidationSummary': _shadowMoValidationSummaryForSites(
                 _shadowMoSitesForReport(item),
               ),
@@ -7440,6 +7462,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'policy_summary,"${(payload['policySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'hazard_summary,"${(payload['hazardSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'shadow_summary,"${(payload['shadowSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'shadow_posture_summary,"${(payload['shadowPostureSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'shadow_validation_summary,"${(payload['shadowValidationSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'shadow_validation_headline,"${(payload['shadowValidationHeadline'] ?? '').toString().replaceAll('"', '""')}"',
       'shadow_validation_history_summary,"${(payload['shadowValidationHistorySummary'] ?? '').toString().replaceAll('"', '""')}"',
@@ -7497,6 +7520,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       lines.add(
         'history_${i + 1}_shadow_summary,"${(row['shadowSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add(
+        'history_${i + 1}_shadow_posture_summary,"${(row['shadowPostureSummary'] ?? '').toString().replaceAll('"', '""')}"',
       );
       lines.add(
         'history_${i + 1}_shadow_validation_summary,"${(row['shadowValidationSummary'] ?? '').toString().replaceAll('"', '""')}"',

@@ -84,6 +84,7 @@ class TelegramAdminCommandFormatter {
     String? globalReadinessShadowBiasSummary,
     String? globalReadinessTomorrowPostureSummary,
     String? globalReadinessTomorrowShadowSummary,
+    String? globalReadinessTomorrowShadowPostureSummary,
     String? globalReadinessTomorrowUrgencySummary,
     String? previousShiftTomorrowPostureSummary,
     String? previousShiftTomorrowShadowSummary,
@@ -113,6 +114,7 @@ class TelegramAdminCommandFormatter {
     String? syntheticWarRoomPolicySummary,
     String? syntheticWarRoomHazardSummary,
     String? syntheticWarRoomShadowSummary,
+    String? syntheticWarRoomShadowPostureSummary,
     String? syntheticWarRoomShadowValidationSummary,
     String? syntheticWarRoomShadowTomorrowUrgencySummary,
     String? syntheticWarRoomPreviousShadowTomorrowUrgencySummary,
@@ -160,6 +162,8 @@ class TelegramAdminCommandFormatter {
         globalReadinessTomorrowPostureSummary?.trim() ?? '';
     final readinessTomorrowShadowSummary =
         globalReadinessTomorrowShadowSummary?.trim() ?? '';
+    final readinessTomorrowShadowPostureSummary =
+        globalReadinessTomorrowShadowPostureSummary?.trim() ?? '';
     final readinessTomorrowUrgencySummary =
         globalReadinessTomorrowUrgencySummary?.trim() ?? '';
     final previousTomorrowPostureSummary =
@@ -206,6 +210,8 @@ class TelegramAdminCommandFormatter {
     final warRoomPolicySummary = syntheticWarRoomPolicySummary?.trim() ?? '';
     final warRoomHazardSummary = syntheticWarRoomHazardSummary?.trim() ?? '';
     final warRoomShadowSummary = syntheticWarRoomShadowSummary?.trim() ?? '';
+    final warRoomShadowPostureSummary =
+        syntheticWarRoomShadowPostureSummary?.trim() ?? '';
     final warRoomShadowValidationSummary =
         syntheticWarRoomShadowValidationSummary?.trim() ?? '';
     final warRoomShadowTomorrowUrgencySummary =
@@ -276,6 +282,7 @@ class TelegramAdminCommandFormatter {
               '${previousShadowCase.isEmpty ? '' : '• <b>Previous shadow case:</b> <code>${_escapeHtml(previousShadowCase)}</code>\n'}'
               '${readinessTomorrowPostureSummary.isEmpty ? '' : '• <b>Tomorrow posture:</b> ${_escapeHtml(readinessTomorrowPostureSummary)}\n'}'
               '${readinessTomorrowShadowSummary.isEmpty ? '' : '• <b>Tomorrow shadow:</b> ${_escapeHtml(readinessTomorrowShadowSummary)}\n'}'
+              '${readinessTomorrowShadowPostureSummary.isEmpty ? '' : '• <b>Tomorrow shadow posture:</b> ${_escapeHtml(readinessTomorrowShadowPostureSummary)}\n'}'
               '${readinessTomorrowUrgencySummary.isEmpty ? '' : '• <b>Tomorrow urgency:</b> ${_escapeHtml(readinessTomorrowUrgencySummary)}\n'}'
               '${previousTomorrowPostureSummary.isEmpty ? '' : '• <b>Previous tomorrow posture:</b> ${_escapeHtml(previousTomorrowPostureSummary)}\n'}'
               '${previousTomorrowShadowSummary.isEmpty ? '' : '• <b>Previous tomorrow shadow:</b> ${_escapeHtml(previousTomorrowShadowSummary)}\n'}'
@@ -299,6 +306,7 @@ class TelegramAdminCommandFormatter {
               '${warRoomPolicySummary.isEmpty ? '' : '• <b>Policy:</b> ${_escapeHtml(warRoomPolicySummary)}\n'}'
               '${warRoomHazardSummary.isEmpty ? '' : '• <b>Hazard rehearsal:</b> ${_escapeHtml(warRoomHazardSummary)}\n'}'
               '${warRoomShadowSummary.isEmpty ? '' : '• <b>Shadow rehearsal:</b> ${_escapeHtml(warRoomShadowSummary)}\n'}'
+              '${warRoomShadowPostureSummary.isEmpty ? '' : '• <b>Shadow posture:</b> ${_escapeHtml(warRoomShadowPostureSummary)}\n'}'
               '${warRoomShadowValidationSummary.isEmpty ? '' : '• <b>Shadow validation:</b> ${_escapeHtml(warRoomShadowValidationSummary)}\n'}'
               '${warRoomShadowTomorrowUrgencySummary.isEmpty ? '' : '• <b>Shadow tomorrow urgency:</b> ${_escapeHtml(warRoomShadowTomorrowUrgencySummary)}\n'}'
               '${warRoomPreviousShadowTomorrowUrgencySummary.isEmpty ? '' : '• <b>Previous shadow tomorrow urgency:</b> ${_escapeHtml(warRoomPreviousShadowTomorrowUrgencySummary)}\n'}'
