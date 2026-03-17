@@ -209,4 +209,71 @@ void main() {
       'MO-REVIEWED-HIGH',
     );
   });
+
+  test(
+    'builds shadow strength drift summary from current and baseline scores',
+    () {
+      final summary = buildShadowMoStrengthDriftSummary(
+        currentSites: [
+          MonitoringGlobalSitePosture(
+            clientId: 'CLIENT-VALLEE',
+            regionId: 'REGION-GAUTENG',
+            siteId: 'SITE-OFFICE',
+            heatLevel: MonitoringGlobalHeatLevel.elevated,
+            activityScore: 88,
+            intelligenceCount: 2,
+            escalationCount: 1,
+            repeatCount: 0,
+            suppressedCount: 0,
+            identitySignalCount: 0,
+            latestSummary: 'Service impersonation concern.',
+            lastActivityAtUtc: DateTime.utc(2026, 3, 17, 1, 0),
+            moShadowMatchCount: 1,
+            moShadowMatches: const [
+              OnyxMoShadowMatch(
+                moId: 'MO-1',
+                title: 'Office pattern',
+                incidentType: 'deception_led_intrusion',
+                behaviorStage: 'inside_behavior',
+                matchScore: 0.91,
+              ),
+            ],
+          ),
+        ],
+        historySiteSets: [
+          [
+            MonitoringGlobalSitePosture(
+              clientId: 'CLIENT-VALLEE',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-OFFICE',
+              heatLevel: MonitoringGlobalHeatLevel.elevated,
+              activityScore: 70,
+              intelligenceCount: 1,
+              escalationCount: 0,
+              repeatCount: 0,
+              suppressedCount: 0,
+              identitySignalCount: 0,
+              latestSummary: 'Prior concern.',
+              lastActivityAtUtc: DateTime.utc(2026, 3, 16, 1, 0),
+              moShadowMatchCount: 1,
+              moShadowMatches: const [
+                OnyxMoShadowMatch(
+                  moId: 'MO-2',
+                  title: 'Office pattern',
+                  incidentType: 'deception_led_intrusion',
+                  behaviorStage: 'inside_behavior',
+                  matchScore: 0.70,
+                ),
+              ],
+            ),
+          ],
+        ],
+      );
+
+      expect(
+        summary.summary,
+        'Current strength 0.91 • Baseline 0.70 • Shadow-MO runtime strength is increasing against recent shifts.',
+      );
+    },
+  );
 }

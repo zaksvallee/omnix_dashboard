@@ -3153,9 +3153,8 @@ class _GovernancePageState extends State<GovernancePage> {
         .toList(growable: false);
   }
 
-  ({String headline, String summary}) _shadowMoHistoryForView(
-    _GovernanceReportView report,
-  ) {
+  ({String headline, String summary, String strengthSummary})
+  _shadowMoHistoryForView(_GovernanceReportView report) {
     final currentSnapshot = _globalReadinessSnapshotForReport(report);
     final currentSites = currentSnapshot.sites
         .where((site) => site.moShadowMatchCount > 0)
@@ -3209,7 +3208,27 @@ class _GovernancePageState extends State<GovernancePage> {
               : currentMatchCount < baselineAverage
               ? 'Shadow-MO match pressure eased against recent shifts.'
               : 'Shadow-MO match pressure is holding close to the recent baseline.'}';
-    return (headline: headline, summary: summary);
+    final strengthSummary = buildShadowMoStrengthDriftSummary(
+      currentSites: currentSites,
+      historySiteSets: baselineReports
+          .take(3)
+          .map(
+            (item) =>
+                _globalReadinessSnapshotForWindow(
+                      item.shiftWindowStartUtc,
+                      item.shiftWindowEndUtc,
+                      generatedAtUtc: item.generatedAtUtc,
+                    ).sites
+                    .where((site) => site.moShadowMatchCount > 0)
+                    .toList(growable: false),
+          )
+          .toList(growable: false),
+    ).summary;
+    return (
+      headline: headline,
+      summary: summary,
+      strengthSummary: strengthSummary,
+    );
   }
 
   String _shadowMoValidationSummaryForSites(
@@ -8326,6 +8345,10 @@ class _GovernancePageState extends State<GovernancePage> {
       metadata: <String, Object?>{
         'reportDate': report.reportDate,
         'validationSummary': _shadowMoValidationSummaryForSites(shadowSites),
+        'strengthSummary': shadowMoStrengthSummaryForSites(shadowSites),
+        'strengthHistorySummary': _shadowMoHistoryForView(
+          report,
+        ).strengthSummary,
       },
     );
   }
@@ -11185,8 +11208,10 @@ class _GovernancePageState extends State<GovernancePage> {
             'validationSummary': _shadowMoValidationSummaryForSites(
               shadowSites,
             ),
+            'strengthSummary': shadowMoStrengthSummaryForSites(shadowSites),
             'historyHeadline': shadowHistory.headline,
             'historySummary': shadowHistory.summary,
+            'strengthHistorySummary': shadowHistory.strengthSummary,
             'reviewShortcuts': buildReviewShortcuts(
               currentReportDate: report.reportDate,
               previousReportDate: previousShadowReportDate.isEmpty
@@ -11512,8 +11537,10 @@ class _GovernancePageState extends State<GovernancePage> {
       'global_readiness_tomorrow_case_file_command,/tomorrowcase json ${report.reportDate}',
       'global_readiness_shadow_summary,"${(shadowSites.isEmpty ? '' : '${shadowSites.length} sites • ${shadowSites.first.moShadowSummary}').replaceAll('"', '""')}"',
       'global_readiness_shadow_validation_summary,"${_shadowMoValidationSummaryForSites(shadowSites).replaceAll('"', '""')}"',
+      'global_readiness_shadow_strength_summary,"${shadowMoStrengthSummaryForSites(shadowSites).replaceAll('"', '""')}"',
       'global_readiness_shadow_history_headline,"${shadowHistory.headline.replaceAll('"', '""')}"',
       'global_readiness_shadow_history_summary,"${shadowHistory.summary.replaceAll('"', '""')}"',
+      'global_readiness_shadow_strength_history_summary,"${shadowHistory.strengthSummary.replaceAll('"', '""')}"',
       'global_readiness_focus_state,${_globalReadinessFocusState(report)}',
       'global_readiness_historical_focus,${_isHistoricalGlobalReadinessFocus(report)}',
       'global_readiness_focus_summary,"${_globalReadinessFocusSummary(report).replaceAll('"', '""')}"',

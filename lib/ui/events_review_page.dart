@@ -1202,6 +1202,19 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             ),
                           ),
                         ],
+                        if (shadowScopeSummary.strengthSummary
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Strength: ${shadowScopeSummary.strengthSummary}',
+                            style: GoogleFonts.robotoMono(
+                              color: const Color(0xFFBFDBFE),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                         if (shadowScopeSummary.history != null) ...[
                           const SizedBox(height: 4),
                           Text(
@@ -1221,6 +1234,19 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
+                          if (shadowScopeSummary.history!.strengthSummary
+                              .trim()
+                              .isNotEmpty) ...[
+                            const SizedBox(height: 3),
+                            Text(
+                              'Strength drift: ${shadowScopeSummary.history!.strengthSummary}',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFFBFDBFE),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                           for (final point
                               in shadowScopeSummary.history!.points) ...[
                             const SizedBox(height: 3),
@@ -1237,6 +1263,15 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                                 'Validation ${point.validationSummary}',
                                 style: GoogleFonts.robotoMono(
                                   color: const Color(0xFF8FD1FF),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            if (point.strengthSummary.trim().isNotEmpty)
+                              Text(
+                                'Strength ${point.strengthSummary}',
+                                style: GoogleFonts.robotoMono(
+                                  color: const Color(0xFFBFDBFE),
                                   fontSize: 10,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -2094,6 +2129,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           'Sites ${shadowSites.length} • Matches $totalMatches • ${shadowSites.first.siteId} • ${shadowSites.first.moShadowSummary}',
       focusSummary: _readinessFocusSummary(scopedReportDate),
       validationSummary: _shadowValidationSummaryForSites(shadowSites),
+      strengthSummary: shadowMoStrengthSummaryForSites(shadowSites),
       reviewRefs: reviewRefs,
       sites: shadowSites,
       history: _shadowHistorySummary(
@@ -2153,6 +2189,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         matchCount: currentMatchCount,
         summaryLine: _shadowScopeSummaryLineForSites(currentSites),
         validationSummary: _shadowValidationSummaryForSites(currentSites),
+        strengthSummary: shadowMoStrengthSummaryForSites(currentSites),
       ),
       ...historyReports.take(2).map((item) {
         final itemSites = _shadowMoSitesForReport(item);
@@ -2162,13 +2199,22 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           matchCount: _shadowMatchCountForSites(itemSites),
           summaryLine: _shadowScopeSummaryLineForSites(itemSites),
           validationSummary: _shadowValidationSummaryForSites(itemSites),
+          strengthSummary: shadowMoStrengthSummaryForSites(itemSites),
         );
       }),
     ];
+    final strengthHistorySummary = buildShadowMoStrengthDriftSummary(
+      currentSites: currentSites,
+      historySiteSets: historyReports
+          .take(3)
+          .map(_shadowMoSitesForReport)
+          .toList(growable: false),
+    ).summary;
     return _ShadowHistorySummary(
       headline: '$label • ${dayCount}d',
       summary:
           'Current matches $currentMatchCount • Baseline ${baselineAverage?.toStringAsFixed(1) ?? 'n/a'} • $reason',
+      strengthSummary: strengthHistorySummary,
       points: points,
     );
   }
@@ -4652,11 +4698,14 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       'focus_summary,"${summary.focusSummary.replaceAll('"', '""')}"',
       'summary_line,"${summary.summaryLine.replaceAll('"', '""')}"',
       'validation_summary,"${summary.validationSummary.replaceAll('"', '""')}"',
+      'strength_summary,"${summary.strengthSummary.replaceAll('"', '""')}"',
       'review_refs,"${summary.reviewRefs.join(', ').replaceAll('"', '""')}"',
       if (summary.history != null)
         'history_headline,"${summary.history!.headline.replaceAll('"', '""')}"',
       if (summary.history != null)
         'history_summary,"${summary.history!.summary.replaceAll('"', '""')}"',
+      if (summary.history != null)
+        'strength_history_summary,"${summary.history!.strengthSummary.replaceAll('"', '""')}"',
       if (summary.reportDate.isNotEmpty)
         'current_review_command,${_shadowReviewCommand(summary.reportDate)}',
       if (summary.reportDate.isNotEmpty)
@@ -4689,6 +4738,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         );
         lines.add(
           'history_${row}_validation_summary,"${point.validationSummary.replaceAll('"', '""')}"',
+        );
+        lines.add(
+          'history_${row}_strength_summary,"${point.strengthSummary.replaceAll('"', '""')}"',
         );
         lines.addAll(
           buildHistoryReviewCommandCsvRows(
@@ -4981,9 +5033,11 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           'focusSummary': summary.focusSummary,
           'summaryLine': summary.summaryLine,
           'validationSummary': summary.validationSummary,
+          'strengthSummary': summary.strengthSummary,
           'reviewRefs': summary.reviewRefs,
           'historyHeadline': summary.history?.headline,
           'historySummary': summary.history?.summary,
+          'strengthHistorySummary': summary.history?.strengthSummary,
           'reviewShortcuts': buildReviewShortcuts(
             currentReportDate: summary.reportDate,
             previousReportDate: previousReportDate,
@@ -5003,6 +5057,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                           'matchCount': point.matchCount,
                           'summaryLine': point.summaryLine,
                           'validationSummary': point.validationSummary,
+                          'strengthSummary': point.strengthSummary,
                           ...buildReviewCommandPair(
                             reportDate: point.date,
                             reviewCommandBuilder: _shadowReviewCommand,
@@ -5594,6 +5649,7 @@ class _ShadowScopeSummary {
   final String summaryLine;
   final String focusSummary;
   final String validationSummary;
+  final String strengthSummary;
   final List<String> reviewRefs;
   final List<MonitoringGlobalSitePosture> sites;
   final _ShadowHistorySummary? history;
@@ -5607,6 +5663,7 @@ class _ShadowScopeSummary {
     required this.summaryLine,
     required this.focusSummary,
     required this.validationSummary,
+    required this.strengthSummary,
     required this.reviewRefs,
     required this.sites,
     required this.history,
@@ -5797,11 +5854,13 @@ class _TomorrowPostureHistoryPoint {
 class _ShadowHistorySummary {
   final String headline;
   final String summary;
+  final String strengthSummary;
   final List<_ShadowHistoryPoint> points;
 
   const _ShadowHistorySummary({
     required this.headline,
     required this.summary,
+    required this.strengthSummary,
     required this.points,
   });
 }
@@ -5812,6 +5871,7 @@ class _ShadowHistoryPoint {
   final int matchCount;
   final String summaryLine;
   final String validationSummary;
+  final String strengthSummary;
 
   const _ShadowHistoryPoint({
     required this.date,
@@ -5819,6 +5879,7 @@ class _ShadowHistoryPoint {
     required this.matchCount,
     required this.summaryLine,
     required this.validationSummary,
+    required this.strengthSummary,
   });
 }
 

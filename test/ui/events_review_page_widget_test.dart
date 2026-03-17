@@ -1417,8 +1417,12 @@ void main() {
       copiedClipboardPayload,
       contains('"validationSummary": "Shadow mode 2"'),
     );
+    expect(copiedClipboardPayload, contains('"strengthSummary": "'));
+    expect(copiedClipboardPayload, contains('"strengthHistorySummary": "'));
     expect(copiedClipboardPayload, contains('"history": {'));
     expect(copiedClipboardPayload, contains('"date": "2026-03-17"'));
+    expect(find.textContaining('Strength:'), findsWidgets);
+    expect(find.textContaining('Strength drift:'), findsWidgets);
 
     final copyCsvAction = tester.widget<InkWell>(
       find.byKey(
@@ -1450,12 +1454,15 @@ void main() {
       copiedClipboardPayload,
       contains('validation_summary,"Shadow mode 2"'),
     );
+    expect(copiedClipboardPayload, contains('strength_summary,"'));
+    expect(copiedClipboardPayload, contains('strength_history_summary,"'));
     expect(copiedClipboardPayload, contains('history_1_date,2026-03-17'));
     expect(copiedClipboardPayload, contains('history_1_match_count,2'));
     expect(
       copiedClipboardPayload,
       contains('history_1_validation_summary,"Shadow mode 2"'),
     );
+    expect(copiedClipboardPayload, contains('history_1_strength_summary,"'));
 
     final openGovernanceAction = tester.widget<InkWell>(
       find.byKey(
@@ -2065,259 +2072,258 @@ void main() {
     expect(governanceOpened, isTrue);
   });
 
-  testWidgets(
-    'synthetic history shows promotion decisions and exports them',
-    (tester) async {
-      String? copiedClipboardPayload;
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+  testWidgets('synthetic history shows promotion decisions and exports them', (
+    tester,
+  ) async {
+    String? copiedClipboardPayload;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final args = (call.arguments as Map<dynamic, dynamic>);
+          copiedClipboardPayload = args['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         SystemChannels.platform,
-        (call) async {
-          if (call.method == 'Clipboard.setData') {
-            final args = (call.arguments as Map<dynamic, dynamic>);
-            copiedClipboardPayload = args['text'] as String?;
-          }
-          return null;
-        },
-      );
-      addTearDown(
-        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-          SystemChannels.platform,
-          null,
-        ),
-      );
+        null,
+      ),
+    );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: EventsReviewPage(
-            events: <DispatchEvent>[
-              IntelligenceReceived(
-                eventId: 'SYN-HIST-NEWS-CURRENT',
-                sequence: 1,
-                version: 1,
-                occurredAt: DateTime.utc(2026, 3, 17, 0, 20),
-                intelligenceId: 'SYN-HIST-NEWS-INTEL-CURRENT',
-                provider: 'newsdesk',
-                sourceType: 'news',
-                externalId: 'syn-hist-news-current',
-                clientId: 'CLIENT-VALLEE',
-                regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-VALLEE',
-                headline: 'Contractors moved floor to floor in office park',
-                summary:
-                    'Suspects posed as maintenance contractors before moving across restricted office zones.',
-                riskScore: 91,
-                canonicalHash: 'hash-syn-hist-news-current',
+    await tester.pumpWidget(
+      MaterialApp(
+        home: EventsReviewPage(
+          events: <DispatchEvent>[
+            IntelligenceReceived(
+              eventId: 'SYN-HIST-NEWS-CURRENT',
+              sequence: 1,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 17, 0, 20),
+              intelligenceId: 'SYN-HIST-NEWS-INTEL-CURRENT',
+              provider: 'newsdesk',
+              sourceType: 'news',
+              externalId: 'syn-hist-news-current',
+              clientId: 'CLIENT-VALLEE',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-VALLEE',
+              headline: 'Contractors moved floor to floor in office park',
+              summary:
+                  'Suspects posed as maintenance contractors before moving across restricted office zones.',
+              riskScore: 91,
+              canonicalHash: 'hash-syn-hist-news-current',
+            ),
+            IntelligenceReceived(
+              eventId: 'SYN-HIST-LIVE-CURRENT',
+              sequence: 2,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 17, 1, 0),
+              intelligenceId: 'SYN-HIST-LIVE-INTEL-CURRENT',
+              provider: 'hikvision_dvr_monitor_only',
+              sourceType: 'dvr',
+              externalId: 'syn-hist-live-current',
+              clientId: 'CLIENT-VALLEE',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-VALLEE',
+              cameraId: 'office-cam-current',
+              objectLabel: 'person',
+              objectConfidence: 0.94,
+              headline: 'Maintenance contractor probing office doors',
+              summary:
+                  'Contractor-like person moved floor to floor and tried several restricted office doors.',
+              riskScore: 84,
+              snapshotUrl: 'https://edge.example.com/current-live.jpg',
+              canonicalHash: 'hash-syn-hist-live-current',
+            ),
+            IntelligenceReceived(
+              eventId: 'SYN-HIST-NEWS-PRIOR',
+              sequence: 1,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 16, 0, 20),
+              intelligenceId: 'SYN-HIST-NEWS-INTEL-PRIOR',
+              provider: 'newsdesk',
+              sourceType: 'news',
+              externalId: 'syn-hist-news-prior',
+              clientId: 'CLIENT-VALLEE',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-VALLEE',
+              headline: 'Contractors moved floor to floor in office park',
+              summary:
+                  'Suspects posed as maintenance contractors before moving across restricted office zones.',
+              riskScore: 89,
+              canonicalHash: 'hash-syn-hist-news-prior',
+            ),
+            IntelligenceReceived(
+              eventId: 'SYN-HIST-LIVE-PRIOR',
+              sequence: 2,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 16, 1, 0),
+              intelligenceId: 'SYN-HIST-LIVE-INTEL-PRIOR',
+              provider: 'hikvision_dvr_monitor_only',
+              sourceType: 'dvr',
+              externalId: 'syn-hist-live-prior',
+              clientId: 'CLIENT-VALLEE',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-VALLEE',
+              cameraId: 'office-cam-prior',
+              objectLabel: 'person',
+              objectConfidence: 0.94,
+              headline: 'Maintenance contractor probing office doors',
+              summary:
+                  'Contractor-like person moved floor to floor and tried several restricted office doors.',
+              riskScore: 82,
+              snapshotUrl: 'https://edge.example.com/prior-live.jpg',
+              canonicalHash: 'hash-syn-hist-live-prior',
+            ),
+          ],
+          sceneReviewByIntelligenceId: {
+            'SYN-HIST-LIVE-INTEL-CURRENT': MonitoringSceneReviewRecord(
+              intelligenceId: 'SYN-HIST-LIVE-INTEL-CURRENT',
+              sourceLabel: 'openai:gpt-5.4-mini',
+              postureLabel: 'service impersonation and roaming concern',
+              decisionLabel: 'Escalation Candidate',
+              decisionSummary:
+                  'Likely spoofed service access with abnormal roaming.',
+              summary:
+                  'Likely maintenance impersonation moving across office zones.',
+              reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 2),
+            ),
+            'SYN-HIST-LIVE-INTEL-PRIOR': MonitoringSceneReviewRecord(
+              intelligenceId: 'SYN-HIST-LIVE-INTEL-PRIOR',
+              sourceLabel: 'openai:gpt-5.4-mini',
+              postureLabel: 'service impersonation and roaming concern',
+              decisionLabel: 'Escalation Candidate',
+              decisionSummary:
+                  'Likely spoofed service access with abnormal roaming.',
+              summary:
+                  'Likely maintenance impersonation moving across office zones.',
+              reviewedAtUtc: DateTime.utc(2026, 3, 16, 1, 2),
+            ),
+          },
+          initialScopedEventIds: const [
+            'SYN-HIST-NEWS-CURRENT',
+            'SYN-HIST-LIVE-CURRENT',
+          ],
+          initialSelectedEventId: 'SYN-HIST-LIVE-CURRENT',
+          initialScopedMode: 'synthetic',
+          morningSovereignReportHistory: [
+            SovereignReport(
+              date: '2026-03-17',
+              generatedAtUtc: DateTime.utc(2026, 3, 17, 6, 0),
+              shiftWindowStartUtc: DateTime.utc(2026, 3, 16, 22, 0),
+              shiftWindowEndUtc: DateTime.utc(2026, 3, 17, 6, 0),
+              ledgerIntegrity: const SovereignReportLedgerIntegrity(
+                totalEvents: 2,
+                hashVerified: true,
+                integrityScore: 100,
               ),
-              IntelligenceReceived(
-                eventId: 'SYN-HIST-LIVE-CURRENT',
-                sequence: 2,
-                version: 1,
-                occurredAt: DateTime.utc(2026, 3, 17, 1, 0),
-                intelligenceId: 'SYN-HIST-LIVE-INTEL-CURRENT',
-                provider: 'hikvision_dvr_monitor_only',
-                sourceType: 'dvr',
-                externalId: 'syn-hist-live-current',
-                clientId: 'CLIENT-VALLEE',
-                regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-VALLEE',
-                cameraId: 'office-cam-current',
-                objectLabel: 'person',
-                objectConfidence: 0.94,
-                headline: 'Maintenance contractor probing office doors',
-                summary:
-                    'Contractor-like person moved floor to floor and tried several restricted office doors.',
-                riskScore: 84,
-                snapshotUrl: 'https://edge.example.com/current-live.jpg',
-                canonicalHash: 'hash-syn-hist-live-current',
+              aiHumanDelta: const SovereignReportAiHumanDelta(
+                aiDecisions: 1,
+                humanOverrides: 0,
+                overrideReasons: <String, int>{},
               ),
-              IntelligenceReceived(
-                eventId: 'SYN-HIST-NEWS-PRIOR',
-                sequence: 1,
-                version: 1,
-                occurredAt: DateTime.utc(2026, 3, 16, 0, 20),
-                intelligenceId: 'SYN-HIST-NEWS-INTEL-PRIOR',
-                provider: 'newsdesk',
-                sourceType: 'news',
-                externalId: 'syn-hist-news-prior',
-                clientId: 'CLIENT-VALLEE',
-                regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-VALLEE',
-                headline: 'Contractors moved floor to floor in office park',
-                summary:
-                    'Suspects posed as maintenance contractors before moving across restricted office zones.',
-                riskScore: 89,
-                canonicalHash: 'hash-syn-hist-news-prior',
+              normDrift: const SovereignReportNormDrift(
+                sitesMonitored: 1,
+                driftDetected: 0,
+                avgMatchScore: 100,
               ),
-              IntelligenceReceived(
-                eventId: 'SYN-HIST-LIVE-PRIOR',
-                sequence: 2,
-                version: 1,
-                occurredAt: DateTime.utc(2026, 3, 16, 1, 0),
-                intelligenceId: 'SYN-HIST-LIVE-INTEL-PRIOR',
-                provider: 'hikvision_dvr_monitor_only',
-                sourceType: 'dvr',
-                externalId: 'syn-hist-live-prior',
-                clientId: 'CLIENT-VALLEE',
-                regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-VALLEE',
-                cameraId: 'office-cam-prior',
-                objectLabel: 'person',
-                objectConfidence: 0.94,
-                headline: 'Maintenance contractor probing office doors',
-                summary:
-                    'Contractor-like person moved floor to floor and tried several restricted office doors.',
-                riskScore: 82,
-                snapshotUrl: 'https://edge.example.com/prior-live.jpg',
-                canonicalHash: 'hash-syn-hist-live-prior',
+              complianceBlockage: const SovereignReportComplianceBlockage(
+                psiraExpired: 0,
+                pdpExpired: 0,
+                totalBlocked: 0,
               ),
-            ],
-            sceneReviewByIntelligenceId: {
-              'SYN-HIST-LIVE-INTEL-CURRENT': MonitoringSceneReviewRecord(
-                intelligenceId: 'SYN-HIST-LIVE-INTEL-CURRENT',
-                sourceLabel: 'openai:gpt-5.4-mini',
-                postureLabel: 'service impersonation and roaming concern',
-                decisionLabel: 'Escalation Candidate',
-                decisionSummary:
-                    'Likely spoofed service access with abnormal roaming.',
-                summary:
-                    'Likely maintenance impersonation moving across office zones.',
-                reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 2),
+            ),
+            SovereignReport(
+              date: '2026-03-16',
+              generatedAtUtc: DateTime.utc(2026, 3, 16, 6, 0),
+              shiftWindowStartUtc: DateTime.utc(2026, 3, 15, 22, 0),
+              shiftWindowEndUtc: DateTime.utc(2026, 3, 16, 6, 0),
+              ledgerIntegrity: const SovereignReportLedgerIntegrity(
+                totalEvents: 2,
+                hashVerified: true,
+                integrityScore: 100,
               ),
-              'SYN-HIST-LIVE-INTEL-PRIOR': MonitoringSceneReviewRecord(
-                intelligenceId: 'SYN-HIST-LIVE-INTEL-PRIOR',
-                sourceLabel: 'openai:gpt-5.4-mini',
-                postureLabel: 'service impersonation and roaming concern',
-                decisionLabel: 'Escalation Candidate',
-                decisionSummary:
-                    'Likely spoofed service access with abnormal roaming.',
-                summary:
-                    'Likely maintenance impersonation moving across office zones.',
-                reviewedAtUtc: DateTime.utc(2026, 3, 16, 1, 2),
+              aiHumanDelta: const SovereignReportAiHumanDelta(
+                aiDecisions: 1,
+                humanOverrides: 0,
+                overrideReasons: <String, int>{},
               ),
-            },
-            initialScopedEventIds: const [
-              'SYN-HIST-NEWS-CURRENT',
-              'SYN-HIST-LIVE-CURRENT',
-            ],
-            initialSelectedEventId: 'SYN-HIST-LIVE-CURRENT',
-            initialScopedMode: 'synthetic',
-            morningSovereignReportHistory: [
-              SovereignReport(
-                date: '2026-03-17',
-                generatedAtUtc: DateTime.utc(2026, 3, 17, 6, 0),
-                shiftWindowStartUtc: DateTime.utc(2026, 3, 16, 22, 0),
-                shiftWindowEndUtc: DateTime.utc(2026, 3, 17, 6, 0),
-                ledgerIntegrity: const SovereignReportLedgerIntegrity(
-                  totalEvents: 2,
-                  hashVerified: true,
-                  integrityScore: 100,
-                ),
-                aiHumanDelta: const SovereignReportAiHumanDelta(
-                  aiDecisions: 1,
-                  humanOverrides: 0,
-                  overrideReasons: <String, int>{},
-                ),
-                normDrift: const SovereignReportNormDrift(
-                  sitesMonitored: 1,
-                  driftDetected: 0,
-                  avgMatchScore: 100,
-                ),
-                complianceBlockage: const SovereignReportComplianceBlockage(
-                  psiraExpired: 0,
-                  pdpExpired: 0,
-                  totalBlocked: 0,
-                ),
+              normDrift: const SovereignReportNormDrift(
+                sitesMonitored: 1,
+                driftDetected: 0,
+                avgMatchScore: 100,
               ),
-              SovereignReport(
-                date: '2026-03-16',
-                generatedAtUtc: DateTime.utc(2026, 3, 16, 6, 0),
-                shiftWindowStartUtc: DateTime.utc(2026, 3, 15, 22, 0),
-                shiftWindowEndUtc: DateTime.utc(2026, 3, 16, 6, 0),
-                ledgerIntegrity: const SovereignReportLedgerIntegrity(
-                  totalEvents: 2,
-                  hashVerified: true,
-                  integrityScore: 100,
-                ),
-                aiHumanDelta: const SovereignReportAiHumanDelta(
-                  aiDecisions: 1,
-                  humanOverrides: 0,
-                  overrideReasons: <String, int>{},
-                ),
-                normDrift: const SovereignReportNormDrift(
-                  sitesMonitored: 1,
-                  driftDetected: 0,
-                  avgMatchScore: 100,
-                ),
-                complianceBlockage: const SovereignReportComplianceBlockage(
-                  psiraExpired: 0,
-                  pdpExpired: 0,
-                  totalBlocked: 0,
-                ),
+              complianceBlockage: const SovereignReportComplianceBlockage(
+                psiraExpired: 0,
+                pdpExpired: 0,
+                totalBlocked: 0,
               ),
-            ],
-            currentMorningSovereignReportDate: '2026-03-17',
-          ),
+            ),
+          ],
+          currentMorningSovereignReportDate: '2026-03-17',
         ),
-      );
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.textContaining('Promotion: Promote '), findsWidgets);
-      await tester.ensureVisible(
-        find.byKey(
-          const ValueKey('events-synthetic-promotion-accept-action'),
-          skipOffstage: false,
-        ),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(
-        find.byKey(
-          const ValueKey('events-synthetic-promotion-accept-action'),
-          skipOffstage: false,
-        ),
-      );
-      await tester.pumpAndSettle();
+    expect(find.textContaining('Promotion: Promote '), findsWidgets);
+    await tester.ensureVisible(
+      find.byKey(
+        const ValueKey('events-synthetic-promotion-accept-action'),
+        skipOffstage: false,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(
+        const ValueKey('events-synthetic-promotion-accept-action'),
+        skipOffstage: false,
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.textContaining('Accepted toward '), findsWidgets);
-      expect(find.textContaining('Shadow validation:'), findsWidgets);
+    expect(find.textContaining('Accepted toward '), findsWidgets);
+    expect(find.textContaining('Shadow validation:'), findsWidgets);
 
-      await tester.tap(
-        find.byKey(
-          const ValueKey('events-synthetic-casefile-json-action'),
-          skipOffstage: false,
-        ),
-      );
-      await tester.pump();
-      expect(copiedClipboardPayload, contains('"promotionDecisionStatus": "accepted"'));
-      expect(
-        copiedClipboardPayload,
-        contains('"promotionDecisionSummary": "Accepted toward '),
-      );
-      expect(
-        copiedClipboardPayload,
-        contains('"shadowValidationSummary": "'),
-      );
+    await tester.tap(
+      find.byKey(
+        const ValueKey('events-synthetic-casefile-json-action'),
+        skipOffstage: false,
+      ),
+    );
+    await tester.pump();
+    expect(
+      copiedClipboardPayload,
+      contains('"promotionDecisionStatus": "accepted"'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('"promotionDecisionSummary": "Accepted toward '),
+    );
+    expect(copiedClipboardPayload, contains('"shadowValidationSummary": "'));
 
-      await tester.tap(
-        find.byKey(
-          const ValueKey('events-synthetic-casefile-csv-action'),
-          skipOffstage: false,
-        ),
-      );
-      await tester.pump();
-      expect(
-        copiedClipboardPayload,
-        contains('history_1_promotion_decision_status,accepted'),
-      );
-      expect(
-        copiedClipboardPayload,
-        contains('history_1_promotion_decision_summary,"Accepted toward '),
-      );
-      expect(
-        copiedClipboardPayload,
-        contains('history_1_shadow_validation_summary,"'),
-      );
-    },
-  );
+    await tester.tap(
+      find.byKey(
+        const ValueKey('events-synthetic-casefile-csv-action'),
+        skipOffstage: false,
+      ),
+    );
+    await tester.pump();
+    expect(
+      copiedClipboardPayload,
+      contains('history_1_promotion_decision_status,accepted'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('history_1_promotion_decision_summary,"Accepted toward '),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('history_1_shadow_validation_summary,"'),
+    );
+  });
 
   testWidgets('events review shows dedicated tomorrow posture investigation banner', (
     tester,

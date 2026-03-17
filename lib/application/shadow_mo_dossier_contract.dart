@@ -1,6 +1,12 @@
 import 'mo_runtime_matching_service.dart';
 import 'monitoring_global_posture_service.dart';
 
+class ShadowMoStrengthDriftSummary {
+  final String summary;
+
+  const ShadowMoStrengthDriftSummary({required this.summary});
+}
+
 List<MonitoringGlobalSitePosture> sortShadowMoSites(
   Iterable<MonitoringGlobalSitePosture> sites,
 ) {
@@ -107,6 +113,53 @@ Map<String, Object?> buildShadowMoSitePayload(
   };
 }
 
+String shadowMoStrengthSummaryForSites(
+  List<MonitoringGlobalSitePosture> sites,
+) {
+  if (sites.isEmpty) {
+    return '';
+  }
+  final orderedSites = sortShadowMoSites(sites);
+  if (orderedSites.isEmpty || orderedSites.first.moShadowMatches.isEmpty) {
+    return '';
+  }
+  return shadowMoStrengthSummary(
+    sortShadowMoMatches(orderedSites.first.moShadowMatches).first,
+  );
+}
+
+ShadowMoStrengthDriftSummary buildShadowMoStrengthDriftSummary({
+  required List<MonitoringGlobalSitePosture> currentSites,
+  List<List<MonitoringGlobalSitePosture>> historySiteSets = const [],
+}) {
+  final currentStrength = _leadStrengthScore(currentSites);
+  if (currentStrength <= 0) {
+    return const ShadowMoStrengthDriftSummary(summary: '');
+  }
+  final baselines = historySiteSets
+      .map(_leadStrengthScore)
+      .where((score) => score > 0)
+      .take(3)
+      .toList(growable: false);
+  if (baselines.isEmpty) {
+    return ShadowMoStrengthDriftSummary(
+      summary:
+          'Current strength ${currentStrength.toStringAsFixed(2)} • Baseline n/a • No prior shadow-MO strength history is available yet.',
+    );
+  }
+  final baselineAverage =
+      baselines.reduce((left, right) => left + right) / baselines.length;
+  final reason = currentStrength > baselineAverage + 0.04
+      ? 'Shadow-MO runtime strength is increasing against recent shifts.'
+      : currentStrength < baselineAverage - 0.04
+      ? 'Shadow-MO runtime strength eased against recent shifts.'
+      : 'Shadow-MO runtime strength is holding close to the recent baseline.';
+  return ShadowMoStrengthDriftSummary(
+    summary:
+        'Current strength ${currentStrength.toStringAsFixed(2)} • Baseline ${baselineAverage.toStringAsFixed(2)} • $reason',
+  );
+}
+
 Map<String, Object?> buildShadowMoDossierPayload({
   required Iterable<MonitoringGlobalSitePosture> sites,
   DateTime? generatedAtUtc,
@@ -159,6 +212,19 @@ String shadowMoStrengthSummary(OnyxMoShadowMatch match) {
     return '${_humanizeValidationStatus(status)} • $score';
   }
   return 'MATCHED • $score';
+}
+
+double _leadStrengthScore(List<MonitoringGlobalSitePosture> sites) {
+  if (sites.isEmpty) {
+    return 0;
+  }
+  final orderedSites = sortShadowMoSites(sites);
+  if (orderedSites.isEmpty || orderedSites.first.moShadowMatches.isEmpty) {
+    return 0;
+  }
+  return sortShadowMoMatches(
+    orderedSites.first.moShadowMatches,
+  ).first.matchScore;
 }
 
 String _humanizeRuntimeMatchBias(String bias) {
