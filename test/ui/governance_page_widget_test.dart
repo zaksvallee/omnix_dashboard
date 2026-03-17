@@ -4858,6 +4858,10 @@ void main() {
     );
     expect(
       copiedPayload,
+      contains('global_readiness_tomorrow_urgency_summary,""'),
+    );
+    expect(
+      copiedPayload,
       contains(
         'global_readiness_tomorrow_review_command,/tomorrowreview 2026-03-10',
       ),

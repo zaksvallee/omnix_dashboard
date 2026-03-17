@@ -2582,6 +2582,7 @@ void main() {
         '"learningMemorySummary": "Memory: ADVANCE FIRE repeated across 2 linked shifts."',
       ),
     );
+    expect(copiedClipboardPayload, contains('"urgencySummary": ""'));
     expect(
       copiedClipboardPayload,
       contains('"hazardSummary": "fire playbook draft active"'),
@@ -2616,6 +2617,7 @@ void main() {
       copiedClipboardPayload,
       contains('"caseFileCommand": "/tomorrowcase json 2026-03-16"'),
     );
+    expect(copiedClipboardPayload, contains('"urgencySummary": ""'));
 
     final copyCsvAction = tester.widget<InkWell>(
       find.byKey(
@@ -2645,6 +2647,7 @@ void main() {
         'learning_memory_summary,"Memory: ADVANCE FIRE repeated across 2 linked shifts."',
       ),
     );
+    expect(copiedClipboardPayload, contains('urgency_summary,""'));
     expect(
       copiedClipboardPayload,
       contains('hazard_summary,"fire playbook draft active"'),
@@ -2681,6 +2684,8 @@ void main() {
       copiedClipboardPayload,
       contains('history_2_case_file_command,/tomorrowcase json 2026-03-16'),
     );
+    expect(copiedClipboardPayload, contains('history_1_urgency_summary,""'));
+    expect(copiedClipboardPayload, contains('history_2_urgency_summary,""'));
 
     final openGovernanceAction = tester.widget<InkWell>(
       find.byKey(

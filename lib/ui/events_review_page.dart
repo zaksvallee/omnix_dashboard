@@ -645,6 +645,19 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             ),
                           ),
                         ],
+                        if (tomorrowScopeSummary.urgencySummary
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Urgency: ${tomorrowScopeSummary.urgencySummary}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFFDE68A),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                         if (tomorrowScopeSummary.hazardSummary
                             .trim()
                             .isNotEmpty) ...[
@@ -707,7 +720,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                                         .points) ...[
                                   const SizedBox(height: 4),
                                   Text(
-                                    '${point.date} • ${point.summaryLine}${point.shadowSummary.isEmpty ? '' : ' • shadow ${point.shadowSummary}'}',
+                                    '${point.date} • ${point.summaryLine}${point.shadowSummary.isEmpty ? '' : ' • shadow ${point.shadowSummary}'}${point.urgencySummary.isEmpty ? '' : ' • urgency ${point.urgencySummary}'}',
                                     style: GoogleFonts.inter(
                                       color: const Color(0xFFEAF1FB),
                                       fontSize: 10,
@@ -1969,6 +1982,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           .trim(),
       learningMemorySummary: _tomorrowPostureLearningMemorySummary(leadDraft),
       shadowSummary: _tomorrowPostureShadowSummary(report, leadDraft),
+      urgencySummary: _tomorrowPostureUrgencySummary(leadDraft),
       hazardSummary: _tomorrowPostureHazardSummary(leadDraft),
       reviewRefs: reviewRefs,
       history: _tomorrowPostureHistorySummary(report),
@@ -2929,6 +2943,32 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return '${_hazardSignalLabel(signal)} playbook draft active';
   }
 
+  String _tomorrowPostureUrgencySummary(
+    MonitoringWatchAutonomyActionPlan draft,
+  ) {
+    final strengthBias = (draft.metadata['shadow_strength_bias'] ?? '')
+        .toString()
+        .trim();
+    if (strengthBias.isEmpty) {
+      return '';
+    }
+    final strengthPriority = (draft.metadata['shadow_strength_priority'] ?? '')
+        .toString()
+        .trim();
+    final countdown =
+        (draft.metadata['draft_countdown'] ?? '').toString().trim().isNotEmpty
+        ? (draft.metadata['draft_countdown'] ?? '').toString().trim()
+        : draft.countdownSeconds > 0
+        ? draft.countdownSeconds.toString()
+        : '';
+    final parts = <String>[
+      strengthBias,
+      if (strengthPriority.isNotEmpty) strengthPriority,
+      if (countdown.isNotEmpty) '${countdown}s',
+    ];
+    return parts.join(' • ');
+  }
+
   String _syntheticWarRoomBiasSummaryForPlan(
     MonitoringWatchAutonomyActionPlan? plan,
   ) {
@@ -3294,6 +3334,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         shadowSummary: currentDrafts.isEmpty
             ? ''
             : _tomorrowPostureShadowSummary(currentReport, currentDrafts.first),
+        urgencySummary: currentDrafts.isEmpty
+            ? ''
+            : _tomorrowPostureUrgencySummary(currentDrafts.first),
       ),
       ...historyReports.take(2).map((item) {
         final drafts = _tomorrowPostureDraftsForReport(item);
@@ -3306,6 +3349,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           shadowSummary: drafts.isEmpty
               ? ''
               : _tomorrowPostureShadowSummary(item, drafts.first),
+          urgencySummary: drafts.isEmpty
+              ? ''
+              : _tomorrowPostureUrgencySummary(drafts.first),
         );
       }),
     ];
@@ -4989,6 +5035,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       'learning_summary,"${summary.learningSummary.replaceAll('"', '""')}"',
       'learning_memory_summary,"${summary.learningMemorySummary.replaceAll('"', '""')}"',
       'shadow_summary,"${summary.shadowSummary.replaceAll('"', '""')}"',
+      'urgency_summary,"${summary.urgencySummary.replaceAll('"', '""')}"',
       'hazard_summary,"${summary.hazardSummary.replaceAll('"', '""')}"',
       'review_refs,"${summary.reviewRefs.join(', ').replaceAll('"', '""')}"',
       if (summary.reportDate.isNotEmpty)
@@ -5017,6 +5064,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         );
         lines.add(
           'history_${row}_shadow_summary,"${point.shadowSummary.replaceAll('"', '""')}"',
+        );
+        lines.add(
+          'history_${row}_urgency_summary,"${point.urgencySummary.replaceAll('"', '""')}"',
         );
         lines.addAll(
           buildHistoryReviewCommandCsvRows(
@@ -5198,6 +5248,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'learningSummary': summary.learningSummary,
         'learningMemorySummary': summary.learningMemorySummary,
         'shadowSummary': summary.shadowSummary,
+        'urgencySummary': summary.urgencySummary,
         'hazardSummary': summary.hazardSummary,
         'reviewRefs': summary.reviewRefs,
         'reviewShortcuts': buildReviewShortcuts(
@@ -5218,6 +5269,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         'draftCount': point.draftCount,
                         'summaryLine': point.summaryLine,
                         'shadowSummary': point.shadowSummary,
+                        'urgencySummary': point.urgencySummary,
                         ...buildReviewCommandPair(
                           reportDate: point.date,
                           reviewCommandBuilder: _tomorrowReviewCommand,
@@ -5900,6 +5952,7 @@ class _TomorrowPostureScopeSummary {
   final String learningSummary;
   final String learningMemorySummary;
   final String shadowSummary;
+  final String urgencySummary;
   final String hazardSummary;
   final List<String> reviewRefs;
   final _TomorrowPostureHistorySummary? history;
@@ -5918,6 +5971,7 @@ class _TomorrowPostureScopeSummary {
     required this.learningSummary,
     required this.learningMemorySummary,
     required this.shadowSummary,
+    required this.urgencySummary,
     required this.hazardSummary,
     required this.reviewRefs,
     required this.history,
@@ -5946,12 +6000,14 @@ class _TomorrowPostureHistoryPoint {
   final int draftCount;
   final String summaryLine;
   final String shadowSummary;
+  final String urgencySummary;
 
   const _TomorrowPostureHistoryPoint({
     required this.date,
     required this.draftCount,
     required this.summaryLine,
     required this.shadowSummary,
+    required this.urgencySummary,
   });
 }
 

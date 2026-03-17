@@ -6148,6 +6148,43 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return _singleLine(parts.join(' • '), maxLength: 220);
   }
 
+  String _globalReadinessTomorrowUrgencySummary(
+    List<MonitoringWatchAutonomyActionPlan> intents,
+  ) {
+    final draft = intents.firstWhere(
+      (plan) =>
+          plan.metadata['scope'] == 'NEXT_SHIFT' &&
+          (plan.metadata['shadow_strength_bias'] ?? '').trim().isNotEmpty,
+      orElse: () => const MonitoringWatchAutonomyActionPlan(
+        id: '',
+        incidentId: '',
+        siteId: '',
+        priority: MonitoringWatchAutonomyPriority.medium,
+        actionType: '',
+        description: '',
+        countdownSeconds: 0,
+      ),
+    );
+    if (draft.actionType.trim().isEmpty) {
+      return '';
+    }
+    final strengthBias = (draft.metadata['shadow_strength_bias'] ?? '').trim();
+    final strengthPriority = (draft.metadata['shadow_strength_priority'] ?? '')
+        .trim();
+    final countdown =
+        (draft.metadata['draft_countdown'] ?? '').trim().isNotEmpty
+        ? (draft.metadata['draft_countdown'] ?? '').trim()
+        : draft.countdownSeconds > 0
+        ? draft.countdownSeconds.toString()
+        : '';
+    final parts = <String>[
+      if (strengthBias.isNotEmpty) strengthBias,
+      if (strengthPriority.isNotEmpty) strengthPriority,
+      if (countdown.isNotEmpty) '${countdown}s',
+    ];
+    return _singleLine(parts.join(' • '), maxLength: 120);
+  }
+
   List<MonitoringWatchAutonomyActionPlan> _tomorrowPostureDraftsForReport(
     SovereignReport report,
   ) {
@@ -6182,6 +6219,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               item,
               itemDrafts,
             ),
+            'urgencySummary': _globalReadinessTomorrowUrgencySummary(
+              itemDrafts,
+            ),
             'draftCount': itemDrafts.length,
             ...buildReviewCommandPair(
               reportDate: item.date,
@@ -6198,6 +6238,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'focusSummary': _readinessFocusSummary(report.date),
       'summary': _globalReadinessTomorrowPostureSummary(drafts),
       'shadowSummary': _globalReadinessTomorrowShadowSummary(report, drafts),
+      'urgencySummary': _globalReadinessTomorrowUrgencySummary(drafts),
       'draftCount': drafts.length,
       'eventIds': readinessEvidence['eventIds'] ?? const <Object?>[],
       'reviewRefs': readinessEvidence['reviewRefs'] ?? const <Object?>[],
@@ -6220,6 +6261,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               'shadowTitle': draft.metadata['shadow_mo_title'] ?? '',
               'shadowRepeatCount':
                   draft.metadata['shadow_mo_repeat_count'] ?? '',
+              'urgencySummary': _globalReadinessTomorrowUrgencySummary([draft]),
               'hazardSignal': draft.metadata['hazard_signal'] ?? '',
               'metadata': draft.metadata,
             },
@@ -6241,6 +6283,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'focus_summary,"${(payload['focusSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'summary,"${(payload['summary'] ?? '').toString().replaceAll('"', '""')}"',
       'shadow_summary,"${(payload['shadowSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'urgency_summary,"${(payload['urgencySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'draft_count,${payload['draftCount'] ?? 0}',
       'selected_event_id,${payload['selectedEventId'] ?? ''}',
       'review_refs,"${((payload['reviewRefs'] as List<Object?>?) ?? const <Object?>[]).join(', ').replaceAll('"', '""')}"',
@@ -6268,6 +6311,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       lines.add(
         'draft_${i + 1}_shadow_summary,"${shadowParts.replaceAll('"', '""')}"',
       );
+      lines.add(
+        'draft_${i + 1}_urgency_summary,"${(draft['urgencySummary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
     }
     for (var i = 0; i < history.length; i += 1) {
       final row = history[i];
@@ -6277,6 +6323,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       lines.add(
         'history_${i + 1}_shadow_summary,"${(row['shadowSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add(
+        'history_${i + 1}_urgency_summary,"${(row['urgencySummary'] ?? '').toString().replaceAll('"', '""')}"',
       );
       lines.addAll(
         buildHistoryReviewCommandCsvRows(
@@ -18214,6 +18263,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final payload = _tomorrowPostureCaseFilePayload(reportDate: report.date);
     final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
     final shadowSummary = (payload['shadowSummary'] ?? '').toString().trim();
+    final urgencySummary = (payload['urgencySummary'] ?? '').toString().trim();
     final eventIds =
         ((payload['eventIds'] as List<Object?>?) ?? const <Object?>[])
             .map((value) => value.toString().trim())
@@ -18240,6 +18290,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           ChatCaseFileHeaderField(key: 'summary', value: (payload['summary'] ?? '').toString()),
           ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
           ChatCaseFileHeaderField(key: 'shadow_summary', value: shadowSummary),
+          ChatCaseFileHeaderField(key: 'urgency_summary', value: urgencySummary),
           ChatCaseFileHeaderField(key: 'review_refs', value: reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', ')),
           ChatCaseFileHeaderField(key: 'case_file_command', value: '/tomorrowcase json ${report.date}'),
           ChatCaseFileHeaderField(key: 'governance_command', value: '/readinessgovernance ${report.date}'),
@@ -18255,6 +18306,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         ChatCaseFileHeaderField(key: 'summary', value: (payload['summary'] ?? '').toString()),
         ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
         ChatCaseFileHeaderField(key: 'shadow_summary', value: shadowSummary),
+        ChatCaseFileHeaderField(key: 'urgency_summary', value: urgencySummary),
         ChatCaseFileHeaderField(key: 'case_file_command', value: '/tomorrowcase json ${report.date}'),
         ChatCaseFileHeaderField(key: 'governance_command', value: '/readinessgovernance ${report.date}'),
       ],
@@ -18289,6 +18341,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final payload = _tomorrowPostureCaseFilePayload(reportDate: report.date);
     final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
     final shadowSummary = (payload['shadowSummary'] ?? '').toString().trim();
+    final urgencySummary = (payload['urgencySummary'] ?? '').toString().trim();
     final historyRows =
         ((payload['history'] as List<Object?>?) ?? const <Object?>[])
             .cast<Map<String, Object?>>();
@@ -18303,6 +18356,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         ChatCaseFileHistoryField(
           inputKey: 'shadowSummary',
           outputKey: 'shadow_summary',
+        ),
+        ChatCaseFileHistoryField(
+          inputKey: 'urgencySummary',
+          outputKey: 'urgency_summary',
         ),
         ChatCaseFileHistoryField(
           inputKey: 'draftCount',
@@ -18326,6 +18383,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
           ChatCaseFileHeaderField(key: 'shadow_summary', value: shadowSummary),
           ChatCaseFileHeaderField(
+            key: 'urgency_summary',
+            value: urgencySummary,
+          ),
+          ChatCaseFileHeaderField(
             key: 'review_command',
             value: '/tomorrowreview ${report.date}',
           ),
@@ -18339,6 +18400,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         ChatCaseFileHeaderField(key: 'report_date', value: report.date),
         ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
         ChatCaseFileHeaderField(key: 'shadow_summary', value: shadowSummary),
+        ChatCaseFileHeaderField(key: 'urgency_summary', value: urgencySummary),
         ChatCaseFileHeaderField(
           key: 'review_command',
           value: '/tomorrowreview ${report.date}',
