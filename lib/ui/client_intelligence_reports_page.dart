@@ -4822,42 +4822,57 @@ class _ClientIntelligenceReportsPageState
             ),
           ),
           const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: _pillActionButton(
-                  label: 'Preview',
-                  icon: Icons.visibility_rounded,
-                  buttonKey: ValueKey<String>(
-                    'report-receipt-preview-${row.event.eventId}',
+          Builder(
+            builder: (context) {
+              final governanceReceiptActions =
+                  _entryContext == ReportEntryContext.governanceBrandingDrift;
+              final previewLabel = governanceReceiptActions
+                  ? 'Governance Preview'
+                  : 'Preview';
+              final copyLabel = governanceReceiptActions
+                  ? 'Governance Copy'
+                  : 'Copy';
+              final downloadLabel = governanceReceiptActions
+                  ? 'Governance Download'
+                  : 'Download';
+              return Row(
+                children: [
+                  Expanded(
+                    child: _pillActionButton(
+                      label: previewLabel,
+                      icon: Icons.visibility_rounded,
+                      buttonKey: ValueKey<String>(
+                        'report-receipt-preview-${row.event.eventId}',
+                      ),
+                      onTap: () => _previewReceipt(row, hasLiveReceipts),
+                    ),
                   ),
-                  onTap: () => _previewReceipt(row, hasLiveReceipts),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _pillActionButton(
-                  label: 'Copy',
-                  icon: Icons.copy_all_rounded,
-                  buttonKey: ValueKey<String>(
-                    'report-receipt-copy-${row.event.eventId}',
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _pillActionButton(
+                      label: copyLabel,
+                      icon: Icons.copy_all_rounded,
+                      buttonKey: ValueKey<String>(
+                        'report-receipt-copy-${row.event.eventId}',
+                      ),
+                      onTap: () => _copyReceipt(row),
+                    ),
                   ),
-                  onTap: () => _copyReceipt(row),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _pillActionButton(
-                  label: 'Download',
-                  icon: Icons.download_rounded,
-                  buttonKey: ValueKey<String>(
-                    'report-receipt-download-${row.event.eventId}',
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _pillActionButton(
+                      label: downloadLabel,
+                      icon: Icons.download_rounded,
+                      buttonKey: ValueKey<String>(
+                        'report-receipt-download-${row.event.eventId}',
+                      ),
+                      onTap: () => _downloadReceipt(row, hasLiveReceipts),
+                      filled: true,
+                    ),
                   ),
-                  onTap: () => _downloadReceipt(row, hasLiveReceipts),
-                  filled: true,
-                ),
-              ),
-            ],
+                ],
+              );
+            },
           ),
         ],
       ),
