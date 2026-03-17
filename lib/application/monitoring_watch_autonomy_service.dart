@@ -86,11 +86,9 @@ class MonitoringWatchAutonomyService {
     );
     return [...orchestratedPlans, ...syntheticPlans, ...globalPlans, ...plans]
       ..sort((a, b) {
-        final priorityCompare = _priorityWeight(
-          b.priority,
-        ).compareTo(_priorityWeight(a.priority));
-        if (priorityCompare != 0) {
-          return priorityCompare;
+        final rankCompare = _planRank(a).compareTo(_planRank(b));
+        if (rankCompare != 0) {
+          return rankCompare;
         }
         return a.countdownSeconds.compareTo(b.countdownSeconds);
       });
@@ -284,15 +282,33 @@ class MonitoringWatchAutonomyService {
     return score;
   }
 
-  int _priorityWeight(MonitoringWatchAutonomyPriority priority) {
-    switch (priority) {
-      case MonitoringWatchAutonomyPriority.critical:
-        return 3;
-      case MonitoringWatchAutonomyPriority.high:
-        return 2;
-      case MonitoringWatchAutonomyPriority.medium:
-        return 1;
+  int _planRank(MonitoringWatchAutonomyActionPlan plan) {
+    final priorityScore = switch (plan.priority) {
+      MonitoringWatchAutonomyPriority.critical => 0,
+      MonitoringWatchAutonomyPriority.high => 1,
+      MonitoringWatchAutonomyPriority.medium => 2,
+    };
+    if (plan.actionType.trim().toUpperCase() == 'SHADOW READINESS BIAS') {
+      return priorityScore - 3;
     }
+    if (_hasPromotionExecutionBias(plan)) {
+      return priorityScore - 2;
+    }
+    if ((plan.metadata['scope'] ?? '').trim().toUpperCase() == 'NEXT_SHIFT') {
+      return priorityScore - 1;
+    }
+    return priorityScore + 3;
+  }
+
+  bool _hasPromotionExecutionBias(MonitoringWatchAutonomyActionPlan plan) {
+    if (plan.actionType.trim().toUpperCase() != 'POLICY RECOMMENDATION') {
+      return false;
+    }
+    if ((plan.metadata['mo_promotion_pressure_summary'] ?? '').trim().isNotEmpty) {
+      return true;
+    }
+    return (plan.metadata['mo_promotion_priority_bias'] ?? '').trim().isNotEmpty ||
+        (plan.metadata['mo_promotion_countdown_bias'] ?? '').trim().isNotEmpty;
   }
 }
 

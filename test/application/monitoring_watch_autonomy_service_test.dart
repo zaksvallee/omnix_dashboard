@@ -323,6 +323,128 @@ void main() {
       expect(draft.metadata['shadow_strength_bias'], 'strength rising');
       expect(draft.metadata['shadow_strength_priority'], 'critical');
     });
+
+    test(
+      'ranks synthetic policy above next-shift drafts when promotion execution is active',
+      () {
+        final events = <DispatchEvent>[
+          _intel(
+                id: 'intel-shadow-news',
+                riskScore: 67,
+                siteId: 'SITE-SEED',
+                cameraId: 'news-wire',
+              )
+              .copyWithSourceType(
+                'news',
+                'Suspects posed as maintenance contractors before moving across restricted office zones.',
+              )
+              .copyWithHeadlineAndSummary(
+                'Contractors moved floor to floor in office park',
+                'Suspects posed as maintenance contractors before moving across restricted office zones.',
+              ),
+          _intel(
+            id: 'intel-shadow-live-1',
+            riskScore: 86,
+            siteId: 'SITE-VALLEE',
+            cameraId: 'office-cam-1',
+          ).copyWithHeadlineAndSummary(
+            'Unplanned contractor roaming',
+            'Maintenance-like subject moved across restricted office doors.',
+          ),
+          _intel(
+            id: 'intel-shadow-live-2',
+            riskScore: 87,
+            siteId: 'SITE-VALLEE',
+            cameraId: 'office-cam-2',
+          ).copyWithHeadlineAndSummary(
+            'Contractor repeating office sweep',
+            'Maintenance-like subject kept probing multiple office doors.',
+          ),
+          _intel(
+            id: 'intel-shadow-live-3',
+            riskScore: 89,
+            siteId: 'SITE-VALLEE',
+            cameraId: 'office-cam-3',
+          ).copyWithHeadlineAndSummary(
+            'Contractor revisits office floors',
+            'Service-looking subject returned to several restricted office zones.',
+          ),
+          _intel(
+            id: 'intel-shadow-live-4',
+            riskScore: 92,
+            siteId: 'SITE-VALLEE',
+            cameraId: 'office-cam-4',
+          ).copyWithHeadlineAndSummary(
+            'Contractor returns to office zone again',
+            'Service-looking subject kept sweeping office floors and retrying access.',
+          ),
+        ];
+        final reviews = <String, MonitoringSceneReviewRecord>{
+          'intel-shadow-live-1': MonitoringSceneReviewRecord(
+            intelligenceId: 'intel-shadow-live-1',
+            sourceLabel: 'openai:gpt-5.4-mini',
+            postureLabel: 'service impersonation and roaming concern',
+            decisionLabel: 'Escalation Candidate',
+            decisionSummary:
+                'Likely spoofed service access with abnormal roaming.',
+            summary:
+                'Likely maintenance impersonation moving across office zones.',
+            reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 15),
+          ),
+          'intel-shadow-live-2': MonitoringSceneReviewRecord(
+            intelligenceId: 'intel-shadow-live-2',
+            sourceLabel: 'openai:gpt-5.4-mini',
+            postureLabel: 'service impersonation and roaming concern',
+            decisionLabel: 'Escalation Candidate',
+            decisionSummary:
+                'Likely spoofed service access with abnormal roaming.',
+            summary:
+                'Likely maintenance impersonation moving across office zones repeatedly.',
+            reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 18),
+          ),
+          'intel-shadow-live-3': MonitoringSceneReviewRecord(
+            intelligenceId: 'intel-shadow-live-3',
+            sourceLabel: 'openai:gpt-5.4-mini',
+            postureLabel: 'service impersonation and roaming concern',
+            decisionLabel: 'Escalation Candidate',
+            decisionSummary:
+                'Likely spoofed service access with abnormal roaming.',
+            summary:
+                'Likely maintenance impersonation moving across office zones again.',
+            reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 22),
+          ),
+          'intel-shadow-live-4': MonitoringSceneReviewRecord(
+            intelligenceId: 'intel-shadow-live-4',
+            sourceLabel: 'openai:gpt-5.4-mini',
+            postureLabel: 'service impersonation and roaming concern',
+            decisionLabel: 'Escalation Candidate',
+            decisionSummary:
+                'Likely spoofed service access with abnormal roaming.',
+            summary:
+                'Likely maintenance impersonation continuing across office zones.',
+            reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 26),
+          ),
+        };
+
+        final plans = service.buildPlans(
+          events: events,
+          sceneReviewByIntelligenceId: reviews,
+          videoOpsLabel: 'Hikvision',
+          historicalShadowMoLabels: const <String>['HARDEN ACCESS'],
+        );
+
+        final policyIndex = plans.indexWhere(
+          (entry) => entry.actionType == 'POLICY RECOMMENDATION',
+        );
+        final draftIndex = plans.indexWhere(
+          (entry) => entry.actionType == 'DRAFT NEXT-SHIFT ACCESS HARDENING',
+        );
+
+        expect(policyIndex, greaterThanOrEqualTo(0));
+        expect(draftIndex, greaterThanOrEqualTo(0));
+        expect(policyIndex, lessThan(draftIndex));
+      },
+    );
   });
 }
 
