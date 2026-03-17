@@ -187,7 +187,7 @@ void main() {
       syntheticWarRoomShadowMemorySummary:
           'Shadow bias: HARDEN ACCESS around "Contractors moved floor to floor in office park" repeated in the previous shift.',
       syntheticWarRoomPromotionSummary:
-          'Promote MO-EXT-OFFICE toward validated review • Office contractor impersonation pattern • x1',
+          'Promote MO-EXT-OFFICE toward validated review • Office contractor impersonation pattern • x1 • pressure strength rising • critical • 22s (prev strength stable • high • 28s)',
       syntheticWarRoomPromotionDecisionSummary:
           'Accepted toward validated review.',
       syntheticWarRoomPromotionAcceptCommand:
@@ -362,7 +362,7 @@ void main() {
     expect(
       response,
       contains(
-        '<b>Promotion:</b> Promote MO-EXT-OFFICE toward validated review • Office contractor impersonation pattern • x1',
+        '<b>Promotion:</b> Promote MO-EXT-OFFICE toward validated review • Office contractor impersonation pattern • x1 • pressure strength rising • critical • 22s (prev strength stable • high • 28s)',
       ),
     );
     expect(

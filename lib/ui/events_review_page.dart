@@ -12,6 +12,7 @@ import '../application/review_shortcut_contract.dart';
 import '../application/shadow_mo_validation_summary.dart';
 import '../application/shadow_mo_dossier_contract.dart';
 import '../application/site_activity_intelligence_service.dart';
+import '../application/synthetic_promotion_summary_formatter.dart';
 import '../application/monitoring_synthetic_war_room_service.dart';
 import '../application/monitoring_watch_action_plan.dart';
 import '../domain/events/decision_created.dart';
@@ -2137,6 +2138,17 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           .map(_shadowMoSitesForReport)
           .toList(growable: false),
     );
+    final shadowTomorrowUrgencySummary =
+        _syntheticShadowTomorrowUrgencySummary(scopedReportDate);
+    final previousShadowTomorrowUrgencySummary =
+        widget.currentMorningSovereignReportDate == null ||
+            widget.currentMorningSovereignReportDate!.trim().isEmpty ||
+            widget.currentMorningSovereignReportDate!.trim() ==
+                (scopedReportDate ?? '').trim()
+        ? ''
+        : _syntheticShadowTomorrowUrgencySummary(
+            widget.currentMorningSovereignReportDate,
+          );
     return _SyntheticScopeSummary(
       eventCount: scopedEvents.length,
       reportDate: scopedReportDate ?? '',
@@ -2151,21 +2163,17 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       hazardSummary: hazardSummary,
       shadowValidationSummary: shadowValidationDrift.summary,
       shadowValidationHistorySummary: shadowValidationDrift.historySummary,
-      shadowTomorrowUrgencySummary: _syntheticShadowTomorrowUrgencySummary(
-        scopedReportDate,
-      ),
+      shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
       previousShadowTomorrowUrgencySummary:
-          widget.currentMorningSovereignReportDate == null ||
-              widget.currentMorningSovereignReportDate!.trim().isEmpty ||
-              widget.currentMorningSovereignReportDate!.trim() ==
-                  (scopedReportDate ?? '').trim()
-          ? ''
-          : _syntheticShadowTomorrowUrgencySummary(
-              widget.currentMorningSovereignReportDate,
-            ),
+          previousShadowTomorrowUrgencySummary,
       shadowLearningSummary: _syntheticWarRoomShadowLearningSummary(plans),
       shadowMemorySummary: _syntheticWarRoomShadowMemorySummary(plans),
-      promotionSummary: _syntheticWarRoomPromotionSummary(plans),
+      promotionSummary: _syntheticWarRoomPromotionSummary(
+        plans,
+        shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
+        previousShadowTomorrowUrgencySummary:
+            previousShadowTomorrowUrgencySummary,
+      ),
       promotionMoId: _syntheticWarRoomPromotionId(plans),
       promotionTargetStatus: _syntheticWarRoomPromotionTargetStatus(plans),
       promotionDecisionStatus: _syntheticWarRoomPromotionDecisionStatus(plans),
@@ -2891,14 +2899,22 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   }
 
   String _syntheticWarRoomPromotionSummary(
-    List<MonitoringWatchAutonomyActionPlan> plans,
-  ) {
-    return plans
+    List<MonitoringWatchAutonomyActionPlan> plans, {
+    String shadowTomorrowUrgencySummary = '',
+    String previousShadowTomorrowUrgencySummary = '',
+  }) {
+    final baseSummary = plans
         .map(
           (plan) =>
               (plan.metadata['mo_promotion_summary'] ?? '').toString().trim(),
         )
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    return buildSyntheticPromotionSummary(
+      baseSummary: baseSummary,
+      shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
+      previousShadowTomorrowUrgencySummary:
+          previousShadowTomorrowUrgencySummary,
+    );
   }
 
   String _syntheticWarRoomPromotionId(
@@ -3314,7 +3330,11 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           shadowTomorrowUrgencySummary: _syntheticShadowTomorrowUrgencySummary(
             normalizedReportDate,
           ),
-          promotionSummary: _syntheticWarRoomPromotionSummary(currentPlans),
+          promotionSummary: _syntheticWarRoomPromotionSummary(
+            currentPlans,
+            shadowTomorrowUrgencySummary:
+                _syntheticShadowTomorrowUrgencySummary(normalizedReportDate),
+          ),
           promotionDecisionStatus: _syntheticWarRoomPromotionDecisionStatus(
             currentPlans,
           ),
@@ -3373,7 +3393,11 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           shadowTomorrowUrgencySummary: _syntheticShadowTomorrowUrgencySummary(
             report.date,
           ),
-          promotionSummary: _syntheticWarRoomPromotionSummary(plans),
+          promotionSummary: _syntheticWarRoomPromotionSummary(
+            plans,
+            shadowTomorrowUrgencySummary:
+                _syntheticShadowTomorrowUrgencySummary(report.date),
+          ),
           promotionDecisionStatus: _syntheticWarRoomPromotionDecisionStatus(
             plans,
           ),

@@ -16,6 +16,7 @@ import '../application/monitoring_watch_action_plan.dart';
 import '../application/review_shortcut_contract.dart';
 import '../application/shadow_mo_validation_summary.dart';
 import '../application/shadow_mo_dossier_contract.dart';
+import '../application/synthetic_promotion_summary_formatter.dart';
 import '../application/text_share_service.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
@@ -4199,7 +4200,11 @@ class _GovernancePageState extends State<GovernancePage> {
           currentPlans,
         ),
         shadowMemorySummary: _syntheticWarRoomShadowMemorySummary(currentPlans),
-        promotionSummary: _syntheticWarRoomPromotionSummary(currentPlans),
+        promotionSummary: _syntheticWarRoomPromotionSummary(
+          currentPlans,
+          shadowTomorrowUrgencySummary:
+              _syntheticWarRoomShadowTomorrowUrgencySummaryForReport(report),
+        ),
         promotionMoId: _syntheticWarRoomPromotionId(currentPlans),
         promotionTargetStatus: _syntheticWarRoomPromotionTargetStatus(
           currentPlans,
@@ -4277,7 +4282,16 @@ class _GovernancePageState extends State<GovernancePage> {
           ),
           shadowLearningSummary: _syntheticWarRoomShadowLearningSummary(plans),
           shadowMemorySummary: _syntheticWarRoomShadowMemorySummary(plans),
-          promotionSummary: _syntheticWarRoomPromotionSummary(plans),
+          promotionSummary: _syntheticWarRoomPromotionSummary(
+            plans,
+            shadowTomorrowUrgencySummary:
+                _globalReadinessTomorrowUrgencySummary(
+                  _globalReadinessIntentsForWindow(
+                    item.shiftWindowStartUtc,
+                    item.shiftWindowEndUtc,
+                  ),
+                ),
+          ),
           promotionMoId: _syntheticWarRoomPromotionId(plans),
           promotionTargetStatus: _syntheticWarRoomPromotionTargetStatus(plans),
           promotionDecisionStatus: _syntheticWarRoomPromotionDecisionStatus(
@@ -4640,11 +4654,19 @@ class _GovernancePageState extends State<GovernancePage> {
   }
 
   String _syntheticWarRoomPromotionSummary(
-    List<MonitoringWatchAutonomyActionPlan> plans,
-  ) {
-    return plans
+    List<MonitoringWatchAutonomyActionPlan> plans, {
+    String shadowTomorrowUrgencySummary = '',
+    String previousShadowTomorrowUrgencySummary = '',
+  }) {
+    final baseSummary = plans
         .map((plan) => (plan.metadata['mo_promotion_summary'] ?? '').trim())
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    return buildSyntheticPromotionSummary(
+      baseSummary: baseSummary,
+      shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
+      previousShadowTomorrowUrgencySummary:
+          previousShadowTomorrowUrgencySummary,
+    );
   }
 
   String _syntheticWarRoomPromotionId(

@@ -61,6 +61,7 @@ import 'application/report_preview_request.dart';
 import 'application/review_shortcut_contract.dart';
 import 'application/shadow_mo_validation_summary.dart';
 import 'application/shadow_mo_dossier_contract.dart';
+import 'application/synthetic_promotion_summary_formatter.dart';
 import 'application/monitoring_watch_resync_plan_service.dart';
 import 'application/monitoring_watch_resync_outcome_recorder.dart';
 import 'application/monitoring_watch_schedule_sync_plan_service.dart';
@@ -5459,9 +5460,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       syntheticWarRoomShadowMemorySummary: _syntheticWarRoomShadowMemorySummary(
         syntheticWarRoomPlans,
       ),
-      syntheticWarRoomPromotionSummary: _syntheticWarRoomPromotionSummary(
-        syntheticWarRoomPlans,
-      ),
+      syntheticWarRoomPromotionSummary:
+          (syntheticWarRoomCaseFile['promotionSummary'] ?? '').toString(),
       syntheticWarRoomPromotionDecisionSummary:
           _syntheticWarRoomPromotionDecisionSummary(syntheticWarRoomPlans),
       syntheticWarRoomPromotionAcceptCommand: _syntheticWarRoomPromotionCommand(
@@ -6448,11 +6448,19 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }
 
   String _syntheticWarRoomPromotionSummary(
-    List<MonitoringWatchAutonomyActionPlan> plans,
-  ) {
-    return plans
+    List<MonitoringWatchAutonomyActionPlan> plans, {
+    String shadowTomorrowUrgencySummary = '',
+    String previousShadowTomorrowUrgencySummary = '',
+  }) {
+    final baseSummary = plans
         .map((plan) => (plan.metadata['mo_promotion_summary'] ?? '').trim())
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    return buildSyntheticPromotionSummary(
+      baseSummary: baseSummary,
+      shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
+      previousShadowTomorrowUrgencySummary:
+          previousShadowTomorrowUrgencySummary,
+    );
   }
 
   String _syntheticWarRoomPromotionId(
@@ -7198,6 +7206,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           .map(_shadowMoSitesForReport)
           .toList(growable: false),
     );
+    final shadowTomorrowUrgencySummary =
+        _syntheticWarRoomShadowTomorrowUrgencySummaryForReport(report);
+    final previousShadowTomorrowUrgencySummary = previousReport == null
+        ? ''
+        : _syntheticWarRoomShadowTomorrowUrgencySummaryForReport(
+            previousReport,
+          );
     return <String, Object?>{
       'reportDate': report.date,
       'available': true,
@@ -7214,16 +7229,17 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'shadowValidationSummary': shadowValidationDrift.summary,
       'shadowValidationHeadline': shadowValidationDrift.headline,
       'shadowValidationHistorySummary': shadowValidationDrift.historySummary,
-      'shadowTomorrowUrgencySummary':
-          _syntheticWarRoomShadowTomorrowUrgencySummaryForReport(report),
-      'previousShadowTomorrowUrgencySummary': previousReport == null
-          ? ''
-          : _syntheticWarRoomShadowTomorrowUrgencySummaryForReport(
-              previousReport,
-            ),
+      'shadowTomorrowUrgencySummary': shadowTomorrowUrgencySummary,
+      'previousShadowTomorrowUrgencySummary':
+          previousShadowTomorrowUrgencySummary,
       'shadowLearningSummary': _syntheticWarRoomShadowLearningSummary(plans),
       'shadowMemorySummary': _syntheticWarRoomShadowMemorySummary(plans),
-      'promotionSummary': _syntheticWarRoomPromotionSummary(plans),
+      'promotionSummary': _syntheticWarRoomPromotionSummary(
+        plans,
+        shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
+        previousShadowTomorrowUrgencySummary:
+            previousShadowTomorrowUrgencySummary,
+      ),
       'promotionMoId': _syntheticWarRoomPromotionId(plans),
       'promotionTargetStatus': _syntheticWarRoomPromotionTargetStatus(plans),
       'promotionDecisionStatus': _syntheticWarRoomPromotionDecisionStatus(
@@ -7307,6 +7323,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
                 countdownSeconds: 0,
               ),
             );
+            final itemShadowTomorrowUrgencySummary =
+                _syntheticWarRoomShadowTomorrowUrgencySummaryForReport(item);
             return <String, Object?>{
               'reportDate': item.date,
               'focusState': _readinessFocusState(item.date),
@@ -7321,14 +7339,17 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
                 _shadowMoSitesForReport(item),
               ),
               'shadowTomorrowUrgencySummary':
-                  _syntheticWarRoomShadowTomorrowUrgencySummaryForReport(item),
+                  itemShadowTomorrowUrgencySummary,
               'shadowLearningSummary': _syntheticWarRoomShadowLearningSummary(
                 itemPlans,
               ),
               'shadowMemorySummary': _syntheticWarRoomShadowMemorySummary(
                 itemPlans,
               ),
-              'promotionSummary': _syntheticWarRoomPromotionSummary(itemPlans),
+              'promotionSummary': _syntheticWarRoomPromotionSummary(
+                itemPlans,
+                shadowTomorrowUrgencySummary: itemShadowTomorrowUrgencySummary,
+              ),
               'promotionMoId': _syntheticWarRoomPromotionId(itemPlans),
               'promotionTargetStatus': _syntheticWarRoomPromotionTargetStatus(
                 itemPlans,
