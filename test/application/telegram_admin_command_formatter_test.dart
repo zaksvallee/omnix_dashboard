@@ -134,6 +134,7 @@ void main() {
           'HARDEN ACCESS • site-alpha • Contractors moved floor to floor in office park • x1',
       globalReadinessShadowSummary:
           'Sites 1 • Matches 2 • SITE-ALPHA • service impersonation and roaming concern',
+      globalReadinessShadowStatusSummary: 'Validated 1 • Shadow mode 1',
       globalReadinessShadowHistoryHeadline: 'RISING • 3d',
       globalReadinessShadowHistorySummary:
           'Current matches 2 • Baseline 0.0 • Shadow-MO match pressure is increasing against recent shifts.',
@@ -240,6 +241,10 @@ void main() {
       contains(
         '<b>Shadow intelligence:</b> Sites 1 • Matches 2 • SITE-ALPHA • service impersonation and roaming concern',
       ),
+    );
+    expect(
+      response,
+      contains('<b>Shadow status:</b> Validated 1 • Shadow mode 1'),
     );
     expect(response, contains('<b>Shadow trend:</b> RISING • 3d'));
     expect(

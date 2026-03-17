@@ -5374,6 +5374,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           _globalReadinessTomorrowShadowSummary(readinessIntents),
       globalReadinessShadowSummary: (shadowMoCaseFile['summary'] ?? '')
           .toString(),
+      globalReadinessShadowStatusSummary:
+          (shadowMoCaseFile['validationSummary'] ?? '').toString(),
       globalReadinessShadowHistoryHeadline:
           (shadowMoCaseFile['historyHeadline'] ?? '').toString(),
       globalReadinessShadowHistorySummary:
@@ -5622,6 +5624,74 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       if (leadSite.moShadowSummary.trim().isNotEmpty) leadSite.moShadowSummary,
     ];
     return _singleLine(parts.join(' • '), maxLength: 220);
+  }
+
+  String _shadowMoValidationSummaryForSites(
+    List<MonitoringGlobalSitePosture> sites,
+  ) {
+    if (sites.isEmpty) {
+      return '';
+    }
+    final counts = <String, int>{};
+    for (final site in sites) {
+      for (final match in site.moShadowMatches) {
+        final status = match.validationStatus.trim();
+        if (status.isEmpty) {
+          continue;
+        }
+        counts.update(status, (value) => value + 1, ifAbsent: () => 1);
+      }
+    }
+    if (counts.isEmpty) {
+      return '';
+    }
+    const priority = <String>[
+      'production',
+      'validated',
+      'shadowMode',
+      'candidate',
+    ];
+    final ordered = counts.keys.toList(growable: false)
+      ..sort((left, right) {
+        final leftIndex = priority.indexOf(left);
+        final rightIndex = priority.indexOf(right);
+        if (leftIndex == -1 && rightIndex == -1) {
+          return left.compareTo(right);
+        }
+        if (leftIndex == -1) {
+          return 1;
+        }
+        if (rightIndex == -1) {
+          return -1;
+        }
+        return leftIndex.compareTo(rightIndex);
+      });
+    final parts = ordered
+        .map(
+          (status) =>
+              '${_humanizeShadowValidationStatus(status)} ${counts[status]}',
+        )
+        .toList(growable: false);
+    return _singleLine(parts.join(' • '), maxLength: 220);
+  }
+
+  String _humanizeShadowValidationStatus(String status) {
+    switch (status.trim()) {
+      case 'shadowMode':
+        return 'Shadow mode';
+      case 'validated':
+        return 'Validated';
+      case 'production':
+        return 'Production';
+      case 'candidate':
+        return 'Candidate';
+      default:
+        final trimmed = status.trim();
+        if (trimmed.isEmpty) {
+          return '';
+        }
+        return trimmed[0].toUpperCase() + trimmed.substring(1);
+    }
   }
 
   int _shadowMoMatchCountForSites(List<MonitoringGlobalSitePosture> sites) {
@@ -6733,6 +6803,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'focusSummary': _readinessFocusSummary(report.date),
         'liveReportDate': (_morningSovereignReport?.date ?? '').trim(),
         'summary': _shadowMoSummaryForSites(shadowSites),
+        'validationSummary': _shadowMoValidationSummaryForSites(shadowSites),
         'historyHeadline': historyHeadline,
         'historySummary': historySummary,
         'eventIds': eventIds,
@@ -6761,6 +6832,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
                 'shadowSiteCount': itemSites.length,
                 'matchCount': _shadowMoMatchCountForSites(itemSites),
                 'summary': _shadowMoSummaryForSites(itemSites),
+                'validationSummary':
+                    _shadowMoValidationSummaryForSites(itemSites),
                 ...buildReviewCommandPair(
                   reportDate: item.date,
                   reviewCommandBuilder: (value) => '/shadowreview $value',
@@ -6788,6 +6861,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'live_report_date,${payload['liveReportDate'] ?? ''}',
       'shadow_site_count,${payload['shadowSiteCount'] ?? 0}',
       'summary,"${(payload['summary'] ?? '').toString().replaceAll('"', '""')}"',
+      'validation_summary,"${(payload['validationSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'history_headline,"${(payload['historyHeadline'] ?? '').toString().replaceAll('"', '""')}"',
       'history_summary,"${(payload['historySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'selected_event_id,${payload['selectedEventId'] ?? ''}',
@@ -6827,6 +6901,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       lines.add('history_${i + 1}_match_count,${row['matchCount'] ?? 0}');
       lines.add(
         'history_${i + 1}_summary,"${(row['summary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add(
+        'history_${i + 1}_validation_summary,"${(row['validationSummary'] ?? '').toString().replaceAll('"', '""')}"',
       );
       lines.addAll(
         buildHistoryReviewCommandCsvRows(
@@ -17960,6 +18037,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         .toString()
         .trim();
     final historySummary = (payload['historySummary'] ?? '').toString().trim();
+    final validationSummary = (payload['validationSummary'] ?? '')
+        .toString()
+        .trim();
     final previousReviewCommand = (payload['previousReviewCommand'] ?? '')
         .toString()
         .trim();
@@ -17981,6 +18061,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           outputKey: 'match_count',
         ),
         ChatCaseFileHistoryField(inputKey: 'summary', outputKey: 'summary'),
+        ChatCaseFileHistoryField(
+          inputKey: 'validationSummary',
+          outputKey: 'validation_summary',
+        ),
         ChatCaseFileHistoryField(
           inputKey: 'reviewCommand',
           outputKey: 'review_command',
@@ -18007,6 +18091,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           ChatCaseFileHeaderField(
             key: 'history_summary',
             value: historySummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'validation_summary',
+            value: validationSummary,
           ),
           ChatCaseFileHeaderField(
             key: 'review_command',
@@ -18036,6 +18124,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         ChatCaseFileHeaderField(
           key: 'history_summary',
           value: historySummary,
+        ),
+        ChatCaseFileHeaderField(
+          key: 'validation_summary',
+          value: validationSummary,
         ),
         ChatCaseFileHeaderField(
           key: 'review_command',
