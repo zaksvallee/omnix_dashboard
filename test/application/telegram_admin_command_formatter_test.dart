@@ -147,6 +147,8 @@ void main() {
       syntheticWarRoomPolicySummary:
           'Raise perimeter review priority for north-cluster during the next shift.',
       syntheticWarRoomHazardSummary: 'fire rehearsal recommended',
+      syntheticWarRoomLearningSummary:
+          'Learned bias: stage fire response one step earlier next shift.',
       syntheticWarRoomHistoryHeadline: 'RISING • 3d',
       syntheticWarRoomHistorySummary:
           'Current pressure 3 • Baseline 1.0 • Synthetic rehearsal is recommending stronger action than recent shifts.',
@@ -203,6 +205,12 @@ void main() {
     expect(response, contains('<b>Synthetic War-Room</b>'));
     expect(response, contains('<b>Mode:</b> POLICY SHIFT'));
     expect(response, contains('<b>Summary:</b> Plans 2'));
+    expect(
+      response,
+      contains(
+        '<b>Learning:</b> Learned bias: stage fire response one step earlier next shift.',
+      ),
+    );
     expect(
       response,
       contains('<b>Focus:</b> Viewing live oversight shift 2026-03-17.'),

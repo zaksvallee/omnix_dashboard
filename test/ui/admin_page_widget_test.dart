@@ -1261,6 +1261,12 @@ void main() {
 
     expect(find.textContaining('Fire playbook active'), findsWidgets);
     expect(find.textContaining('Fire rehearsal recommended'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Learned bias: stage fire response one step earlier next shift.',
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('system tab shows video integrity certificate preview', (

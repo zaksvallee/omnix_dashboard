@@ -187,9 +187,14 @@ void main() {
       final policy = plans.firstWhere(
         (entry) => entry.actionType == 'POLICY RECOMMENDATION',
       );
+      expect(policy.metadata['learning_label'], 'ADVANCE FIRE');
+      expect(
+        policy.metadata['learning_summary'],
+        'Learned bias: stage fire response one step earlier next shift.',
+      );
       expect(
         policy.description,
-        'Recommend rehearsing earlier fire brigade staging, occupant welfare checks, and fire spread rehearsal across REGION-GAUTENG after simulation so tomorrow’s shift starts ahead of the posture curve.',
+        'Recommend rehearsing earlier fire brigade staging, occupant welfare checks, and fire spread rehearsal across REGION-GAUTENG after simulation so tomorrow’s shift starts ahead of the posture curve. Learned bias: stage fire response one step earlier next shift.',
       );
     });
   });

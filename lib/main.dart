@@ -5391,6 +5391,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       syntheticWarRoomHazardSummary: _syntheticWarRoomHazardSummary(
         syntheticWarRoomPlans,
       ),
+      syntheticWarRoomLearningSummary: _syntheticWarRoomLearningSummary(
+        syntheticWarRoomPlans,
+      ),
       syntheticWarRoomHistoryHeadline:
           (syntheticWarRoomCaseFile['historyHeadline'] ?? '').toString(),
       syntheticWarRoomHistorySummary:
@@ -5715,6 +5718,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       return '';
     }
     return '${_hazardSignalLabel(signal)} rehearsal recommended';
+  }
+
+  String _syntheticWarRoomLearningSummary(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    return plans
+        .map((plan) => (plan.metadata['learning_summary'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
   }
 
   String _hazardSignalLabel(String signal) {
@@ -6129,6 +6140,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'summary': _syntheticWarRoomSummary(plans),
       'policySummary': _syntheticWarRoomPolicySummary(plans),
       'hazardSummary': _syntheticWarRoomHazardSummary(plans),
+      'learningSummary': _syntheticWarRoomLearningSummary(plans),
       'planCount': plans.length,
       'policyCount': policyPlans.length,
       'leadRegionId': (leadPlan?.metadata['region'] ?? '').toString().trim(),
@@ -6182,6 +6194,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               'summary': _syntheticWarRoomSummary(itemPlans),
               'policySummary': _syntheticWarRoomPolicySummary(itemPlans),
               'hazardSummary': _syntheticWarRoomHazardSummary(itemPlans),
+              'learningSummary': _syntheticWarRoomLearningSummary(itemPlans),
               'planCount': itemPlans.length,
               'policyCount': itemPolicyCount,
               ...buildReviewCommandPair(
@@ -6213,6 +6226,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'summary,"${(payload['summary'] ?? '').toString().replaceAll('"', '""')}"',
       'policy_summary,"${(payload['policySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'hazard_summary,"${(payload['hazardSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'learning_summary,"${(payload['learningSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'plan_count,${payload['planCount'] ?? 0}',
       'policy_count,${payload['policyCount'] ?? 0}',
       'lead_region_id,${payload['leadRegionId'] ?? ''}',
@@ -6248,6 +6262,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       lines.add(
         'history_${i + 1}_hazard_summary,"${(row['hazardSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add(
+        'history_${i + 1}_learning_summary,"${(row['learningSummary'] ?? '').toString().replaceAll('"', '""')}"',
       );
       lines.add('history_${i + 1}_plan_count,${row['planCount'] ?? 0}');
       lines.add('history_${i + 1}_policy_count,${row['policyCount'] ?? 0}');
@@ -16419,6 +16436,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final plans = _syntheticWarRoomPlansForReport(report);
     final payload = _syntheticWarRoomCaseFilePayload(reportDate: report.date);
     final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
+    final learningSummary = (payload['learningSummary'] ?? '')
+        .toString()
+        .trim();
     final eventIds = _reviewedIntelligenceEventsForReport(report)
         .map((event) => event.eventId.trim())
         .where((value) => value.isNotEmpty)
@@ -16441,6 +16461,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           'mode=${_syntheticWarRoomModeLabel(plans)}\n'
           'summary=${_syntheticWarRoomSummary(plans)}\n'
           '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
+          '${learningSummary.isEmpty ? '' : 'learning_summary=$learningSummary\n'}'
           'review_refs=${reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', ')}\n'
           'case_file_command=/syntheticcase json ${report.date}\n'
           'Opening Events Review for synthetic war-room evidence.';
@@ -16451,6 +16472,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'mode=${_syntheticWarRoomModeLabel(plans)}\n'
         'summary=${_syntheticWarRoomSummary(plans)}\n'
         '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
+        '${learningSummary.isEmpty ? '' : 'learning_summary=$learningSummary\n'}'
         'case_file_command=/syntheticcase json ${report.date}\n'
         'Opening Governance for synthetic war-room oversight.';
   }
@@ -16484,6 +16506,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final payload = _syntheticWarRoomCaseFilePayload(reportDate: report.date);
     final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
     final hazardSummary = (payload['hazardSummary'] ?? '').toString().trim();
+    final learningSummary = (payload['learningSummary'] ?? '')
+        .toString()
+        .trim();
     final previousReviewCommand = (payload['previousReviewCommand'] ?? '')
         .toString()
         .trim();
@@ -16495,6 +16520,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           'report_date=${report.date}\n'
           '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
           '${hazardSummary.isEmpty ? '' : 'hazard_summary=$hazardSummary\n'}'
+          '${learningSummary.isEmpty ? '' : 'learning_summary=$learningSummary\n'}'
           'review_command=$reviewCommand\n'
           '${previousReviewCommand.isEmpty ? '' : 'previous_review_command=$previousReviewCommand\n'}'
           '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}'
@@ -16504,6 +16530,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'report_date=${report.date}\n'
         '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
         '${hazardSummary.isEmpty ? '' : 'hazard_summary=$hazardSummary\n'}'
+        '${learningSummary.isEmpty ? '' : 'learning_summary=$learningSummary\n'}'
         'review_command=$reviewCommand\n'
         '${previousReviewCommand.isEmpty ? '' : 'previous_review_command=$previousReviewCommand\n'}'
         '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}'

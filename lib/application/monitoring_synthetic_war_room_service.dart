@@ -108,6 +108,12 @@ class MonitoringSyntheticWarRoomService {
             : hasEnvironmentalHazardPressure
             ? 'environment_hazard'
             : '';
+        final learningSignal = _learningSignalForRegion(
+          region: region,
+          posturalEchoCount: posturalEchoCount,
+          hasExternalPressure: hasExternalPressure,
+          hazardSignal: hazardSignal,
+        );
         final recommendation = hazardSignal.isNotEmpty
             ? _hazardDirectiveService
                 .buildForSignal(
@@ -128,7 +134,7 @@ class MonitoringSyntheticWarRoomService {
             priority: MonitoringWatchAutonomyPriority.medium,
             actionType: 'POLICY RECOMMENDATION',
             description:
-                'Recommend rehearsing $recommendation across ${region.regionId} after simulation so tomorrow’s shift starts ahead of the posture curve.',
+                'Recommend rehearsing $recommendation across ${region.regionId} after simulation so tomorrow’s shift starts ahead of the posture curve. ${learningSignal.summary}',
             countdownSeconds: 64,
             metadata: <String, String>{
               'mode': 'SIMULATION',
@@ -136,6 +142,8 @@ class MonitoringSyntheticWarRoomService {
               'region': region.regionId,
               'lead_site': leadSite.siteId,
               'recommendation': recommendation,
+              'learning_label': learningSignal.label,
+              'learning_summary': learningSignal.summary,
               'top_intent': topIntent?.actionType ?? 'NONE',
               if (hazardSignal.isNotEmpty) 'hazard_signal': hazardSignal,
             },
@@ -161,4 +169,65 @@ class MonitoringSyntheticWarRoomService {
         return 1;
     }
   }
+
+  _SyntheticLearningSignal _learningSignalForRegion({
+    required MonitoringGlobalRegionPosture region,
+    required int posturalEchoCount,
+    required bool hasExternalPressure,
+    required String hazardSignal,
+  }) {
+    if (hazardSignal == 'fire') {
+      return const _SyntheticLearningSignal(
+        label: 'ADVANCE FIRE',
+        summary:
+            'Learned bias: stage fire response one step earlier next shift.',
+      );
+    }
+    if (hazardSignal == 'water_leak') {
+      return const _SyntheticLearningSignal(
+        label: 'ADVANCE LEAK',
+        summary:
+            'Learned bias: start leak containment checks before the first patrol gap next shift.',
+      );
+    }
+    if (hazardSignal == 'environment_hazard') {
+      return const _SyntheticLearningSignal(
+        label: 'ADVANCE SAFETY',
+        summary:
+            'Learned bias: move site safety isolation checks earlier next shift.',
+      );
+    }
+    if (hasExternalPressure) {
+      return const _SyntheticLearningSignal(
+        label: 'PRE-ARM REGION',
+        summary:
+            'Learned bias: raise regional readiness before external pressure lands on-site.',
+      );
+    }
+    if (posturalEchoCount > 0) {
+      return const _SyntheticLearningSignal(
+        label: 'ECHO EARLIER',
+        summary:
+            'Learned bias: propagate postural echo into sibling sites earlier next shift.',
+      );
+    }
+    if (region.heatLevel == MonitoringGlobalHeatLevel.critical) {
+      return const _SyntheticLearningSignal(
+        label: 'SHORTEN REVIEW',
+        summary:
+            'Learned bias: shorten review latency before posture compounds next shift.',
+      );
+    }
+    return const _SyntheticLearningSignal(label: '', summary: '');
+  }
+}
+
+class _SyntheticLearningSignal {
+  final String label;
+  final String summary;
+
+  const _SyntheticLearningSignal({
+    required this.label,
+    required this.summary,
+  });
 }

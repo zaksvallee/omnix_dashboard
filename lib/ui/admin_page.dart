@@ -4945,6 +4945,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
     final leadSite = snapshot.sites.isEmpty ? null : snapshot.sites.first;
     final hazardIntentSummary = _hazardIntentSummary(intents);
     final hazardSimulationSummary = _hazardSimulationSummary(warRoomPlans);
+    final learningSimulationSummary = _learningSimulationSummary(warRoomPlans);
     final summary = snapshot.totalSites <= 0
         ? 'No cross-site posture signals are active yet.'
         : 'Sites ${snapshot.totalSites} • elevated ${snapshot.elevatedSiteCount} • critical ${snapshot.criticalSiteCount} • intents ${intents.length}'
@@ -5069,6 +5070,17 @@ class _AdministrationPageState extends State<AdministrationPage> {
               ),
             ),
           ],
+          if (learningSimulationSummary.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Learning • $learningSimulationSummary',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFE9D5FF),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -5094,6 +5106,14 @@ class _AdministrationPageState extends State<AdministrationPage> {
       return '';
     }
     return '${_hazardSignalLabel(signal)} rehearsal recommended';
+  }
+
+  String _learningSimulationSummary(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    return plans
+        .map((plan) => (plan.metadata['learning_summary'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
   }
 
   String _hazardSignalLabel(String signal) {

@@ -332,6 +332,7 @@ class _SyntheticWarRoomHistoryPoint {
   final String leadSiteId;
   final String topIntentSummary;
   final String recommendationSummary;
+  final String learningSummary;
 
   const _SyntheticWarRoomHistoryPoint({
     required this.reportDate,
@@ -343,6 +344,7 @@ class _SyntheticWarRoomHistoryPoint {
     required this.leadSiteId,
     required this.topIntentSummary,
     required this.recommendationSummary,
+    required this.learningSummary,
   });
 }
 
@@ -3122,6 +3124,9 @@ class _GovernancePageState extends State<GovernancePage> {
         .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
         .map((plan) => (plan.metadata['recommendation'] ?? '').trim())
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    final learning = plans
+        .map((plan) => (plan.metadata['learning_summary'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
     final regionSegment = region.isEmpty ? '' : ' • region $region';
     final siteSegment = leadSite.isEmpty ? '' : ' • lead $leadSite';
     final intentSegment = topIntent.isEmpty || topIntent == 'NONE'
@@ -3130,8 +3135,9 @@ class _GovernancePageState extends State<GovernancePage> {
     final recommendationSegment = recommendation.isEmpty
         ? ''
         : ' • $recommendation';
+    final learningSegment = learning.isEmpty ? '' : ' • $learning';
     final hazardSegment = _hazardSimulationSummary(plans);
-    return 'Plans ${plans.length} • policy $policyCount$regionSegment$siteSegment$intentSegment$recommendationSegment$hazardSegment';
+    return 'Plans ${plans.length} • policy $policyCount$regionSegment$siteSegment$intentSegment$recommendationSegment$learningSegment$hazardSegment';
   }
 
   String _hazardIntentSummary(List<MonitoringWatchAutonomyActionPlan> intents) {
@@ -3642,6 +3648,9 @@ class _GovernancePageState extends State<GovernancePage> {
         .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
         .map((plan) => (plan.metadata['recommendation'] ?? '').trim())
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    final currentLearning = currentPlans
+        .map((plan) => (plan.metadata['learning_summary'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
     final points = <_SyntheticWarRoomHistoryPoint>[
       _SyntheticWarRoomHistoryPoint(
         reportDate: report.reportDate,
@@ -3653,6 +3662,7 @@ class _GovernancePageState extends State<GovernancePage> {
         leadSiteId: currentLeadPlan?.metadata['lead_site'] ?? '',
         topIntentSummary: currentLeadPlan?.metadata['top_intent'] ?? '',
         recommendationSummary: currentRecommendation,
+        learningSummary: currentLearning,
       ),
     ];
     for (final item in widget.morningSovereignReportHistory) {
@@ -3672,6 +3682,9 @@ class _GovernancePageState extends State<GovernancePage> {
           .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
           .map((plan) => (plan.metadata['recommendation'] ?? '').trim())
           .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+      final learning = plans
+          .map((plan) => (plan.metadata['learning_summary'] ?? '').trim())
+          .firstWhere((value) => value.isNotEmpty, orElse: () => '');
       points.add(
         _SyntheticWarRoomHistoryPoint(
           reportDate: item.date,
@@ -3683,6 +3696,7 @@ class _GovernancePageState extends State<GovernancePage> {
           leadSiteId: leadPlan?.metadata['lead_site'] ?? '',
           topIntentSummary: leadPlan?.metadata['top_intent'] ?? '',
           recommendationSummary: recommendation,
+          learningSummary: learning,
         ),
       );
     }
@@ -7693,6 +7707,17 @@ class _GovernancePageState extends State<GovernancePage> {
                                       ),
                                     ),
                                   ],
+                                  if (point.learningSummary.trim().isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      point.learningSummary,
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFDDD6FE),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -8872,6 +8897,7 @@ class _GovernancePageState extends State<GovernancePage> {
       'leadSiteId': point.leadSiteId,
       'topIntentSummary': point.topIntentSummary,
       'recommendationSummary': point.recommendationSummary,
+      'learningSummary': point.learningSummary,
     };
   }
 
@@ -8935,7 +8961,10 @@ class _GovernancePageState extends State<GovernancePage> {
     final recommendationSegment = point.recommendationSummary.trim().isEmpty
         ? ''
         : ' • ${point.recommendationSummary}';
-    return '${point.reportDate} • ${point.current ? 'CURRENT' : 'HISTORY'} • Plans ${point.planCount} • Policy ${point.policyCount} • ${point.modeLabel}$leadRegionSegment$leadSiteSegment$intentSegment$recommendationSegment';
+    final learningSegment = point.learningSummary.trim().isEmpty
+        ? ''
+        : ' • ${point.learningSummary}';
+    return '${point.reportDate} • ${point.current ? 'CURRENT' : 'HISTORY'} • Plans ${point.planCount} • Policy ${point.policyCount} • ${point.modeLabel}$leadRegionSegment$leadSiteSegment$intentSegment$recommendationSegment$learningSegment';
   }
 
   String _siteActivityHistoryCsvSummary(_SiteActivityHistoryPoint point) {
@@ -10065,6 +10094,9 @@ class _GovernancePageState extends State<GovernancePage> {
         'leadSiteId': syntheticWarRoomLeadPlan?.metadata['lead_site'] ?? '',
         'topIntentSummary':
             syntheticWarRoomLeadPlan?.metadata['top_intent'] ?? '',
+        'learningSummary': syntheticWarRoomPlans
+            .map((plan) => (plan.metadata['learning_summary'] ?? '').trim())
+            .firstWhere((value) => value.isNotEmpty, orElse: () => ''),
         'comparison': {
           'baselinePlanAverage': syntheticWarRoomBaseline.planAverage,
           'baselinePolicyAverage': syntheticWarRoomBaseline.policyAverage,
@@ -10297,6 +10329,7 @@ class _GovernancePageState extends State<GovernancePage> {
       'synthetic_war_room_focus_summary,"${_globalReadinessFocusSummary(report).replaceAll('"', '""')}"',
       'synthetic_war_room_live_report_date,$_currentMorningReportDate',
       'synthetic_war_room_mode,"${_syntheticWarRoomModeLabel(syntheticWarRoomPlans).replaceAll('"', '""')}"',
+      'synthetic_war_room_learning_summary,"${syntheticWarRoomPlans.map((plan) => (plan.metadata['learning_summary'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '').replaceAll('"', '""')}"',
       'synthetic_war_room_trend_label,${syntheticWarRoomTrend.trendLabel}',
       'synthetic_war_room_trend_reason,"${syntheticWarRoomTrend.trendReason.replaceAll('"', '""')}"',
       'synthetic_war_room_trend_summary,"${syntheticWarRoomTrend.summaryLine.replaceAll('"', '""')}"',
