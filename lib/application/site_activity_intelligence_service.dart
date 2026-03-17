@@ -11,6 +11,9 @@ class SiteActivityIntelligenceSnapshot {
   final int unknownVehicleSignals;
   final int longPresenceSignals;
   final int guardInteractionSignals;
+  final String topFlaggedIdentitySummary;
+  final String topLongPresenceSummary;
+  final String topGuardInteractionSummary;
   final String summaryLine;
 
   const SiteActivityIntelligenceSnapshot({
@@ -23,8 +26,29 @@ class SiteActivityIntelligenceSnapshot {
     required this.unknownVehicleSignals,
     required this.longPresenceSignals,
     required this.guardInteractionSignals,
+    this.topFlaggedIdentitySummary = '',
+    this.topLongPresenceSummary = '',
+    this.topGuardInteractionSummary = '',
     required this.summaryLine,
   });
+}
+
+class _PresenceAggregate {
+  final String objectLabel;
+  final String evidenceLabel;
+  final String cameraId;
+  DateTime firstSeenUtc;
+  DateTime lastSeenUtc;
+
+  _PresenceAggregate({
+    required this.objectLabel,
+    required this.evidenceLabel,
+    required this.cameraId,
+    required this.firstSeenUtc,
+    required this.lastSeenUtc,
+  });
+
+  Duration get duration => lastSeenUtc.difference(firstSeenUtc);
 }
 
 class SiteActivityIntelligenceService {
@@ -69,6 +93,9 @@ class SiteActivityIntelligenceService {
         unknownVehicleSignals: 0,
         longPresenceSignals: 0,
         guardInteractionSignals: 0,
+        topFlaggedIdentitySummary: '',
+        topLongPresenceSummary: '',
+        topGuardInteractionSummary: '',
         summaryLine: 'No visitor or site-activity signals detected.',
       );
     }
@@ -80,8 +107,10 @@ class SiteActivityIntelligenceService {
     var unknownPersonSignals = 0;
     var unknownVehicleSignals = 0;
     var guardInteractionSignals = 0;
+    IntelligenceReceived? topFlaggedIdentityEvent;
+    IntelligenceReceived? topGuardInteractionEvent;
 
-    final groupedTimes = <String, List<DateTime>>{};
+    final groupedPresence = <String, _PresenceAggregate>{};
 
     for (final event in scoped) {
       final objectLabel = _normalizedObjectLabel(event.objectLabel);
@@ -121,24 +150,45 @@ class SiteActivityIntelligenceService {
 
       if (flaggedIdentity) {
         flaggedIdentitySignals += 1;
+        if (_isStrongerEvidenceEvent(event, topFlaggedIdentityEvent)) {
+          topFlaggedIdentityEvent = event;
+        }
       }
       if (guardInteraction) {
         guardInteractionSignals += 1;
+        if (_isStrongerEvidenceEvent(event, topGuardInteractionEvent)) {
+          topGuardInteractionEvent = event;
+        }
       }
 
       final groupingKey = _presenceGroupingKey(event, objectLabel);
-      groupedTimes.putIfAbsent(groupingKey, () => <DateTime>[]).add(
-        event.occurredAt.toUtc(),
+      final occurredAt = event.occurredAt.toUtc();
+      final aggregate = groupedPresence.putIfAbsent(
+        groupingKey,
+        () => _PresenceAggregate(
+          objectLabel: objectLabel,
+          evidenceLabel: _evidenceLabelFor(event, objectLabel),
+          cameraId: (event.cameraId ?? '').trim(),
+          firstSeenUtc: occurredAt,
+          lastSeenUtc: occurredAt,
+        ),
       );
+      if (occurredAt.isBefore(aggregate.firstSeenUtc)) {
+        aggregate.firstSeenUtc = occurredAt;
+      }
+      if (occurredAt.isAfter(aggregate.lastSeenUtc)) {
+        aggregate.lastSeenUtc = occurredAt;
+      }
     }
 
-    final longPresenceSignals = groupedTimes.values.where((times) {
-      if (times.length < 2) {
-        return false;
-      }
-      times.sort();
-      return times.last.difference(times.first) >= const Duration(hours: 2);
-    }).length;
+    final longPresenceEntries = groupedPresence.values
+        .where((entry) => entry.duration >= const Duration(hours: 2))
+        .toList(growable: false)
+      ..sort((left, right) => right.duration.compareTo(left.duration));
+    final longPresenceSignals = longPresenceEntries.length;
+    final topLongPresence = longPresenceEntries.isEmpty
+        ? null
+        : longPresenceEntries.first;
 
     final summaryParts = <String>[
       'Signals ${scoped.length}',
@@ -163,6 +213,15 @@ class SiteActivityIntelligenceService {
       unknownVehicleSignals: unknownVehicleSignals,
       longPresenceSignals: longPresenceSignals,
       guardInteractionSignals: guardInteractionSignals,
+      topFlaggedIdentitySummary: topFlaggedIdentityEvent == null
+          ? ''
+          : _flaggedIdentitySummaryFor(topFlaggedIdentityEvent),
+      topLongPresenceSummary: topLongPresence == null
+          ? ''
+          : _longPresenceSummaryFor(topLongPresence),
+      topGuardInteractionSummary: topGuardInteractionEvent == null
+          ? ''
+          : _guardInteractionSummaryFor(topGuardInteractionEvent),
       summaryLine: summaryParts.join(' • '),
     );
   }
@@ -187,5 +246,65 @@ class SiteActivityIntelligenceService {
         ? 'plate:$plateNumber'
         : 'camera:${(event.cameraId ?? '').trim()}|object:$objectLabel';
     return '${event.clientId}|${event.siteId}|$identity';
+  }
+
+  bool _isStrongerEvidenceEvent(
+    IntelligenceReceived candidate,
+    IntelligenceReceived? current,
+  ) {
+    if (current == null) {
+      return true;
+    }
+    if (candidate.riskScore != current.riskScore) {
+      return candidate.riskScore > current.riskScore;
+    }
+    return candidate.occurredAt.isAfter(current.occurredAt);
+  }
+
+  String _evidenceLabelFor(IntelligenceReceived event, String objectLabel) {
+    final faceMatchId = (event.faceMatchId ?? '').trim();
+    if (faceMatchId.isNotEmpty) {
+      return faceMatchId;
+    }
+    final plateNumber = (event.plateNumber ?? '').trim();
+    if (plateNumber.isNotEmpty) {
+      return plateNumber;
+    }
+    return switch (objectLabel) {
+      'person' => 'Unknown person',
+      'vehicle' => 'Unknown vehicle',
+      _ => objectLabel.trim().isEmpty ? 'Unknown subject' : objectLabel,
+    };
+  }
+
+  String _cameraLabel(String? raw) {
+    final cameraId = (raw ?? '').trim();
+    return cameraId.isEmpty ? 'site perimeter' : cameraId;
+  }
+
+  String _flaggedIdentitySummaryFor(IntelligenceReceived event) {
+    final objectLabel = _normalizedObjectLabel(event.objectLabel);
+    final evidence = _evidenceLabelFor(event, objectLabel);
+    return '$evidence flagged near ${_cameraLabel(event.cameraId)}';
+  }
+
+  String _longPresenceSummaryFor(_PresenceAggregate entry) {
+    return '${entry.evidenceLabel} remained near ${_cameraLabel(entry.cameraId)} for ${_durationLabel(entry.duration)}';
+  }
+
+  String _guardInteractionSummaryFor(IntelligenceReceived event) {
+    return 'Guard interaction observed near ${_cameraLabel(event.cameraId)}';
+  }
+
+  String _durationLabel(Duration duration) {
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    if (hours <= 0) {
+      return '${duration.inMinutes}m';
+    }
+    if (minutes <= 0) {
+      return '${hours}h';
+    }
+    return '${hours}h ${minutes}m';
   }
 }

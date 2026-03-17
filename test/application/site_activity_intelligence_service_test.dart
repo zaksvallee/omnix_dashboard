@@ -70,6 +70,16 @@ void main() {
       expect(snapshot.summaryLine, contains('People 4'));
       expect(snapshot.summaryLine, contains('Known IDs 2'));
       expect(snapshot.summaryLine, contains('Long presence 1'));
+      expect(snapshot.topFlaggedIdentitySummary, contains('Unknown person'));
+      expect(snapshot.topFlaggedIdentitySummary, contains('cam-1'));
+      expect(
+        snapshot.topLongPresenceSummary,
+        contains('Unknown person remained near cam-1 for 3h'),
+      );
+      expect(
+        snapshot.topGuardInteractionSummary,
+        contains('Guard interaction observed near cam-1'),
+      );
     });
   });
 }

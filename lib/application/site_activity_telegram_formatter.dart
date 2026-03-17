@@ -61,6 +61,16 @@ class SiteActivityTelegramFormatter {
       lines.add(patternParts.join(' • '));
     }
 
+    if (snapshot.topFlaggedIdentitySummary.trim().isNotEmpty) {
+      lines.add('Flagged: ${snapshot.topFlaggedIdentitySummary.trim()}');
+    }
+    if (snapshot.topLongPresenceSummary.trim().isNotEmpty) {
+      lines.add('Long presence: ${snapshot.topLongPresenceSummary.trim()}');
+    }
+    if (snapshot.topGuardInteractionSummary.trim().isNotEmpty) {
+      lines.add('Guard note: ${snapshot.topGuardInteractionSummary.trim()}');
+    }
+
     if ((trendLabel ?? '').trim().isNotEmpty &&
         (trendSummary ?? '').trim().isNotEmpty) {
       lines.add('Trend: ${trendLabel!.trim()} - ${trendSummary!.trim()}');

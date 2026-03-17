@@ -15,6 +15,11 @@ void main() {
       unknownVehicleSignals: 2,
       longPresenceSignals: 1,
       guardInteractionSignals: 1,
+      topFlaggedIdentitySummary: 'PERSON-44 flagged near gate-cam',
+      topLongPresenceSummary:
+          'Unknown person remained near driveway-cam for 3h 10m',
+      topGuardInteractionSummary:
+          'Guard interaction observed near gate-cam',
       summaryLine:
           'Signals 15 • Vehicles 6 • People 9 • Known IDs 3 • Unknown 7 • Long presence 1 • Guard interactions 1 • Flagged IDs 1',
     );
@@ -33,6 +38,14 @@ void main() {
     expect(message, contains('6 vehicles • 9 people'));
     expect(message, contains('3 known IDs • 7 unknown • 1 flagged IDs'));
     expect(message, contains('1 long-presence patterns • 1 guard interactions'));
+    expect(message, contains('Flagged: PERSON-44 flagged near gate-cam'));
+    expect(
+      message,
+      contains(
+        'Long presence: Unknown person remained near driveway-cam for 3h 10m',
+      ),
+    );
+    expect(message, contains('Guard note: Guard interaction observed near gate-cam'));
     expect(
       message,
       contains(
@@ -53,6 +66,9 @@ void main() {
       unknownVehicleSignals: 0,
       longPresenceSignals: 0,
       guardInteractionSignals: 0,
+      topFlaggedIdentitySummary: '',
+      topLongPresenceSummary: '',
+      topGuardInteractionSummary: '',
       summaryLine: 'No visitor or site-activity signals detected.',
     );
 
