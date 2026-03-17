@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
+import 'hazard_response_directive_service.dart';
 import 'report_generation_service.dart';
 
 class ReportReceiptSceneReviewPresenter {
   const ReportReceiptSceneReviewPresenter._();
+
+  static const _hazardDirectiveService = HazardResponseDirectiveService();
 
   static Color accent(
     ReportReceiptSceneReviewSummary? summary, {
@@ -102,16 +105,9 @@ class ReportReceiptSceneReviewPresenter {
   }
 
   static String _escalationNarrativeLabel(ReportReceiptSceneReviewSummary summary) {
-    final posture = summary.topPosture.trim().toLowerCase();
-    if (posture.contains('fire') || posture.contains('smoke')) {
-      return 'fire / smoke emergency${summary.escalationCandidates == 1 ? '' : 's'}';
-    }
-    if (posture.contains('flood') || posture.contains('leak')) {
-      return 'flood / leak emergency${summary.escalationCandidates == 1 ? '' : 's'}';
-    }
-    if (posture.contains('hazard')) {
-      return 'environmental hazard${summary.escalationCandidates == 1 ? '' : 's'}';
-    }
-    return 'escalation candidate${summary.escalationCandidates == 1 ? '' : 's'}';
+    return _hazardDirectiveService.sceneReviewEscalationNarrativeLabel(
+      postureLabel: summary.topPosture,
+      escalationCandidates: summary.escalationCandidates,
+    );
   }
 }

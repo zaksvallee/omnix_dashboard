@@ -185,6 +185,38 @@ class HazardResponseDirectiveService {
     };
   }
 
+  String? sceneReviewSummaryLabel({
+    required String postureLabel,
+    String objectLabel = '',
+  }) {
+    final signal = _resolveSignal(
+      postureLabel: postureLabel,
+      objectLabel: objectLabel,
+    );
+    return switch (signal) {
+      'fire' => 'fire / smoke emergency',
+      'water_leak' => 'flood / leak emergency',
+      'environment_hazard' => 'environmental hazard',
+      _ => null,
+    };
+  }
+
+  String sceneReviewEscalationNarrativeLabel({
+    required String postureLabel,
+    String objectLabel = '',
+    required int escalationCandidates,
+  }) {
+    final label = sceneReviewSummaryLabel(
+      postureLabel: postureLabel,
+      objectLabel: objectLabel,
+    );
+    final pluralSuffix = escalationCandidates == 1 ? '' : 's';
+    if (label != null) {
+      return '$label$pluralSuffix';
+    }
+    return 'escalation candidate$pluralSuffix';
+  }
+
   String _resolveSignal({
     required String postureLabel,
     required String objectLabel,

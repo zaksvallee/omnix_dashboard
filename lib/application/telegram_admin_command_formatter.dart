@@ -1,5 +1,9 @@
+import 'hazard_response_directive_service.dart';
+
 class TelegramAdminCommandFormatter {
   const TelegramAdminCommandFormatter._();
+
+  static const _hazardDirectiveService = HazardResponseDirectiveService();
 
   static String pollOps({
     required String pollResult,
@@ -247,7 +251,9 @@ class TelegramAdminCommandFormatter {
     if (trimmedSummary.isEmpty) {
       return 'No review actions recorded.';
     }
-    final hazardLabel = _hazardSceneReviewLabel(topPosture);
+    final hazardLabel = _hazardDirectiveService.sceneReviewSummaryLabel(
+      postureLabel: topPosture,
+    );
     if (hazardLabel == null) {
       return trimmedSummary;
     }
@@ -255,19 +261,6 @@ class TelegramAdminCommandFormatter {
       return trimmedSummary;
     }
     return '${_titleCase(hazardLabel)} • $trimmedSummary';
-  }
-
-  static String? _hazardSceneReviewLabel(String topPosture) {
-    if (topPosture.contains('fire') || topPosture.contains('smoke')) {
-      return 'fire / smoke emergency';
-    }
-    if (topPosture.contains('flood') || topPosture.contains('leak')) {
-      return 'flood / leak emergency';
-    }
-    if (topPosture.contains('hazard')) {
-      return 'environmental hazard';
-    }
-    return null;
   }
 
   static String _titleCase(String value) {
