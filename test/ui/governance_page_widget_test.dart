@@ -303,6 +303,135 @@ void main() {
     );
   });
 
+  testWidgets('governance page shows site activity truth drift and drill-in', (
+    tester,
+  ) async {
+    SovereignReport buildReport({
+      required String date,
+      required DateTime generatedAtUtc,
+      required SovereignReportSiteActivity siteActivity,
+    }) {
+      return SovereignReport(
+        date: date,
+        generatedAtUtc: generatedAtUtc,
+        shiftWindowStartUtc: generatedAtUtc.subtract(const Duration(hours: 8)),
+        shiftWindowEndUtc: generatedAtUtc,
+        ledgerIntegrity: const SovereignReportLedgerIntegrity(
+          totalEvents: 10,
+          hashVerified: true,
+          integrityScore: 99,
+        ),
+        aiHumanDelta: const SovereignReportAiHumanDelta(
+          aiDecisions: 1,
+          humanOverrides: 0,
+          overrideReasons: <String, int>{},
+        ),
+        normDrift: const SovereignReportNormDrift(
+          sitesMonitored: 2,
+          driftDetected: 0,
+          avgMatchScore: 100,
+        ),
+        complianceBlockage: const SovereignReportComplianceBlockage(
+          psiraExpired: 0,
+          pdpExpired: 0,
+          totalBlocked: 0,
+        ),
+        siteActivity: siteActivity,
+      );
+    }
+
+    final priorReport = buildReport(
+      date: '2026-03-09',
+      generatedAtUtc: DateTime.utc(2026, 3, 9, 6, 0),
+      siteActivity: const SovereignReportSiteActivity(
+        totalSignals: 2,
+        personSignals: 1,
+        vehicleSignals: 1,
+        knownIdentitySignals: 1,
+        flaggedIdentitySignals: 0,
+        unknownSignals: 0,
+        longPresenceSignals: 0,
+        guardInteractionSignals: 0,
+        executiveSummary: 'Routine visitor flow only.',
+        headline: '2 site activity signals observed',
+        summaryLine:
+            'Signals 2 • Vehicles 1 • People 1 • Known IDs 1 • Unknown 0 • Long presence 0 • Guard interactions 0 • Flagged IDs 0',
+      ),
+    );
+    final currentReport = buildReport(
+      date: '2026-03-10',
+      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      siteActivity: const SovereignReportSiteActivity(
+        totalSignals: 7,
+        personSignals: 4,
+        vehicleSignals: 3,
+        knownIdentitySignals: 2,
+        flaggedIdentitySignals: 1,
+        unknownSignals: 3,
+        longPresenceSignals: 1,
+        guardInteractionSignals: 1,
+        executiveSummary:
+            'Unknown visitors and flagged identity traffic increased overnight.',
+        headline: '7 site activity signals observed',
+        summaryLine:
+            'Signals 7 • Vehicles 3 • People 4 • Known IDs 2 • Unknown 3 • Long presence 1 • Guard interactions 1 • Flagged IDs 1',
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GovernancePage(
+          events: const <DispatchEvent>[],
+          morningSovereignReport: currentReport,
+          morningSovereignReportHistory: [priorReport],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Site activity truth (7 days)'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('governance-site-activity-trend-card')),
+      findsOneWidget,
+    );
+    expect(find.text('FLAGGED TRAFFIC'), findsWidgets);
+    expect(find.text('RISING'), findsWidgets);
+    expect(find.text('Current Signals: 7'), findsOneWidget);
+    expect(find.text('Current Unknown: 3'), findsOneWidget);
+    expect(find.text('Current Flagged: 1'), findsOneWidget);
+    expect(find.text('Baseline Signals: 2.0'), findsOneWidget);
+    expect(find.textContaining('Flagged identity traffic is pushing'), findsOneWidget);
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('governance-site-activity-trend-card')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('governance-site-activity-trend-card')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('governance-site-activity-dialog')),
+      findsOneWidget,
+    );
+    expect(find.text('SITE ACTIVITY TRUTH DRILL-IN'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('governance-site-activity-history-2026-03-10')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('governance-site-activity-history-2026-03-09')),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'Signals 7 • Vehicles 3 • People 4 • Known 2 • Unknown 3 • Flagged 1 • Guard 1',
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('governance page renders persisted morning report metadata', (
     tester,
   ) async {
@@ -3773,6 +3902,12 @@ void main() {
     expect(copiedPayload, contains('"personSignals": 4'));
     expect(copiedPayload, contains('"vehicleSignals": 3'));
     expect(copiedPayload, contains('"flaggedIdentitySignals": 1'));
+    expect(copiedPayload, contains('"comparison"'));
+    expect(copiedPayload, contains('"baselineSignalsAverage": 0.0'));
+    expect(copiedPayload, contains('"baselineUnknownAverage": 0.0'));
+    expect(copiedPayload, contains('"trend"'));
+    expect(copiedPayload, contains('"currentModeLabel": "FLAGGED TRAFFIC"'));
+    expect(copiedPayload, contains('"history"'));
     expect(
       copiedPayload,
       contains(
@@ -3809,6 +3944,18 @@ void main() {
     expect(copiedPayload, contains('site_activity_people,4'));
     expect(copiedPayload, contains('site_activity_vehicles,3'));
     expect(copiedPayload, contains('site_activity_flagged_ids,1'));
+    expect(copiedPayload, contains('site_activity_trend_label,RISING'));
+    expect(
+      copiedPayload,
+      contains('site_activity_trend_current_mode,"FLAGGED TRAFFIC"'),
+    );
+    expect(copiedPayload, contains('site_activity_baseline_signals_average,0.0'));
+    expect(
+      copiedPayload,
+      contains(
+        'site_activity_history_1,"2026-03-10 • CURRENT • Signals 7 • Vehicles 3 • People 4 • Known IDs 2 • Unknown 3 • Guard interactions 1 • Flagged IDs 1 • FLAGGED TRAFFIC"',
+      ),
+    );
     expect(
       copiedPayload,
       contains(

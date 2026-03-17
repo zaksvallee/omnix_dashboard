@@ -292,6 +292,72 @@ class _GlobalReadinessHistoryPoint {
   });
 }
 
+class _SiteActivityTrend {
+  final String trendLabel;
+  final String trendReason;
+  final String summaryLine;
+  final int reportDays;
+  final String currentModeLabel;
+
+  const _SiteActivityTrend({
+    required this.trendLabel,
+    required this.trendReason,
+    required this.summaryLine,
+    required this.reportDays,
+    required this.currentModeLabel,
+  });
+}
+
+class _SiteActivityBaselineStats {
+  final double signalsAverage;
+  final double unknownAverage;
+  final double flaggedAverage;
+  final double guardInteractionAverage;
+  final int reportDays;
+
+  const _SiteActivityBaselineStats({
+    required this.signalsAverage,
+    required this.unknownAverage,
+    required this.flaggedAverage,
+    required this.guardInteractionAverage,
+    required this.reportDays,
+  });
+}
+
+class _SiteActivityHistoryPoint {
+  final String reportDate;
+  final bool current;
+  final int totalSignals;
+  final int people;
+  final int vehicles;
+  final int knownIds;
+  final int flaggedIds;
+  final int unknownSignals;
+  final int longPresence;
+  final int guardInteractions;
+  final String modeLabel;
+  final String executiveSummary;
+  final String headline;
+  final String summaryLine;
+
+  const _SiteActivityHistoryPoint({
+    required this.reportDate,
+    required this.current,
+    required this.totalSignals,
+    required this.people,
+    required this.vehicles,
+    required this.knownIds,
+    required this.flaggedIds,
+    required this.unknownSignals,
+    required this.longPresence,
+    required this.guardInteractions,
+    required this.modeLabel,
+    required this.executiveSummary,
+    required this.headline,
+    required this.summaryLine,
+  });
+}
+
 class _ReceiptBrandingHistoryPoint {
   final String reportDate;
   final bool current;
@@ -1431,6 +1497,17 @@ class _GovernancePageState extends State<GovernancePage> {
           ),
           const SizedBox(height: 6),
           _globalReadinessTrendCard(report),
+          const SizedBox(height: 8),
+          Text(
+            'Site activity truth (7 days)',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF4FF),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          _siteActivityTrendCard(report),
           if (report.generatedReports > 0) ...[
             const SizedBox(height: 8),
             Text(
@@ -2838,6 +2915,78 @@ class _GovernancePageState extends State<GovernancePage> {
     );
   }
 
+  _SiteActivityTrend _siteActivityTrendForReport(_GovernanceReportView report) {
+    final currentModeLabel = _siteActivityModeLabel(report);
+    final summaryLine =
+        'Current truth • Signals ${report.siteActivitySignals} • Vehicles ${report.siteActivityVehicles} • People ${report.siteActivityPeople}';
+    final baselineReports =
+        widget.morningSovereignReportHistory
+            .where((item) {
+              if (item.generatedAtUtc == report.generatedAtUtc &&
+                  item.date == report.reportDate) {
+                return false;
+              }
+              return true;
+            })
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
+    final baseline = baselineReports.take(3).toList(growable: false);
+    if (baseline.isEmpty) {
+      return _SiteActivityTrend(
+        trendLabel: 'NEW',
+        trendReason:
+            'No prior site-activity truth snapshots are available for comparison.',
+        summaryLine: summaryLine,
+        reportDays: 1,
+        currentModeLabel: currentModeLabel,
+      );
+    }
+    final currentPressure =
+        (report.siteActivityFlaggedIds * 2.0) +
+        report.siteActivityUnknownSignals +
+        report.siteActivityLongPresence +
+        (report.siteActivityGuardInteractions * 0.5);
+    final baselinePressure =
+        baseline
+            .map(
+              (item) =>
+                  (item.siteActivity.flaggedIdentitySignals * 2.0) +
+                  item.siteActivity.unknownSignals +
+                  item.siteActivity.longPresenceSignals +
+                  (item.siteActivity.guardInteractionSignals * 0.5),
+            )
+            .reduce((left, right) => left + right) /
+        baseline.length;
+    final trendLabel = currentPressure >= baselinePressure + 1.0
+        ? 'RISING'
+        : currentPressure <= baselinePressure - 1.0
+        ? 'EASING'
+        : 'STABLE';
+    final trendReason = switch (trendLabel) {
+      'RISING' =>
+        report.siteActivityFlaggedIds > 0
+            ? 'Flagged identity traffic is pushing site activity beyond the recent baseline.'
+            : 'Unknown or long-presence activity increased against recent shifts.',
+      'EASING' =>
+        report.siteActivityFlaggedIds == 0 &&
+                report.siteActivityUnknownSignals == 0 &&
+                baselinePressure > 0
+            ? 'Current shift returned to a cleaner visitor posture with no flagged or unknown activity.'
+            : 'Site activity pressure eased against recent shifts.',
+      _ => 'Site activity truth is holding close to the recent baseline.',
+    };
+    return _SiteActivityTrend(
+      trendLabel: trendLabel,
+      trendReason: trendReason,
+      summaryLine: summaryLine,
+      reportDays: baseline.length,
+      currentModeLabel: currentModeLabel,
+    );
+  }
+
   _GlobalReadinessBaselineStats _globalReadinessBaselineStats(
     _GovernanceReportView report,
   ) {
@@ -2900,6 +3049,49 @@ class _GovernancePageState extends State<GovernancePage> {
       criticalAverage: criticalAverage,
       elevatedAverage: elevatedAverage,
       intentAverage: intentAverage,
+      reportDays: baseline.length,
+    );
+  }
+
+  _SiteActivityBaselineStats _siteActivityBaselineStats(
+    _GovernanceReportView report,
+  ) {
+    final baselineReports =
+        widget.morningSovereignReportHistory
+            .where((item) {
+              if (item.generatedAtUtc == report.generatedAtUtc &&
+                  item.date == report.reportDate) {
+                return false;
+              }
+              return true;
+            })
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
+    final baseline = baselineReports.take(3).toList(growable: false);
+    if (baseline.isEmpty) {
+      return const _SiteActivityBaselineStats(
+        signalsAverage: 0,
+        unknownAverage: 0,
+        flaggedAverage: 0,
+        guardInteractionAverage: 0,
+        reportDays: 0,
+      );
+    }
+    double average(num Function(SovereignReport report) selector) {
+      return baseline.map(selector).reduce((left, right) => left + right) /
+          baseline.length;
+    }
+
+    return _SiteActivityBaselineStats(
+      signalsAverage: average((item) => item.siteActivity.totalSignals),
+      unknownAverage: average((item) => item.siteActivity.unknownSignals),
+      flaggedAverage:
+          average((item) => item.siteActivity.flaggedIdentitySignals),
+      guardInteractionAverage:
+          average((item) => item.siteActivity.guardInteractionSignals),
       reportDays: baseline.length,
     );
   }
@@ -2975,6 +3167,65 @@ class _GovernancePageState extends State<GovernancePage> {
     return points;
   }
 
+  List<_SiteActivityHistoryPoint> _siteActivityHistory(
+    _GovernanceReportView report,
+  ) {
+    final points = <_SiteActivityHistoryPoint>[
+      _SiteActivityHistoryPoint(
+        reportDate: report.reportDate,
+        current: true,
+        totalSignals: report.siteActivitySignals,
+        people: report.siteActivityPeople,
+        vehicles: report.siteActivityVehicles,
+        knownIds: report.siteActivityKnownIds,
+        flaggedIds: report.siteActivityFlaggedIds,
+        unknownSignals: report.siteActivityUnknownSignals,
+        longPresence: report.siteActivityLongPresence,
+        guardInteractions: report.siteActivityGuardInteractions,
+        modeLabel: _siteActivityModeLabel(report),
+        executiveSummary: report.siteActivityExecutiveSummary,
+        headline: report.siteActivityHeadline,
+        summaryLine: report.siteActivitySummary,
+      ),
+    ];
+    for (final item in widget.morningSovereignReportHistory) {
+      if (item.generatedAtUtc == report.generatedAtUtc &&
+          item.date == report.reportDate) {
+        continue;
+      }
+      points.add(
+        _SiteActivityHistoryPoint(
+          reportDate: item.date,
+          current: false,
+          totalSignals: item.siteActivity.totalSignals,
+          people: item.siteActivity.personSignals,
+          vehicles: item.siteActivity.vehicleSignals,
+          knownIds: item.siteActivity.knownIdentitySignals,
+          flaggedIds: item.siteActivity.flaggedIdentitySignals,
+          unknownSignals: item.siteActivity.unknownSignals,
+          longPresence: item.siteActivity.longPresenceSignals,
+          guardInteractions: item.siteActivity.guardInteractionSignals,
+          modeLabel: _siteActivityModeLabelFromSignals(
+            flaggedIds: item.siteActivity.flaggedIdentitySignals,
+            unknownSignals: item.siteActivity.unknownSignals,
+            longPresence: item.siteActivity.longPresenceSignals,
+            totalSignals: item.siteActivity.totalSignals,
+          ),
+          executiveSummary: item.siteActivity.executiveSummary,
+          headline: item.siteActivity.headline,
+          summaryLine: item.siteActivity.summaryLine,
+        ),
+      );
+    }
+    points.sort((left, right) {
+      if (left.current != right.current) {
+        return left.current ? -1 : 1;
+      }
+      return right.reportDate.compareTo(left.reportDate);
+    });
+    return points;
+  }
+
   String _globalReadinessModeLabel(
     MonitoringGlobalPostureSnapshot snapshot,
     List<MonitoringWatchAutonomyActionPlan> intents,
@@ -2991,12 +3242,49 @@ class _GovernancePageState extends State<GovernancePage> {
     return 'STABLE POSTURE';
   }
 
+  String _siteActivityModeLabel(_GovernanceReportView report) {
+    return _siteActivityModeLabelFromSignals(
+      flaggedIds: report.siteActivityFlaggedIds,
+      unknownSignals: report.siteActivityUnknownSignals,
+      longPresence: report.siteActivityLongPresence,
+      totalSignals: report.siteActivitySignals,
+    );
+  }
+
+  String _siteActivityModeLabelFromSignals({
+    required int flaggedIds,
+    required int unknownSignals,
+    required int longPresence,
+    required int totalSignals,
+  }) {
+    if (flaggedIds > 0) {
+      return 'FLAGGED TRAFFIC';
+    }
+    if (unknownSignals > 0 || longPresence > 0) {
+      return 'WATCHFUL FLOW';
+    }
+    if (totalSignals > 0) {
+      return 'NORMAL FLOW';
+    }
+    return 'QUIET SITE';
+  }
+
   Color _globalReadinessModeColor(String modeLabel) {
     return switch (modeLabel.trim().toUpperCase()) {
       'CRITICAL POSTURE' => const Color(0xFFEF4444),
       'ELEVATED WATCH' => const Color(0xFFF59E0B),
       'ACTIVE TENSION' => const Color(0xFF22D3EE),
       'STABLE POSTURE' => const Color(0xFF10B981),
+      _ => const Color(0xFF9CB2D1),
+    };
+  }
+
+  Color _siteActivityModeColor(String modeLabel) {
+    return switch (modeLabel.trim().toUpperCase()) {
+      'FLAGGED TRAFFIC' => const Color(0xFFEF4444),
+      'WATCHFUL FLOW' => const Color(0xFFF59E0B),
+      'NORMAL FLOW' => const Color(0xFF22D3EE),
+      'QUIET SITE' => const Color(0xFF10B981),
       _ => const Color(0xFF9CB2D1),
     };
   }
@@ -5523,6 +5811,160 @@ class _GovernancePageState extends State<GovernancePage> {
     );
   }
 
+  Widget _siteActivityTrendCard(_GovernanceReportView report) {
+    final trend = _siteActivityTrendForReport(report);
+    final baseline = _siteActivityBaselineStats(report);
+    final trendColor = _partnerTrendColor(trend.trendLabel);
+    final modeColor = _siteActivityModeColor(trend.currentModeLabel);
+    return InkWell(
+      key: const ValueKey('governance-site-activity-trend-card'),
+      onTap: () => _showSiteActivityDrillIn(report),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: const Color(0x14000000),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0x22FFFFFF)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    trend.summaryLine,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFEAF4FF),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: modeColor.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: modeColor.withValues(alpha: 0.5)),
+                  ),
+                  child: Text(
+                    trend.currentModeLabel,
+                    style: GoogleFonts.inter(
+                      color: modeColor,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: trendColor.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: trendColor.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Text(
+                    trend.trendLabel,
+                    style: GoogleFonts.inter(
+                      color: trendColor,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              trend.trendReason,
+              style: GoogleFonts.inter(
+                color: trendColor,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Compared against ${trend.reportDays} recent shift${trend.reportDays == 1 ? '' : 's'} • Tap to drill in.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _partnerTrendMetricChip(
+                  label: 'Current Signals',
+                  value: '${report.siteActivitySignals}',
+                  color: const Color(0xFF22D3EE),
+                ),
+                _partnerTrendMetricChip(
+                  label: 'Current Unknown',
+                  value: '${report.siteActivityUnknownSignals}',
+                  color: const Color(0xFFF59E0B),
+                ),
+                _partnerTrendMetricChip(
+                  label: 'Current Flagged',
+                  value: '${report.siteActivityFlaggedIds}',
+                  color: const Color(0xFFEF4444),
+                ),
+                _partnerTrendMetricChip(
+                  label: 'Current Guard',
+                  value: '${report.siteActivityGuardInteractions}',
+                  color: const Color(0xFF8FD1FF),
+                ),
+                _partnerTrendMetricChip(
+                  label: 'Baseline Signals',
+                  value: baseline.reportDays <= 0
+                      ? 'n/a'
+                      : baseline.signalsAverage.toStringAsFixed(1),
+                  color: const Color(0xFF22D3EE),
+                ),
+                _partnerTrendMetricChip(
+                  label: 'Baseline Unknown',
+                  value: baseline.reportDays <= 0
+                      ? 'n/a'
+                      : baseline.unknownAverage.toStringAsFixed(1),
+                  color: const Color(0xFFF59E0B),
+                ),
+                _partnerTrendMetricChip(
+                  label: 'Baseline Flagged',
+                  value: baseline.reportDays <= 0
+                      ? 'n/a'
+                      : baseline.flaggedAverage.toStringAsFixed(1),
+                  color: const Color(0xFFEF4444),
+                ),
+                _partnerTrendMetricChip(
+                  label: 'Baseline Guard',
+                  value: baseline.reportDays <= 0
+                      ? 'n/a'
+                      : baseline.guardInteractionAverage.toStringAsFixed(1),
+                  color: const Color(0xFF8FD1FF),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _partnerTrendMetricChip({
     required String label,
     required String value,
@@ -6304,6 +6746,252 @@ class _GovernancePageState extends State<GovernancePage> {
                                       point.latestIntentSummary.trim().isNotEmpty
                                           ? point.latestIntentSummary
                                           : '${point.leadSiteId} • ${point.leadSiteSummary}',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF8EA4C2),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showSiteActivityDrillIn(_GovernanceReportView report) {
+    final history = _siteActivityHistory(report);
+    final trend = _siteActivityTrendForReport(report);
+    final baseline = _siteActivityBaselineStats(report);
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: const Color(0xFF08111B),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 24,
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760, maxHeight: 720),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                key: const ValueKey('governance-site-activity-dialog'),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'SITE ACTIVITY TRUTH DRILL-IN',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFFEAF4FF),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${trend.trendLabel} • ${trend.trendReason}',
+                              style: GoogleFonts.inter(
+                                color: _partnerTrendColor(trend.trendLabel),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        icon: const Icon(Icons.close, color: Color(0xFFEAF4FF)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _partnerTrendMetricChip(
+                        label: 'Current mode',
+                        value: trend.currentModeLabel,
+                        color: _siteActivityModeColor(trend.currentModeLabel),
+                      ),
+                      _partnerTrendMetricChip(
+                        label: 'Baseline Signals',
+                        value: baseline.reportDays <= 0
+                            ? 'n/a'
+                            : baseline.signalsAverage.toStringAsFixed(1),
+                        color: const Color(0xFF22D3EE),
+                      ),
+                      _partnerTrendMetricChip(
+                        label: 'Baseline Unknown',
+                        value: baseline.reportDays <= 0
+                            ? 'n/a'
+                            : baseline.unknownAverage.toStringAsFixed(1),
+                        color: const Color(0xFFF59E0B),
+                      ),
+                      _partnerTrendMetricChip(
+                        label: 'Baseline Flagged',
+                        value: baseline.reportDays <= 0
+                            ? 'n/a'
+                            : baseline.flaggedAverage.toStringAsFixed(1),
+                        color: const Color(0xFFEF4444),
+                      ),
+                      _partnerTrendMetricChip(
+                        label: 'Baseline Guard',
+                        value: baseline.reportDays <= 0
+                            ? 'n/a'
+                            : baseline.guardInteractionAverage.toStringAsFixed(
+                                1,
+                              ),
+                        color: const Color(0xFF8FD1FF),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          for (final point in history) ...[
+                            Container(
+                              key: ValueKey<String>(
+                                'governance-site-activity-history-${point.reportDate}',
+                              ),
+                              width: double.infinity,
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: point.current
+                                    ? const Color(0x1A0EA5E9)
+                                    : const Color(0x14000000),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: point.current
+                                      ? const Color(0x550EA5E9)
+                                      : const Color(0x22FFFFFF),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          point.reportDate,
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFEAF4FF),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ),
+                                      if (point.current)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 7,
+                                            vertical: 3,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: const Color(
+                                              0xFF8FD1FF,
+                                            ).withValues(alpha: 0.14),
+                                            borderRadius: BorderRadius.circular(
+                                              999,
+                                            ),
+                                            border: Border.all(
+                                              color: const Color(
+                                                0xFF8FD1FF,
+                                              ).withValues(alpha: 0.5),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            'CURRENT',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFF8FD1FF),
+                                              fontSize: 8,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ),
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 7,
+                                          vertical: 3,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: _siteActivityModeColor(
+                                            point.modeLabel,
+                                          ).withValues(alpha: 0.14),
+                                          borderRadius:
+                                              BorderRadius.circular(999),
+                                          border: Border.all(
+                                            color: _siteActivityModeColor(
+                                              point.modeLabel,
+                                            ).withValues(alpha: 0.5),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          point.modeLabel,
+                                          style: GoogleFonts.inter(
+                                            color: _siteActivityModeColor(
+                                              point.modeLabel,
+                                            ),
+                                            fontSize: 8,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Signals ${point.totalSignals} • Vehicles ${point.vehicles} • People ${point.people} • Known ${point.knownIds} • Unknown ${point.unknownSignals} • Flagged ${point.flaggedIds} • Guard ${point.guardInteractions}',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFF9CB2D1),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  if (point.executiveSummary.trim().isNotEmpty ||
+                                      point.headline.trim().isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      point.executiveSummary.trim().isNotEmpty
+                                          ? point.executiveSummary
+                                          : point.headline,
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFEAF4FF),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                  if (point.summaryLine.trim().isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      point.summaryLine,
                                       style: GoogleFonts.inter(
                                         color: const Color(0xFF8EA4C2),
                                         fontSize: 10,
@@ -7206,6 +7894,35 @@ class _GovernancePageState extends State<GovernancePage> {
     };
   }
 
+  Map<String, Object?> _siteActivityTrendJson(_SiteActivityTrend trend) {
+    return {
+      'trendLabel': trend.trendLabel,
+      'trendReason': trend.trendReason,
+      'summaryLine': trend.summaryLine,
+      'reportDays': trend.reportDays,
+      'currentModeLabel': trend.currentModeLabel,
+    };
+  }
+
+  Map<String, Object?> _siteActivityHistoryJson(_SiteActivityHistoryPoint point) {
+    return {
+      'reportDate': point.reportDate,
+      'current': point.current,
+      'totalSignals': point.totalSignals,
+      'people': point.people,
+      'vehicles': point.vehicles,
+      'knownIds': point.knownIds,
+      'flaggedIds': point.flaggedIds,
+      'unknownSignals': point.unknownSignals,
+      'longPresence': point.longPresence,
+      'guardInteractions': point.guardInteractions,
+      'modeLabel': point.modeLabel,
+      'executiveSummary': point.executiveSummary,
+      'headline': point.headline,
+      'summaryLine': point.summaryLine,
+    };
+  }
+
   String _globalReadinessHistoryCsvSummary(_GlobalReadinessHistoryPoint point) {
     final leadSegment = point.leadSiteId.trim().isEmpty
         ? point.leadRegionSummary
@@ -7214,6 +7931,10 @@ class _GovernancePageState extends State<GovernancePage> {
         ? ''
         : ' • ${point.latestIntentSummary}';
     return '${point.reportDate} • ${point.current ? 'CURRENT' : 'HISTORY'} • Sites ${point.totalSites} • Critical ${point.criticalSiteCount} • Elevated ${point.elevatedSiteCount} • Intents ${point.intentCount} • ${point.modeLabel} • $leadSegment$intentSegment';
+  }
+
+  String _siteActivityHistoryCsvSummary(_SiteActivityHistoryPoint point) {
+    return '${point.reportDate} • ${point.current ? 'CURRENT' : 'HISTORY'} • Signals ${point.totalSignals} • Vehicles ${point.vehicles} • People ${point.people} • Known IDs ${point.knownIds} • Unknown ${point.unknownSignals} • Guard interactions ${point.guardInteractions} • Flagged IDs ${point.flaggedIds} • ${point.modeLabel}';
   }
 
   Map<String, Object?> _receiptInvestigationHistoryJson(
@@ -8242,6 +8963,9 @@ class _GovernancePageState extends State<GovernancePage> {
     final globalReadinessTrend = _globalReadinessTrendForReport(report);
     final globalReadinessBaseline = _globalReadinessBaselineStats(report);
     final globalReadinessHistory = _globalReadinessHistory(report);
+    final siteActivityTrend = _siteActivityTrendForReport(report);
+    final siteActivityBaseline = _siteActivityBaselineStats(report);
+    final siteActivityHistory = _siteActivityHistory(report);
     final payload = <String, Object?>{
       'date': report.reportDate,
       'generatedAtUtc': report.generatedAtUtc?.toIso8601String(),
@@ -8351,6 +9075,18 @@ class _GovernancePageState extends State<GovernancePage> {
         'executiveSummary': report.siteActivityExecutiveSummary,
         'headline': report.siteActivityHeadline,
         'summaryLine': report.siteActivitySummary,
+        'comparison': {
+          'baselineSignalsAverage': siteActivityBaseline.signalsAverage,
+          'baselineUnknownAverage': siteActivityBaseline.unknownAverage,
+          'baselineFlaggedAverage': siteActivityBaseline.flaggedAverage,
+          'baselineGuardInteractionAverage':
+              siteActivityBaseline.guardInteractionAverage,
+          'baselineReportDays': siteActivityBaseline.reportDays,
+        },
+        'trend': _siteActivityTrendJson(siteActivityTrend),
+        'history': siteActivityHistory
+            .map(_siteActivityHistoryJson)
+            .toList(growable: false),
       },
       'vehicleThroughput': {
         'totalVisits': report.vehicleVisits,
@@ -8420,6 +9156,9 @@ class _GovernancePageState extends State<GovernancePage> {
     final globalReadinessTrend = _globalReadinessTrendForReport(report);
     final globalReadinessBaseline = _globalReadinessBaselineStats(report);
     final globalReadinessHistory = _globalReadinessHistory(report);
+    final siteActivityTrend = _siteActivityTrendForReport(report);
+    final siteActivityBaseline = _siteActivityBaselineStats(report);
+    final siteActivityHistory = _siteActivityHistory(report);
     final reasons = report.overrideReasons.entries.toList(growable: false)
       ..sort((a, b) => b.value.compareTo(a.value));
     final lines = <String>[
@@ -8507,6 +9246,18 @@ class _GovernancePageState extends State<GovernancePage> {
       'site_activity_executive_summary,"${report.siteActivityExecutiveSummary.replaceAll('"', '""')}"',
       'site_activity_headline,"${report.siteActivityHeadline.replaceAll('"', '""')}"',
       'site_activity_summary,"${report.siteActivitySummary.replaceAll('"', '""')}"',
+      'site_activity_trend_label,${siteActivityTrend.trendLabel}',
+      'site_activity_trend_current_mode,"${siteActivityTrend.currentModeLabel.replaceAll('"', '""')}"',
+      'site_activity_trend_reason,"${siteActivityTrend.trendReason.replaceAll('"', '""')}"',
+      'site_activity_trend_summary,"${siteActivityTrend.summaryLine.replaceAll('"', '""')}"',
+      'site_activity_trend_report_days,${siteActivityTrend.reportDays}',
+      'site_activity_baseline_signals_average,${siteActivityBaseline.signalsAverage.toStringAsFixed(1)}',
+      'site_activity_baseline_unknown_average,${siteActivityBaseline.unknownAverage.toStringAsFixed(1)}',
+      'site_activity_baseline_flagged_average,${siteActivityBaseline.flaggedAverage.toStringAsFixed(1)}',
+      'site_activity_baseline_guard_interactions_average,${siteActivityBaseline.guardInteractionAverage.toStringAsFixed(1)}',
+      'site_activity_baseline_report_days,${siteActivityBaseline.reportDays}',
+      for (var i = 0; i < siteActivityHistory.length; i++)
+        'site_activity_history_${i + 1},"${_siteActivityHistoryCsvSummary(siteActivityHistory[i]).replaceAll('"', '""')}"',
       'vehicle_total_visits,${report.vehicleVisits}',
       'vehicle_completed_visits,${report.vehicleCompletedVisits}',
       'vehicle_active_visits,${report.vehicleActiveVisits}',
