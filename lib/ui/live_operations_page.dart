@@ -7,6 +7,7 @@ import '../application/hazard_response_directive_service.dart';
 import '../application/morning_sovereign_report_service.dart';
 import '../application/monitoring_global_posture_service.dart';
 import '../application/monitoring_orchestrator_service.dart';
+import '../application/monitoring_synthetic_war_room_service.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_completed.dart';
@@ -18,6 +19,7 @@ import '../domain/events/partner_dispatch_status_declared.dart';
 import '../domain/events/response_arrived.dart';
 import '../application/monitoring_scene_review_store.dart';
 import '../application/site_activity_intelligence_service.dart';
+import '../application/synthetic_promotion_summary_formatter.dart';
 import '../application/monitoring_watch_action_plan.dart';
 import '../application/shadow_mo_dossier_contract.dart';
 import 'layout_breakpoints.dart';
@@ -120,6 +122,7 @@ class _IncidentRecord {
 
 const _hazardDirectiveService = HazardResponseDirectiveService();
 const _globalPostureService = MonitoringGlobalPostureService();
+const _syntheticWarRoomService = MonitoringSyntheticWarRoomService();
 
 class _LadderStep {
   final String id;
@@ -1313,6 +1316,63 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         .toList(growable: false);
   }
 
+  MonitoringWatchAutonomyActionPlan? _syntheticPolicyForIncident(
+    _IncidentRecord incident,
+  ) {
+    final plans = _syntheticWarRoomService.buildSimulationPlans(
+      events: widget.events,
+      sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+      videoOpsLabel: widget.videoOpsLabel,
+      historicalLearningLabels: widget.historicalSyntheticLearningLabels,
+      historicalShadowMoLabels: widget.historicalShadowMoLabels,
+    );
+    for (final plan in plans) {
+      if (plan.actionType != 'POLICY RECOMMENDATION') {
+        continue;
+      }
+      if (plan.siteId.trim() == incident.siteId.trim() ||
+          (plan.metadata['lead_site'] ?? '').trim() == incident.siteId.trim() ||
+          (plan.metadata['region'] ?? '').trim() == incident.regionId.trim()) {
+        return plan;
+      }
+    }
+    return null;
+  }
+
+  String _promotionPressureSummaryForPlan(
+    MonitoringWatchAutonomyActionPlan plan,
+  ) {
+    final baseSummary = (plan.metadata['mo_promotion_summary'] ?? '').trim();
+    if (baseSummary.isEmpty) {
+      return '';
+    }
+    return buildSyntheticPromotionSummary(
+      baseSummary: baseSummary,
+      shadowPostureBiasSummary: _shadowPostureBiasSummaryForPlan(plan),
+    );
+  }
+
+  String _shadowPostureBiasSummaryForPlan(
+    MonitoringWatchAutonomyActionPlan plan,
+  ) {
+    final postureBias = (plan.metadata['shadow_posture_bias'] ?? '').trim();
+    final posturePriority =
+        (plan.metadata['shadow_posture_priority'] ?? '').trim();
+    final postureCountdown =
+        (plan.metadata['shadow_posture_countdown'] ?? '').trim();
+    if (postureBias.isEmpty &&
+        posturePriority.isEmpty &&
+        postureCountdown.isEmpty) {
+      return '';
+    }
+    final parts = <String>[
+      if (postureBias.isNotEmpty) postureBias,
+      if (posturePriority.isNotEmpty) posturePriority,
+      if (postureCountdown.isNotEmpty) '${postureCountdown}s',
+    ];
+    return parts.join(' • ');
+  }
+
   Widget _nextShiftDraftCard(
     _IncidentRecord incident,
     List<MonitoringWatchAutonomyActionPlan> drafts,
@@ -1320,12 +1380,16 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final leadDraft = drafts.first;
     final readinessBiases = _readinessBiasesForIncident(incident);
     final leadBias = readinessBiases.isEmpty ? null : readinessBiases.first;
+    final linkedSyntheticPolicy = _syntheticPolicyForIncident(incident);
     final learningLabel = (leadDraft.metadata['learning_label'] ?? '').trim();
     final repeatCount = (leadDraft.metadata['learning_repeat_count'] ?? '')
         .trim();
     final shadowLabel = (leadDraft.metadata['shadow_mo_label'] ?? '').trim();
     final shadowRepeatCount =
         (leadDraft.metadata['shadow_mo_repeat_count'] ?? '').trim();
+    final promotionPressureSummary = linkedSyntheticPolicy == null
+        ? ''
+        : _promotionPressureSummaryForPlan(linkedSyntheticPolicy);
     return Container(
       key: ValueKey('live-next-shift-draft-card-${incident.id}'),
       width: double.infinity,
@@ -1394,6 +1458,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               'Readiness bias',
               _compactContextLabel(leadBias.description),
             ),
+          if (promotionPressureSummary.isNotEmpty)
+            _metaRow('Promotion pressure', promotionPressureSummary),
           _metaRow('Lead Draft', leadDraft.actionType),
           _metaRow('Bias', _compactContextLabel(leadDraft.description)),
           if (drafts.length > 1)

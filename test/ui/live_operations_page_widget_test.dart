@@ -443,6 +443,201 @@ void main() {
   );
 
   testWidgets(
+    'live operations explains posture-heated promotion pressure in next-shift card',
+    (tester) async {
+      final now = DateTime.now().toUtc();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            historicalShadowMoLabels: const ['HARDEN ACCESS'],
+            events: [
+              DecisionCreated(
+                eventId: 'decision-promo',
+                sequence: 1,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 4)),
+                dispatchId: 'D-4100',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-VALLEE',
+              ),
+              IntelligenceReceived(
+                eventId: 'promo-news',
+                sequence: 2,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 3)),
+                intelligenceId: 'INT-PROMO-NEWS',
+                provider: 'news_feed_monitor',
+                sourceType: 'news',
+                externalId: 'ext-promo-news',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-SEED',
+                cameraId: 'feed-news',
+                objectLabel: 'person',
+                objectConfidence: 0.70,
+                headline: 'Contractors moved floor to floor in office park',
+                summary:
+                    'Suspects posed as maintenance contractors before moving across restricted office zones.',
+                riskScore: 67,
+                snapshotUrl: 'https://edge.example.com/promo-news.jpg',
+                canonicalHash: 'hash-promo-news',
+              ),
+              IntelligenceReceived(
+                eventId: 'promo-live-1',
+                sequence: 3,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 2)),
+                intelligenceId: 'INT-PROMO-LIVE-1',
+                provider: 'hikvision_dvr_monitor_only',
+                sourceType: 'dvr',
+                externalId: 'ext-promo-live-1',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-VALLEE',
+                cameraId: 'office-cam-1',
+                objectLabel: 'person',
+                objectConfidence: 0.95,
+                headline: 'Unplanned contractor roaming',
+                summary:
+                    'Maintenance-like subject moved across restricted office doors.',
+                riskScore: 86,
+                snapshotUrl: 'https://edge.example.com/promo-live-1.jpg',
+                canonicalHash: 'hash-promo-live-1',
+              ),
+              IntelligenceReceived(
+                eventId: 'promo-live-2',
+                sequence: 4,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 2)),
+                intelligenceId: 'INT-PROMO-LIVE-2',
+                provider: 'hikvision_dvr_monitor_only',
+                sourceType: 'dvr',
+                externalId: 'ext-promo-live-2',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-VALLEE',
+                cameraId: 'office-cam-2',
+                objectLabel: 'person',
+                objectConfidence: 0.95,
+                headline: 'Contractor repeating office sweep',
+                summary:
+                    'Maintenance-like subject kept probing multiple office doors.',
+                riskScore: 87,
+                snapshotUrl: 'https://edge.example.com/promo-live-2.jpg',
+                canonicalHash: 'hash-promo-live-2',
+              ),
+              IntelligenceReceived(
+                eventId: 'promo-live-3',
+                sequence: 5,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 1)),
+                intelligenceId: 'INT-PROMO-LIVE-3',
+                provider: 'hikvision_dvr_monitor_only',
+                sourceType: 'dvr',
+                externalId: 'ext-promo-live-3',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-VALLEE',
+                cameraId: 'office-cam-3',
+                objectLabel: 'person',
+                objectConfidence: 0.95,
+                headline: 'Contractor revisits office floors',
+                summary:
+                    'Service-looking subject returned to several restricted office zones.',
+                riskScore: 89,
+                snapshotUrl: 'https://edge.example.com/promo-live-3.jpg',
+                canonicalHash: 'hash-promo-live-3',
+              ),
+              IntelligenceReceived(
+                eventId: 'promo-live-4',
+                sequence: 6,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 1)),
+                intelligenceId: 'INT-PROMO-LIVE-4',
+                provider: 'hikvision_dvr_monitor_only',
+                sourceType: 'dvr',
+                externalId: 'ext-promo-live-4',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-VALLEE',
+                cameraId: 'office-cam-4',
+                objectLabel: 'person',
+                objectConfidence: 0.96,
+                headline: 'Contractor returns to office zone again',
+                summary:
+                    'Service-looking subject kept sweeping office floors and retrying access.',
+                riskScore: 92,
+                snapshotUrl: 'https://edge.example.com/promo-live-4.jpg',
+                canonicalHash: 'hash-promo-live-4',
+              ),
+            ],
+            sceneReviewByIntelligenceId: {
+              'INT-PROMO-LIVE-1': MonitoringSceneReviewRecord(
+                intelligenceId: 'INT-PROMO-LIVE-1',
+                sourceLabel: 'openai:gpt-5.4-mini',
+                postureLabel: 'service impersonation and roaming concern',
+                decisionLabel: 'Escalation Candidate',
+                decisionSummary:
+                    'Likely spoofed service access with abnormal roaming.',
+                summary:
+                    'Likely maintenance impersonation moving across office zones.',
+                reviewedAtUtc: now.subtract(const Duration(minutes: 2)),
+              ),
+              'INT-PROMO-LIVE-2': MonitoringSceneReviewRecord(
+                intelligenceId: 'INT-PROMO-LIVE-2',
+                sourceLabel: 'openai:gpt-5.4-mini',
+                postureLabel: 'service impersonation and roaming concern',
+                decisionLabel: 'Escalation Candidate',
+                decisionSummary:
+                    'Likely spoofed service access with abnormal roaming.',
+                summary:
+                    'Likely maintenance impersonation moving across office zones repeatedly.',
+                reviewedAtUtc: now.subtract(const Duration(minutes: 2)),
+              ),
+              'INT-PROMO-LIVE-3': MonitoringSceneReviewRecord(
+                intelligenceId: 'INT-PROMO-LIVE-3',
+                sourceLabel: 'openai:gpt-5.4-mini',
+                postureLabel: 'service impersonation and roaming concern',
+                decisionLabel: 'Escalation Candidate',
+                decisionSummary:
+                    'Likely spoofed service access with abnormal roaming.',
+                summary:
+                    'Likely maintenance impersonation moving across office zones again.',
+                reviewedAtUtc: now.subtract(const Duration(minutes: 1)),
+              ),
+              'INT-PROMO-LIVE-4': MonitoringSceneReviewRecord(
+                intelligenceId: 'INT-PROMO-LIVE-4',
+                sourceLabel: 'openai:gpt-5.4-mini',
+                postureLabel: 'service impersonation and roaming concern',
+                decisionLabel: 'Escalation Candidate',
+                decisionSummary:
+                    'Likely spoofed service access with abnormal roaming.',
+                summary:
+                    'Likely maintenance impersonation continuing across office zones.',
+                reviewedAtUtc: now.subtract(const Duration(minutes: 1)),
+              ),
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Next-Shift Drafts'), findsOneWidget);
+      expect(find.text('Promotion pressure'), findsOneWidget);
+      expect(
+        find.textContaining('Promote '),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('toward validated review'),
+        findsWidgets,
+      );
+      expect(find.textContaining('posture POSTURE'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'live operations switches latest intel and ladder labels for DVR',
     (tester) async {
       final now = DateTime.now().toUtc();
