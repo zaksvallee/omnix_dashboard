@@ -252,6 +252,85 @@ void main() {
       );
     });
 
+    test('elevates site heat when promoted shadow strength is high', () {
+      promotionDecisionStore.accept(
+        moId: 'MO-OFFICE-PROMOTION',
+        targetValidationStatus: 'validated',
+      );
+      final moAwareService = MonitoringGlobalPostureService(
+        moRuntimeMatchingService: MoRuntimeMatchingService(
+          repository: InMemoryMoKnowledgeRepository(
+            seedRecords: {
+              'MO-OFFICE-PROMOTION': OnyxMoRecord(
+                moId: 'MO-OFFICE-PROMOTION',
+                title: 'Promoted office impersonation pattern',
+                environmentTypes: const ['office_building'],
+                summary: 'Contractor impersonation moving floor to floor.',
+                sourceType: OnyxMoSourceType.externalIncident,
+                sourceLabel: 'Security Bulletin',
+                sourceConfidence: 'high',
+                patternConfidence: 'high',
+                behaviorStage: 'inside_behavior',
+                incidentType: 'deception_led_intrusion',
+                entryIndicators: const ['spoofed_service_access'],
+                insideBehaviorIndicators: const [
+                  'multi_zone_roaming',
+                  'room_probing',
+                ],
+                deceptionIndicators: const ['maintenance_impersonation'],
+                observableCues: const ['route_anomalies'],
+                attackGoal: 'theft',
+                evidenceQuality: 'high',
+                riskWeight: 84,
+                observabilityScore: 0.84,
+                localRelevanceScore: 0.9,
+                trendScore: 0.7,
+                firstSeenUtc: DateTime.utc(2026, 3, 10),
+                lastSeenUtc: DateTime.utc(2026, 3, 17),
+                validationStatus: OnyxMoValidationStatus.shadowMode,
+              ),
+            },
+          ),
+        ),
+      );
+      final events = <DispatchEvent>[
+        _intel(
+          id: 'intel-shadow-elevated',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-LOW-RISK',
+          riskScore: 24,
+          cameraId: 'office-cam',
+          headline: 'Contractor roaming office corridors',
+          summary:
+              'Contractor-like person moved floor to floor and checked several restricted office doors.',
+        ),
+      ];
+      final reviews = <String, MonitoringSceneReviewRecord>{
+        'intel-shadow-elevated': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-shadow-elevated',
+          sourceLabel: 'openai:gpt-5.4-mini',
+          postureLabel: 'service impersonation and roaming concern',
+          decisionLabel: 'Monitor',
+          decisionSummary: 'Roaming pattern matches service impersonation risk.',
+          summary: 'Contractor-like roaming across office zones.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 0),
+        ),
+      };
+
+      final snapshot = moAwareService.buildSnapshot(
+        events: events,
+        sceneReviewByIntelligenceId: reviews,
+        generatedAtUtc: DateTime.utc(2026, 3, 16, 22, 5),
+      );
+
+      expect(snapshot.sites, hasLength(1));
+      expect(snapshot.sites.first.heatLevel, MonitoringGlobalHeatLevel.elevated);
+      expect(snapshot.sites.first.moShadowStrengthScore, greaterThanOrEqualTo(22));
+      expect(snapshot.sites.first.activityScore, greaterThan(50));
+      expect(snapshot.sites.first.moShadowMatches.first.validationStatus, 'validated');
+      expect(snapshot.sites.first.moShadowMatches.first.runtimeMatchBias, 'PROMOTED_VALIDATED');
+    });
+
     test('applies accepted promotion decisions to auto-seeded MO knowledge', () {
       promotionDecisionStore.accept(
         moId: 'MO-EXT-NEWS-OFFICE-PATTERN',

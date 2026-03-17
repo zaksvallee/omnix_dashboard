@@ -26,6 +26,7 @@ class MonitoringGlobalSitePosture {
   final int moShadowMatchCount;
   final String moShadowSummary;
   final List<OnyxMoShadowMatch> moShadowMatches;
+  final int moShadowStrengthScore;
   final List<String> moShadowEventIds;
   final String? moShadowSelectedEventId;
   final List<String> moShadowReviewRefs;
@@ -47,6 +48,7 @@ class MonitoringGlobalSitePosture {
     this.moShadowMatchCount = 0,
     this.moShadowSummary = '',
     this.moShadowMatches = const <OnyxMoShadowMatch>[],
+    this.moShadowStrengthScore = 0,
     this.moShadowEventIds = const <String>[],
     this.moShadowSelectedEventId,
     this.moShadowReviewRefs = const <String>[],
@@ -138,18 +140,22 @@ class MonitoringGlobalPostureService {
 
     final siteBuckets = <String, List<_PostureItem>>{};
     for (final event in intelligenceEvents) {
+      final review = sceneReviewByIntelligenceId[event.intelligenceId];
+      final moShadowMatches = matchingService.matchReviewedIncident(
+        event: event,
+        sceneReview: review,
+      );
       final key = '${event.clientId}::${event.regionId}::${event.siteId}';
       siteBuckets.putIfAbsent(key, () => <_PostureItem>[]).add(
         _PostureItem(
           event: event,
-          review: sceneReviewByIntelligenceId[event.intelligenceId],
-          moShadowMatches: matchingService.matchReviewedIncident(
-            event: event,
-            sceneReview: sceneReviewByIntelligenceId[event.intelligenceId],
-          ),
+          review: review,
+          moShadowMatches: moShadowMatches,
+          shadowStrengthScore: _shadowStrengthScore(moShadowMatches),
           score: _score(
             event,
-            sceneReviewByIntelligenceId[event.intelligenceId],
+            review,
+            moShadowMatches,
           ),
         ),
       );
@@ -248,10 +254,15 @@ class MonitoringGlobalPostureService {
         )
         .length;
     final activityScore = ordered.fold<int>(0, (sum, item) => sum + item.score);
+    final moShadowStrengthScore = ordered.fold<int>(
+      0,
+      (sum, item) => sum + item.shadowStrengthScore,
+    );
     final heatLevel = _heatLevelFor(
       activityScore: activityScore,
       escalationCount: escalationCount,
       repeatCount: repeatCount,
+      moShadowStrengthScore: moShadowStrengthScore,
     );
 
     final signalCounts = <String, int>{};
@@ -294,6 +305,7 @@ class MonitoringGlobalPostureService {
       moShadowMatchCount: moShadowMatches.length,
       moShadowSummary: moRuntimeMatchingService.shadowSummary(moShadowMatches),
       moShadowMatches: moShadowMatches,
+      moShadowStrengthScore: moShadowStrengthScore,
       moShadowEventIds: moShadowEventIds,
       moShadowSelectedEventId: moShadowEventIds.isEmpty
           ? null
@@ -338,11 +350,16 @@ class MonitoringGlobalPostureService {
     required int activityScore,
     required int escalationCount,
     required int repeatCount,
+    required int moShadowStrengthScore,
   }) {
-    if (escalationCount > 0 || activityScore >= 180) {
+    if (escalationCount > 0 ||
+        activityScore >= 180 ||
+        moShadowStrengthScore >= 44) {
       return MonitoringGlobalHeatLevel.critical;
     }
-    if (repeatCount > 0 || activityScore >= 90) {
+    if (repeatCount > 0 ||
+        activityScore >= 90 ||
+        moShadowStrengthScore >= 22) {
       return MonitoringGlobalHeatLevel.elevated;
     }
     return MonitoringGlobalHeatLevel.stable;
@@ -398,6 +415,7 @@ class MonitoringGlobalPostureService {
   int _score(
     IntelligenceReceived event,
     MonitoringSceneReviewRecord? review,
+    List<OnyxMoShadowMatch> moShadowMatches,
   ) {
     var score = event.riskScore.clamp(0, 100);
     final posture = (review?.postureLabel ?? '').toLowerCase();
@@ -445,7 +463,31 @@ class MonitoringGlobalPostureService {
     if ((event.plateNumber ?? '').trim().isNotEmpty) {
       score += 6;
     }
+    score += _shadowStrengthScore(moShadowMatches);
     return score;
+  }
+
+  int _shadowStrengthScore(List<OnyxMoShadowMatch> matches) {
+    if (matches.isEmpty) {
+      return 0;
+    }
+    final lead = matches.first;
+    final supportingScore = matches
+        .skip(1)
+        .take(2)
+        .fold<double>(0, (sum, match) => sum + (match.matchScore * 0.5));
+    var score = ((lead.matchScore * 28) + (supportingScore * 14)).round();
+    final validationStatus = lead.validationStatus.trim();
+    if (validationStatus == 'production') {
+      score += 12;
+    } else if (validationStatus == 'validated') {
+      score += 8;
+    }
+    final runtimeBias = lead.runtimeMatchBias.trim();
+    if (runtimeBias.startsWith('PROMOTED_')) {
+      score += 6;
+    }
+    return score.clamp(0, 60);
   }
 
   String _decisionLabelFor(_PostureItem item) {
@@ -494,12 +536,14 @@ class _PostureItem {
   final IntelligenceReceived event;
   final MonitoringSceneReviewRecord? review;
   final List<OnyxMoShadowMatch> moShadowMatches;
+  final int shadowStrengthScore;
   final int score;
 
   const _PostureItem({
     required this.event,
     required this.review,
     this.moShadowMatches = const <OnyxMoShadowMatch>[],
+    this.shadowStrengthScore = 0,
     required this.score,
   });
 }
