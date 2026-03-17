@@ -2330,4 +2330,84 @@ void main() {
     await tester.pump();
     expect(governanceOpened, isTrue);
   });
+
+  testWidgets('events review prioritizes reviewed shadow evidence by default', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: EventsReviewPage(
+          events: <DispatchEvent>[
+            IntelligenceReceived(
+              eventId: 'SHADOW-NEWS-1',
+              sequence: 1,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 17, 0, 20),
+              intelligenceId: 'SHADOW-NEWS-INTEL-1',
+              provider: 'newsdesk',
+              sourceType: 'news',
+              externalId: 'shadow-news-1',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-ALPHA',
+              headline: 'Contractors moved floor to floor in office park',
+              summary:
+                  'Suspects posed as maintenance contractors before moving across restricted office zones.',
+              riskScore: 91,
+              canonicalHash: 'shadow-news-hash-1',
+            ),
+            IntelligenceReceived(
+              eventId: 'SHADOW-1',
+              sequence: 2,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 17, 1, 0),
+              intelligenceId: 'SHADOW-INTEL-1',
+              provider: 'frigate',
+              sourceType: 'cctv',
+              externalId: 'shadow-1',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-ALPHA',
+              headline: 'Unplanned contractor roaming',
+              summary:
+                  'Maintenance-like subject moved across restricted office doors.',
+              riskScore: 92,
+              canonicalHash: 'shadow-hash-1',
+            ),
+          ],
+          sceneReviewByIntelligenceId: {
+            'SHADOW-INTEL-1': MonitoringSceneReviewRecord(
+              intelligenceId: 'SHADOW-INTEL-1',
+              sourceLabel: 'openai:gpt-5.4-mini',
+              postureLabel: 'service impersonation and roaming concern',
+              decisionLabel: 'Escalation Candidate',
+              decisionSummary:
+                  'Likely spoofed service access with abnormal roaming.',
+              summary:
+                  'Likely maintenance impersonation moving across office zones.',
+              reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 2),
+            ),
+          },
+          initialScopedEventIds: const ['SHADOW-NEWS-1', 'SHADOW-1'],
+          initialScopedMode: 'shadow',
+          currentMorningSovereignReportDate: '2026-03-18',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('events-detail-SHADOW-1')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('events-detail-SHADOW-1')), findsOneWidget);
+    expect(find.text('SCENE REVIEW'), findsOneWidget);
+    expect(
+      find.text('Likely maintenance impersonation moving across office zones.'),
+      findsOneWidget,
+    );
+  });
 }

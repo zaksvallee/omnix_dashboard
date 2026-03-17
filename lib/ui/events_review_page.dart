@@ -247,9 +247,13 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     _activeIdentityPolicyFilter;
               })
               .toList(growable: false);
+    final prioritizedEvents = _prioritizeEventsForScope(
+      identityPolicyFiltered,
+      shadowScopeSummary: shadowScopeSummary,
+    );
     DispatchEvent? requestedSelectedEvent;
     if (requestedSelectedId.isNotEmpty) {
-      for (final event in identityPolicyFiltered) {
+      for (final event in prioritizedEvents) {
         if (event.eventId == requestedSelectedId) {
           requestedSelectedEvent = event;
           break;
@@ -260,24 +264,24 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     final requestedSelectionMissing =
         requestedSelectedId.isNotEmpty && !requestedSelectionFound;
 
-    final selected = identityPolicyFiltered.isEmpty
+    final selected = prioritizedEvents.isEmpty
         ? null
         : _selectedEvent != null
-        ? identityPolicyFiltered.firstWhere(
+        ? prioritizedEvents.firstWhere(
             (event) => event.eventId == _selectedEvent!.eventId,
             orElse: () => requestedSelectionFound
                 ? requestedSelectedEvent!
-                : identityPolicyFiltered.first,
+                : prioritizedEvents.first,
           )
         : requestedSelectionFound
         ? requestedSelectedEvent
-        : identityPolicyFiltered.first;
+        : prioritizedEvents.first;
     _selectedEvent = selected;
     if (selected != null && requestedSelectionFound) {
       _scheduleEnsureVisible(selected.eventId);
     }
 
-    final visibleEvents = identityPolicyFiltered.length;
+    final visibleEvents = prioritizedEvents.length;
     final totalEvents = timeline.length;
     final latestSequence = timeline.isEmpty
         ? 'N/A'
@@ -1281,7 +1285,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                       return Column(
                         children: [
                           _timelinePane(
-                            events: identityPolicyFiltered,
+                            events: prioritizedEvents,
                             bounded: false,
                           ),
                           const SizedBox(height: 8),
@@ -1301,7 +1305,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                           Expanded(
                             flex: 6,
                             child: _timelinePane(
-                              events: identityPolicyFiltered,
+                              events: prioritizedEvents,
                               bounded: true,
                             ),
                           ),
@@ -1370,6 +1374,83 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return timeline
         .where((event) => scopedEventIds.contains(event.eventId.trim()))
         .toList(growable: false);
+  }
+
+  List<DispatchEvent> _prioritizeEventsForScope(
+    List<DispatchEvent> events, {
+    _ShadowScopeSummary? shadowScopeSummary,
+  }) {
+    if (events.length < 2 || shadowScopeSummary == null) {
+      return events;
+    }
+    final prioritized = events.toList(growable: true);
+    final scopedSiteIds = shadowScopeSummary.sites
+        .map((site) => site.siteId.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet();
+    final reviewRefs = shadowScopeSummary.reviewRefs
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet();
+    prioritized.sort((left, right) {
+      final leftScore = _shadowScopePriorityScore(
+        left,
+        scopedSiteIds: scopedSiteIds,
+        reviewRefs: reviewRefs,
+      );
+      final rightScore = _shadowScopePriorityScore(
+        right,
+        scopedSiteIds: scopedSiteIds,
+        reviewRefs: reviewRefs,
+      );
+      final byScore = leftScore.compareTo(rightScore);
+      if (byScore != 0) {
+        return byScore;
+      }
+      return right.sequence.compareTo(left.sequence);
+    });
+    return prioritized;
+  }
+
+  int _shadowScopePriorityScore(
+    DispatchEvent event, {
+    required Set<String> scopedSiteIds,
+    required Set<String> reviewRefs,
+  }) {
+    if (event is! IntelligenceReceived) {
+      return 50;
+    }
+    final sourceType = event.sourceType.trim().toLowerCase();
+    final provider = event.provider.trim().toLowerCase();
+    final intelligenceId = event.intelligenceId.trim();
+    final siteId = event.siteId.trim();
+    final isReviewedEvidence = reviewRefs.contains(intelligenceId);
+    final isScopedSite = scopedSiteIds.contains(siteId);
+    final isLiveSensor =
+        sourceType == 'cctv' ||
+        sourceType == 'dvr' ||
+        provider.contains('hikvision') ||
+        provider.contains('frigate');
+    final isExternalSeed = sourceType == 'news' || sourceType == 'community';
+    if (isReviewedEvidence && isLiveSensor) {
+      return 0;
+    }
+    if (isReviewedEvidence) {
+      return 5;
+    }
+    if (isScopedSite && isLiveSensor) {
+      return 10;
+    }
+    if (isScopedSite && isExternalSeed) {
+      return 20;
+    }
+    if (isLiveSensor) {
+      return 30;
+    }
+    if (isExternalSeed) {
+      return 40;
+    }
+    return 45;
   }
 
   bool _sameStringSet(Iterable<String> left, Iterable<String> right) {
@@ -2936,6 +3017,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         : _detailBody(selected, visitScopedEvents: visitScopedEvents);
 
     return Container(
+      key: selected == null
+          ? const ValueKey('events-detail-empty')
+          : ValueKey('events-detail-${selected.eventId}'),
       decoration: BoxDecoration(
         color: const Color(0xFF0C1117),
         borderRadius: BorderRadius.circular(12),
