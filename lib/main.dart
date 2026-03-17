@@ -6501,6 +6501,26 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     );
   }
 
+  String _syntheticWarRoomPromotionPressureSummary(
+    List<MonitoringWatchAutonomyActionPlan> plans, {
+    String shadowTomorrowUrgencySummary = '',
+    String previousShadowTomorrowUrgencySummary = '',
+    String shadowPostureBiasSummary = '',
+  }) {
+    final prebuiltSummary = plans
+        .map((plan) => (plan.metadata['mo_promotion_pressure_summary'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    if (prebuiltSummary.isNotEmpty) {
+      return prebuiltSummary;
+    }
+    return buildSyntheticPromotionPressureSummary(
+      shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
+      previousShadowTomorrowUrgencySummary:
+          previousShadowTomorrowUrgencySummary,
+      shadowPostureBiasSummary: shadowPostureBiasSummary,
+    );
+  }
+
   String _syntheticWarRoomPromotionId(
     List<MonitoringWatchAutonomyActionPlan> plans,
   ) {
@@ -7326,7 +7346,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           _syntheticWarRoomShadowPostureBiasSummaryForPlan(
             leadPolicyPlan?.id.isEmpty ?? true ? null : leadPolicyPlan,
           ),
-      'promotionPressureSummary': buildSyntheticPromotionPressureSummary(
+      'promotionPressureSummary': _syntheticWarRoomPromotionPressureSummary(
+        plans,
         shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
         previousShadowTomorrowUrgencySummary:
             previousShadowTomorrowUrgencySummary,
@@ -7465,7 +7486,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
                     itemPolicyPlan.id.isEmpty ? null : itemPolicyPlan,
                   ),
               'promotionPressureSummary':
-                  buildSyntheticPromotionPressureSummary(
+                  _syntheticWarRoomPromotionPressureSummary(
+                    itemPlans,
                     shadowTomorrowUrgencySummary:
                         itemShadowTomorrowUrgencySummary,
                     shadowPostureBiasSummary:

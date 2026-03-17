@@ -2273,6 +2273,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       shadowLearningSummary: _syntheticWarRoomShadowLearningSummary(plans),
       shadowMemorySummary: _syntheticWarRoomShadowMemorySummary(plans),
       promotionPressureSummary: _syntheticWarRoomPromotionPressureSummary(
+        plans: plans,
         shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
         previousShadowTomorrowUrgencySummary:
             previousShadowTomorrowUrgencySummary,
@@ -3099,10 +3100,18 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   }
 
   String _syntheticWarRoomPromotionPressureSummary({
+    List<MonitoringWatchAutonomyActionPlan> plans =
+        const <MonitoringWatchAutonomyActionPlan>[],
     String shadowTomorrowUrgencySummary = '',
     String previousShadowTomorrowUrgencySummary = '',
     String shadowPostureBiasSummary = '',
   }) {
+    final prebuiltSummary = plans
+        .map((plan) => (plan.metadata['mo_promotion_pressure_summary'] ?? '').toString().trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    if (prebuiltSummary.isNotEmpty) {
+      return prebuiltSummary;
+    }
     return buildSyntheticPromotionPressureSummary(
       shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
       previousShadowTomorrowUrgencySummary:
@@ -3561,6 +3570,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             normalizedReportDate,
           ),
           promotionPressureSummary: _syntheticWarRoomPromotionPressureSummary(
+            plans: currentPlans,
             shadowTomorrowUrgencySummary:
                 _syntheticShadowTomorrowUrgencySummary(normalizedReportDate),
             shadowPostureBiasSummary:
@@ -3647,6 +3657,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             report.date,
           ),
           promotionPressureSummary: _syntheticWarRoomPromotionPressureSummary(
+            plans: plans,
             shadowTomorrowUrgencySummary:
                 _syntheticShadowTomorrowUrgencySummary(report.date),
             shadowPostureBiasSummary:

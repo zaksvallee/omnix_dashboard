@@ -4240,6 +4240,7 @@ class _GovernancePageState extends State<GovernancePage> {
           currentPolicyPlan.id.isEmpty ? null : currentPolicyPlan,
         ),
         promotionPressureSummary: _syntheticWarRoomPromotionPressureSummary(
+          plans: currentPlans,
           shadowTomorrowUrgencySummary:
               _syntheticWarRoomShadowTomorrowUrgencySummaryForReport(report),
           shadowPostureBiasSummary:
@@ -4353,6 +4354,7 @@ class _GovernancePageState extends State<GovernancePage> {
                 policyPlan.id.isEmpty ? null : policyPlan,
               ),
           promotionPressureSummary: _syntheticWarRoomPromotionPressureSummary(
+            plans: plans,
             shadowTomorrowUrgencySummary:
                 _globalReadinessTomorrowUrgencySummary(
                   _globalReadinessIntentsForWindow(
@@ -4770,10 +4772,18 @@ class _GovernancePageState extends State<GovernancePage> {
   }
 
   String _syntheticWarRoomPromotionPressureSummary({
+    List<MonitoringWatchAutonomyActionPlan> plans =
+        const <MonitoringWatchAutonomyActionPlan>[],
     String shadowTomorrowUrgencySummary = '',
     String previousShadowTomorrowUrgencySummary = '',
     String shadowPostureBiasSummary = '',
   }) {
+    final prebuiltSummary = plans
+        .map((plan) => (plan.metadata['mo_promotion_pressure_summary'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    if (prebuiltSummary.isNotEmpty) {
+      return prebuiltSummary;
+    }
     return buildSyntheticPromotionPressureSummary(
       shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
       previousShadowTomorrowUrgencySummary:
