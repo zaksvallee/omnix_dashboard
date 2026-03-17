@@ -1707,10 +1707,20 @@ class _AIQueuePageState extends State<AIQueuePage> {
     if (plan.actionType.trim().toUpperCase() == 'SHADOW READINESS BIAS') {
       return priorityScore - 3;
     }
+    if (_hasPromotionExecutionBias(plan)) {
+      return priorityScore - 2;
+    }
     if ((plan.metadata['scope'] ?? '').trim().toUpperCase() == 'NEXT_SHIFT') {
       return priorityScore - 1;
     }
     return priorityScore + 3;
+  }
+
+  bool _hasPromotionExecutionBias(MonitoringWatchAutonomyActionPlan plan) {
+    if (plan.actionType.trim().toUpperCase() != 'POLICY RECOMMENDATION') {
+      return false;
+    }
+    return _promotionExecutionSummary(plan.metadata).isNotEmpty;
   }
 
   String _promotionPressureSummary(Map<String, String> metadata) {

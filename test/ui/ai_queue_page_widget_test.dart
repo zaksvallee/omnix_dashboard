@@ -533,6 +533,18 @@ void main() {
         findsWidgets,
       );
       expect(find.textContaining('posture POSTURE'), findsOneWidget);
+      expect(
+        find.text('DRAFT NEXT-SHIFT ACCESS HARDENING'),
+        findsWidgets,
+      );
+
+      final policyTopLeft = tester.getTopLeft(
+        find.textContaining('POLICY RECOMMENDATION'),
+      );
+      final draftTopLeft = tester.getTopLeft(
+        find.text('DRAFT NEXT-SHIFT ACCESS HARDENING').first,
+      );
+      expect(policyTopLeft.dy, lessThan(draftTopLeft.dy));
     },
   );
 
