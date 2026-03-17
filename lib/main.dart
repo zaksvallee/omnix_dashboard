@@ -12049,12 +12049,21 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     if (history.isEmpty) {
       return const <String>[];
     }
+    final shortcuts = buildReviewShortcuts(
+      currentReportDate: history.first.reportDate,
+      previousReportDate: history.length > 1 ? history[1].reportDate : null,
+      reviewCommandBuilder: (reportDate) =>
+          '/activityreview $clientId $siteId $reportDate',
+      caseFileCommandBuilder: (reportDate) =>
+          '/activitycase json $clientId $siteId $reportDate',
+    );
     final hints = <String>[
-      'Current shift: /activityreview $clientId $siteId ${history.first.reportDate}',
+      'Current shift: ${shortcuts['currentShiftReviewCommand']}',
     ];
-    if (history.length > 1) {
+    final previousReview = shortcuts['previousShiftReviewCommand'];
+    if (previousReview != null) {
       hints.add(
-        'Previous shift: /activityreview $clientId $siteId ${history[1].reportDate}',
+        'Previous shift: $previousReview',
       );
     }
     return hints;
@@ -12272,10 +12281,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           'reportDate': effectiveReportDate,
           'generatedAtUtc': _morningSovereignReport?.generatedAtUtc
               .toIso8601String(),
-          'reviewCommand':
-              '/activityreview $normalizedClientId $normalizedSiteId${effectiveReportDate == null || effectiveReportDate.isEmpty ? '' : ' $effectiveReportDate'}',
-          'caseFileCommand':
-              '/activitycase json $normalizedClientId $normalizedSiteId${effectiveReportDate == null || effectiveReportDate.isEmpty ? '' : ' $effectiveReportDate'}',
+          ...buildReviewCommandPair(
+            reportDate: effectiveReportDate ?? '',
+            reviewCommandBuilder: (reportDate) =>
+                '/activityreview $normalizedClientId $normalizedSiteId $reportDate',
+            caseFileCommandBuilder: (reportDate) =>
+                '/activitycase json $normalizedClientId $normalizedSiteId $reportDate',
+          ),
           'current': targetPoint?.current ?? reportDate == null,
         },
         'summaryLine': snapshot.summaryLine,
