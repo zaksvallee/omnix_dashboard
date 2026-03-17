@@ -9,6 +9,7 @@ class SiteActivityTelegramFormatter {
     String? reportDate,
     String? trendLabel,
     String? trendSummary,
+    bool includeEvidenceHandoff = false,
   }) {
     final lines = <String>[
       if ((siteLabel ?? '').trim().isNotEmpty)
@@ -74,6 +75,10 @@ class SiteActivityTelegramFormatter {
     if ((trendLabel ?? '').trim().isNotEmpty &&
         (trendSummary ?? '').trim().isNotEmpty) {
       lines.add('Trend: ${trendLabel!.trim()} - ${trendSummary!.trim()}');
+    }
+
+    if (includeEvidenceHandoff && snapshot.evidenceEventIds.isNotEmpty) {
+      lines.add('Review: ${snapshot.evidenceEventIds.join(', ')}');
     }
 
     return lines.join('\n');

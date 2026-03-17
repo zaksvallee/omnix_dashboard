@@ -20,6 +20,7 @@ void main() {
           'Unknown person remained near driveway-cam for 3h 10m',
       topGuardInteractionSummary:
           'Guard interaction observed near gate-cam',
+      evidenceEventIds: <String>['ACTIVITY-7', 'ACTIVITY-11'],
       summaryLine:
           'Signals 15 • Vehicles 6 • People 9 • Known IDs 3 • Unknown 7 • Long presence 1 • Guard interactions 1 • Flagged IDs 1',
     );
@@ -52,6 +53,14 @@ void main() {
         'Trend: ACTIVITY RISING - Unknown or flagged site activity increased against recent shifts.',
       ),
     );
+    expect(message, isNot(contains('Review:')));
+
+    final operatorMessage = formatter.formatSummary(
+      snapshot: snapshot,
+      siteLabel: 'Vallee Residence',
+      includeEvidenceHandoff: true,
+    );
+    expect(operatorMessage, contains('Review: ACTIVITY-7, ACTIVITY-11'));
   });
 
   test('formats quiet site activity telegram summary', () {
@@ -69,6 +78,7 @@ void main() {
       topFlaggedIdentitySummary: '',
       topLongPresenceSummary: '',
       topGuardInteractionSummary: '',
+      evidenceEventIds: <String>[],
       summaryLine: 'No visitor or site-activity signals detected.',
     );
 

@@ -80,6 +80,10 @@ void main() {
         snapshot.topGuardInteractionSummary,
         contains('Guard interaction observed near cam-1'),
       );
+      expect(
+        snapshot.evidenceEventIds,
+        containsAll(<String>['flagged-1', 'person-unknown-2']),
+      );
     });
   });
 }

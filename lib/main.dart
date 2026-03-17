@@ -11056,6 +11056,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   String _siteActivityTelegramSummaryForScope({
     required String clientId,
     required String siteId,
+    bool includeEvidenceHandoff = false,
   }) {
     final normalizedClientId = clientId.trim();
     final normalizedSiteId = siteId.trim();
@@ -11075,6 +11076,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       reportDate: _morningSovereignReport?.date,
       trendLabel: trend?.label,
       trendSummary: trend?.summary,
+      includeEvidenceHandoff: includeEvidenceHandoff,
     );
   }
 
@@ -11093,50 +11095,59 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       return 'ONYX SENDACTIVITY\nUsage: /sendactivity [client|partner|both] [client_id site_id]';
     }
 
-    final summary = _siteActivityTelegramSummaryForScope(
-      clientId: normalizedClientId,
-      siteId: normalizedSiteId,
-    );
-    final targets = <_TelegramBridgeTarget>[];
-    if (sendClient) {
-      targets.addAll(
-        await _resolveTelegramBridgeTargets(
-          clientId: normalizedClientId,
-          siteId: normalizedSiteId,
-        ),
-      );
-    }
-    if (sendPartner) {
-      targets.addAll(
-        await _resolveTelegramPartnerTargets(
-          clientId: normalizedClientId,
-          siteId: normalizedSiteId,
-        ),
-      );
-    }
-    if (targets.isEmpty) {
+    final clientTargets = sendClient
+        ? await _resolveTelegramBridgeTargets(
+            clientId: normalizedClientId,
+            siteId: normalizedSiteId,
+          )
+        : const <_TelegramBridgeTarget>[];
+    final partnerTargets = sendPartner
+        ? await _resolveTelegramPartnerTargets(
+            clientId: normalizedClientId,
+            siteId: normalizedSiteId,
+          )
+        : const <_TelegramBridgeTarget>[];
+    if (clientTargets.isEmpty && partnerTargets.isEmpty) {
       return 'ONYX SENDACTIVITY\n'
           'scope=$normalizedClientId/$normalizedSiteId\n'
           'targets=0\n'
           'No active Telegram endpoints found for the selected delivery lane.';
     }
-
-    final dedupedTargets = <String, _TelegramBridgeTarget>{};
-    for (final target in targets) {
-      dedupedTargets['${target.chatId}:${target.threadId ?? ''}'] = target;
-    }
+    final clientSummary = _siteActivityTelegramSummaryForScope(
+      clientId: normalizedClientId,
+      siteId: normalizedSiteId,
+      includeEvidenceHandoff: false,
+    );
+    final partnerSummary = _siteActivityTelegramSummaryForScope(
+      clientId: normalizedClientId,
+      siteId: normalizedSiteId,
+      includeEvidenceHandoff: true,
+    );
     final stamp = DateTime.now().toUtc().microsecondsSinceEpoch;
-    final messages = dedupedTargets.values
-        .map(
-          (target) => TelegramBridgeMessage(
-            messageKey:
-                'site-activity-$normalizedClientId-$normalizedSiteId-${target.chatId}-${target.threadId ?? ''}-$stamp',
-            chatId: target.chatId,
-            messageThreadId: target.threadId,
-            text: summary,
-          ),
-        )
-        .toList(growable: false);
+    final dedupedMessages = <String, TelegramBridgeMessage>{};
+    for (final target in clientTargets) {
+      final message = TelegramBridgeMessage(
+        messageKey:
+            'site-activity-client-$normalizedClientId-$normalizedSiteId-${target.chatId}-${target.threadId ?? ''}-$stamp',
+        chatId: target.chatId,
+        messageThreadId: target.threadId,
+        text: clientSummary,
+      );
+      dedupedMessages['${target.chatId}:${target.threadId ?? ''}:client'] =
+          message;
+    }
+    for (final target in partnerTargets) {
+      final message = TelegramBridgeMessage(
+        messageKey:
+            'site-activity-partner-$normalizedClientId-$normalizedSiteId-${target.chatId}-${target.threadId ?? ''}-$stamp',
+        chatId: target.chatId,
+        messageThreadId: target.threadId,
+        text: partnerSummary,
+      );
+      dedupedMessages['${target.chatId}:${target.threadId ?? ''}:partner'] =
+          message;
+    }
+    final messages = dedupedMessages.values.toList(growable: false);
     final result = await _telegramBridge.sendMessages(messages: messages);
     final sentAt = DateTime.now().toUtc();
     if (mounted) {
@@ -14686,6 +14697,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final summary = _siteActivityTelegramSummaryForScope(
       clientId: normalizedClientId,
       siteId: normalizedSiteId,
+      includeEvidenceHandoff: true,
     );
     return 'ONYX ACTIVITYTRUTH\n'
         'scope=$normalizedClientId/$normalizedSiteId\n'

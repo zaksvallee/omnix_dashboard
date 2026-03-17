@@ -14,6 +14,7 @@ class SiteActivityIntelligenceSnapshot {
   final String topFlaggedIdentitySummary;
   final String topLongPresenceSummary;
   final String topGuardInteractionSummary;
+  final List<String> evidenceEventIds;
   final String summaryLine;
 
   const SiteActivityIntelligenceSnapshot({
@@ -29,6 +30,7 @@ class SiteActivityIntelligenceSnapshot {
     this.topFlaggedIdentitySummary = '',
     this.topLongPresenceSummary = '',
     this.topGuardInteractionSummary = '',
+    this.evidenceEventIds = const <String>[],
     required this.summaryLine,
   });
 }
@@ -39,6 +41,7 @@ class _PresenceAggregate {
   final String cameraId;
   DateTime firstSeenUtc;
   DateTime lastSeenUtc;
+  String latestEventId;
 
   _PresenceAggregate({
     required this.objectLabel,
@@ -46,6 +49,7 @@ class _PresenceAggregate {
     required this.cameraId,
     required this.firstSeenUtc,
     required this.lastSeenUtc,
+    required this.latestEventId,
   });
 
   Duration get duration => lastSeenUtc.difference(firstSeenUtc);
@@ -96,6 +100,7 @@ class SiteActivityIntelligenceService {
         topFlaggedIdentitySummary: '',
         topLongPresenceSummary: '',
         topGuardInteractionSummary: '',
+        evidenceEventIds: <String>[],
         summaryLine: 'No visitor or site-activity signals detected.',
       );
     }
@@ -171,6 +176,7 @@ class SiteActivityIntelligenceService {
           cameraId: (event.cameraId ?? '').trim(),
           firstSeenUtc: occurredAt,
           lastSeenUtc: occurredAt,
+          latestEventId: event.intelligenceId,
         ),
       );
       if (occurredAt.isBefore(aggregate.firstSeenUtc)) {
@@ -178,6 +184,7 @@ class SiteActivityIntelligenceService {
       }
       if (occurredAt.isAfter(aggregate.lastSeenUtc)) {
         aggregate.lastSeenUtc = occurredAt;
+        aggregate.latestEventId = event.intelligenceId;
       }
     }
 
@@ -189,6 +196,12 @@ class SiteActivityIntelligenceService {
     final topLongPresence = longPresenceEntries.isEmpty
         ? null
         : longPresenceEntries.first;
+    final evidenceEventIds = <String>[
+      if (topFlaggedIdentityEvent != null) topFlaggedIdentityEvent.intelligenceId,
+      if (topLongPresence != null) topLongPresence.latestEventId,
+      if (topGuardInteractionEvent != null)
+        topGuardInteractionEvent.intelligenceId,
+    ].where((value) => value.trim().isNotEmpty).toSet().toList(growable: false);
 
     final summaryParts = <String>[
       'Signals ${scoped.length}',
@@ -222,6 +235,7 @@ class SiteActivityIntelligenceService {
       topGuardInteractionSummary: topGuardInteractionEvent == null
           ? ''
           : _guardInteractionSummaryFor(topGuardInteractionEvent),
+      evidenceEventIds: evidenceEventIds,
       summaryLine: summaryParts.join(' • '),
     );
   }
