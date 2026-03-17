@@ -3,6 +3,7 @@ import '../domain/events/intelligence_received.dart';
 import 'hazard_response_directive_service.dart';
 import 'mo_extraction_service.dart';
 import 'mo_knowledge_repository.dart';
+import 'mo_promotion_application_service.dart';
 import 'mo_runtime_matching_service.dart';
 import 'monitoring_scene_review_store.dart';
 
@@ -101,6 +102,7 @@ class MonitoringGlobalPostureService {
 
   static const _hazardDirectiveService = HazardResponseDirectiveService();
   static const _moExtractionService = MoExtractionService();
+  static const _moPromotionApplicationService = MoPromotionApplicationService();
 
   static const _externalSourceTypes = <String>{
     'news',
@@ -218,6 +220,9 @@ class MonitoringGlobalPostureService {
     }
     final repository = InMemoryMoKnowledgeRepository();
     repository.upsertAll(externalKnowledge);
+    _moPromotionApplicationService.applyOperatorDecisions(
+      repository: repository,
+    );
     return MoRuntimeMatchingService(repository: repository);
   }
 

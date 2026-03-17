@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:omnix_dashboard/application/mo_knowledge_repository.dart';
+import 'package:omnix_dashboard/application/mo_promotion_decision_store.dart';
 import 'package:omnix_dashboard/application/mo_runtime_matching_service.dart';
 import 'package:omnix_dashboard/application/monitoring_global_posture_service.dart';
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
@@ -10,6 +11,11 @@ import 'package:omnix_dashboard/domain/intelligence/onyx_mo_record.dart';
 void main() {
   group('MonitoringGlobalPostureService', () {
     const service = MonitoringGlobalPostureService();
+    const promotionDecisionStore = MoPromotionDecisionStore();
+
+    setUp(() {
+      promotionDecisionStore.reset();
+    });
 
     test('builds regional heat from site scene reviews', () {
       final events = <DispatchEvent>[
@@ -244,6 +250,58 @@ void main() {
         snapshot.sites.first.moShadowSummary,
         contains('Office contractor impersonation pattern'),
       );
+    });
+
+    test('applies accepted promotion decisions to auto-seeded MO knowledge', () {
+      promotionDecisionStore.accept(
+        moId: 'MO-EXT-NEWS-OFFICE-PATTERN',
+        targetValidationStatus: 'validated',
+      );
+      final events = <DispatchEvent>[
+        _intel(
+          id: 'news-office-pattern',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-SEED',
+          riskScore: 67,
+          cameraId: 'news-feed',
+          sourceType: 'news',
+          headline: 'Contractors roamed office floors before device theft',
+          summary:
+              'Suspects posed as maintenance contractors, moved floor to floor, and checked restricted office doors.',
+        ),
+        _intel(
+          id: 'intel-office',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-VALLEE',
+          riskScore: 83,
+          cameraId: 'office-cam',
+          headline: 'Maintenance contractor probing office doors',
+          summary:
+              'Contractor-like person moved floor to floor and tried several restricted office doors.',
+        ),
+      ];
+      final reviews = <String, MonitoringSceneReviewRecord>{
+        'intel-office': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-office',
+          sourceLabel: 'openai:gpt-5.4-mini',
+          postureLabel: 'service impersonation and roaming concern',
+          decisionLabel: 'Escalation Candidate',
+          decisionSummary:
+              'Likely spoofed service access with abnormal roaming.',
+          summary:
+              'Likely maintenance impersonation moving across office zones.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 0),
+        ),
+      };
+
+      final snapshot = service.buildSnapshot(
+        events: events,
+        sceneReviewByIntelligenceId: reviews,
+        generatedAtUtc: DateTime.utc(2026, 3, 16, 22, 5),
+      );
+
+      expect(snapshot.sites.first.moShadowMatches, isNotEmpty);
+      expect(snapshot.sites.first.moShadowMatches.first.validationStatus, 'validated');
     });
   });
 }
