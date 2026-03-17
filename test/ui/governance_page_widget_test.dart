@@ -3919,6 +3919,13 @@ void main() {
     expect(copiedPayload, contains('"key": "recentActions"'));
     expect(copiedPayload, contains('"label": "Recent actions"'));
     expect(copiedPayload, contains('"globalReadiness"'));
+    expect(copiedPayload, contains('"focusState": "live_current_shift"'));
+    expect(copiedPayload, contains('"historicalFocus": false'));
+    expect(
+      copiedPayload,
+      contains('"focusSummary": "Viewing live oversight shift 2026-03-10."'),
+    );
+    expect(copiedPayload, contains('"liveReportDate": "2026-03-10"'));
     expect(copiedPayload, contains('"baselineCriticalAverage"'));
     expect(copiedPayload, contains('"baselineElevatedAverage"'));
     expect(copiedPayload, contains('"baselineIntentAverage"'));
@@ -4035,6 +4042,21 @@ void main() {
     await tester.pump();
 
     expect(copiedPayload, contains('site_activity_total_signals,7'));
+    expect(
+      copiedPayload,
+      contains('global_readiness_focus_state,live_current_shift'),
+    );
+    expect(copiedPayload, contains('global_readiness_historical_focus,false'));
+    expect(
+      copiedPayload,
+      contains(
+        'global_readiness_focus_summary,"Viewing live oversight shift 2026-03-10."',
+      ),
+    );
+    expect(
+      copiedPayload,
+      contains('global_readiness_live_report_date,2026-03-10'),
+    );
     expect(copiedPayload, contains('site_activity_people,4'));
     expect(copiedPayload, contains('site_activity_vehicles,3'));
     expect(copiedPayload, contains('site_activity_flagged_ids,1'));

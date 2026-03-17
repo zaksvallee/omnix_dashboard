@@ -2198,7 +2198,11 @@ class _GovernancePageState extends State<GovernancePage> {
   }
 
   String get _currentMorningReportDate {
-    return widget.currentMorningSovereignReportDate?.trim() ?? '';
+    final explicit = widget.currentMorningSovereignReportDate?.trim() ?? '';
+    if (explicit.isNotEmpty) {
+      return explicit;
+    }
+    return widget.morningSovereignReport?.date.trim() ?? '';
   }
 
   bool get _hasHistoricalReportFocus {
@@ -2208,6 +2212,33 @@ class _GovernancePageState extends State<GovernancePage> {
     }
     final current = _currentMorningReportDate;
     return current.isNotEmpty && current != focused;
+  }
+
+  bool _isHistoricalGlobalReadinessFocus(_GovernanceReportView report) {
+    final reportDate = report.reportDate.trim();
+    if (reportDate.isEmpty) {
+      return false;
+    }
+    final current = _currentMorningReportDate;
+    return current.isNotEmpty && current != reportDate;
+  }
+
+  String _globalReadinessFocusState(_GovernanceReportView report) {
+    return _isHistoricalGlobalReadinessFocus(report)
+        ? 'historical_command_target'
+        : 'live_current_shift';
+  }
+
+  String _globalReadinessFocusSummary(_GovernanceReportView report) {
+    final reportDate = report.reportDate.trim();
+    if (reportDate.isEmpty) {
+      return 'Viewing current live oversight shift.';
+    }
+    final current = _currentMorningReportDate;
+    if (current.isEmpty || current == reportDate) {
+      return 'Viewing live oversight shift $reportDate.';
+    }
+    return 'Viewing command-targeted shift $reportDate instead of live oversight $current.';
   }
 
   bool get _hasPartnerScopeFocus =>
@@ -9084,6 +9115,10 @@ class _GovernancePageState extends State<GovernancePage> {
       },
       'sceneReview': sceneReview,
       'globalReadiness': {
+        'focusState': _globalReadinessFocusState(report),
+        'historicalFocus': _isHistoricalGlobalReadinessFocus(report),
+        'focusSummary': _globalReadinessFocusSummary(report),
+        'liveReportDate': _currentMorningReportDate,
         'totalSites': globalReadinessSnapshot.totalSites,
         'elevatedSiteCount': globalReadinessSnapshot.elevatedSiteCount,
         'criticalSiteCount': globalReadinessSnapshot.criticalSiteCount,
@@ -9312,6 +9347,10 @@ class _GovernancePageState extends State<GovernancePage> {
       'global_readiness_elevated_sites,${globalReadinessSnapshot.elevatedSiteCount}',
       'global_readiness_critical_sites,${globalReadinessSnapshot.criticalSiteCount}',
       'global_readiness_intent_count,${globalReadinessIntents.length}',
+      'global_readiness_focus_state,${_globalReadinessFocusState(report)}',
+      'global_readiness_historical_focus,${_isHistoricalGlobalReadinessFocus(report)}',
+      'global_readiness_focus_summary,"${_globalReadinessFocusSummary(report).replaceAll('"', '""')}"',
+      'global_readiness_live_report_date,$_currentMorningReportDate',
       'global_readiness_mode,"${_globalReadinessModeLabel(globalReadinessSnapshot, globalReadinessIntents).replaceAll('"', '""')}"',
       'global_readiness_trend_label,${globalReadinessTrend.trendLabel}',
       'global_readiness_trend_reason,"${globalReadinessTrend.trendReason.replaceAll('"', '""')}"',
