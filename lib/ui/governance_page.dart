@@ -14,6 +14,7 @@ import '../application/monitoring_scene_review_store.dart';
 import '../application/monitoring_synthetic_war_room_service.dart';
 import '../application/monitoring_watch_action_plan.dart';
 import '../application/review_shortcut_contract.dart';
+import '../application/shadow_mo_validation_summary.dart';
 import '../application/shadow_mo_dossier_contract.dart';
 import '../application/text_share_service.dart';
 import '../domain/events/decision_created.dart';
@@ -3984,6 +3985,36 @@ class _GovernancePageState extends State<GovernancePage> {
     final currentLearning = currentPlans
         .map((plan) => (plan.metadata['learning_summary'] ?? '').trim())
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    final priorReports =
+        widget.morningSovereignReportHistory
+            .where(
+              (item) =>
+                  !(item.generatedAtUtc == report.generatedAtUtc &&
+                      item.date == report.reportDate),
+            )
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
+    final currentShadowValidation = buildShadowMoValidationDriftSummary(
+      currentSites: _globalReadinessSnapshotForReport(report).sites
+          .where((site) => site.moShadowMatchCount > 0)
+          .toList(growable: false),
+      historySiteSets: priorReports
+          .take(3)
+          .map(
+            (item) =>
+                _globalReadinessSnapshotForWindow(
+                      item.shiftWindowStartUtc,
+                      item.shiftWindowEndUtc,
+                      generatedAtUtc: item.generatedAtUtc,
+                    ).sites
+                    .where((site) => site.moShadowMatchCount > 0)
+                    .toList(growable: false),
+          )
+          .toList(growable: false),
+    );
     final points = <_SyntheticWarRoomHistoryPoint>[
       _SyntheticWarRoomHistoryPoint(
         reportDate: report.reportDate,
@@ -3998,11 +4029,7 @@ class _GovernancePageState extends State<GovernancePage> {
         recommendationSummary: currentRecommendation,
         learningSummary: currentLearning,
         shadowSummary: _syntheticWarRoomShadowSummary(currentPlans),
-        shadowValidationSummary: _shadowMoValidationSummaryForSites(
-          _globalReadinessSnapshotForReport(report).sites
-              .where((site) => site.moShadowMatchCount > 0)
-              .toList(growable: false),
-        ),
+        shadowValidationSummary: currentShadowValidation.summary,
         shadowLearningSummary: _syntheticWarRoomShadowLearningSummary(
           currentPlans,
         ),
@@ -4070,12 +4097,12 @@ class _GovernancePageState extends State<GovernancePage> {
           shadowSummary: _syntheticWarRoomShadowSummary(plans),
           shadowValidationSummary: _shadowMoValidationSummaryForSites(
             _globalReadinessSnapshotForWindow(
-              item.shiftWindowStartUtc,
-              item.shiftWindowEndUtc,
-              generatedAtUtc: item.generatedAtUtc,
-            ).sites.where((site) => site.moShadowMatchCount > 0).toList(
-              growable: false,
-            ),
+                  item.shiftWindowStartUtc,
+                  item.shiftWindowEndUtc,
+                  generatedAtUtc: item.generatedAtUtc,
+                ).sites
+                .where((site) => site.moShadowMatchCount > 0)
+                .toList(growable: false),
           ),
           shadowLearningSummary: _syntheticWarRoomShadowLearningSummary(plans),
           shadowMemorySummary: _syntheticWarRoomShadowMemorySummary(plans),
@@ -8185,7 +8212,9 @@ class _GovernancePageState extends State<GovernancePage> {
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
-                                      if (match.validationStatus.isNotEmpty) ...[
+                                      if (match
+                                          .validationStatus
+                                          .isNotEmpty) ...[
                                         const SizedBox(height: 2),
                                         Text(
                                           'Status ${match.validationStatus.toUpperCase()}',
@@ -8270,10 +8299,11 @@ class _GovernancePageState extends State<GovernancePage> {
         return StatefulBuilder(
           builder: (dialogContext, setDialogState) {
             final history = _syntheticWarRoomHistory(report);
-            final learningMemorySummary = _syntheticWarRoomLearningMemorySummary(
-              history,
-            );
-            final currentPromotionPoint = history.isEmpty ? null : history.first;
+            final learningMemorySummary =
+                _syntheticWarRoomLearningMemorySummary(history);
+            final currentPromotionPoint = history.isEmpty
+                ? null
+                : history.first;
             return Dialog(
               backgroundColor: const Color(0xFF08111B),
               insetPadding: const EdgeInsets.symmetric(
@@ -8281,442 +8311,460 @@ class _GovernancePageState extends State<GovernancePage> {
                 vertical: 24,
               ),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 760, maxHeight: 720),
+                constraints: const BoxConstraints(
+                  maxWidth: 760,
+                  maxHeight: 720,
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     key: const ValueKey('governance-synthetic-war-room-dialog'),
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'SYNTHETIC WAR-ROOM DRILL-IN',
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFFEAF4FF),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.8,
-                              ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'SYNTHETIC WAR-ROOM DRILL-IN',
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFFEAF4FF),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${trend.trendLabel} • ${trend.trendReason}',
+                                  style: GoogleFonts.inter(
+                                    color: _partnerTrendColor(trend.trendLabel),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${trend.trendLabel} • ${trend.trendReason}',
-                              style: GoogleFonts.inter(
-                                color: _partnerTrendColor(trend.trendLabel),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.of(dialogContext).pop(),
+                            icon: const Icon(
+                              Icons.close,
+                              color: Color(0xFFEAF4FF),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _partnerTrendMetricChip(
+                            label: 'Current mode',
+                            value: trend.currentModeLabel,
+                            color: _syntheticWarRoomModeColor(
+                              trend.currentModeLabel,
+                            ),
+                          ),
+                          _partnerTrendMetricChip(
+                            label: 'Baseline Plans',
+                            value: baseline.reportDays <= 0
+                                ? 'n/a'
+                                : baseline.planAverage.toStringAsFixed(1),
+                            color: const Color(0xFF22D3EE),
+                          ),
+                          _partnerTrendMetricChip(
+                            label: 'Baseline Policy',
+                            value: baseline.reportDays <= 0
+                                ? 'n/a'
+                                : baseline.policyAverage.toStringAsFixed(1),
+                            color: const Color(0xFF8B5CF6),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      if (learningMemorySummary.isNotEmpty) ...[
+                        Text(
+                          learningMemorySummary,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFDDD6FE),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      if (currentPromotionPoint != null &&
+                          currentPromotionPoint.shadowValidationSummary
+                              .trim()
+                              .isNotEmpty) ...[
+                        Text(
+                          'Shadow validation • ${currentPromotionPoint.shadowValidationSummary}',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF93C5FD),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      if (currentPromotionPoint != null &&
+                          currentPromotionPoint.promotionSummary
+                              .trim()
+                              .isNotEmpty) ...[
+                        Text(
+                          'Promotion • ${currentPromotionPoint.promotionSummary}',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF86EFAC),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          currentPromotionPoint.promotionDecisionSummary,
+                          style: GoogleFonts.inter(
+                            color:
+                                currentPromotionPoint.promotionDecisionStatus ==
+                                    'accepted'
+                                ? const Color(0xFF86EFAC)
+                                : currentPromotionPoint
+                                          .promotionDecisionStatus ==
+                                      'rejected'
+                                ? const Color(0xFFFCA5A5)
+                                : const Color(0xFFFDE68A),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _morningReportActionButton(
+                              key: const ValueKey(
+                                'governance-synthetic-promotion-accept-action',
                               ),
+                              label: 'ACCEPT PROMOTION',
+                              onPressed: () async {
+                                _moPromotionDecisionStore.accept(
+                                  moId: currentPromotionPoint.promotionMoId,
+                                  targetValidationStatus: currentPromotionPoint
+                                      .promotionTargetStatus,
+                                );
+                                setState(() {});
+                                setDialogState(() {});
+                                _showSnack(
+                                  'MO promotion accepted toward ${currentPromotionPoint.promotionTargetStatus} review.',
+                                );
+                              },
+                            ),
+                            _morningReportActionButton(
+                              key: const ValueKey(
+                                'governance-synthetic-promotion-reject-action',
+                              ),
+                              label: 'REJECT PROMOTION',
+                              onPressed: () async {
+                                _moPromotionDecisionStore.reject(
+                                  moId: currentPromotionPoint.promotionMoId,
+                                  targetValidationStatus: currentPromotionPoint
+                                      .promotionTargetStatus,
+                                );
+                                setState(() {});
+                                setDialogState(() {});
+                                _showSnack(
+                                  'MO promotion rejected for ${currentPromotionPoint.promotionTargetStatus} review.',
+                                );
+                              },
                             ),
                           ],
                         ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.of(dialogContext).pop(),
-                        icon: const Icon(Icons.close, color: Color(0xFFEAF4FF)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _partnerTrendMetricChip(
-                        label: 'Current mode',
-                        value: trend.currentModeLabel,
-                        color: _syntheticWarRoomModeColor(
-                          trend.currentModeLabel,
-                        ),
-                      ),
-                      _partnerTrendMetricChip(
-                        label: 'Baseline Plans',
-                        value: baseline.reportDays <= 0
-                            ? 'n/a'
-                            : baseline.planAverage.toStringAsFixed(1),
-                        color: const Color(0xFF22D3EE),
-                      ),
-                      _partnerTrendMetricChip(
-                        label: 'Baseline Policy',
-                        value: baseline.reportDays <= 0
-                            ? 'n/a'
-                            : baseline.policyAverage.toStringAsFixed(1),
-                        color: const Color(0xFF8B5CF6),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (learningMemorySummary.isNotEmpty) ...[
-                    Text(
-                      learningMemorySummary,
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFFDDD6FE),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  if (currentPromotionPoint != null &&
-                      currentPromotionPoint.shadowValidationSummary
-                          .trim()
-                          .isNotEmpty) ...[
-                    Text(
-                      'Shadow validation • ${currentPromotionPoint.shadowValidationSummary}',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF93C5FD),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  if (currentPromotionPoint != null &&
-                      currentPromotionPoint.promotionSummary.trim().isNotEmpty) ...[
-                    Text(
-                      'Promotion • ${currentPromotionPoint.promotionSummary}',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF86EFAC),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      currentPromotionPoint.promotionDecisionSummary,
-                      style: GoogleFonts.inter(
-                        color: currentPromotionPoint.promotionDecisionStatus ==
-                                'accepted'
-                            ? const Color(0xFF86EFAC)
-                            : currentPromotionPoint.promotionDecisionStatus ==
-                                  'rejected'
-                            ? const Color(0xFFFCA5A5)
-                            : const Color(0xFFFDE68A),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _morningReportActionButton(
-                          key: const ValueKey(
-                            'governance-synthetic-promotion-accept-action',
-                          ),
-                          label: 'ACCEPT PROMOTION',
-                          onPressed: () async {
-                            _moPromotionDecisionStore.accept(
-                              moId: currentPromotionPoint.promotionMoId,
-                              targetValidationStatus:
-                                  currentPromotionPoint.promotionTargetStatus,
-                            );
-                            setState(() {});
-                            setDialogState(() {});
-                            _showSnack(
-                              'MO promotion accepted toward ${currentPromotionPoint.promotionTargetStatus} review.',
-                            );
-                          },
-                        ),
-                        _morningReportActionButton(
-                          key: const ValueKey(
-                            'governance-synthetic-promotion-reject-action',
-                          ),
-                          label: 'REJECT PROMOTION',
-                          onPressed: () async {
-                            _moPromotionDecisionStore.reject(
-                              moId: currentPromotionPoint.promotionMoId,
-                              targetValidationStatus:
-                                  currentPromotionPoint.promotionTargetStatus,
-                            );
-                            setState(() {});
-                            setDialogState(() {});
-                            _showSnack(
-                              'MO promotion rejected for ${currentPromotionPoint.promotionTargetStatus} review.',
-                            );
-                          },
-                        ),
+                        const SizedBox(height: 12),
                       ],
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          for (final point in history) ...[
-                            Container(
-                              key: ValueKey<String>(
-                                'governance-synthetic-war-room-history-${point.reportDate}',
-                              ),
-                              width: double.infinity,
-                              margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: point.current
-                                    ? const Color(0x1A8B5CF6)
-                                    : const Color(0x14000000),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: point.current
-                                      ? const Color(0x558B5CF6)
-                                      : const Color(0x22FFFFFF),
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              for (final point in history) ...[
+                                Container(
+                                  key: ValueKey<String>(
+                                    'governance-synthetic-war-room-history-${point.reportDate}',
+                                  ),
+                                  width: double.infinity,
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: point.current
+                                        ? const Color(0x1A8B5CF6)
+                                        : const Color(0x14000000),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: point.current
+                                          ? const Color(0x558B5CF6)
+                                          : const Color(0x22FFFFFF),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Expanded(
-                                        child: Text(
-                                          point.reportDate,
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              point.reportDate,
+                                              style: GoogleFonts.inter(
+                                                color: const Color(0xFFEAF4FF),
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          ),
+                                          if (point.current)
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 7,
+                                                    vertical: 3,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: const Color(
+                                                  0xFF8FD1FF,
+                                                ).withValues(alpha: 0.14),
+                                                borderRadius:
+                                                    BorderRadius.circular(999),
+                                                border: Border.all(
+                                                  color: const Color(
+                                                    0xFF8FD1FF,
+                                                  ).withValues(alpha: 0.5),
+                                                ),
+                                              ),
+                                              child: Text(
+                                                'CURRENT',
+                                                style: GoogleFonts.inter(
+                                                  color: const Color(
+                                                    0xFF8FD1FF,
+                                                  ),
+                                                  fontSize: 8,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                              ),
+                                            ),
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 7,
+                                              vertical: 3,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: _syntheticWarRoomModeColor(
+                                                point.modeLabel,
+                                              ).withValues(alpha: 0.14),
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
+                                              border: Border.all(
+                                                color:
+                                                    _syntheticWarRoomModeColor(
+                                                      point.modeLabel,
+                                                    ).withValues(alpha: 0.5),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              point.modeLabel,
+                                              style: GoogleFonts.inter(
+                                                color:
+                                                    _syntheticWarRoomModeColor(
+                                                      point.modeLabel,
+                                                    ),
+                                                fontSize: 8,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        'Plans ${point.planCount} • Policy ${point.policyCount} • Region ${point.leadRegionId.isEmpty ? 'n/a' : point.leadRegionId} • Lead ${point.leadSiteId.isEmpty ? 'n/a' : point.leadSiteId}',
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFF9CB2D1),
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      if (point.topIntentSummary
+                                              .trim()
+                                              .isNotEmpty &&
+                                          point.topIntentSummary.trim() !=
+                                              'NONE') ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Top intent • ${point.topIntentSummary}',
                                           style: GoogleFonts.inter(
                                             color: const Color(0xFFEAF4FF),
                                             fontSize: 10,
-                                            fontWeight: FontWeight.w800,
+                                            fontWeight: FontWeight.w700,
                                           ),
                                         ),
-                                      ),
-                                      if (point.current)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 7,
-                                            vertical: 3,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: const Color(
-                                              0xFF8FD1FF,
-                                            ).withValues(alpha: 0.14),
-                                            borderRadius: BorderRadius.circular(
-                                              999,
-                                            ),
-                                            border: Border.all(
-                                              color: const Color(
-                                                0xFF8FD1FF,
-                                              ).withValues(alpha: 0.5),
-                                            ),
-                                          ),
-                                          child: Text(
-                                            'CURRENT',
-                                            style: GoogleFonts.inter(
-                                              color: const Color(0xFF8FD1FF),
-                                              fontSize: 8,
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
-                                        ),
-                                      const SizedBox(width: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 7,
-                                          vertical: 3,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: _syntheticWarRoomModeColor(
-                                            point.modeLabel,
-                                          ).withValues(alpha: 0.14),
-                                          borderRadius: BorderRadius.circular(
-                                            999,
-                                          ),
-                                          border: Border.all(
-                                            color: _syntheticWarRoomModeColor(
-                                              point.modeLabel,
-                                            ).withValues(alpha: 0.5),
-                                          ),
-                                        ),
-                                        child: Text(
-                                          point.modeLabel,
-                                          style: GoogleFonts.inter(
-                                            color: _syntheticWarRoomModeColor(
-                                              point.modeLabel,
-                                            ),
-                                            fontSize: 8,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'Plans ${point.planCount} • Policy ${point.policyCount} • Region ${point.leadRegionId.isEmpty ? 'n/a' : point.leadRegionId} • Lead ${point.leadSiteId.isEmpty ? 'n/a' : point.leadSiteId}',
-                                    style: GoogleFonts.inter(
-                                      color: const Color(0xFF9CB2D1),
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  if (point.topIntentSummary
-                                          .trim()
-                                          .isNotEmpty &&
-                                      point.topIntentSummary.trim() !=
-                                          'NONE') ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Top intent • ${point.topIntentSummary}',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFEAF4FF),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                  if (point.recommendationSummary
-                                      .trim()
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      point.recommendationSummary,
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFC4B5FD),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                  if (point.learningSummary
-                                      .trim()
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      point.learningSummary,
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFDDD6FE),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                  if (point.shadowSummary
-                                      .trim()
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Shadow rehearsal • ${point.shadowSummary}',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFBAE6FD),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                  if (point.shadowValidationSummary
-                                      .trim()
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Shadow validation • ${point.shadowValidationSummary}',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFF93C5FD),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                  if (point.shadowLearningSummary
-                                      .trim()
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Shadow learning • ${point.shadowLearningSummary}',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFBFDBFE),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                  if (point.shadowMemorySummary
-                                      .trim()
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      point.shadowMemorySummary,
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFF93C5FD),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                  if (point.promotionSummary
-                                      .trim()
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Promotion • ${point.promotionSummary}',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFF86EFAC),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                  if (point.promotionDecisionSummary
-                                      .trim()
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      point.promotionDecisionSummary,
-                                      style: GoogleFonts.inter(
-                                        color: point.promotionDecisionStatus ==
-                                                'accepted'
-                                            ? const Color(0xFF86EFAC)
-                                            : point.promotionDecisionStatus ==
-                                                    'rejected'
-                                            ? const Color(0xFFFCA5A5)
-                                            : const Color(0xFFFDE68A),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                  if (point.actionBias.trim().isNotEmpty ||
-                                      point.memoryPriorityBoost
-                                          .trim()
-                                          .isNotEmpty ||
-                                      point.memoryCountdownBias
+                                      ],
+                                      if (point.recommendationSummary
                                           .trim()
                                           .isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      [
-                                        if (point.actionBias.trim().isNotEmpty)
-                                          point.actionBias.trim(),
-                                        if (point.memoryPriorityBoost
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          point.recommendationSummary,
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFC4B5FD),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                      if (point.learningSummary
+                                          .trim()
+                                          .isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          point.learningSummary,
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFDDD6FE),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                      if (point.shadowSummary
+                                          .trim()
+                                          .isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Shadow rehearsal • ${point.shadowSummary}',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFBAE6FD),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                      if (point.shadowValidationSummary
+                                          .trim()
+                                          .isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Shadow validation • ${point.shadowValidationSummary}',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFF93C5FD),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                      if (point.shadowLearningSummary
+                                          .trim()
+                                          .isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Shadow learning • ${point.shadowLearningSummary}',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFBFDBFE),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                      if (point.shadowMemorySummary
+                                          .trim()
+                                          .isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          point.shadowMemorySummary,
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFF93C5FD),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                      if (point.promotionSummary
+                                          .trim()
+                                          .isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Promotion • ${point.promotionSummary}',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFF86EFAC),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                      if (point.promotionDecisionSummary
+                                          .trim()
+                                          .isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          point.promotionDecisionSummary,
+                                          style: GoogleFonts.inter(
+                                            color:
+                                                point.promotionDecisionStatus ==
+                                                    'accepted'
+                                                ? const Color(0xFF86EFAC)
+                                                : point.promotionDecisionStatus ==
+                                                      'rejected'
+                                                ? const Color(0xFFFCA5A5)
+                                                : const Color(0xFFFDE68A),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                      if (point.actionBias.trim().isNotEmpty ||
+                                          point.memoryPriorityBoost
+                                              .trim()
+                                              .isNotEmpty ||
+                                          point.memoryCountdownBias
+                                              .trim()
+                                              .isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          [
+                                            if (point.actionBias
                                                 .trim()
-                                                .isNotEmpty &&
-                                            point.memoryPriorityBoost.trim() !=
-                                                'NONE')
-                                          '${point.memoryPriorityBoost.trim().toLowerCase()} priority',
-                                        if (point.memoryCountdownBias
-                                            .trim()
-                                            .isNotEmpty)
-                                          'T-${point.memoryCountdownBias.trim()} s',
-                                      ].join(' • '),
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFFDE68A),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ],
-                        ],
+                                                .isNotEmpty)
+                                              point.actionBias.trim(),
+                                            if (point.memoryPriorityBoost
+                                                    .trim()
+                                                    .isNotEmpty &&
+                                                point.memoryPriorityBoost
+                                                        .trim() !=
+                                                    'NONE')
+                                              '${point.memoryPriorityBoost.trim().toLowerCase()} priority',
+                                            if (point.memoryCountdownBias
+                                                .trim()
+                                                .isNotEmpty)
+                                              'T-${point.memoryCountdownBias.trim()} s',
+                                          ].join(' • '),
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFFDE68A),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ],
+                    ],
                   ),
                 ),
               ),
@@ -11161,9 +11209,8 @@ class _GovernancePageState extends State<GovernancePage> {
             .map((plan) => (plan.metadata['learning_summary'] ?? '').trim())
             .firstWhere((value) => value.isNotEmpty, orElse: () => ''),
         'shadowSummary': _syntheticWarRoomShadowSummary(syntheticWarRoomPlans),
-        'shadowValidationSummary': _shadowMoValidationSummaryForSites(
-          shadowSites,
-        ),
+        'shadowValidationSummary':
+            currentSyntheticWarRoomPoint?.shadowValidationSummary ?? '',
         'shadowLearningSummary': _syntheticWarRoomShadowLearningSummary(
           syntheticWarRoomPlans,
         ),
@@ -11465,7 +11512,7 @@ class _GovernancePageState extends State<GovernancePage> {
       'synthetic_war_room_learning_label,${syntheticWarRoomPlans.map((plan) => (plan.metadata['learning_label'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '')}',
       'synthetic_war_room_learning_summary,"${syntheticWarRoomPlans.map((plan) => (plan.metadata['learning_summary'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '').replaceAll('"', '""')}"',
       'synthetic_war_room_shadow_summary,"${_syntheticWarRoomShadowSummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',
-      'synthetic_war_room_shadow_validation_summary,"${_shadowMoValidationSummaryForSites(shadowSites).replaceAll('"', '""')}"',
+      'synthetic_war_room_shadow_validation_summary,"${(currentSyntheticWarRoomPoint?.shadowValidationSummary ?? '').replaceAll('"', '""')}"',
       'synthetic_war_room_shadow_learning_summary,"${_syntheticWarRoomShadowLearningSummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',
       'synthetic_war_room_shadow_memory_summary,"${_syntheticWarRoomShadowMemorySummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',
       'synthetic_war_room_promotion_summary,"${_syntheticWarRoomPromotionSummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',

@@ -9,6 +9,7 @@ import '../application/monitoring_global_posture_service.dart';
 import '../application/monitoring_orchestrator_service.dart';
 import '../application/mo_promotion_decision_store.dart';
 import '../application/review_shortcut_contract.dart';
+import '../application/shadow_mo_validation_summary.dart';
 import '../application/shadow_mo_dossier_contract.dart';
 import '../application/site_activity_intelligence_service.dart';
 import '../application/monitoring_synthetic_war_room_service.dart';
@@ -889,6 +890,19 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                               fontWeight: FontWeight.w700,
                             ),
                           ),
+                          if (syntheticScopeSummary
+                              .shadowValidationHistorySummary
+                              .isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'Shadow validation history: ${syntheticScopeSummary.shadowValidationHistorySummary}',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFFBFDBFE),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ],
                         if (syntheticScopeSummary
                             .learningMemorySummary
@@ -935,7 +949,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             Text(
                               'Decision: ${syntheticScopeSummary.promotionDecisionSummary}',
                               style: GoogleFonts.inter(
-                                color: syntheticScopeSummary
+                                color:
+                                    syntheticScopeSummary
                                             .promotionDecisionStatus ==
                                         'accepted'
                                     ? const Color(0xFF86EFAC)
@@ -1073,11 +1088,12 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                                     Text(
                                       point.promotionDecisionSummary,
                                       style: GoogleFonts.inter(
-                                        color: point.promotionDecisionStatus ==
+                                        color:
+                                            point.promotionDecisionStatus ==
                                                 'accepted'
                                             ? const Color(0xFF86EFAC)
                                             : point.promotionDecisionStatus ==
-                                                    'rejected'
+                                                  'rejected'
                                             ? const Color(0xFFFCA5A5)
                                             : const Color(0xFFFDE68A),
                                         fontSize: 10,
@@ -1975,6 +1991,22 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'site ${(leadPlan.metadata['lead_site'] ?? '').toString().trim()}',
     ];
     final hazardSummary = _hazardSimulationSummary(plans);
+    final currentReport = _reportForDate(scopedReportDate);
+    final syntheticHistoryReports = [...widget.morningSovereignReportHistory]
+      ..sort(
+        (left, right) =>
+            right.generatedAtUtc.toUtc().compareTo(left.generatedAtUtc.toUtc()),
+      );
+    final shadowValidationDrift = buildShadowMoValidationDriftSummary(
+      currentSites: _shadowMoSitesForReport(currentReport),
+      historySiteSets: syntheticHistoryReports
+          .where(
+            (report) => report.date.trim() != (scopedReportDate ?? '').trim(),
+          )
+          .take(3)
+          .map(_shadowMoSitesForReport)
+          .toList(growable: false),
+    );
     return _SyntheticScopeSummary(
       eventCount: scopedEvents.length,
       reportDate: scopedReportDate ?? '',
@@ -1987,9 +2019,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       policySummary: policySummary,
       topIntentSummary: leadPlan.description,
       hazardSummary: hazardSummary,
-      shadowValidationSummary: _shadowValidationSummaryForSites(
-        _shadowMoSitesForReport(_reportForDate(scopedReportDate)),
-      ),
+      shadowValidationSummary: shadowValidationDrift.summary,
+      shadowValidationHistorySummary: shadowValidationDrift.historySummary,
       shadowLearningSummary: _syntheticWarRoomShadowLearningSummary(plans),
       shadowMemorySummary: _syntheticWarRoomShadowMemorySummary(plans),
       promotionSummary: _syntheticWarRoomPromotionSummary(plans),
@@ -2258,7 +2289,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       orElse: () => SovereignReport(
         date: normalizedReportDate,
         generatedAtUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
-        shiftWindowStartUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        shiftWindowStartUtc: DateTime.fromMillisecondsSinceEpoch(
+          0,
+          isUtc: true,
+        ),
         shiftWindowEndUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
         ledgerIntegrity: const SovereignReportLedgerIntegrity(
           totalEvents: 0,
@@ -2587,7 +2621,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     List<MonitoringWatchAutonomyActionPlan> plans,
   ) {
     return plans
-        .map((plan) => (plan.metadata['mo_promotion_id'] ?? '').toString().trim())
+        .map(
+          (plan) => (plan.metadata['mo_promotion_id'] ?? '').toString().trim(),
+        )
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
   }
 
@@ -2596,7 +2632,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   ) {
     return plans
         .map(
-          (plan) => (plan.metadata['mo_promotion_target'] ?? '').toString().trim(),
+          (plan) =>
+              (plan.metadata['mo_promotion_target'] ?? '').toString().trim(),
         )
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
   }
@@ -2871,7 +2908,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             0,
             isUtc: true,
           ),
-          shiftWindowEndUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+          shiftWindowEndUtc: DateTime.fromMillisecondsSinceEpoch(
+            0,
+            isUtc: true,
+          ),
           ledgerIntegrity: const SovereignReportLedgerIntegrity(
             totalEvents: 0,
             hashVerified: false,
@@ -4664,6 +4704,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       'promotion_decision_status,${summary.promotionDecisionStatus}',
       'promotion_decision_summary,"${summary.promotionDecisionSummary.replaceAll('"', '""')}"',
       'shadow_validation_summary,"${summary.shadowValidationSummary.replaceAll('"', '""')}"',
+      'shadow_validation_history_summary,"${summary.shadowValidationHistorySummary.replaceAll('"', '""')}"',
       'learning_summary,"${summary.learningSummary.replaceAll('"', '""')}"',
       'learning_memory_summary,"${summary.learningMemorySummary.replaceAll('"', '""')}"',
       'bias_summary,"${summary.biasSummary.replaceAll('"', '""')}"',
@@ -4927,14 +4968,14 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   'points': summary.history!.points
                       .map(
                         (point) => {
-                        'date': point.date,
-                        'shadowSiteCount': point.shadowSiteCount,
-                        'matchCount': point.matchCount,
-                        'summaryLine': point.summaryLine,
-                        'validationSummary': point.validationSummary,
-                        ...buildReviewCommandPair(
-                          reportDate: point.date,
-                          reviewCommandBuilder: _shadowReviewCommand,
+                          'date': point.date,
+                          'shadowSiteCount': point.shadowSiteCount,
+                          'matchCount': point.matchCount,
+                          'summaryLine': point.summaryLine,
+                          'validationSummary': point.validationSummary,
+                          ...buildReviewCommandPair(
+                            reportDate: point.date,
+                            reviewCommandBuilder: _shadowReviewCommand,
                             caseFileCommandBuilder: _shadowCaseFileCommand,
                           ),
                         },
@@ -5022,6 +5063,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'topIntentSummary': summary.topIntentSummary,
         'hazardSummary': summary.hazardSummary,
         'shadowValidationSummary': summary.shadowValidationSummary,
+        'shadowValidationHistorySummary':
+            summary.shadowValidationHistorySummary,
         'shadowLearningSummary': summary.shadowLearningSummary,
         'shadowMemorySummary': summary.shadowMemorySummary,
         'promotionSummary': summary.promotionSummary,
@@ -5074,7 +5117,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   }
 
   void _acceptSyntheticPromotion(_SyntheticScopeSummary summary) {
-    if (summary.promotionMoId.isEmpty || summary.promotionTargetStatus.isEmpty) {
+    if (summary.promotionMoId.isEmpty ||
+        summary.promotionTargetStatus.isEmpty) {
       return;
     }
     _moPromotionDecisionStore.accept(
@@ -5088,7 +5132,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   }
 
   void _rejectSyntheticPromotion(_SyntheticScopeSummary summary) {
-    if (summary.promotionMoId.isEmpty || summary.promotionTargetStatus.isEmpty) {
+    if (summary.promotionMoId.isEmpty ||
+        summary.promotionTargetStatus.isEmpty) {
       return;
     }
     _moPromotionDecisionStore.reject(
@@ -5602,6 +5647,7 @@ class _SyntheticScopeSummary {
   final String topIntentSummary;
   final String hazardSummary;
   final String shadowValidationSummary;
+  final String shadowValidationHistorySummary;
   final String shadowLearningSummary;
   final String shadowMemorySummary;
   final String promotionSummary;
@@ -5628,6 +5674,7 @@ class _SyntheticScopeSummary {
     required this.topIntentSummary,
     required this.hazardSummary,
     required this.shadowValidationSummary,
+    required this.shadowValidationHistorySummary,
     required this.shadowLearningSummary,
     required this.shadowMemorySummary,
     required this.promotionSummary,

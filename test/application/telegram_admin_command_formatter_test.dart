@@ -168,7 +168,8 @@ void main() {
       syntheticWarRoomHazardSummary: 'fire rehearsal recommended',
       syntheticWarRoomShadowSummary:
           'HARDEN ACCESS • site-alpha • Contractors moved floor to floor in office park • x1',
-      syntheticWarRoomShadowValidationSummary: 'Validated 1 • Shadow mode 1',
+      syntheticWarRoomShadowValidationSummary:
+          'Validated 1 • Shadow mode 1 • Drift validated rising',
       syntheticWarRoomShadowLearningSummary:
           'Learned shadow lesson: start access hardening and service-role checks one step earlier next shift.',
       syntheticWarRoomShadowMemorySummary:
@@ -290,7 +291,9 @@ void main() {
     );
     expect(
       response,
-      contains('<b>Shadow validation:</b> Validated 1 • Shadow mode 1'),
+      contains(
+        '<b>Shadow validation:</b> Validated 1 • Shadow mode 1 • Drift validated rising',
+      ),
     );
     expect(
       response,
@@ -312,9 +315,7 @@ void main() {
     );
     expect(
       response,
-      contains(
-        '<b>Promotion decision:</b> Accepted toward validated review.',
-      ),
+      contains('<b>Promotion decision:</b> Accepted toward validated review.'),
     );
     expect(
       response,

@@ -59,6 +59,7 @@ import 'application/report_shell_state.dart';
 import 'application/report_entry_context.dart';
 import 'application/report_preview_request.dart';
 import 'application/review_shortcut_contract.dart';
+import 'application/shadow_mo_validation_summary.dart';
 import 'application/shadow_mo_dossier_contract.dart';
 import 'application/monitoring_watch_resync_plan_service.dart';
 import 'application/monitoring_watch_resync_outcome_recorder.dart';
@@ -5424,7 +5425,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         syntheticWarRoomPlans,
       ),
       syntheticWarRoomShadowValidationSummary:
-          (syntheticWarRoomCaseFile['shadowValidationSummary'] ?? '').toString(),
+          (syntheticWarRoomCaseFile['shadowValidationSummary'] ?? '')
+              .toString(),
       syntheticWarRoomShadowLearningSummary:
           _syntheticWarRoomShadowLearningSummary(syntheticWarRoomPlans),
       syntheticWarRoomShadowMemorySummary: _syntheticWarRoomShadowMemorySummary(
@@ -5435,11 +5437,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       ),
       syntheticWarRoomPromotionDecisionSummary:
           _syntheticWarRoomPromotionDecisionSummary(syntheticWarRoomPlans),
-      syntheticWarRoomPromotionAcceptCommand:
-          _syntheticWarRoomPromotionCommand(
-            syntheticWarRoomPlans,
-            'accept',
-          ),
+      syntheticWarRoomPromotionAcceptCommand: _syntheticWarRoomPromotionCommand(
+        syntheticWarRoomPlans,
+        'accept',
+      ),
       syntheticWarRoomPromotionRejectCommand: _syntheticWarRoomPromotionCommand(
         syntheticWarRoomPlans,
         'reject',
@@ -6834,8 +6835,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
                 'shadowSiteCount': itemSites.length,
                 'matchCount': _shadowMoMatchCountForSites(itemSites),
                 'summary': _shadowMoSummaryForSites(itemSites),
-                'validationSummary':
-                    _shadowMoValidationSummaryForSites(itemSites),
+                'validationSummary': _shadowMoValidationSummaryForSites(
+                  itemSites,
+                ),
                 ...buildReviewCommandPair(
                   reportDate: item.date,
                   reviewCommandBuilder: (value) => '/shadowreview $value',
@@ -6974,6 +6976,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               : 'Synthetic rehearsal pressure is holding close to the recent baseline.'}';
     final previousReport = history.isEmpty ? null : history.first;
     final learningLabel = _syntheticWarRoomLearningLabel(plans);
+    final shadowValidationDrift = buildShadowMoValidationDriftSummary(
+      currentSites: _shadowMoSitesForReport(report),
+      historySiteSets: baseline
+          .map(_shadowMoSitesForReport)
+          .toList(growable: false),
+    );
     return <String, Object?>{
       'reportDate': report.date,
       'available': true,
@@ -6987,9 +6995,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'policySummary': _syntheticWarRoomPolicySummary(plans),
       'hazardSummary': _syntheticWarRoomHazardSummary(plans),
       'shadowSummary': _syntheticWarRoomShadowSummary(plans),
-      'shadowValidationSummary': _shadowMoValidationSummaryForSites(
-        _shadowMoSitesForReport(report),
-      ),
+      'shadowValidationSummary': shadowValidationDrift.summary,
+      'shadowValidationHeadline': shadowValidationDrift.headline,
+      'shadowValidationHistorySummary': shadowValidationDrift.historySummary,
       'shadowLearningSummary': _syntheticWarRoomShadowLearningSummary(plans),
       'shadowMemorySummary': _syntheticWarRoomShadowMemorySummary(plans),
       'promotionSummary': _syntheticWarRoomPromotionSummary(plans),
@@ -7100,12 +7108,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               'promotionTargetStatus': _syntheticWarRoomPromotionTargetStatus(
                 itemPlans,
               ),
-              'promotionDecisionStatus': _syntheticWarRoomPromotionDecisionStatus(
-                itemPlans,
-              ),
-              'promotionDecisionSummary': _syntheticWarRoomPromotionDecisionSummary(
-                itemPlans,
-              ),
+              'promotionDecisionStatus':
+                  _syntheticWarRoomPromotionDecisionStatus(itemPlans),
+              'promotionDecisionSummary':
+                  _syntheticWarRoomPromotionDecisionSummary(itemPlans),
               'learningLabel': _syntheticWarRoomLearningLabel(itemPlans),
               'learningSummary': _syntheticWarRoomLearningSummary(itemPlans),
               'actionBias': (itemPolicyPlan.metadata['action_bias'] ?? '')
@@ -7152,6 +7158,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'hazard_summary,"${(payload['hazardSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'shadow_summary,"${(payload['shadowSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'shadow_validation_summary,"${(payload['shadowValidationSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'shadow_validation_headline,"${(payload['shadowValidationHeadline'] ?? '').toString().replaceAll('"', '""')}"',
+      'shadow_validation_history_summary,"${(payload['shadowValidationHistorySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'shadow_learning_summary,"${(payload['shadowLearningSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'shadow_memory_summary,"${(payload['shadowMemorySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'promotion_summary,"${(payload['promotionSummary'] ?? '').toString().replaceAll('"', '""')}"',
@@ -17302,14 +17310,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       return '${buildChatCaseFileHeader(
         title: 'ONYX ACTIVITYREVIEW',
         fields: [
-          ChatCaseFileHeaderField(
-            key: 'scope',
-            value: '$normalizedClientId/$normalizedSiteId',
-          ),
-          ChatCaseFileHeaderField(
-            key: 'report_date',
-            value: (scope.reportDate ?? '').trim(),
-          ),
+          ChatCaseFileHeaderField(key: 'scope', value: '$normalizedClientId/$normalizedSiteId'),
+          ChatCaseFileHeaderField(key: 'report_date', value: (scope.reportDate ?? '').trim()),
         ],
       )}No site-activity evidence is currently available for Events Review.';
     }
@@ -17320,19 +17322,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return '${buildChatCaseFileHeader(
       title: 'ONYX ACTIVITYREVIEW',
       fields: [
-        ChatCaseFileHeaderField(
-          key: 'scope',
-          value: '$normalizedClientId/$normalizedSiteId',
-        ),
+        ChatCaseFileHeaderField(key: 'scope', value: '$normalizedClientId/$normalizedSiteId'),
         ChatCaseFileHeaderField(key: 'report_date', value: point.reportDate),
-        ChatCaseFileHeaderField(
-          key: 'selected',
-          value: point.snapshot.selectedEventId ?? point.eventIds.first,
-        ),
-        ChatCaseFileHeaderField(
-          key: 'events',
-          value: point.eventIds.length.toString(),
-        ),
+        ChatCaseFileHeaderField(key: 'selected', value: point.snapshot.selectedEventId ?? point.eventIds.first),
+        ChatCaseFileHeaderField(key: 'events', value: point.eventIds.length.toString()),
       ],
     )}Opening Events Review for site activity investigation.';
   }
@@ -17431,30 +17424,15 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         title: 'ONYX READINESSREVIEW',
         fields: [
           ChatCaseFileHeaderField(key: 'report_date', value: report.date),
-          ChatCaseFileHeaderField(
-            key: 'mode',
-            value: _globalReadinessModeLabel(snapshot, intents),
-          ),
+          ChatCaseFileHeaderField(key: 'mode', value: _globalReadinessModeLabel(snapshot, intents)),
           ChatCaseFileHeaderField(
             key: 'summary',
-            value: _globalReadinessSummaryForReport(
-              snapshot: snapshot,
-              intents: intents,
-            ),
+            value: _globalReadinessSummaryForReport(snapshot: snapshot, intents: intents),
           ),
           ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
-          ChatCaseFileHeaderField(
-            key: 'review_refs',
-            value: reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', '),
-          ),
-          ChatCaseFileHeaderField(
-            key: 'governance_command',
-            value: '/readinessgovernance ${report.date}',
-          ),
-          ChatCaseFileHeaderField(
-            key: 'events',
-            value: eventIds.length.toString(),
-          ),
+          ChatCaseFileHeaderField(key: 'review_refs', value: reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', ')),
+          ChatCaseFileHeaderField(key: 'governance_command', value: '/readinessgovernance ${report.date}'),
+          ChatCaseFileHeaderField(key: 'events', value: eventIds.length.toString()),
         ],
       )}Opening Events Review for global readiness evidence.';
     }
@@ -17463,22 +17441,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       title: 'ONYX READINESSREVIEW',
       fields: [
         ChatCaseFileHeaderField(key: 'report_date', value: report.date),
-        ChatCaseFileHeaderField(
-          key: 'mode',
-          value: _globalReadinessModeLabel(snapshot, intents),
-        ),
+        ChatCaseFileHeaderField(key: 'mode', value: _globalReadinessModeLabel(snapshot, intents)),
         ChatCaseFileHeaderField(
           key: 'summary',
-          value: _globalReadinessSummaryForReport(
-            snapshot: snapshot,
-            intents: intents,
-          ),
+          value: _globalReadinessSummaryForReport(snapshot: snapshot, intents: intents),
         ),
         ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
-        ChatCaseFileHeaderField(
-          key: 'governance_command',
-          value: '/readinessgovernance ${report.date}',
-        ),
+        ChatCaseFileHeaderField(key: 'governance_command', value: '/readinessgovernance ${report.date}'),
       ],
     )}Opening Governance for global readiness oversight.';
   }
@@ -17593,22 +17562,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         title: 'ONYX READINESSCASE CSV',
         fields: [
           ChatCaseFileHeaderField(key: 'report_date', value: report.date),
-          ChatCaseFileHeaderField(
-            key: 'focus_summary',
-            value: focusSummary,
-          ),
-          ChatCaseFileHeaderField(
-            key: 'hazard_summary',
-            value: hazardSummary,
-          ),
+          ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
+          ChatCaseFileHeaderField(key: 'hazard_summary', value: hazardSummary),
           ChatCaseFileHeaderField(
             key: 'shadow_bias_summary',
             value: shadowBiasSummary,
           ),
-          ChatCaseFileHeaderField(
-            key: 'review_command',
-            value: reviewCommand,
-          ),
+          ChatCaseFileHeaderField(key: 'review_command', value: reviewCommand),
           ChatCaseFileHeaderField(
             key: 'governance_command',
             value: governanceCommand,
@@ -17675,31 +17635,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         title: 'ONYX SYNTHETICREVIEW',
         fields: [
           ChatCaseFileHeaderField(key: 'report_date', value: report.date),
-          ChatCaseFileHeaderField(
-            key: 'mode',
-            value: _syntheticWarRoomModeLabel(plans),
-          ),
-          ChatCaseFileHeaderField(
-            key: 'summary',
-            value: _syntheticWarRoomSummary(plans),
-          ),
+          ChatCaseFileHeaderField(key: 'mode', value: _syntheticWarRoomModeLabel(plans)),
+          ChatCaseFileHeaderField(key: 'summary', value: _syntheticWarRoomSummary(plans)),
           ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
-          ChatCaseFileHeaderField(
-            key: 'learning_summary',
-            value: learningSummary,
-          ),
-          ChatCaseFileHeaderField(
-            key: 'learning_memory_summary',
-            value: learningMemorySummary,
-          ),
-          ChatCaseFileHeaderField(
-            key: 'review_refs',
-            value: reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', '),
-          ),
-          ChatCaseFileHeaderField(
-            key: 'case_file_command',
-            value: '/syntheticcase json ${report.date}',
-          ),
+          ChatCaseFileHeaderField(key: 'learning_summary', value: learningSummary),
+          ChatCaseFileHeaderField(key: 'learning_memory_summary', value: learningMemorySummary),
+          ChatCaseFileHeaderField(key: 'review_refs', value: reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', ')),
+          ChatCaseFileHeaderField(key: 'case_file_command', value: '/syntheticcase json ${report.date}'),
         ],
       )}Opening Events Review for synthetic war-room evidence.';
     }
@@ -17708,27 +17650,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       title: 'ONYX SYNTHETICREVIEW',
       fields: [
         ChatCaseFileHeaderField(key: 'report_date', value: report.date),
-        ChatCaseFileHeaderField(
-          key: 'mode',
-          value: _syntheticWarRoomModeLabel(plans),
-        ),
-        ChatCaseFileHeaderField(
-          key: 'summary',
-          value: _syntheticWarRoomSummary(plans),
-        ),
+        ChatCaseFileHeaderField(key: 'mode', value: _syntheticWarRoomModeLabel(plans)),
+        ChatCaseFileHeaderField(key: 'summary', value: _syntheticWarRoomSummary(plans)),
         ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
-        ChatCaseFileHeaderField(
-          key: 'learning_summary',
-          value: learningSummary,
-        ),
-        ChatCaseFileHeaderField(
-          key: 'learning_memory_summary',
-          value: learningMemorySummary,
-        ),
-        ChatCaseFileHeaderField(
-          key: 'case_file_command',
-          value: '/syntheticcase json ${report.date}',
-        ),
+        ChatCaseFileHeaderField(key: 'learning_summary', value: learningSummary),
+        ChatCaseFileHeaderField(key: 'learning_memory_summary', value: learningMemorySummary),
+        ChatCaseFileHeaderField(key: 'case_file_command', value: '/syntheticcase json ${report.date}'),
       ],
     )}Opening Governance for synthetic war-room oversight.';
   }
@@ -17766,6 +17693,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final shadowValidationSummary = (payload['shadowValidationSummary'] ?? '')
         .toString()
         .trim();
+    final shadowValidationHistorySummary =
+        (payload['shadowValidationHistorySummary'] ?? '').toString().trim();
     final shadowLearningSummary = (payload['shadowLearningSummary'] ?? '')
         .toString()
         .trim();
@@ -17827,21 +17756,16 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         title: 'ONYX SYNTHETICCASE CSV',
         fields: [
           ChatCaseFileHeaderField(key: 'report_date', value: report.date),
-          ChatCaseFileHeaderField(
-            key: 'focus_summary',
-            value: focusSummary,
-          ),
-          ChatCaseFileHeaderField(
-            key: 'hazard_summary',
-            value: hazardSummary,
-          ),
-          ChatCaseFileHeaderField(
-            key: 'shadow_summary',
-            value: shadowSummary,
-          ),
+          ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
+          ChatCaseFileHeaderField(key: 'hazard_summary', value: hazardSummary),
+          ChatCaseFileHeaderField(key: 'shadow_summary', value: shadowSummary),
           ChatCaseFileHeaderField(
             key: 'shadow_validation_summary',
             value: shadowValidationSummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'shadow_validation_history_summary',
+            value: shadowValidationHistorySummary,
           ),
           ChatCaseFileHeaderField(
             key: 'shadow_learning_summary',
@@ -17872,10 +17796,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             value: learningMemorySummary,
           ),
           ChatCaseFileHeaderField(key: 'bias_summary', value: biasSummary),
-          ChatCaseFileHeaderField(
-            key: 'review_command',
-            value: reviewCommand,
-          ),
+          ChatCaseFileHeaderField(key: 'review_command', value: reviewCommand),
           ChatCaseFileHeaderField(
             key: 'previous_review_command',
             value: previousReviewCommand,
@@ -17898,6 +17819,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         ChatCaseFileHeaderField(
           key: 'shadow_validation_summary',
           value: shadowValidationSummary,
+        ),
+        ChatCaseFileHeaderField(
+          key: 'shadow_validation_history_summary',
+          value: shadowValidationHistorySummary,
         ),
         ChatCaseFileHeaderField(
           key: 'shadow_learning_summary',
@@ -17979,31 +17904,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         title: 'ONYX SHADOWREVIEW',
         fields: [
           ChatCaseFileHeaderField(key: 'report_date', value: report.date),
-          ChatCaseFileHeaderField(
-            key: 'summary',
-            value: (payload['summary'] ?? '').toString(),
-          ),
+          ChatCaseFileHeaderField(key: 'summary', value: (payload['summary'] ?? '').toString()),
           ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
-          ChatCaseFileHeaderField(
-            key: 'history_headline',
-            value: historyHeadline,
-          ),
-          ChatCaseFileHeaderField(
-            key: 'history_summary',
-            value: historySummary,
-          ),
-          ChatCaseFileHeaderField(
-            key: 'review_refs',
-            value: reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', '),
-          ),
-          ChatCaseFileHeaderField(
-            key: 'case_file_command',
-            value: '/shadowcase json ${report.date}',
-          ),
-          ChatCaseFileHeaderField(
-            key: 'events',
-            value: eventIds.length.toString(),
-          ),
+          ChatCaseFileHeaderField(key: 'history_headline', value: historyHeadline),
+          ChatCaseFileHeaderField(key: 'history_summary', value: historySummary),
+          ChatCaseFileHeaderField(key: 'review_refs', value: reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', ')),
+          ChatCaseFileHeaderField(key: 'case_file_command', value: '/shadowcase json ${report.date}'),
+          ChatCaseFileHeaderField(key: 'events', value: eventIds.length.toString()),
         ],
       )}Opening Events Review for shadow MO evidence.';
     }
@@ -18012,23 +17919,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       title: 'ONYX SHADOWREVIEW',
       fields: [
         ChatCaseFileHeaderField(key: 'report_date', value: report.date),
-        ChatCaseFileHeaderField(
-          key: 'summary',
-          value: (payload['summary'] ?? '').toString(),
-        ),
+        ChatCaseFileHeaderField(key: 'summary', value: (payload['summary'] ?? '').toString()),
         ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
-        ChatCaseFileHeaderField(
-          key: 'history_headline',
-          value: historyHeadline,
-        ),
-        ChatCaseFileHeaderField(
-          key: 'history_summary',
-          value: historySummary,
-        ),
-        ChatCaseFileHeaderField(
-          key: 'case_file_command',
-          value: '/shadowcase json ${report.date}',
-        ),
+        ChatCaseFileHeaderField(key: 'history_headline', value: historyHeadline),
+        ChatCaseFileHeaderField(key: 'history_summary', value: historySummary),
+        ChatCaseFileHeaderField(key: 'case_file_command', value: '/shadowcase json ${report.date}'),
       ],
     )}Opening Governance for shadow MO oversight.';
   }
@@ -18107,10 +18002,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         title: 'ONYX SHADOWCASE CSV',
         fields: [
           ChatCaseFileHeaderField(key: 'report_date', value: report.date),
-          ChatCaseFileHeaderField(
-            key: 'focus_summary',
-            value: focusSummary,
-          ),
+          ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
           ChatCaseFileHeaderField(
             key: 'history_headline',
             value: historyHeadline,
@@ -18148,10 +18040,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           key: 'history_headline',
           value: historyHeadline,
         ),
-        ChatCaseFileHeaderField(
-          key: 'history_summary',
-          value: historySummary,
-        ),
+        ChatCaseFileHeaderField(key: 'history_summary', value: historySummary),
         ChatCaseFileHeaderField(
           key: 'validation_summary',
           value: validationSummary,
@@ -18207,31 +18096,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         title: 'ONYX TOMORROWREVIEW',
         fields: [
           ChatCaseFileHeaderField(key: 'report_date', value: report.date),
-          ChatCaseFileHeaderField(
-            key: 'summary',
-            value: (payload['summary'] ?? '').toString(),
-          ),
+          ChatCaseFileHeaderField(key: 'summary', value: (payload['summary'] ?? '').toString()),
           ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
-          ChatCaseFileHeaderField(
-            key: 'shadow_summary',
-            value: shadowSummary,
-          ),
-          ChatCaseFileHeaderField(
-            key: 'review_refs',
-            value: reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', '),
-          ),
-          ChatCaseFileHeaderField(
-            key: 'case_file_command',
-            value: '/tomorrowcase json ${report.date}',
-          ),
-          ChatCaseFileHeaderField(
-            key: 'governance_command',
-            value: '/readinessgovernance ${report.date}',
-          ),
-          ChatCaseFileHeaderField(
-            key: 'events',
-            value: eventIds.length.toString(),
-          ),
+          ChatCaseFileHeaderField(key: 'shadow_summary', value: shadowSummary),
+          ChatCaseFileHeaderField(key: 'review_refs', value: reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', ')),
+          ChatCaseFileHeaderField(key: 'case_file_command', value: '/tomorrowcase json ${report.date}'),
+          ChatCaseFileHeaderField(key: 'governance_command', value: '/readinessgovernance ${report.date}'),
+          ChatCaseFileHeaderField(key: 'events', value: eventIds.length.toString()),
         ],
       )}Opening Events Review for tomorrow-posture evidence.';
     }
@@ -18240,23 +18111,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       title: 'ONYX TOMORROWREVIEW',
       fields: [
         ChatCaseFileHeaderField(key: 'report_date', value: report.date),
-        ChatCaseFileHeaderField(
-          key: 'summary',
-          value: (payload['summary'] ?? '').toString(),
-        ),
+        ChatCaseFileHeaderField(key: 'summary', value: (payload['summary'] ?? '').toString()),
         ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
-        ChatCaseFileHeaderField(
-          key: 'shadow_summary',
-          value: shadowSummary,
-        ),
-        ChatCaseFileHeaderField(
-          key: 'case_file_command',
-          value: '/tomorrowcase json ${report.date}',
-        ),
-        ChatCaseFileHeaderField(
-          key: 'governance_command',
-          value: '/readinessgovernance ${report.date}',
-        ),
+        ChatCaseFileHeaderField(key: 'shadow_summary', value: shadowSummary),
+        ChatCaseFileHeaderField(key: 'case_file_command', value: '/tomorrowcase json ${report.date}'),
+        ChatCaseFileHeaderField(key: 'governance_command', value: '/readinessgovernance ${report.date}'),
       ],
     )}Opening Governance for tomorrow-posture oversight.';
   }
@@ -18323,14 +18182,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         title: 'ONYX TOMORROWCASE CSV',
         fields: [
           ChatCaseFileHeaderField(key: 'report_date', value: report.date),
-          ChatCaseFileHeaderField(
-            key: 'focus_summary',
-            value: focusSummary,
-          ),
-          ChatCaseFileHeaderField(
-            key: 'shadow_summary',
-            value: shadowSummary,
-          ),
+          ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
+          ChatCaseFileHeaderField(key: 'shadow_summary', value: shadowSummary),
           ChatCaseFileHeaderField(
             key: 'review_command',
             value: '/tomorrowreview ${report.date}',
