@@ -4726,6 +4726,44 @@ class _GovernancePageState extends State<GovernancePage> {
     );
   }
 
+  Map<String, String> _promotionShadowAnchorContextForReport(
+    _GovernanceReportView report,
+    String moId,
+  ) {
+    final normalizedMoId = moId.trim();
+    if (normalizedMoId.isEmpty) {
+      return const <String, String>{};
+    }
+    final shadowSites = _globalReadinessSnapshotForReport(report).sites
+        .where((site) => site.moShadowMatchCount > 0)
+        .toList(growable: false);
+    final selectedEventId = shadowSites
+        .map((site) => site.moShadowSelectedEventId?.trim() ?? '')
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    final reviewRefs = shadowSites
+        .expand((site) => site.moShadowReviewRefs)
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .join(',');
+    for (final site in shadowSites) {
+      for (final match in site.moShadowMatches) {
+        if (match.moId.trim() != normalizedMoId) {
+          continue;
+        }
+        return <String, String>{
+          'validationStatus': match.validationStatus.trim(),
+          'strengthSummary': shadowMoStrengthSummary(match),
+          'selectedEventId': selectedEventId,
+          'reviewRefs': reviewRefs,
+          'reviewCommand': '/shadowreview ${report.reportDate}',
+          'caseFileCommand': '/shadowcase json ${report.reportDate}',
+        };
+      }
+    }
+    return const <String, String>{};
+  }
+
   String _syntheticWarRoomModeLabel(
     List<MonitoringWatchAutonomyActionPlan> plans,
   ) {
@@ -11479,6 +11517,13 @@ class _GovernancePageState extends State<GovernancePage> {
     final previousSyntheticWarRoomPoint = syntheticWarRoomHistory.length > 1
         ? syntheticWarRoomHistory[1]
         : null;
+    final syntheticPromotionMoId = _syntheticWarRoomPromotionId(
+      syntheticWarRoomPlans,
+    );
+    final syntheticPromotionShadowContext = _promotionShadowAnchorContextForReport(
+      report,
+      syntheticPromotionMoId,
+    );
     final siteActivityTrend = _siteActivityTrendForReport(report);
     final siteActivityBaseline = _siteActivityBaselineStats(report);
     final siteActivityHistory = _siteActivityHistory(report);
@@ -11559,6 +11604,24 @@ class _GovernancePageState extends State<GovernancePage> {
             'historyHeadline': shadowHistory.headline,
             'historySummary': shadowHistory.summary,
             'strengthHistorySummary': shadowHistory.strengthSummary,
+            'promotionMoId': syntheticPromotionMoId,
+            'promotionCurrentValidationStatus':
+                (syntheticPromotionShadowContext['validationStatus'] ?? '')
+                    .trim(),
+            'promotionCurrentStrengthSummary':
+                (syntheticPromotionShadowContext['strengthSummary'] ?? '')
+                    .trim(),
+            'promotionShadowSelectedEventId':
+                (syntheticPromotionShadowContext['selectedEventId'] ?? '')
+                    .trim(),
+            'promotionShadowReviewRefs':
+                (syntheticPromotionShadowContext['reviewRefs'] ?? '').trim(),
+            'promotionShadowReviewCommand':
+                (syntheticPromotionShadowContext['reviewCommand'] ?? '')
+                    .trim(),
+            'promotionShadowCaseFileCommand':
+                (syntheticPromotionShadowContext['caseFileCommand'] ?? '')
+                    .trim(),
             'reviewShortcuts': buildReviewShortcuts(
               currentReportDate: report.reportDate,
               previousReportDate: previousShadowReportDate.isEmpty
@@ -11650,6 +11713,18 @@ class _GovernancePageState extends State<GovernancePage> {
           previousShadowTomorrowUrgencySummary:
               previousSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '',
         ),
+        'promotionCurrentValidationStatus':
+            (syntheticPromotionShadowContext['validationStatus'] ?? '').trim(),
+        'promotionCurrentStrengthSummary':
+            (syntheticPromotionShadowContext['strengthSummary'] ?? '').trim(),
+        'promotionShadowSelectedEventId':
+            (syntheticPromotionShadowContext['selectedEventId'] ?? '').trim(),
+        'promotionShadowReviewRefs':
+            (syntheticPromotionShadowContext['reviewRefs'] ?? '').trim(),
+        'promotionShadowReviewCommand':
+            (syntheticPromotionShadowContext['reviewCommand'] ?? '').trim(),
+        'promotionShadowCaseFileCommand':
+            (syntheticPromotionShadowContext['caseFileCommand'] ?? '').trim(),
         'actionBias': syntheticWarRoomPlans
             .map((plan) => (plan.metadata['action_bias'] ?? '').trim())
             .firstWhere((value) => value.isNotEmpty, orElse: () => ''),
@@ -11842,6 +11917,15 @@ class _GovernancePageState extends State<GovernancePage> {
     final previousSyntheticWarRoomPoint = syntheticWarRoomHistory.length > 1
         ? syntheticWarRoomHistory[1]
         : null;
+    final syntheticPromotionMoId = _syntheticWarRoomPromotionId(
+      syntheticWarRoomPlans,
+    );
+    final syntheticPromotionShadowContext = _promotionShadowAnchorContextForReport(
+      report,
+      syntheticPromotionMoId,
+    );
+    final shadowPromotionMoId = syntheticPromotionMoId;
+    final shadowPromotionContext = syntheticPromotionShadowContext;
     final siteActivityTrend = _siteActivityTrendForReport(report);
     final siteActivityBaseline = _siteActivityBaselineStats(report);
     final siteActivityHistory = _siteActivityHistory(report);
@@ -11899,6 +11983,13 @@ class _GovernancePageState extends State<GovernancePage> {
       'global_readiness_shadow_history_headline,"${shadowHistory.headline.replaceAll('"', '""')}"',
       'global_readiness_shadow_history_summary,"${shadowHistory.summary.replaceAll('"', '""')}"',
       'global_readiness_shadow_strength_history_summary,"${shadowHistory.strengthSummary.replaceAll('"', '""')}"',
+      'global_readiness_shadow_promotion_mo_id,$shadowPromotionMoId',
+      'global_readiness_shadow_promotion_current_validation_status,${(shadowPromotionContext['validationStatus'] ?? '').trim()}',
+      'global_readiness_shadow_promotion_current_strength_summary,"${(shadowPromotionContext['strengthSummary'] ?? '').replaceAll('"', '""')}"',
+      'global_readiness_shadow_promotion_selected_event_id,${(shadowPromotionContext['selectedEventId'] ?? '').trim()}',
+      'global_readiness_shadow_promotion_review_refs,"${(shadowPromotionContext['reviewRefs'] ?? '').replaceAll('"', '""')}"',
+      'global_readiness_shadow_promotion_review_command,${(shadowPromotionContext['reviewCommand'] ?? '').trim()}',
+      'global_readiness_shadow_promotion_case_file_command,${(shadowPromotionContext['caseFileCommand'] ?? '').trim()}',
       'global_readiness_focus_state,${_globalReadinessFocusState(report)}',
       'global_readiness_historical_focus,${_isHistoricalGlobalReadinessFocus(report)}',
       'global_readiness_focus_summary,"${_globalReadinessFocusSummary(report).replaceAll('"', '""')}"',
@@ -11947,6 +12038,12 @@ class _GovernancePageState extends State<GovernancePage> {
       'synthetic_war_room_promotion_target_status,${_syntheticWarRoomPromotionTargetStatus(syntheticWarRoomPlans)}',
       'synthetic_war_room_promotion_decision_status,${_syntheticWarRoomPromotionDecisionStatus(syntheticWarRoomPlans)}',
       'synthetic_war_room_promotion_decision_summary,"${_syntheticWarRoomPromotionDecisionSummary(syntheticWarRoomPlans, shadowTomorrowUrgencySummary: currentSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '', previousShadowTomorrowUrgencySummary: previousSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '').replaceAll('"', '""')}"',
+      'synthetic_war_room_promotion_current_validation_status,${(syntheticPromotionShadowContext['validationStatus'] ?? '').trim()}',
+      'synthetic_war_room_promotion_current_strength_summary,"${(syntheticPromotionShadowContext['strengthSummary'] ?? '').replaceAll('"', '""')}"',
+      'synthetic_war_room_promotion_shadow_selected_event_id,${(syntheticPromotionShadowContext['selectedEventId'] ?? '').trim()}',
+      'synthetic_war_room_promotion_shadow_review_refs,"${(syntheticPromotionShadowContext['reviewRefs'] ?? '').replaceAll('"', '""')}"',
+      'synthetic_war_room_promotion_shadow_review_command,${(syntheticPromotionShadowContext['reviewCommand'] ?? '').trim()}',
+      'synthetic_war_room_promotion_shadow_case_file_command,${(syntheticPromotionShadowContext['caseFileCommand'] ?? '').trim()}',
       'synthetic_war_room_learning_memory_summary,"${_syntheticWarRoomLearningMemorySummary(syntheticWarRoomHistory).replaceAll('"', '""')}"',
       'synthetic_war_room_action_bias,"${syntheticWarRoomPlans.map((plan) => (plan.metadata['action_bias'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '').replaceAll('"', '""')}"',
       'synthetic_war_room_memory_priority_boost,${syntheticWarRoomPlans.map((plan) => (plan.metadata['memory_priority_boost'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '')}',

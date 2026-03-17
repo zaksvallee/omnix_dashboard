@@ -2149,6 +2149,12 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         : _syntheticShadowTomorrowUrgencySummary(
             widget.currentMorningSovereignReportDate,
           );
+    final promotionMoId = _syntheticWarRoomPromotionId(plans);
+    final promotionShadowContext = _promotionShadowAnchorContext(
+      moId: promotionMoId,
+      sites: _shadowMoSitesForReport(currentReport),
+      reportDate: (scopedReportDate ?? '').trim(),
+    );
     return _SyntheticScopeSummary(
       eventCount: scopedEvents.length,
       reportDate: scopedReportDate ?? '',
@@ -2183,6 +2189,18 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         previousShadowTomorrowUrgencySummary:
             previousShadowTomorrowUrgencySummary,
       ),
+      promotionCurrentValidationStatus:
+          (promotionShadowContext['validationStatus'] ?? '').trim(),
+      promotionCurrentStrengthSummary:
+          (promotionShadowContext['strengthSummary'] ?? '').trim(),
+      promotionShadowSelectedEventId:
+          (promotionShadowContext['selectedEventId'] ?? '').trim(),
+      promotionShadowReviewRefs:
+          (promotionShadowContext['reviewRefs'] ?? '').trim(),
+      promotionShadowReviewCommand:
+          (promotionShadowContext['reviewCommand'] ?? '').trim(),
+      promotionShadowCaseFileCommand:
+          (promotionShadowContext['caseFileCommand'] ?? '').trim(),
       learningSummary: _syntheticWarRoomLearningSummary(plans),
       learningMemorySummary: _syntheticWarRoomLearningMemorySummary(
         currentLearningLabel: _syntheticWarRoomLearningLabel(plans),
@@ -2239,12 +2257,30 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             .where(
               (item) => item.date.trim() != (scopedReportDate ?? '').trim(),
             )
-            .toList(growable: false)
+          .toList(growable: false)
           ..sort(
             (left, right) => right.generatedAtUtc.toUtc().compareTo(
               left.generatedAtUtc.toUtc(),
             ),
           );
+    final promotionMoId = _syntheticWarRoomPromotionId(
+      _syntheticWarRoomService.buildSimulationPlans(
+        events: _eventsForReportWindow(report),
+        sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+        historicalLearningLabels: _syntheticHistoricalLearningLabels(
+          scopedReportDate,
+        ),
+        historicalShadowMoLabels: _shadowHistoricalLabels(scopedReportDate),
+        shadowValidationDriftSummary: _syntheticShadowValidationDriftSummary(
+          scopedReportDate,
+        ),
+      ),
+    );
+    final promotionShadowContext = _promotionShadowAnchorContext(
+      moId: promotionMoId,
+      sites: shadowSites,
+      reportDate: (scopedReportDate ?? '').trim(),
+    );
     return _ShadowScopeSummary(
       eventCount: scopedEvents.length,
       reportDate: scopedReportDate ?? '',
@@ -2260,6 +2296,18 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       previousTomorrowUrgencySummary: previousReports.isEmpty
           ? ''
           : _shadowTomorrowUrgencySummaryForReport(previousReports.first),
+      promotionCurrentValidationStatus:
+          (promotionShadowContext['validationStatus'] ?? '').trim(),
+      promotionCurrentStrengthSummary:
+          (promotionShadowContext['strengthSummary'] ?? '').trim(),
+      promotionShadowSelectedEventId:
+          (promotionShadowContext['selectedEventId'] ?? '').trim(),
+      promotionShadowReviewRefs:
+          (promotionShadowContext['reviewRefs'] ?? '').trim(),
+      promotionShadowReviewCommand:
+          (promotionShadowContext['reviewCommand'] ?? '').trim(),
+      promotionShadowCaseFileCommand:
+          (promotionShadowContext['caseFileCommand'] ?? '').trim(),
       reviewRefs: reviewRefs,
       sites: shadowSites,
       history: _shadowHistorySummary(
@@ -2632,6 +2680,42 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       return '';
     }
     return _tomorrowPostureUrgencySummary(drafts.first);
+  }
+
+  Map<String, String> _promotionShadowAnchorContext({
+    required String moId,
+    required List<MonitoringGlobalSitePosture> sites,
+    required String reportDate,
+  }) {
+    final normalizedMoId = moId.trim();
+    if (normalizedMoId.isEmpty || sites.isEmpty) {
+      return const <String, String>{};
+    }
+    final selectedEventId = sites
+        .map((site) => site.moShadowSelectedEventId?.trim() ?? '')
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    final reviewRefs = sites
+        .expand((site) => site.moShadowReviewRefs)
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .join(',');
+    for (final site in sites) {
+      for (final match in site.moShadowMatches) {
+        if (match.moId.trim() != normalizedMoId) {
+          continue;
+        }
+        return <String, String>{
+          'validationStatus': match.validationStatus.trim(),
+          'strengthSummary': shadowMoStrengthSummary(match),
+          'selectedEventId': selectedEventId,
+          'reviewRefs': reviewRefs,
+          'reviewCommand': _shadowReviewCommand(reportDate),
+          'caseFileCommand': _shadowCaseFileCommand(reportDate),
+        };
+      }
+    }
+    return const <String, String>{};
   }
 
   List<String> _shadowHistoricalLabels(String? reportDate) {
@@ -5019,6 +5103,12 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       'strength_summary,"${summary.strengthSummary.replaceAll('"', '""')}"',
       'tomorrow_urgency_summary,"${summary.tomorrowUrgencySummary.replaceAll('"', '""')}"',
       'previous_tomorrow_urgency_summary,"${summary.previousTomorrowUrgencySummary.replaceAll('"', '""')}"',
+      'promotion_current_validation_status,${summary.promotionCurrentValidationStatus}',
+      'promotion_current_strength_summary,"${summary.promotionCurrentStrengthSummary.replaceAll('"', '""')}"',
+      'promotion_shadow_selected_event_id,${summary.promotionShadowSelectedEventId}',
+      'promotion_shadow_review_refs,"${summary.promotionShadowReviewRefs.replaceAll('"', '""')}"',
+      'promotion_shadow_review_command,${summary.promotionShadowReviewCommand}',
+      'promotion_shadow_case_file_command,${summary.promotionShadowCaseFileCommand}',
       'review_refs,"${summary.reviewRefs.join(', ').replaceAll('"', '""')}"',
       if (summary.history != null)
         'history_headline,"${summary.history!.headline.replaceAll('"', '""')}"',
@@ -5110,6 +5200,12 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       'promotion_target_status,${summary.promotionTargetStatus}',
       'promotion_decision_status,${summary.promotionDecisionStatus}',
       'promotion_decision_summary,"${summary.promotionDecisionSummary.replaceAll('"', '""')}"',
+      'promotion_current_validation_status,${summary.promotionCurrentValidationStatus}',
+      'promotion_current_strength_summary,"${summary.promotionCurrentStrengthSummary.replaceAll('"', '""')}"',
+      'promotion_shadow_selected_event_id,${summary.promotionShadowSelectedEventId}',
+      'promotion_shadow_review_refs,"${summary.promotionShadowReviewRefs.replaceAll('"', '""')}"',
+      'promotion_shadow_review_command,${summary.promotionShadowReviewCommand}',
+      'promotion_shadow_case_file_command,${summary.promotionShadowCaseFileCommand}',
       'shadow_validation_summary,"${summary.shadowValidationSummary.replaceAll('"', '""')}"',
       'shadow_validation_history_summary,"${summary.shadowValidationHistorySummary.replaceAll('"', '""')}"',
       'learning_summary,"${summary.learningSummary.replaceAll('"', '""')}"',
@@ -5369,6 +5465,17 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           'tomorrowUrgencySummary': summary.tomorrowUrgencySummary,
           'previousTomorrowUrgencySummary':
               summary.previousTomorrowUrgencySummary,
+          'promotionCurrentValidationStatus':
+              summary.promotionCurrentValidationStatus,
+          'promotionCurrentStrengthSummary':
+              summary.promotionCurrentStrengthSummary,
+          'promotionShadowSelectedEventId':
+              summary.promotionShadowSelectedEventId,
+          'promotionShadowReviewRefs': summary.promotionShadowReviewRefs,
+          'promotionShadowReviewCommand':
+              summary.promotionShadowReviewCommand,
+          'promotionShadowCaseFileCommand':
+              summary.promotionShadowCaseFileCommand,
           'reviewRefs': summary.reviewRefs,
           'historyHeadline': summary.history?.headline,
           'historySummary': summary.history?.summary,
@@ -5499,6 +5606,17 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'promotionTargetStatus': summary.promotionTargetStatus,
         'promotionDecisionStatus': summary.promotionDecisionStatus,
         'promotionDecisionSummary': summary.promotionDecisionSummary,
+        'promotionCurrentValidationStatus':
+            summary.promotionCurrentValidationStatus,
+        'promotionCurrentStrengthSummary':
+            summary.promotionCurrentStrengthSummary,
+        'promotionShadowSelectedEventId':
+            summary.promotionShadowSelectedEventId,
+        'promotionShadowReviewRefs': summary.promotionShadowReviewRefs,
+        'promotionShadowReviewCommand':
+            summary.promotionShadowReviewCommand,
+        'promotionShadowCaseFileCommand':
+            summary.promotionShadowCaseFileCommand,
         'learningSummary': summary.learningSummary,
         'learningMemorySummary': summary.learningMemorySummary,
         'biasSummary': summary.biasSummary,
@@ -5996,6 +6114,12 @@ class _ShadowScopeSummary {
   final String strengthSummary;
   final String tomorrowUrgencySummary;
   final String previousTomorrowUrgencySummary;
+  final String promotionCurrentValidationStatus;
+  final String promotionCurrentStrengthSummary;
+  final String promotionShadowSelectedEventId;
+  final String promotionShadowReviewRefs;
+  final String promotionShadowReviewCommand;
+  final String promotionShadowCaseFileCommand;
   final List<String> reviewRefs;
   final List<MonitoringGlobalSitePosture> sites;
   final _ShadowHistorySummary? history;
@@ -6012,6 +6136,12 @@ class _ShadowScopeSummary {
     required this.strengthSummary,
     required this.tomorrowUrgencySummary,
     required this.previousTomorrowUrgencySummary,
+    required this.promotionCurrentValidationStatus,
+    required this.promotionCurrentStrengthSummary,
+    required this.promotionShadowSelectedEventId,
+    required this.promotionShadowReviewRefs,
+    required this.promotionShadowReviewCommand,
+    required this.promotionShadowCaseFileCommand,
     required this.reviewRefs,
     required this.sites,
     required this.history,
@@ -6092,6 +6222,12 @@ class _SyntheticScopeSummary {
   final String promotionTargetStatus;
   final String promotionDecisionStatus;
   final String promotionDecisionSummary;
+  final String promotionCurrentValidationStatus;
+  final String promotionCurrentStrengthSummary;
+  final String promotionShadowSelectedEventId;
+  final String promotionShadowReviewRefs;
+  final String promotionShadowReviewCommand;
+  final String promotionShadowCaseFileCommand;
   final String learningSummary;
   final String learningMemorySummary;
   final String biasSummary;
@@ -6121,6 +6257,12 @@ class _SyntheticScopeSummary {
     required this.promotionTargetStatus,
     required this.promotionDecisionStatus,
     required this.promotionDecisionSummary,
+    required this.promotionCurrentValidationStatus,
+    required this.promotionCurrentStrengthSummary,
+    required this.promotionShadowSelectedEventId,
+    required this.promotionShadowReviewRefs,
+    required this.promotionShadowReviewCommand,
+    required this.promotionShadowCaseFileCommand,
     required this.learningSummary,
     required this.learningMemorySummary,
     required this.biasSummary,

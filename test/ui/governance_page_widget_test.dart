@@ -4730,6 +4730,8 @@ void main() {
     expect(copiedPayload, contains('"validationSummary": ""'));
     expect(copiedPayload, contains('"strengthSummary": ""'));
     expect(copiedPayload, contains('"strengthHistorySummary": ""'));
+    expect(copiedPayload, contains('"promotionCurrentValidationStatus": ""'));
+    expect(copiedPayload, contains('"promotionShadowReviewCommand": ""'));
     expect(copiedPayload, contains('"tomorrowUrgencySummary": ""'));
     expect(copiedPayload, contains('"previousTomorrowUrgencySummary": ""'));
     expect(copiedPayload, contains('"planCount": 0'));
@@ -4747,6 +4749,8 @@ void main() {
     expect(copiedPayload, contains('"shadowLearningSummary": ""'));
     expect(copiedPayload, contains('"shadowMemorySummary": ""'));
     expect(copiedPayload, contains('"promotionSummary": ""'));
+    expect(copiedPayload, contains('"promotionCurrentValidationStatus": ""'));
+    expect(copiedPayload, contains('"promotionShadowReviewCommand": ""'));
     expect(copiedPayload, contains('"learningMemorySummary": ""'));
     expect(copiedPayload, contains('"actionBias": ""'));
     expect(copiedPayload, contains('"memoryPriorityBoost": ""'));

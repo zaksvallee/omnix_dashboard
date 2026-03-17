@@ -1424,6 +1424,14 @@ void main() {
       copiedClipboardPayload,
       contains('"previousTomorrowUrgencySummary": "'),
     );
+    expect(
+      copiedClipboardPayload,
+      contains('"promotionCurrentValidationStatus": "'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('"promotionShadowReviewCommand": "'),
+    );
     expect(copiedClipboardPayload, contains('"history": {'));
     expect(copiedClipboardPayload, contains('"date": "2026-03-17"'));
     expect(find.textContaining('Strength:'), findsWidgets);
@@ -2340,6 +2348,14 @@ void main() {
     expect(
       copiedClipboardPayload,
       contains('"promotionDecisionSummary": "Accepted toward '),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('"promotionCurrentValidationStatus": "'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('"promotionShadowReviewCommand": "/shadowreview 2026-03-17"'),
     );
     expect(copiedClipboardPayload, contains('"shadowValidationSummary": "'));
 
