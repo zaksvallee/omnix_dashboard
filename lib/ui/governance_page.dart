@@ -10351,9 +10351,17 @@ class _GovernancePageState extends State<GovernancePage> {
       for (var i = 0; i < siteActivityHistory.length; i++)
         'site_activity_history_${i + 1},"${_siteActivityHistoryCsvSummary(siteActivityHistory[i]).replaceAll('"', '""')}"',
       for (var i = 0; i < siteActivityHistory.length; i++)
-        'site_activity_history_${i + 1}_review_command,${_siteActivityReviewCommand(siteActivityHistory[i].reportDate)}',
-      for (var i = 0; i < siteActivityHistory.length; i++)
-        'site_activity_history_${i + 1}_case_file_command,${_siteActivityCaseFileCommand(siteActivityHistory[i].reportDate)}',
+        ...buildHistoryReviewCommandCsvRows(
+          row: i + 1,
+          reportDate: siteActivityHistory[i].reportDate,
+          reviewCommandBuilder: _siteActivityReviewCommand,
+          caseFileCommandBuilder: _siteActivityCaseFileCommand,
+        ).map(
+          (line) => line
+              .replaceFirst('history_', 'site_activity_history_')
+              .replaceFirst('_review_command', '_review_command')
+              .replaceFirst('_case_file_command', '_case_file_command'),
+        ),
       'vehicle_total_visits,${report.vehicleVisits}',
       'vehicle_completed_visits,${report.vehicleCompletedVisits}',
       'vehicle_active_visits,${report.vehicleActiveVisits}',

@@ -6664,8 +6664,21 @@ class _ClientIntelligenceReportsPageState
       lines.add(
         'history_${index + 1}_review_command,${_siteActivityReviewCommand(clientId: clientId, siteId: siteId, reportDate: point.reportDate)}',
       );
-      lines.add(
-        'history_${index + 1}_case_file_command,${_siteActivityCaseFileCommand(clientId: clientId, siteId: siteId, reportDate: point.reportDate)}',
+      lines.addAll(
+        buildHistoryReviewCommandCsvRows(
+          row: index + 1,
+          reportDate: point.reportDate,
+          reviewCommandBuilder: (reportDate) => _siteActivityReviewCommand(
+            clientId: clientId,
+            siteId: siteId,
+            reportDate: reportDate,
+          ),
+          caseFileCommandBuilder: (reportDate) => _siteActivityCaseFileCommand(
+            clientId: clientId,
+            siteId: siteId,
+            reportDate: reportDate,
+          ),
+        ).skip(1),
       );
     }
     return lines.join('\n');

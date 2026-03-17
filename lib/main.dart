@@ -5996,11 +5996,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       lines.add(
         'history_${i + 1}_top_intent_summary,"${(row['topIntentSummary'] ?? '').toString().replaceAll('"', '""')}"',
       );
-      lines.add(
-        'history_${i + 1}_review_command,${row['reviewCommand'] ?? ''}',
-      );
-      lines.add(
-        'history_${i + 1}_case_file_command,${row['caseFileCommand'] ?? ''}',
+      lines.addAll(
+        buildHistoryReviewCommandCsvRows(
+          row: i + 1,
+          reportDate: (row['reportDate'] ?? '').toString(),
+          reviewCommandBuilder: (reportDate) => '/readinessreview $reportDate',
+          caseFileCommandBuilder:
+              (reportDate) => '/readinesscase json $reportDate',
+        ),
       );
       lines.add(
         'history_${i + 1}_governance_command,${row['governanceCommand'] ?? ''}',
@@ -6187,11 +6190,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       lines.add('history_${i + 1}_plan_count,${row['planCount'] ?? 0}');
       lines.add('history_${i + 1}_policy_count,${row['policyCount'] ?? 0}');
-      lines.add(
-        'history_${i + 1}_review_command,${row['reviewCommand'] ?? ''}',
-      );
-      lines.add(
-        'history_${i + 1}_case_file_command,${row['caseFileCommand'] ?? ''}',
+      lines.addAll(
+        buildHistoryReviewCommandCsvRows(
+          row: i + 1,
+          reportDate: (row['reportDate'] ?? '').toString(),
+          reviewCommandBuilder: (reportDate) => '/syntheticreview $reportDate',
+          caseFileCommandBuilder:
+              (reportDate) => '/syntheticcase json $reportDate',
+        ),
       );
     }
     return lines.join('\n');
@@ -12342,16 +12348,22 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     for (var index = 0; index < history.length; index += 1) {
       final row = index + 1;
       final point = history[index];
+      final clientId = (scope['clientId'] ?? '').toString();
+      final siteId = (scope['siteId'] ?? '').toString();
       lines.add('history_${row}_date,${point['date'] ?? ''}');
       lines.add('history_${row}_current,${point['current'] ?? ''}');
       lines.add(
         'history_${row}_summary,"${(point['summaryLine'] as String? ?? '').replaceAll('"', '""')}"',
       );
-      lines.add(
-        'history_${row}_review_command,${point['reviewCommand'] ?? ''}',
-      );
-      lines.add(
-        'history_${row}_case_file_command,${point['caseFileCommand'] ?? ''}',
+      lines.addAll(
+        buildHistoryReviewCommandCsvRows(
+          row: row,
+          reportDate: (point['date'] ?? '').toString(),
+          reviewCommandBuilder: (reportDate) =>
+              '/activityreview $clientId $siteId $reportDate',
+          caseFileCommandBuilder: (reportDate) =>
+              '/activitycase json $clientId $siteId $reportDate',
+        ),
       );
     }
     return lines.join('\n');
