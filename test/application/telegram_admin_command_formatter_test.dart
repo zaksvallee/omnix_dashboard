@@ -147,8 +147,12 @@ void main() {
       syntheticWarRoomHistoryHeadline: 'RISING • 3d',
       syntheticWarRoomHistorySummary:
           'Current pressure 3 • Baseline 1.0 • Synthetic rehearsal is recommending stronger action than recent shifts.',
+      currentShiftSyntheticFocusSummary:
+          'Viewing live oversight shift 2026-03-17.',
       currentShiftSyntheticReviewCommand: '/syntheticreview 2026-03-17',
       currentShiftSyntheticCaseFileCommand: '/syntheticcase json 2026-03-17',
+      previousShiftSyntheticFocusSummary:
+          'Viewing command-targeted shift 2026-03-16 instead of live oversight 2026-03-17.',
       previousShiftSyntheticReviewCommand: '/syntheticreview 2026-03-16',
       previousShiftSyntheticCaseFileCommand: '/syntheticcase json 2026-03-16',
       siteActivityHeadline: 'ACTIVITY RISING',
@@ -189,6 +193,10 @@ void main() {
     expect(response, contains('<b>Synthetic War-Room</b>'));
     expect(response, contains('<b>Mode:</b> POLICY SHIFT'));
     expect(response, contains('<b>Summary:</b> Plans 2'));
+    expect(
+      response,
+      contains('<b>Focus:</b> Viewing live oversight shift 2026-03-17.'),
+    );
     expect(response, contains('<b>Trend:</b> RISING • 3d'));
     expect(
       response,
@@ -198,6 +206,12 @@ void main() {
     );
     expect(response, contains('<code>/syntheticreview 2026-03-17</code>'));
     expect(response, contains('<code>/syntheticcase json 2026-03-16</code>'));
+    expect(
+      response,
+      contains(
+        '<b>Previous focus:</b> Viewing command-targeted shift 2026-03-16 instead of live oversight 2026-03-17.',
+      ),
+    );
     expect(
       response,
       contains(

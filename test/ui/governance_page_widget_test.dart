@@ -4201,6 +4201,13 @@ void main() {
     expect(copiedPayload, contains('"vehicleSignals": 3'));
     expect(copiedPayload, contains('"flaggedIdentitySignals": 1'));
     expect(copiedPayload, contains('"syntheticWarRoom"'));
+    expect(copiedPayload, contains('"focusState": "live_current_shift"'));
+    expect(copiedPayload, contains('"historicalFocus": false'));
+    expect(
+      copiedPayload,
+      contains('"focusSummary": "Viewing live oversight shift 2026-03-10."'),
+    );
+    expect(copiedPayload, contains('"liveReportDate": "2026-03-10"'));
     expect(copiedPayload, contains('"planCount": 0'));
     expect(copiedPayload, contains('"policyCount": 0'));
     expect(copiedPayload, contains('"modeLabel": "QUIET REHEARSAL"'));
@@ -4305,6 +4312,24 @@ void main() {
     );
     expect(copiedPayload, contains('synthetic_war_room_plan_count,0'));
     expect(copiedPayload, contains('synthetic_war_room_policy_count,0'));
+    expect(
+      copiedPayload,
+      contains('synthetic_war_room_focus_state,live_current_shift'),
+    );
+    expect(
+      copiedPayload,
+      contains('synthetic_war_room_historical_focus,false'),
+    );
+    expect(
+      copiedPayload,
+      contains(
+        'synthetic_war_room_focus_summary,"Viewing live oversight shift 2026-03-10."',
+      ),
+    );
+    expect(
+      copiedPayload,
+      contains('synthetic_war_room_live_report_date,2026-03-10'),
+    );
     expect(
       copiedPayload,
       contains('synthetic_war_room_mode,"QUIET REHEARSAL"'),

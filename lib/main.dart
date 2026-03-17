@@ -5379,9 +5379,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           (syntheticWarRoomCaseFile['historyHeadline'] ?? '').toString(),
       syntheticWarRoomHistorySummary:
           (syntheticWarRoomCaseFile['historySummary'] ?? '').toString(),
+      currentShiftSyntheticFocusSummary:
+          (syntheticWarRoomCaseFile['focusSummary'] ?? '').toString(),
       currentShiftSyntheticReviewCommand: '/syntheticreview ${report.date}',
       currentShiftSyntheticCaseFileCommand:
           '/syntheticcase json ${report.date}',
+      previousShiftSyntheticFocusSummary: previousReport == null
+          ? null
+          : _readinessFocusSummary(previousReport.date),
       previousShiftSyntheticReviewCommand: previousReport == null
           ? null
           : '/syntheticreview ${previousReport.date}',

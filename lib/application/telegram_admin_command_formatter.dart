@@ -88,8 +88,10 @@ class TelegramAdminCommandFormatter {
     String? syntheticWarRoomPolicySummary,
     String? syntheticWarRoomHistoryHeadline,
     String? syntheticWarRoomHistorySummary,
+    String? currentShiftSyntheticFocusSummary,
     String? currentShiftSyntheticReviewCommand,
     String? currentShiftSyntheticCaseFileCommand,
+    String? previousShiftSyntheticFocusSummary,
     String? previousShiftSyntheticReviewCommand,
     String? previousShiftSyntheticCaseFileCommand,
     required String siteActivityHeadline,
@@ -131,8 +133,12 @@ class TelegramAdminCommandFormatter {
         syntheticWarRoomHistoryHeadline?.trim() ?? '';
     final warRoomHistorySummary =
         syntheticWarRoomHistorySummary?.trim() ?? '';
+    final syntheticFocusSummary =
+        currentShiftSyntheticFocusSummary?.trim() ?? '';
     final syntheticReview = currentShiftSyntheticReviewCommand?.trim() ?? '';
     final syntheticCase = currentShiftSyntheticCaseFileCommand?.trim() ?? '';
+    final previousSyntheticFocusSummary =
+        previousShiftSyntheticFocusSummary?.trim() ?? '';
     final previousSyntheticReview =
         previousShiftSyntheticReviewCommand?.trim() ?? '';
     final previousSyntheticCase =
@@ -173,10 +179,12 @@ class TelegramAdminCommandFormatter {
               '${warRoomHeadline.isEmpty ? '' : '• <b>Mode:</b> ${_escapeHtml(warRoomHeadline)}\n'}'
               '${warRoomSummary.isEmpty ? '' : '• <b>Summary:</b> ${_escapeHtml(warRoomSummary)}\n'}'
               '${warRoomPolicySummary.isEmpty ? '' : '• <b>Policy:</b> ${_escapeHtml(warRoomPolicySummary)}\n'}'
+              '${syntheticFocusSummary.isEmpty ? '' : '• <b>Focus:</b> ${_escapeHtml(syntheticFocusSummary)}\n'}'
               '${warRoomHistoryHeadline.isEmpty ? '' : '• <b>Trend:</b> ${_escapeHtml(warRoomHistoryHeadline)}\n'}'
               '${warRoomHistorySummary.isEmpty ? '' : '• <b>History:</b> ${_escapeHtml(warRoomHistorySummary)}\n'}'
               '${syntheticReview.isEmpty ? '' : '• <b>Current review:</b> <code>${_escapeHtml(syntheticReview)}</code>\n'}'
               '${syntheticCase.isEmpty ? '' : '• <b>Current case:</b> <code>${_escapeHtml(syntheticCase)}</code>\n'}'
+              '${previousSyntheticFocusSummary.isEmpty ? '' : '• <b>Previous focus:</b> ${_escapeHtml(previousSyntheticFocusSummary)}\n'}'
               '${previousSyntheticReview.isEmpty ? '' : '• <b>Previous review:</b> <code>${_escapeHtml(previousSyntheticReview)}</code>\n'}'
               '${previousSyntheticCase.isEmpty ? '' : '• <b>Previous case:</b> <code>${_escapeHtml(previousSyntheticCase)}</code>\n'}'
               '\n';
