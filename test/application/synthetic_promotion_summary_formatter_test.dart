@@ -192,5 +192,25 @@ void main() {
         'accepted',
       );
     });
+
+    test('buildSyntheticShadowPostureBiasSummaryForPlan prefers prebuilt summary', () {
+      const plan = MonitoringWatchAutonomyActionPlan(
+        id: 'SIM-1',
+        incidentId: 'SITE-1',
+        siteId: 'SITE-1',
+        priority: MonitoringWatchAutonomyPriority.high,
+        actionType: 'POLICY RECOMMENDATION',
+        description: 'desc',
+        countdownSeconds: 22,
+        metadata: <String, String>{
+          'shadow_posture_bias_summary': 'POSTURE SURGE • CRITICAL • 28s',
+        },
+      );
+
+      expect(
+        buildSyntheticShadowPostureBiasSummaryForPlan(plan: plan),
+        'POSTURE SURGE • CRITICAL • 28s',
+      );
+    });
   });
 }

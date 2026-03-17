@@ -10673,29 +10673,7 @@ class _GovernancePageState extends State<GovernancePage> {
 
   String _syntheticWarRoomShadowPostureBiasSummaryForPlan(
     MonitoringWatchAutonomyActionPlan? plan,
-  ) {
-    final prebuiltSummary =
-        (plan?.metadata['shadow_posture_bias_summary'] ?? '').trim();
-    if (prebuiltSummary.isNotEmpty) {
-      return prebuiltSummary;
-    }
-    final postureBias = (plan?.metadata['shadow_posture_bias'] ?? '').trim();
-    final posturePriority = (plan?.metadata['shadow_posture_priority'] ?? '')
-        .trim();
-    final postureCountdown = (plan?.metadata['shadow_posture_countdown'] ?? '')
-        .trim();
-    if (postureBias.isEmpty &&
-        posturePriority.isEmpty &&
-        postureCountdown.isEmpty) {
-      return '';
-    }
-    final parts = <String>[
-      if (postureBias.isNotEmpty) postureBias,
-      if (posturePriority.isNotEmpty) posturePriority,
-      if (postureCountdown.isNotEmpty) '${postureCountdown}s',
-    ];
-    return parts.join(' • ');
-  }
+  ) => buildSyntheticShadowPostureBiasSummaryForPlan(plan: plan);
 
   String _siteActivityHistoryCsvSummary(_SiteActivityHistoryPoint point) {
     return '${point.reportDate} • ${point.current ? 'CURRENT' : 'HISTORY'} • Signals ${point.totalSignals} • Vehicles ${point.vehicles} • People ${point.people} • Known IDs ${point.knownIds} • Unknown ${point.unknownSignals} • Guard interactions ${point.guardInteractions} • Flagged IDs ${point.flaggedIds} • ${point.modeLabel}';

@@ -28,6 +28,32 @@ String buildSyntheticPromotionDecisionStatusFromPlans({
   return decisionStatusLookup(moId);
 }
 
+String buildSyntheticShadowPostureBiasSummaryForPlan({
+  MonitoringWatchAutonomyActionPlan? plan,
+}) {
+  final prebuiltSummary =
+      (plan?.metadata['shadow_posture_bias_summary'] ?? '').trim();
+  if (prebuiltSummary.isNotEmpty) {
+    return prebuiltSummary;
+  }
+  final postureBias = (plan?.metadata['shadow_posture_bias'] ?? '').trim();
+  final posturePriority = (plan?.metadata['shadow_posture_priority'] ?? '')
+      .trim();
+  final postureCountdown = (plan?.metadata['shadow_posture_countdown'] ?? '')
+      .trim();
+  if (postureBias.isEmpty &&
+      posturePriority.isEmpty &&
+      postureCountdown.isEmpty) {
+    return '';
+  }
+  final parts = <String>[
+    if (postureBias.isNotEmpty) postureBias,
+    if (posturePriority.isNotEmpty) posturePriority,
+    if (postureCountdown.isNotEmpty) '${postureCountdown}s',
+  ];
+  return parts.join(' • ');
+}
+
 String buildSyntheticPromotionSummary({
   required String baseSummary,
   String shadowTomorrowUrgencySummary = '',

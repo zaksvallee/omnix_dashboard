@@ -3314,29 +3314,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
 
   String _syntheticWarRoomShadowPostureBiasSummaryForPlan(
     MonitoringWatchAutonomyActionPlan? plan,
-  ) {
-    final prebuiltSummary =
-        (plan?.metadata['shadow_posture_bias_summary'] ?? '').trim();
-    if (prebuiltSummary.isNotEmpty) {
-      return prebuiltSummary;
-    }
-    final postureBias = (plan?.metadata['shadow_posture_bias'] ?? '').trim();
-    final posturePriority = (plan?.metadata['shadow_posture_priority'] ?? '')
-        .trim();
-    final postureCountdown = (plan?.metadata['shadow_posture_countdown'] ?? '')
-        .trim();
-    if (postureBias.isEmpty &&
-        posturePriority.isEmpty &&
-        postureCountdown.isEmpty) {
-      return '';
-    }
-    final parts = <String>[
-      if (postureBias.isNotEmpty) postureBias,
-      if (posturePriority.isNotEmpty) posturePriority,
-      if (postureCountdown.isNotEmpty) '${postureCountdown}s',
-    ];
-    return parts.join(' • ');
-  }
+  ) => buildSyntheticShadowPostureBiasSummaryForPlan(plan: plan);
 
   String _hazardIntentSummary(List<MonitoringWatchAutonomyActionPlan> intents) {
     final signal = intents
