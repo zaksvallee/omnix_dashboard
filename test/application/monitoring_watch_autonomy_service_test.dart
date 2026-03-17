@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 import 'package:omnix_dashboard/application/monitoring_watch_autonomy_service.dart';
+import 'package:omnix_dashboard/application/monitoring_watch_action_plan.dart';
 import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 
@@ -198,6 +199,63 @@ void main() {
       expect(nextShiftDraft.metadata['learning_label'], 'ADVANCE FIRE');
       expect(nextShiftDraft.description, contains('Prebuild next-shift fire readiness'));
     });
+
+    test('builds next-shift access hardening drafts when shadow MO repeats', () {
+      final events = <DispatchEvent>[
+        _intel(
+          id: 'intel-shadow-news',
+          riskScore: 67,
+          siteId: 'SITE-VALLEE',
+          cameraId: 'news-wire',
+        ).copyWithSourceType(
+          'news',
+          'Suspects posed as maintenance contractors before moving across restricted office zones.',
+        ).copyWithHeadlineAndSummary(
+          'Contractors moved floor to floor in office park',
+          'Suspects posed as maintenance contractors before moving across restricted office zones.',
+        ),
+        _intel(
+          id: 'intel-shadow-live',
+          riskScore: 91,
+          siteId: 'SITE-VALLEE',
+          cameraId: 'lobby-cam',
+        ).copyWithHeadlineAndSummary(
+          'Unplanned contractor roaming',
+          'Maintenance-like subject moved across restricted office doors.',
+        ),
+      ];
+      final reviews = <String, MonitoringSceneReviewRecord>{
+        'intel-shadow-live': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-shadow-live',
+          sourceLabel: 'openai:gpt-5.4-mini',
+          postureLabel: 'service impersonation and roaming concern',
+          decisionLabel: 'Escalation Candidate',
+          decisionSummary:
+              'Likely spoofed service access with abnormal roaming.',
+          summary: 'Likely maintenance impersonation moving across office zones.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 30),
+        ),
+      };
+
+      final plans = service.buildPlans(
+        events: events,
+        sceneReviewByIntelligenceId: reviews,
+        videoOpsLabel: 'Hikvision',
+        historicalShadowMoLabels: const <String>['HARDEN ACCESS'],
+      );
+
+      final draft = plans.firstWhere(
+        (entry) => entry.actionType == 'DRAFT NEXT-SHIFT ACCESS HARDENING',
+      );
+      expect(draft.priority, MonitoringWatchAutonomyPriority.high);
+      expect(draft.countdownSeconds, 28);
+      expect(draft.metadata['scope'], 'NEXT_SHIFT');
+      expect(draft.metadata['shadow_mo_label'], 'HARDEN ACCESS');
+      expect(draft.metadata['shadow_mo_repeat_count'], '1');
+      expect(draft.metadata['draft_bias'], 'REPEATED_SHADOW_MO');
+      expect(draft.description, contains('Prebuild next-shift access hardening'));
+      expect(draft.description, contains('the previous shift'));
+    });
   });
 }
 
@@ -234,6 +292,32 @@ IntelligenceReceived _intel({
 
 extension on IntelligenceReceived {
   IntelligenceReceived copyWithSourceType(String sourceType, String summary) {
+    return IntelligenceReceived(
+      eventId: eventId,
+      sequence: sequence,
+      version: version,
+      occurredAt: occurredAt,
+      intelligenceId: intelligenceId,
+      provider: provider,
+      sourceType: sourceType,
+      externalId: externalId,
+      clientId: clientId,
+      regionId: regionId,
+      siteId: siteId,
+      cameraId: cameraId,
+      faceMatchId: faceMatchId,
+      objectLabel: objectLabel,
+      objectConfidence: objectConfidence,
+      headline: headline,
+      summary: summary,
+      riskScore: riskScore,
+      snapshotUrl: snapshotUrl,
+      canonicalHash: canonicalHash,
+      plateNumber: plateNumber,
+    );
+  }
+
+  IntelligenceReceived copyWithHeadlineAndSummary(String headline, String summary) {
     return IntelligenceReceived(
       eventId: eventId,
       sequence: sequence,

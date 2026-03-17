@@ -227,6 +227,7 @@ class LiveOperationsPage extends StatefulWidget {
   final List<DispatchEvent> events;
   final List<SovereignReport> morningSovereignReportHistory;
   final List<String> historicalSyntheticLearningLabels;
+  final List<String> historicalShadowMoLabels;
   final String focusIncidentReference;
   final String videoOpsLabel;
   final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
@@ -238,6 +239,7 @@ class LiveOperationsPage extends StatefulWidget {
     required this.events,
     this.morningSovereignReportHistory = const <SovereignReport>[],
     this.historicalSyntheticLearningLabels = const <String>[],
+    this.historicalShadowMoLabels = const <String>[],
     this.focusIncidentReference = '',
     this.videoOpsLabel = 'CCTV',
     this.sceneReviewByIntelligenceId = const {},
@@ -1250,7 +1252,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   List<MonitoringWatchAutonomyActionPlan> _nextShiftDraftsForIncident(
     _IncidentRecord incident,
   ) {
-    if (widget.historicalSyntheticLearningLabels.isEmpty) {
+    if (widget.historicalSyntheticLearningLabels.isEmpty &&
+        widget.historicalShadowMoLabels.isEmpty) {
       return const <MonitoringWatchAutonomyActionPlan>[];
     }
     return _orchestratorService
@@ -1260,6 +1263,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           videoOpsLabel: widget.videoOpsLabel,
           historicalSyntheticLearningLabels:
               widget.historicalSyntheticLearningLabels,
+          historicalShadowMoLabels: widget.historicalShadowMoLabels,
         )
         .where((plan) => plan.metadata['scope'] == 'NEXT_SHIFT')
         .where(

@@ -258,6 +258,63 @@ void main() {
         'Prebuild next-shift fire readiness for SITE-VALLEE with earlier fire brigade staging, occupant welfare checks, and fire spread rehearsal and hold HIKVISION verification tighter because the same synthetic lesson repeated across 2 recent shifts.',
       );
     });
+
+    test('drafts next-shift access hardening when shadow MO repeats', () {
+      final events = <DispatchEvent>[
+        _intel(
+          id: 'intel-shadow-news',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-VALLEE',
+          riskScore: 67,
+          sourceType: 'news',
+          cameraId: 'news-wire',
+          headline: 'Contractors moved floor to floor in office park',
+          summary:
+              'Suspects posed as maintenance contractors before moving across restricted office zones.',
+        ),
+        _intel(
+          id: 'intel-shadow-live',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-VALLEE',
+          riskScore: 91,
+          cameraId: 'lobby-cam',
+          headline: 'Unplanned contractor roaming',
+          summary:
+              'Maintenance-like subject moved across restricted office doors.',
+        ),
+      ];
+      final reviews = <String, MonitoringSceneReviewRecord>{
+        'intel-shadow-live': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-shadow-live',
+          sourceLabel: 'openai:gpt-5.4-mini',
+          postureLabel: 'service impersonation and roaming concern',
+          decisionLabel: 'Escalation Candidate',
+          decisionSummary:
+              'Likely spoofed service access with abnormal roaming.',
+          summary: 'Likely maintenance impersonation moving across office zones.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 30),
+        ),
+      };
+
+      final intents = service.buildActionIntents(
+        events: events,
+        sceneReviewByIntelligenceId: reviews,
+        videoOpsLabel: 'Hikvision',
+        historicalShadowMoLabels: const <String>['HARDEN ACCESS'],
+      );
+
+      final draft = intents.firstWhere(
+        (entry) => entry.actionType == 'DRAFT NEXT-SHIFT ACCESS HARDENING',
+      );
+      expect(draft.priority, MonitoringWatchAutonomyPriority.high);
+      expect(draft.countdownSeconds, 28);
+      expect(draft.metadata['scope'], 'NEXT_SHIFT');
+      expect(draft.metadata['shadow_mo_label'], 'HARDEN ACCESS');
+      expect(draft.metadata['shadow_mo_repeat_count'], '1');
+      expect(draft.metadata['draft_bias'], 'REPEATED_SHADOW_MO');
+      expect(draft.description, contains('Prebuild next-shift access hardening'));
+      expect(draft.description, contains('Contractors moved floor to floor in office park'));
+    });
   });
 }
 

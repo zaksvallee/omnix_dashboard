@@ -3009,6 +3009,7 @@ class _GovernancePageState extends State<GovernancePage> {
       sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
       historicalSyntheticLearningLabels:
           _syntheticHistoricalLearningLabelsForView(report),
+      historicalShadowMoLabels: _shadowHistoricalLabelsForView(report),
     );
   }
 
@@ -3050,6 +3051,36 @@ class _GovernancePageState extends State<GovernancePage> {
       events: scopedEvents,
       sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
     );
+  }
+
+  List<String> _shadowHistoricalLabelsForView(_GovernanceReportView report) {
+    final reportGeneratedAtUtc = report.generatedAtUtc ?? DateTime.now().toUtc();
+    final baseline = widget.morningSovereignReportHistory
+        .where(
+          (item) =>
+              item.date.trim() != report.reportDate.trim() &&
+              item.generatedAtUtc.isBefore(reportGeneratedAtUtc),
+        )
+        .toList(growable: false)
+      ..sort((left, right) => right.generatedAtUtc.compareTo(left.generatedAtUtc));
+    return baseline
+        .take(3)
+        .map((item) {
+          final snapshot = _globalReadinessSnapshotForWindow(
+            item.shiftWindowStartUtc,
+            item.shiftWindowEndUtc,
+            generatedAtUtc: item.generatedAtUtc,
+          );
+          final shadowSites = snapshot.sites
+              .where((site) => site.moShadowMatchCount > 0)
+              .toList(growable: false);
+          if (shadowSites.isEmpty) {
+            return '';
+          }
+          return _orchestratorService.shadowDraftLabelForSite(shadowSites.first);
+        })
+        .where((label) => label.trim().isNotEmpty)
+        .toList(growable: false);
   }
 
   List<DispatchEvent> _eventsScopedToWindow(

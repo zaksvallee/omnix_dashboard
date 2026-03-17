@@ -5604,6 +5604,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
       historicalSyntheticLearningLabels:
           _syntheticHistoricalLearningLabelsForReport(report),
+      historicalShadowMoLabels: _shadowHistoricalLabelsForReport(report),
     );
   }
 
@@ -5723,6 +5724,34 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         )
         .where((label) => label.trim().isNotEmpty)
         .toList(growable: false);
+  }
+
+  List<String> _shadowHistoricalLabelsForReport(SovereignReport report) {
+    final baseline = _morningSovereignReportHistory
+        .where(
+          (item) =>
+              item.date.trim() != report.date.trim() &&
+              item.generatedAtUtc.isBefore(report.generatedAtUtc),
+        )
+        .toList(growable: false)
+      ..sort((left, right) => right.generatedAtUtc.compareTo(left.generatedAtUtc));
+    return baseline
+        .take(3)
+        .map((item) {
+          final shadowSites = _shadowMoSitesForReport(item);
+          if (shadowSites.isEmpty) {
+            return '';
+          }
+          return _orchestratorService.shadowDraftLabelForSite(shadowSites.first);
+        })
+        .where((label) => label.trim().isNotEmpty)
+        .toList(growable: false);
+  }
+
+  List<String> _recentShadowMoLabels() {
+    return (_morningSovereignReport == null)
+        ? const <String>[]
+        : _shadowHistoricalLabelsForReport(_morningSovereignReport!);
   }
 
   List<String> _recentSyntheticLearningLabels() {
@@ -20666,6 +20695,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           events: events,
           morningSovereignReportHistory: _morningSovereignReportHistory,
           historicalSyntheticLearningLabels: _recentSyntheticLearningLabels(),
+          historicalShadowMoLabels: _recentShadowMoLabels(),
           focusIncidentReference: _operationsFocusIncidentReference,
           videoOpsLabel: _activeVideoOpsLabel,
           sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
@@ -20681,6 +20711,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         return AIQueuePage(
           events: events,
           historicalSyntheticLearningLabels: _recentSyntheticLearningLabels(),
+          historicalShadowMoLabels: _recentShadowMoLabels(),
           videoOpsLabel: _activeVideoOpsLabel,
           sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
           onOpenEventsForScope: (eventIds, selectedEventId) {

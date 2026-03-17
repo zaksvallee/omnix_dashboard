@@ -89,6 +89,7 @@ class _AiQueueDailyStats {
 class AIQueuePage extends StatefulWidget {
   final List<DispatchEvent> events;
   final List<String> historicalSyntheticLearningLabels;
+  final List<String> historicalShadowMoLabels;
   final String videoOpsLabel;
   final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
   final void Function(List<String> eventIds, String? selectedEventId)?
@@ -98,6 +99,7 @@ class AIQueuePage extends StatefulWidget {
     super.key,
     required this.events,
     this.historicalSyntheticLearningLabels = const <String>[],
+    this.historicalShadowMoLabels = const <String>[],
     this.videoOpsLabel = 'CCTV',
     this.sceneReviewByIntelligenceId = const {},
     this.onOpenEventsForScope,
@@ -131,6 +133,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
     if (oldWidget.events != widget.events ||
         oldWidget.historicalSyntheticLearningLabels !=
             widget.historicalSyntheticLearningLabels ||
+        oldWidget.historicalShadowMoLabels !=
+            widget.historicalShadowMoLabels ||
         oldWidget.videoOpsLabel != widget.videoOpsLabel ||
         oldWidget.sceneReviewByIntelligenceId !=
             widget.sceneReviewByIntelligenceId) {
@@ -1443,6 +1447,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       sceneReviewByIntelligenceId: sceneReviewByIntelligenceId,
       videoOpsLabel: widget.videoOpsLabel,
       historicalSyntheticLearningLabels: widget.historicalSyntheticLearningLabels,
+      historicalShadowMoLabels: widget.historicalShadowMoLabels,
     );
     if (autonomyPlans.isNotEmpty) {
       return autonomyPlans.asMap().entries.map((entry) {

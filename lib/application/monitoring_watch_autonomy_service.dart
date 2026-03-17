@@ -20,6 +20,7 @@ class MonitoringWatchAutonomyService {
     required Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId,
     String videoOpsLabel = 'CCTV',
     List<String> historicalSyntheticLearningLabels = const <String>[],
+    List<String> historicalShadowMoLabels = const <String>[],
   }) {
     if (events.isEmpty) {
       return const <MonitoringWatchAutonomyActionPlan>[];
@@ -68,6 +69,7 @@ class MonitoringWatchAutonomyService {
       sceneReviewByIntelligenceId: sceneReviewByIntelligenceId,
       videoOpsLabel: videoOpsLabel,
       historicalSyntheticLearningLabels: historicalSyntheticLearningLabels,
+      historicalShadowMoLabels: historicalShadowMoLabels,
     );
     final syntheticPlans = _syntheticWarRoomService.buildSimulationPlans(
       events: events,
