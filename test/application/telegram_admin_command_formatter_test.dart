@@ -168,6 +168,7 @@ void main() {
       syntheticWarRoomHazardSummary: 'fire rehearsal recommended',
       syntheticWarRoomShadowSummary:
           'HARDEN ACCESS • site-alpha • Contractors moved floor to floor in office park • x1',
+      syntheticWarRoomShadowValidationSummary: 'Validated 1 • Shadow mode 1',
       syntheticWarRoomShadowLearningSummary:
           'Learned shadow lesson: start access hardening and service-role checks one step earlier next shift.',
       syntheticWarRoomShadowMemorySummary:
@@ -286,6 +287,10 @@ void main() {
       contains(
         '<b>Shadow rehearsal:</b> HARDEN ACCESS • site-alpha • Contractors moved floor to floor in office park • x1',
       ),
+    );
+    expect(
+      response,
+      contains('<b>Shadow validation:</b> Validated 1 • Shadow mode 1'),
     );
     expect(
       response,

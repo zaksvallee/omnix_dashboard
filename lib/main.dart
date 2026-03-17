@@ -5423,6 +5423,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       syntheticWarRoomShadowSummary: _syntheticWarRoomShadowSummary(
         syntheticWarRoomPlans,
       ),
+      syntheticWarRoomShadowValidationSummary:
+          (syntheticWarRoomCaseFile['shadowValidationSummary'] ?? '').toString(),
       syntheticWarRoomShadowLearningSummary:
           _syntheticWarRoomShadowLearningSummary(syntheticWarRoomPlans),
       syntheticWarRoomShadowMemorySummary: _syntheticWarRoomShadowMemorySummary(
