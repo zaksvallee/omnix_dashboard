@@ -18620,6 +18620,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'summary=$pressureAwareSummary'
         '${(shadowMatchContext['validationStatus'] ?? '').isEmpty ? '' : '\ncurrent_validation_status=${shadowMatchContext['validationStatus']}'}'
         '${(shadowMatchContext['strengthSummary'] ?? '').isEmpty ? '' : '\ncurrent_strength_summary=${shadowMatchContext['strengthSummary']}'}'
+        '${(shadowMatchContext['reviewCommand'] ?? '').isEmpty ? '' : '\nshadow_review_command=${shadowMatchContext['reviewCommand']}'}'
+        '${(shadowMatchContext['caseFileCommand'] ?? '').isEmpty ? '' : '\nshadow_case_file_command=${shadowMatchContext['caseFileCommand']}'}'
         '${shadowTomorrowUrgencySummary.isEmpty ? '' : '\nshadow_tomorrow_urgency_summary=$shadowTomorrowUrgencySummary'}'
         '${previousShadowTomorrowUrgencySummary.isEmpty ? '' : '\nprevious_shadow_tomorrow_urgency_summary=$previousShadowTomorrowUrgencySummary'}'
         '${(syntheticContext['reviewCommand'] ?? '').isEmpty ? '' : '\nsynthetic_review_command=${syntheticContext['reviewCommand']}'}'
@@ -18689,6 +18691,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               .toString()
               .trim(),
           'strengthSummary': (match['strengthSummary'] ?? '').toString().trim(),
+          'reviewCommand': (payload['reviewCommand'] ?? '').toString().trim(),
+          'caseFileCommand':
+              (payload['caseFileCommand'] ?? '').toString().trim(),
         };
       }
     }
