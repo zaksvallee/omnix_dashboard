@@ -1563,15 +1563,46 @@ void main() {
     copyJsonAction.onTap!();
     await tester.pump();
     expect(copiedClipboardPayload, contains('"syntheticCaseFile"'));
+    expect(copiedClipboardPayload, contains('"reportDate": "2026-03-17"'));
+    expect(copiedClipboardPayload, contains('"liveReportDate": "2026-03-18"'));
     expect(copiedClipboardPayload, contains('"modeLabel": "POLICY SHIFT"'));
     expect(copiedClipboardPayload, contains('"historicalFocus": true'));
     expect(
       copiedClipboardPayload,
       contains('"policySummary": "earlier postural echo propagation into sibling sites"'),
     );
+    expect(copiedClipboardPayload, contains('"reviewShortcuts"'));
+    expect(
+      copiedClipboardPayload,
+      contains('"currentShiftReviewCommand": "/syntheticreview 2026-03-17"'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains(
+        '"currentShiftCaseFileCommand": "/syntheticcase json 2026-03-17"',
+      ),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('"previousShiftReviewCommand": "/syntheticreview 2026-03-16"'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains(
+        '"previousShiftCaseFileCommand": "/syntheticcase json 2026-03-16"',
+      ),
+    );
     expect(copiedClipboardPayload, contains('"history": {'));
     expect(copiedClipboardPayload, contains('"headline": "RISING • 2d"'));
     expect(copiedClipboardPayload, contains('"date": "2026-03-16"'));
+    expect(
+      copiedClipboardPayload,
+      contains('"reviewCommand": "/syntheticreview 2026-03-16"'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('"caseFileCommand": "/syntheticcase json 2026-03-16"'),
+    );
 
     final copyCsvAction = tester.widget<InkWell>(
       find.byKey(
@@ -1582,6 +1613,8 @@ void main() {
     copyCsvAction.onTap!();
     await tester.pump();
     expect(copiedClipboardPayload, contains('metric,value'));
+    expect(copiedClipboardPayload, contains('report_date,2026-03-17'));
+    expect(copiedClipboardPayload, contains('live_report_date,2026-03-18'));
     expect(copiedClipboardPayload, contains('focus_state,historical_command_target'));
     expect(copiedClipboardPayload, contains('historical_focus,true'));
     expect(copiedClipboardPayload, contains('mode_label,"POLICY SHIFT"'));
@@ -1592,11 +1625,43 @@ void main() {
     expect(copiedClipboardPayload, contains('history_headline,"RISING • 2d"'));
     expect(
       copiedClipboardPayload,
+      contains('current_review_command,/syntheticreview 2026-03-17'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('current_case_file_command,/syntheticcase json 2026-03-17'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('previous_review_command,/syntheticreview 2026-03-16'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('previous_case_file_command,/syntheticcase json 2026-03-16'),
+    );
+    expect(
+      copiedClipboardPayload,
       contains('history_1_date,2026-03-17'),
     );
     expect(
       copiedClipboardPayload,
+      contains('history_1_review_command,/syntheticreview 2026-03-17'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('history_1_case_file_command,/syntheticcase json 2026-03-17'),
+    );
+    expect(
+      copiedClipboardPayload,
       contains('history_2_date,2026-03-16'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('history_2_review_command,/syntheticreview 2026-03-16'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('history_2_case_file_command,/syntheticcase json 2026-03-16'),
     );
 
     final openGovernanceAction = tester.widget<InkWell>(

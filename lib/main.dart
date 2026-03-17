@@ -6078,6 +6078,15 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'previousCaseFileCommand': previousReport == null
           ? ''
           : '/syntheticcase json ${previousReport.date}',
+      'reviewShortcuts': {
+        'currentShiftReviewCommand': '/syntheticreview ${report.date}',
+        'currentShiftCaseFileCommand': '/syntheticcase json ${report.date}',
+        if (previousReport != null)
+          'previousShiftReviewCommand': '/syntheticreview ${previousReport.date}',
+        if (previousReport != null)
+          'previousShiftCaseFileCommand':
+              '/syntheticcase json ${previousReport.date}',
+      },
       'historyHeadline': historyHeadline,
       'historySummary': historySummary,
       'plans': plans

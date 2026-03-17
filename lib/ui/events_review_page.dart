@@ -1181,6 +1181,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     ];
     return _SyntheticScopeSummary(
       eventCount: scopedEvents.length,
+      reportDate: scopedReportDate ?? '',
+      liveReportDate: (widget.currentMorningSovereignReportDate ?? '').trim(),
       focusState: _readinessFocusState(scopedReportDate),
       historicalFocus: _isHistoricalReadinessFocus(scopedReportDate),
       modeLabel: modeLabel,
@@ -2867,6 +2869,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   void _copySyntheticCaseFileCsv(_SyntheticScopeSummary summary) {
     final lines = <String>[
       'metric,value',
+      'report_date,${summary.reportDate}',
+      'live_report_date,${summary.liveReportDate}',
       'event_count,${summary.eventCount}',
       'focus_state,${summary.focusState}',
       'historical_focus,${summary.historicalFocus ? 'true' : 'false'}',
@@ -2876,6 +2880,14 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       'policy_summary,"${summary.policySummary.replaceAll('"', '""')}"',
       'top_intent_summary,"${summary.topIntentSummary.replaceAll('"', '""')}"',
       'review_refs,"${summary.reviewRefs.join(', ').replaceAll('"', '""')}"',
+      if (summary.reportDate.isNotEmpty)
+        'current_review_command,/syntheticreview ${summary.reportDate}',
+      if (summary.reportDate.isNotEmpty)
+        'current_case_file_command,/syntheticcase json ${summary.reportDate}',
+      if (summary.history != null && summary.history!.points.length > 1)
+        'previous_review_command,/syntheticreview ${summary.history!.points[1].date}',
+      if (summary.history != null && summary.history!.points.length > 1)
+        'previous_case_file_command,/syntheticcase json ${summary.history!.points[1].date}',
     ];
     if (summary.history != null) {
       lines.add(
@@ -2890,6 +2902,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         lines.add('history_${row}_date,${point.date}');
         lines.add(
           'history_${row}_summary,"${point.summaryLine.replaceAll('"', '""')}"',
+        );
+        lines.add('history_${row}_review_command,/syntheticreview ${point.date}');
+        lines.add(
+          'history_${row}_case_file_command,/syntheticcase json ${point.date}',
         );
       }
     }
@@ -2956,6 +2972,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   Map<String, Object?> _syntheticCaseFilePayload(_SyntheticScopeSummary summary) {
     return {
       'syntheticCaseFile': {
+        'reportDate': summary.reportDate,
+        'liveReportDate': summary.liveReportDate,
         'eventCount': summary.eventCount,
         'focusState': summary.focusState,
         'historicalFocus': summary.historicalFocus,
@@ -2965,6 +2983,19 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'policySummary': summary.policySummary,
         'topIntentSummary': summary.topIntentSummary,
         'reviewRefs': summary.reviewRefs,
+        'reviewShortcuts': {
+          if (summary.reportDate.isNotEmpty)
+            'currentShiftReviewCommand': '/syntheticreview ${summary.reportDate}',
+          if (summary.reportDate.isNotEmpty)
+            'currentShiftCaseFileCommand':
+                '/syntheticcase json ${summary.reportDate}',
+          if (summary.history != null && summary.history!.points.length > 1)
+            'previousShiftReviewCommand':
+                '/syntheticreview ${summary.history!.points[1].date}',
+          if (summary.history != null && summary.history!.points.length > 1)
+            'previousShiftCaseFileCommand':
+                '/syntheticcase json ${summary.history!.points[1].date}',
+        },
         'history': summary.history == null
             ? null
             : {
@@ -2978,6 +3009,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         'policyCount': point.policyCount,
                         'modeLabel': point.modeLabel,
                         'summaryLine': point.summaryLine,
+                        'reviewCommand': '/syntheticreview ${point.date}',
+                        'caseFileCommand': '/syntheticcase json ${point.date}',
                       },
                     )
                     .toList(growable: false),
@@ -3433,6 +3466,8 @@ class _ReadinessScopeSummary {
 
 class _SyntheticScopeSummary {
   final int eventCount;
+  final String reportDate;
+  final String liveReportDate;
   final String focusState;
   final bool historicalFocus;
   final String modeLabel;
@@ -3445,6 +3480,8 @@ class _SyntheticScopeSummary {
 
   const _SyntheticScopeSummary({
     required this.eventCount,
+    required this.reportDate,
+    required this.liveReportDate,
     required this.focusState,
     required this.historicalFocus,
     required this.modeLabel,
