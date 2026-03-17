@@ -4750,6 +4750,7 @@ void main() {
     );
     expect(copiedPayload, contains('"shadowLearningSummary": ""'));
     expect(copiedPayload, contains('"shadowMemorySummary": ""'));
+    expect(copiedPayload, contains('"promotionPressureSummary": ""'));
     expect(copiedPayload, contains('"promotionSummary": ""'));
     expect(copiedPayload, contains('"promotionCurrentValidationStatus": ""'));
     expect(copiedPayload, contains('"promotionShadowReviewCommand": ""'));
@@ -4960,6 +4961,10 @@ void main() {
     expect(
       copiedPayload,
       contains('synthetic_war_room_shadow_posture_bias_summary,""'),
+    );
+    expect(
+      copiedPayload,
+      contains('synthetic_war_room_promotion_pressure_summary,""'),
     );
     expect(
       copiedPayload,
