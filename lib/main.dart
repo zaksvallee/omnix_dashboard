@@ -18812,6 +18812,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         syntheticContext['previousShadowTomorrowUrgencySummary'] ?? '';
     final shadowPostureBiasSummary =
         syntheticContext['shadowPostureBiasSummary'] ?? '';
+    final promotionPressureSummary =
+        syntheticContext['promotionPressureSummary'] ?? '';
     final pressureAwareSummary = buildSyntheticPromotionDecisionSummary(
       baseSummary: summary,
       shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
@@ -18831,6 +18833,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '${shadowTomorrowUrgencySummary.isEmpty ? '' : '\nshadow_tomorrow_urgency_summary=$shadowTomorrowUrgencySummary'}'
         '${previousShadowTomorrowUrgencySummary.isEmpty ? '' : '\nprevious_shadow_tomorrow_urgency_summary=$previousShadowTomorrowUrgencySummary'}'
         '${shadowPostureBiasSummary.isEmpty ? '' : '\nshadow_posture_bias_summary=$shadowPostureBiasSummary'}'
+        '${promotionPressureSummary.isEmpty ? '' : '\npromotion_pressure_summary=$promotionPressureSummary'}'
         '${(syntheticContext['reviewCommand'] ?? '').isEmpty ? '' : '\nsynthetic_review_command=${syntheticContext['reviewCommand']}'}'
         '${(syntheticContext['caseFileCommand'] ?? '').isEmpty ? '' : '\nsynthetic_case_file_command=${syntheticContext['caseFileCommand']}'}';
   }
@@ -18862,6 +18865,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               .trim(),
       'shadowPostureBiasSummary':
           (payload['shadowPostureBiasSummary'] ?? '').toString().trim(),
+      'promotionPressureSummary':
+          (payload['promotionPressureSummary'] ?? '').toString().trim(),
       'reviewCommand': (payload['reviewCommand'] ?? '').toString().trim(),
       'caseFileCommand': (payload['caseFileCommand'] ?? '').toString().trim(),
     };
