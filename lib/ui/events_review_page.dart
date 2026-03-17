@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../application/morning_sovereign_report_service.dart';
 import '../application/monitoring_global_posture_service.dart';
 import '../application/monitoring_orchestrator_service.dart';
+import '../application/review_shortcut_contract.dart';
 import '../application/site_activity_intelligence_service.dart';
 import '../application/monitoring_synthetic_war_room_service.dart';
 import '../application/monitoring_watch_action_plan.dart';
@@ -1244,26 +1245,6 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
 
   String _syntheticCaseFileCommand(String reportDate) =>
       '/syntheticcase json $reportDate';
-
-  Map<String, String> _reviewShortcuts({
-    required String currentReportDate,
-    required String? previousReportDate,
-    required String Function(String reportDate) reviewCommandBuilder,
-    required String Function(String reportDate) caseFileCommandBuilder,
-  }) {
-    final current = currentReportDate.trim();
-    final previous = (previousReportDate ?? '').trim();
-    final shortcuts = <String, String>{};
-    if (current.isNotEmpty) {
-      shortcuts['currentShiftReviewCommand'] = reviewCommandBuilder(current);
-      shortcuts['currentShiftCaseFileCommand'] = caseFileCommandBuilder(current);
-    }
-    if (previous.isNotEmpty) {
-      shortcuts['previousShiftReviewCommand'] = reviewCommandBuilder(previous);
-      shortcuts['previousShiftCaseFileCommand'] = caseFileCommandBuilder(previous);
-    }
-    return shortcuts;
-  }
 
   String _readinessFocusSummary(String? reportDate) {
     final normalizedReportDate = (reportDate ?? '').trim();
@@ -2894,11 +2875,13 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         lines.add(
           'history_${row}_summary,"${point.summaryLine.replaceAll('"', '""')}"',
         );
-        lines.add(
-          'history_${row}_review_command,${_activityReviewCommand(point.date)}',
-        );
-        lines.add(
-          'history_${row}_case_file_command,${_activityCaseFileCommand(point.date)}',
+        lines.addAll(
+          buildHistoryReviewCommandCsvRows(
+            row: row,
+            reportDate: point.date,
+            reviewCommandBuilder: _activityReviewCommand,
+            caseFileCommandBuilder: _activityCaseFileCommand,
+          ),
         );
       }
     }
@@ -2991,11 +2974,13 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         lines.add(
           'history_${row}_summary,"${point.summaryLine.replaceAll('"', '""')}"',
         );
-        lines.add(
-          'history_${row}_review_command,${_syntheticReviewCommand(point.date)}',
-        );
-        lines.add(
-          'history_${row}_case_file_command,${_syntheticCaseFileCommand(point.date)}',
+        lines.addAll(
+          buildHistoryReviewCommandCsvRows(
+            row: row,
+            reportDate: point.date,
+            reviewCommandBuilder: _syntheticReviewCommand,
+            caseFileCommandBuilder: _syntheticCaseFileCommand,
+          ),
         );
       }
     }
@@ -3023,7 +3008,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'topLongPresenceSummary': summary.topLongPresenceSummary,
         'topGuardInteractionSummary': summary.topGuardInteractionSummary,
         'reviewRefs': summary.reviewRefs,
-        'reviewShortcuts': _reviewShortcuts(
+        'reviewShortcuts': buildReviewShortcuts(
           currentReportDate: summary.reportDate,
           previousReportDate: previousReportDate,
           reviewCommandBuilder: _activityReviewCommand,
@@ -3043,8 +3028,11 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         'flaggedSignals': point.flaggedSignals,
                         'guardInteractions': point.guardInteractions,
                         'summaryLine': point.summaryLine,
-                        'reviewCommand': _activityReviewCommand(point.date),
-                        'caseFileCommand': _activityCaseFileCommand(point.date),
+                        ...buildReviewCommandPair(
+                          reportDate: point.date,
+                          reviewCommandBuilder: _activityReviewCommand,
+                          caseFileCommandBuilder: _activityCaseFileCommand,
+                        ),
                       },
                     )
                     .toList(growable: false),
@@ -3074,7 +3062,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'posturalEchoSummary': summary.posturalEchoSummary,
         'topIntentSummary': summary.topIntentSummary,
         'reviewRefs': summary.reviewRefs,
-        'reviewShortcuts': _reviewShortcuts(
+        'reviewShortcuts': buildReviewShortcuts(
           currentReportDate: summary.reportDate,
           previousReportDate: previousReportDate,
           reviewCommandBuilder: _readinessReviewCommand,
@@ -3102,7 +3090,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'policySummary': summary.policySummary,
         'topIntentSummary': summary.topIntentSummary,
         'reviewRefs': summary.reviewRefs,
-        'reviewShortcuts': _reviewShortcuts(
+        'reviewShortcuts': buildReviewShortcuts(
           currentReportDate: summary.reportDate,
           previousReportDate: previousReportDate,
           reviewCommandBuilder: _syntheticReviewCommand,
@@ -3121,8 +3109,11 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         'policyCount': point.policyCount,
                         'modeLabel': point.modeLabel,
                         'summaryLine': point.summaryLine,
-                        'reviewCommand': _syntheticReviewCommand(point.date),
-                        'caseFileCommand': _syntheticCaseFileCommand(point.date),
+                        ...buildReviewCommandPair(
+                          reportDate: point.date,
+                          reviewCommandBuilder: _syntheticReviewCommand,
+                          caseFileCommandBuilder: _syntheticCaseFileCommand,
+                        ),
                       },
                     )
                     .toList(growable: false),

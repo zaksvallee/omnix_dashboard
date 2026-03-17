@@ -5915,8 +5915,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               ),
               'posturalEchoCount': itemEchoCount,
               'topIntentSummary': _globalReadinessTopIntentSummary(itemIntents),
-              'reviewCommand': '/readinessreview ${item.date}',
-              'caseFileCommand': '/readinesscase json ${item.date}',
+              ...buildReviewCommandPair(
+                reportDate: item.date,
+                reviewCommandBuilder: (reportDate) =>
+                    '/readinessreview $reportDate',
+                caseFileCommandBuilder: (reportDate) =>
+                    '/readinesscase json $reportDate',
+              ),
               'governanceCommand': '/readinessgovernance ${item.date}',
             };
           })
@@ -6119,8 +6124,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               'policySummary': _syntheticWarRoomPolicySummary(itemPlans),
               'planCount': itemPlans.length,
               'policyCount': itemPolicyCount,
-              'reviewCommand': '/syntheticreview ${item.date}',
-              'caseFileCommand': '/syntheticcase json ${item.date}',
+              ...buildReviewCommandPair(
+                reportDate: item.date,
+                reviewCommandBuilder: (reportDate) =>
+                    '/syntheticreview $reportDate',
+                caseFileCommandBuilder: (reportDate) =>
+                    '/syntheticcase json $reportDate',
+              ),
             };
           })
           .toList(growable: false),
@@ -12278,10 +12288,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
                     point.snapshot.guardInteractionSignals,
                 'summaryLine': point.snapshot.summaryLine,
                 'eventIds': point.eventIds,
-                'reviewCommand':
-                    '/activityreview $normalizedClientId $normalizedSiteId ${point.reportDate}',
-                'caseFileCommand':
-                    '/activitycase json $normalizedClientId $normalizedSiteId ${point.reportDate}',
+                ...buildReviewCommandPair(
+                  reportDate: point.reportDate,
+                  reviewCommandBuilder: (reportDate) =>
+                      '/activityreview $normalizedClientId $normalizedSiteId $reportDate',
+                  caseFileCommandBuilder: (reportDate) =>
+                      '/activitycase json $normalizedClientId $normalizedSiteId $reportDate',
+                ),
               },
             )
             .toList(growable: false),

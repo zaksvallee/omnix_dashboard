@@ -6547,15 +6547,19 @@ class _ClientIntelligenceReportsPageState
               'current': currentPoint.current,
               'snapshot': _siteActivitySnapshotJson(currentPoint.snapshot),
               'eventIds': currentPoint.eventIds,
-              'reviewCommand': _siteActivityReviewCommand(
-                clientId: clientId,
-                siteId: siteId,
+              ...buildReviewCommandPair(
                 reportDate: currentPoint.reportDate,
-              ),
-              'caseFileCommand': _siteActivityCaseFileCommand(
-                clientId: clientId,
-                siteId: siteId,
-                reportDate: currentPoint.reportDate,
+                reviewCommandBuilder: (reportDate) => _siteActivityReviewCommand(
+                  clientId: clientId,
+                  siteId: siteId,
+                  reportDate: reportDate,
+                ),
+                caseFileCommandBuilder: (reportDate) =>
+                    _siteActivityCaseFileCommand(
+                      clientId: clientId,
+                      siteId: siteId,
+                      reportDate: reportDate,
+                    ),
               ),
             },
       'history': historyPoints
@@ -6565,15 +6569,19 @@ class _ClientIntelligenceReportsPageState
               'current': point.current,
               'snapshot': _siteActivitySnapshotJson(point.snapshot),
               'eventIds': point.eventIds,
-              'reviewCommand': _siteActivityReviewCommand(
-                clientId: clientId,
-                siteId: siteId,
+              ...buildReviewCommandPair(
                 reportDate: point.reportDate,
-              ),
-              'caseFileCommand': _siteActivityCaseFileCommand(
-                clientId: clientId,
-                siteId: siteId,
-                reportDate: point.reportDate,
+                reviewCommandBuilder: (reportDate) => _siteActivityReviewCommand(
+                  clientId: clientId,
+                  siteId: siteId,
+                  reportDate: reportDate,
+                ),
+                caseFileCommandBuilder: (reportDate) =>
+                    _siteActivityCaseFileCommand(
+                      clientId: clientId,
+                      siteId: siteId,
+                      reportDate: reportDate,
+                    ),
               ),
             },
           )

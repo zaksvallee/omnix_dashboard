@@ -8868,8 +8868,11 @@ class _GovernancePageState extends State<GovernancePage> {
       'executiveSummary': point.executiveSummary,
       'headline': point.headline,
       'summaryLine': point.summaryLine,
-      'reviewCommand': _siteActivityReviewCommand(point.reportDate),
-      'caseFileCommand': _siteActivityCaseFileCommand(point.reportDate),
+      ...buildReviewCommandPair(
+        reportDate: point.reportDate,
+        reviewCommandBuilder: _siteActivityReviewCommand,
+        caseFileCommandBuilder: _siteActivityCaseFileCommand,
+      ),
       'targetScopeRequired': true,
     };
   }

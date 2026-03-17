@@ -45,3 +45,34 @@ List<String> buildReviewShortcutCsvRows({
       '$previousCaseMetric,${caseFileCommandBuilder(previous)}',
   ];
 }
+
+Map<String, String> buildReviewCommandPair({
+  required String reportDate,
+  required String Function(String reportDate) reviewCommandBuilder,
+  required String Function(String reportDate) caseFileCommandBuilder,
+}) {
+  final normalized = reportDate.trim();
+  if (normalized.isEmpty) {
+    return const <String, String>{};
+  }
+  return <String, String>{
+    'reviewCommand': reviewCommandBuilder(normalized),
+    'caseFileCommand': caseFileCommandBuilder(normalized),
+  };
+}
+
+List<String> buildHistoryReviewCommandCsvRows({
+  required int row,
+  required String reportDate,
+  required String Function(String reportDate) reviewCommandBuilder,
+  required String Function(String reportDate) caseFileCommandBuilder,
+}) {
+  final normalized = reportDate.trim();
+  if (normalized.isEmpty) {
+    return const <String>[];
+  }
+  return <String>[
+    'history_${row}_review_command,${reviewCommandBuilder(normalized)}',
+    'history_${row}_case_file_command,${caseFileCommandBuilder(normalized)}',
+  ];
+}
