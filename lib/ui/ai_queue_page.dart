@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../application/monitoring_global_posture_service.dart';
@@ -988,6 +990,15 @@ class _AIQueuePageState extends State<AIQueuePage> {
               _detailCell('Matches', '${lead.moShadowMatchCount}'),
             ],
           ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton(
+              key: const ValueKey('ai-queue-mo-shadow-open-dossier'),
+              onPressed: () => _showMoShadowDossier(sites),
+              child: const Text('VIEW DOSSIER'),
+            ),
+          ),
           if (supporting.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
@@ -1002,6 +1013,164 @@ class _AIQueuePageState extends State<AIQueuePage> {
         ],
       ),
     );
+  }
+
+  void _showMoShadowDossier(List<MonitoringGlobalSitePosture> sites) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: const Color(0xFF08111B),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760, maxHeight: 720),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                key: const ValueKey('ai-queue-mo-shadow-dialog'),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'SHADOW MO DOSSIER',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFEAF4FF),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          final payload = _moShadowDossierPayload(sites);
+                          Clipboard.setData(
+                            ClipboardData(
+                              text: const JsonEncoder.withIndent(
+                                '  ',
+                              ).convert(payload),
+                            ),
+                          );
+                          Navigator.of(dialogContext).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Shadow MO dossier copied'),
+                            ),
+                          );
+                        },
+                        child: const Text('COPY JSON'),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        icon: const Icon(Icons.close, color: Color(0xFFEAF4FF)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: sites.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        final site = sites[index];
+                        return Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0x14000000),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0x335B9BD5)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${site.siteId} • ${site.moShadowSummary}',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFFEAF4FF),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              for (final match in site.moShadowMatches) ...[
+                                Text(
+                                  match.title,
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFFB8D7FF),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Indicators ${match.matchedIndicators.join(', ')}',
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFF9AB5D7),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                if (match.recommendedActionPlans.isNotEmpty) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Actions ${match.recommendedActionPlans.join(' • ')}',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFF8FD1FF),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 8),
+                              ],
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Map<String, Object?> _moShadowDossierPayload(
+    List<MonitoringGlobalSitePosture> sites,
+  ) {
+    return <String, Object?>{
+      'generatedAtUtc': DateTime.now().toUtc().toIso8601String(),
+      'siteCount': sites.length,
+      'sites': sites
+          .map(
+            (site) => <String, Object?>{
+              'siteId': site.siteId,
+              'regionId': site.regionId,
+              'heatLevel': site.heatLevel.name,
+              'matchCount': site.moShadowMatchCount,
+              'summary': site.moShadowSummary,
+              'matches': site.moShadowMatches
+                  .map(
+                    (match) => <String, Object?>{
+                      'moId': match.moId,
+                      'title': match.title,
+                      'incidentType': match.incidentType,
+                      'behaviorStage': match.behaviorStage,
+                      'matchScore': match.matchScore,
+                      'matchedIndicators': match.matchedIndicators,
+                      'recommendedActionPlans': match.recommendedActionPlans,
+                    },
+                  )
+                  .toList(growable: false),
+            },
+          )
+          .toList(growable: false),
+    };
   }
 
   Widget _statCard({

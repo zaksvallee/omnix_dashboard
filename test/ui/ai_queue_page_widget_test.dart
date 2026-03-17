@@ -327,5 +327,21 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('mo_shadow'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('ai-queue-mo-shadow-open-dossier')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('ai-queue-mo-shadow-dialog')), findsOneWidget);
+    expect(find.text('SHADOW MO DOSSIER'), findsOneWidget);
+    expect(
+      find.text('Contractors moved floor to floor in office park'),
+      findsWidgets,
+    );
+    expect(
+      find.textContaining('Actions RAISE READINESS • PREPOSITION RESPONSE'),
+      findsWidgets,
+    );
   });
 }

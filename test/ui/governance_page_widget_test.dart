@@ -118,6 +118,47 @@ void main() {
   testWidgets('governance page includes shadow MO intelligence in readiness', (
     tester,
   ) async {
+    SovereignReport buildReport({
+      required String date,
+      required DateTime generatedAtUtc,
+    }) {
+      return SovereignReport(
+        date: date,
+        generatedAtUtc: generatedAtUtc,
+        shiftWindowStartUtc: generatedAtUtc.subtract(const Duration(hours: 8)),
+        shiftWindowEndUtc: generatedAtUtc,
+        ledgerIntegrity: const SovereignReportLedgerIntegrity(
+          totalEvents: 10,
+          hashVerified: true,
+          integrityScore: 99,
+        ),
+        aiHumanDelta: const SovereignReportAiHumanDelta(
+          aiDecisions: 1,
+          humanOverrides: 0,
+          overrideReasons: <String, int>{},
+        ),
+        normDrift: const SovereignReportNormDrift(
+          sitesMonitored: 2,
+          driftDetected: 0,
+          avgMatchScore: 100,
+        ),
+        complianceBlockage: const SovereignReportComplianceBlockage(
+          psiraExpired: 0,
+          pdpExpired: 0,
+          totalBlocked: 0,
+        ),
+      );
+    }
+
+    final priorReport = buildReport(
+      date: '2026-03-16',
+      generatedAtUtc: DateTime.utc(2026, 3, 16, 6, 0),
+    );
+    final currentReport = buildReport(
+      date: '2026-03-17',
+      generatedAtUtc: DateTime.utc(2026, 3, 17, 6, 0),
+    );
+
     await tester.pumpWidget(
       MaterialApp(
         home: GovernancePage(
@@ -126,7 +167,7 @@ void main() {
               eventId: 'evt-news',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 16, 18, 0),
+              occurredAt: DateTime.utc(2026, 3, 17, 0, 0),
               intelligenceId: 'intel-news',
               provider: 'security_bulletin',
               sourceType: 'news',
@@ -148,7 +189,7 @@ void main() {
               eventId: 'evt-office',
               sequence: 2,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 16, 22, 0),
+              occurredAt: DateTime.utc(2026, 3, 17, 1, 0),
               intelligenceId: 'intel-office',
               provider: 'hikvision_dvr_monitor_only',
               sourceType: 'dvr',
@@ -176,9 +217,11 @@ void main() {
               decisionSummary:
                   'Likely spoofed service access with abnormal roaming.',
               summary: 'Likely maintenance impersonation moving across office zones.',
-              reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 1),
+              reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 1),
             ),
           },
+          morningSovereignReport: currentReport,
+          morningSovereignReportHistory: [priorReport],
         ),
       ),
     );
@@ -189,6 +232,24 @@ void main() {
         'shadow Contractors moved floor to floor in office park',
       ),
       findsOneWidget,
+    );
+
+    final readinessTrendCard = find.byKey(
+      const ValueKey('governance-global-readiness-trend-card'),
+    );
+    await tester.ensureVisible(readinessTrendCard);
+    await tester.tap(readinessTrendCard);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('governance-global-readiness-dialog')),
+      findsOneWidget,
+    );
+    expect(find.text('SHADOW MO INTELLIGENCE'), findsOneWidget);
+    expect(find.text('COPY SHADOW JSON'), findsOneWidget);
+    expect(
+      find.text('Contractors moved floor to floor in office park'),
+      findsWidgets,
     );
   });
 

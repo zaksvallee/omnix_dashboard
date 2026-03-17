@@ -550,6 +550,23 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('mo_shadow'), findsOneWidget);
+
+      final dossierButton = find.byKey(
+        const ValueKey('live-mo-shadow-open-dossier-INC-D-3001'),
+      );
+      await tester.ensureVisible(dossierButton);
+      await tester.tap(dossierButton);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('live-mo-shadow-dialog-INC-D-3001')),
+        findsOneWidget,
+      );
+      expect(find.text('SHADOW MO DOSSIER'), findsOneWidget);
+      expect(
+        find.textContaining('Actions RAISE READINESS • PREPOSITION RESPONSE'),
+        findsWidgets,
+      );
     },
   );
 

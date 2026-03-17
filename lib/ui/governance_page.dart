@@ -7419,6 +7419,10 @@ class _GovernancePageState extends State<GovernancePage> {
     final history = _globalReadinessHistory(report);
     final trend = _globalReadinessTrendForReport(report);
     final baseline = _globalReadinessBaselineStats(report);
+    final currentSnapshot = _globalReadinessSnapshotForReport(report);
+    final shadowSites = currentSnapshot.sites
+        .where((site) => site.moShadowMatchCount > 0)
+        .toList(growable: false);
     showDialog<void>(
       context: context,
       builder: (dialogContext) {
@@ -7463,6 +7467,32 @@ class _GovernancePageState extends State<GovernancePage> {
                           ],
                         ),
                       ),
+                      if (shadowSites.isNotEmpty)
+                        TextButton(
+                          onPressed: () async {
+                            await Clipboard.setData(
+                              ClipboardData(
+                                text: const JsonEncoder.withIndent(
+                                  '  ',
+                                ).convert(
+                                  _globalReadinessShadowDossierPayload(
+                                    report,
+                                    shadowSites,
+                                  ),
+                                ),
+                              ),
+                            );
+                            if (!mounted) {
+                              return;
+                            }
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Shadow MO dossier copied'),
+                              ),
+                            );
+                          },
+                          child: const Text('COPY SHADOW JSON'),
+                        ),
                       IconButton(
                         onPressed: () => Navigator.of(dialogContext).pop(),
                         icon: const Icon(Icons.close, color: Color(0xFFEAF4FF)),
@@ -7650,6 +7680,78 @@ class _GovernancePageState extends State<GovernancePage> {
                               ),
                             ),
                           ],
+                          if (shadowSites.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'SHADOW MO INTELLIGENCE',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFFB8D7FF),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.6,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            for (final site in shadowSites) ...[
+                              Container(
+                                width: double.infinity,
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0x14000000),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: const Color(0x335B9BD5),
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${site.siteId} • ${site.moShadowSummary}',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFEAF4FF),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    for (final match in site.moShadowMatches) ...[
+                                      Text(
+                                        match.title,
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFFB8D7FF),
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        'Indicators ${match.matchedIndicators.join(', ')}',
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFF9CB2D1),
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      if (match.recommendedActionPlans.isNotEmpty) ...[
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          'Actions ${match.recommendedActionPlans.join(' • ')}',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFF8FD1FF),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                      const SizedBox(height: 6),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
                         ],
                       ),
                     ),
@@ -7661,6 +7763,41 @@ class _GovernancePageState extends State<GovernancePage> {
         );
       },
     );
+  }
+
+  Map<String, Object?> _globalReadinessShadowDossierPayload(
+    _GovernanceReportView report,
+    List<MonitoringGlobalSitePosture> shadowSites,
+  ) {
+    return <String, Object?>{
+      'reportDate': report.reportDate,
+      'generatedAtUtc': report.generatedAtUtc?.toIso8601String(),
+      'shadowSiteCount': shadowSites.length,
+      'sites': shadowSites
+          .map(
+            (site) => <String, Object?>{
+              'siteId': site.siteId,
+              'regionId': site.regionId,
+              'heatLevel': site.heatLevel.name,
+              'matchCount': site.moShadowMatchCount,
+              'summary': site.moShadowSummary,
+              'matches': site.moShadowMatches
+                  .map(
+                    (match) => <String, Object?>{
+                      'moId': match.moId,
+                      'title': match.title,
+                      'incidentType': match.incidentType,
+                      'behaviorStage': match.behaviorStage,
+                      'matchScore': match.matchScore,
+                      'matchedIndicators': match.matchedIndicators,
+                      'recommendedActionPlans': match.recommendedActionPlans,
+                    },
+                  )
+                  .toList(growable: false),
+            },
+          )
+          .toList(growable: false),
+    };
   }
 
   void _showSyntheticWarRoomDrillIn(_GovernanceReportView report) {

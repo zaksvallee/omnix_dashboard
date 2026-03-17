@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'dart:convert';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../application/hazard_response_directive_service.dart';
@@ -1370,9 +1372,167 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           _metaRow('Pattern', sitePosture.moShadowSummary),
           _metaRow('Signal', 'mo_shadow'),
           _metaRow('Site Heat', sitePosture.heatLevel.name),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton(
+              key: ValueKey('live-mo-shadow-open-dossier-${incident.id}'),
+              onPressed: () => _showMoShadowDossier(incident, sitePosture),
+              child: const Text('VIEW DOSSIER'),
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  void _showMoShadowDossier(
+    _IncidentRecord incident,
+    MonitoringGlobalSitePosture sitePosture,
+  ) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: const Color(0xFF08111B),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760, maxHeight: 720),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                key: ValueKey('live-mo-shadow-dialog-${incident.id}'),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'SHADOW MO DOSSIER',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFEAF4FF),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          final pretty = const JsonEncoder.withIndent(
+                            '  ',
+                          ).convert(_moShadowPayload(incident, sitePosture));
+                          Clipboard.setData(ClipboardData(text: pretty));
+                          Navigator.of(dialogContext).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Shadow MO dossier copied'),
+                            ),
+                          );
+                        },
+                        child: const Text('COPY JSON'),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        icon: const Icon(Icons.close, color: Color(0xFFEAF4FF)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${incident.site} • ${sitePosture.moShadowSummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFEAF4FF),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: sitePosture.moShadowMatches.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        final match = sitePosture.moShadowMatches[index];
+                        return Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0x14000000),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0x335B9BD5)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                match.title,
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFFB8D7FF),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Indicators ${match.matchedIndicators.join(', ')}',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF9AB5D7),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              if (match.recommendedActionPlans.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Actions ${match.recommendedActionPlans.join(' • ')}',
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFF8FD1FF),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Map<String, Object?> _moShadowPayload(
+    _IncidentRecord incident,
+    MonitoringGlobalSitePosture sitePosture,
+  ) {
+    return <String, Object?>{
+      'incidentId': incident.id,
+      'clientId': incident.clientId,
+      'regionId': incident.regionId,
+      'siteId': incident.siteId,
+      'siteHeat': sitePosture.heatLevel.name,
+      'matchCount': sitePosture.moShadowMatchCount,
+      'summary': sitePosture.moShadowSummary,
+      'matches': sitePosture.moShadowMatches
+          .map(
+            (match) => <String, Object?>{
+              'moId': match.moId,
+              'title': match.title,
+              'incidentType': match.incidentType,
+              'behaviorStage': match.behaviorStage,
+              'matchScore': match.matchScore,
+              'matchedIndicators': match.matchedIndicators,
+              'recommendedActionPlans': match.recommendedActionPlans,
+            },
+          )
+          .toList(growable: false),
+    };
   }
 
   Widget _siteActivityTruthCard(

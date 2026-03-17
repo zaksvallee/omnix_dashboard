@@ -24,6 +24,7 @@ class MonitoringGlobalSitePosture {
   final List<String> dominantSignals;
   final int moShadowMatchCount;
   final String moShadowSummary;
+  final List<OnyxMoShadowMatch> moShadowMatches;
 
   const MonitoringGlobalSitePosture({
     required this.clientId,
@@ -41,6 +42,7 @@ class MonitoringGlobalSitePosture {
     this.dominantSignals = const <String>[],
     this.moShadowMatchCount = 0,
     this.moShadowSummary = '',
+    this.moShadowMatches = const <OnyxMoShadowMatch>[],
   });
 }
 
@@ -269,6 +271,7 @@ class MonitoringGlobalPostureService {
       dominantSignals: dominantSignals.take(3).map((entry) => entry.key).toList(growable: false),
       moShadowMatchCount: moShadowMatches.length,
       moShadowSummary: moRuntimeMatchingService.shadowSummary(moShadowMatches),
+      moShadowMatches: moShadowMatches,
     );
   }
 
