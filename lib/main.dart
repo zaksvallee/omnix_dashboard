@@ -5811,6 +5811,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'summary': 'No morning sovereign report is available for that shift.',
       };
     }
+    final readinessEvidence = _globalReadinessCaseFilePayload(
+      reportDate: report.date,
+    );
     final drafts = _tomorrowPostureDraftsForReport(report);
     final history = _governanceHistoryForFocusedReport(report)
         .where((item) => item.date.trim() != report.date.trim())
@@ -5835,6 +5838,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'focusSummary': _readinessFocusSummary(report.date),
       'summary': _globalReadinessTomorrowPostureSummary(drafts),
       'draftCount': drafts.length,
+      'eventIds': readinessEvidence['eventIds'] ?? const <Object?>[],
+      'reviewRefs': readinessEvidence['reviewRefs'] ?? const <Object?>[],
+      'selectedEventId': readinessEvidence['selectedEventId'],
       'reviewCommand': '/tomorrowreview ${report.date}',
       'caseFileCommand': '/tomorrowcase json ${report.date}',
       'governanceCommand': '/readinessgovernance ${report.date}',
@@ -5870,6 +5876,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'focus_summary,"${(payload['focusSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'summary,"${(payload['summary'] ?? '').toString().replaceAll('"', '""')}"',
       'draft_count,${payload['draftCount'] ?? 0}',
+      'selected_event_id,${payload['selectedEventId'] ?? ''}',
+      'review_refs,"${((payload['reviewRefs'] as List<Object?>?) ?? const <Object?>[]).join(', ').replaceAll('"', '""')}"',
       'review_command,${payload['reviewCommand'] ?? ''}',
       'case_file_command,${payload['caseFileCommand'] ?? ''}',
       'governance_command,${payload['governanceCommand'] ?? ''}',
@@ -16894,6 +16902,35 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     final payload = _tomorrowPostureCaseFilePayload(reportDate: report.date);
     final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
+    final eventIds =
+        ((payload['eventIds'] as List<Object?>?) ?? const <Object?>[])
+            .map((value) => value.toString().trim())
+            .where((value) => value.isNotEmpty)
+            .toList(growable: false);
+    final selectedEventId = (payload['selectedEventId'] ?? '')
+        .toString()
+        .trim();
+    final reviewRefs =
+        ((payload['reviewRefs'] as List<Object?>?) ?? const <Object?>[])
+            .map((value) => value.toString().trim())
+            .where((value) => value.isNotEmpty)
+            .toList(growable: false);
+    if (eventIds.isNotEmpty) {
+      _openEventsForScopedEventIds(
+        eventIds,
+        selectedEventId: selectedEventId.isEmpty ? null : selectedEventId,
+        scopeMode: 'tomorrow',
+      );
+      return 'ONYX TOMORROWREVIEW\n'
+          'report_date=${report.date}\n'
+          'summary=${(payload['summary'] ?? '').toString()}\n'
+          '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
+          'review_refs=${reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', ')}\n'
+          'case_file_command=/tomorrowcase json ${report.date}\n'
+          'governance_command=/readinessgovernance ${report.date}\n'
+          'events=${eventIds.length}\n'
+          'Opening Events Review for tomorrow-posture evidence.';
+    }
     _openGovernanceForReportDate(report.date);
     return 'ONYX TOMORROWREVIEW\n'
         'report_date=${report.date}\n'

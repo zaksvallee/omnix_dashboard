@@ -212,6 +212,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       scopedEventIds: scopedEventIds,
     );
     final partnerScopeSummary = _partnerScopeSummary(scopedTimelineEvents);
+    final tomorrowScopeSummary = _tomorrowPostureScopeSummary(
+      scopedTimelineEvents,
+    );
     final readinessScopeSummary = _readinessScopeSummary(scopedTimelineEvents);
     final syntheticScopeSummary = _syntheticScopeSummary(scopedTimelineEvents);
     final activityScopeSummary = _activityScopeSummary(scopedTimelineEvents);
@@ -526,6 +529,200 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                                 'OPEN GOVERNANCE',
                                 actionKey: const ValueKey(
                                   'events-readiness-open-governance-action',
+                                ),
+                                onTap: widget.onOpenGovernance!,
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else if (tomorrowScopeSummary != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    key: const ValueKey('events-tomorrow-scope-banner'),
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0x14F59E0B),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0x44F59E0B)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          tomorrowScopeSummary.bannerText,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFEAF1FB),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          tomorrowScopeSummary.summaryLine,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFFDE68A),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        if (tomorrowScopeSummary.focusSummary
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            tomorrowScopeSummary.focusSummary,
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFFFF7ED),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                        if (tomorrowScopeSummary.leadDraftDescription
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            tomorrowScopeSummary.leadDraftDescription,
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFFDE68A),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                        if (tomorrowScopeSummary.learningSummary
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Learning: ${tomorrowScopeSummary.learningSummary}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFFFEDD5),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                        if (tomorrowScopeSummary.learningMemorySummary
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            tomorrowScopeSummary.learningMemorySummary,
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFFCD34D),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                        if (tomorrowScopeSummary.hazardSummary
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Hazard draft: ${tomorrowScopeSummary.hazardSummary}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFFCA5A5),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                        if (tomorrowScopeSummary.reviewRefs.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Review refs: ${tomorrowScopeSummary.reviewRefs.join(', ')}',
+                            style: GoogleFonts.robotoMono(
+                              color: const Color(0xFF8FD1FF),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                        if (tomorrowScopeSummary.history != null) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: const Color(0x44F59E0B),
+                              ),
+                              color: const Color(0x12000000),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  tomorrowScopeSummary.history!.headline,
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFFFDE68A),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  tomorrowScopeSummary.history!.summary,
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFFAFC2DB),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                for (final point
+                                    in tomorrowScopeSummary.history!.points) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${point.date} • ${point.summaryLine}',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFFEAF1FB),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _outlineAction(
+                              'COPY TOMORROW JSON',
+                              actionKey: const ValueKey(
+                                'events-tomorrow-casefile-json-action',
+                              ),
+                              onTap: () => _copyTomorrowCaseFileJson(
+                                tomorrowScopeSummary,
+                              ),
+                            ),
+                            _outlineAction(
+                              'COPY TOMORROW CSV',
+                              actionKey: const ValueKey(
+                                'events-tomorrow-casefile-csv-action',
+                              ),
+                              onTap: () => _copyTomorrowCaseFileCsv(
+                                tomorrowScopeSummary,
+                              ),
+                            ),
+                            if (widget.onOpenGovernance != null)
+                              _outlineAction(
+                                'OPEN GOVERNANCE',
+                                actionKey: const ValueKey(
+                                  'events-tomorrow-open-governance-action',
                                 ),
                                 onTap: widget.onOpenGovernance!,
                               ),
@@ -1223,6 +1420,81 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     );
   }
 
+  _TomorrowPostureScopeSummary? _tomorrowPostureScopeSummary(
+    List<DispatchEvent> scopedEvents,
+  ) {
+    if ((widget.initialScopedMode ?? '').trim().toLowerCase() != 'tomorrow') {
+      return null;
+    }
+    final scopedReportDate = _readinessScopedReportDate(scopedEvents);
+    final normalizedReportDate = (scopedReportDate ?? '').trim();
+    if (normalizedReportDate.isEmpty) {
+      return null;
+    }
+    final report = widget.morningSovereignReportHistory.firstWhere(
+      (item) => item.date.trim() == normalizedReportDate,
+      orElse: () => SovereignReport(
+        date: normalizedReportDate,
+        generatedAtUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        shiftWindowStartUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        shiftWindowEndUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        ledgerIntegrity: const SovereignReportLedgerIntegrity(
+          totalEvents: 0,
+          hashVerified: false,
+          integrityScore: 0,
+        ),
+        aiHumanDelta: const SovereignReportAiHumanDelta(
+          aiDecisions: 0,
+          humanOverrides: 0,
+          overrideReasons: <String, int>{},
+        ),
+        normDrift: const SovereignReportNormDrift(
+          sitesMonitored: 0,
+          driftDetected: 0,
+          avgMatchScore: 0,
+        ),
+        complianceBlockage: const SovereignReportComplianceBlockage(
+          psiraExpired: 0,
+          pdpExpired: 0,
+          totalBlocked: 0,
+        ),
+      ),
+    );
+    if (report.generatedAtUtc.millisecondsSinceEpoch == 0) {
+      return null;
+    }
+    final drafts = _tomorrowPostureDraftsForReport(report);
+    if (drafts.isEmpty) {
+      return null;
+    }
+    final leadDraft = drafts.first;
+    final reviewRefs = scopedEvents
+        .whereType<IntelligenceReceived>()
+        .map((event) => event.intelligenceId.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    return _TomorrowPostureScopeSummary(
+      eventCount: scopedEvents.length,
+      reportDate: report.date,
+      liveReportDate: _liveMorningReportDate(report.date),
+      focusState: _readinessFocusState(report.date),
+      historicalFocus: _isHistoricalReadinessFocus(report.date),
+      summaryLine: _tomorrowPostureSummary(drafts),
+      focusSummary: _readinessFocusSummary(report.date),
+      draftCount: drafts.length,
+      leadDraftActionType: leadDraft.actionType,
+      leadDraftDescription: leadDraft.description,
+      learningSummary: (leadDraft.metadata['learning_label'] ?? '')
+          .toString()
+          .trim(),
+      learningMemorySummary: _tomorrowPostureLearningMemorySummary(leadDraft),
+      hazardSummary: _tomorrowPostureHazardSummary(leadDraft),
+      reviewRefs: reviewRefs,
+      history: _tomorrowPostureHistorySummary(report),
+    );
+  }
+
   _SyntheticScopeSummary? _syntheticScopeSummary(
     List<DispatchEvent> scopedEvents,
   ) {
@@ -1337,6 +1609,11 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   String _readinessCaseFileCommand(String reportDate) =>
       '/readinesscase json $reportDate';
 
+  String _tomorrowReviewCommand(String reportDate) => '/tomorrowreview $reportDate';
+
+  String _tomorrowCaseFileCommand(String reportDate) =>
+      '/tomorrowcase json $reportDate';
+
   String _syntheticReviewCommand(String reportDate) =>
       '/syntheticreview $reportDate';
 
@@ -1349,8 +1626,42 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       ..sort(
         (a, b) => b.generatedAtUtc.toUtc().compareTo(a.generatedAtUtc.toUtc()),
       );
+    final currentReport = reports.firstWhere(
+      (report) => report.date.trim() == normalizedReportDate,
+      orElse: () => SovereignReport(
+        date: normalizedReportDate,
+        generatedAtUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        shiftWindowStartUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        shiftWindowEndUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        ledgerIntegrity: const SovereignReportLedgerIntegrity(
+          totalEvents: 0,
+          hashVerified: false,
+          integrityScore: 0,
+        ),
+        aiHumanDelta: const SovereignReportAiHumanDelta(
+          aiDecisions: 0,
+          humanOverrides: 0,
+          overrideReasons: <String, int>{},
+        ),
+        normDrift: const SovereignReportNormDrift(
+          sitesMonitored: 0,
+          driftDetected: 0,
+          avgMatchScore: 0,
+        ),
+        complianceBlockage: const SovereignReportComplianceBlockage(
+          psiraExpired: 0,
+          pdpExpired: 0,
+          totalBlocked: 0,
+        ),
+      ),
+    );
     return reports
-        .where((report) => report.date.trim() != normalizedReportDate)
+        .where(
+          (report) =>
+              report.date.trim() != normalizedReportDate &&
+              currentReport.generatedAtUtc.millisecondsSinceEpoch > 0 &&
+              report.generatedAtUtc.isBefore(currentReport.generatedAtUtc),
+        )
         .take(3)
         .map(
           (report) => _syntheticWarRoomLearningLabel(
@@ -1463,6 +1774,69 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return plans
         .map((plan) => (plan.metadata['learning_label'] ?? '').toString().trim())
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+  }
+
+  List<MonitoringWatchAutonomyActionPlan> _tomorrowPostureDraftsForReport(
+    SovereignReport report,
+  ) {
+    return _orchestratorService
+        .buildActionIntents(
+          events: _eventsForReportWindow(report),
+          sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+          historicalSyntheticLearningLabels: _syntheticHistoricalLearningLabels(
+            report.date,
+          ),
+        )
+        .where((plan) => (plan.metadata['scope'] ?? '').trim() == 'NEXT_SHIFT')
+        .toList(growable: false);
+  }
+
+  String _tomorrowPostureSummary(
+    List<MonitoringWatchAutonomyActionPlan> drafts,
+  ) {
+    if (drafts.isEmpty) {
+      return '';
+    }
+    final leadDraft = drafts.first;
+    final leadSite = (leadDraft.metadata['lead_site'] ?? leadDraft.siteId)
+        .toString()
+        .trim();
+    final learningLabel = (leadDraft.metadata['learning_label'] ?? '')
+        .toString()
+        .trim();
+    final repeatCount = (leadDraft.metadata['learning_repeat_count'] ?? '')
+        .toString()
+        .trim();
+    final parts = <String>[
+      leadDraft.actionType.trim(),
+      if (leadSite.isNotEmpty) leadSite,
+      if (learningLabel.isNotEmpty) learningLabel,
+      if (repeatCount.isNotEmpty) 'x$repeatCount',
+    ];
+    return parts.join(' • ');
+  }
+
+  String _tomorrowPostureLearningMemorySummary(
+    MonitoringWatchAutonomyActionPlan draft,
+  ) {
+    final learningLabel = (draft.metadata['learning_label'] ?? '')
+        .toString()
+        .trim();
+    final repeatCount = int.tryParse(
+      (draft.metadata['learning_repeat_count'] ?? '').toString().trim(),
+    );
+    if (learningLabel.isEmpty || repeatCount == null || repeatCount <= 0) {
+      return '';
+    }
+    return 'Memory: $learningLabel repeated across ${repeatCount + 1} linked shifts.';
+  }
+
+  String _tomorrowPostureHazardSummary(MonitoringWatchAutonomyActionPlan draft) {
+    final signal = (draft.metadata['hazard_signal'] ?? '').toString().trim();
+    if (signal.isEmpty) {
+      return '';
+    }
+    return '${_hazardSignalLabel(signal)} playbook draft active';
   }
 
   String _syntheticWarRoomBiasSummaryForPlan(
@@ -1720,6 +2094,60 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       summary:
           'Current pressure ${current.pressureScore} • Baseline $baselineLabel • $reason',
       points: points.take(3).toList(growable: false),
+    );
+  }
+
+  _TomorrowPostureHistorySummary? _tomorrowPostureHistorySummary(
+    SovereignReport currentReport,
+  ) {
+    final historyReports = widget.morningSovereignReportHistory
+        .where((item) => item.date.trim() != currentReport.date.trim())
+        .toList(growable: false)
+      ..sort(
+        (left, right) => right.generatedAtUtc.compareTo(left.generatedAtUtc),
+      );
+    if (historyReports.isEmpty) {
+      return null;
+    }
+    final currentDrafts = _tomorrowPostureDraftsForReport(currentReport);
+    final baseline = historyReports
+        .take(3)
+        .map((item) => _tomorrowPostureDraftsForReport(item).length)
+        .toList(growable: false);
+    final baselineAverage = baseline.isEmpty
+        ? 0.0
+        : baseline.reduce((left, right) => left + right) / baseline.length;
+    final currentCount = currentDrafts.length;
+    final headline = currentCount > baselineAverage
+        ? 'RISING • ${historyReports.length + 1}d'
+        : currentCount < baselineAverage
+        ? 'EASING • ${historyReports.length + 1}d'
+        : 'STABLE • ${historyReports.length + 1}d';
+    final summary =
+        'Current drafts $currentCount • Baseline ${baselineAverage.toStringAsFixed(1)}';
+    final points = <_TomorrowPostureHistoryPoint>[
+      _TomorrowPostureHistoryPoint(
+        date: currentReport.date,
+        draftCount: currentCount,
+        summaryLine: _tomorrowPostureSummary(currentDrafts).isEmpty
+            ? 'No tomorrow-posture drafts triggered.'
+            : _tomorrowPostureSummary(currentDrafts),
+      ),
+      ...historyReports.take(2).map((item) {
+        final drafts = _tomorrowPostureDraftsForReport(item);
+        return _TomorrowPostureHistoryPoint(
+          date: item.date,
+          draftCount: drafts.length,
+          summaryLine: _tomorrowPostureSummary(drafts).isEmpty
+              ? 'No tomorrow-posture drafts triggered.'
+              : _tomorrowPostureSummary(drafts),
+        );
+      }),
+    ];
+    return _TomorrowPostureHistorySummary(
+      headline: headline,
+      summary: summary,
+      points: points,
     );
   }
 
@@ -3240,6 +3668,88 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     _showActionMessage('Synthetic case file CSV copied.');
   }
 
+  void _copyTomorrowCaseFileJson(_TomorrowPostureScopeSummary summary) {
+    final pretty = const JsonEncoder.withIndent('  ')
+        .convert(_tomorrowCaseFilePayload(summary));
+    Clipboard.setData(ClipboardData(text: pretty));
+    logUiAction(
+      'events.export_tomorrow_casefile_json',
+      context: {
+        'report_date': summary.reportDate,
+        'draft_count': summary.draftCount,
+      },
+    );
+    _showActionMessage('Tomorrow posture case file JSON copied.');
+  }
+
+  void _copyTomorrowCaseFileCsv(_TomorrowPostureScopeSummary summary) {
+    final previousReportDate = summary.history != null &&
+            summary.history!.points.length > 1
+        ? summary.history!.points[1].date
+        : null;
+    final lines = <String>[
+      'metric,value',
+      'report_date,${summary.reportDate}',
+      'live_report_date,${summary.liveReportDate}',
+      'event_count,${summary.eventCount}',
+      'focus_state,${summary.focusState}',
+      'historical_focus,${summary.historicalFocus ? 'true' : 'false'}',
+      'focus_summary,"${summary.focusSummary.replaceAll('"', '""')}"',
+      'summary_line,"${summary.summaryLine.replaceAll('"', '""')}"',
+      'draft_count,${summary.draftCount}',
+      'lead_draft_action_type,"${summary.leadDraftActionType.replaceAll('"', '""')}"',
+      'lead_draft_description,"${summary.leadDraftDescription.replaceAll('"', '""')}"',
+      'learning_summary,"${summary.learningSummary.replaceAll('"', '""')}"',
+      'learning_memory_summary,"${summary.learningMemorySummary.replaceAll('"', '""')}"',
+      'hazard_summary,"${summary.hazardSummary.replaceAll('"', '""')}"',
+      'review_refs,"${summary.reviewRefs.join(', ').replaceAll('"', '""')}"',
+      if (summary.reportDate.isNotEmpty)
+        'current_review_command,${_tomorrowReviewCommand(summary.reportDate)}',
+      if (summary.reportDate.isNotEmpty)
+        'current_case_file_command,${_tomorrowCaseFileCommand(summary.reportDate)}',
+      if ((previousReportDate ?? '').trim().isNotEmpty)
+        'previous_review_command,${_tomorrowReviewCommand(previousReportDate!.trim())}',
+      if ((previousReportDate ?? '').trim().isNotEmpty)
+        'previous_case_file_command,${_tomorrowCaseFileCommand(previousReportDate!.trim())}',
+    ];
+    if (summary.history != null) {
+      lines.add(
+        'history_headline,"${summary.history!.headline.replaceAll('"', '""')}"',
+      );
+      lines.add(
+        'history_summary,"${summary.history!.summary.replaceAll('"', '""')}"',
+      );
+      for (var index = 0; index < summary.history!.points.length; index += 1) {
+        final point = summary.history!.points[index];
+        final row = index + 1;
+        lines.add('history_${row}_date,${point.date}');
+        lines.add(
+          'history_${row}_draft_count,${point.draftCount}',
+        );
+        lines.add(
+          'history_${row}_summary,"${point.summaryLine.replaceAll('"', '""')}"',
+        );
+        lines.addAll(
+          buildHistoryReviewCommandCsvRows(
+            row: row,
+            reportDate: point.date,
+            reviewCommandBuilder: _tomorrowReviewCommand,
+            caseFileCommandBuilder: _tomorrowCaseFileCommand,
+          ),
+        );
+      }
+    }
+    Clipboard.setData(ClipboardData(text: lines.join('\n')));
+    logUiAction(
+      'events.export_tomorrow_casefile_csv',
+      context: {
+        'report_date': summary.reportDate,
+        'draft_count': summary.draftCount,
+      },
+    );
+    _showActionMessage('Tomorrow posture case file CSV copied.');
+  }
+
   Map<String, Object?> _activityCaseFilePayload(_ActivityScopeSummary summary) {
     final previousReportDate = summary.history != null &&
             summary.history!.points.length > 1
@@ -3317,6 +3827,59 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           reviewCommandBuilder: _readinessReviewCommand,
           caseFileCommandBuilder: _readinessCaseFileCommand,
         ),
+      },
+    };
+  }
+
+  Map<String, Object?> _tomorrowCaseFilePayload(
+    _TomorrowPostureScopeSummary summary,
+  ) {
+    final previousReportDate = summary.history != null &&
+            summary.history!.points.length > 1
+        ? summary.history!.points[1].date
+        : null;
+    return {
+      'tomorrowPostureCaseFile': {
+        'reportDate': summary.reportDate,
+        'liveReportDate': summary.liveReportDate,
+        'eventCount': summary.eventCount,
+        'focusState': summary.focusState,
+        'historicalFocus': summary.historicalFocus,
+        'summaryLine': summary.summaryLine,
+        'focusSummary': summary.focusSummary,
+        'draftCount': summary.draftCount,
+        'leadDraftActionType': summary.leadDraftActionType,
+        'leadDraftDescription': summary.leadDraftDescription,
+        'learningSummary': summary.learningSummary,
+        'learningMemorySummary': summary.learningMemorySummary,
+        'hazardSummary': summary.hazardSummary,
+        'reviewRefs': summary.reviewRefs,
+        'reviewShortcuts': buildReviewShortcuts(
+          currentReportDate: summary.reportDate,
+          previousReportDate: previousReportDate,
+          reviewCommandBuilder: _tomorrowReviewCommand,
+          caseFileCommandBuilder: _tomorrowCaseFileCommand,
+        ),
+        'history': summary.history == null
+            ? null
+            : {
+                'headline': summary.history!.headline,
+                'summary': summary.history!.summary,
+                'points': summary.history!.points
+                    .map(
+                      (point) => {
+                        'date': point.date,
+                        'draftCount': point.draftCount,
+                        'summaryLine': point.summaryLine,
+                        ...buildReviewCommandPair(
+                          reportDate: point.date,
+                          reviewCommandBuilder: _tomorrowReviewCommand,
+                          caseFileCommandBuilder: _tomorrowCaseFileCommand,
+                        ),
+                      },
+                    )
+                    .toList(growable: false),
+              },
       },
     };
   }
@@ -3872,6 +4435,71 @@ class _SyntheticScopeSummary {
     final evidenceWord = eventCount == 1 ? 'signal' : 'signals';
     return 'Synthetic war-room investigation active for $eventCount linked $evidenceWord.';
   }
+}
+
+class _TomorrowPostureScopeSummary {
+  final int eventCount;
+  final String reportDate;
+  final String liveReportDate;
+  final String focusState;
+  final bool historicalFocus;
+  final String summaryLine;
+  final String focusSummary;
+  final int draftCount;
+  final String leadDraftActionType;
+  final String leadDraftDescription;
+  final String learningSummary;
+  final String learningMemorySummary;
+  final String hazardSummary;
+  final List<String> reviewRefs;
+  final _TomorrowPostureHistorySummary? history;
+
+  const _TomorrowPostureScopeSummary({
+    required this.eventCount,
+    required this.reportDate,
+    required this.liveReportDate,
+    required this.focusState,
+    required this.historicalFocus,
+    required this.summaryLine,
+    required this.focusSummary,
+    required this.draftCount,
+    required this.leadDraftActionType,
+    required this.leadDraftDescription,
+    required this.learningSummary,
+    required this.learningMemorySummary,
+    required this.hazardSummary,
+    required this.reviewRefs,
+    required this.history,
+  });
+
+  String get bannerText {
+    final evidenceWord = eventCount == 1 ? 'signal' : 'signals';
+    return 'Tomorrow posture investigation active for $eventCount linked $evidenceWord.';
+  }
+}
+
+class _TomorrowPostureHistorySummary {
+  final String headline;
+  final String summary;
+  final List<_TomorrowPostureHistoryPoint> points;
+
+  const _TomorrowPostureHistorySummary({
+    required this.headline,
+    required this.summary,
+    required this.points,
+  });
+}
+
+class _TomorrowPostureHistoryPoint {
+  final String date;
+  final int draftCount;
+  final String summaryLine;
+
+  const _TomorrowPostureHistoryPoint({
+    required this.date,
+    required this.draftCount,
+    required this.summaryLine,
+  });
 }
 
 class _SyntheticHistorySummary {

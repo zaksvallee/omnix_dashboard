@@ -1792,4 +1792,370 @@ void main() {
     await tester.pump();
     expect(governanceOpened, isTrue);
   });
+
+  testWidgets('events review shows dedicated tomorrow posture investigation banner', (
+    tester,
+  ) async {
+    String? copiedClipboardPayload;
+    var governanceOpened = false;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final args = (call.arguments as Map<dynamic, dynamic>);
+          copiedClipboardPayload = args['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: EventsReviewPage(
+          events: <DispatchEvent>[
+            IntelligenceReceived(
+              eventId: 'TOM-1',
+              sequence: 2,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 17, 1, 0),
+              intelligenceId: 'TOM-INTEL-1',
+              provider: 'hikvision',
+              sourceType: 'dvr',
+              externalId: 'tom-1',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-ALPHA',
+              headline: 'Fire alarm visible',
+              summary: 'Smoke visible inside the plant room.',
+              riskScore: 96,
+              canonicalHash: 'hash-tom-1',
+            ),
+            IntelligenceReceived(
+              eventId: 'TOM-2',
+              sequence: 1,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 17, 1, 5),
+              intelligenceId: 'TOM-INTEL-2',
+              provider: 'hikvision',
+              sourceType: 'dvr',
+              externalId: 'tom-2',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-ALPHA',
+              headline: 'Smoke plume thickening',
+              summary: 'Secondary smoke signature detected.',
+              riskScore: 91,
+              canonicalHash: 'hash-tom-2',
+            ),
+            IntelligenceReceived(
+              eventId: 'TOM-PREV-1',
+              sequence: 1,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 16, 1, 10),
+              intelligenceId: 'TOM-PREV-INTEL-1',
+              provider: 'hikvision',
+              sourceType: 'dvr',
+              externalId: 'tom-prev-1',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-ALPHA',
+              headline: 'Earlier smoke signature',
+              summary: 'Prior shift smoke evidence in the same room.',
+              riskScore: 89,
+              canonicalHash: 'hash-tom-prev-1',
+            ),
+          ],
+          sceneReviewByIntelligenceId: {
+            'TOM-INTEL-1': MonitoringSceneReviewRecord(
+              intelligenceId: 'TOM-INTEL-1',
+              sourceLabel: 'openai:gpt-5.4-mini',
+              postureLabel: 'fire and smoke emergency',
+              decisionLabel: 'Escalation Candidate',
+              decisionSummary:
+                  'Escalated because fire or smoke indicators were detected.',
+              summary: 'Smoke plume visible inside the plant room.',
+              reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 2),
+            ),
+            'TOM-INTEL-2': MonitoringSceneReviewRecord(
+              intelligenceId: 'TOM-INTEL-2',
+              sourceLabel: 'openai:gpt-5.4-mini',
+              postureLabel: 'fire and smoke emergency',
+              decisionLabel: 'Escalation Candidate',
+              decisionSummary:
+                  'Escalated because smoke pressure is increasing.',
+              summary: 'Smoke signature is thickening on the same site.',
+              reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 6),
+            ),
+            'TOM-PREV-INTEL-1': MonitoringSceneReviewRecord(
+              intelligenceId: 'TOM-PREV-INTEL-1',
+              sourceLabel: 'openai:gpt-5.4-mini',
+              postureLabel: 'fire and smoke emergency',
+              decisionLabel: 'Escalation Candidate',
+              decisionSummary:
+                  'Escalated because earlier fire indicators were detected.',
+              summary: 'Previous shift smoke visible inside the plant room.',
+              reviewedAtUtc: DateTime.utc(2026, 3, 16, 1, 12),
+            ),
+          },
+          initialScopedEventIds: const ['TOM-1', 'TOM-2'],
+          initialSelectedEventId: 'TOM-1',
+          initialScopedMode: 'tomorrow',
+          morningSovereignReportHistory: [
+            SovereignReport(
+              date: '2026-03-17',
+              generatedAtUtc: DateTime.utc(2026, 3, 17, 6, 0),
+              shiftWindowStartUtc: DateTime.utc(2026, 3, 16, 22, 0),
+              shiftWindowEndUtc: DateTime.utc(2026, 3, 17, 6, 0),
+              ledgerIntegrity: const SovereignReportLedgerIntegrity(
+                totalEvents: 8,
+                hashVerified: true,
+                integrityScore: 100,
+              ),
+              aiHumanDelta: const SovereignReportAiHumanDelta(
+                aiDecisions: 1,
+                humanOverrides: 0,
+                overrideReasons: <String, int>{},
+              ),
+              normDrift: const SovereignReportNormDrift(
+                sitesMonitored: 1,
+                driftDetected: 0,
+                avgMatchScore: 100,
+              ),
+              complianceBlockage: const SovereignReportComplianceBlockage(
+                psiraExpired: 0,
+                pdpExpired: 0,
+                totalBlocked: 0,
+              ),
+            ),
+            SovereignReport(
+              date: '2026-03-16',
+              generatedAtUtc: DateTime.utc(2026, 3, 16, 6, 0),
+              shiftWindowStartUtc: DateTime.utc(2026, 3, 15, 22, 0),
+              shiftWindowEndUtc: DateTime.utc(2026, 3, 16, 6, 0),
+              ledgerIntegrity: const SovereignReportLedgerIntegrity(
+                totalEvents: 6,
+                hashVerified: true,
+                integrityScore: 100,
+              ),
+              aiHumanDelta: const SovereignReportAiHumanDelta(
+                aiDecisions: 1,
+                humanOverrides: 0,
+                overrideReasons: <String, int>{},
+              ),
+              normDrift: const SovereignReportNormDrift(
+                sitesMonitored: 1,
+                driftDetected: 0,
+                avgMatchScore: 100,
+              ),
+              complianceBlockage: const SovereignReportComplianceBlockage(
+                psiraExpired: 0,
+                pdpExpired: 0,
+                totalBlocked: 0,
+              ),
+            ),
+          ],
+          currentMorningSovereignReportDate: '2026-03-18',
+          onOpenGovernance: () {
+            governanceOpened = true;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(
+        const ValueKey('events-tomorrow-scope-banner'),
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'Tomorrow posture investigation active for 2 linked signals',
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'DRAFT NEXT-SHIFT FIRE READINESS • SITE-ALPHA • ADVANCE FIRE • x1',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'Viewing command-targeted shift 2026-03-17 instead of live oversight 2026-03-18.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Prebuild next-shift fire readiness'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Learning: ADVANCE FIRE'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Memory: ADVANCE FIRE repeated across 2 linked shifts.'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Hazard draft: fire playbook draft active'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Review refs: TOM-INTEL-1, TOM-INTEL-2'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('RISING • 2d'), findsOneWidget);
+    expect(
+      find.textContaining('Current drafts 1 • Baseline 0.0'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        '2026-03-16 • No tomorrow-posture drafts triggered.',
+      ),
+      findsOneWidget,
+    );
+
+    final copyJsonAction = tester.widget<InkWell>(
+      find.byKey(
+        const ValueKey('events-tomorrow-casefile-json-action'),
+        skipOffstage: false,
+      ),
+    );
+    copyJsonAction.onTap!();
+    await tester.pump();
+    expect(copiedClipboardPayload, contains('"tomorrowPostureCaseFile"'));
+    expect(copiedClipboardPayload, contains('"reportDate": "2026-03-17"'));
+    expect(copiedClipboardPayload, contains('"liveReportDate": "2026-03-18"'));
+    expect(copiedClipboardPayload, contains('"draftCount": 1'));
+    expect(
+      copiedClipboardPayload,
+      contains('"leadDraftActionType": "DRAFT NEXT-SHIFT FIRE READINESS"'),
+    );
+    expect(copiedClipboardPayload, contains('"learningSummary": "ADVANCE FIRE"'));
+    expect(
+      copiedClipboardPayload,
+      contains('"learningMemorySummary": "Memory: ADVANCE FIRE repeated across 2 linked shifts."'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('"hazardSummary": "fire playbook draft active"'),
+    );
+    expect(copiedClipboardPayload, contains('"reviewShortcuts"'));
+    expect(
+      copiedClipboardPayload,
+      contains('"currentShiftReviewCommand": "/tomorrowreview 2026-03-17"'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains(
+        '"currentShiftCaseFileCommand": "/tomorrowcase json 2026-03-17"',
+      ),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('"previousShiftReviewCommand": "/tomorrowreview 2026-03-16"'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains(
+        '"previousShiftCaseFileCommand": "/tomorrowcase json 2026-03-16"',
+      ),
+    );
+    expect(copiedClipboardPayload, contains('"history": {'));
+    expect(
+      copiedClipboardPayload,
+      contains('"reviewCommand": "/tomorrowreview 2026-03-16"'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('"caseFileCommand": "/tomorrowcase json 2026-03-16"'),
+    );
+
+    final copyCsvAction = tester.widget<InkWell>(
+      find.byKey(
+        const ValueKey('events-tomorrow-casefile-csv-action'),
+        skipOffstage: false,
+      ),
+    );
+    copyCsvAction.onTap!();
+    await tester.pump();
+    expect(copiedClipboardPayload, contains('metric,value'));
+    expect(copiedClipboardPayload, contains('report_date,2026-03-17'));
+    expect(copiedClipboardPayload, contains('live_report_date,2026-03-18'));
+    expect(copiedClipboardPayload, contains('focus_state,historical_command_target'));
+    expect(copiedClipboardPayload, contains('historical_focus,true'));
+    expect(copiedClipboardPayload, contains('draft_count,1'));
+    expect(
+      copiedClipboardPayload,
+      contains('lead_draft_action_type,"DRAFT NEXT-SHIFT FIRE READINESS"'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('learning_summary,"ADVANCE FIRE"'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains(
+        'learning_memory_summary,"Memory: ADVANCE FIRE repeated across 2 linked shifts."',
+      ),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('hazard_summary,"fire playbook draft active"'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('current_review_command,/tomorrowreview 2026-03-17'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('current_case_file_command,/tomorrowcase json 2026-03-17'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('previous_review_command,/tomorrowreview 2026-03-16'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('previous_case_file_command,/tomorrowcase json 2026-03-16'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('history_1_review_command,/tomorrowreview 2026-03-17'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('history_1_case_file_command,/tomorrowcase json 2026-03-17'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('history_2_review_command,/tomorrowreview 2026-03-16'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('history_2_case_file_command,/tomorrowcase json 2026-03-16'),
+    );
+
+    final openGovernanceAction = tester.widget<InkWell>(
+      find.byKey(
+        const ValueKey('events-tomorrow-open-governance-action'),
+        skipOffstage: false,
+      ),
+    );
+    openGovernanceAction.onTap!();
+    await tester.pump();
+    expect(governanceOpened, isTrue);
+  });
 }
