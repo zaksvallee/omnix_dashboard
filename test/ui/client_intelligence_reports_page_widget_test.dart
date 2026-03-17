@@ -2374,6 +2374,10 @@ void main() {
       findsWidgets,
     );
     expect(clipboardText, isNotNull);
+    expect(
+      clipboardText,
+      contains('"exportModeLabel": "STANDARD RECEIPT EXPORT"'),
+    );
     expect(clipboardText, contains('"context"'));
     expect(clipboardText, contains('"receipts"'));
     expect(clipboardText, contains('"key": "all"'));
@@ -2442,6 +2446,10 @@ void main() {
       findsWidgets,
     );
     expect(clipboardText, isNotNull);
+    expect(
+      clipboardText,
+      contains('"exportModeLabel": "STANDARD RECEIPT EXPORT"'),
+    );
     expect(clipboardText, contains('"context"'));
     expect(clipboardText, contains('"receipts"'));
     expect(clipboardText, contains('"key": "all"'));
@@ -4067,6 +4075,72 @@ void main() {
     },
   );
 
+  testWidgets(
+    'client reports governance receipt copy feedback uses governance wording',
+    (tester) async {
+      String? clipboardText;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final args = call.arguments as Map<dynamic, dynamic>;
+            clipboardText = args['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+
+      final store = InMemoryEventStore();
+      store.append(
+        buildTestReportGenerated(
+          eventId: 'RPT-GOV-COPY-1',
+          occurredAt: DateTime.utc(2026, 3, 15, 0, 40),
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          reportSchemaVersion: 1,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ClientIntelligenceReportsPage(
+            store: store,
+            selectedClient: 'CLIENT-001',
+            selectedSite: 'SITE-SANDTON',
+            reportShellState: const ReportShellState(
+              entryContext: ReportEntryContext.governanceBrandingDrift,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final copyButton = find.byKey(
+        const ValueKey('report-receipt-copy-RPT-GOV-COPY-1'),
+      );
+      await tester.ensureVisible(copyButton);
+      await tester.tap(copyButton);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining(
+          'Governance receipt export copied for RPT-GOV-COPY-1.',
+        ),
+        findsWidgets,
+      );
+      expect(
+        clipboardText,
+        contains('"exportModeLabel": "GOVERNANCE HANDOFF"'),
+      );
+    },
+  );
+
   testWidgets('client reports preview target copy exports targeted receipt', (
     tester,
   ) async {
@@ -4358,11 +4432,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.textContaining('Receipt export copied for RPT-LIVE-LANE-COPY-1.'),
+      find.textContaining(
+        'Governance receipt export copied for RPT-LIVE-LANE-COPY-1.',
+      ),
       findsWidgets,
     );
     expect(clipboardText, isNotNull);
     expect(clipboardText, contains('"context"'));
+    expect(clipboardText, contains('"exportModeLabel": "GOVERNANCE HANDOFF"'));
     expect(clipboardText, contains('"receipts"'));
     expect(clipboardText, contains('"eventId": "RPT-LIVE-LANE-COPY-1"'));
     expect(clipboardText, contains('"entryContext": {'));

@@ -7052,6 +7052,20 @@ class _ClientIntelligenceReportsPageState
     );
   }
 
+  String _receiptExportFeedbackPrefix(ReportGenerated event) {
+    return _effectiveEntryContextForReceipt(event) ==
+            ReportEntryContext.governanceBrandingDrift
+        ? 'Governance receipt'
+        : 'Receipt';
+  }
+
+  String _receiptMetadataFeedbackPrefix(ReportGenerated event) {
+    return _effectiveEntryContextForReceipt(event) ==
+            ReportEntryContext.governanceBrandingDrift
+        ? 'Governance receipt metadata'
+        : 'Sample receipt metadata';
+  }
+
   void _copyReceipt(_ReceiptRow row) {
     final payload = ReportReceiptExportPayload.buildSingle(
       entry: ReportReceiptExportEntry(
@@ -7072,7 +7086,7 @@ class _ClientIntelligenceReportsPageState
       context: {'event_id': row.event.eventId},
     );
     _showReceiptActionFeedback(
-      'Receipt export copied for ${row.event.eventId}.',
+      '${_receiptExportFeedbackPrefix(row.event)} export copied for ${row.event.eventId}.',
     );
   }
 
@@ -7114,7 +7128,7 @@ class _ClientIntelligenceReportsPageState
         context: {'event_id': row.event.eventId},
       );
       _showReceiptActionFeedback(
-        'Sample receipt metadata copied for ${row.event.eventId}.',
+        '${_receiptMetadataFeedbackPrefix(row.event)} copied for ${row.event.eventId}.',
       );
       return;
     }

@@ -76,6 +76,13 @@ class ReportReceiptExportEntry {
 }
 
 class ReportReceiptExportPayload {
+  static String _exportModeLabel(ReportEntryContext? entryContext) {
+    return switch (entryContext) {
+      ReportEntryContext.governanceBrandingDrift => 'GOVERNANCE HANDOFF',
+      null => 'STANDARD RECEIPT EXPORT',
+    };
+  }
+
   static Map<String, Object?> buildSingle({
     required ReportReceiptExportEntry entry,
     required ReportReceiptSceneFilter filter,
@@ -110,6 +117,7 @@ class ReportReceiptExportPayload {
         'statusLabel': filter.statusLabel,
         'viewingLabel': filter.viewingLabel,
       },
+      'exportModeLabel': _exportModeLabel(entryContext),
       ...?selectedReceiptEventId == null
           ? null
           : <String, Object?>{'selectedReceiptEventId': selectedReceiptEventId},

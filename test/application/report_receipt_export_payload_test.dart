@@ -34,6 +34,7 @@ void main() {
     expect(filter['label'], 'All Receipts');
     expect(filter['statusLabel'], 'All receipts');
     expect(filter['viewingLabel'], 'Viewing All receipts');
+    expect(context['exportModeLabel'], 'STANDARD RECEIPT EXPORT');
     expect(context['selectedReceiptEventId'], 'RPT-1');
     expect(context.containsKey('focusedReceipt'), isFalse);
     expect(firstReceipt['eventId'], 'RPT-1');
@@ -144,6 +145,7 @@ void main() {
         'governance_branding_drift',
       );
       expect(firstReceipt['investigationContextLabel'], 'OVERSIGHT HANDOFF');
+      expect(context['exportModeLabel'], 'STANDARD RECEIPT EXPORT');
       expect(receiptConfig['includeDispatchSummary'], false);
       expect(receiptConfig['includeAiDecisionLog'], false);
       expect(brandingConfig['primaryLabel'], 'VISION Tactical');
@@ -170,6 +172,7 @@ void main() {
     final context = payload['context']! as Map<String, Object?>;
     final entryContext = context['entryContext']! as Map<String, Object?>;
 
+    expect(context['exportModeLabel'], 'GOVERNANCE HANDOFF');
     expect(entryContext['key'], 'governance_branding_drift');
     expect(entryContext['title'], 'OPENED FROM GOVERNANCE BRANDING DRIFT');
     expect(
@@ -199,6 +202,7 @@ void main() {
       final entryContext = context['entryContext']! as Map<String, Object?>;
 
       expect((context['filter']! as Map<String, Object?>)['key'], 'all');
+      expect(context['exportModeLabel'], 'GOVERNANCE HANDOFF');
       expect(context['selectedReceiptEventId'], 'RPT-SINGLE-1');
       expect(entryContext['key'], 'governance_branding_drift');
       expect(receipts, hasLength(1));
