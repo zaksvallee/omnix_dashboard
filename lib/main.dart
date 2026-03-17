@@ -5515,6 +5515,89 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     );
   }
 
+  List<IntelligenceReceived> _reviewedIntelligenceEventsForReport(
+    SovereignReport report,
+  ) {
+    final scopedEvents = _eventsScopedToWindow(
+      report.shiftWindowStartUtc,
+      report.shiftWindowEndUtc,
+    );
+    final reviewed = scopedEvents
+        .whereType<IntelligenceReceived>()
+        .where(
+          (event) => _monitoringSceneReviewByIntelligenceId.containsKey(
+            event.intelligenceId.trim(),
+          ),
+        )
+        .toList(growable: false)
+      ..sort((left, right) => right.occurredAt.compareTo(left.occurredAt));
+    return reviewed;
+  }
+
+  Map<String, Object?> _globalReadinessEvidenceForSite({
+    required SovereignReport report,
+    required String siteId,
+  }) {
+    final normalizedSiteId = siteId.trim();
+    if (normalizedSiteId.isEmpty) {
+      return const <String, Object?>{
+        'eventIds': <String>[],
+        'reviewRefs': <String>[],
+        'selectedEventId': null,
+      };
+    }
+    final matches = _reviewedIntelligenceEventsForReport(report)
+        .where((event) => event.siteId.trim() == normalizedSiteId)
+        .toList(growable: false);
+    final eventIds = matches
+        .map((event) => event.eventId.trim())
+        .where((value) => value.isNotEmpty)
+        .take(6)
+        .toList(growable: false);
+    final reviewRefs = matches
+        .map((event) => event.intelligenceId.trim())
+        .where((value) => value.isNotEmpty)
+        .take(6)
+        .toList(growable: false);
+    return <String, Object?>{
+      'eventIds': eventIds,
+      'reviewRefs': reviewRefs,
+      'selectedEventId': eventIds.isEmpty ? null : eventIds.first,
+    };
+  }
+
+  Map<String, Object?> _globalReadinessEvidenceForRegion({
+    required SovereignReport report,
+    required String regionId,
+  }) {
+    final normalizedRegionId = regionId.trim();
+    if (normalizedRegionId.isEmpty) {
+      return const <String, Object?>{
+        'eventIds': <String>[],
+        'reviewRefs': <String>[],
+        'selectedEventId': null,
+      };
+    }
+    final matches = _reviewedIntelligenceEventsForReport(report)
+        .where((event) => event.regionId.trim() == normalizedRegionId)
+        .toList(growable: false);
+    final eventIds = matches
+        .map((event) => event.eventId.trim())
+        .where((value) => value.isNotEmpty)
+        .take(8)
+        .toList(growable: false);
+    final reviewRefs = matches
+        .map((event) => event.intelligenceId.trim())
+        .where((value) => value.isNotEmpty)
+        .take(8)
+        .toList(growable: false);
+    return <String, Object?>{
+      'eventIds': eventIds,
+      'reviewRefs': reviewRefs,
+      'selectedEventId': eventIds.isEmpty ? null : eventIds.first,
+    };
+  }
+
   Map<String, Object?> _globalReadinessCaseFilePayload({String? reportDate}) {
     final report = _morningSovereignReportForDate(reportDate);
     if (report == null) {
@@ -5531,6 +5614,26 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         .toList(growable: false);
     final leadRegion = snapshot.regions.isEmpty ? null : snapshot.regions.first;
     final leadSite = snapshot.sites.isEmpty ? null : snapshot.sites.first;
+    final leadRegionEvidence = leadRegion == null
+        ? const <String, Object?>{
+            'eventIds': <String>[],
+            'reviewRefs': <String>[],
+            'selectedEventId': null,
+          }
+        : _globalReadinessEvidenceForRegion(
+            report: report,
+            regionId: leadRegion.regionId,
+          );
+    final leadSiteEvidence = leadSite == null
+        ? const <String, Object?>{
+            'eventIds': <String>[],
+            'reviewRefs': <String>[],
+            'selectedEventId': null,
+          }
+        : _globalReadinessEvidenceForSite(
+            report: report,
+            siteId: leadSite.siteId,
+          );
     final history = _morningSovereignReportHistory
         .where((item) => item.date.trim() != report.date.trim())
         .toList(growable: false)
@@ -5556,6 +5659,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               'regionId': leadRegion.regionId,
               'summary': leadRegion.summary,
               'heatLevel': leadRegion.heatLevel.name,
+              'eventIds': leadRegionEvidence['eventIds'] ?? const <Object?>[],
+              'reviewRefs':
+                  leadRegionEvidence['reviewRefs'] ?? const <Object?>[],
+              'selectedEventId': leadRegionEvidence['selectedEventId'],
             },
       'leadSite': leadSite == null
           ? null
@@ -5564,6 +5671,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               'summary': leadSite.latestSummary,
               'dominantSignals': leadSite.dominantSignals,
               'heatLevel': leadSite.heatLevel.name,
+              'eventIds': leadSiteEvidence['eventIds'] ?? const <Object?>[],
+              'reviewRefs':
+                  leadSiteEvidence['reviewRefs'] ?? const <Object?>[],
+              'selectedEventId': leadSiteEvidence['selectedEventId'],
             },
       'reviewCommand': '/readinessreview ${report.date}',
       'caseFileCommand': '/readinesscase json ${report.date}',
@@ -5576,6 +5687,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               'priority': intent.priority.name,
               'description': intent.description,
               'countdownSeconds': intent.countdownSeconds,
+              'incidentId': intent.incidentId,
               'metadata': intent.metadata,
             },
           )
@@ -5591,6 +5703,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               'echoTarget': intent.metadata['echo_target'] ?? intent.siteId,
               'echoHeat': intent.metadata['echo_heat'] ?? '',
               'echoSignals': intent.metadata['echo_signals'] ?? '',
+              'incidentId': intent.incidentId,
+              'reviewRefs': <String>[
+                if (intent.incidentId.trim().isNotEmpty) intent.incidentId.trim(),
+              ],
             },
           )
           .toList(growable: false),
@@ -5636,6 +5752,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'postural_echo_count,${payload['posturalEchoCount'] ?? 0}',
       'postural_echo_summary,"${(payload['posturalEchoSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'top_intent_summary,"${(payload['topIntentSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'lead_region_review_refs,"${(((payload['leadRegion'] as Map<Object?, Object?>?)?['reviewRefs'] as List<Object?>?) ?? const <Object?>[]).join(', ').replaceAll('"', '""')}"',
+      'lead_site_review_refs,"${(((payload['leadSite'] as Map<Object?, Object?>?)?['reviewRefs'] as List<Object?>?) ?? const <Object?>[]).join(', ').replaceAll('"', '""')}"',
       'review_command,${payload['reviewCommand'] ?? ''}',
       'case_file_command,${payload['caseFileCommand'] ?? ''}',
     ];
@@ -5653,6 +5771,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       if (row is! Map) continue;
       lines.add(
         'postural_echo_${i + 1},"${(row['leadSite'] ?? '').toString().replaceAll('"', '""')} -> ${(row['echoTarget'] ?? '').toString().replaceAll('"', '""')} • ${(row['echoHeat'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add(
+        'postural_echo_${i + 1}_review_refs,"${(((row['reviewRefs'] as List<Object?>?) ?? const <Object?>[]).join(', ')).replaceAll('"', '""')}"',
       );
     }
     for (var i = 0; i < history.length; i += 1) {
