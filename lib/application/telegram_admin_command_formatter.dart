@@ -110,6 +110,8 @@ class TelegramAdminCommandFormatter {
     String? syntheticWarRoomShadowMemorySummary,
     String? syntheticWarRoomPromotionSummary,
     String? syntheticWarRoomPromotionDecisionSummary,
+    String? syntheticWarRoomPromotionAcceptCommand,
+    String? syntheticWarRoomPromotionRejectCommand,
     String? syntheticWarRoomLearningSummary,
     String? syntheticWarRoomMemorySummary,
     String? syntheticWarRoomBiasSummary,
@@ -188,6 +190,10 @@ class TelegramAdminCommandFormatter {
         syntheticWarRoomPromotionSummary?.trim() ?? '';
     final warRoomPromotionDecisionSummary =
         syntheticWarRoomPromotionDecisionSummary?.trim() ?? '';
+    final warRoomPromotionAcceptCommand =
+        syntheticWarRoomPromotionAcceptCommand?.trim() ?? '';
+    final warRoomPromotionRejectCommand =
+        syntheticWarRoomPromotionRejectCommand?.trim() ?? '';
     final warRoomLearningSummary =
         syntheticWarRoomLearningSummary?.trim() ?? '';
     final warRoomMemorySummary = syntheticWarRoomMemorySummary?.trim() ?? '';
@@ -260,6 +266,8 @@ class TelegramAdminCommandFormatter {
               '${warRoomShadowMemorySummary.isEmpty ? '' : '• <b>Shadow memory:</b> ${_escapeHtml(warRoomShadowMemorySummary)}\n'}'
               '${warRoomPromotionSummary.isEmpty ? '' : '• <b>Promotion:</b> ${_escapeHtml(warRoomPromotionSummary)}\n'}'
               '${warRoomPromotionDecisionSummary.isEmpty ? '' : '• <b>Promotion decision:</b> ${_escapeHtml(warRoomPromotionDecisionSummary)}\n'}'
+              '${warRoomPromotionAcceptCommand.isEmpty ? '' : '• <b>Promotion accept:</b> <code>${_escapeHtml(warRoomPromotionAcceptCommand)}</code>\n'}'
+              '${warRoomPromotionRejectCommand.isEmpty ? '' : '• <b>Promotion reject:</b> <code>${_escapeHtml(warRoomPromotionRejectCommand)}</code>\n'}'
               '${warRoomLearningSummary.isEmpty ? '' : '• <b>Learning:</b> ${_escapeHtml(warRoomLearningSummary)}\n'}'
               '${warRoomMemorySummary.isEmpty ? '' : '• <b>Memory:</b> ${_escapeHtml(warRoomMemorySummary)}\n'}'
               '${warRoomBiasSummary.isEmpty ? '' : '• <b>Bias:</b> ${_escapeHtml(warRoomBiasSummary)}\n'}'

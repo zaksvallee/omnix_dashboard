@@ -5430,6 +5430,15 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       ),
       syntheticWarRoomPromotionDecisionSummary:
           _syntheticWarRoomPromotionDecisionSummary(syntheticWarRoomPlans),
+      syntheticWarRoomPromotionAcceptCommand:
+          _syntheticWarRoomPromotionCommand(
+            syntheticWarRoomPlans,
+            'accept',
+          ),
+      syntheticWarRoomPromotionRejectCommand: _syntheticWarRoomPromotionCommand(
+        syntheticWarRoomPlans,
+        'reject',
+      ),
       syntheticWarRoomLearningSummary: _syntheticWarRoomLearningSummary(
         syntheticWarRoomPlans,
       ),
@@ -6229,6 +6238,21 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       moId: moId,
       targetValidationStatus: targetStatus,
     );
+  }
+
+  String _syntheticWarRoomPromotionCommand(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+    String action,
+  ) {
+    final moId = _syntheticWarRoomPromotionId(plans);
+    final targetStatus = _syntheticWarRoomPromotionTargetStatus(plans);
+    final normalizedAction = action.trim().toLowerCase();
+    if (moId.isEmpty ||
+        targetStatus.isEmpty ||
+        (normalizedAction != 'accept' && normalizedAction != 'reject')) {
+      return '';
+    }
+    return '/mopromotion $normalizedAction $moId $targetStatus';
   }
 
   String _syntheticWarRoomLearningMemorySummary({
@@ -14477,6 +14501,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           command: 'tomorrowcase',
           arguments: arguments,
         );
+      case '/mopromotion':
+        return _TelegramAdminCommandParseResult(
+          command: 'mopromotion',
+          arguments: arguments,
+        );
       case '/sendactivity':
         return _TelegramAdminCommandParseResult(
           command: 'sendactivity',
@@ -15125,6 +15154,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         return _telegramAdminTomorrowReviewCommand(arguments);
       case 'tomorrowcase':
         return _telegramAdminTomorrowCaseCommand(arguments);
+      case 'mopromotion':
+        return _telegramAdminMoPromotionCommand(arguments);
       case 'sendactivity':
         return _telegramAdminSendActivityCommand(arguments);
       case 'demoprep':
@@ -15271,6 +15302,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '• <code>/shadowcase [json|csv] [report_date]</code>\n'
         '• <code>/tomorrowreview [report_date]</code>\n'
         '• <code>/tomorrowcase [json|csv] [report_date]</code>\n'
+        '• <code>/mopromotion [accept|reject] [mo_id] [target_status]</code>\n'
         '• <code>/sendactivity [client|partner|both] [client_id site_id]</code>\n'
         '\n---\n\n'
         '<b>Admin</b>\n'
@@ -17721,6 +17753,47 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '${shadowSummary.isEmpty ? '' : 'shadow_summary=$shadowSummary\n'}'
         'review_command=/tomorrowreview ${report.date}\n'
         '${const JsonEncoder.withIndent('  ').convert(payload)}';
+  }
+
+  String _telegramAdminMoPromotionCommand(String arguments) {
+    final parts = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (parts.length < 3) {
+      return 'ONYX MO PROMOTION\n'
+          'Usage: /mopromotion [accept|reject] [mo_id] [target_status]\n'
+          'Example: /mopromotion accept MO-EXT-NEWS-OFFICE-PATTERN validated';
+    }
+    final action = parts[0].toLowerCase();
+    final moId = parts[1];
+    final targetStatus = parts.sublist(2).join(' ');
+    if (action != 'accept' && action != 'reject') {
+      return 'ONYX MO PROMOTION\n'
+          'Usage: /mopromotion [accept|reject] [mo_id] [target_status]\n'
+          'Unsupported action "$action".';
+    }
+    if (action == 'accept') {
+      _moPromotionDecisionStore.accept(
+        moId: moId,
+        targetValidationStatus: targetStatus,
+      );
+    } else {
+      _moPromotionDecisionStore.reject(
+        moId: moId,
+        targetValidationStatus: targetStatus,
+      );
+    }
+    final summary = _moPromotionDecisionStore.decisionSummaryFor(
+      moId: moId,
+      targetValidationStatus: targetStatus,
+    );
+    return 'ONYX MO PROMOTION\n'
+        'mo_id=$moId\n'
+        'target_status=$targetStatus\n'
+        'decision=${action == 'accept' ? 'accepted' : 'rejected'}\n'
+        'summary=$summary';
   }
 
   Future<String> _telegramAdminSendActivityCommand(String arguments) async {

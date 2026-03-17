@@ -175,6 +175,10 @@ void main() {
           'Promote MO-EXT-OFFICE toward validated review • Office contractor impersonation pattern • x1',
       syntheticWarRoomPromotionDecisionSummary:
           'Accepted toward validated review.',
+      syntheticWarRoomPromotionAcceptCommand:
+          '/mopromotion accept MO-EXT-OFFICE validated',
+      syntheticWarRoomPromotionRejectCommand:
+          '/mopromotion reject MO-EXT-OFFICE validated',
       syntheticWarRoomLearningSummary:
           'Learned bias: stage fire response one step earlier next shift.',
       syntheticWarRoomMemorySummary:
@@ -300,6 +304,18 @@ void main() {
       response,
       contains(
         '<b>Promotion decision:</b> Accepted toward validated review.',
+      ),
+    );
+    expect(
+      response,
+      contains(
+        '<b>Promotion accept:</b> <code>/mopromotion accept MO-EXT-OFFICE validated</code>',
+      ),
+    );
+    expect(
+      response,
+      contains(
+        '<b>Promotion reject:</b> <code>/mopromotion reject MO-EXT-OFFICE validated</code>',
       ),
     );
     expect(
