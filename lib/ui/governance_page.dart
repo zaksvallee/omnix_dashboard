@@ -9,6 +9,7 @@ import '../application/email_bridge_service.dart';
 import '../application/morning_sovereign_report_service.dart';
 import '../application/monitoring_global_posture_service.dart';
 import '../application/monitoring_orchestrator_service.dart';
+import '../application/mo_promotion_decision_store.dart';
 import '../application/monitoring_scene_review_store.dart';
 import '../application/monitoring_synthetic_war_room_service.dart';
 import '../application/monitoring_watch_action_plan.dart';
@@ -338,6 +339,11 @@ class _SyntheticWarRoomHistoryPoint {
   final String shadowSummary;
   final String shadowLearningSummary;
   final String shadowMemorySummary;
+  final String promotionSummary;
+  final String promotionMoId;
+  final String promotionTargetStatus;
+  final String promotionDecisionStatus;
+  final String promotionDecisionSummary;
   final String actionBias;
   final String memoryPriorityBoost;
   final String memoryCountdownBias;
@@ -357,6 +363,11 @@ class _SyntheticWarRoomHistoryPoint {
     required this.shadowSummary,
     required this.shadowLearningSummary,
     required this.shadowMemorySummary,
+    required this.promotionSummary,
+    required this.promotionMoId,
+    required this.promotionTargetStatus,
+    required this.promotionDecisionStatus,
+    required this.promotionDecisionSummary,
     required this.actionBias,
     required this.memoryPriorityBoost,
     required this.memoryCountdownBias,
@@ -747,6 +758,7 @@ class _GovernancePageState extends State<GovernancePage> {
   static const _globalPostureService = MonitoringGlobalPostureService();
   static const _orchestratorService = MonitoringOrchestratorService();
   static const _syntheticWarRoomService = MonitoringSyntheticWarRoomService();
+  static const _moPromotionDecisionStore = MoPromotionDecisionStore();
 
   bool _generatingMorningReport = false;
   GovernanceSceneActionFocus? _activeSceneActionFocus;
@@ -3921,6 +3933,17 @@ class _GovernancePageState extends State<GovernancePage> {
           currentPlans,
         ),
         shadowMemorySummary: _syntheticWarRoomShadowMemorySummary(currentPlans),
+        promotionSummary: _syntheticWarRoomPromotionSummary(currentPlans),
+        promotionMoId: _syntheticWarRoomPromotionId(currentPlans),
+        promotionTargetStatus: _syntheticWarRoomPromotionTargetStatus(
+          currentPlans,
+        ),
+        promotionDecisionStatus: _syntheticWarRoomPromotionDecisionStatus(
+          currentPlans,
+        ),
+        promotionDecisionSummary: _syntheticWarRoomPromotionDecisionSummary(
+          currentPlans,
+        ),
         actionBias: currentPolicyPlan.metadata['action_bias'] ?? '',
         memoryPriorityBoost:
             currentPolicyPlan.metadata['memory_priority_boost'] ?? '',
@@ -3973,6 +3996,15 @@ class _GovernancePageState extends State<GovernancePage> {
           shadowSummary: _syntheticWarRoomShadowSummary(plans),
           shadowLearningSummary: _syntheticWarRoomShadowLearningSummary(plans),
           shadowMemorySummary: _syntheticWarRoomShadowMemorySummary(plans),
+          promotionSummary: _syntheticWarRoomPromotionSummary(plans),
+          promotionMoId: _syntheticWarRoomPromotionId(plans),
+          promotionTargetStatus: _syntheticWarRoomPromotionTargetStatus(plans),
+          promotionDecisionStatus: _syntheticWarRoomPromotionDecisionStatus(
+            plans,
+          ),
+          promotionDecisionSummary: _syntheticWarRoomPromotionDecisionSummary(
+            plans,
+          ),
           actionBias: policyPlan.metadata['action_bias'] ?? '',
           memoryPriorityBoost:
               policyPlan.metadata['memory_priority_boost'] ?? '',
@@ -4254,6 +4286,54 @@ class _GovernancePageState extends State<GovernancePage> {
     return plans
         .map((plan) => (plan.metadata['shadow_memory_summary'] ?? '').trim())
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+  }
+
+  String _syntheticWarRoomPromotionSummary(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    return plans
+        .map((plan) => (plan.metadata['mo_promotion_summary'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+  }
+
+  String _syntheticWarRoomPromotionId(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    return plans
+        .map((plan) => (plan.metadata['mo_promotion_id'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+  }
+
+  String _syntheticWarRoomPromotionTargetStatus(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    return plans
+        .map((plan) => (plan.metadata['mo_promotion_target'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+  }
+
+  String _syntheticWarRoomPromotionDecisionStatus(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    final moId = _syntheticWarRoomPromotionId(plans);
+    if (moId.isEmpty) {
+      return '';
+    }
+    return _moPromotionDecisionStore.decisionStatusFor(moId);
+  }
+
+  String _syntheticWarRoomPromotionDecisionSummary(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    final moId = _syntheticWarRoomPromotionId(plans);
+    final targetStatus = _syntheticWarRoomPromotionTargetStatus(plans);
+    if (moId.isEmpty || targetStatus.isEmpty) {
+      return '';
+    }
+    return _moPromotionDecisionStore.decisionSummaryFor(
+      moId: moId,
+      targetValidationStatus: targetStatus,
+    );
   }
 
   String _syntheticWarRoomModeLabel(
@@ -8094,20 +8174,23 @@ class _GovernancePageState extends State<GovernancePage> {
     showDialog<void>(
       context: context,
       builder: (dialogContext) {
-        return Dialog(
-          backgroundColor: const Color(0xFF08111B),
-          insetPadding: const EdgeInsets.symmetric(
-            horizontal: 24,
-            vertical: 24,
-          ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 760, maxHeight: 720),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                key: const ValueKey('governance-synthetic-war-room-dialog'),
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            final currentPromotionPoint = history.isEmpty ? null : history.first;
+            return Dialog(
+              backgroundColor: const Color(0xFF08111B),
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 24,
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760, maxHeight: 720),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    key: const ValueKey('governance-synthetic-war-room-dialog'),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                   Row(
                     children: [
                       Expanded(
@@ -8178,6 +8261,76 @@ class _GovernancePageState extends State<GovernancePage> {
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  if (currentPromotionPoint != null &&
+                      currentPromotionPoint.promotionSummary.trim().isNotEmpty) ...[
+                    Text(
+                      'Promotion • ${currentPromotionPoint.promotionSummary}',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF86EFAC),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      currentPromotionPoint.promotionDecisionSummary,
+                      style: GoogleFonts.inter(
+                        color: currentPromotionPoint.promotionDecisionStatus ==
+                                'accepted'
+                            ? const Color(0xFF86EFAC)
+                            : currentPromotionPoint.promotionDecisionStatus ==
+                                  'rejected'
+                            ? const Color(0xFFFCA5A5)
+                            : const Color(0xFFFDE68A),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _morningReportActionButton(
+                          key: const ValueKey(
+                            'governance-synthetic-promotion-accept-action',
+                          ),
+                          label: 'ACCEPT PROMOTION',
+                          onPressed: () async {
+                            _moPromotionDecisionStore.accept(
+                              moId: currentPromotionPoint.promotionMoId,
+                              targetValidationStatus:
+                                  currentPromotionPoint.promotionTargetStatus,
+                            );
+                            setState(() {});
+                            setDialogState(() {});
+                            _showSnack(
+                              'MO promotion accepted toward ${currentPromotionPoint.promotionTargetStatus} review.',
+                            );
+                          },
+                        ),
+                        _morningReportActionButton(
+                          key: const ValueKey(
+                            'governance-synthetic-promotion-reject-action',
+                          ),
+                          label: 'REJECT PROMOTION',
+                          onPressed: () async {
+                            _moPromotionDecisionStore.reject(
+                              moId: currentPromotionPoint.promotionMoId,
+                              targetValidationStatus:
+                                  currentPromotionPoint.promotionTargetStatus,
+                            );
+                            setState(() {});
+                            setDialogState(() {});
+                            _showSnack(
+                              'MO promotion rejected for ${currentPromotionPoint.promotionTargetStatus} review.',
+                            );
+                          },
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
                   ],
@@ -8408,9 +8561,11 @@ class _GovernancePageState extends State<GovernancePage> {
                     ),
                   ),
                 ],
+                  ),
+                ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
@@ -9583,6 +9738,11 @@ class _GovernancePageState extends State<GovernancePage> {
       'shadowSummary': point.shadowSummary,
       'shadowLearningSummary': point.shadowLearningSummary,
       'shadowMemorySummary': point.shadowMemorySummary,
+      'promotionSummary': point.promotionSummary,
+      'promotionMoId': point.promotionMoId,
+      'promotionTargetStatus': point.promotionTargetStatus,
+      'promotionDecisionStatus': point.promotionDecisionStatus,
+      'promotionDecisionSummary': point.promotionDecisionSummary,
       'actionBias': point.actionBias,
       'memoryPriorityBoost': point.memoryPriorityBoost,
       'memoryCountdownBias': point.memoryCountdownBias,
@@ -10847,9 +11007,19 @@ class _GovernancePageState extends State<GovernancePage> {
         'shadowMemorySummary': _syntheticWarRoomShadowMemorySummary(
           syntheticWarRoomPlans,
         ),
-        'promotionSummary': syntheticWarRoomPlans
-            .map((plan) => (plan.metadata['mo_promotion_summary'] ?? '').trim())
-            .firstWhere((value) => value.isNotEmpty, orElse: () => ''),
+        'promotionSummary': _syntheticWarRoomPromotionSummary(
+          syntheticWarRoomPlans,
+        ),
+        'promotionMoId': _syntheticWarRoomPromotionId(syntheticWarRoomPlans),
+        'promotionTargetStatus': _syntheticWarRoomPromotionTargetStatus(
+          syntheticWarRoomPlans,
+        ),
+        'promotionDecisionStatus': _syntheticWarRoomPromotionDecisionStatus(
+          syntheticWarRoomPlans,
+        ),
+        'promotionDecisionSummary': _syntheticWarRoomPromotionDecisionSummary(
+          syntheticWarRoomPlans,
+        ),
         'actionBias': syntheticWarRoomPlans
             .map((plan) => (plan.metadata['action_bias'] ?? '').trim())
             .firstWhere((value) => value.isNotEmpty, orElse: () => ''),
@@ -11133,7 +11303,11 @@ class _GovernancePageState extends State<GovernancePage> {
       'synthetic_war_room_shadow_summary,"${_syntheticWarRoomShadowSummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',
       'synthetic_war_room_shadow_learning_summary,"${_syntheticWarRoomShadowLearningSummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',
       'synthetic_war_room_shadow_memory_summary,"${_syntheticWarRoomShadowMemorySummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',
-      'synthetic_war_room_promotion_summary,"${syntheticWarRoomPlans.map((plan) => (plan.metadata['mo_promotion_summary'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '').replaceAll('"', '""')}"',
+      'synthetic_war_room_promotion_summary,"${_syntheticWarRoomPromotionSummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',
+      'synthetic_war_room_promotion_mo_id,${_syntheticWarRoomPromotionId(syntheticWarRoomPlans)}',
+      'synthetic_war_room_promotion_target_status,${_syntheticWarRoomPromotionTargetStatus(syntheticWarRoomPlans)}',
+      'synthetic_war_room_promotion_decision_status,${_syntheticWarRoomPromotionDecisionStatus(syntheticWarRoomPlans)}',
+      'synthetic_war_room_promotion_decision_summary,"${_syntheticWarRoomPromotionDecisionSummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',
       'synthetic_war_room_learning_memory_summary,"${_syntheticWarRoomLearningMemorySummary(syntheticWarRoomHistory).replaceAll('"', '""')}"',
       'synthetic_war_room_action_bias,"${syntheticWarRoomPlans.map((plan) => (plan.metadata['action_bias'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '').replaceAll('"', '""')}"',
       'synthetic_war_room_memory_priority_boost,${syntheticWarRoomPlans.map((plan) => (plan.metadata['memory_priority_boost'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '')}',

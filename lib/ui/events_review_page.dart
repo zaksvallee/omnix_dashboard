@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../application/morning_sovereign_report_service.dart';
 import '../application/monitoring_global_posture_service.dart';
 import '../application/monitoring_orchestrator_service.dart';
+import '../application/mo_promotion_decision_store.dart';
 import '../application/review_shortcut_contract.dart';
 import '../application/shadow_mo_dossier_contract.dart';
 import '../application/site_activity_intelligence_service.dart';
@@ -94,6 +95,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   static const _globalPostureService = MonitoringGlobalPostureService();
   static const _orchestratorService = MonitoringOrchestratorService();
   static const _syntheticWarRoomService = MonitoringSyntheticWarRoomService();
+  static const _moPromotionDecisionStore = MoPromotionDecisionStore();
   static const String _filterAll = 'ALL';
   static const String _sourceFilterAll = 'ALL SOURCES';
   static const String _providerFilterAll = 'ALL PROVIDERS';
@@ -912,6 +914,52 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
                             ),
+                          ),
+                          if (syntheticScopeSummary
+                              .promotionDecisionSummary
+                              .isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'Decision: ${syntheticScopeSummary.promotionDecisionSummary}',
+                              style: GoogleFonts.inter(
+                                color: syntheticScopeSummary
+                                            .promotionDecisionStatus ==
+                                        'accepted'
+                                    ? const Color(0xFF86EFAC)
+                                    : syntheticScopeSummary
+                                              .promotionDecisionStatus ==
+                                          'rejected'
+                                    ? const Color(0xFFFCA5A5)
+                                    : const Color(0xFFFDE68A),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _outlineAction(
+                                'ACCEPT PROMOTION',
+                                actionKey: const ValueKey(
+                                  'events-synthetic-promotion-accept-action',
+                                ),
+                                onTap: () => _acceptSyntheticPromotion(
+                                  syntheticScopeSummary,
+                                ),
+                              ),
+                              _outlineAction(
+                                'REJECT PROMOTION',
+                                actionKey: const ValueKey(
+                                  'events-synthetic-promotion-reject-action',
+                                ),
+                                onTap: () => _rejectSyntheticPromotion(
+                                  syntheticScopeSummary,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                         if (syntheticScopeSummary.biasSummary.isNotEmpty) ...[
@@ -1855,6 +1903,12 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       shadowLearningSummary: _syntheticWarRoomShadowLearningSummary(plans),
       shadowMemorySummary: _syntheticWarRoomShadowMemorySummary(plans),
       promotionSummary: _syntheticWarRoomPromotionSummary(plans),
+      promotionMoId: _syntheticWarRoomPromotionId(plans),
+      promotionTargetStatus: _syntheticWarRoomPromotionTargetStatus(plans),
+      promotionDecisionStatus: _syntheticWarRoomPromotionDecisionStatus(plans),
+      promotionDecisionSummary: _syntheticWarRoomPromotionDecisionSummary(
+        plans,
+      ),
       learningSummary: _syntheticWarRoomLearningSummary(plans),
       learningMemorySummary: _syntheticWarRoomLearningMemorySummary(
         currentLearningLabel: _syntheticWarRoomLearningLabel(plans),
@@ -2333,6 +2387,48 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               (plan.metadata['mo_promotion_summary'] ?? '').toString().trim(),
         )
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+  }
+
+  String _syntheticWarRoomPromotionId(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    return plans
+        .map((plan) => (plan.metadata['mo_promotion_id'] ?? '').toString().trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+  }
+
+  String _syntheticWarRoomPromotionTargetStatus(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    return plans
+        .map(
+          (plan) => (plan.metadata['mo_promotion_target'] ?? '').toString().trim(),
+        )
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+  }
+
+  String _syntheticWarRoomPromotionDecisionStatus(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    final moId = _syntheticWarRoomPromotionId(plans);
+    if (moId.isEmpty) {
+      return '';
+    }
+    return _moPromotionDecisionStore.decisionStatusFor(moId);
+  }
+
+  String _syntheticWarRoomPromotionDecisionSummary(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    final moId = _syntheticWarRoomPromotionId(plans);
+    final targetStatus = _syntheticWarRoomPromotionTargetStatus(plans);
+    if (moId.isEmpty || targetStatus.isEmpty) {
+      return '';
+    }
+    return _moPromotionDecisionStore.decisionSummaryFor(
+      moId: moId,
+      targetValidationStatus: targetStatus,
+    );
   }
 
   List<MonitoringWatchAutonomyActionPlan> _tomorrowPostureDraftsForReport(
@@ -4313,6 +4409,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       'shadow_learning_summary,"${summary.shadowLearningSummary.replaceAll('"', '""')}"',
       'shadow_memory_summary,"${summary.shadowMemorySummary.replaceAll('"', '""')}"',
       'promotion_summary,"${summary.promotionSummary.replaceAll('"', '""')}"',
+      'promotion_mo_id,${summary.promotionMoId}',
+      'promotion_target_status,${summary.promotionTargetStatus}',
+      'promotion_decision_status,${summary.promotionDecisionStatus}',
+      'promotion_decision_summary,"${summary.promotionDecisionSummary.replaceAll('"', '""')}"',
       'learning_summary,"${summary.learningSummary.replaceAll('"', '""')}"',
       'learning_memory_summary,"${summary.learningMemorySummary.replaceAll('"', '""')}"',
       'bias_summary,"${summary.biasSummary.replaceAll('"', '""')}"',
@@ -4659,6 +4759,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'shadowLearningSummary': summary.shadowLearningSummary,
         'shadowMemorySummary': summary.shadowMemorySummary,
         'promotionSummary': summary.promotionSummary,
+        'promotionMoId': summary.promotionMoId,
+        'promotionTargetStatus': summary.promotionTargetStatus,
+        'promotionDecisionStatus': summary.promotionDecisionStatus,
+        'promotionDecisionSummary': summary.promotionDecisionSummary,
         'learningSummary': summary.learningSummary,
         'learningMemorySummary': summary.learningMemorySummary,
         'biasSummary': summary.biasSummary,
@@ -4694,6 +4798,34 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               },
       },
     };
+  }
+
+  void _acceptSyntheticPromotion(_SyntheticScopeSummary summary) {
+    if (summary.promotionMoId.isEmpty || summary.promotionTargetStatus.isEmpty) {
+      return;
+    }
+    _moPromotionDecisionStore.accept(
+      moId: summary.promotionMoId,
+      targetValidationStatus: summary.promotionTargetStatus,
+    );
+    setState(() {});
+    _showActionMessage(
+      'MO promotion accepted toward ${summary.promotionTargetStatus} review.',
+    );
+  }
+
+  void _rejectSyntheticPromotion(_SyntheticScopeSummary summary) {
+    if (summary.promotionMoId.isEmpty || summary.promotionTargetStatus.isEmpty) {
+      return;
+    }
+    _moPromotionDecisionStore.reject(
+      moId: summary.promotionMoId,
+      targetValidationStatus: summary.promotionTargetStatus,
+    );
+    setState(() {});
+    _showActionMessage(
+      'MO promotion rejected for ${summary.promotionTargetStatus} review.',
+    );
   }
 
   void _showActionMessage(String message) {
@@ -5197,6 +5329,10 @@ class _SyntheticScopeSummary {
   final String shadowLearningSummary;
   final String shadowMemorySummary;
   final String promotionSummary;
+  final String promotionMoId;
+  final String promotionTargetStatus;
+  final String promotionDecisionStatus;
+  final String promotionDecisionSummary;
   final String learningSummary;
   final String learningMemorySummary;
   final String biasSummary;
@@ -5218,6 +5354,10 @@ class _SyntheticScopeSummary {
     required this.shadowLearningSummary,
     required this.shadowMemorySummary,
     required this.promotionSummary,
+    required this.promotionMoId,
+    required this.promotionTargetStatus,
+    required this.promotionDecisionStatus,
+    required this.promotionDecisionSummary,
     required this.learningSummary,
     required this.learningMemorySummary,
     required this.biasSummary,

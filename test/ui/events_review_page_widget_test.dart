@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/application/morning_sovereign_report_service.dart';
+import 'package:omnix_dashboard/application/mo_promotion_decision_store.dart';
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
@@ -11,6 +12,11 @@ import 'package:omnix_dashboard/ui/events_review_page.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  const promotionDecisionStore = MoPromotionDecisionStore();
+
+  setUp(() {
+    promotionDecisionStore.reset();
+  });
 
   testWidgets('events review action buttons are interactive', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1440, 980));

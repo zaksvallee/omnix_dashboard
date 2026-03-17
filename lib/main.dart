@@ -37,6 +37,7 @@ import 'application/listener_alarm_scope_mapping_service.dart';
 import 'application/listener_alarm_scope_registry_repository.dart';
 import 'application/listener_serial_ingestor.dart';
 import 'application/morning_sovereign_report_service.dart';
+import 'application/mo_promotion_decision_store.dart';
 import 'application/monitoring_global_posture_service.dart';
 import 'application/monitoring_orchestrator_service.dart';
 import 'application/monitoring_shift_notification_service.dart';
@@ -555,6 +556,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   static const _globalPostureService = MonitoringGlobalPostureService();
   static const _orchestratorService = MonitoringOrchestratorService();
   static const _syntheticWarRoomService = MonitoringSyntheticWarRoomService();
+  static const _moPromotionDecisionStore = MoPromotionDecisionStore();
   static const _partnerEndpointLabelPrefix = 'PARTNER';
   late final NewsIntelligenceService _newsIntel;
   static const _browserFiles = DispatchSnapshotFileService();
@@ -6187,6 +6189,46 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
   }
 
+  String _syntheticWarRoomPromotionId(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    return plans
+        .map((plan) => (plan.metadata['mo_promotion_id'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+  }
+
+  String _syntheticWarRoomPromotionTargetStatus(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    return plans
+        .map((plan) => (plan.metadata['mo_promotion_target'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+  }
+
+  String _syntheticWarRoomPromotionDecisionStatus(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    final moId = _syntheticWarRoomPromotionId(plans);
+    if (moId.isEmpty) {
+      return '';
+    }
+    return _moPromotionDecisionStore.decisionStatusFor(moId);
+  }
+
+  String _syntheticWarRoomPromotionDecisionSummary(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    final moId = _syntheticWarRoomPromotionId(plans);
+    final targetStatus = _syntheticWarRoomPromotionTargetStatus(plans);
+    if (moId.isEmpty || targetStatus.isEmpty) {
+      return '';
+    }
+    return _moPromotionDecisionStore.decisionSummaryFor(
+      moId: moId,
+      targetValidationStatus: targetStatus,
+    );
+  }
+
   String _syntheticWarRoomLearningMemorySummary({
     required String currentLearningLabel,
     required List<SovereignReport> history,
@@ -6842,6 +6884,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'shadowLearningSummary': _syntheticWarRoomShadowLearningSummary(plans),
       'shadowMemorySummary': _syntheticWarRoomShadowMemorySummary(plans),
       'promotionSummary': _syntheticWarRoomPromotionSummary(plans),
+      'promotionMoId': _syntheticWarRoomPromotionId(plans),
+      'promotionTargetStatus': _syntheticWarRoomPromotionTargetStatus(plans),
+      'promotionDecisionStatus': _syntheticWarRoomPromotionDecisionStatus(
+        plans,
+      ),
+      'promotionDecisionSummary': _syntheticWarRoomPromotionDecisionSummary(
+        plans,
+      ),
       'learningLabel': learningLabel,
       'learningSummary': _syntheticWarRoomLearningSummary(plans),
       'learningMemorySummary': _syntheticWarRoomLearningMemorySummary(
@@ -6934,6 +6984,16 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
                 itemPlans,
               ),
               'promotionSummary': _syntheticWarRoomPromotionSummary(itemPlans),
+              'promotionMoId': _syntheticWarRoomPromotionId(itemPlans),
+              'promotionTargetStatus': _syntheticWarRoomPromotionTargetStatus(
+                itemPlans,
+              ),
+              'promotionDecisionStatus': _syntheticWarRoomPromotionDecisionStatus(
+                itemPlans,
+              ),
+              'promotionDecisionSummary': _syntheticWarRoomPromotionDecisionSummary(
+                itemPlans,
+              ),
               'learningLabel': _syntheticWarRoomLearningLabel(itemPlans),
               'learningSummary': _syntheticWarRoomLearningSummary(itemPlans),
               'actionBias': (itemPolicyPlan.metadata['action_bias'] ?? '')
@@ -6982,6 +7042,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'shadow_learning_summary,"${(payload['shadowLearningSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'shadow_memory_summary,"${(payload['shadowMemorySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'promotion_summary,"${(payload['promotionSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'promotion_mo_id,${payload['promotionMoId'] ?? ''}',
+      'promotion_target_status,${payload['promotionTargetStatus'] ?? ''}',
+      'promotion_decision_status,${payload['promotionDecisionStatus'] ?? ''}',
+      'promotion_decision_summary,"${(payload['promotionDecisionSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'learning_label,${payload['learningLabel'] ?? ''}',
       'learning_summary,"${(payload['learningSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'learning_memory_summary,"${(payload['learningMemorySummary'] ?? '').toString().replaceAll('"', '""')}"',
@@ -7036,6 +7100,18 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       lines.add(
         'history_${i + 1}_promotion_summary,"${(row['promotionSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add(
+        'history_${i + 1}_promotion_mo_id,${row['promotionMoId'] ?? ''}',
+      );
+      lines.add(
+        'history_${i + 1}_promotion_target_status,${row['promotionTargetStatus'] ?? ''}',
+      );
+      lines.add(
+        'history_${i + 1}_promotion_decision_status,${row['promotionDecisionStatus'] ?? ''}',
+      );
+      lines.add(
+        'history_${i + 1}_promotion_decision_summary,"${(row['promotionDecisionSummary'] ?? '').toString().replaceAll('"', '""')}"',
       );
       lines.add(
         'history_${i + 1}_learning_label,${row['learningLabel'] ?? ''}',
@@ -17378,6 +17454,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final promotionSummary = (payload['promotionSummary'] ?? '')
         .toString()
         .trim();
+    final promotionDecisionStatus = (payload['promotionDecisionStatus'] ?? '')
+        .toString()
+        .trim();
+    final promotionDecisionSummary = (payload['promotionDecisionSummary'] ?? '')
+        .toString()
+        .trim();
     final learningMemorySummary = (payload['learningMemorySummary'] ?? '')
         .toString()
         .trim();
@@ -17400,6 +17482,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           '${shadowLearningSummary.isEmpty ? '' : 'shadow_learning_summary=$shadowLearningSummary\n'}'
           '${shadowMemorySummary.isEmpty ? '' : 'shadow_memory_summary=$shadowMemorySummary\n'}'
           '${promotionSummary.isEmpty ? '' : 'promotion_summary=$promotionSummary\n'}'
+          '${promotionDecisionStatus.isEmpty ? '' : 'promotion_decision_status=$promotionDecisionStatus\n'}'
+          '${promotionDecisionSummary.isEmpty ? '' : 'promotion_decision_summary=$promotionDecisionSummary\n'}'
           '${learningSummary.isEmpty ? '' : 'learning_summary=$learningSummary\n'}'
           '${learningMemorySummary.isEmpty ? '' : 'learning_memory_summary=$learningMemorySummary\n'}'
           '${biasSummary.isEmpty ? '' : 'bias_summary=$biasSummary\n'}'
@@ -17416,6 +17500,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '${shadowLearningSummary.isEmpty ? '' : 'shadow_learning_summary=$shadowLearningSummary\n'}'
         '${shadowMemorySummary.isEmpty ? '' : 'shadow_memory_summary=$shadowMemorySummary\n'}'
         '${promotionSummary.isEmpty ? '' : 'promotion_summary=$promotionSummary\n'}'
+        '${promotionDecisionStatus.isEmpty ? '' : 'promotion_decision_status=$promotionDecisionStatus\n'}'
+        '${promotionDecisionSummary.isEmpty ? '' : 'promotion_decision_summary=$promotionDecisionSummary\n'}'
         '${learningSummary.isEmpty ? '' : 'learning_summary=$learningSummary\n'}'
         '${learningMemorySummary.isEmpty ? '' : 'learning_memory_summary=$learningMemorySummary\n'}'
         '${biasSummary.isEmpty ? '' : 'bias_summary=$biasSummary\n'}'

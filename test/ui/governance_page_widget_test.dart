@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/application/morning_sovereign_report_service.dart';
+import 'package:omnix_dashboard/application/mo_promotion_decision_store.dart';
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
@@ -17,6 +18,11 @@ import 'package:omnix_dashboard/ui/governance_page.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  const promotionDecisionStore = MoPromotionDecisionStore();
+
+  setUp(() {
+    promotionDecisionStore.reset();
+  });
 
   testWidgets('governance page stays stable on phone viewport', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
