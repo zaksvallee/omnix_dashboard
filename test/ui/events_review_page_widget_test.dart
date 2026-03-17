@@ -829,6 +829,24 @@ void main() {
   testWidgets('events review shows dedicated activity investigation banner', (
     tester,
   ) async {
+    String? copiedClipboardPayload;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final args = (call.arguments as Map<dynamic, dynamic>);
+          copiedClipboardPayload = args['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+
     final events = <DispatchEvent>[
       IntelligenceReceived(
         eventId: 'ACTIVITY-1',
@@ -1076,6 +1094,49 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(
+      find.byKey(
+        const ValueKey('events-activity-casefile-json-action'),
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey('events-activity-casefile-csv-action'),
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    final copyJsonAction = tester.widget<InkWell>(
+      find.byKey(
+        const ValueKey('events-activity-casefile-json-action'),
+        skipOffstage: false,
+      ),
+    );
+    copyJsonAction.onTap!();
+    await tester.pump();
+    expect(copiedClipboardPayload, contains('"activityCaseFile"'));
+    expect(copiedClipboardPayload, contains('"siteId": "SITE-SANDTON"'));
+    expect(copiedClipboardPayload, contains('"reviewRefs": ['));
+    expect(copiedClipboardPayload, contains('"ACTIVITY-1"'));
+    expect(copiedClipboardPayload, contains('"history"'));
+
+    final copyCsvAction = tester.widget<InkWell>(
+      find.byKey(
+        const ValueKey('events-activity-casefile-csv-action'),
+        skipOffstage: false,
+      ),
+    );
+    copyCsvAction.onTap!();
+    await tester.pump();
+    expect(copiedClipboardPayload, contains('metric,value'));
+    expect(copiedClipboardPayload, contains('site_id,SITE-SANDTON'));
+    expect(
+      copiedClipboardPayload,
+      contains('review_refs,"ACTIVITY-1, ACTIVITY-3"'),
+    );
+    expect(copiedClipboardPayload, contains('history_1_date,2026-03-17'));
     expect(find.textContaining('Visit-scoped review active for'), findsNothing);
     expect(find.text('Unrelated perimeter movement'), findsNothing);
   });

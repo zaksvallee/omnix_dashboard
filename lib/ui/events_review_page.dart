@@ -519,6 +519,31 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             ),
                           ),
                         ],
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _outlineAction(
+                              'COPY ACTIVITY JSON',
+                              actionKey: const ValueKey(
+                                'events-activity-casefile-json-action',
+                              ),
+                              onTap: () => _copyActivityCaseFileJson(
+                                activityScopeSummary,
+                              ),
+                            ),
+                            _outlineAction(
+                              'COPY ACTIVITY CSV',
+                              actionKey: const ValueKey(
+                                'events-activity-casefile-csv-action',
+                              ),
+                              onTap: () => _copyActivityCaseFileCsv(
+                                activityScopeSummary,
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
@@ -2112,6 +2137,85 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       context: {'event_id': event.eventId},
     );
     _showActionMessage('Event payload copied for ${event.eventId}.');
+  }
+
+  void _copyActivityCaseFileJson(_ActivityScopeSummary summary) {
+    final payloadJson = const JsonEncoder.withIndent(
+      '  ',
+    ).convert(_activityCaseFilePayload(summary));
+    Clipboard.setData(ClipboardData(text: payloadJson));
+    logUiAction(
+      'events.export_activity_casefile_json',
+      context: {'site_id': summary.siteId, 'event_count': summary.eventCount},
+    );
+    _showActionMessage('Activity case file JSON copied.');
+  }
+
+  void _copyActivityCaseFileCsv(_ActivityScopeSummary summary) {
+    final lines = <String>[
+      'metric,value',
+      'site_id,${summary.siteId ?? ''}',
+      'event_count,${summary.eventCount}',
+      'summary_line,"${summary.summaryLine.replaceAll('"', '""')}"',
+      'top_flagged_identity,"${summary.topFlaggedIdentitySummary.replaceAll('"', '""')}"',
+      'top_long_presence,"${summary.topLongPresenceSummary.replaceAll('"', '""')}"',
+      'top_guard_interaction,"${summary.topGuardInteractionSummary.replaceAll('"', '""')}"',
+      'review_refs,"${summary.reviewRefs.join(', ').replaceAll('"', '""')}"',
+    ];
+    if (summary.history != null) {
+      lines.add(
+        'history_headline,"${summary.history!.headline.replaceAll('"', '""')}"',
+      );
+      lines.add(
+        'history_summary,"${summary.history!.summary.replaceAll('"', '""')}"',
+      );
+      for (var index = 0; index < summary.history!.points.length; index += 1) {
+        final point = summary.history!.points[index];
+        final row = index + 1;
+        lines.add('history_${row}_date,${point.date}');
+        lines.add(
+          'history_${row}_summary,"${point.summaryLine.replaceAll('"', '""')}"',
+        );
+      }
+    }
+    Clipboard.setData(ClipboardData(text: lines.join('\n')));
+    logUiAction(
+      'events.export_activity_casefile_csv',
+      context: {'site_id': summary.siteId, 'event_count': summary.eventCount},
+    );
+    _showActionMessage('Activity case file CSV copied.');
+  }
+
+  Map<String, Object?> _activityCaseFilePayload(_ActivityScopeSummary summary) {
+    return {
+      'activityCaseFile': {
+        'siteId': summary.siteId,
+        'eventCount': summary.eventCount,
+        'summaryLine': summary.summaryLine,
+        'topFlaggedIdentitySummary': summary.topFlaggedIdentitySummary,
+        'topLongPresenceSummary': summary.topLongPresenceSummary,
+        'topGuardInteractionSummary': summary.topGuardInteractionSummary,
+        'reviewRefs': summary.reviewRefs,
+        'history': summary.history == null
+            ? null
+            : {
+                'headline': summary.history!.headline,
+                'summary': summary.history!.summary,
+                'points': summary.history!.points
+                    .map(
+                      (point) => {
+                        'date': point.date,
+                        'totalSignals': point.totalSignals,
+                        'unknownSignals': point.unknownSignals,
+                        'flaggedSignals': point.flaggedSignals,
+                        'guardInteractions': point.guardInteractions,
+                        'summaryLine': point.summaryLine,
+                      },
+                    )
+                    .toList(growable: false),
+              },
+      },
+    };
   }
 
   void _showActionMessage(String message) {
