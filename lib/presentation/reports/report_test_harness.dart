@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../application/monitoring_scene_review_store.dart';
 import '../../application/report_generation_service.dart';
 import '../../application/report_output_mode.dart';
+import '../../application/report_entry_context.dart';
 import '../../application/report_receipt_export_payload.dart';
 import '../../application/report_receipt_history_copy.dart';
 import '../../application/report_receipt_history_lookup.dart';
@@ -111,6 +112,7 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
         initialPdfBytes: generated.pdfBytes,
         receiptEvent: generated.receiptEvent,
         replayMatches: replayMatches,
+        entryContext: _entryContext,
       ),
     );
   }
@@ -168,6 +170,7 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
         initialPdfBytes: regenerated.pdfBytes,
         receiptEvent: row.event,
         replayMatches: replayMatches,
+        entryContext: _entryContext,
       ),
     );
   }
@@ -1291,6 +1294,8 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
     required String eventId,
     required _ReportHistoryRow? row,
   }) {
+    final governanceTarget =
+        _entryContext == ReportEntryContext.governanceBrandingDrift;
     return ReportPreviewTargetBanner(
       eventId: eventId,
       previewSurface: _previewSurface,
@@ -1298,6 +1303,9 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
       onOpen: row == null ? null : () => _openHistoryReceipt(row),
       onCopy: row == null ? null : () => _copyHistoryReceipt(row),
       onClear: clearReportPreviewTarget,
+      openLabel: governanceTarget ? 'Open Governance Preview' : null,
+      copyLabel: governanceTarget ? 'Copy Governance Receipt' : null,
+      clearLabel: governanceTarget ? 'Clear Governance Target' : null,
       openButtonKey: const ValueKey('report-harness-preview-target-open'),
       copyButtonKey: const ValueKey('report-harness-preview-target-copy'),
       clearButtonKey: const ValueKey('report-harness-preview-target-clear'),
@@ -1306,9 +1314,17 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
 
   Widget _previewDock(_ReportHistoryRow row) {
     final sceneAccent = _sceneReviewAccent(row.sceneReviewSummary);
+    final governanceDock =
+        _entryContext == ReportEntryContext.governanceBrandingDrift;
     return ReportPreviewDockCard(
       eventId: row.event.eventId,
       detail: 'Generated UTC ${_shortUtc(row.event.occurredAt)}',
+      title: governanceDock ? 'Governance Preview Dock' : null,
+      subtitle: governanceDock
+          ? 'Governance handoff preview target held in the harness workspace.'
+          : null,
+      contextTitle: _entryContext?.bannerTitle,
+      contextDetail: _entryContext?.bannerDetail,
       statusPills: [
         _historyMetaPill(
           row.replayMatched ? 'Replay Matched' : 'Replay Failed',
@@ -1331,21 +1347,27 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
         onPressed: () => _openHistoryReceipt(row),
         style: _headerPrimaryButtonStyle(),
         icon: const Icon(Icons.open_in_new_rounded),
-        label: const Text('Open Full Preview'),
+        label: Text(
+          governanceDock ? 'Open Governance Preview' : 'Open Full Preview',
+        ),
       ),
       secondaryAction: OutlinedButton.icon(
         key: const ValueKey('report-harness-preview-dock-copy'),
         onPressed: () => _copyHistoryReceipt(row),
         style: _headerSecondaryButtonStyle(),
         icon: const Icon(Icons.copy_all_rounded),
-        label: const Text('Copy Receipt'),
+        label: Text(
+          governanceDock ? 'Copy Governance Receipt' : 'Copy Receipt',
+        ),
       ),
       tertiaryAction: OutlinedButton.icon(
         key: const ValueKey('report-harness-preview-dock-clear'),
         onPressed: clearReportPreviewTarget,
         style: _headerSecondaryButtonStyle(),
         icon: const Icon(Icons.close_rounded),
-        label: const Text('Clear Dock Target'),
+        label: Text(
+          governanceDock ? 'Clear Governance Target' : 'Clear Dock Target',
+        ),
       ),
     );
   }
@@ -1376,6 +1398,8 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
   String? get _previewReceiptEventId => _shellBinding.previewReceiptEventId;
 
   ReportPreviewSurface get _previewSurface => _shellBinding.previewSurface;
+
+  ReportEntryContext? get _entryContext => _shellBinding.entryContext;
 
   String _short(String v) => v.length <= 16 ? v : '${v.substring(0, 16)}...';
 

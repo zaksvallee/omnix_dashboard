@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/application/report_output_mode.dart';
+import 'package:omnix_dashboard/application/report_entry_context.dart';
 import 'package:omnix_dashboard/application/report_preview_request.dart';
 import 'package:omnix_dashboard/application/report_preview_surface.dart';
 import 'package:omnix_dashboard/application/report_receipt_scene_filter.dart';
@@ -1560,6 +1561,46 @@ void main() {
         find.text('Preview target: RPT-HARNESS-DOCK-ROUTE-1'),
         findsOneWidget,
       );
+    },
+  );
+
+  testWidgets(
+    'report test harness governance preview surfaces use governance wording',
+    (tester) async {
+      final store = InMemoryEventStore();
+      store.append(
+        buildTestReportGenerated(
+          eventId: 'RPT-HARNESS-GOV-1',
+          occurredAt: DateTime.utc(2026, 3, 15, 0, 55),
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          reportSchemaVersion: 2,
+          projectionVersion: 2,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ReportTestHarnessPage(
+            store: store,
+            selectedClient: 'CLIENT-001',
+            selectedSite: 'SITE-SANDTON',
+            reportShellState: const ReportShellState(
+              previewReceiptEventId: 'RPT-HARNESS-GOV-1',
+              previewSurface: ReportPreviewSurface.dock,
+              entryContext: ReportEntryContext.governanceBrandingDrift,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Governance Preview Dock'), findsOneWidget);
+      expect(find.text('Open Governance Preview'), findsWidgets);
+      expect(find.text('Copy Governance Receipt'), findsWidgets);
+      expect(find.text('Clear Governance Target'), findsWidgets);
+      expect(find.text('Open Governance Preview'), findsWidgets);
+      expect(find.text('Copy Governance Receipt'), findsWidgets);
     },
   );
 
