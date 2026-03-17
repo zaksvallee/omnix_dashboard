@@ -169,7 +169,17 @@ void main() {
               entry.actionType == 'POLICY RECOMMENDATION' &&
               entry.metadata['hazard_signal'] == 'fire' &&
               (entry.metadata['recommendation'] ?? '').contains(
-                'fire spread rehearsal',
+                'fire brigade staging',
+              ),
+        ),
+        isTrue,
+      );
+      expect(
+        plans.any(
+          (entry) =>
+              entry.actionType == 'POLICY RECOMMENDATION' &&
+              (entry.metadata['recommendation'] ?? '').contains(
+                'occupant welfare checks',
               ),
         ),
         isTrue,

@@ -170,6 +170,8 @@ void main() {
         intents.map((entry) => entry.actionType),
         containsAll(<String>[
           'ACTIVATE FIRE PLAYBOOK',
+          'DISPATCH FIRE RESPONSE',
+          'TRIGGER OCCUPANT WELFARE CHECK',
           'DRAFT SAFETY WARNING',
         ]),
       );
@@ -178,6 +180,15 @@ void main() {
       );
       expect(playbook.priority, MonitoringWatchAutonomyPriority.critical);
       expect(playbook.metadata['hazard_signal'], 'fire');
+      final dispatch = intents.firstWhere(
+        (entry) => entry.actionType == 'DISPATCH FIRE RESPONSE',
+      );
+      expect(dispatch.priority, MonitoringWatchAutonomyPriority.critical);
+      expect(dispatch.metadata['response_policy'], 'fire_emergency_dispatch');
+      final welfare = intents.firstWhere(
+        (entry) => entry.actionType == 'TRIGGER OCCUPANT WELFARE CHECK',
+      );
+      expect(welfare.metadata['response_policy'], 'occupant_welfare_check');
     });
   });
 }

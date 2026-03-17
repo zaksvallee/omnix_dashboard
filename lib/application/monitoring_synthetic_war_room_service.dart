@@ -100,11 +100,11 @@ class MonitoringSyntheticWarRoomService {
           hasWaterLeakPressure ||
           hasEnvironmentalHazardPressure) {
         final recommendation = hasFirePressure
-            ? 'earlier fire spread rehearsal and emergency response staging'
+            ? 'earlier fire brigade staging, occupant welfare checks, and fire spread rehearsal'
             : hasWaterLeakPressure
-            ? 'earlier leak containment rehearsal and water-loss staging'
+            ? 'earlier leak containment dispatch, occupant welfare checks, and water-loss rehearsal'
             : hasEnvironmentalHazardPressure
-            ? 'earlier hazard isolation rehearsal and safety staging'
+            ? 'earlier safety dispatch, occupant welfare checks, and hazard isolation rehearsal'
             : hasExternalPressure
             ? 'earlier regional readiness before external pressure lands on-site'
             : posturalEchoCount > 0

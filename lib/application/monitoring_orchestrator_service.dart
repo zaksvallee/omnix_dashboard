@@ -81,6 +81,78 @@ class MonitoringOrchestratorService {
             },
           ),
         );
+
+        actionIntents.add(
+          MonitoringWatchAutonomyActionPlan(
+            id: 'ORCH-HAZARD-DISPATCH-${region.regionId}',
+            incidentId: latest?.intelligenceId ?? leadSite.siteId,
+            siteId: leadSite.siteId,
+            priority: MonitoringWatchAutonomyPriority.critical,
+            actionType: hasFirePressure
+                ? 'DISPATCH FIRE RESPONSE'
+                : hasWaterLeakPressure
+                ? 'DISPATCH LEAK RESPONSE'
+                : 'DISPATCH SAFETY RESPONSE',
+            description: hasFirePressure
+                ? 'Stage fire response for ${leadSite.siteId}, hold ${videoOpsLabel.toUpperCase()} smoke verification, and keep the client safety call hot while spread risk is still containable.'
+                : hasWaterLeakPressure
+                ? 'Stage leak containment for ${leadSite.siteId}, hold ${videoOpsLabel.toUpperCase()} water-loss verification, and move before pooling damages the site.'
+                : 'Stage site safety response for ${leadSite.siteId}, hold ${videoOpsLabel.toUpperCase()} hazard verification, and move before conditions worsen for people on site.',
+            countdownSeconds: hasFirePressure
+                ? 4
+                : hasWaterLeakPressure
+                ? 6
+                : 9,
+            metadata: <String, String>{
+              'mode': 'AUTO',
+              'scope': 'ORCHESTRATOR',
+              'region': region.regionId,
+              'lead_site': leadSite.siteId,
+              'hazard_signal': hasFirePressure
+                  ? 'fire'
+                  : hasWaterLeakPressure
+                  ? 'water_leak'
+                  : 'environment_hazard',
+              'response_policy': hasFirePressure
+                  ? 'fire_emergency_dispatch'
+                  : hasWaterLeakPressure
+                  ? 'leak_containment_dispatch'
+                  : 'hazard_safety_dispatch',
+            },
+          ),
+        );
+
+        actionIntents.add(
+          MonitoringWatchAutonomyActionPlan(
+            id: 'ORCH-HAZARD-WELFARE-${region.regionId}',
+            incidentId: latest?.intelligenceId ?? leadSite.siteId,
+            siteId: leadSite.siteId,
+            priority: MonitoringWatchAutonomyPriority.high,
+            actionType: 'TRIGGER OCCUPANT WELFARE CHECK',
+            description: hasFirePressure
+                ? 'Trigger immediate occupant welfare verification for ${leadSite.siteId} while fire response staging is underway.'
+                : hasWaterLeakPressure
+                ? 'Trigger immediate occupant welfare verification for ${leadSite.siteId} while leak containment staging is underway.'
+                : 'Trigger immediate occupant welfare verification for ${leadSite.siteId} while the safety response is staging.',
+            countdownSeconds: hasFirePressure
+                ? 7
+                : hasWaterLeakPressure
+                ? 9
+                : 12,
+            metadata: <String, String>{
+              'mode': 'AUTO',
+              'scope': 'ORCHESTRATOR',
+              'region': region.regionId,
+              'lead_site': leadSite.siteId,
+              'hazard_signal': hasFirePressure
+                  ? 'fire'
+                  : hasWaterLeakPressure
+                  ? 'water_leak'
+                  : 'environment_hazard',
+              'response_policy': 'occupant_welfare_check',
+            },
+          ),
+        );
       }
 
       actionIntents.add(
