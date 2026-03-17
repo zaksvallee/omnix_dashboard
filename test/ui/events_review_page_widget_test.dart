@@ -1277,6 +1277,60 @@ void main() {
           initialScopedEventIds: const ['SHADOW-1'],
           initialSelectedEventId: 'SHADOW-1',
           initialScopedMode: 'shadow',
+          morningSovereignReportHistory: [
+            SovereignReport(
+              date: '2026-03-16',
+              generatedAtUtc: DateTime.utc(2026, 3, 16, 6, 0),
+              shiftWindowStartUtc: DateTime.utc(2026, 3, 15, 22, 0),
+              shiftWindowEndUtc: DateTime.utc(2026, 3, 16, 6, 0),
+              ledgerIntegrity: const SovereignReportLedgerIntegrity(
+                totalEvents: 0,
+                hashVerified: true,
+                integrityScore: 1,
+              ),
+              aiHumanDelta: const SovereignReportAiHumanDelta(
+                aiDecisions: 0,
+                humanOverrides: 0,
+                overrideReasons: <String, int>{},
+              ),
+              normDrift: const SovereignReportNormDrift(
+                sitesMonitored: 1,
+                driftDetected: 0,
+                avgMatchScore: 0.91,
+              ),
+              complianceBlockage: const SovereignReportComplianceBlockage(
+                psiraExpired: 0,
+                pdpExpired: 0,
+                totalBlocked: 0,
+              ),
+            ),
+            SovereignReport(
+              date: '2026-03-15',
+              generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
+              shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
+              shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
+              ledgerIntegrity: const SovereignReportLedgerIntegrity(
+                totalEvents: 0,
+                hashVerified: true,
+                integrityScore: 1,
+              ),
+              aiHumanDelta: const SovereignReportAiHumanDelta(
+                aiDecisions: 0,
+                humanOverrides: 0,
+                overrideReasons: <String, int>{},
+              ),
+              normDrift: const SovereignReportNormDrift(
+                sitesMonitored: 1,
+                driftDetected: 0,
+                avgMatchScore: 0.88,
+              ),
+              complianceBlockage: const SovereignReportComplianceBlockage(
+                psiraExpired: 0,
+                pdpExpired: 0,
+                totalBlocked: 0,
+              ),
+            ),
+          ],
           currentMorningSovereignReportDate: '2026-03-18',
           onOpenGovernance: () {
             governanceOpened = true;
@@ -1304,6 +1358,13 @@ void main() {
     expect(
       find.textContaining(
         'Viewing command-targeted shift 2026-03-17 instead of live oversight 2026-03-18.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('RISING • 3d'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Current matches 2 • Baseline 0.0 • Shadow-MO match pressure is increasing against recent shifts.',
       ),
       findsOneWidget,
     );
@@ -1338,6 +1399,10 @@ void main() {
     );
     expect(copiedClipboardPayload, contains('"reviewRefs": ['));
     expect(copiedClipboardPayload, contains('"siteId": "SITE-ALPHA"'));
+    expect(copiedClipboardPayload, contains('"historyHeadline": "RISING • 3d"'));
+    expect(copiedClipboardPayload, contains('"historySummary": "Current matches 2 • Baseline 0.0 • Shadow-MO match pressure is increasing against recent shifts."'));
+    expect(copiedClipboardPayload, contains('"history": {'));
+    expect(copiedClipboardPayload, contains('"date": "2026-03-17"'));
 
     final copyCsvAction = tester.widget<InkWell>(
       find.byKey(
@@ -1358,6 +1423,13 @@ void main() {
       copiedClipboardPayload,
       contains('current_case_file_command,/shadowcase json 2026-03-17'),
     );
+    expect(copiedClipboardPayload, contains('history_headline,"RISING • 3d"'));
+    expect(
+      copiedClipboardPayload,
+      contains('history_summary,"Current matches 2 • Baseline 0.0 • Shadow-MO match pressure is increasing against recent shifts."'),
+    );
+    expect(copiedClipboardPayload, contains('history_1_date,2026-03-17'));
+    expect(copiedClipboardPayload, contains('history_1_match_count,2'));
 
     final openGovernanceAction = tester.widget<InkWell>(
       find.byKey(

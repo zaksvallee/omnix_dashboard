@@ -1022,6 +1022,37 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             ),
                           ),
                         ],
+                        if (shadowScopeSummary.history != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            shadowScopeSummary.history!.headline,
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFD9F99D),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            shadowScopeSummary.history!.summary,
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFAFC2DB),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          for (final point in shadowScopeSummary.history!.points) ...[
+                            const SizedBox(height: 3),
+                            Text(
+                              '${point.date} • ${point.summaryLine}',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF8FA8C5),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ],
                         for (final site in shadowScopeSummary.sites) ...[
                           const SizedBox(height: 6),
                           Text(
@@ -1830,7 +1861,103 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       focusSummary: _readinessFocusSummary(scopedReportDate),
       reviewRefs: reviewRefs,
       sites: shadowSites,
+      history: _shadowHistorySummary(
+        currentSites: shadowSites,
+        reportDate: scopedReportDate,
+      ),
     );
+  }
+
+  _ShadowHistorySummary? _shadowHistorySummary({
+    required List<MonitoringGlobalSitePosture> currentSites,
+    required String? reportDate,
+  }) {
+    final normalizedReportDate = (reportDate ?? '').trim();
+    if (normalizedReportDate.isEmpty ||
+        widget.morningSovereignReportHistory.isEmpty) {
+      return null;
+    }
+    final historyReports = widget.morningSovereignReportHistory
+        .where((item) => item.date.trim() != normalizedReportDate)
+        .toList(growable: false)
+      ..sort(
+        (left, right) =>
+            right.generatedAtUtc.toUtc().compareTo(left.generatedAtUtc.toUtc()),
+      );
+    final currentMatchCount = _shadowMatchCountForSites(currentSites);
+    final baseline = historyReports
+        .take(3)
+        .map((item) => _shadowMatchCountForSites(_shadowMoSitesForReport(item)))
+        .toList(growable: false);
+    final baselineAverage = baseline.isEmpty
+        ? null
+        : baseline.reduce((left, right) => left + right) / baseline.length;
+    final dayCount = baseline.isEmpty ? 1 : baseline.length + 1;
+    late final String label;
+    late final String reason;
+    if (baselineAverage == null) {
+      label = 'NEW';
+      reason = 'No prior shadow-MO history is available yet.';
+    } else if (currentMatchCount > baselineAverage) {
+      label = 'RISING';
+      reason = 'Shadow-MO match pressure is increasing against recent shifts.';
+    } else if (currentMatchCount < baselineAverage) {
+      label = 'EASING';
+      reason = 'Shadow-MO match pressure eased against recent shifts.';
+    } else {
+      label = 'STABLE';
+      reason = 'Shadow-MO match pressure is holding close to the recent baseline.';
+    }
+    final points = <_ShadowHistoryPoint>[
+      _ShadowHistoryPoint(
+        date: normalizedReportDate,
+        shadowSiteCount: currentSites.length,
+        matchCount: currentMatchCount,
+        summaryLine: _shadowScopeSummaryLineForSites(currentSites),
+      ),
+      ...historyReports.take(2).map((item) {
+        final itemSites = _shadowMoSitesForReport(item);
+        return _ShadowHistoryPoint(
+          date: item.date,
+          shadowSiteCount: itemSites.length,
+          matchCount: _shadowMatchCountForSites(itemSites),
+          summaryLine: _shadowScopeSummaryLineForSites(itemSites),
+        );
+      }),
+    ];
+    return _ShadowHistorySummary(
+      headline: '$label • ${dayCount}d',
+      summary:
+          'Current matches $currentMatchCount • Baseline ${baselineAverage?.toStringAsFixed(1) ?? 'n/a'} • $reason',
+      points: points,
+    );
+  }
+
+  int _shadowMatchCountForSites(List<MonitoringGlobalSitePosture> sites) {
+    return sites.fold<int>(
+      0,
+      (current, site) => current + site.moShadowMatchCount,
+    );
+  }
+
+  List<MonitoringGlobalSitePosture> _shadowMoSitesForReport(
+    SovereignReport report,
+  ) {
+    final snapshot = _globalPostureService.buildSnapshot(
+      events: _eventsForReportWindow(report),
+      sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+    );
+    return snapshot.sites
+        .where((site) => site.moShadowMatchCount > 0)
+        .toList(growable: false);
+  }
+
+  String _shadowScopeSummaryLineForSites(List<MonitoringGlobalSitePosture> sites) {
+    if (sites.isEmpty) {
+      return 'No shadow-MO evidence matched this shift.';
+    }
+    final leadSite = sortShadowMoSites(sites).first;
+    return 'Sites ${sites.length} • Matches ${_shadowMatchCountForSites(sites)} • ${leadSite.siteId} • ${leadSite.moShadowSummary}';
   }
 
   String? _readinessScopedReportDate(List<DispatchEvent> scopedEvents) {
@@ -3988,6 +4115,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       'focus_summary,"${summary.focusSummary.replaceAll('"', '""')}"',
       'summary_line,"${summary.summaryLine.replaceAll('"', '""')}"',
       'review_refs,"${summary.reviewRefs.join(', ').replaceAll('"', '""')}"',
+      if (summary.history != null)
+        'history_headline,"${summary.history!.headline.replaceAll('"', '""')}"',
+      if (summary.history != null)
+        'history_summary,"${summary.history!.summary.replaceAll('"', '""')}"',
       if (summary.reportDate.isNotEmpty)
         'current_review_command,${_shadowReviewCommand(summary.reportDate)}',
       if (summary.reportDate.isNotEmpty)
@@ -4007,6 +4138,26 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       lines.add(
         'site_${i + 1}_review_refs,"${site.moShadowReviewRefs.join(', ').replaceAll('"', '""')}"',
       );
+    }
+    if (summary.history != null) {
+      for (var index = 0; index < summary.history!.points.length; index += 1) {
+        final point = summary.history!.points[index];
+        final row = index + 1;
+        lines.add('history_${row}_date,${point.date}');
+        lines.add('history_${row}_shadow_site_count,${point.shadowSiteCount}');
+        lines.add('history_${row}_match_count,${point.matchCount}');
+        lines.add(
+          'history_${row}_summary,"${point.summaryLine.replaceAll('"', '""')}"',
+        );
+        lines.addAll(
+          buildHistoryReviewCommandCsvRows(
+            row: row,
+            reportDate: point.date,
+            reviewCommandBuilder: _shadowReviewCommand,
+            caseFileCommandBuilder: _shadowCaseFileCommand,
+          ),
+        );
+      }
     }
     Clipboard.setData(ClipboardData(text: lines.join('\n')));
     logUiAction(
@@ -4266,12 +4417,35 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           'focusSummary': summary.focusSummary,
           'summaryLine': summary.summaryLine,
           'reviewRefs': summary.reviewRefs,
+          'historyHeadline': summary.history?.headline,
+          'historySummary': summary.history?.summary,
           'reviewShortcuts': buildReviewShortcuts(
             currentReportDate: summary.reportDate,
             previousReportDate: previousReportDate,
             reviewCommandBuilder: _shadowReviewCommand,
             caseFileCommandBuilder: _shadowCaseFileCommand,
           ),
+          'history': summary.history == null
+              ? null
+              : {
+                  'headline': summary.history!.headline,
+                  'summary': summary.history!.summary,
+                  'points': summary.history!.points
+                      .map(
+                        (point) => {
+                          'date': point.date,
+                          'shadowSiteCount': point.shadowSiteCount,
+                          'matchCount': point.matchCount,
+                          'summaryLine': point.summaryLine,
+                          ...buildReviewCommandPair(
+                            reportDate: point.date,
+                            reviewCommandBuilder: _shadowReviewCommand,
+                            caseFileCommandBuilder: _shadowCaseFileCommand,
+                          ),
+                        },
+                      )
+                      .toList(growable: false),
+                },
         },
       ),
     };
@@ -4806,6 +4980,7 @@ class _ShadowScopeSummary {
   final String focusSummary;
   final List<String> reviewRefs;
   final List<MonitoringGlobalSitePosture> sites;
+  final _ShadowHistorySummary? history;
 
   const _ShadowScopeSummary({
     required this.eventCount,
@@ -4817,6 +4992,7 @@ class _ShadowScopeSummary {
     required this.focusSummary,
     required this.reviewRefs,
     required this.sites,
+    required this.history,
   });
 
   String get bannerText {
@@ -4980,6 +5156,32 @@ class _TomorrowPostureHistoryPoint {
     required this.draftCount,
     required this.summaryLine,
     required this.shadowSummary,
+  });
+}
+
+class _ShadowHistorySummary {
+  final String headline;
+  final String summary;
+  final List<_ShadowHistoryPoint> points;
+
+  const _ShadowHistorySummary({
+    required this.headline,
+    required this.summary,
+    required this.points,
+  });
+}
+
+class _ShadowHistoryPoint {
+  final String date;
+  final int shadowSiteCount;
+  final int matchCount;
+  final String summaryLine;
+
+  const _ShadowHistoryPoint({
+    required this.date,
+    required this.shadowSiteCount,
+    required this.matchCount,
+    required this.summaryLine,
   });
 }
 

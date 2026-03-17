@@ -5597,6 +5597,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return _singleLine(parts.join(' • '), maxLength: 220);
   }
 
+  int _shadowMoMatchCountForSites(List<MonitoringGlobalSitePosture> sites) {
+    return sites.fold<int>(
+      0,
+      (current, site) => current + site.moShadowMatchCount,
+    );
+  }
+
   List<MonitoringWatchAutonomyActionPlan> _globalReadinessIntentsForReport(
     SovereignReport report,
   ) {
@@ -6518,6 +6525,24 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
                 right.generatedAtUtc.compareTo(left.generatedAtUtc),
           );
     final previousReport = history.isEmpty ? null : history.first;
+    final currentMatchCount = _shadowMoMatchCountForSites(shadowSites);
+    final baseline = history
+        .take(3)
+        .map((item) => _shadowMoMatchCountForSites(_shadowMoSitesForReport(item)))
+        .toList(growable: false);
+    final baselineAverage = baseline.isEmpty
+        ? null
+        : baseline.reduce((left, right) => left + right) / baseline.length;
+    final historyHeadline = baselineAverage == null
+        ? 'NEW • 1d'
+        : currentMatchCount > baselineAverage
+        ? 'RISING • ${baseline.length + 1}d'
+        : currentMatchCount < baselineAverage
+        ? 'EASING • ${baseline.length + 1}d'
+        : 'STABLE • ${baseline.length + 1}d';
+    final historySummary = baselineAverage == null
+        ? 'Current matches $currentMatchCount • Baseline n/a • No prior shadow-MO history is available yet.'
+        : 'Current matches $currentMatchCount • Baseline ${baselineAverage.toStringAsFixed(1)} • ${currentMatchCount > baselineAverage ? 'Shadow-MO match pressure is increasing against recent shifts.' : currentMatchCount < baselineAverage ? 'Shadow-MO match pressure eased against recent shifts.' : 'Shadow-MO match pressure is holding close to the recent baseline.'}';
     final eventIds = shadowSites
         .expand((site) => site.moShadowEventIds)
         .map((value) => value.trim())
@@ -6545,6 +6570,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'focusSummary': _readinessFocusSummary(report.date),
         'liveReportDate': (_morningSovereignReport?.date ?? '').trim(),
         'summary': _shadowMoSummaryForSites(shadowSites),
+        'historyHeadline': historyHeadline,
+        'historySummary': historySummary,
         'eventIds': eventIds,
         'reviewRefs': reviewRefs,
         'selectedEventId': selectedEventId.isEmpty ? null : selectedEventId,
@@ -6569,6 +6596,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               return <String, Object?>{
                 'reportDate': item.date,
                 'shadowSiteCount': itemSites.length,
+                'matchCount': _shadowMoMatchCountForSites(itemSites),
                 'summary': _shadowMoSummaryForSites(itemSites),
                 ...buildReviewCommandPair(
                   reportDate: item.date,
@@ -6597,6 +6625,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'live_report_date,${payload['liveReportDate'] ?? ''}',
       'shadow_site_count,${payload['shadowSiteCount'] ?? 0}',
       'summary,"${(payload['summary'] ?? '').toString().replaceAll('"', '""')}"',
+      'history_headline,"${(payload['historyHeadline'] ?? '').toString().replaceAll('"', '""')}"',
+      'history_summary,"${(payload['historySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'selected_event_id,${payload['selectedEventId'] ?? ''}',
       'review_refs,"${(((payload['reviewRefs'] as List<Object?>?) ?? const <Object?>[]).join(', ')).replaceAll('"', '""')}"',
       'review_command,${payload['reviewCommand'] ?? ''}',
@@ -6628,6 +6658,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       final row = history[i];
       if (row is! Map) continue;
       lines.add('history_${i + 1}_date,${row['reportDate'] ?? ''}');
+      lines.add('history_${i + 1}_shadow_site_count,${row['shadowSiteCount'] ?? 0}');
+      lines.add('history_${i + 1}_match_count,${row['matchCount'] ?? 0}');
       lines.add(
         'history_${i + 1}_summary,"${(row['summary'] ?? '').toString().replaceAll('"', '""')}"',
       );
@@ -17252,6 +17284,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     final payload = _shadowMoCaseFilePayload(reportDate: report.date);
     final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
+    final historyHeadline = (payload['historyHeadline'] ?? '').toString().trim();
+    final historySummary = (payload['historySummary'] ?? '').toString().trim();
     final eventIds =
         ((payload['eventIds'] as List<Object?>?) ?? const <Object?>[])
             .map((value) => value.toString().trim())
@@ -17275,6 +17309,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           'report_date=${report.date}\n'
           'summary=${(payload['summary'] ?? '').toString()}\n'
           '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
+          '${historyHeadline.isEmpty ? '' : 'history_headline=$historyHeadline\n'}'
+          '${historySummary.isEmpty ? '' : 'history_summary=$historySummary\n'}'
           'review_refs=${reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', ')}\n'
           'case_file_command=/shadowcase json ${report.date}\n'
           'events=${eventIds.length}\n'
@@ -17285,6 +17321,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'report_date=${report.date}\n'
         'summary=${(payload['summary'] ?? '').toString()}\n'
         '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
+        '${historyHeadline.isEmpty ? '' : 'history_headline=$historyHeadline\n'}'
+        '${historySummary.isEmpty ? '' : 'history_summary=$historySummary\n'}'
         'case_file_command=/shadowcase json ${report.date}\n'
         'Opening Governance for shadow MO oversight.';
   }
@@ -17316,6 +17354,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     final payload = _shadowMoCaseFilePayload(reportDate: report.date);
     final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
+    final historyHeadline = (payload['historyHeadline'] ?? '').toString().trim();
+    final historySummary = (payload['historySummary'] ?? '').toString().trim();
     final previousReviewCommand = (payload['previousReviewCommand'] ?? '')
         .toString()
         .trim();
@@ -17326,6 +17366,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       return 'ONYX SHADOWCASE CSV\n'
           'report_date=${report.date}\n'
           '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
+          '${historyHeadline.isEmpty ? '' : 'history_headline=$historyHeadline\n'}'
+          '${historySummary.isEmpty ? '' : 'history_summary=$historySummary\n'}'
           'review_command=/shadowreview ${report.date}\n'
           '${previousReviewCommand.isEmpty ? '' : 'previous_review_command=$previousReviewCommand\n'}'
           '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}'
@@ -17334,6 +17376,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return 'ONYX SHADOWCASE JSON\n'
         'report_date=${report.date}\n'
         '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
+        '${historyHeadline.isEmpty ? '' : 'history_headline=$historyHeadline\n'}'
+        '${historySummary.isEmpty ? '' : 'history_summary=$historySummary\n'}'
         'review_command=/shadowreview ${report.date}\n'
         '${previousReviewCommand.isEmpty ? '' : 'previous_review_command=$previousReviewCommand\n'}'
         '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}'
