@@ -17372,24 +17372,89 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final shadowBiasSummary = (payload['shadowBiasSummary'] ?? '')
         .toString()
         .trim();
+    final historyRows =
+        ((payload['history'] as List<Object?>?) ?? const <Object?>[])
+            .cast<Map<String, Object?>>();
+    final historyText = historyRows.asMap().entries.map((entry) {
+      final index = entry.key + 1;
+      final row = entry.value;
+      final buffer = StringBuffer();
+      final rowReportDate = (row['reportDate'] ?? '').toString().trim();
+      final summary = (row['summary'] ?? '').toString().trim();
+      final focusState = (row['focusState'] ?? '').toString().trim();
+      final focusSummary = (row['focusSummary'] ?? '').toString().trim();
+      final topIntentSummary = (row['topIntentSummary'] ?? '')
+          .toString()
+          .trim();
+      final hazardSummary = (row['hazardSummary'] ?? '').toString().trim();
+      final shadowBiasSummary = (row['shadowBiasSummary'] ?? '')
+          .toString()
+          .trim();
+      final posturalEchoCount = (row['posturalEchoCount'] ?? '')
+          .toString()
+          .trim();
+      final reviewCommand = (row['reviewCommand'] ?? '').toString().trim();
+      final caseFileCommand = (row['caseFileCommand'] ?? '')
+          .toString()
+          .trim();
+      final governanceCommand = (row['governanceCommand'] ?? '')
+          .toString()
+          .trim();
+      if (rowReportDate.isNotEmpty) {
+        buffer.write('history_${index}_report_date=$rowReportDate\n');
+      }
+      if (summary.isNotEmpty) {
+        buffer.write('history_${index}_summary=$summary\n');
+      }
+      if (focusState.isNotEmpty) {
+        buffer.write('history_${index}_focus_state=$focusState\n');
+      }
+      if (focusSummary.isNotEmpty) {
+        buffer.write('history_${index}_focus_summary=$focusSummary\n');
+      }
+      if (topIntentSummary.isNotEmpty) {
+        buffer.write('history_${index}_top_intent_summary=$topIntentSummary\n');
+      }
+      if (hazardSummary.isNotEmpty) {
+        buffer.write('history_${index}_hazard_summary=$hazardSummary\n');
+      }
+      if (shadowBiasSummary.isNotEmpty) {
+        buffer.write(
+          'history_${index}_shadow_bias_summary=$shadowBiasSummary\n',
+        );
+      }
+      if (posturalEchoCount.isNotEmpty) {
+        buffer.write('history_${index}_postural_echo_count=$posturalEchoCount\n');
+      }
+      if (reviewCommand.isNotEmpty) {
+        buffer.write('history_${index}_review_command=$reviewCommand\n');
+      }
+      if (caseFileCommand.isNotEmpty) {
+        buffer.write('history_${index}_case_file_command=$caseFileCommand\n');
+      }
+      if (governanceCommand.isNotEmpty) {
+        buffer.write('history_${index}_governance_command=$governanceCommand\n');
+      }
+      return buffer.toString();
+    }).join();
     if (format == 'csv') {
-      return 'ONYX READINESSCASE CSV\n'
+      final header = 'ONYX READINESSCASE CSV\n'
           'report_date=${report.date}\n'
           '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
           '${hazardSummary.isEmpty ? '' : 'hazard_summary=$hazardSummary\n'}'
           '${shadowBiasSummary.isEmpty ? '' : 'shadow_bias_summary=$shadowBiasSummary\n'}'
           'review_command=$reviewCommand\n'
-          'governance_command=$governanceCommand\n'
-          '${_globalReadinessCaseFileCsv(reportDate: report.date)}';
+          'governance_command=$governanceCommand\n';
+      return '$header$historyText${_globalReadinessCaseFileCsv(reportDate: report.date)}';
     }
-    return 'ONYX READINESSCASE JSON\n'
+    final header = 'ONYX READINESSCASE JSON\n'
         'report_date=${report.date}\n'
         '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
         '${hazardSummary.isEmpty ? '' : 'hazard_summary=$hazardSummary\n'}'
         '${shadowBiasSummary.isEmpty ? '' : 'shadow_bias_summary=$shadowBiasSummary\n'}'
         'review_command=$reviewCommand\n'
-        'governance_command=$governanceCommand\n'
-        '${const JsonEncoder.withIndent('  ').convert(payload)}';
+        'governance_command=$governanceCommand\n';
+    return '$header$historyText${const JsonEncoder.withIndent('  ').convert(payload)}';
   }
 
   String _telegramAdminSyntheticReviewCommand(String arguments) {
