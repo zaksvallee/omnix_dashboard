@@ -178,6 +178,14 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(
+      find.text('Share Morning Pack (Historical Shift 2026-03-09)'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Email Morning Report (Historical Shift 2026-03-09)'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('governance page shows global readiness drift and drill-in', (

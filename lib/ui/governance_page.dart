@@ -1897,16 +1897,26 @@ class _GovernancePageState extends State<GovernancePage> {
 
   String _shareMorningPackActionLabel(_GovernanceReportView report) {
     final focusLabel = _focusedSceneActionActionLabel(report);
-    return focusLabel == null
+    final readinessFocusLabel = _historicalMorningReportFocusLabel(report);
+    final suffix = _combinedMorningActionSuffix(
+      focusLabel: focusLabel,
+      readinessFocusLabel: readinessFocusLabel,
+    );
+    return suffix == null
         ? 'Share Morning Pack'
-        : 'Share Morning Pack ($focusLabel)';
+        : 'Share Morning Pack ($suffix)';
   }
 
   String _emailMorningReportActionLabel(_GovernanceReportView report) {
     final focusLabel = _focusedSceneActionActionLabel(report);
-    return focusLabel == null
+    final readinessFocusLabel = _historicalMorningReportFocusLabel(report);
+    final suffix = _combinedMorningActionSuffix(
+      focusLabel: focusLabel,
+      readinessFocusLabel: readinessFocusLabel,
+    );
+    return suffix == null
         ? 'Email Morning Report'
-        : 'Email Morning Report ($focusLabel)';
+        : 'Email Morning Report ($suffix)';
   }
 
   String _morningJsonFilename(_GovernanceReportView report) {
@@ -1925,16 +1935,47 @@ class _GovernancePageState extends State<GovernancePage> {
 
   String _morningShareTitle(_GovernanceReportView report) {
     final focusLabel = _focusedSceneActionActionLabel(report);
-    return focusLabel == null
+    final readinessFocusLabel = _historicalMorningReportFocusLabel(report);
+    final suffix = _combinedMorningActionSuffix(
+      focusLabel: focusLabel,
+      readinessFocusLabel: readinessFocusLabel,
+    );
+    return suffix == null
         ? 'ONYX Morning Sovereign Report'
-        : 'ONYX Morning Sovereign Report ($focusLabel)';
+        : 'ONYX Morning Sovereign Report ($suffix)';
   }
 
   String _morningEmailSubject(_GovernanceReportView report) {
     final focusLabel = _focusedSceneActionActionLabel(report);
-    return focusLabel == null
+    final readinessFocusLabel = _historicalMorningReportFocusLabel(report);
+    final suffix = _combinedMorningActionSuffix(
+      focusLabel: focusLabel,
+      readinessFocusLabel: readinessFocusLabel,
+    );
+    return suffix == null
         ? 'ONYX Morning Sovereign Report'
-        : 'ONYX Morning Sovereign Report ($focusLabel)';
+        : 'ONYX Morning Sovereign Report ($suffix)';
+  }
+
+  String? _historicalMorningReportFocusLabel(_GovernanceReportView report) {
+    return _isHistoricalGlobalReadinessFocus(report)
+        ? 'Historical Shift ${report.reportDate}'
+        : null;
+  }
+
+  String? _combinedMorningActionSuffix({
+    String? focusLabel,
+    String? readinessFocusLabel,
+  }) {
+    final parts = <String>[
+      if ((focusLabel ?? '').trim().isNotEmpty) focusLabel!.trim(),
+      if ((readinessFocusLabel ?? '').trim().isNotEmpty)
+        readinessFocusLabel!.trim(),
+    ];
+    if (parts.isEmpty) {
+      return null;
+    }
+    return parts.join(' • ');
   }
 
   String? _focusedSceneActionActionLabel(_GovernanceReportView report) {
