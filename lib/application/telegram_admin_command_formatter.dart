@@ -66,6 +66,58 @@ class TelegramAdminCommandFormatter {
         'UTC: $utcStamp';
   }
 
+  static String morningGovernance({
+    required String signalHeader,
+    required String reportDate,
+    required String generatedAtUtc,
+    required String sceneReviewSummary,
+    required String siteActivityHeadline,
+    required String siteActivitySummary,
+    required String currentShiftReviewCommand,
+    required String currentShiftCaseFileCommand,
+    String? previousShiftReviewCommand,
+    String? previousShiftCaseFileCommand,
+    String? targetScope,
+    required bool targetScopeRequired,
+    required String utcStamp,
+  }) {
+    final normalizedTargetScope = targetScope?.trim() ?? '';
+    final previousReview = previousShiftReviewCommand?.trim() ?? '';
+    final previousCase = previousShiftCaseFileCommand?.trim() ?? '';
+    final targetLine = normalizedTargetScope.isEmpty
+        ? '• <b>Target scope:</b> required\n'
+        : '• <b>Target scope:</b> <code>${_escapeHtml(normalizedTargetScope)}</code>\n';
+    final targetHint = targetScopeRequired
+        ? (normalizedTargetScope.isEmpty
+              ? '• <b>Hint:</b> Run <code>/settarget CLIENT SITE</code> before the activity shortcuts.\n'
+              : '• <b>Hint:</b> Activity shortcuts use the current target scope.\n')
+        : '';
+    final previousLines = previousReview.isEmpty
+        ? ''
+        : '• <b>Previous review:</b> <code>${_escapeHtml(previousReview)}</code>\n'
+              '${previousCase.isEmpty ? '' : '• <b>Previous case:</b> <code>${_escapeHtml(previousCase)}</code>\n'}';
+    return '🛰️ <b>ONYX MORNING GOVERNANCE</b>\n\n'
+        '<b>Signal</b>\n'
+        '<code>${_escapeHtml(signalHeader)}</code>\n\n'
+        '---\n\n'
+        '<b>Shift</b>\n'
+        '• <b>Date:</b> ${_escapeHtml(reportDate)}\n'
+        '• <b>Generated:</b> ${_escapeHtml(generatedAtUtc)}\n\n'
+        '---\n\n'
+        '<b>Oversight</b>\n'
+        '• <b>Scene review:</b> ${_escapeHtml(sceneReviewSummary)}\n'
+        '• <b>Site activity:</b> ${_escapeHtml(siteActivityHeadline)}\n'
+        '• <b>Summary:</b> ${_escapeHtml(siteActivitySummary)}\n\n'
+        '---\n\n'
+        '<b>Activity Investigation</b>\n'
+        '$targetLine'
+        '• <b>Current review:</b> <code>${_escapeHtml(currentShiftReviewCommand)}</code>\n'
+        '• <b>Current case:</b> <code>${_escapeHtml(currentShiftCaseFileCommand)}</code>\n'
+        '$previousLines'
+        '$targetHint'
+        '\nUTC: ${_escapeHtml(utcStamp)}';
+  }
+
   static String _optionalLine({
     required String label,
     String? value,
@@ -76,5 +128,12 @@ class TelegramAdminCommandFormatter {
       return '';
     }
     return '$label$separator$trimmed\n';
+  }
+
+  static String _escapeHtml(String value) {
+    return value
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;');
   }
 }

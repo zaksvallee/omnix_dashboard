@@ -5217,6 +5217,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     await _persistMorningSovereignReportHistory();
     await _persistMorningSovereignReportAutoRunKey();
     if (automated) {
+      await _autoSendMorningGovernanceDigest(report);
       await _autoSendMorningSiteActivityDigests();
     }
     await _recordGuardExportAuditEvent(
@@ -5267,6 +5268,84 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       } catch (_) {
         // Automatic digest delivery must not block morning report generation.
       }
+    }
+  }
+
+  Future<void> _autoSendMorningGovernanceDigest(SovereignReport report) async {
+    if (!_telegramAdminControlEnabled || !_telegramBridge.isConfigured) {
+      return;
+    }
+    final adminChatId = _resolvedTelegramAdminChatId();
+    if (adminChatId.isEmpty) {
+      return;
+    }
+    final adminThreadId = _resolvedTelegramAdminThreadId();
+    SovereignReport? previousReport;
+    for (final item in _morningSovereignReportHistory) {
+      if (item.date.trim() == report.date.trim()) {
+        continue;
+      }
+      previousReport = item;
+      break;
+    }
+    final targetClientId = _telegramAdminTargetClientId.trim();
+    final targetSiteId = _telegramAdminTargetSiteId.trim();
+    final targetScope = targetClientId.isNotEmpty && targetSiteId.isNotEmpty
+        ? '$targetClientId/$targetSiteId'
+        : null;
+    final sceneReviewSummary = _singleLine(
+      report.sceneReview.recentActionsSummary.trim().isNotEmpty
+          ? report.sceneReview.recentActionsSummary
+          : (report.sceneReview.actionMixSummary.trim().isNotEmpty
+                ? report.sceneReview.actionMixSummary
+                : (report.sceneReview.latestActionTaken.trim().isNotEmpty
+                      ? report.sceneReview.latestActionTaken
+                      : 'No review actions recorded.')),
+      maxLength: 220,
+    );
+    final siteActivityHeadline = _singleLine(
+      report.siteActivity.headline.trim().isNotEmpty
+          ? report.siteActivity.headline
+          : 'ACTIVITY STABLE',
+      maxLength: 120,
+    );
+    final siteActivitySummary = _singleLine(
+      report.siteActivity.summaryLine.trim().isNotEmpty
+          ? report.siteActivity.summaryLine
+          : report.siteActivity.executiveSummary,
+      maxLength: 220,
+    );
+    final responseText = TelegramAdminCommandFormatter.morningGovernance(
+      signalHeader: _telegramAdminSignalHeader(),
+      reportDate: report.date,
+      generatedAtUtc: report.generatedAtUtc.toIso8601String(),
+      sceneReviewSummary: sceneReviewSummary,
+      siteActivityHeadline: siteActivityHeadline,
+      siteActivitySummary: siteActivitySummary,
+      currentShiftReviewCommand: '/activityreview ${report.date}',
+      currentShiftCaseFileCommand: '/activitycase json ${report.date}',
+      previousShiftReviewCommand: previousReport == null
+          ? null
+          : '/activityreview ${previousReport.date}',
+      previousShiftCaseFileCommand: previousReport == null
+          ? null
+          : '/activitycase json ${previousReport.date}',
+      targetScope: targetScope,
+      targetScopeRequired: true,
+      utcStamp: _telegramUtcStamp(),
+    );
+    try {
+      await _sendTelegramMessageWithChunks(
+        messageKeyPrefix: 'tg-admin-morning-governance-${report.date}',
+        chatId: adminChatId,
+        messageThreadId: adminThreadId,
+        responseText: responseText,
+        failureContext: 'Morning governance digest',
+        replyMarkup: _telegramAdminQuickReplyMarkup(),
+        parseMode: 'HTML',
+      );
+    } catch (_) {
+      // Governance digests must not block the morning report cycle.
     }
   }
 

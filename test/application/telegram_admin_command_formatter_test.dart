@@ -113,4 +113,54 @@ void main() {
       ),
     );
   });
+
+  test('morning governance formatter includes target-aware activity shortcuts', () {
+    final response = TelegramAdminCommandFormatter.morningGovernance(
+      signalHeader:
+          '[GREEN] ONYX SIGNAL | critical=0 | inc=0 | guards=2 | telemetry=ready/OK | tg=READY | utc=2026-03-17T04:00:00Z',
+      reportDate: '2026-03-17',
+      generatedAtUtc: '2026-03-17T04:00:00Z',
+      sceneReviewSummary: 'Incident 2 • Repeat 1 • Escalation 1 • Suppressed 0',
+      siteActivityHeadline: 'ACTIVITY RISING',
+      siteActivitySummary:
+          'Unknown or flagged site activity increased against recent shifts.',
+      currentShiftReviewCommand: '/activityreview 2026-03-17',
+      currentShiftCaseFileCommand: '/activitycase json 2026-03-17',
+      previousShiftReviewCommand: '/activityreview 2026-03-16',
+      previousShiftCaseFileCommand: '/activitycase json 2026-03-16',
+      targetScopeRequired: true,
+      targetScope: 'client-alpha/site-1',
+      utcStamp: '2026-03-17T04:00:05Z',
+    );
+
+    expect(response, contains('<b>ONYX MORNING GOVERNANCE</b>'));
+    expect(response, contains('<b>Target scope:</b> <code>client-alpha/site-1</code>'));
+    expect(response, contains('<code>/activityreview 2026-03-17</code>'));
+    expect(response, contains('<code>/activitycase json 2026-03-16</code>'));
+    expect(
+      response,
+      contains('Activity shortcuts use the current target scope.'),
+    );
+  });
+
+  test('morning governance formatter prompts for target scope when unset', () {
+    final response = TelegramAdminCommandFormatter.morningGovernance(
+      signalHeader: '[AMBER] ONYX SIGNAL',
+      reportDate: '2026-03-17',
+      generatedAtUtc: '2026-03-17T04:00:00Z',
+      sceneReviewSummary: 'No review actions recorded.',
+      siteActivityHeadline: 'ACTIVITY STABLE',
+      siteActivitySummary: 'No visitor or site-activity signals detected.',
+      currentShiftReviewCommand: '/activityreview 2026-03-17',
+      currentShiftCaseFileCommand: '/activitycase json 2026-03-17',
+      targetScopeRequired: true,
+      utcStamp: '2026-03-17T04:00:05Z',
+    );
+
+    expect(response, contains('<b>Target scope:</b> required'));
+    expect(
+      response,
+      contains('Run <code>/settarget CLIENT SITE</code> before the activity shortcuts.'),
+    );
+  });
 }
