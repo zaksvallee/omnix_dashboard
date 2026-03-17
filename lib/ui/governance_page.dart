@@ -1869,16 +1869,22 @@ class _GovernancePageState extends State<GovernancePage> {
 
   String _copyMorningJsonActionLabel(_GovernanceReportView report) {
     final focusLabel = _focusedSceneActionActionLabel(report);
-    return focusLabel == null
-        ? 'Copy Morning JSON'
-        : 'Copy Morning JSON ($focusLabel)';
+    final readinessFocusLabel = _historicalMorningReportFocusLabel(report);
+    final suffix = _combinedMorningActionSuffix(
+      focusLabel: focusLabel,
+      readinessFocusLabel: readinessFocusLabel,
+    );
+    return suffix == null ? 'Copy Morning JSON' : 'Copy Morning JSON ($suffix)';
   }
 
   String _copyMorningCsvActionLabel(_GovernanceReportView report) {
     final focusLabel = _focusedSceneActionActionLabel(report);
-    return focusLabel == null
-        ? 'Copy Morning CSV'
-        : 'Copy Morning CSV ($focusLabel)';
+    final readinessFocusLabel = _historicalMorningReportFocusLabel(report);
+    final suffix = _combinedMorningActionSuffix(
+      focusLabel: focusLabel,
+      readinessFocusLabel: readinessFocusLabel,
+    );
+    return suffix == null ? 'Copy Morning CSV' : 'Copy Morning CSV ($suffix)';
   }
 
   String _downloadMorningJsonActionLabel(_GovernanceReportView report) {

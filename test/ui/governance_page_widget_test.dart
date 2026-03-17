@@ -194,6 +194,14 @@ void main() {
       find.text('Download Morning CSV (Historical Shift 2026-03-09)'),
       findsOneWidget,
     );
+    expect(
+      find.text('Copy Morning JSON (Historical Shift 2026-03-09)'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Copy Morning CSV (Historical Shift 2026-03-09)'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('governance page shows global readiness drift and drill-in', (
