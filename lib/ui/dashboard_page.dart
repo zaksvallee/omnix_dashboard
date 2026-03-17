@@ -1509,6 +1509,60 @@ class _RightRail extends StatelessWidget {
     });
   }
 
+  String _siteActivityTruthJson() {
+    final sovereignReport = morningSovereignReport;
+    final siteActivityTrend = sovereignReport == null
+        ? null
+        : _siteActivityTrendFor(sovereignReport, siteActivity);
+    return const JsonEncoder.withIndent('  ').convert({
+      'scope': {
+        'reportDate': sovereignReport?.date,
+        'generatedAtUtc': sovereignReport?.generatedAtUtc.toIso8601String(),
+      },
+      'siteActivity': {
+        'totalSignals': siteActivity.totalSignals,
+        'personSignals': siteActivity.personSignals,
+        'vehicleSignals': siteActivity.vehicleSignals,
+        'knownIdentitySignals': siteActivity.knownIdentitySignals,
+        'flaggedIdentitySignals': siteActivity.flaggedIdentitySignals,
+        'unknownSignals':
+            siteActivity.unknownPersonSignals + siteActivity.unknownVehicleSignals,
+        'longPresenceSignals': siteActivity.longPresenceSignals,
+        'guardInteractionSignals': siteActivity.guardInteractionSignals,
+        'summaryLine': siteActivity.summaryLine,
+      },
+      'trend': siteActivityTrend == null
+          ? null
+          : {
+              'label': siteActivityTrend.label,
+              'summary': siteActivityTrend.summary,
+            },
+    });
+  }
+
+  String _siteActivityTruthCsv() {
+    final sovereignReport = morningSovereignReport;
+    final siteActivityTrend = sovereignReport == null
+        ? null
+        : _siteActivityTrendFor(sovereignReport, siteActivity);
+    return [
+      'metric,value',
+      'report_date,${sovereignReport?.date ?? ''}',
+      'generated_at_utc,${sovereignReport?.generatedAtUtc.toIso8601String() ?? ''}',
+      'site_activity_total_signals,${siteActivity.totalSignals}',
+      'site_activity_people,${siteActivity.personSignals}',
+      'site_activity_vehicles,${siteActivity.vehicleSignals}',
+      'site_activity_known_ids,${siteActivity.knownIdentitySignals}',
+      'site_activity_flagged_ids,${siteActivity.flaggedIdentitySignals}',
+      'site_activity_unknown_signals,${siteActivity.unknownPersonSignals + siteActivity.unknownVehicleSignals}',
+      'site_activity_long_presence,${siteActivity.longPresenceSignals}',
+      'site_activity_guard_interactions,${siteActivity.guardInteractionSignals}',
+      'site_activity_summary,"${siteActivity.summaryLine.replaceAll('"', '""')}"',
+      'site_activity_trend_label,${siteActivityTrend?.label ?? ''}',
+      'site_activity_trend_summary,"${(siteActivityTrend?.summary ?? '').replaceAll('"', '""')}"',
+    ].join('\n');
+  }
+
   String _guardPolicyTelemetryCsv() {
     final deniedEvents = [...guardOutcomePolicyDeniedHistoryUtc]
       ..sort((a, b) => b.compareTo(a));
@@ -2675,6 +2729,133 @@ class _RightRail extends StatelessWidget {
                               ),
                               child: Text(
                                 'Share Coaching Pack',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF8FD1FF),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: TextButton(
+                              onPressed: () async {
+                                await Clipboard.setData(
+                                  ClipboardData(text: _siteActivityTruthJson()),
+                                );
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Site activity truth JSON copied',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFE7F0FF),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    backgroundColor: const Color(0xFF0E203A),
+                                  ),
+                                );
+                              },
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(0, 0),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                'Copy Site Activity JSON',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF8FD1FF),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: TextButton(
+                              onPressed: () async {
+                                await Clipboard.setData(
+                                  ClipboardData(text: _siteActivityTruthCsv()),
+                                );
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Site activity truth CSV copied',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFE7F0FF),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    backgroundColor: const Color(0xFF0E203A),
+                                  ),
+                                );
+                              },
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(0, 0),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                'Copy Site Activity CSV',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF8FD1FF),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: TextButton(
+                              onPressed: () async {
+                                if (!_textShare.supported) {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Share is not available in this environment',
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFFE7F0FF),
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      backgroundColor: const Color(0xFF0E203A),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                final shared = await _textShare.shareText(
+                                  title: 'ONYX Site Activity Truth',
+                                  text: _siteActivityTruthJson(),
+                                );
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      shared
+                                          ? 'Site activity truth share started'
+                                          : 'Site activity truth share unavailable',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFE7F0FF),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    backgroundColor: const Color(0xFF0E203A),
+                                  ),
+                                );
+                              },
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(0, 0),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                'Share Site Activity Pack',
                                 style: GoogleFonts.inter(
                                   color: const Color(0xFF8FD1FF),
                                   fontSize: 11,
