@@ -1031,6 +1031,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
               _detailCell('Signal', 'mo_shadow'),
               _detailCell('Lead Site', lead.siteId),
               _detailCell('Matches', '${lead.moShadowMatchCount}'),
+              _detailCell(
+                'Posture Weight',
+                shadowMoPostureStrengthSummary(lead),
+              ),
             ],
           ),
           const SizedBox(height: 10),

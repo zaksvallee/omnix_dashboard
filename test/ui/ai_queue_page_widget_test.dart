@@ -438,6 +438,8 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('mo_shadow'), findsOneWidget);
+    expect(find.text('POSTURE WEIGHT'), findsOneWidget);
+    expect(find.textContaining('weight '), findsOneWidget);
 
     await tester.tap(
       find.byKey(const ValueKey('ai-queue-mo-shadow-open-dossier')),

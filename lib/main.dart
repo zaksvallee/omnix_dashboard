@@ -5396,6 +5396,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           .toString(),
       globalReadinessShadowStatusSummary:
           (shadowMoCaseFile['validationSummary'] ?? '').toString(),
+      globalReadinessShadowPostureSummary:
+          (shadowMoCaseFile['postureStrengthSummary'] ?? '').toString(),
       globalReadinessShadowHistoryHeadline:
           (shadowMoCaseFile['historyHeadline'] ?? '').toString(),
       globalReadinessShadowHistorySummary:
