@@ -5402,6 +5402,33 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return null;
   }
 
+  bool _isHistoricalReadinessFocus(String reportDate) {
+    final normalizedReportDate = reportDate.trim();
+    if (normalizedReportDate.isEmpty) {
+      return false;
+    }
+    final currentDate = (_morningSovereignReport?.date ?? '').trim();
+    return currentDate.isNotEmpty && currentDate != normalizedReportDate;
+  }
+
+  String _readinessFocusState(String reportDate) {
+    return _isHistoricalReadinessFocus(reportDate)
+        ? 'historical_command_target'
+        : 'live_current_shift';
+  }
+
+  String _readinessFocusSummary(String reportDate) {
+    final normalizedReportDate = reportDate.trim();
+    if (normalizedReportDate.isEmpty) {
+      return 'Viewing current live oversight shift.';
+    }
+    final currentDate = (_morningSovereignReport?.date ?? '').trim();
+    if (currentDate.isEmpty || currentDate == normalizedReportDate) {
+      return 'Viewing live oversight shift $normalizedReportDate.';
+    }
+    return 'Viewing command-targeted shift $normalizedReportDate instead of live oversight $currentDate.';
+  }
+
   List<SovereignReport> _governanceHistoryForFocusedReport(
     SovereignReport? focusedReport,
   ) {
@@ -5687,6 +5714,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return <String, Object?>{
       'reportDate': report.date,
       'generatedAtUtc': report.generatedAtUtc.toIso8601String(),
+      'focusState': _readinessFocusState(report.date),
+      'historicalFocus': _isHistoricalReadinessFocus(report.date),
+      'focusSummary': _readinessFocusSummary(report.date),
+      'liveReportDate': (_morningSovereignReport?.date ?? '').trim(),
       'modeLabel': _globalReadinessModeLabel(snapshot, intents),
       'summary': _globalReadinessSummaryForReport(
         snapshot: snapshot,
@@ -5773,6 +5804,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
                 .length;
             return <String, Object?>{
               'reportDate': item.date,
+              'focusState': _readinessFocusState(item.date),
+              'historicalFocus': _isHistoricalReadinessFocus(item.date),
+              'focusSummary': _readinessFocusSummary(item.date),
               'modeLabel': _globalReadinessModeLabel(itemSnapshot, itemIntents),
               'summary': _globalReadinessSummaryForReport(
                 snapshot: itemSnapshot,
@@ -5797,6 +5831,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'report_date,${payload['reportDate'] ?? ''}',
       'available,${payload['available'] == false ? 'false' : 'true'}',
       'generated_at_utc,${payload['generatedAtUtc'] ?? ''}',
+      'focus_state,${payload['focusState'] ?? ''}',
+      'historical_focus,${payload['historicalFocus'] == true ? 'true' : 'false'}',
+      'focus_summary,"${(payload['focusSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'live_report_date,${payload['liveReportDate'] ?? ''}',
       'mode_label,"${(payload['modeLabel'] ?? '').toString().replaceAll('"', '""')}"',
       'summary,"${(payload['summary'] ?? '').toString().replaceAll('"', '""')}"',
       'total_sites,${payload['totalSites'] ?? 0}',
@@ -5838,6 +5876,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       if (row is! Map) continue;
       lines.add(
         'history_${i + 1},"${(row['summary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add('history_${i + 1}_focus_state,${row['focusState'] ?? ''}');
+      lines.add(
+        'history_${i + 1}_historical_focus,${row['historicalFocus'] == true ? 'true' : 'false'}',
+      );
+      lines.add(
+        'history_${i + 1}_focus_summary,"${(row['focusSummary'] ?? '').toString().replaceAll('"', '""')}"',
       );
       lines.add(
         'history_${i + 1}_postural_echo_count,${row['posturalEchoCount'] ?? 0}',
@@ -15813,6 +15858,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final snapshot = _globalReadinessSnapshotForReport(report);
     final intents = _globalReadinessIntentsForReport(report);
     final payload = _globalReadinessCaseFilePayload(reportDate: report.date);
+    final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
     final eventIds =
         ((payload['eventIds'] as List<Object?>?) ?? const <Object?>[])
             .map((value) => value.toString().trim())
@@ -15836,6 +15882,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           'report_date=${report.date}\n'
           'mode=${_globalReadinessModeLabel(snapshot, intents)}\n'
           'summary=${_globalReadinessSummaryForReport(snapshot: snapshot, intents: intents)}\n'
+          '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
           'review_refs=${reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', ')}\n'
           'governance_command=/readinessgovernance ${report.date}\n'
           'events=${eventIds.length}\n'
@@ -15846,6 +15893,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'report_date=${report.date}\n'
         'mode=${_globalReadinessModeLabel(snapshot, intents)}\n'
         'summary=${_globalReadinessSummaryForReport(snapshot: snapshot, intents: intents)}\n'
+        '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
         'governance_command=/readinessgovernance ${report.date}\n'
         'Opening Governance for global readiness oversight.';
   }
@@ -15860,11 +15908,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     final snapshot = _globalReadinessSnapshotForReport(report);
     final intents = _globalReadinessIntentsForReport(report);
+    final payload = _globalReadinessCaseFilePayload(reportDate: report.date);
+    final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
     _openGovernanceForReportDate(report.date);
     return 'ONYX READINESSGOVERNANCE\n'
         'report_date=${report.date}\n'
         'mode=${_globalReadinessModeLabel(snapshot, intents)}\n'
         'summary=${_globalReadinessSummaryForReport(snapshot: snapshot, intents: intents)}\n'
+        '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
         'review_command=/readinessreview ${report.date}\n'
         'case_file_command=/readinesscase json ${report.date}\n'
         'Opening Governance for global readiness oversight.';
@@ -15897,18 +15948,22 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     final reviewCommand = '/readinessreview ${report.date}';
     final governanceCommand = '/readinessgovernance ${report.date}';
+    final payload = _globalReadinessCaseFilePayload(reportDate: report.date);
+    final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
     if (format == 'csv') {
       return 'ONYX READINESSCASE CSV\n'
           'report_date=${report.date}\n'
+          '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
           'review_command=$reviewCommand\n'
           'governance_command=$governanceCommand\n'
           '${_globalReadinessCaseFileCsv(reportDate: report.date)}';
     }
     return 'ONYX READINESSCASE JSON\n'
         'report_date=${report.date}\n'
+        '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
         'review_command=$reviewCommand\n'
         'governance_command=$governanceCommand\n'
-        '${const JsonEncoder.withIndent('  ').convert(_globalReadinessCaseFilePayload(reportDate: report.date))}';
+        '${const JsonEncoder.withIndent('  ').convert(payload)}';
   }
 
   Future<String> _telegramAdminSendActivityCommand(String arguments) async {
