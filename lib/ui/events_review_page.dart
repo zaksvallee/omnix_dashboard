@@ -3977,6 +3977,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     final previousReportDate = summary.historicalFocus
         ? widget.currentMorningSovereignReportDate
         : null;
+    final orderedSites = sortShadowMoSites(summary.sites);
     final lines = <String>[
       'metric,value',
       'report_date,${summary.reportDate}',
@@ -3996,8 +3997,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       if ((previousReportDate ?? '').trim().isNotEmpty)
         'previous_case_file_command,${_shadowCaseFileCommand(previousReportDate!.trim())}',
     ];
-    for (var i = 0; i < summary.sites.length; i += 1) {
-      final site = summary.sites[i];
+    for (var i = 0; i < orderedSites.length; i += 1) {
+      final site = orderedSites[i];
       lines.add('site_${i + 1}_id,${site.siteId}');
       lines.add(
         'site_${i + 1}_summary,"${site.moShadowSummary.replaceAll('"', '""')}"',

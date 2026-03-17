@@ -101,4 +101,95 @@ void main() {
     final sites = payload['sites'] as List<Object?>;
     expect(sites, hasLength(1));
   });
+
+  test('orders shadow dossier sites by reviewed evidence strength', () {
+    final newsHeavySite = MonitoringGlobalSitePosture(
+      clientId: 'CLIENT-VALLEE',
+      regionId: 'REGION-GAUTENG',
+      siteId: 'SITE-NEWS',
+      heatLevel: MonitoringGlobalHeatLevel.elevated,
+      activityScore: 95,
+      intelligenceCount: 3,
+      escalationCount: 1,
+      repeatCount: 0,
+      suppressedCount: 0,
+      identitySignalCount: 0,
+      latestSummary: 'External shadow pattern seeded.',
+      lastActivityAtUtc: DateTime.utc(2026, 3, 17, 3, 0),
+      dominantSignals: const ['mo_shadow'],
+      moShadowMatchCount: 2,
+      moShadowSummary: 'News-led contractor roaming pattern.',
+      moShadowEventIds: const ['evt-news-1', 'evt-news-2'],
+      moShadowSelectedEventId: 'evt-news-1',
+      moShadowMatches: const [
+        OnyxMoShadowMatch(
+          moId: 'MO-NEWS-1',
+          title: 'Contractor roaming precursor',
+          incidentType: 'deception_led_intrusion',
+          behaviorStage: 'inside_behavior',
+          matchScore: 0.91,
+          matchedIndicators: ['maintenance_impersonation'],
+          recommendedActionPlans: ['REVIEW'],
+        ),
+      ],
+    );
+    final reviewedSite = MonitoringGlobalSitePosture(
+      clientId: 'CLIENT-VALLEE',
+      regionId: 'REGION-GAUTENG',
+      siteId: 'SITE-REVIEWED',
+      heatLevel: MonitoringGlobalHeatLevel.elevated,
+      activityScore: 72,
+      intelligenceCount: 2,
+      escalationCount: 1,
+      repeatCount: 0,
+      suppressedCount: 0,
+      identitySignalCount: 0,
+      latestSummary: 'Reviewed CCTV shadow evidence.',
+      lastActivityAtUtc: DateTime.utc(2026, 3, 17, 2, 0),
+      dominantSignals: const ['mo_shadow'],
+      moShadowMatchCount: 1,
+      moShadowSummary: 'Reviewed contractor roaming at office site.',
+      moShadowEventIds: const ['evt-reviewed-2', 'evt-reviewed-1'],
+      moShadowSelectedEventId: 'evt-reviewed-1',
+      moShadowReviewRefs: const ['intel-reviewed-1'],
+      moShadowMatches: const [
+        OnyxMoShadowMatch(
+          moId: 'MO-REVIEWED-LOW',
+          title: 'Access abuse follow-on',
+          incidentType: 'deception_led_intrusion',
+          behaviorStage: 'entry',
+          matchScore: 0.62,
+          matchedIndicators: ['credential_misuse'],
+          recommendedActionPlans: ['HARDEN ACCESS'],
+        ),
+        OnyxMoShadowMatch(
+          moId: 'MO-REVIEWED-HIGH',
+          title: 'Reviewed contractor roaming',
+          incidentType: 'deception_led_intrusion',
+          behaviorStage: 'inside_behavior',
+          matchScore: 0.88,
+          matchedIndicators: ['maintenance_impersonation', 'multi_zone_roaming'],
+          recommendedActionPlans: ['RAISE READINESS', 'OPEN EVIDENCE'],
+        ),
+      ],
+    );
+
+    final payload = buildShadowMoDossierPayload(
+      sites: [newsHeavySite, reviewedSite],
+      generatedAtUtc: DateTime.utc(2026, 3, 17, 6, 0),
+    );
+
+    final sites = payload['sites'] as List<Object?>;
+    expect(sites, hasLength(2));
+    final firstSite = sites.first as Map<Object?, Object?>;
+    final secondSite = sites.last as Map<Object?, Object?>;
+    expect(firstSite['siteId'], 'SITE-REVIEWED');
+    expect(secondSite['siteId'], 'SITE-NEWS');
+    expect(firstSite['eventIds'], ['evt-reviewed-1', 'evt-reviewed-2']);
+    final firstMatches = firstSite['matches'] as List<Object?>;
+    expect(
+      (firstMatches.first as Map<Object?, Object?>)['moId'],
+      'MO-REVIEWED-HIGH',
+    );
+  });
 }
