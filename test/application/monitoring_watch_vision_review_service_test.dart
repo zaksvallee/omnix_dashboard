@@ -118,6 +118,24 @@ void main() {
       expect(review.sourceLabel, 'metadata-only');
       expect(review.primaryObjectLabel, 'vehicle');
     });
+
+    test('metadata-only review detects burst pipe as water leak hazard', () {
+      final review = buildMetadataOnlyMonitoringWatchVisionReview(
+        _intel(
+          objectLabel: 'movement',
+          objectConfidence: 0.44,
+          riskScore: 67,
+          headline: 'Burst pipe alert',
+          summary: 'Water is spreading across the utility room floor.',
+          snapshotUrl: null,
+        ),
+      );
+
+      expect(review.usedFallback, isTrue);
+      expect(review.indicatesWaterLeak, isTrue);
+      expect(review.indicatesEscalationCandidate, isTrue);
+      expect(review.indicatesFireSmoke, isFalse);
+    });
   });
 }
 

@@ -4,8 +4,11 @@ import 'package:http/http.dart' as http;
 
 import '../domain/events/intelligence_received.dart';
 import 'dvr_http_auth.dart';
+import 'hazard_response_directive_service.dart';
 
 enum MonitoringWatchVisionConfidence { low, medium, high }
+
+const _hazardDirectiveService = HazardResponseDirectiveService();
 
 class MonitoringWatchVisionReviewResult {
   final String sourceLabel;
@@ -234,29 +237,14 @@ class OpenAiMonitoringWatchVisionReviewService
       fallback: (event.objectLabel ?? '').trim(),
     );
     final riskDelta = _clampRiskDelta(payload['risk_delta']);
-    final indicatesFireSmoke =
-        primaryObject == 'fire' ||
-        primaryObject == 'smoke' ||
-        posture.contains('fire') ||
-        tagPresent('fire', tags) ||
-        tagPresent('smoke', tags);
-    final indicatesWaterLeak =
-        primaryObject == 'water' ||
-        primaryObject == 'leak' ||
-        posture.contains('flood') ||
-        posture.contains('leak') ||
-        tagPresent('water', tags) ||
-        tagPresent('flood', tags) ||
-        tagPresent('leak', tags) ||
-        tagPresent('pipe_burst', tags);
-    final indicatesEnvironmentHazard =
-        primaryObject == 'equipment' ||
-        posture.contains('hazard') ||
-        posture.contains('environment') ||
-        tagPresent('hazard', tags) ||
-        tagPresent('steam', tags) ||
-        tagPresent('equipment_failure', tags) ||
-        tagPresent('environmental_hazard', tags);
+    final hazardSignal = _hazardSignalFromVisionReview(
+      posture: posture,
+      primaryObject: primaryObject,
+      tags: tags,
+    );
+    final indicatesFireSmoke = hazardSignal == 'fire';
+    final indicatesWaterLeak = hazardSignal == 'water_leak';
+    final indicatesEnvironmentHazard = hazardSignal == 'environment_hazard';
     return MonitoringWatchVisionReviewResult(
       sourceLabel: 'openai:${model.trim()}',
       usedFallback: false,
@@ -282,7 +270,8 @@ class OpenAiMonitoringWatchVisionReviewService
           tagPresent('line_crossing', tags),
       indicatesEscalationCandidate:
           posture.contains('escalation') ||
-          tagPresent('escalation_candidate', tags),
+          tagPresent('escalation_candidate', tags) ||
+          hazardSignal.isNotEmpty,
       riskDelta: riskDelta,
       summary: readString('summary'),
       tags: tags,
@@ -335,6 +324,10 @@ MonitoringWatchVisionReviewResult buildMetadataOnlyMonitoringWatchVisionReview(
     fallback: 'movement',
   );
   final signalText = '${event.headline} ${event.summary}'.toLowerCase();
+  final hazardSignal = _hazardSignalFromMetadata(
+    signalText: signalText,
+    objectLabel: objectLabel,
+  );
   return MonitoringWatchVisionReviewResult(
     sourceLabel: 'metadata-only',
     usedFallback: true,
@@ -343,36 +336,15 @@ MonitoringWatchVisionReviewResult buildMetadataOnlyMonitoringWatchVisionReview(
     indicatesPerson: objectLabel == 'person',
     indicatesVehicle: objectLabel == 'vehicle',
     indicatesAnimal: objectLabel == 'animal',
-    indicatesFireSmoke:
-        signalText.contains('fire') ||
-        signalText.contains('smoke') ||
-        objectLabel == 'fire' ||
-        objectLabel == 'smoke',
-    indicatesWaterLeak:
-        signalText.contains('water') ||
-        signalText.contains('leak') ||
-        signalText.contains('flood') ||
-        signalText.contains('burst pipe') ||
-        signalText.contains('pipe burst') ||
-        objectLabel == 'water' ||
-        objectLabel == 'leak',
-    indicatesEnvironmentHazard:
-        signalText.contains('hazard') ||
-        signalText.contains('steam') ||
-        signalText.contains('equipment failure') ||
-        signalText.contains('electrical') ||
-        objectLabel == 'equipment',
+    indicatesFireSmoke: hazardSignal == 'fire',
+    indicatesWaterLeak: hazardSignal == 'water_leak',
+    indicatesEnvironmentHazard: hazardSignal == 'environment_hazard',
     indicatesLoitering: signalText.contains('loiter'),
     indicatesBoundaryConcern:
         signalText.contains('line_crossing') ||
         signalText.contains('line crossing') ||
         signalText.contains('intrusion'),
-    indicatesEscalationCandidate:
-        signalText.contains('fire') ||
-        signalText.contains('smoke') ||
-        signalText.contains('flood') ||
-        signalText.contains('leak') ||
-        signalText.contains('hazard'),
+    indicatesEscalationCandidate: hazardSignal.isNotEmpty,
     riskDelta: 0,
     summary: 'Metadata-only review.',
     tags: const <String>['metadata'],
@@ -445,6 +417,67 @@ int _clampRiskDelta(Object? raw) {
     return 20;
   }
   return parsed;
+}
+
+String _hazardSignalFromVisionReview({
+  required String posture,
+  required String primaryObject,
+  required List<String> tags,
+}) {
+  final baseSignal = _hazardDirectiveService.hazardSignal(
+    postureLabel: posture,
+    objectLabel: primaryObject,
+  );
+  if (baseSignal.isNotEmpty) {
+    return baseSignal;
+  }
+  if (tags.any((entry) => entry == 'fire' || entry == 'smoke')) {
+    return 'fire';
+  }
+  if (tags.any(
+    (entry) =>
+        entry == 'water' ||
+        entry == 'flood' ||
+        entry == 'leak' ||
+        entry == 'pipe_burst',
+  )) {
+    return 'water_leak';
+  }
+  if (posture.contains('environment') ||
+      tags.any(
+        (entry) =>
+            entry == 'hazard' ||
+            entry == 'steam' ||
+            entry == 'equipment_failure' ||
+            entry == 'environmental_hazard',
+      )) {
+    return 'environment_hazard';
+  }
+  return '';
+}
+
+String _hazardSignalFromMetadata({
+  required String signalText,
+  required String objectLabel,
+}) {
+  final baseSignal = _hazardDirectiveService.hazardSignal(
+    postureLabel: signalText,
+    objectLabel: objectLabel,
+  );
+  if (baseSignal.isNotEmpty) {
+    return baseSignal;
+  }
+  if (signalText.contains('burst pipe') ||
+      signalText.contains('pipe burst') ||
+      signalText.contains('water')) {
+    return 'water_leak';
+  }
+  if (signalText.contains('steam') ||
+      signalText.contains('equipment failure') ||
+      signalText.contains('electrical')) {
+    return 'environment_hazard';
+  }
+  return '';
 }
 
 String? _extractText(Object? decoded) {
