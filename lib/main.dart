@@ -5634,6 +5634,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             report: report,
             siteId: leadSite.siteId,
           );
+    final primaryEvidence = ((leadSiteEvidence['eventIds'] as List<Object?>?) ??
+                const <Object?>[])
+            .isNotEmpty
+        ? leadSiteEvidence
+        : leadRegionEvidence;
     final history = _morningSovereignReportHistory
         .where((item) => item.date.trim() != report.date.trim())
         .toList(growable: false)
@@ -5653,6 +5658,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'posturalEchoCount': posturalEchoes.length,
       'posturalEchoSummary': _globalReadinessEchoSummary(intents),
       'topIntentSummary': _globalReadinessTopIntentSummary(intents),
+      'eventIds': primaryEvidence['eventIds'] ?? const <Object?>[],
+      'reviewRefs': primaryEvidence['reviewRefs'] ?? const <Object?>[],
+      'selectedEventId': primaryEvidence['selectedEventId'],
       'leadRegion': leadRegion == null
           ? null
           : <String, Object?>{
@@ -5752,6 +5760,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'postural_echo_count,${payload['posturalEchoCount'] ?? 0}',
       'postural_echo_summary,"${(payload['posturalEchoSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'top_intent_summary,"${(payload['topIntentSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'selected_event_id,${payload['selectedEventId'] ?? ''}',
+      'review_refs,"${(((payload['reviewRefs'] as List<Object?>?) ?? const <Object?>[]).join(', ')).replaceAll('"', '""')}"',
       'lead_region_review_refs,"${(((payload['leadRegion'] as Map<Object?, Object?>?)?['reviewRefs'] as List<Object?>?) ?? const <Object?>[]).join(', ').replaceAll('"', '""')}"',
       'lead_site_review_refs,"${(((payload['leadSite'] as Map<Object?, Object?>?)?['reviewRefs'] as List<Object?>?) ?? const <Object?>[]).join(', ').replaceAll('"', '""')}"',
       'review_command,${payload['reviewCommand'] ?? ''}',
@@ -15717,6 +15727,29 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     final snapshot = _globalReadinessSnapshotForReport(report);
     final intents = _globalReadinessIntentsForReport(report);
+    final payload = _globalReadinessCaseFilePayload(reportDate: report.date);
+    final eventIds = ((payload['eventIds'] as List<Object?>?) ?? const <Object?>[])
+        .map((value) => value.toString().trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    final selectedEventId = (payload['selectedEventId'] ?? '').toString().trim();
+    final reviewRefs = ((payload['reviewRefs'] as List<Object?>?) ?? const <Object?>[])
+        .map((value) => value.toString().trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (eventIds.isNotEmpty) {
+      _openEventsForScopedEventIds(
+        eventIds,
+        selectedEventId: selectedEventId.isEmpty ? null : selectedEventId,
+      );
+      return 'ONYX READINESSREVIEW\n'
+          'report_date=${report.date}\n'
+          'mode=${_globalReadinessModeLabel(snapshot, intents)}\n'
+          'summary=${_globalReadinessSummaryForReport(snapshot: snapshot, intents: intents)}\n'
+          'review_refs=${reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', ')}\n'
+          'events=${eventIds.length}\n'
+          'Opening Events Review for global readiness evidence.';
+    }
     _openGovernanceFromAdmin();
     return 'ONYX READINESSREVIEW\n'
         'report_date=${report.date}\n'
