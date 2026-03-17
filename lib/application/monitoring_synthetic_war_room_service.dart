@@ -159,15 +159,24 @@ class MonitoringSyntheticWarRoomService {
             ? 48
             : 64;
         final shadowPostureBias = _shadowPostureBiasForSite(leadSite);
-        final policyPriority = _strongerPriority(
+        final postureAwarePriority = _strongerPriority(
           basePolicyPriority,
           shadowPostureBias.priorityFloor,
         );
-        final countdownSeconds = shadowPostureBias.countdownSeconds <= 0
+        final postureAwareCountdown = shadowPostureBias.countdownSeconds <= 0
             ? baseCountdownSeconds
             : shadowPostureBias.countdownSeconds < baseCountdownSeconds
             ? shadowPostureBias.countdownSeconds
             : baseCountdownSeconds;
+        final shadowPostureBiasSummary = [
+          if (shadowPostureBias.biasLabel.isNotEmpty)
+            shadowPostureBias.biasLabel,
+          if (shadowPostureBias.priorityFloor !=
+              MonitoringWatchAutonomyPriority.medium)
+            shadowPostureBias.priorityFloor.name.toUpperCase(),
+          if (shadowPostureBias.countdownSeconds > 0)
+            '${shadowPostureBias.countdownSeconds}s',
+        ].join(' • ');
         final actionBias = effectiveMemoryCount >= 2
             ? 'Escalate rehearsal immediately for'
             : effectiveMemoryCount == 1
@@ -195,16 +204,23 @@ class MonitoringSyntheticWarRoomService {
               repeatedShadowCount: repeatedShadowCount,
               shadowValidationDriftSummary: shadowValidationDriftSummary,
               shadowPostureStrengthScore: leadSite.moShadowStrengthScore,
-              shadowPostureBiasSummary: [
-                if (shadowPostureBias.biasLabel.isNotEmpty)
-                  shadowPostureBias.biasLabel,
-                if (shadowPostureBias.priorityFloor !=
-                    MonitoringWatchAutonomyPriority.medium)
-                  shadowPostureBias.priorityFloor.name.toUpperCase(),
-                if (shadowPostureBias.countdownSeconds > 0)
-                  '${shadowPostureBias.countdownSeconds}s',
-              ].join(' • '),
+              shadowPostureBiasSummary: shadowPostureBiasSummary,
             );
+        final promotionPriorityFloor = _promotionPriorityFloor(
+          promotionGuidance,
+        );
+        final promotionCountdownBias = _promotionCountdownBias(
+          promotionGuidance,
+        );
+        final policyPriority = _strongerPriority(
+          postureAwarePriority,
+          promotionPriorityFloor,
+        );
+        final countdownSeconds = promotionCountdownBias <= 0
+            ? postureAwareCountdown
+            : promotionCountdownBias < postureAwareCountdown
+            ? promotionCountdownBias
+            : postureAwareCountdown;
         final shadowLearningLabel = _shadowLearningLabel(
           shadowLabel: shadowLabel,
         );
@@ -280,15 +296,7 @@ class MonitoringSyntheticWarRoomService {
                   shadowPostureBias.priorityFloor !=
                       MonitoringWatchAutonomyPriority.medium ||
                   shadowPostureBias.countdownSeconds > 0)
-                'shadow_posture_bias_summary': [
-                  if (shadowPostureBias.biasLabel.isNotEmpty)
-                    shadowPostureBias.biasLabel,
-                  if (shadowPostureBias.priorityFloor !=
-                      MonitoringWatchAutonomyPriority.medium)
-                    shadowPostureBias.priorityFloor.name.toUpperCase(),
-                  if (shadowPostureBias.countdownSeconds > 0)
-                    '${shadowPostureBias.countdownSeconds}s',
-                ].join(' • '),
+                'shadow_posture_bias_summary': shadowPostureBiasSummary,
               if (shadowPostureBias.biasLabel.isNotEmpty)
                 'shadow_posture_bias': shadowPostureBias.biasLabel,
               if (shadowPostureBias.priorityFloor !=
@@ -310,6 +318,13 @@ class MonitoringSyntheticWarRoomService {
               if (promotionGuidance != null)
                 'mo_promotion_urgency_bias': promotionGuidance.urgencyBias,
               if (promotionGuidance != null &&
+                  promotionPriorityFloor !=
+                      MonitoringWatchAutonomyPriority.medium)
+                'mo_promotion_priority_bias': promotionPriorityFloor.name,
+              if (promotionGuidance != null && promotionCountdownBias > 0)
+                'mo_promotion_countdown_bias':
+                    promotionCountdownBias.toString(),
+              if (promotionGuidance != null &&
                   promotionGuidance.validationDriftSummary.isNotEmpty)
                 'mo_promotion_validation_drift':
                     promotionGuidance.validationDriftSummary,
@@ -319,21 +334,9 @@ class MonitoringSyntheticWarRoomService {
                 'mo_promotion_pressure_summary':
                     buildSyntheticPromotionSummary(
                       baseSummary: promotionGuidance.summary,
-                      shadowPostureBiasSummary: shadowPostureBias.biasLabel.isEmpty &&
-                              shadowPostureBias.priorityFloor ==
-                                  MonitoringWatchAutonomyPriority.medium &&
-                              shadowPostureBias.countdownSeconds <= 0
+                      shadowPostureBiasSummary: shadowPostureBiasSummary.isEmpty
                           ? ''
-                          : [
-                              if (shadowPostureBias.biasLabel.isNotEmpty)
-                                shadowPostureBias.biasLabel,
-                              if (shadowPostureBias.priorityFloor !=
-                                  MonitoringWatchAutonomyPriority.medium)
-                                shadowPostureBias.priorityFloor.name
-                                    .toUpperCase(),
-                              if (shadowPostureBias.countdownSeconds > 0)
-                                '${shadowPostureBias.countdownSeconds}s',
-                            ].join(' • '),
+                          : shadowPostureBiasSummary,
                     ),
               'top_intent': topIntent?.actionType ?? 'NONE',
               if (hazardSignal.isNotEmpty) 'hazard_signal': hazardSignal,
@@ -366,6 +369,30 @@ class MonitoringSyntheticWarRoomService {
     MonitoringWatchAutonomyPriority right,
   ) {
     return _priorityWeight(left) >= _priorityWeight(right) ? left : right;
+  }
+
+  MonitoringWatchAutonomyPriority _promotionPriorityFloor(
+    MoPromotionGuidance? guidance,
+  ) {
+    if (guidance == null || guidance.urgencyBias != 'ACCELERATE') {
+      return MonitoringWatchAutonomyPriority.medium;
+    }
+    return switch (guidance.confidenceBias) {
+      'CRITICAL' => MonitoringWatchAutonomyPriority.critical,
+      'HIGH' => MonitoringWatchAutonomyPriority.high,
+      _ => MonitoringWatchAutonomyPriority.medium,
+    };
+  }
+
+  int _promotionCountdownBias(MoPromotionGuidance? guidance) {
+    if (guidance == null || guidance.urgencyBias != 'ACCELERATE') {
+      return 0;
+    }
+    return switch (guidance.confidenceBias) {
+      'CRITICAL' => 24,
+      'HIGH' => 40,
+      _ => 0,
+    };
   }
 
   _SyntheticShadowPostureBias _shadowPostureBiasForSite(

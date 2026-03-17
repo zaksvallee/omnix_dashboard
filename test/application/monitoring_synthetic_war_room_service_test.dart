@@ -318,7 +318,7 @@ void main() {
         (entry) => entry.actionType == 'POLICY RECOMMENDATION',
       );
       expect(policy.priority, MonitoringWatchAutonomyPriority.high);
-      expect(policy.countdownSeconds, 48);
+      expect(policy.countdownSeconds, 40);
       expect(policy.metadata['shadow_mo_label'], 'HARDEN ACCESS');
       expect(policy.metadata['shadow_mo_repeat_count'], '1');
       expect(policy.metadata['memory_priority_boost'], 'HIGH');
@@ -332,6 +332,8 @@ void main() {
       expect(policy.metadata['mo_promotion_confidence_bias'], 'HIGH');
       expect(policy.metadata['mo_promotion_trend_bias'], '+0.20');
       expect(policy.metadata['mo_promotion_urgency_bias'], 'ACCELERATE');
+      expect(policy.metadata['mo_promotion_priority_bias'], 'high');
+      expect(policy.metadata['mo_promotion_countdown_bias'], '40');
       expect(
         policy.metadata['mo_promotion_validation_drift'],
         'Validated 1 • Shadow mode 1 • Drift validated rising',
@@ -486,6 +488,8 @@ void main() {
       expect(policy.metadata['mo_promotion_confidence_bias'], 'HIGH');
       expect(policy.metadata['mo_promotion_trend_bias'], '+0.26');
       expect(policy.metadata['mo_promotion_urgency_bias'], 'ACCELERATE');
+      expect(policy.metadata['mo_promotion_priority_bias'], 'high');
+      expect(policy.metadata['mo_promotion_countdown_bias'], '40');
       expect(
         policy.metadata['mo_promotion_summary'],
         contains(
