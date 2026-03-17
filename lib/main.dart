@@ -17297,24 +17297,60 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         selectedEventId: selectedEventId.isEmpty ? null : selectedEventId,
         scopeMode: 'readiness',
       );
-      return 'ONYX READINESSREVIEW\n'
-          'report_date=${report.date}\n'
-          'mode=${_globalReadinessModeLabel(snapshot, intents)}\n'
-          'summary=${_globalReadinessSummaryForReport(snapshot: snapshot, intents: intents)}\n'
-          '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
-          'review_refs=${reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', ')}\n'
-          'governance_command=/readinessgovernance ${report.date}\n'
-          'events=${eventIds.length}\n'
-          'Opening Events Review for global readiness evidence.';
+      return '${buildChatCaseFileHeader(
+        title: 'ONYX READINESSREVIEW',
+        fields: [
+          ChatCaseFileHeaderField(key: 'report_date', value: report.date),
+          ChatCaseFileHeaderField(
+            key: 'mode',
+            value: _globalReadinessModeLabel(snapshot, intents),
+          ),
+          ChatCaseFileHeaderField(
+            key: 'summary',
+            value: _globalReadinessSummaryForReport(
+              snapshot: snapshot,
+              intents: intents,
+            ),
+          ),
+          ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
+          ChatCaseFileHeaderField(
+            key: 'review_refs',
+            value: reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', '),
+          ),
+          ChatCaseFileHeaderField(
+            key: 'governance_command',
+            value: '/readinessgovernance ${report.date}',
+          ),
+          ChatCaseFileHeaderField(
+            key: 'events',
+            value: eventIds.length.toString(),
+          ),
+        ],
+      )}Opening Events Review for global readiness evidence.';
     }
     _openGovernanceForReportDate(report.date);
-    return 'ONYX READINESSREVIEW\n'
-        'report_date=${report.date}\n'
-        'mode=${_globalReadinessModeLabel(snapshot, intents)}\n'
-        'summary=${_globalReadinessSummaryForReport(snapshot: snapshot, intents: intents)}\n'
-        '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
-        'governance_command=/readinessgovernance ${report.date}\n'
-        'Opening Governance for global readiness oversight.';
+    return '${buildChatCaseFileHeader(
+      title: 'ONYX READINESSREVIEW',
+      fields: [
+        ChatCaseFileHeaderField(key: 'report_date', value: report.date),
+        ChatCaseFileHeaderField(
+          key: 'mode',
+          value: _globalReadinessModeLabel(snapshot, intents),
+        ),
+        ChatCaseFileHeaderField(
+          key: 'summary',
+          value: _globalReadinessSummaryForReport(
+            snapshot: snapshot,
+            intents: intents,
+          ),
+        ),
+        ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
+        ChatCaseFileHeaderField(
+          key: 'governance_command',
+          value: '/readinessgovernance ${report.date}',
+        ),
+      ],
+    )}Opening Governance for global readiness oversight.';
   }
 
   String _telegramAdminReadinessGovernanceCommand(String arguments) {
@@ -17505,27 +17541,66 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         selectedEventId: selectedEventId,
         scopeMode: 'synthetic',
       );
-      return 'ONYX SYNTHETICREVIEW\n'
-          'report_date=${report.date}\n'
-          'mode=${_syntheticWarRoomModeLabel(plans)}\n'
-          'summary=${_syntheticWarRoomSummary(plans)}\n'
-          '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
-          '${learningSummary.isEmpty ? '' : 'learning_summary=$learningSummary\n'}'
-          '${learningMemorySummary.isEmpty ? '' : 'learning_memory_summary=$learningMemorySummary\n'}'
-          'review_refs=${reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', ')}\n'
-          'case_file_command=/syntheticcase json ${report.date}\n'
-          'Opening Events Review for synthetic war-room evidence.';
+      return '${buildChatCaseFileHeader(
+        title: 'ONYX SYNTHETICREVIEW',
+        fields: [
+          ChatCaseFileHeaderField(key: 'report_date', value: report.date),
+          ChatCaseFileHeaderField(
+            key: 'mode',
+            value: _syntheticWarRoomModeLabel(plans),
+          ),
+          ChatCaseFileHeaderField(
+            key: 'summary',
+            value: _syntheticWarRoomSummary(plans),
+          ),
+          ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
+          ChatCaseFileHeaderField(
+            key: 'learning_summary',
+            value: learningSummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'learning_memory_summary',
+            value: learningMemorySummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'review_refs',
+            value: reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', '),
+          ),
+          ChatCaseFileHeaderField(
+            key: 'case_file_command',
+            value: '/syntheticcase json ${report.date}',
+          ),
+        ],
+      )}Opening Events Review for synthetic war-room evidence.';
     }
     _openGovernanceForReportDate(report.date);
-    return 'ONYX SYNTHETICREVIEW\n'
-        'report_date=${report.date}\n'
-        'mode=${_syntheticWarRoomModeLabel(plans)}\n'
-        'summary=${_syntheticWarRoomSummary(plans)}\n'
-        '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
-        '${learningSummary.isEmpty ? '' : 'learning_summary=$learningSummary\n'}'
-        '${learningMemorySummary.isEmpty ? '' : 'learning_memory_summary=$learningMemorySummary\n'}'
-        'case_file_command=/syntheticcase json ${report.date}\n'
-        'Opening Governance for synthetic war-room oversight.';
+    return '${buildChatCaseFileHeader(
+      title: 'ONYX SYNTHETICREVIEW',
+      fields: [
+        ChatCaseFileHeaderField(key: 'report_date', value: report.date),
+        ChatCaseFileHeaderField(
+          key: 'mode',
+          value: _syntheticWarRoomModeLabel(plans),
+        ),
+        ChatCaseFileHeaderField(
+          key: 'summary',
+          value: _syntheticWarRoomSummary(plans),
+        ),
+        ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
+        ChatCaseFileHeaderField(
+          key: 'learning_summary',
+          value: learningSummary,
+        ),
+        ChatCaseFileHeaderField(
+          key: 'learning_memory_summary',
+          value: learningMemorySummary,
+        ),
+        ChatCaseFileHeaderField(
+          key: 'case_file_command',
+          value: '/syntheticcase json ${report.date}',
+        ),
+      ],
+    )}Opening Governance for synthetic war-room oversight.';
   }
 
   String _telegramAdminSyntheticCaseCommand(String arguments) {
@@ -17755,26 +17830,62 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         selectedEventId: selectedEventId.isEmpty ? null : selectedEventId,
         scopeMode: 'shadow',
       );
-      return 'ONYX SHADOWREVIEW\n'
-          'report_date=${report.date}\n'
-          'summary=${(payload['summary'] ?? '').toString()}\n'
-          '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
-          '${historyHeadline.isEmpty ? '' : 'history_headline=$historyHeadline\n'}'
-          '${historySummary.isEmpty ? '' : 'history_summary=$historySummary\n'}'
-          'review_refs=${reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', ')}\n'
-          'case_file_command=/shadowcase json ${report.date}\n'
-          'events=${eventIds.length}\n'
-          'Opening Events Review for shadow MO evidence.';
+      return '${buildChatCaseFileHeader(
+        title: 'ONYX SHADOWREVIEW',
+        fields: [
+          ChatCaseFileHeaderField(key: 'report_date', value: report.date),
+          ChatCaseFileHeaderField(
+            key: 'summary',
+            value: (payload['summary'] ?? '').toString(),
+          ),
+          ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
+          ChatCaseFileHeaderField(
+            key: 'history_headline',
+            value: historyHeadline,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'history_summary',
+            value: historySummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'review_refs',
+            value: reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', '),
+          ),
+          ChatCaseFileHeaderField(
+            key: 'case_file_command',
+            value: '/shadowcase json ${report.date}',
+          ),
+          ChatCaseFileHeaderField(
+            key: 'events',
+            value: eventIds.length.toString(),
+          ),
+        ],
+      )}Opening Events Review for shadow MO evidence.';
     }
     _openGovernanceForReportDate(report.date);
-    return 'ONYX SHADOWREVIEW\n'
-        'report_date=${report.date}\n'
-        'summary=${(payload['summary'] ?? '').toString()}\n'
-        '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
-        '${historyHeadline.isEmpty ? '' : 'history_headline=$historyHeadline\n'}'
-        '${historySummary.isEmpty ? '' : 'history_summary=$historySummary\n'}'
-        'case_file_command=/shadowcase json ${report.date}\n'
-        'Opening Governance for shadow MO oversight.';
+    return '${buildChatCaseFileHeader(
+      title: 'ONYX SHADOWREVIEW',
+      fields: [
+        ChatCaseFileHeaderField(key: 'report_date', value: report.date),
+        ChatCaseFileHeaderField(
+          key: 'summary',
+          value: (payload['summary'] ?? '').toString(),
+        ),
+        ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
+        ChatCaseFileHeaderField(
+          key: 'history_headline',
+          value: historyHeadline,
+        ),
+        ChatCaseFileHeaderField(
+          key: 'history_summary',
+          value: historySummary,
+        ),
+        ChatCaseFileHeaderField(
+          key: 'case_file_command',
+          value: '/shadowcase json ${report.date}',
+        ),
+      ],
+    )}Opening Governance for shadow MO oversight.';
   }
 
   String _telegramAdminShadowCaseCommand(String arguments) {
@@ -17932,26 +18043,62 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         selectedEventId: selectedEventId.isEmpty ? null : selectedEventId,
         scopeMode: 'tomorrow',
       );
-      return 'ONYX TOMORROWREVIEW\n'
-          'report_date=${report.date}\n'
-          'summary=${(payload['summary'] ?? '').toString()}\n'
-          '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
-          '${shadowSummary.isEmpty ? '' : 'shadow_summary=$shadowSummary\n'}'
-          'review_refs=${reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', ')}\n'
-          'case_file_command=/tomorrowcase json ${report.date}\n'
-          'governance_command=/readinessgovernance ${report.date}\n'
-          'events=${eventIds.length}\n'
-          'Opening Events Review for tomorrow-posture evidence.';
+      return '${buildChatCaseFileHeader(
+        title: 'ONYX TOMORROWREVIEW',
+        fields: [
+          ChatCaseFileHeaderField(key: 'report_date', value: report.date),
+          ChatCaseFileHeaderField(
+            key: 'summary',
+            value: (payload['summary'] ?? '').toString(),
+          ),
+          ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
+          ChatCaseFileHeaderField(
+            key: 'shadow_summary',
+            value: shadowSummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'review_refs',
+            value: reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', '),
+          ),
+          ChatCaseFileHeaderField(
+            key: 'case_file_command',
+            value: '/tomorrowcase json ${report.date}',
+          ),
+          ChatCaseFileHeaderField(
+            key: 'governance_command',
+            value: '/readinessgovernance ${report.date}',
+          ),
+          ChatCaseFileHeaderField(
+            key: 'events',
+            value: eventIds.length.toString(),
+          ),
+        ],
+      )}Opening Events Review for tomorrow-posture evidence.';
     }
     _openGovernanceForReportDate(report.date);
-    return 'ONYX TOMORROWREVIEW\n'
-        'report_date=${report.date}\n'
-        'summary=${(payload['summary'] ?? '').toString()}\n'
-        '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
-        '${shadowSummary.isEmpty ? '' : 'shadow_summary=$shadowSummary\n'}'
-        'case_file_command=/tomorrowcase json ${report.date}\n'
-        'governance_command=/readinessgovernance ${report.date}\n'
-        'Opening Governance for tomorrow-posture oversight.';
+    return '${buildChatCaseFileHeader(
+      title: 'ONYX TOMORROWREVIEW',
+      fields: [
+        ChatCaseFileHeaderField(key: 'report_date', value: report.date),
+        ChatCaseFileHeaderField(
+          key: 'summary',
+          value: (payload['summary'] ?? '').toString(),
+        ),
+        ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
+        ChatCaseFileHeaderField(
+          key: 'shadow_summary',
+          value: shadowSummary,
+        ),
+        ChatCaseFileHeaderField(
+          key: 'case_file_command',
+          value: '/tomorrowcase json ${report.date}',
+        ),
+        ChatCaseFileHeaderField(
+          key: 'governance_command',
+          value: '/readinessgovernance ${report.date}',
+        ),
+      ],
+    )}Opening Governance for tomorrow-posture oversight.';
   }
 
   String _telegramAdminTomorrowCaseCommand(String arguments) {
