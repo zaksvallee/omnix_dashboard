@@ -1374,6 +1374,7 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(find.textContaining('Validation: Shadow mode 2'), findsOneWidget);
     expect(
       find.textContaining('Contractors moved floor to floor in office park'),
       findsWidgets,
@@ -1412,6 +1413,10 @@ void main() {
         '"historySummary": "Current matches 2 • Baseline 0.0 • Shadow-MO match pressure is increasing against recent shifts."',
       ),
     );
+    expect(
+      copiedClipboardPayload,
+      contains('"validationSummary": "Shadow mode 2"'),
+    );
     expect(copiedClipboardPayload, contains('"history": {'));
     expect(copiedClipboardPayload, contains('"date": "2026-03-17"'));
 
@@ -1441,8 +1446,16 @@ void main() {
         'history_summary,"Current matches 2 • Baseline 0.0 • Shadow-MO match pressure is increasing against recent shifts."',
       ),
     );
+    expect(
+      copiedClipboardPayload,
+      contains('validation_summary,"Shadow mode 2"'),
+    );
     expect(copiedClipboardPayload, contains('history_1_date,2026-03-17'));
     expect(copiedClipboardPayload, contains('history_1_match_count,2'));
+    expect(
+      copiedClipboardPayload,
+      contains('history_1_validation_summary,"Shadow mode 2"'),
+    );
 
     final openGovernanceAction = tester.widget<InkWell>(
       find.byKey(

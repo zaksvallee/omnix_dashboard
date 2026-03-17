@@ -1147,6 +1147,19 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             ),
                           ),
                         ],
+                        if (shadowScopeSummary.validationSummary
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Validation: ${shadowScopeSummary.validationSummary}',
+                            style: GoogleFonts.robotoMono(
+                              color: const Color(0xFF8FD1FF),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                         if (shadowScopeSummary.history != null) ...[
                           const SizedBox(height: 4),
                           Text(
@@ -1177,6 +1190,15 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
+                            if (point.validationSummary.trim().isNotEmpty)
+                              Text(
+                                'Validation ${point.validationSummary}',
+                                style: GoogleFonts.robotoMono(
+                                  color: const Color(0xFF8FD1FF),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                           ],
                         ],
                         for (final site in shadowScopeSummary.sites) ...[
@@ -2007,6 +2029,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       summaryLine:
           'Sites ${shadowSites.length} • Matches $totalMatches • ${shadowSites.first.siteId} • ${shadowSites.first.moShadowSummary}',
       focusSummary: _readinessFocusSummary(scopedReportDate),
+      validationSummary: _shadowValidationSummaryForSites(shadowSites),
       reviewRefs: reviewRefs,
       sites: shadowSites,
       history: _shadowHistorySummary(
@@ -2065,6 +2088,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         shadowSiteCount: currentSites.length,
         matchCount: currentMatchCount,
         summaryLine: _shadowScopeSummaryLineForSites(currentSites),
+        validationSummary: _shadowValidationSummaryForSites(currentSites),
       ),
       ...historyReports.take(2).map((item) {
         final itemSites = _shadowMoSitesForReport(item);
@@ -2073,6 +2097,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           shadowSiteCount: itemSites.length,
           matchCount: _shadowMatchCountForSites(itemSites),
           summaryLine: _shadowScopeSummaryLineForSites(itemSites),
+          validationSummary: _shadowValidationSummaryForSites(itemSites),
         );
       }),
     ];
@@ -2111,6 +2136,74 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     }
     final leadSite = sortShadowMoSites(sites).first;
     return 'Sites ${sites.length} • Matches ${_shadowMatchCountForSites(sites)} • ${leadSite.siteId} • ${leadSite.moShadowSummary}';
+  }
+
+  String _shadowValidationSummaryForSites(
+    List<MonitoringGlobalSitePosture> sites,
+  ) {
+    if (sites.isEmpty) {
+      return '';
+    }
+    final counts = <String, int>{};
+    for (final site in sites) {
+      for (final match in site.moShadowMatches) {
+        final status = match.validationStatus.trim();
+        if (status.isEmpty) {
+          continue;
+        }
+        counts.update(status, (value) => value + 1, ifAbsent: () => 1);
+      }
+    }
+    if (counts.isEmpty) {
+      return '';
+    }
+    const priority = <String>[
+      'production',
+      'validated',
+      'shadowMode',
+      'candidate',
+    ];
+    final ordered = counts.keys.toList(growable: false)
+      ..sort((left, right) {
+        final leftIndex = priority.indexOf(left);
+        final rightIndex = priority.indexOf(right);
+        if (leftIndex == -1 && rightIndex == -1) {
+          return left.compareTo(right);
+        }
+        if (leftIndex == -1) {
+          return 1;
+        }
+        if (rightIndex == -1) {
+          return -1;
+        }
+        return leftIndex.compareTo(rightIndex);
+      });
+    final parts = ordered
+        .map(
+          (status) =>
+              '${_humanizeShadowValidationStatus(status)} ${counts[status]}',
+        )
+        .toList(growable: false);
+    return parts.join(' • ');
+  }
+
+  String _humanizeShadowValidationStatus(String status) {
+    switch (status.trim()) {
+      case 'shadowMode':
+        return 'Shadow mode';
+      case 'validated':
+        return 'Validated';
+      case 'production':
+        return 'Production';
+      case 'candidate':
+        return 'Candidate';
+      default:
+        final trimmed = status.trim();
+        if (trimmed.isEmpty) {
+          return '';
+        }
+        return trimmed[0].toUpperCase() + trimmed.substring(1);
+    }
   }
 
   String? _readinessScopedReportDate(List<DispatchEvent> scopedEvents) {
@@ -4388,6 +4481,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       'historical_focus,${summary.historicalFocus ? 'true' : 'false'}',
       'focus_summary,"${summary.focusSummary.replaceAll('"', '""')}"',
       'summary_line,"${summary.summaryLine.replaceAll('"', '""')}"',
+      'validation_summary,"${summary.validationSummary.replaceAll('"', '""')}"',
       'review_refs,"${summary.reviewRefs.join(', ').replaceAll('"', '""')}"',
       if (summary.history != null)
         'history_headline,"${summary.history!.headline.replaceAll('"', '""')}"',
@@ -4422,6 +4516,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         lines.add('history_${row}_match_count,${point.matchCount}');
         lines.add(
           'history_${row}_summary,"${point.summaryLine.replaceAll('"', '""')}"',
+        );
+        lines.add(
+          'history_${row}_validation_summary,"${point.validationSummary.replaceAll('"', '""')}"',
         );
         lines.addAll(
           buildHistoryReviewCommandCsvRows(
@@ -4708,6 +4805,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           'historicalFocus': summary.historicalFocus,
           'focusSummary': summary.focusSummary,
           'summaryLine': summary.summaryLine,
+          'validationSummary': summary.validationSummary,
           'reviewRefs': summary.reviewRefs,
           'historyHeadline': summary.history?.headline,
           'historySummary': summary.history?.summary,
@@ -4725,13 +4823,14 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   'points': summary.history!.points
                       .map(
                         (point) => {
-                          'date': point.date,
-                          'shadowSiteCount': point.shadowSiteCount,
-                          'matchCount': point.matchCount,
-                          'summaryLine': point.summaryLine,
-                          ...buildReviewCommandPair(
-                            reportDate: point.date,
-                            reviewCommandBuilder: _shadowReviewCommand,
+                        'date': point.date,
+                        'shadowSiteCount': point.shadowSiteCount,
+                        'matchCount': point.matchCount,
+                        'summaryLine': point.summaryLine,
+                        'validationSummary': point.validationSummary,
+                        ...buildReviewCommandPair(
+                          reportDate: point.date,
+                          reviewCommandBuilder: _shadowReviewCommand,
                             caseFileCommandBuilder: _shadowCaseFileCommand,
                           ),
                         },
@@ -5312,6 +5411,7 @@ class _ShadowScopeSummary {
   final bool historicalFocus;
   final String summaryLine;
   final String focusSummary;
+  final String validationSummary;
   final List<String> reviewRefs;
   final List<MonitoringGlobalSitePosture> sites;
   final _ShadowHistorySummary? history;
@@ -5324,6 +5424,7 @@ class _ShadowScopeSummary {
     required this.historicalFocus,
     required this.summaryLine,
     required this.focusSummary,
+    required this.validationSummary,
     required this.reviewRefs,
     required this.sites,
     required this.history,
@@ -5524,12 +5625,14 @@ class _ShadowHistoryPoint {
   final int shadowSiteCount;
   final int matchCount;
   final String summaryLine;
+  final String validationSummary;
 
   const _ShadowHistoryPoint({
     required this.date,
     required this.shadowSiteCount,
     required this.matchCount,
     required this.summaryLine,
+    required this.validationSummary,
   });
 }
 
