@@ -633,6 +633,35 @@ void main() {
     expect(copiedPayload, contains('"knownIdentitySignals": 1'));
     expect(copiedPayload, contains('"trend"'));
     expect(copiedPayload, contains('"label": "ACTIVITY RISING"'));
+    expect(copiedPayload, contains('"reviewShortcuts"'));
+    expect(
+      copiedPayload,
+      contains(
+        '"currentShiftReviewCommand": "/activityreview CLIENT-1 SITE-1 2026-03-09"',
+      ),
+    );
+    expect(
+      copiedPayload,
+      contains(
+        '"currentShiftCaseFileCommand": "/activitycase json CLIENT-1 SITE-1 2026-03-09"',
+      ),
+    );
+
+    await tester.tap(find.text('Copy Site Activity CSV'));
+    await tester.pump();
+
+    expect(
+      copiedPayload,
+      contains(
+        'current_review_command,/activityreview CLIENT-1 SITE-1 2026-03-09',
+      ),
+    );
+    expect(
+      copiedPayload,
+      contains(
+        'current_case_file_command,/activitycase json CLIENT-1 SITE-1 2026-03-09',
+      ),
+    );
   });
 
   testWidgets('dashboard copies site activity telegram summary', (

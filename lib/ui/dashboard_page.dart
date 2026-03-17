@@ -148,6 +148,7 @@ class DashboardPage extends StatelessWidget {
                         morningSovereignReportHistory,
                     morningSovereignReportAutoStatusLabel:
                         morningSovereignReportAutoStatusLabel,
+                    allEvents: events,
                     siteActivity: siteActivity,
                     onGenerateMorningSovereignReport:
                         onGenerateMorningSovereignReport,
@@ -193,6 +194,7 @@ class DashboardPage extends StatelessWidget {
                   morningSovereignReportHistory: morningSovereignReportHistory,
                   morningSovereignReportAutoStatusLabel:
                       morningSovereignReportAutoStatusLabel,
+                  allEvents: events,
                   siteActivity: siteActivity,
                   onGenerateMorningSovereignReport:
                       onGenerateMorningSovereignReport,
@@ -355,6 +357,7 @@ class _DesktopDashboard extends StatelessWidget {
   final SovereignReport? morningSovereignReport;
   final List<SovereignReport> morningSovereignReportHistory;
   final String? morningSovereignReportAutoStatusLabel;
+  final List<DispatchEvent> allEvents;
   final SiteActivityIntelligenceSnapshot siteActivity;
   final Future<void> Function()? onGenerateMorningSovereignReport;
   final void Function(List<String> eventIds, String? selectedEventId)?
@@ -393,6 +396,7 @@ class _DesktopDashboard extends StatelessWidget {
     required this.morningSovereignReport,
     required this.morningSovereignReportHistory,
     required this.morningSovereignReportAutoStatusLabel,
+    required this.allEvents,
     required this.siteActivity,
     required this.onGenerateMorningSovereignReport,
     required this.onOpenEventsForScope,
@@ -433,6 +437,7 @@ class _DesktopDashboard extends StatelessWidget {
       morningSovereignReportHistory: morningSovereignReportHistory,
       morningSovereignReportAutoStatusLabel:
           morningSovereignReportAutoStatusLabel,
+      allEvents: allEvents,
       siteActivity: siteActivity,
       onGenerateMorningSovereignReport: onGenerateMorningSovereignReport,
       onOpenEventsForScope: onOpenEventsForScope,
@@ -527,6 +532,7 @@ class _CompactDashboard extends StatelessWidget {
   final SovereignReport? morningSovereignReport;
   final List<SovereignReport> morningSovereignReportHistory;
   final String? morningSovereignReportAutoStatusLabel;
+  final List<DispatchEvent> allEvents;
   final SiteActivityIntelligenceSnapshot siteActivity;
   final Future<void> Function()? onGenerateMorningSovereignReport;
   final void Function(List<String> eventIds, String? selectedEventId)?
@@ -565,6 +571,7 @@ class _CompactDashboard extends StatelessWidget {
     required this.morningSovereignReport,
     required this.morningSovereignReportHistory,
     required this.morningSovereignReportAutoStatusLabel,
+    required this.allEvents,
     required this.siteActivity,
     required this.onGenerateMorningSovereignReport,
     required this.onOpenEventsForScope,
@@ -617,6 +624,7 @@ class _CompactDashboard extends StatelessWidget {
           morningSovereignReportHistory: morningSovereignReportHistory,
           morningSovereignReportAutoStatusLabel:
               morningSovereignReportAutoStatusLabel,
+          allEvents: allEvents,
           siteActivity: siteActivity,
           onGenerateMorningSovereignReport: onGenerateMorningSovereignReport,
           onOpenEventsForScope: onOpenEventsForScope,
@@ -1080,6 +1088,7 @@ class _RightRail extends StatelessWidget {
   final SovereignReport? morningSovereignReport;
   final List<SovereignReport> morningSovereignReportHistory;
   final String? morningSovereignReportAutoStatusLabel;
+  final List<DispatchEvent> allEvents;
   final SiteActivityIntelligenceSnapshot siteActivity;
   final Future<void> Function()? onGenerateMorningSovereignReport;
   final void Function(List<String> eventIds, String? selectedEventId)?
@@ -1117,6 +1126,7 @@ class _RightRail extends StatelessWidget {
     required this.morningSovereignReport,
     required this.morningSovereignReportHistory,
     required this.morningSovereignReportAutoStatusLabel,
+    required this.allEvents,
     required this.siteActivity,
     required this.onGenerateMorningSovereignReport,
     required this.onOpenEventsForScope,
@@ -1527,16 +1537,111 @@ class _RightRail extends StatelessWidget {
     });
   }
 
+  ({String clientId, String siteId})? _siteActivityCommandScope() {
+    final scopedRows = allEvents
+        .whereType<IntelligenceReceived>()
+        .where((event) => siteActivity.eventIds.contains(event.eventId))
+        .toList(growable: false);
+    if (scopedRows.isEmpty) {
+      return null;
+    }
+    final clientIds = scopedRows
+        .map((event) => event.clientId.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet();
+    final siteIds = scopedRows
+        .map((event) => event.siteId.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet();
+    if (clientIds.length != 1 || siteIds.length != 1) {
+      return null;
+    }
+    return (clientId: clientIds.first, siteId: siteIds.first);
+  }
+
+  List<String> _siteActivityHistoryDatesForScope(
+    String clientId,
+    String siteId,
+  ) {
+    final reportDates = allEvents
+        .whereType<IntelligenceReceived>()
+        .where(
+          (event) =>
+              event.clientId.trim() == clientId &&
+              event.siteId.trim() == siteId &&
+              ((event.sourceType.trim().toLowerCase() == 'dvr') ||
+                  (event.sourceType.trim().toLowerCase() == 'cctv')),
+        )
+        .map((event) {
+          final utc = event.occurredAt.toUtc();
+          String two(int value) => value.toString().padLeft(2, '0');
+          return '${utc.year.toString().padLeft(4, '0')}-${two(utc.month)}-${two(utc.day)}';
+        })
+        .toSet()
+        .toList(growable: false)
+      ..sort((a, b) => b.compareTo(a));
+    return reportDates;
+  }
+
+  String _siteActivityReviewCommand({
+    required String clientId,
+    required String siteId,
+    required String reportDate,
+  }) {
+    return '/activityreview $clientId $siteId $reportDate';
+  }
+
+  String _siteActivityCaseFileCommand({
+    required String clientId,
+    required String siteId,
+    required String reportDate,
+  }) {
+    return '/activitycase json $clientId $siteId $reportDate';
+  }
+
   String _siteActivityTruthJson() {
     final sovereignReport = morningSovereignReport;
     final siteActivityTrend = sovereignReport == null
         ? null
         : _siteActivityTrendFor(sovereignReport, siteActivity);
+    final scope = _siteActivityCommandScope();
+    final historyDates = scope == null
+        ? const <String>[]
+        : _siteActivityHistoryDatesForScope(scope.clientId, scope.siteId);
     return const JsonEncoder.withIndent('  ').convert({
       'scope': {
         'reportDate': sovereignReport?.date,
         'generatedAtUtc': sovereignReport?.generatedAtUtc.toIso8601String(),
+        if (scope != null) 'clientId': scope.clientId,
+        if (scope != null) 'siteId': scope.siteId,
       },
+      if (scope != null)
+        'reviewShortcuts': {
+          if (historyDates.isNotEmpty)
+            'currentShiftReviewCommand': _siteActivityReviewCommand(
+              clientId: scope.clientId,
+              siteId: scope.siteId,
+              reportDate: historyDates.first,
+            ),
+          if (historyDates.isNotEmpty)
+            'currentShiftCaseFileCommand': _siteActivityCaseFileCommand(
+              clientId: scope.clientId,
+              siteId: scope.siteId,
+              reportDate: historyDates.first,
+            ),
+          if (historyDates.length > 1)
+            'previousShiftReviewCommand': _siteActivityReviewCommand(
+              clientId: scope.clientId,
+              siteId: scope.siteId,
+              reportDate: historyDates[1],
+            ),
+          if (historyDates.length > 1)
+            'previousShiftCaseFileCommand': _siteActivityCaseFileCommand(
+              clientId: scope.clientId,
+              siteId: scope.siteId,
+              reportDate: historyDates[1],
+            ),
+        },
       'siteActivity': {
         'totalSignals': siteActivity.totalSignals,
         'personSignals': siteActivity.personSignals,
@@ -1564,10 +1669,24 @@ class _RightRail extends StatelessWidget {
     final siteActivityTrend = sovereignReport == null
         ? null
         : _siteActivityTrendFor(sovereignReport, siteActivity);
+    final scope = _siteActivityCommandScope();
+    final historyDates = scope == null
+        ? const <String>[]
+        : _siteActivityHistoryDatesForScope(scope.clientId, scope.siteId);
     return [
       'metric,value',
       'report_date,${sovereignReport?.date ?? ''}',
       'generated_at_utc,${sovereignReport?.generatedAtUtc.toIso8601String() ?? ''}',
+      if (scope != null) 'client_id,${scope.clientId}',
+      if (scope != null) 'site_id,${scope.siteId}',
+      if (scope != null && historyDates.isNotEmpty)
+        'current_review_command,${_siteActivityReviewCommand(clientId: scope.clientId, siteId: scope.siteId, reportDate: historyDates.first)}',
+      if (scope != null && historyDates.isNotEmpty)
+        'current_case_file_command,${_siteActivityCaseFileCommand(clientId: scope.clientId, siteId: scope.siteId, reportDate: historyDates.first)}',
+      if (scope != null && historyDates.length > 1)
+        'previous_review_command,${_siteActivityReviewCommand(clientId: scope.clientId, siteId: scope.siteId, reportDate: historyDates[1])}',
+      if (scope != null && historyDates.length > 1)
+        'previous_case_file_command,${_siteActivityCaseFileCommand(clientId: scope.clientId, siteId: scope.siteId, reportDate: historyDates[1])}',
       'site_activity_total_signals,${siteActivity.totalSignals}',
       'site_activity_people,${siteActivity.personSignals}',
       'site_activity_vehicles,${siteActivity.vehicleSignals}',
