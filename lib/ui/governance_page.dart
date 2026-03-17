@@ -1883,16 +1883,26 @@ class _GovernancePageState extends State<GovernancePage> {
 
   String _downloadMorningJsonActionLabel(_GovernanceReportView report) {
     final focusLabel = _focusedSceneActionActionLabel(report);
-    return focusLabel == null
+    final readinessFocusLabel = _historicalMorningReportFocusLabel(report);
+    final suffix = _combinedMorningActionSuffix(
+      focusLabel: focusLabel,
+      readinessFocusLabel: readinessFocusLabel,
+    );
+    return suffix == null
         ? 'Download Morning JSON'
-        : 'Download Morning JSON ($focusLabel)';
+        : 'Download Morning JSON ($suffix)';
   }
 
   String _downloadMorningCsvActionLabel(_GovernanceReportView report) {
     final focusLabel = _focusedSceneActionActionLabel(report);
-    return focusLabel == null
+    final readinessFocusLabel = _historicalMorningReportFocusLabel(report);
+    final suffix = _combinedMorningActionSuffix(
+      focusLabel: focusLabel,
+      readinessFocusLabel: readinessFocusLabel,
+    );
+    return suffix == null
         ? 'Download Morning CSV'
-        : 'Download Morning CSV ($focusLabel)';
+        : 'Download Morning CSV ($suffix)';
   }
 
   String _shareMorningPackActionLabel(_GovernanceReportView report) {
@@ -1920,17 +1930,17 @@ class _GovernancePageState extends State<GovernancePage> {
   }
 
   String _morningJsonFilename(_GovernanceReportView report) {
-    final suffix = _focusedSceneActionFilenameSuffix(report);
+    final suffix = _combinedMorningFilenameSuffix(report);
     return suffix == null
         ? 'morning-sovereign-report.json'
-        : 'morning-sovereign-report-$suffix-focus.json';
+        : 'morning-sovereign-report-$suffix.json';
   }
 
   String _morningCsvFilename(_GovernanceReportView report) {
-    final suffix = _focusedSceneActionFilenameSuffix(report);
+    final suffix = _combinedMorningFilenameSuffix(report);
     return suffix == null
         ? 'morning-sovereign-report.csv'
-        : 'morning-sovereign-report-$suffix-focus.csv';
+        : 'morning-sovereign-report-$suffix.csv';
   }
 
   String _morningShareTitle(_GovernanceReportView report) {
@@ -1961,6 +1971,32 @@ class _GovernancePageState extends State<GovernancePage> {
     return _isHistoricalGlobalReadinessFocus(report)
         ? 'Historical Shift ${report.reportDate}'
         : null;
+  }
+
+  String? _historicalMorningReportFilenameSuffix(_GovernanceReportView report) {
+    if (!_isHistoricalGlobalReadinessFocus(report)) {
+      return null;
+    }
+    final reportDate = report.reportDate.trim();
+    if (reportDate.isEmpty) {
+      return null;
+    }
+    return 'historical-${reportDate.replaceAll(RegExp(r'[^0-9]+'), '-')}';
+  }
+
+  String? _combinedMorningFilenameSuffix(_GovernanceReportView report) {
+    final parts = <String>[
+      if ((_focusedSceneActionFilenameSuffix(report) ?? '').trim().isNotEmpty)
+        _focusedSceneActionFilenameSuffix(report)!.trim(),
+      if ((_historicalMorningReportFilenameSuffix(report) ?? '')
+          .trim()
+          .isNotEmpty)
+        _historicalMorningReportFilenameSuffix(report)!.trim(),
+    ];
+    if (parts.isEmpty) {
+      return null;
+    }
+    return parts.join('-');
   }
 
   String? _combinedMorningActionSuffix({
