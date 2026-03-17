@@ -38,6 +38,8 @@ void main() {
     expect(record.validationStatus, OnyxMoValidationStatus.validated);
     expect(record.metadata['promotion_decision_status'], 'accepted');
     expect(record.metadata['promotion_target_status'], 'validated');
+    expect(record.metadata['runtime_match_bias'], 'PROMOTED_VALIDATED');
+    expect(record.metadata['runtime_match_weight'], 0.08);
   });
 
   test('records rejected decisions without promoting validation state', () {
@@ -66,5 +68,7 @@ void main() {
     expect(record.validationStatus, OnyxMoValidationStatus.shadowMode);
     expect(record.metadata['promotion_decision_status'], 'rejected');
     expect(record.metadata['promotion_target_status'], 'validated');
+    expect(record.metadata['runtime_match_bias'], 'REVIEW_HOLD');
+    expect(record.metadata['runtime_match_weight'], 0.0);
   });
 }

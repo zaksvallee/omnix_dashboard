@@ -144,6 +144,10 @@ class MoRuntimeMatchingService {
       }
       score += candidate.observabilityScore * 0.15;
       score += candidate.localRelevanceScore * 0.1;
+      score += _validationStatusScoreBonus(candidate.validationStatus);
+      score += _runtimeMatchWeight(candidate);
+      score += _trendScoreWeight(candidate.trendScore);
+      score += _riskWeightScore(candidate.riskWeight);
       if (score < 0.45) {
         continue;
       }
@@ -169,5 +173,44 @@ class MoRuntimeMatchingService {
     return left
         .map((value) => value.trim().toLowerCase())
         .where((value) => value.isNotEmpty && rightSet.contains(value));
+  }
+
+  double _validationStatusScoreBonus(OnyxMoValidationStatus status) {
+    switch (status) {
+      case OnyxMoValidationStatus.production:
+        return 0.08;
+      case OnyxMoValidationStatus.validated:
+        return 0.04;
+      case OnyxMoValidationStatus.shadowMode:
+      case OnyxMoValidationStatus.candidate:
+      case OnyxMoValidationStatus.canonicalized:
+        return 0;
+    }
+  }
+
+  double _runtimeMatchWeight(OnyxMoRecord record) {
+    final raw = record.metadata['runtime_match_weight'];
+    final parsed = raw is num ? raw.toDouble() : double.tryParse('$raw') ?? 0;
+    final decisionStatus = (record.metadata['promotion_decision_status'] ?? '')
+        .toString()
+        .trim();
+    if (decisionStatus == 'rejected') {
+      return 0;
+    }
+    return parsed.clamp(0, 0.15);
+  }
+
+  double _trendScoreWeight(double trendScore) {
+    if (trendScore <= 0) {
+      return 0;
+    }
+    return (trendScore * 0.05).clamp(0, 0.06);
+  }
+
+  double _riskWeightScore(int riskWeight) {
+    if (riskWeight <= 0) {
+      return 0;
+    }
+    return (riskWeight / 1000).clamp(0, 0.08);
   }
 }

@@ -56,12 +56,24 @@ class MoPromotionApplicationService {
         lastSeenUtc: appliedAtUtc.isAfter(record.lastSeenUtc)
             ? appliedAtUtc
             : record.lastSeenUtc,
-        metadata: metadata,
+        metadata: <String, Object?>{
+          ...metadata,
+          'runtime_match_bias': _runtimeMatchBiasFor(targetStatus),
+          'runtime_match_weight': _runtimeMatchWeightFor(targetStatus),
+        },
       );
     }
     if (decision.status == MoPromotionDecisionStatus.rejected ||
         decision.status == MoPromotionDecisionStatus.accepted) {
-      return record.copyWith(metadata: metadata);
+      return record.copyWith(
+        metadata: <String, Object?>{
+          ...metadata,
+          if (decision.status == MoPromotionDecisionStatus.rejected)
+            'runtime_match_bias': 'REVIEW_HOLD',
+          if (decision.status == MoPromotionDecisionStatus.rejected)
+            'runtime_match_weight': 0.0,
+        },
+      );
     }
     return null;
   }
@@ -74,5 +86,33 @@ class MoPromotionApplicationService {
       }
     }
     return null;
+  }
+
+  String _runtimeMatchBiasFor(OnyxMoValidationStatus status) {
+    switch (status) {
+      case OnyxMoValidationStatus.production:
+        return 'PROMOTED_PRODUCTION';
+      case OnyxMoValidationStatus.validated:
+        return 'PROMOTED_VALIDATED';
+      case OnyxMoValidationStatus.shadowMode:
+        return 'PROMOTED_SHADOW';
+      case OnyxMoValidationStatus.candidate:
+      case OnyxMoValidationStatus.canonicalized:
+        return 'PROMOTED_CANDIDATE';
+    }
+  }
+
+  double _runtimeMatchWeightFor(OnyxMoValidationStatus status) {
+    switch (status) {
+      case OnyxMoValidationStatus.production:
+        return 0.12;
+      case OnyxMoValidationStatus.validated:
+        return 0.08;
+      case OnyxMoValidationStatus.shadowMode:
+        return 0.04;
+      case OnyxMoValidationStatus.candidate:
+      case OnyxMoValidationStatus.canonicalized:
+        return 0.02;
+    }
   }
 }
