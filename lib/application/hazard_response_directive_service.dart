@@ -5,6 +5,8 @@ class HazardResponseDirectives {
   final String initiatedDispatchLine;
   final String playbookActionType;
   final String playbookDescription;
+  final String localActionType;
+  final String localPlanDescription;
   final String dispatchActionType;
   final String dispatchPlanDescription;
   final String welfarePlanDescription;
@@ -19,6 +21,8 @@ class HazardResponseDirectives {
     required this.initiatedDispatchLine,
     required this.playbookActionType,
     required this.playbookDescription,
+    required this.localActionType,
+    required this.localPlanDescription,
     required this.dispatchActionType,
     required this.dispatchPlanDescription,
     required this.welfarePlanDescription,
@@ -62,6 +66,9 @@ class HazardResponseDirectiveService {
         playbookActionType: 'ACTIVATE FIRE PLAYBOOK',
         playbookDescription:
             'Lock CCTV fire verification on $normalizedSiteName, pre-stage emergency response, and raise a client safety warning before spread compounds.',
+        localActionType: 'FIRE ESCALATION',
+        localPlanDescription:
+            'Promote immediate fire response, notify the partner lane, and preserve CCTV evidence for emergency escalation.',
         dispatchActionType: 'DISPATCH FIRE RESPONSE',
         dispatchPlanDescription:
             'Stage fire response for $normalizedSiteName, hold CCTV smoke verification, and keep the client safety call hot while spread risk is still containable.',
@@ -84,6 +91,9 @@ class HazardResponseDirectiveService {
         playbookActionType: 'ACTIVATE LEAK PLAYBOOK',
         playbookDescription:
             'Lock CCTV leak verification on $normalizedSiteName, pre-stage containment, and raise a client safety warning before water loss compounds.',
+        localActionType: 'LEAK CONTAINMENT',
+        localPlanDescription:
+            'Escalate a likely water-loss incident, protect the site, and lock CCTV evidence before damage spreads.',
         dispatchActionType: 'DISPATCH LEAK RESPONSE',
         dispatchPlanDescription:
             'Stage leak containment for $normalizedSiteName, hold CCTV water-loss verification, and move before pooling damages the site.',
@@ -106,6 +116,9 @@ class HazardResponseDirectiveService {
         playbookActionType: 'ACTIVATE HAZARD PLAYBOOK',
         playbookDescription:
             'Lock CCTV hazard verification on $normalizedSiteName, pre-stage site safety response, and raise a client warning before conditions worsen.',
+        localActionType: 'HAZARD RESPONSE',
+        localPlanDescription:
+            'Raise a site hazard response with CCTV evidence attached and keep human veto available.',
         dispatchActionType: 'DISPATCH SAFETY RESPONSE',
         dispatchPlanDescription:
             'Stage site safety response for $normalizedSiteName, hold CCTV hazard verification, and move before conditions worsen for people on site.',
@@ -124,6 +137,8 @@ class HazardResponseDirectiveService {
         initiatedDispatchLine: '',
         playbookActionType: '',
         playbookDescription: '',
+        localActionType: '',
+        localPlanDescription: '',
         dispatchActionType: '',
         dispatchPlanDescription: '',
         welfarePlanDescription: '',

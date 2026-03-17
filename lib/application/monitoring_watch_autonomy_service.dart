@@ -1,5 +1,6 @@
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/intelligence_received.dart';
+import 'hazard_response_directive_service.dart';
 import 'monitoring_global_posture_service.dart';
 import 'monitoring_orchestrator_service.dart';
 import 'monitoring_scene_review_store.dart';
@@ -12,6 +13,7 @@ class MonitoringWatchAutonomyService {
   static const _globalPostureService = MonitoringGlobalPostureService();
   static const _orchestratorService = MonitoringOrchestratorService();
   static const _syntheticWarRoomService = MonitoringSyntheticWarRoomService();
+  static const _hazardDirectiveService = HazardResponseDirectiveService();
 
   List<MonitoringWatchAutonomyActionPlan> buildPlans({
     required List<DispatchEvent> events,
@@ -125,7 +127,6 @@ class MonitoringWatchAutonomyService {
   }) {
     final decisionLabel = entry.review.decisionLabel.trim().toLowerCase();
     final posture = entry.review.postureLabel.trim();
-    final postureLower = posture.toLowerCase();
     final summary = entry.review.decisionSummary.trim().isNotEmpty
         ? entry.review.decisionSummary.trim()
         : entry.review.summary.trim();
@@ -140,42 +141,47 @@ class MonitoringWatchAutonomyService {
       'camera': camera.isEmpty ? 'site-wide' : camera,
       'source': entry.review.sourceLabel.trim(),
     };
+    final hazardDirectives = _hazardDirectiveService.build(
+      postureLabel: posture,
+      objectLabel: (entry.event.objectLabel ?? '').trim(),
+      siteName: entry.event.siteId,
+    );
 
-    if (postureLower.contains('fire') || postureLower.contains('smoke')) {
+    if (hazardDirectives.signal == 'fire') {
       return MonitoringWatchAutonomyActionPlan(
         id: 'AUTO-${entry.event.intelligenceId}',
         incidentId: entry.event.intelligenceId,
         siteId: entry.event.siteId,
         priority: MonitoringWatchAutonomyPriority.critical,
-        actionType: 'FIRE ESCALATION',
+        actionType: hazardDirectives.localActionType,
         description:
-            'Promote immediate fire response, notify the partner lane, and preserve ${videoOpsLabel.toUpperCase()} evidence for emergency escalation. $summary',
+            '${hazardDirectives.localPlanDescription.replaceAll('CCTV', videoOpsLabel.toUpperCase())} $summary',
         countdownSeconds: 8,
         metadata: metadata,
       );
     }
-    if (postureLower.contains('flood') || postureLower.contains('leak')) {
+    if (hazardDirectives.signal == 'water_leak') {
       return MonitoringWatchAutonomyActionPlan(
         id: 'AUTO-${entry.event.intelligenceId}',
         incidentId: entry.event.intelligenceId,
         siteId: entry.event.siteId,
         priority: MonitoringWatchAutonomyPriority.critical,
-        actionType: 'LEAK CONTAINMENT',
+        actionType: hazardDirectives.localActionType,
         description:
-            'Escalate a likely water-loss incident, protect the site, and lock ${videoOpsLabel.toUpperCase()} evidence before damage spreads. $summary',
+            '${hazardDirectives.localPlanDescription.replaceAll('CCTV', videoOpsLabel.toUpperCase())} $summary',
         countdownSeconds: 10,
         metadata: metadata,
       );
     }
-    if (postureLower.contains('hazard')) {
+    if (hazardDirectives.signal == 'environment_hazard') {
       return MonitoringWatchAutonomyActionPlan(
         id: 'AUTO-${entry.event.intelligenceId}',
         incidentId: entry.event.intelligenceId,
         siteId: entry.event.siteId,
         priority: MonitoringWatchAutonomyPriority.high,
-        actionType: 'HAZARD RESPONSE',
+        actionType: hazardDirectives.localActionType,
         description:
-            'Raise a site hazard response with ${videoOpsLabel.toUpperCase()} evidence attached and keep human veto available. $summary',
+            '${hazardDirectives.localPlanDescription.replaceAll('CCTV', videoOpsLabel.toUpperCase())} $summary',
         countdownSeconds: 16,
         metadata: metadata,
       );

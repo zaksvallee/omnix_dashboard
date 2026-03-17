@@ -123,6 +123,43 @@ void main() {
         isTrue,
       );
     });
+
+    test('builds hazard-local plans from the shared hazard policy voice', () {
+      final events = <DispatchEvent>[
+        _intel(
+          id: 'intel-fire',
+          riskScore: 88,
+          siteId: 'SITE-FIRE',
+          cameraId: 'generator-room-cam',
+        ),
+      ];
+      final reviews = <String, MonitoringSceneReviewRecord>{
+        'intel-fire': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-fire',
+          sourceLabel: 'openai:gpt-5.4-mini',
+          postureLabel: 'fire and smoke emergency',
+          decisionLabel: 'Escalation Candidate',
+          decisionSummary:
+              'Escalated for urgent review because fire or smoke indicators were detected.',
+          summary: 'Smoke plume visible in the generator room.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 15),
+        ),
+      };
+
+      final plans = service.buildPlans(
+        events: events,
+        sceneReviewByIntelligenceId: reviews,
+        videoOpsLabel: 'Hikvision',
+      );
+
+      final localFire = plans.firstWhere(
+        (entry) => entry.actionType == 'FIRE ESCALATION',
+      );
+      expect(
+        localFire.description,
+        'Promote immediate fire response, notify the partner lane, and preserve HIKVISION evidence for emergency escalation. Escalated for urgent review because fire or smoke indicators were detected.',
+      );
+    });
   });
 }
 

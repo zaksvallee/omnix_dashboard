@@ -25,8 +25,13 @@ void main() {
       'Fire response has been staged while ONYX keeps the client safety and occupant welfare lane active.',
     );
     expect(directives.playbookActionType, 'ACTIVATE FIRE PLAYBOOK');
+    expect(directives.localActionType, 'FIRE ESCALATION');
     expect(directives.dispatchActionType, 'DISPATCH FIRE RESPONSE');
     expect(directives.responsePolicy, 'fire_emergency_dispatch');
+    expect(
+      directives.localPlanDescription,
+      'Promote immediate fire response, notify the partner lane, and preserve CCTV evidence for emergency escalation.',
+    );
     expect(
       directives.playbookDescription,
       'Lock CCTV fire verification on MS Vallee Residence, pre-stage emergency response, and raise a client safety warning before spread compounds.',
@@ -66,8 +71,13 @@ void main() {
       'Leak containment has been staged while ONYX keeps the client safety and occupant welfare lane active.',
     );
     expect(directives.playbookActionType, 'ACTIVATE LEAK PLAYBOOK');
+    expect(directives.localActionType, 'LEAK CONTAINMENT');
     expect(directives.dispatchActionType, 'DISPATCH LEAK RESPONSE');
     expect(directives.responsePolicy, 'leak_containment_dispatch');
+    expect(
+      directives.localPlanDescription,
+      'Escalate a likely water-loss incident, protect the site, and lock CCTV evidence before damage spreads.',
+    );
     expect(
       directives.syntheticRecommendation,
       'earlier leak containment dispatch, occupant welfare checks, and water-loss rehearsal',
@@ -95,8 +105,13 @@ void main() {
       'Site safety response has been staged while ONYX keeps the client safety and occupant welfare lane active.',
     );
     expect(directives.playbookActionType, 'ACTIVATE HAZARD PLAYBOOK');
+    expect(directives.localActionType, 'HAZARD RESPONSE');
     expect(directives.dispatchActionType, 'DISPATCH SAFETY RESPONSE');
     expect(directives.responsePolicy, 'hazard_safety_dispatch');
+    expect(
+      directives.localPlanDescription,
+      'Raise a site hazard response with CCTV evidence attached and keep human veto available.',
+    );
     expect(
       directives.syntheticRecommendation,
       'earlier safety dispatch, occupant welfare checks, and hazard isolation rehearsal',
@@ -115,6 +130,7 @@ void main() {
     expect(directives.welfareDirective, isEmpty);
     expect(directives.initiatedDispatchLine, isEmpty);
     expect(directives.playbookActionType, isEmpty);
+    expect(directives.localActionType, isEmpty);
     expect(directives.dispatchActionType, isEmpty);
     expect(directives.syntheticRecommendation, isEmpty);
   });
