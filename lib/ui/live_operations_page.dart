@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../application/site_activity_intelligence_service.dart';
 import '../application/morning_sovereign_report_service.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
@@ -28,6 +29,9 @@ enum _LedgerType { aiAction, humanOverride, systemEvent, escalation }
 
 class _IncidentRecord {
   final String id;
+  final String clientId;
+  final String regionId;
+  final String siteId;
   final _IncidentPriority priority;
   final String type;
   final String site;
@@ -44,6 +48,9 @@ class _IncidentRecord {
 
   const _IncidentRecord({
     required this.id,
+    this.clientId = '',
+    this.regionId = '',
+    this.siteId = '',
     required this.priority,
     required this.type,
     required this.site,
@@ -61,6 +68,9 @@ class _IncidentRecord {
 
   _IncidentRecord copyWith({
     String? id,
+    String? clientId,
+    String? regionId,
+    String? siteId,
     _IncidentPriority? priority,
     String? type,
     String? site,
@@ -77,6 +87,9 @@ class _IncidentRecord {
   }) {
     return _IncidentRecord(
       id: id ?? this.id,
+      clientId: clientId ?? this.clientId,
+      regionId: regionId ?? this.regionId,
+      siteId: siteId ?? this.siteId,
       priority: priority ?? this.priority,
       type: type ?? this.type,
       site: site ?? this.site,
@@ -206,6 +219,8 @@ class LiveOperationsPage extends StatefulWidget {
   final String focusIncidentReference;
   final String videoOpsLabel;
   final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
+  final void Function(List<String> eventIds, String? selectedEventId)?
+  onOpenEventsForScope;
 
   const LiveOperationsPage({
     super.key,
@@ -214,6 +229,7 @@ class LiveOperationsPage extends StatefulWidget {
     this.focusIncidentReference = '',
     this.videoOpsLabel = 'CCTV',
     this.sceneReviewByIntelligenceId = const {},
+    this.onOpenEventsForScope,
   });
 
   @override
@@ -221,6 +237,7 @@ class LiveOperationsPage extends StatefulWidget {
 }
 
 class _LiveOperationsPageState extends State<LiveOperationsPage> {
+  static const _siteActivityService = SiteActivityIntelligenceService();
   static const _overrideReasonCodes = [
     'DUPLICATE_SIGNAL',
     'FALSE_ALARM',
@@ -1059,6 +1076,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final duress = _duressDetected(incident);
     final evidenceReady = _evidenceReadyLabel(incident);
     final partnerProgress = _partnerProgressForIncident(incident);
+    final siteActivity = _siteActivitySnapshotForIncident(incident);
     final suppressedReviews = _suppressedSceneReviewsForIncident(incident);
     final rows = <Widget>[
       _metaRow('Incident', incident.id),
@@ -1072,6 +1090,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       _metaRow('Client', 'Sandton HOA'),
       _metaRow('Contact', 'John Sovereign'),
       _metaRow('Client Safe Word', 'PHOENIX'),
+      if (siteActivity != null && siteActivity.totalSignals > 0) ...[
+        const SizedBox(height: 8),
+        _siteActivityTruthCard(incident, siteActivity),
+      ],
       if (partnerProgress != null) ...[
         const SizedBox(height: 8),
         _partnerProgressCard(partnerProgress, incident.id),
@@ -1171,6 +1193,117 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       );
     }
     return ListView(children: rows);
+  }
+
+  SiteActivityIntelligenceSnapshot? _siteActivitySnapshotForIncident(
+    _IncidentRecord incident,
+  ) {
+    if (incident.clientId.trim().isEmpty || incident.siteId.trim().isEmpty) {
+      return null;
+    }
+    return _siteActivityService.buildSnapshot(
+      events: widget.events,
+      clientId: incident.clientId,
+      siteId: incident.siteId,
+    );
+  }
+
+  Widget _siteActivityTruthCard(
+    _IncidentRecord incident,
+    SiteActivityIntelligenceSnapshot snapshot,
+  ) {
+    final canOpenEvents =
+        widget.onOpenEventsForScope != null && snapshot.eventIds.isNotEmpty;
+    return Container(
+      key: ValueKey('live-activity-truth-card-${incident.id}'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF2A3D58)),
+        color: const Color(0x14000000),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Activity Truth',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF8FD1FF),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${snapshot.totalSignals} signals',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFA6BDD9),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          _metaRow('Summary', snapshot.summaryLine),
+          _metaRow(
+            'Known / Unknown',
+            '${snapshot.knownIdentitySignals} known • ${snapshot.unknownPersonSignals + snapshot.unknownVehicleSignals} unknown',
+          ),
+          if (snapshot.topFlaggedIdentitySummary.trim().isNotEmpty)
+            _metaRow('Flagged', snapshot.topFlaggedIdentitySummary),
+          if (snapshot.topLongPresenceSummary.trim().isNotEmpty)
+            _metaRow('Long Presence', snapshot.topLongPresenceSummary),
+          if (snapshot.topGuardInteractionSummary.trim().isNotEmpty)
+            _metaRow('Guard Note', snapshot.topGuardInteractionSummary),
+          if (snapshot.evidenceEventIds.isNotEmpty)
+            _metaRow('Review Refs', snapshot.evidenceEventIds.join(', ')),
+          if (canOpenEvents) ...[
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton(
+                key: ValueKey('live-activity-truth-open-events-${incident.id}'),
+                onPressed: () {
+                  widget.onOpenEventsForScope!(
+                    snapshot.eventIds,
+                    snapshot.selectedEventId,
+                  );
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Opening Events Review for activity truth.',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFE7F0FF),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      backgroundColor: const Color(0xFF0E203A),
+                    ),
+                  );
+                },
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Color(0xFF23547C)),
+                  foregroundColor: const Color(0xFF8FD1FF),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  textStyle: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                child: const Text('Open Events Review'),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   List<_SuppressedSceneReviewContext> _suppressedSceneReviewsForIncident(
@@ -2783,6 +2916,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     return [
       _IncidentRecord(
         id: focusReference,
+        clientId: '',
+        regionId: '',
+        siteId: '',
         priority: _IncidentPriority.p2High,
         type: 'Seeded Breach Playback',
         site: 'Demo Operations Lane',
@@ -2880,6 +3016,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         .trim()];
               return _IncidentRecord(
                 id: normalizedId,
+                clientId: decision.clientId,
+                regionId: decision.regionId,
+                siteId: decision.siteId,
                 priority: priority,
                 type: risk >= 85 ? 'Breach Detection' : 'Perimeter Alarm',
                 site: decision.siteId,
@@ -2912,6 +3051,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     return const [
       _IncidentRecord(
         id: 'INC-8829-QX',
+        clientId: '',
+        regionId: '',
+        siteId: '',
         priority: _IncidentPriority.p1Critical,
         type: 'Breach Detection',
         site: 'Sandton Estate North',
@@ -2920,6 +3062,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       ),
       _IncidentRecord(
         id: 'INC-8830-RZ',
+        clientId: '',
+        regionId: '',
+        siteId: '',
         priority: _IncidentPriority.p1Critical,
         type: 'Armed Response Request',
         site: 'Waterfall Estate Main',
@@ -2928,6 +3073,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       ),
       _IncidentRecord(
         id: 'INC-8827-PX',
+        clientId: '',
+        regionId: '',
+        siteId: '',
         priority: _IncidentPriority.p2High,
         type: 'Perimeter Alarm',
         site: 'Blue Ridge Security',
@@ -2936,6 +3084,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       ),
       _IncidentRecord(
         id: 'INC-8828-MN',
+        clientId: '',
+        regionId: '',
+        siteId: '',
         priority: _IncidentPriority.p2High,
         type: 'Gate Malfunction',
         site: 'Midrand Industrial Park',
@@ -2944,6 +3095,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       ),
       _IncidentRecord(
         id: 'INC-8826-KL',
+        clientId: '',
+        regionId: '',
+        siteId: '',
         priority: _IncidentPriority.p3Medium,
         type: 'Power Failure',
         site: 'Centurion Mall',

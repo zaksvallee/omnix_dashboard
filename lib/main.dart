@@ -544,8 +544,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       TelegramPartnerDispatchService();
   static const _siteActivityIntelligenceService =
       SiteActivityIntelligenceService();
-  static const _siteActivityTelegramFormatter =
-      SiteActivityTelegramFormatter();
+  static const _siteActivityTelegramFormatter = SiteActivityTelegramFormatter();
   static const _partnerEndpointLabelPrefix = 'PARTNER';
   late final NewsIntelligenceService _newsIntel;
   static const _browserFiles = DispatchSnapshotFileService();
@@ -11047,7 +11046,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return (label: label, summary: summary);
   }
 
-  bool _sameMorningSovereignReport(SovereignReport left, SovereignReport right) {
+  bool _sameMorningSovereignReport(
+    SovereignReport left,
+    SovereignReport right,
+  ) {
     return left.generatedAtUtc == right.generatedAtUtc &&
         left.shiftWindowEndUtc == right.shiftWindowEndUtc &&
         left.date == right.date;
@@ -11152,7 +11154,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final sentAt = DateTime.now().toUtc();
     if (mounted) {
       setState(() {
-        _telegramBridgeHealthLabel = result.failedCount == 0 ? 'ok' : 'degraded';
+        _telegramBridgeHealthLabel = result.failedCount == 0
+            ? 'ok'
+            : 'degraded';
         _telegramBridgeHealthDetail = result.failedCount == 0
             ? 'Site activity summary delivery succeeded.'
             : 'Site activity summary delivery failed for ${result.failedCount}/${messages.length} target(s).';
@@ -18054,6 +18058,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           focusIncidentReference: _operationsFocusIncidentReference,
           videoOpsLabel: _activeVideoOpsLabel,
           sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
+          onOpenEventsForScope: (eventIds, selectedEventId) {
+            _openEventsForScopedEventIds(
+              eventIds,
+              selectedEventId: selectedEventId,
+            );
+          },
         );
 
       case OnyxRoute.aiQueue:

@@ -126,7 +126,7 @@ class SiteActivityIntelligenceService {
 
     for (final event in scoped) {
       eventEntries.add((
-        id: event.intelligenceId,
+        id: event.eventId,
         occurredAt: event.occurredAt.toUtc(),
       ));
       final objectLabel = _normalizedObjectLabel(event.objectLabel);
@@ -188,7 +188,7 @@ class SiteActivityIntelligenceService {
           cameraId: (event.cameraId ?? '').trim(),
           firstSeenUtc: occurredAt,
           lastSeenUtc: occurredAt,
-          latestEventId: event.intelligenceId,
+          latestEventId: event.eventId,
         ),
       );
       if (occurredAt.isBefore(aggregate.firstSeenUtc)) {
@@ -196,7 +196,7 @@ class SiteActivityIntelligenceService {
       }
       if (occurredAt.isAfter(aggregate.lastSeenUtc)) {
         aggregate.lastSeenUtc = occurredAt;
-        aggregate.latestEventId = event.intelligenceId;
+        aggregate.latestEventId = event.eventId;
       }
     }
 
@@ -222,11 +222,9 @@ class SiteActivityIntelligenceService {
         .toSet()
         .toList(growable: false);
     final evidenceEventIds = <String>[
-      if (topFlaggedIdentityEvent != null)
-        topFlaggedIdentityEvent.intelligenceId,
+      if (topFlaggedIdentityEvent != null) topFlaggedIdentityEvent.eventId,
       if (topLongPresence != null) topLongPresence.latestEventId,
-      if (topGuardInteractionEvent != null)
-        topGuardInteractionEvent.intelligenceId,
+      if (topGuardInteractionEvent != null) topGuardInteractionEvent.eventId,
     ].where((value) => value.trim().isNotEmpty).toSet().toList(growable: false);
 
     final summaryParts = <String>[

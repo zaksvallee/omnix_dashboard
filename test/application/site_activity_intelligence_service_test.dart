@@ -98,7 +98,7 @@ IntelligenceReceived _intel({
   String plateNumber = '',
 }) {
   return IntelligenceReceived(
-    eventId: 'evt-$id',
+    eventId: id,
     sequence: 1,
     version: 1,
     occurredAt: occurredAt,

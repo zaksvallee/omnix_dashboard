@@ -691,4 +691,97 @@ void main() {
     expect(find.text('reviewed'), findsOneWidget);
     expect(find.text('Escalation Candidate'), findsOneWidget);
   });
+
+  testWidgets('live operations shows activity truth and opens scoped events', (
+    tester,
+  ) async {
+    final now = DateTime.now().toUtc();
+    List<String>? openedEventIds;
+    String? openedSelectedEventId;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LiveOperationsPage(
+          events: [
+            DecisionCreated(
+              eventId: 'decision-activity-1',
+              sequence: 1,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 4)),
+              dispatchId: 'D-2001',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-SANDTON',
+            ),
+            IntelligenceReceived(
+              eventId: 'ACTIVITY-7',
+              sequence: 2,
+              version: 1,
+              occurredAt: now.subtract(const Duration(hours: 3, minutes: 10)),
+              intelligenceId: 'INT-ACTIVITY-7',
+              provider: 'hikvision-dvr',
+              sourceType: 'dvr',
+              externalId: 'evt-activity-7',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-SANDTON',
+              cameraId: 'gate-cam',
+              objectLabel: 'person',
+              headline: 'Watchlist subject detected',
+              summary: 'Unauthorized person matched watchlist context.',
+              riskScore: 84,
+              canonicalHash: 'hash-activity-7',
+            ),
+            IntelligenceReceived(
+              eventId: 'ACTIVITY-11',
+              sequence: 3,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 40)),
+              intelligenceId: 'INT-ACTIVITY-11',
+              provider: 'hikvision-dvr',
+              sourceType: 'dvr',
+              externalId: 'evt-activity-11',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-SANDTON',
+              cameraId: 'gate-cam',
+              objectLabel: 'human',
+              headline: 'Guard conversation observed',
+              summary: 'Guard talking to unknown individual near the gate.',
+              riskScore: 66,
+              canonicalHash: 'hash-activity-11',
+            ),
+          ],
+          videoOpsLabel: 'DVR',
+          onOpenEventsForScope: (eventIds, selectedEventId) {
+            openedEventIds = eventIds;
+            openedSelectedEventId = selectedEventId;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('live-activity-truth-card-INC-D-2001')),
+      findsOneWidget,
+    );
+    expect(find.text('Activity Truth'), findsOneWidget);
+    expect(find.textContaining('Signals 2 • People 2'), findsOneWidget);
+    expect(find.textContaining('Long presence 1'), findsOneWidget);
+    expect(find.textContaining('Guard interactions 1'), findsOneWidget);
+    expect(find.textContaining('Flagged IDs 1'), findsOneWidget);
+    expect(find.text('Review Refs'), findsOneWidget);
+    expect(find.text('ACTIVITY-7, ACTIVITY-11'), findsOneWidget);
+
+    final openEventsButton = find.byKey(
+      const ValueKey('live-activity-truth-open-events-INC-D-2001'),
+    );
+    await tester.ensureVisible(openEventsButton);
+    await tester.tap(openEventsButton);
+    await tester.pumpAndSettle();
+
+    expect(openedEventIds, equals(const ['ACTIVITY-7', 'ACTIVITY-11']));
+    expect(openedSelectedEventId, 'ACTIVITY-11');
+  });
 }

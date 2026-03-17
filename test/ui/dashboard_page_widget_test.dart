@@ -817,11 +817,11 @@ void main() {
     final store = InMemoryEventStore();
     store.append(
       IntelligenceReceived(
-        eventId: 'evt-activity-review-1',
+        eventId: 'ACTIVITY-7',
         sequence: 1,
         version: 1,
         occurredAt: DateTime.utc(2026, 3, 9, 0, 10),
-        intelligenceId: 'ACTIVITY-7',
+        intelligenceId: 'INT-ACTIVITY-7',
         provider: 'hikvision_dvr_monitor_only',
         sourceType: 'dvr',
         externalId: 'ext-activity-review-1',
@@ -840,11 +840,11 @@ void main() {
     );
     store.append(
       IntelligenceReceived(
-        eventId: 'evt-activity-review-2',
+        eventId: 'ACTIVITY-11',
         sequence: 1,
         version: 1,
         occurredAt: DateTime.utc(2026, 3, 9, 3, 10),
-        intelligenceId: 'ACTIVITY-11',
+        intelligenceId: 'INT-ACTIVITY-11',
         provider: 'hikvision_dvr_monitor_only',
         sourceType: 'dvr',
         externalId: 'ext-activity-review-2',
