@@ -3100,18 +3100,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
 
   String _tomorrowPostureLearningMemorySummary(
     MonitoringWatchAutonomyActionPlan draft,
-  ) {
-    final learningLabel = (draft.metadata['learning_label'] ?? '')
-        .toString()
-        .trim();
-    final repeatCount = int.tryParse(
-      (draft.metadata['learning_repeat_count'] ?? '').toString().trim(),
-    );
-    if (learningLabel.isEmpty || repeatCount == null || repeatCount <= 0) {
-      return '';
-    }
-    return 'Memory: $learningLabel repeated across ${repeatCount + 1} linked shifts.';
-  }
+  ) => buildTomorrowLearningMemorySummaryForDraft(draft: draft);
 
   String _tomorrowPostureShadowStrengthHandoffSummary(SovereignReport report) {
     final historyReports =
@@ -3142,13 +3131,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
 
   String _tomorrowPostureHazardSummary(
     MonitoringWatchAutonomyActionPlan draft,
-  ) {
-    final signal = (draft.metadata['hazard_signal'] ?? '').toString().trim();
-    if (signal.isEmpty) {
-      return '';
-    }
-    return '${buildHazardSignalLabel(signal)} playbook draft active';
-  }
+  ) => buildTomorrowHazardSummaryForDraft(draft: draft);
 
   String _tomorrowPostureUrgencySummary(
     MonitoringWatchAutonomyActionPlan draft,

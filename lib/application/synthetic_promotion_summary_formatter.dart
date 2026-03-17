@@ -217,6 +217,16 @@ String buildTomorrowShadowSummaryForDraft({
   return parts.join(' • ');
 }
 
+String buildTomorrowHazardSummaryForDraft({
+  required MonitoringWatchAutonomyActionPlan? draft,
+}) {
+  final signal = (draft?.metadata['hazard_signal'] ?? '').trim();
+  if (signal.isEmpty) {
+    return '';
+  }
+  return '${buildHazardSignalLabel(signal)} playbook draft active';
+}
+
 String buildTomorrowUrgencySummaryForDraft({
   required MonitoringWatchAutonomyActionPlan? draft,
 }) {
@@ -238,6 +248,18 @@ String buildTomorrowUrgencySummaryForDraft({
     if (countdown.isNotEmpty) '${countdown}s',
   ];
   return parts.join(' • ');
+}
+
+String buildTomorrowLearningMemorySummaryForDraft({
+  required MonitoringWatchAutonomyActionPlan? draft,
+}) {
+  final learningLabel = (draft?.metadata['learning_label'] ?? '').trim();
+  final repeatCount =
+      int.tryParse((draft?.metadata['learning_repeat_count'] ?? '').trim());
+  if (learningLabel.isEmpty || repeatCount == null || repeatCount <= 0) {
+    return '';
+  }
+  return 'Memory: $learningLabel repeated across ${repeatCount + 1} linked shifts.';
 }
 
 String buildSyntheticBiasSummary({

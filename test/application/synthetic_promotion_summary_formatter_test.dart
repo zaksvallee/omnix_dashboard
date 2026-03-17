@@ -287,6 +287,32 @@ void main() {
       );
     });
 
+    test('tomorrow draft helpers format hazard and learning memory context', () {
+      const draft = MonitoringWatchAutonomyActionPlan(
+        id: 'NEXT-2',
+        incidentId: 'SITE-2',
+        siteId: 'SITE-2',
+        priority: MonitoringWatchAutonomyPriority.high,
+        actionType: 'DRAFT NEXT-SHIFT SHADOW WATCH',
+        description: 'desc',
+        countdownSeconds: 20,
+        metadata: <String, String>{
+          'hazard_signal': 'fire',
+          'learning_label': 'LOCK EARLY',
+          'learning_repeat_count': '2',
+        },
+      );
+
+      expect(
+        buildTomorrowHazardSummaryForDraft(draft: draft),
+        'fire playbook draft active',
+      );
+      expect(
+        buildTomorrowLearningMemorySummaryForDraft(draft: draft),
+        'Memory: LOCK EARLY repeated across 3 linked shifts.',
+      );
+    });
+
     test('synthetic bias helpers format raw fields and plan metadata', () {
       expect(
         buildSyntheticBiasSummary(
