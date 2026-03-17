@@ -1,3 +1,5 @@
+import 'hazard_response_directive_service.dart';
+
 class MonitoringSiteProfile {
   final String siteName;
   final String clientName;
@@ -71,6 +73,8 @@ class MonitoringShiftSummary {
 
 class MonitoringShiftNotificationService {
   const MonitoringShiftNotificationService();
+
+  static const _hazardDirectiveService = HazardResponseDirectiveService();
 
   String formatShiftStart({
     required MonitoringSiteProfile site,
@@ -371,14 +375,13 @@ class MonitoringShiftNotificationService {
     MonitoringIncidentUpdate incident, {
     required String defaultLine,
   }) {
-    if (_isFireEmergency(incident)) {
-      return 'Fire response has been staged while ONYX keeps the client safety and occupant welfare lane active.';
-    }
-    if (_isLeakEmergency(incident)) {
-      return 'Leak containment has been staged while ONYX keeps the client safety and occupant welfare lane active.';
-    }
-    if (_isEnvironmentHazard(incident)) {
-      return 'Site safety response has been staged while ONYX keeps the client safety and occupant welfare lane active.';
+    final directives = _hazardDirectiveService.build(
+      postureLabel: incident.postureLabel,
+      objectLabel: incident.objectLabel,
+      siteName: '',
+    );
+    if (directives.hasHazard) {
+      return directives.initiatedDispatchLine;
     }
     return defaultLine;
   }

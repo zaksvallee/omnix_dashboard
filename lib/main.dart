@@ -27,6 +27,7 @@ import 'application/guard_sync_repository.dart';
 import 'application/guard_telemetry_bridge_writer.dart';
 import 'application/guard_telemetry_ingestion_adapter.dart';
 import 'application/guard_telemetry_replay_fixture_service.dart';
+import 'application/hazard_response_directive_service.dart';
 import 'application/intake_stress_service.dart';
 import 'application/listener_alarm_advisory_pipeline_service.dart';
 import 'application/listener_alarm_feed_service.dart';
@@ -10404,6 +10405,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
                 : '${latestIntel.first.headline} • ${latestIntel.first.summary}',
             maxLength: 180,
           );
+    final hazardDirectives = const HazardResponseDirectiveService().build(
+      postureLabel: latestReview?.postureLabel ?? '',
+      siteName: siteProfile.siteName,
+    );
     return TelegramPartnerDispatchContext(
       messageKey: _partnerDispatchMessageKey(decision.dispatchId),
       dispatchId: decision.dispatchId,
@@ -10412,51 +10417,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       siteId: decision.siteId,
       siteName: siteProfile.siteName,
       incidentSummary: incidentSummary,
-      dispatchDirective: _partnerDispatchDirectiveForReview(
-        latestReview,
-        siteProfile.siteName,
-      ),
-      welfareDirective: _partnerWelfareDirectiveForReview(
-        latestReview,
-        siteProfile.siteName,
-      ),
+      dispatchDirective: hazardDirectives.dispatchDirective,
+      welfareDirective: hazardDirectives.welfareDirective,
       partnerLabel: _normalizePartnerEndpointLabel(_telegramPartnerLabelEnv),
       occurredAtUtc: decision.occurredAt.toUtc(),
     );
-  }
-
-  String _partnerDispatchDirectiveForReview(
-    MonitoringSceneReviewRecord? review,
-    String siteName,
-  ) {
-    final posture = (review?.postureLabel ?? '').trim().toLowerCase();
-    final normalizedSiteName = siteName.trim().isEmpty ? 'the site' : siteName.trim();
-    if (posture.contains('fire') || posture.contains('smoke')) {
-      return 'Stage fire response to $normalizedSiteName and prioritize flame or smoke containment on arrival.';
-    }
-    if (posture.contains('flood') || posture.contains('leak')) {
-      return 'Stage leak containment to $normalizedSiteName and prioritize water-loss control on arrival.';
-    }
-    if (posture.contains('hazard')) {
-      return 'Stage site safety response to $normalizedSiteName and prioritize hazard isolation on arrival.';
-    }
-    return '';
-  }
-
-  String _partnerWelfareDirectiveForReview(
-    MonitoringSceneReviewRecord? review,
-    String siteName,
-  ) {
-    final posture = (review?.postureLabel ?? '').trim().toLowerCase();
-    final normalizedSiteName = siteName.trim().isEmpty ? 'the site' : siteName.trim();
-    if (posture.contains('fire') ||
-        posture.contains('smoke') ||
-        posture.contains('flood') ||
-        posture.contains('leak') ||
-        posture.contains('hazard')) {
-      return 'Confirm occupant welfare status for $normalizedSiteName as part of the first partner update.';
-    }
-    return '';
   }
 
   List<TelegramPartnerDispatchContext> _openPartnerDispatchContextsForScope({
