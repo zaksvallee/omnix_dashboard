@@ -132,6 +132,9 @@ void main() {
       globalReadinessHazardSummary: 'fire playbook active',
       globalReadinessTomorrowPostureSummary:
           'DRAFT NEXT-SHIFT FIRE READINESS • site-alpha • ADVANCE FIRE • x2',
+      currentShiftTomorrowPostureReviewCommand: '/tomorrowreview 2026-03-17',
+      currentShiftTomorrowPostureCaseFileCommand:
+          '/tomorrowcase json 2026-03-17',
       currentShiftReadinessFocusSummary:
           'Viewing live oversight shift 2026-03-17.',
       currentShiftReadinessReviewCommand: '/readinessreview 2026-03-17',
@@ -204,6 +207,14 @@ void main() {
       contains(
         '<b>Tomorrow posture:</b> DRAFT NEXT-SHIFT FIRE READINESS • site-alpha • ADVANCE FIRE • x2',
       ),
+    );
+    expect(
+      response,
+      contains('<code>/tomorrowreview 2026-03-17</code>'),
+    );
+    expect(
+      response,
+      contains('<code>/tomorrowcase json 2026-03-17</code>'),
     );
     expect(response, contains('<code>/readinessreview 2026-03-17</code>'));
     expect(response, contains('<code>/readinesscase json 2026-03-16</code>'));

@@ -4374,6 +4374,14 @@ void main() {
       copiedPayload,
       contains('global_readiness_tomorrow_posture_summary,""'),
     );
+    expect(
+      copiedPayload,
+      contains('global_readiness_tomorrow_review_command,/tomorrowreview 2026-03-10'),
+    );
+    expect(
+      copiedPayload,
+      contains('global_readiness_tomorrow_case_file_command,/tomorrowcase json 2026-03-10'),
+    );
     expect(copiedPayload, contains('synthetic_war_room_plan_count,0'));
     expect(copiedPayload, contains('synthetic_war_room_policy_count,0'));
     expect(

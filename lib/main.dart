@@ -5363,6 +5363,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       ),
       globalReadinessTomorrowPostureSummary:
           _globalReadinessTomorrowPostureSummary(readinessIntents),
+      currentShiftTomorrowPostureReviewCommand:
+          '/tomorrowreview ${report.date}',
+      currentShiftTomorrowPostureCaseFileCommand:
+          '/tomorrowcase json ${report.date}',
       currentShiftReadinessFocusSummary: _readinessFocusSummary(report.date),
       currentShiftReadinessReviewCommand: '/readinessreview ${report.date}',
       currentShiftReadinessCaseFileCommand:
@@ -5787,6 +5791,114 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       if (repeatCount.isNotEmpty) 'x$repeatCount',
     ];
     return _singleLine(parts.join(' • '), maxLength: 220);
+  }
+
+  List<MonitoringWatchAutonomyActionPlan> _tomorrowPostureDraftsForReport(
+    SovereignReport report,
+  ) {
+    return _globalReadinessIntentsForReport(report)
+        .where((plan) => plan.metadata['scope'] == 'NEXT_SHIFT')
+        .toList(growable: false);
+  }
+
+  Map<String, Object?> _tomorrowPostureCaseFilePayload({String? reportDate}) {
+    final normalizedReportDate = reportDate?.trim() ?? '';
+    final report = _morningSovereignReportForDate(normalizedReportDate);
+    if (report == null) {
+      return <String, Object?>{
+        'available': false,
+        'reportDate': normalizedReportDate,
+        'summary': 'No morning sovereign report is available for that shift.',
+      };
+    }
+    final drafts = _tomorrowPostureDraftsForReport(report);
+    final history = _governanceHistoryForFocusedReport(report)
+        .where((item) => item.date.trim() != report.date.trim())
+        .take(3)
+        .map((item) {
+          final itemDrafts = _tomorrowPostureDraftsForReport(item);
+          return <String, Object?>{
+            'reportDate': item.date,
+            'summary': _globalReadinessTomorrowPostureSummary(itemDrafts),
+            'draftCount': itemDrafts.length,
+            ...buildReviewCommandPair(
+              reportDate: item.date,
+              reviewCommandBuilder: (value) => '/tomorrowreview $value',
+              caseFileCommandBuilder: (value) => '/tomorrowcase json $value',
+            ),
+          };
+        }).toList(growable: false);
+    return <String, Object?>{
+      'available': true,
+      'reportDate': report.date,
+      'generatedAtUtc': report.generatedAtUtc.toIso8601String(),
+      'focusSummary': _readinessFocusSummary(report.date),
+      'summary': _globalReadinessTomorrowPostureSummary(drafts),
+      'draftCount': drafts.length,
+      'reviewCommand': '/tomorrowreview ${report.date}',
+      'caseFileCommand': '/tomorrowcase json ${report.date}',
+      'governanceCommand': '/readinessgovernance ${report.date}',
+      'drafts': drafts
+          .take(5)
+          .map(
+            (draft) => <String, Object?>{
+              'actionType': draft.actionType,
+              'siteId': draft.siteId,
+              'priority': draft.priority.name,
+              'description': draft.description,
+              'countdownSeconds': draft.countdownSeconds,
+              'learningLabel': draft.metadata['learning_label'] ?? '',
+              'repeatCount': draft.metadata['learning_repeat_count'] ?? '',
+              'hazardSignal': draft.metadata['hazard_signal'] ?? '',
+              'metadata': draft.metadata,
+            },
+          )
+          .toList(growable: false),
+      'history': history,
+    };
+  }
+
+  String _tomorrowPostureCaseFileCsv({String? reportDate}) {
+    final payload = _tomorrowPostureCaseFilePayload(reportDate: reportDate);
+    final history = (payload['history'] as List<Object?>?) ?? const [];
+    final drafts = (payload['drafts'] as List<Object?>?) ?? const [];
+    final lines = <String>[
+      'metric,value',
+      'report_date,${payload['reportDate'] ?? ''}',
+      'available,${payload['available'] == false ? 'false' : 'true'}',
+      'generated_at_utc,${payload['generatedAtUtc'] ?? ''}',
+      'focus_summary,"${(payload['focusSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'summary,"${(payload['summary'] ?? '').toString().replaceAll('"', '""')}"',
+      'draft_count,${payload['draftCount'] ?? 0}',
+      'review_command,${payload['reviewCommand'] ?? ''}',
+      'case_file_command,${payload['caseFileCommand'] ?? ''}',
+      'governance_command,${payload['governanceCommand'] ?? ''}',
+    ];
+    for (var i = 0; i < drafts.length; i += 1) {
+      final draft = drafts[i];
+      if (draft is! Map) continue;
+      lines.add(
+        'draft_${i + 1},"${(draft['actionType'] ?? '').toString().replaceAll('"', '""')} • ${(draft['siteId'] ?? '').toString().replaceAll('"', '""')} • ${(draft['description'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add('draft_${i + 1}_learning_label,${draft['learningLabel'] ?? ''}');
+      lines.add('draft_${i + 1}_repeat_count,${draft['repeatCount'] ?? ''}');
+    }
+    for (var i = 0; i < history.length; i += 1) {
+      final row = history[i];
+      if (row is! Map) continue;
+      lines.add(
+        'history_${i + 1},"${(row['summary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.addAll(
+        buildHistoryReviewCommandCsvRows(
+          row: i + 1,
+          reportDate: (row['reportDate'] ?? '').toString(),
+          reviewCommandBuilder: (value) => '/tomorrowreview $value',
+          caseFileCommandBuilder: (value) => '/tomorrowcase json $value',
+        ),
+      );
+    }
+    return lines.join('\n');
   }
 
   String _syntheticWarRoomHazardSummary(
@@ -13785,6 +13897,16 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           command: 'syntheticcase',
           arguments: arguments,
         );
+      case '/tomorrowreview':
+        return _TelegramAdminCommandParseResult(
+          command: 'tomorrowreview',
+          arguments: arguments,
+        );
+      case '/tomorrowcase':
+        return _TelegramAdminCommandParseResult(
+          command: 'tomorrowcase',
+          arguments: arguments,
+        );
       case '/sendactivity':
         return _TelegramAdminCommandParseResult(
           command: 'sendactivity',
@@ -14007,6 +14129,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'readinesscase',
         'syntheticreview',
         'syntheticcase',
+        'tomorrowreview',
+        'tomorrowcase',
         'sendactivity',
         'demoprep',
         'demoflow',
@@ -14182,6 +14306,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     ])) {
       return const _TelegramAdminCommandParseResult(command: 'syntheticcase');
     }
+    if (hasAny(const [
+      'tomorrow posture',
+      'next shift posture',
+      'tomorrow review',
+      'next shift review',
+    ])) {
+      return const _TelegramAdminCommandParseResult(command: 'tomorrowreview');
+    }
     if (hasAny(const ['incident', 'incidents'])) {
       return const _TelegramAdminCommandParseResult(command: 'incidents');
     }
@@ -14286,6 +14418,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case 'readinesscase':
       case 'syntheticreview':
       case 'syntheticcase':
+      case 'tomorrowreview':
+      case 'tomorrowcase':
       case 'aidrafts':
       case 'aiconv':
       case 'whoami':
@@ -14393,6 +14527,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         return _telegramAdminSyntheticReviewCommand(arguments);
       case 'syntheticcase':
         return _telegramAdminSyntheticCaseCommand(arguments);
+      case 'tomorrowreview':
+        return _telegramAdminTomorrowReviewCommand(arguments);
+      case 'tomorrowcase':
+        return _telegramAdminTomorrowCaseCommand(arguments);
       case 'sendactivity':
         return _telegramAdminSendActivityCommand(arguments);
       case 'demoprep':
@@ -14535,6 +14673,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '• <code>/readinesscase [json|csv] [report_date]</code>\n'
         '• <code>/syntheticreview [report_date]</code>\n'
         '• <code>/syntheticcase [json|csv] [report_date]</code>\n'
+        '• <code>/tomorrowreview [report_date]</code>\n'
+        '• <code>/tomorrowcase [json|csv] [report_date]</code>\n'
         '• <code>/sendactivity [client|partner|both] [client_id site_id]</code>\n'
         '\n---\n\n'
         '<b>Admin</b>\n'
@@ -16741,6 +16881,67 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'review_command=$reviewCommand\n'
         '${previousReviewCommand.isEmpty ? '' : 'previous_review_command=$previousReviewCommand\n'}'
         '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}'
+        '${const JsonEncoder.withIndent('  ').convert(payload)}';
+  }
+
+  String _telegramAdminTomorrowReviewCommand(String arguments) {
+    final normalizedReportDate = arguments.trim();
+    final report = _morningSovereignReportForDate(normalizedReportDate);
+    if (report == null) {
+      return 'ONYX TOMORROWREVIEW\n'
+          'Usage: /tomorrowreview [report_date]\n'
+          'No morning sovereign report is available for that shift.';
+    }
+    final payload = _tomorrowPostureCaseFilePayload(reportDate: report.date);
+    final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
+    _openGovernanceForReportDate(report.date);
+    return 'ONYX TOMORROWREVIEW\n'
+        'report_date=${report.date}\n'
+        'summary=${(payload['summary'] ?? '').toString()}\n'
+        '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
+        'case_file_command=/tomorrowcase json ${report.date}\n'
+        'governance_command=/readinessgovernance ${report.date}\n'
+        'Opening Governance for tomorrow-posture oversight.';
+  }
+
+  String _telegramAdminTomorrowCaseCommand(String arguments) {
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    var format = 'json';
+    var index = 0;
+    if (tokens.isNotEmpty) {
+      final first = tokens.first.toLowerCase();
+      if (first == 'json' || first == 'csv') {
+        format = first;
+        index = 1;
+      }
+    }
+    final reportDate = tokens.length > index
+        ? tokens.sublist(index).join(' ')
+        : '';
+    final normalizedReportDate = reportDate.trim();
+    final report = _morningSovereignReportForDate(normalizedReportDate);
+    if (report == null) {
+      return 'ONYX TOMORROWCASE\n'
+          'Usage: /tomorrowcase [json|csv] [report_date]\n'
+          'No morning sovereign report is available for that shift.';
+    }
+    final payload = _tomorrowPostureCaseFilePayload(reportDate: report.date);
+    final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
+    if (format == 'csv') {
+      return 'ONYX TOMORROWCASE CSV\n'
+          'report_date=${report.date}\n'
+          '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
+          'review_command=/tomorrowreview ${report.date}\n'
+          '${_tomorrowPostureCaseFileCsv(reportDate: report.date)}';
+    }
+    return 'ONYX TOMORROWCASE JSON\n'
+        'report_date=${report.date}\n'
+        '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
+        'review_command=/tomorrowreview ${report.date}\n'
         '${const JsonEncoder.withIndent('  ').convert(payload)}';
   }
 

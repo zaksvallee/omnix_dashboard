@@ -82,6 +82,8 @@ class TelegramAdminCommandFormatter {
     String? globalReadinessTopIntentSummary,
     String? globalReadinessHazardSummary,
     String? globalReadinessTomorrowPostureSummary,
+    String? currentShiftTomorrowPostureReviewCommand,
+    String? currentShiftTomorrowPostureCaseFileCommand,
     String? currentShiftReadinessFocusSummary,
     String? currentShiftReadinessReviewCommand,
     String? currentShiftReadinessCaseFileCommand,
@@ -129,6 +131,10 @@ class TelegramAdminCommandFormatter {
         globalReadinessHazardSummary?.trim() ?? '';
     final readinessTomorrowPostureSummary =
         globalReadinessTomorrowPostureSummary?.trim() ?? '';
+    final tomorrowPostureReview =
+        currentShiftTomorrowPostureReviewCommand?.trim() ?? '';
+    final tomorrowPostureCase =
+        currentShiftTomorrowPostureCaseFileCommand?.trim() ?? '';
     final readinessFocusSummary =
         currentShiftReadinessFocusSummary?.trim() ?? '';
     final readinessReview = currentShiftReadinessReviewCommand?.trim() ?? '';
@@ -190,6 +196,8 @@ class TelegramAdminCommandFormatter {
               '${readinessTopIntentSummary.isEmpty ? '' : '• <b>Top intent:</b> ${_escapeHtml(readinessTopIntentSummary)}\n'}'
               '${readinessHazardSummary.isEmpty ? '' : '• <b>Hazard lane:</b> ${_escapeHtml(readinessHazardSummary)}\n'}'
               '${readinessTomorrowPostureSummary.isEmpty ? '' : '• <b>Tomorrow posture:</b> ${_escapeHtml(readinessTomorrowPostureSummary)}\n'}'
+              '${tomorrowPostureReview.isEmpty ? '' : '• <b>Tomorrow review:</b> <code>${_escapeHtml(tomorrowPostureReview)}</code>\n'}'
+              '${tomorrowPostureCase.isEmpty ? '' : '• <b>Tomorrow case:</b> <code>${_escapeHtml(tomorrowPostureCase)}</code>\n'}'
               '• <b>Current review:</b> <code>${_escapeHtml(readinessReview)}</code>\n'
               '${readinessCase.isEmpty ? '' : '• <b>Current case:</b> <code>${_escapeHtml(readinessCase)}</code>\n'}'
               '${readinessGovernance.isEmpty ? '' : '• <b>Open governance:</b> <code>${_escapeHtml(readinessGovernance)}</code>\n'}'

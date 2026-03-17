@@ -10271,6 +10271,9 @@ class _GovernancePageState extends State<GovernancePage> {
         'tomorrowPostureSummary': _globalReadinessTomorrowPostureSummary(
           globalReadinessIntents,
         ),
+        'tomorrowPostureReviewCommand': '/tomorrowreview ${report.reportDate}',
+        'tomorrowPostureCaseFileCommand':
+            '/tomorrowcase json ${report.reportDate}',
         'modeLabel': _globalReadinessModeLabel(
           globalReadinessSnapshot,
           globalReadinessIntents,
@@ -10545,6 +10548,8 @@ class _GovernancePageState extends State<GovernancePage> {
       'global_readiness_intent_count,${globalReadinessIntents.length}',
       'global_readiness_next_shift_draft_count,${_globalReadinessNextShiftDraftCount(globalReadinessIntents)}',
       'global_readiness_tomorrow_posture_summary,"${_globalReadinessTomorrowPostureSummary(globalReadinessIntents).replaceAll('"', '""')}"',
+      'global_readiness_tomorrow_review_command,/tomorrowreview ${report.reportDate}',
+      'global_readiness_tomorrow_case_file_command,/tomorrowcase json ${report.reportDate}',
       'global_readiness_focus_state,${_globalReadinessFocusState(report)}',
       'global_readiness_historical_focus,${_isHistoricalGlobalReadinessFocus(report)}',
       'global_readiness_focus_summary,"${_globalReadinessFocusSummary(report).replaceAll('"', '""')}"',
