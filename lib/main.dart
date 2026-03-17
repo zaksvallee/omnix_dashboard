@@ -1180,6 +1180,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       const <SovereignReport>[];
   String? _morningSovereignReportAutoRunKey;
   GovernanceSceneActionFocus? _governanceSceneActionFocus;
+  String _governanceReportFocusDate = '';
   String _governancePartnerScopeClientId = '';
   String _governancePartnerScopeSiteId = '';
   String _governancePartnerScopePartnerLabel = '';
@@ -5399,6 +5400,30 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       }
     }
     return null;
+  }
+
+  List<SovereignReport> _governanceHistoryForFocusedReport(
+    SovereignReport? focusedReport,
+  ) {
+    final combined = <SovereignReport>[
+      ...?switch (_morningSovereignReport) {
+        final report? => <SovereignReport>[report],
+        null => null,
+      },
+      ..._morningSovereignReportHistory,
+    ];
+    final normalized = _normalizedMorningSovereignReportHistory(combined);
+    final focusKey = focusedReport == null
+        ? ''
+        : _morningSovereignReportHistoryKeyFor(focusedReport);
+    if (focusKey.isEmpty) {
+      return normalized;
+    }
+    return normalized
+        .where(
+          (report) => _morningSovereignReportHistoryKeyFor(report) != focusKey,
+        )
+        .toList(growable: false);
   }
 
   List<DispatchEvent> _eventsScopedToWindow(
@@ -15816,7 +15841,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           'events=${eventIds.length}\n'
           'Opening Events Review for global readiness evidence.';
     }
-    _openGovernanceFromAdmin();
+    _openGovernanceForReportDate(report.date);
     return 'ONYX READINESSREVIEW\n'
         'report_date=${report.date}\n'
         'mode=${_globalReadinessModeLabel(snapshot, intents)}\n'
@@ -15835,7 +15860,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     final snapshot = _globalReadinessSnapshotForReport(report);
     final intents = _globalReadinessIntentsForReport(report);
-    _openGovernanceFromAdmin();
+    _openGovernanceForReportDate(report.date);
     return 'ONYX READINESSGOVERNANCE\n'
         'report_date=${report.date}\n'
         'mode=${_globalReadinessModeLabel(snapshot, intents)}\n'
@@ -18218,6 +18243,19 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   void _openGovernanceFromAdmin() {
     _cancelDemoAutopilot();
     setState(() {
+      _governanceReportFocusDate = '';
+      _governancePartnerScopeClientId = '';
+      _governancePartnerScopeSiteId = '';
+      _governancePartnerScopePartnerLabel = '';
+      _route = OnyxRoute.governance;
+    });
+  }
+
+  void _openGovernanceForReportDate(String? reportDate) {
+    final normalizedReportDate = (reportDate ?? '').trim();
+    _cancelDemoAutopilot();
+    setState(() {
+      _governanceReportFocusDate = normalizedReportDate;
       _governancePartnerScopeClientId = '';
       _governancePartnerScopeSiteId = '';
       _governancePartnerScopePartnerLabel = '';
@@ -18241,6 +18279,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     _cancelDemoAutopilot();
     setState(() {
+      _governanceReportFocusDate = '';
       _governancePartnerScopeClientId = normalizedClientId;
       _governancePartnerScopeSiteId = normalizedSiteId;
       _governancePartnerScopePartnerLabel = normalizedPartnerLabel;
@@ -19293,11 +19332,16 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         );
 
       case OnyxRoute.governance:
+        final focusedGovernanceReport =
+            _morningSovereignReportForDate(_governanceReportFocusDate) ??
+            _morningSovereignReport;
         return GovernancePage(
           events: events,
           sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
-          morningSovereignReport: _morningSovereignReport,
-          morningSovereignReportHistory: _morningSovereignReportHistory,
+          morningSovereignReport: focusedGovernanceReport,
+          morningSovereignReportHistory: _governanceHistoryForFocusedReport(
+            focusedGovernanceReport,
+          ),
           morningSovereignReportAutoRunKey: _morningSovereignReportAutoRunKey,
           initialPartnerScopeClientId:
               _governancePartnerScopeClientId.trim().isEmpty
