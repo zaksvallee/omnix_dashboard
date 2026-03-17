@@ -1059,6 +1059,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         .toList(growable: false);
     return _ActivityScopeSummary(
       eventCount: snapshot.totalSignals,
+      reportDate: _readinessScopedReportDate(activityEvents) ?? '',
+      liveReportDate: _liveMorningReportDate(
+        _readinessScopedReportDate(activityEvents),
+      ),
       siteId: siteIds.length == 1 ? siteIds.first : null,
       summaryLine: snapshot.summaryLine,
       topFlaggedIdentitySummary: snapshot.topFlaggedIdentitySummary,
@@ -1131,6 +1135,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         : '${intents.first.actionType} • ${intents.first.description}';
     return _ReadinessScopeSummary(
       eventCount: scopedEvents.length,
+      reportDate: scopedReportDate ?? '',
+      liveReportDate: _liveMorningReportDate(scopedReportDate),
       leadRegionId: leadRegion?.regionId,
       leadSiteId: leadSite?.siteId,
       focusState: _readinessFocusState(scopedReportDate),
@@ -1182,7 +1188,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return _SyntheticScopeSummary(
       eventCount: scopedEvents.length,
       reportDate: scopedReportDate ?? '',
-      liveReportDate: (widget.currentMorningSovereignReportDate ?? '').trim(),
+      liveReportDate: _liveMorningReportDate(scopedReportDate),
       focusState: _readinessFocusState(scopedReportDate),
       historicalFocus: _isHistoricalReadinessFocus(scopedReportDate),
       modeLabel: modeLabel,
@@ -1212,6 +1218,51 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             .toList(growable: false)
           ..sort();
     return dates.length == 1 ? dates.first : dates.last;
+  }
+
+  String _activityReviewCommand(String reportDate) => '/activityreview $reportDate';
+
+  String _liveMorningReportDate(String? fallbackReportDate) {
+    final current = (widget.currentMorningSovereignReportDate ?? '').trim();
+    if (current.isNotEmpty) {
+      return current;
+    }
+    return (fallbackReportDate ?? '').trim();
+  }
+
+  String _activityCaseFileCommand(String reportDate) =>
+      '/activitycase json $reportDate';
+
+  String _readinessReviewCommand(String reportDate) =>
+      '/readinessreview $reportDate';
+
+  String _readinessCaseFileCommand(String reportDate) =>
+      '/readinesscase json $reportDate';
+
+  String _syntheticReviewCommand(String reportDate) =>
+      '/syntheticreview $reportDate';
+
+  String _syntheticCaseFileCommand(String reportDate) =>
+      '/syntheticcase json $reportDate';
+
+  Map<String, String> _reviewShortcuts({
+    required String currentReportDate,
+    required String? previousReportDate,
+    required String Function(String reportDate) reviewCommandBuilder,
+    required String Function(String reportDate) caseFileCommandBuilder,
+  }) {
+    final current = currentReportDate.trim();
+    final previous = (previousReportDate ?? '').trim();
+    final shortcuts = <String, String>{};
+    if (current.isNotEmpty) {
+      shortcuts['currentShiftReviewCommand'] = reviewCommandBuilder(current);
+      shortcuts['currentShiftCaseFileCommand'] = caseFileCommandBuilder(current);
+    }
+    if (previous.isNotEmpty) {
+      shortcuts['previousShiftReviewCommand'] = reviewCommandBuilder(previous);
+      shortcuts['previousShiftCaseFileCommand'] = caseFileCommandBuilder(previous);
+    }
+    return shortcuts;
   }
 
   String _readinessFocusSummary(String? reportDate) {
@@ -2805,8 +2856,14 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   }
 
   void _copyActivityCaseFileCsv(_ActivityScopeSummary summary) {
+    final previousReportDate = summary.history != null &&
+            summary.history!.points.length > 1
+        ? summary.history!.points[1].date
+        : null;
     final lines = <String>[
       'metric,value',
+      'report_date,${summary.reportDate}',
+      'live_report_date,${summary.liveReportDate}',
       'site_id,${summary.siteId ?? ''}',
       'event_count,${summary.eventCount}',
       'summary_line,"${summary.summaryLine.replaceAll('"', '""')}"',
@@ -2814,6 +2871,14 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       'top_long_presence,"${summary.topLongPresenceSummary.replaceAll('"', '""')}"',
       'top_guard_interaction,"${summary.topGuardInteractionSummary.replaceAll('"', '""')}"',
       'review_refs,"${summary.reviewRefs.join(', ').replaceAll('"', '""')}"',
+      if (summary.reportDate.isNotEmpty)
+        'current_review_command,${_activityReviewCommand(summary.reportDate)}',
+      if (summary.reportDate.isNotEmpty)
+        'current_case_file_command,${_activityCaseFileCommand(summary.reportDate)}',
+      if ((previousReportDate ?? '').trim().isNotEmpty)
+        'previous_review_command,${_activityReviewCommand(previousReportDate!.trim())}',
+      if ((previousReportDate ?? '').trim().isNotEmpty)
+        'previous_case_file_command,${_activityCaseFileCommand(previousReportDate!.trim())}',
     ];
     if (summary.history != null) {
       lines.add(
@@ -2829,6 +2894,12 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         lines.add(
           'history_${row}_summary,"${point.summaryLine.replaceAll('"', '""')}"',
         );
+        lines.add(
+          'history_${row}_review_command,${_activityReviewCommand(point.date)}',
+        );
+        lines.add(
+          'history_${row}_case_file_command,${_activityCaseFileCommand(point.date)}',
+        );
       }
     }
     Clipboard.setData(ClipboardData(text: lines.join('\n')));
@@ -2840,8 +2911,13 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   }
 
   void _copyReadinessCaseFileCsv(_ReadinessScopeSummary summary) {
+    final previousReportDate = summary.historicalFocus
+        ? widget.currentMorningSovereignReportDate
+        : null;
     final lines = <String>[
       'metric,value',
+      'report_date,${summary.reportDate}',
+      'live_report_date,${summary.liveReportDate}',
       'lead_region_id,${summary.leadRegionId ?? ''}',
       'lead_site_id,${summary.leadSiteId ?? ''}',
       'event_count,${summary.eventCount}',
@@ -2853,6 +2929,14 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       'postural_echo_summary,"${summary.posturalEchoSummary.replaceAll('"', '""')}"',
       'top_intent_summary,"${summary.topIntentSummary.replaceAll('"', '""')}"',
       'review_refs,"${summary.reviewRefs.join(', ').replaceAll('"', '""')}"',
+      if (summary.reportDate.isNotEmpty)
+        'current_review_command,${_readinessReviewCommand(summary.reportDate)}',
+      if (summary.reportDate.isNotEmpty)
+        'current_case_file_command,${_readinessCaseFileCommand(summary.reportDate)}',
+      if ((previousReportDate ?? '').trim().isNotEmpty)
+        'previous_review_command,${_readinessReviewCommand(previousReportDate!.trim())}',
+      if ((previousReportDate ?? '').trim().isNotEmpty)
+        'previous_case_file_command,${_readinessCaseFileCommand(previousReportDate!.trim())}',
     ];
     Clipboard.setData(ClipboardData(text: lines.join('\n')));
     logUiAction(
@@ -2867,6 +2951,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   }
 
   void _copySyntheticCaseFileCsv(_SyntheticScopeSummary summary) {
+    final previousReportDate = summary.history != null &&
+            summary.history!.points.length > 1
+        ? summary.history!.points[1].date
+        : null;
     final lines = <String>[
       'metric,value',
       'report_date,${summary.reportDate}',
@@ -2881,13 +2969,13 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       'top_intent_summary,"${summary.topIntentSummary.replaceAll('"', '""')}"',
       'review_refs,"${summary.reviewRefs.join(', ').replaceAll('"', '""')}"',
       if (summary.reportDate.isNotEmpty)
-        'current_review_command,/syntheticreview ${summary.reportDate}',
+        'current_review_command,${_syntheticReviewCommand(summary.reportDate)}',
       if (summary.reportDate.isNotEmpty)
-        'current_case_file_command,/syntheticcase json ${summary.reportDate}',
-      if (summary.history != null && summary.history!.points.length > 1)
-        'previous_review_command,/syntheticreview ${summary.history!.points[1].date}',
-      if (summary.history != null && summary.history!.points.length > 1)
-        'previous_case_file_command,/syntheticcase json ${summary.history!.points[1].date}',
+        'current_case_file_command,${_syntheticCaseFileCommand(summary.reportDate)}',
+      if ((previousReportDate ?? '').trim().isNotEmpty)
+        'previous_review_command,${_syntheticReviewCommand(previousReportDate!.trim())}',
+      if ((previousReportDate ?? '').trim().isNotEmpty)
+        'previous_case_file_command,${_syntheticCaseFileCommand(previousReportDate!.trim())}',
     ];
     if (summary.history != null) {
       lines.add(
@@ -2903,9 +2991,11 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         lines.add(
           'history_${row}_summary,"${point.summaryLine.replaceAll('"', '""')}"',
         );
-        lines.add('history_${row}_review_command,/syntheticreview ${point.date}');
         lines.add(
-          'history_${row}_case_file_command,/syntheticcase json ${point.date}',
+          'history_${row}_review_command,${_syntheticReviewCommand(point.date)}',
+        );
+        lines.add(
+          'history_${row}_case_file_command,${_syntheticCaseFileCommand(point.date)}',
         );
       }
     }
@@ -2918,8 +3008,14 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   }
 
   Map<String, Object?> _activityCaseFilePayload(_ActivityScopeSummary summary) {
+    final previousReportDate = summary.history != null &&
+            summary.history!.points.length > 1
+        ? summary.history!.points[1].date
+        : null;
     return {
       'activityCaseFile': {
+        'reportDate': summary.reportDate,
+        'liveReportDate': summary.liveReportDate,
         'siteId': summary.siteId,
         'eventCount': summary.eventCount,
         'summaryLine': summary.summaryLine,
@@ -2927,6 +3023,12 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'topLongPresenceSummary': summary.topLongPresenceSummary,
         'topGuardInteractionSummary': summary.topGuardInteractionSummary,
         'reviewRefs': summary.reviewRefs,
+        'reviewShortcuts': _reviewShortcuts(
+          currentReportDate: summary.reportDate,
+          previousReportDate: previousReportDate,
+          reviewCommandBuilder: _activityReviewCommand,
+          caseFileCommandBuilder: _activityCaseFileCommand,
+        ),
         'history': summary.history == null
             ? null
             : {
@@ -2941,6 +3043,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         'flaggedSignals': point.flaggedSignals,
                         'guardInteractions': point.guardInteractions,
                         'summaryLine': point.summaryLine,
+                        'reviewCommand': _activityReviewCommand(point.date),
+                        'caseFileCommand': _activityCaseFileCommand(point.date),
                       },
                     )
                     .toList(growable: false),
@@ -2952,8 +3056,13 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   Map<String, Object?> _readinessCaseFilePayload(
     _ReadinessScopeSummary summary,
   ) {
+    final previousReportDate = summary.historicalFocus
+        ? widget.currentMorningSovereignReportDate
+        : null;
     return {
       'readinessCaseFile': {
+        'reportDate': summary.reportDate,
+        'liveReportDate': summary.liveReportDate,
         'leadRegionId': summary.leadRegionId,
         'leadSiteId': summary.leadSiteId,
         'eventCount': summary.eventCount,
@@ -2965,11 +3074,21 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'posturalEchoSummary': summary.posturalEchoSummary,
         'topIntentSummary': summary.topIntentSummary,
         'reviewRefs': summary.reviewRefs,
+        'reviewShortcuts': _reviewShortcuts(
+          currentReportDate: summary.reportDate,
+          previousReportDate: previousReportDate,
+          reviewCommandBuilder: _readinessReviewCommand,
+          caseFileCommandBuilder: _readinessCaseFileCommand,
+        ),
       },
     };
   }
 
   Map<String, Object?> _syntheticCaseFilePayload(_SyntheticScopeSummary summary) {
+    final previousReportDate = summary.history != null &&
+            summary.history!.points.length > 1
+        ? summary.history!.points[1].date
+        : null;
     return {
       'syntheticCaseFile': {
         'reportDate': summary.reportDate,
@@ -2983,19 +3102,12 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'policySummary': summary.policySummary,
         'topIntentSummary': summary.topIntentSummary,
         'reviewRefs': summary.reviewRefs,
-        'reviewShortcuts': {
-          if (summary.reportDate.isNotEmpty)
-            'currentShiftReviewCommand': '/syntheticreview ${summary.reportDate}',
-          if (summary.reportDate.isNotEmpty)
-            'currentShiftCaseFileCommand':
-                '/syntheticcase json ${summary.reportDate}',
-          if (summary.history != null && summary.history!.points.length > 1)
-            'previousShiftReviewCommand':
-                '/syntheticreview ${summary.history!.points[1].date}',
-          if (summary.history != null && summary.history!.points.length > 1)
-            'previousShiftCaseFileCommand':
-                '/syntheticcase json ${summary.history!.points[1].date}',
-        },
+        'reviewShortcuts': _reviewShortcuts(
+          currentReportDate: summary.reportDate,
+          previousReportDate: previousReportDate,
+          reviewCommandBuilder: _syntheticReviewCommand,
+          caseFileCommandBuilder: _syntheticCaseFileCommand,
+        ),
         'history': summary.history == null
             ? null
             : {
@@ -3009,8 +3121,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         'policyCount': point.policyCount,
                         'modeLabel': point.modeLabel,
                         'summaryLine': point.summaryLine,
-                        'reviewCommand': '/syntheticreview ${point.date}',
-                        'caseFileCommand': '/syntheticcase json ${point.date}',
+                        'reviewCommand': _syntheticReviewCommand(point.date),
+                        'caseFileCommand': _syntheticCaseFileCommand(point.date),
                       },
                     )
                     .toList(growable: false),
@@ -3398,6 +3510,8 @@ class _PartnerScopeSummary {
 
 class _ActivityScopeSummary {
   final int eventCount;
+  final String reportDate;
+  final String liveReportDate;
   final String? siteId;
   final String summaryLine;
   final String topFlaggedIdentitySummary;
@@ -3408,6 +3522,8 @@ class _ActivityScopeSummary {
 
   const _ActivityScopeSummary({
     required this.eventCount,
+    required this.reportDate,
+    required this.liveReportDate,
     required this.siteId,
     required this.summaryLine,
     required this.topFlaggedIdentitySummary,
@@ -3426,6 +3542,8 @@ class _ActivityScopeSummary {
 
 class _ReadinessScopeSummary {
   final int eventCount;
+  final String reportDate;
+  final String liveReportDate;
   final String? leadRegionId;
   final String? leadSiteId;
   final String focusState;
@@ -3439,6 +3557,8 @@ class _ReadinessScopeSummary {
 
   const _ReadinessScopeSummary({
     required this.eventCount,
+    required this.reportDate,
+    required this.liveReportDate,
     required this.leadRegionId,
     required this.leadSiteId,
     required this.focusState,

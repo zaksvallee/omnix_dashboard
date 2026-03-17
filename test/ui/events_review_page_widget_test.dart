@@ -1117,10 +1117,41 @@ void main() {
     copyJsonAction.onTap!();
     await tester.pump();
     expect(copiedClipboardPayload, contains('"activityCaseFile"'));
+    expect(copiedClipboardPayload, contains('"reportDate": "2026-03-17"'));
+    expect(copiedClipboardPayload, contains('"liveReportDate": "2026-03-17"'));
     expect(copiedClipboardPayload, contains('"siteId": "SITE-SANDTON"'));
     expect(copiedClipboardPayload, contains('"reviewRefs": ['));
     expect(copiedClipboardPayload, contains('"ACTIVITY-1"'));
+    expect(copiedClipboardPayload, contains('"reviewShortcuts"'));
+    expect(
+      copiedClipboardPayload,
+      contains('"currentShiftReviewCommand": "/activityreview 2026-03-17"'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains(
+        '"currentShiftCaseFileCommand": "/activitycase json 2026-03-17"',
+      ),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('"previousShiftReviewCommand": "/activityreview 2026-03-16"'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains(
+        '"previousShiftCaseFileCommand": "/activitycase json 2026-03-16"',
+      ),
+    );
     expect(copiedClipboardPayload, contains('"history"'));
+    expect(
+      copiedClipboardPayload,
+      contains('"reviewCommand": "/activityreview 2026-03-16"'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('"caseFileCommand": "/activitycase json 2026-03-16"'),
+    );
 
     final copyCsvAction = tester.widget<InkWell>(
       find.byKey(
@@ -1131,12 +1162,38 @@ void main() {
     copyCsvAction.onTap!();
     await tester.pump();
     expect(copiedClipboardPayload, contains('metric,value'));
+    expect(copiedClipboardPayload, contains('report_date,2026-03-17'));
+    expect(copiedClipboardPayload, contains('live_report_date,2026-03-17'));
     expect(copiedClipboardPayload, contains('site_id,SITE-SANDTON'));
     expect(
       copiedClipboardPayload,
       contains('review_refs,"ACTIVITY-1, ACTIVITY-3"'),
     );
+    expect(
+      copiedClipboardPayload,
+      contains('current_review_command,/activityreview 2026-03-17'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('current_case_file_command,/activitycase json 2026-03-17'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('previous_review_command,/activityreview 2026-03-16'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('previous_case_file_command,/activitycase json 2026-03-16'),
+    );
     expect(copiedClipboardPayload, contains('history_1_date,2026-03-17'));
+    expect(
+      copiedClipboardPayload,
+      contains('history_1_review_command,/activityreview 2026-03-17'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('history_1_case_file_command,/activitycase json 2026-03-17'),
+    );
     expect(find.textContaining('Visit-scoped review active for'), findsNothing);
     expect(find.text('Unrelated perimeter movement'), findsNothing);
   });
@@ -1303,6 +1360,8 @@ void main() {
     copyJsonAction.onTap!();
     await tester.pump();
     expect(copiedClipboardPayload, contains('"readinessCaseFile"'));
+    expect(copiedClipboardPayload, contains('"reportDate": "2026-03-17"'));
+    expect(copiedClipboardPayload, contains('"liveReportDate": "2026-03-18"'));
     expect(
       copiedClipboardPayload,
       contains('"leadRegionId": "REGION-GAUTENG"'),
@@ -1315,6 +1374,27 @@ void main() {
       ),
     );
     expect(copiedClipboardPayload, contains('"reviewRefs": ['));
+    expect(copiedClipboardPayload, contains('"reviewShortcuts"'));
+    expect(
+      copiedClipboardPayload,
+      contains('"currentShiftReviewCommand": "/readinessreview 2026-03-17"'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains(
+        '"currentShiftCaseFileCommand": "/readinesscase json 2026-03-17"',
+      ),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('"previousShiftReviewCommand": "/readinessreview 2026-03-18"'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains(
+        '"previousShiftCaseFileCommand": "/readinesscase json 2026-03-18"',
+      ),
+    );
 
     final copyCsvAction = tester.widget<InkWell>(
       find.byKey(
@@ -1341,6 +1421,22 @@ void main() {
     expect(
       copiedClipboardPayload,
       contains('review_refs,"READY-INTEL-1, READY-INTEL-2"'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('current_review_command,/readinessreview 2026-03-17'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('current_case_file_command,/readinesscase json 2026-03-17'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('previous_review_command,/readinessreview 2026-03-18'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('previous_case_file_command,/readinesscase json 2026-03-18'),
     );
 
     final openGovernanceAction = tester.widget<InkWell>(
