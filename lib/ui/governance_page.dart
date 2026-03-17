@@ -4730,38 +4730,14 @@ class _GovernancePageState extends State<GovernancePage> {
     _GovernanceReportView report,
     String moId,
   ) {
-    final normalizedMoId = moId.trim();
-    if (normalizedMoId.isEmpty) {
-      return const <String, String>{};
-    }
     final shadowSites = _globalReadinessSnapshotForReport(report).sites
         .where((site) => site.moShadowMatchCount > 0)
         .toList(growable: false);
-    final selectedEventId = shadowSites
-        .map((site) => site.moShadowSelectedEventId?.trim() ?? '')
-        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
-    final reviewRefs = shadowSites
-        .expand((site) => site.moShadowReviewRefs)
-        .map((value) => value.trim())
-        .where((value) => value.isNotEmpty)
-        .toSet()
-        .join(',');
-    for (final site in shadowSites) {
-      for (final match in site.moShadowMatches) {
-        if (match.moId.trim() != normalizedMoId) {
-          continue;
-        }
-        return <String, String>{
-          'validationStatus': match.validationStatus.trim(),
-          'strengthSummary': shadowMoStrengthSummary(match),
-          'selectedEventId': selectedEventId,
-          'reviewRefs': reviewRefs,
-          'reviewCommand': '/shadowreview ${report.reportDate}',
-          'caseFileCommand': '/shadowcase json ${report.reportDate}',
-        };
-      }
-    }
-    return const <String, String>{};
+    return buildPromotionShadowAnchorContext(
+      moId: moId,
+      sites: shadowSites,
+      reportDate: report.reportDate,
+    );
   }
 
   String _syntheticWarRoomModeLabel(

@@ -117,6 +117,46 @@ Map<String, Object?> buildShadowMoSitePayload(
   };
 }
 
+Map<String, String> buildPromotionShadowAnchorContext({
+  required String moId,
+  required Iterable<MonitoringGlobalSitePosture> sites,
+  required String reportDate,
+}) {
+  final normalizedMoId = moId.trim();
+  final normalizedReportDate = reportDate.trim();
+  final siteList = sites.toList(growable: false);
+  if (normalizedMoId.isEmpty ||
+      normalizedReportDate.isEmpty ||
+      siteList.isEmpty) {
+    return const <String, String>{};
+  }
+  final selectedEventId = siteList
+      .map((site) => site.moShadowSelectedEventId?.trim() ?? '')
+      .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+  final reviewRefs = siteList
+      .expand((site) => site.moShadowReviewRefs)
+      .map((value) => value.trim())
+      .where((value) => value.isNotEmpty)
+      .toSet()
+      .join(',');
+  for (final site in siteList) {
+    for (final match in site.moShadowMatches) {
+      if (match.moId.trim() != normalizedMoId) {
+        continue;
+      }
+      return <String, String>{
+        'validationStatus': match.validationStatus.trim(),
+        'strengthSummary': shadowMoStrengthSummary(match),
+        'selectedEventId': selectedEventId,
+        'reviewRefs': reviewRefs,
+        'reviewCommand': '/shadowreview $normalizedReportDate',
+        'caseFileCommand': '/shadowcase json $normalizedReportDate',
+      };
+    }
+  }
+  return const <String, String>{};
+}
+
 String shadowMoStrengthSummaryForSites(
   List<MonitoringGlobalSitePosture> sites,
 ) {

@@ -2687,35 +2687,11 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     required List<MonitoringGlobalSitePosture> sites,
     required String reportDate,
   }) {
-    final normalizedMoId = moId.trim();
-    if (normalizedMoId.isEmpty || sites.isEmpty) {
-      return const <String, String>{};
-    }
-    final selectedEventId = sites
-        .map((site) => site.moShadowSelectedEventId?.trim() ?? '')
-        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
-    final reviewRefs = sites
-        .expand((site) => site.moShadowReviewRefs)
-        .map((value) => value.trim())
-        .where((value) => value.isNotEmpty)
-        .toSet()
-        .join(',');
-    for (final site in sites) {
-      for (final match in site.moShadowMatches) {
-        if (match.moId.trim() != normalizedMoId) {
-          continue;
-        }
-        return <String, String>{
-          'validationStatus': match.validationStatus.trim(),
-          'strengthSummary': shadowMoStrengthSummary(match),
-          'selectedEventId': selectedEventId,
-          'reviewRefs': reviewRefs,
-          'reviewCommand': _shadowReviewCommand(reportDate),
-          'caseFileCommand': _shadowCaseFileCommand(reportDate),
-        };
-      }
-    }
-    return const <String, String>{};
+    return buildPromotionShadowAnchorContext(
+      moId: moId,
+      sites: sites,
+      reportDate: reportDate,
+    );
   }
 
   List<String> _shadowHistoricalLabels(String? reportDate) {

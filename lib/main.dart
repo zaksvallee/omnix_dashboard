@@ -18865,32 +18865,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     if (report == null) {
       return const <String, String>{};
     }
-    final shadowSites = _shadowMoSitesForReport(report);
-    final selectedEventId = shadowSites
-        .map((site) => site.moShadowSelectedEventId?.trim() ?? '')
-        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
-    final reviewRefs = shadowSites
-        .expand((site) => site.moShadowReviewRefs)
-        .map((value) => value.trim())
-        .where((value) => value.isNotEmpty)
-        .toSet()
-        .join(',');
-    for (final site in shadowSites) {
-      for (final match in site.moShadowMatches) {
-        if (match.moId.trim() != moId.trim()) {
-          continue;
-        }
-        return <String, String>{
-          'validationStatus': match.validationStatus.trim(),
-          'strengthSummary': shadowMoStrengthSummary(match),
-          'selectedEventId': selectedEventId,
-          'reviewRefs': reviewRefs,
-          'reviewCommand': '/shadowreview ${report.date}',
-          'caseFileCommand': '/shadowcase json ${report.date}',
-        };
-      }
-    }
-    return const <String, String>{};
+    return buildPromotionShadowAnchorContext(
+      moId: moId,
+      sites: _shadowMoSitesForReport(report),
+      reportDate: report.date,
+    );
   }
 
   Future<String> _telegramAdminSendActivityCommand(String arguments) async {
