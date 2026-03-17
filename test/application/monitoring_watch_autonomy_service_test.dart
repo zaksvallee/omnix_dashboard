@@ -160,6 +160,44 @@ void main() {
         'Promote immediate fire response, notify the partner lane, and preserve HIKVISION evidence for emergency escalation. Escalated for urgent review because fire or smoke indicators were detected.',
       );
     });
+
+    test('builds next-shift fire drafts when synthetic learning repeats', () {
+      final events = <DispatchEvent>[
+        _intel(
+          id: 'intel-fire',
+          riskScore: 88,
+          siteId: 'SITE-FIRE',
+          cameraId: 'generator-room-cam',
+        ),
+      ];
+      final reviews = <String, MonitoringSceneReviewRecord>{
+        'intel-fire': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-fire',
+          sourceLabel: 'openai:gpt-5.4-mini',
+          postureLabel: 'fire and smoke emergency',
+          decisionLabel: 'Escalation Candidate',
+          decisionSummary:
+              'Escalated for urgent review because fire or smoke indicators were detected.',
+          summary: 'Smoke plume visible in the generator room.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 15),
+        ),
+      };
+
+      final plans = service.buildPlans(
+        events: events,
+        sceneReviewByIntelligenceId: reviews,
+        videoOpsLabel: 'Hikvision',
+        historicalSyntheticLearningLabels: const <String>['ADVANCE FIRE'],
+      );
+
+      final nextShiftDraft = plans.firstWhere(
+        (entry) => entry.actionType == 'DRAFT NEXT-SHIFT FIRE READINESS',
+      );
+      expect(nextShiftDraft.metadata['scope'], 'NEXT_SHIFT');
+      expect(nextShiftDraft.metadata['mode'], 'DRAFT');
+      expect(nextShiftDraft.metadata['learning_label'], 'ADVANCE FIRE');
+      expect(nextShiftDraft.description, contains('Prebuild next-shift fire readiness'));
+    });
   });
 }
 

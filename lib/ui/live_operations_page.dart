@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../application/hazard_response_directive_service.dart';
-import '../application/site_activity_intelligence_service.dart';
 import '../application/morning_sovereign_report_service.dart';
+import '../application/monitoring_orchestrator_service.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_completed.dart';
@@ -14,6 +14,8 @@ import '../domain/events/intelligence_received.dart';
 import '../domain/events/partner_dispatch_status_declared.dart';
 import '../domain/events/response_arrived.dart';
 import '../application/monitoring_scene_review_store.dart';
+import '../application/site_activity_intelligence_service.dart';
+import '../application/monitoring_watch_action_plan.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'ui_action_logger.dart';
@@ -219,6 +221,7 @@ class _PartnerLiveTrendSummary {
 class LiveOperationsPage extends StatefulWidget {
   final List<DispatchEvent> events;
   final List<SovereignReport> morningSovereignReportHistory;
+  final List<String> historicalSyntheticLearningLabels;
   final String focusIncidentReference;
   final String videoOpsLabel;
   final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
@@ -229,6 +232,7 @@ class LiveOperationsPage extends StatefulWidget {
     super.key,
     required this.events,
     this.morningSovereignReportHistory = const <SovereignReport>[],
+    this.historicalSyntheticLearningLabels = const <String>[],
     this.focusIncidentReference = '',
     this.videoOpsLabel = 'CCTV',
     this.sceneReviewByIntelligenceId = const {},
@@ -241,6 +245,7 @@ class LiveOperationsPage extends StatefulWidget {
 
 class _LiveOperationsPageState extends State<LiveOperationsPage> {
   static const _siteActivityService = SiteActivityIntelligenceService();
+  static const _orchestratorService = MonitoringOrchestratorService();
   static const _overrideReasonCodes = [
     'DUPLICATE_SIGNAL',
     'FALSE_ALARM',
@@ -1080,6 +1085,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final evidenceReady = _evidenceReadyLabel(incident);
     final partnerProgress = _partnerProgressForIncident(incident);
     final siteActivity = _siteActivitySnapshotForIncident(incident);
+    final nextShiftDrafts = _nextShiftDraftsForIncident(incident);
     final suppressedReviews = _suppressedSceneReviewsForIncident(incident);
     final rows = <Widget>[
       _metaRow('Incident', incident.id),
@@ -1096,6 +1102,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       if (siteActivity != null && siteActivity.totalSignals > 0) ...[
         const SizedBox(height: 8),
         _siteActivityTruthCard(incident, siteActivity),
+      ],
+      if (nextShiftDrafts.isNotEmpty) ...[
+        const SizedBox(height: 8),
+        _nextShiftDraftCard(incident, nextShiftDrafts),
       ],
       if (partnerProgress != null) ...[
         const SizedBox(height: 8),
@@ -1208,6 +1218,91 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       events: widget.events,
       clientId: incident.clientId,
       siteId: incident.siteId,
+    );
+  }
+
+  List<MonitoringWatchAutonomyActionPlan> _nextShiftDraftsForIncident(
+    _IncidentRecord incident,
+  ) {
+    if (widget.historicalSyntheticLearningLabels.isEmpty) {
+      return const <MonitoringWatchAutonomyActionPlan>[];
+    }
+    return _orchestratorService
+        .buildActionIntents(
+          events: widget.events,
+          sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+          videoOpsLabel: widget.videoOpsLabel,
+          historicalSyntheticLearningLabels:
+              widget.historicalSyntheticLearningLabels,
+        )
+        .where((plan) => plan.metadata['scope'] == 'NEXT_SHIFT')
+        .where(
+          (plan) =>
+              plan.siteId.trim() == incident.siteId.trim() ||
+              (plan.metadata['lead_site'] ?? '').trim() ==
+                  incident.siteId.trim() ||
+              (plan.metadata['region'] ?? '').trim() == incident.regionId.trim(),
+        )
+        .toList(growable: false);
+  }
+
+  Widget _nextShiftDraftCard(
+    _IncidentRecord incident,
+    List<MonitoringWatchAutonomyActionPlan> drafts,
+  ) {
+    final leadDraft = drafts.first;
+    final learningLabel = (leadDraft.metadata['learning_label'] ?? '').trim();
+    final repeatCount = (leadDraft.metadata['learning_repeat_count'] ?? '')
+        .trim();
+    return Container(
+      key: ValueKey('live-next-shift-draft-card-${incident.id}'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0x665C7CFA)),
+        color: const Color(0x221B1F45),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Next-Shift Drafts',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFC8D2FF),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${drafts.length} draft${drafts.length == 1 ? '' : 's'}',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFA6BDD9),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          if (learningLabel.isNotEmpty) _metaRow('Learning', learningLabel),
+          if (repeatCount.isNotEmpty)
+            _metaRow(
+              'Memory',
+              'Repeated across $repeatCount recent shift${repeatCount == '1' ? '' : 's'}',
+            ),
+          _metaRow('Lead Draft', leadDraft.actionType),
+          _metaRow('Bias', _compactContextLabel(leadDraft.description)),
+          if (drafts.length > 1)
+            _metaRow(
+              'Supporting',
+              drafts.skip(1).map((plan) => plan.actionType).join(' • '),
+            ),
+        ],
+      ),
     );
   }
 

@@ -56,7 +56,7 @@ void main() {
 
     expect(find.text('00:27'), findsOneWidget);
     await tester.pump(const Duration(seconds: 1));
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
     expect(find.text('00:26'), findsOneWidget);
   });
 
@@ -162,12 +162,13 @@ void main() {
       MaterialApp(
         home: AIQueuePage(
           events: events,
+          historicalSyntheticLearningLabels: const ['ADVANCE FIRE'],
           sceneReviewByIntelligenceId: reviews,
           videoOpsLabel: 'Hikvision',
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     expect(find.text('GLOBAL POSTURE SHIFT'), findsOneWidget);
     expect(find.text('SYNTHETIC WAR-ROOM'), findsOneWidget);
@@ -221,12 +222,13 @@ void main() {
       MaterialApp(
         home: AIQueuePage(
           events: events,
+          historicalSyntheticLearningLabels: const ['ADVANCE FIRE'],
           sceneReviewByIntelligenceId: reviews,
           videoOpsLabel: 'Hikvision',
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('FIRE ESCALATION'), findsOneWidget);
     expect(find.text('DISPATCH FIRE RESPONSE'), findsOneWidget);

@@ -84,12 +84,14 @@ class _AiQueueDailyStats {
 
 class AIQueuePage extends StatefulWidget {
   final List<DispatchEvent> events;
+  final List<String> historicalSyntheticLearningLabels;
   final String videoOpsLabel;
   final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
 
   const AIQueuePage({
     super.key,
     required this.events,
+    this.historicalSyntheticLearningLabels = const <String>[],
     this.videoOpsLabel = 'CCTV',
     this.sceneReviewByIntelligenceId = const {},
   });
@@ -119,6 +121,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
   void didUpdateWidget(covariant AIQueuePage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.events != widget.events ||
+        oldWidget.historicalSyntheticLearningLabels !=
+            widget.historicalSyntheticLearningLabels ||
         oldWidget.videoOpsLabel != widget.videoOpsLabel ||
         oldWidget.sceneReviewByIntelligenceId !=
             widget.sceneReviewByIntelligenceId) {
@@ -138,6 +142,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
   Widget build(BuildContext context) {
     final activeAction = _activeAction;
     final queuedActions = _queuedActions;
+    final nextShiftDrafts = _nextShiftDrafts;
     final viewport = MediaQuery.sizeOf(context).width;
     final compact = viewport < 900 || isHandsetLayout(context);
     final contentPadding = compact
@@ -158,6 +163,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 if (activeAction != null) _activeAutomationCard(activeAction),
                 const SizedBox(height: 16),
                 _queuedActionsCard(queuedActions),
+                if (nextShiftDrafts.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  _nextShiftDraftsCard(nextShiftDrafts),
+                ],
                 const SizedBox(height: 16),
                 _todayPerformance(compact: compact),
               ],
@@ -808,6 +817,104 @@ class _AIQueuePageState extends State<AIQueuePage> {
     );
   }
 
+  Widget _nextShiftDraftsCard(List<_AiQueueAction> drafts) {
+    final leadDraft = drafts.first;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: _panelDecoration(border: const Color(0x665C7CFA)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const Icon(
+                Icons.upcoming_rounded,
+                color: Color(0xFFC8D2FF),
+                size: 20,
+              ),
+              Text(
+                'Next-Shift Drafts',
+                style: GoogleFonts.rajdhani(
+                  color: const Color(0xFFE7F1FF),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(999),
+                  color: const Color(0x225C7CFA),
+                  border: Border.all(color: const Color(0x665C7CFA)),
+                ),
+                child: Text(
+                  '${drafts.length}',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFC8D2FF),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            leadDraft.actionType,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFE7F1FF),
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            leadDraft.description,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFDAE4FF),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (leadDraft.metadata.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 16,
+              runSpacing: 8,
+              children: [
+                if ((leadDraft.metadata['learning_label'] ?? '').isNotEmpty)
+                  _detailCell('Learning', leadDraft.metadata['learning_label']!),
+                if ((leadDraft.metadata['learning_repeat_count'] ?? '').isNotEmpty)
+                  _detailCell(
+                    'Memory',
+                    'x${leadDraft.metadata['learning_repeat_count']}',
+                  ),
+                if ((leadDraft.metadata['draft_countdown'] ?? '').isNotEmpty)
+                  _detailCell(
+                    'Countdown',
+                    '${leadDraft.metadata['draft_countdown']}s',
+                  ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 10),
+          Column(
+            children: [
+              for (var i = 0; i < drafts.length; i++) ...[
+                _queuedRow(index: i + 1, action: drafts[i]),
+                if (i < drafts.length - 1) const SizedBox(height: 8),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _statCard({
     required String label,
     required String value,
@@ -933,6 +1040,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
 
   List<_AiQueueAction> get _queuedActions => _actions
       .where((action) => action.status == _AiActionStatus.pending)
+      .toList(growable: false);
+
+  List<_AiQueueAction> get _nextShiftDrafts => _actions
+      .where((action) => action.metadata['scope'] == 'NEXT_SHIFT')
       .toList(growable: false);
 
   void _onTick() {
@@ -1069,6 +1180,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       events: events,
       sceneReviewByIntelligenceId: sceneReviewByIntelligenceId,
       videoOpsLabel: widget.videoOpsLabel,
+      historicalSyntheticLearningLabels: widget.historicalSyntheticLearningLabels,
     );
     if (autonomyPlans.isNotEmpty) {
       return autonomyPlans.asMap().entries.map((entry) {

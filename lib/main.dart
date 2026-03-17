@@ -5680,6 +5680,22 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         .toList(growable: false);
   }
 
+  List<String> _recentSyntheticLearningLabels() {
+    final recent = _morningSovereignReportHistory.toList(growable: false)
+      ..sort(
+        (left, right) => right.generatedAtUtc.compareTo(left.generatedAtUtc),
+      );
+    return recent
+        .take(3)
+        .map(
+          (item) => _syntheticWarRoomLearningLabel(
+            _syntheticWarRoomPlansForReport(item, includeMemory: false),
+          ),
+        )
+        .where((label) => label.trim().isNotEmpty)
+        .toList(growable: false);
+  }
+
   String _syntheticWarRoomModeLabel(
     List<MonitoringWatchAutonomyActionPlan> plans,
   ) {
@@ -20062,6 +20078,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         return LiveOperationsPage(
           events: events,
           morningSovereignReportHistory: _morningSovereignReportHistory,
+          historicalSyntheticLearningLabels: _recentSyntheticLearningLabels(),
           focusIncidentReference: _operationsFocusIncidentReference,
           videoOpsLabel: _activeVideoOpsLabel,
           sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
@@ -20076,6 +20093,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case OnyxRoute.aiQueue:
         return AIQueuePage(
           events: events,
+          historicalSyntheticLearningLabels: _recentSyntheticLearningLabels(),
           videoOpsLabel: _activeVideoOpsLabel,
           sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
         );

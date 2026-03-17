@@ -267,6 +267,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: LiveOperationsPage(
+          historicalSyntheticLearningLabels: const ['ADVANCE FIRE'],
           events: [
             DecisionCreated(
               eventId: 'decision-fire',
@@ -318,6 +319,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Fire / Smoke Emergency'), findsWidgets);
+    expect(find.text('Next-Shift Drafts'), findsOneWidget);
+    expect(find.text('DRAFT NEXT-SHIFT FIRE READINESS'), findsOneWidget);
+    expect(
+      find.textContaining('Prebuild next-shift fire readiness'),
+      findsOneWidget,
+    );
     expect(find.text('P1'), findsWidgets);
     expect(find.textContaining('fire and smoke emergency'), findsOneWidget);
     expect(find.text('FIRE RESPONSE'), findsOneWidget);

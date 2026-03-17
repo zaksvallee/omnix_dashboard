@@ -19,6 +19,7 @@ class MonitoringWatchAutonomyService {
     required List<DispatchEvent> events,
     required Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId,
     String videoOpsLabel = 'CCTV',
+    List<String> historicalSyntheticLearningLabels = const <String>[],
   }) {
     if (events.isEmpty) {
       return const <MonitoringWatchAutonomyActionPlan>[];
@@ -66,11 +67,13 @@ class MonitoringWatchAutonomyService {
       events: events,
       sceneReviewByIntelligenceId: sceneReviewByIntelligenceId,
       videoOpsLabel: videoOpsLabel,
+      historicalSyntheticLearningLabels: historicalSyntheticLearningLabels,
     );
     final syntheticPlans = _syntheticWarRoomService.buildSimulationPlans(
       events: events,
       sceneReviewByIntelligenceId: sceneReviewByIntelligenceId,
       videoOpsLabel: videoOpsLabel,
+      historicalLearningLabels: historicalSyntheticLearningLabels,
     );
     return [...orchestratedPlans, ...syntheticPlans, ...globalPlans, ...plans]
       ..sort((a, b) {
