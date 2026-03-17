@@ -625,6 +625,19 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             ),
                           ),
                         ],
+                        if (tomorrowScopeSummary.shadowSummary
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Shadow draft: ${tomorrowScopeSummary.shadowSummary}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFFCD34D),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                         if (tomorrowScopeSummary.hazardSummary
                             .trim()
                             .isNotEmpty) ...[
@@ -685,7 +698,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                                     in tomorrowScopeSummary.history!.points) ...[
                                   const SizedBox(height: 4),
                                   Text(
-                                    '${point.date} • ${point.summaryLine}',
+                                    '${point.date} • ${point.summaryLine}${point.shadowSummary.isEmpty ? '' : ' • shadow ${point.shadowSummary}'}',
                                     style: GoogleFonts.inter(
                                       color: const Color(0xFFEAF1FB),
                                       fontSize: 10,
@@ -1605,6 +1618,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           .toString()
           .trim(),
       learningMemorySummary: _tomorrowPostureLearningMemorySummary(leadDraft),
+      shadowSummary: _tomorrowPostureShadowSummary(leadDraft),
       hazardSummary: _tomorrowPostureHazardSummary(leadDraft),
       reviewRefs: reviewRefs,
       history: _tomorrowPostureHistorySummary(report),
@@ -1844,6 +1858,66 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         .toList(growable: false);
   }
 
+  List<String> _shadowHistoricalLabels(String? reportDate) {
+    final normalizedReportDate = (reportDate ?? '').trim();
+    final reports = [...widget.morningSovereignReportHistory]
+      ..sort(
+        (a, b) => b.generatedAtUtc.toUtc().compareTo(a.generatedAtUtc.toUtc()),
+      );
+    final currentReport = reports.firstWhere(
+      (report) => report.date.trim() == normalizedReportDate,
+      orElse: () => SovereignReport(
+        date: normalizedReportDate,
+        generatedAtUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        shiftWindowStartUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        shiftWindowEndUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        ledgerIntegrity: const SovereignReportLedgerIntegrity(
+          totalEvents: 0,
+          hashVerified: false,
+          integrityScore: 0,
+        ),
+        aiHumanDelta: const SovereignReportAiHumanDelta(
+          aiDecisions: 0,
+          humanOverrides: 0,
+          overrideReasons: <String, int>{},
+        ),
+        normDrift: const SovereignReportNormDrift(
+          sitesMonitored: 0,
+          driftDetected: 0,
+          avgMatchScore: 0,
+        ),
+        complianceBlockage: const SovereignReportComplianceBlockage(
+          psiraExpired: 0,
+          pdpExpired: 0,
+          totalBlocked: 0,
+        ),
+      ),
+    );
+    return reports
+        .where(
+          (report) =>
+              report.date.trim() != normalizedReportDate &&
+              currentReport.generatedAtUtc.millisecondsSinceEpoch > 0 &&
+              report.generatedAtUtc.isBefore(currentReport.generatedAtUtc),
+        )
+        .take(3)
+        .map((report) {
+          final snapshot = _globalPostureService.buildSnapshot(
+            events: _eventsForReportWindow(report),
+            sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+          );
+          final shadowSites = snapshot.sites
+              .where((site) => site.moShadowMatchCount > 0)
+              .toList(growable: false);
+          if (shadowSites.isEmpty) {
+            return '';
+          }
+          return _orchestratorService.shadowDraftLabelForSite(shadowSites.first);
+        })
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+  }
+
   String _syntheticWarRoomLearningMemorySummary({
     required String currentLearningLabel,
     required String? reportDate,
@@ -1955,6 +2029,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           historicalSyntheticLearningLabels: _syntheticHistoricalLearningLabels(
             report.date,
           ),
+          historicalShadowMoLabels: _shadowHistoricalLabels(report.date),
         )
         .where((plan) => (plan.metadata['scope'] ?? '').trim() == 'NEXT_SHIFT')
         .toList(growable: false);
@@ -1998,6 +2073,31 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       return '';
     }
     return 'Memory: $learningLabel repeated across ${repeatCount + 1} linked shifts.';
+  }
+
+  String _tomorrowPostureShadowSummary(MonitoringWatchAutonomyActionPlan draft) {
+    final shadowLabel = (draft.metadata['shadow_mo_label'] ?? '')
+        .toString()
+        .trim();
+    if (shadowLabel.isEmpty) {
+      return '';
+    }
+    final leadSite = (draft.metadata['lead_site'] ?? draft.siteId)
+        .toString()
+        .trim();
+    final shadowTitle = (draft.metadata['shadow_mo_title'] ?? '')
+        .toString()
+        .trim();
+    final repeatCount = (draft.metadata['shadow_mo_repeat_count'] ?? '')
+        .toString()
+        .trim();
+    final parts = <String>[
+      shadowLabel,
+      if (leadSite.isNotEmpty) leadSite,
+      if (shadowTitle.isNotEmpty) shadowTitle,
+      if (repeatCount.isNotEmpty) 'x$repeatCount',
+    ];
+    return parts.join(' • ');
   }
 
   String _tomorrowPostureHazardSummary(MonitoringWatchAutonomyActionPlan draft) {
@@ -2301,6 +2401,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         summaryLine: _tomorrowPostureSummary(currentDrafts).isEmpty
             ? 'No tomorrow-posture drafts triggered.'
             : _tomorrowPostureSummary(currentDrafts),
+        shadowSummary: currentDrafts.isEmpty
+            ? ''
+            : _tomorrowPostureShadowSummary(currentDrafts.first),
       ),
       ...historyReports.take(2).map((item) {
         final drafts = _tomorrowPostureDraftsForReport(item);
@@ -2310,6 +2413,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           summaryLine: _tomorrowPostureSummary(drafts).isEmpty
               ? 'No tomorrow-posture drafts triggered.'
               : _tomorrowPostureSummary(drafts),
+          shadowSummary: drafts.isEmpty
+              ? ''
+              : _tomorrowPostureShadowSummary(drafts.first),
         );
       }),
     ];
@@ -3924,6 +4030,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       'lead_draft_description,"${summary.leadDraftDescription.replaceAll('"', '""')}"',
       'learning_summary,"${summary.learningSummary.replaceAll('"', '""')}"',
       'learning_memory_summary,"${summary.learningMemorySummary.replaceAll('"', '""')}"',
+      'shadow_summary,"${summary.shadowSummary.replaceAll('"', '""')}"',
       'hazard_summary,"${summary.hazardSummary.replaceAll('"', '""')}"',
       'review_refs,"${summary.reviewRefs.join(', ').replaceAll('"', '""')}"',
       if (summary.reportDate.isNotEmpty)
@@ -3951,6 +4058,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         );
         lines.add(
           'history_${row}_summary,"${point.summaryLine.replaceAll('"', '""')}"',
+        );
+        lines.add(
+          'history_${row}_shadow_summary,"${point.shadowSummary.replaceAll('"', '""')}"',
         );
         lines.addAll(
           buildHistoryReviewCommandCsvRows(
@@ -4103,6 +4213,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'leadDraftDescription': summary.leadDraftDescription,
         'learningSummary': summary.learningSummary,
         'learningMemorySummary': summary.learningMemorySummary,
+        'shadowSummary': summary.shadowSummary,
         'hazardSummary': summary.hazardSummary,
         'reviewRefs': summary.reviewRefs,
         'reviewShortcuts': buildReviewShortcuts(
@@ -4122,6 +4233,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         'date': point.date,
                         'draftCount': point.draftCount,
                         'summaryLine': point.summaryLine,
+                        'shadowSummary': point.shadowSummary,
                         ...buildReviewCommandPair(
                           reportDate: point.date,
                           reviewCommandBuilder: _tomorrowReviewCommand,
@@ -4730,6 +4842,7 @@ class _TomorrowPostureScopeSummary {
   final String leadDraftDescription;
   final String learningSummary;
   final String learningMemorySummary;
+  final String shadowSummary;
   final String hazardSummary;
   final List<String> reviewRefs;
   final _TomorrowPostureHistorySummary? history;
@@ -4747,6 +4860,7 @@ class _TomorrowPostureScopeSummary {
     required this.leadDraftDescription,
     required this.learningSummary,
     required this.learningMemorySummary,
+    required this.shadowSummary,
     required this.hazardSummary,
     required this.reviewRefs,
     required this.history,
@@ -4774,11 +4888,13 @@ class _TomorrowPostureHistoryPoint {
   final String date;
   final int draftCount;
   final String summaryLine;
+  final String shadowSummary;
 
   const _TomorrowPostureHistoryPoint({
     required this.date,
     required this.draftCount,
     required this.summaryLine,
+    required this.shadowSummary,
   });
 }
 

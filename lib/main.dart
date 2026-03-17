@@ -5926,6 +5926,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           return <String, Object?>{
             'reportDate': item.date,
             'summary': _globalReadinessTomorrowPostureSummary(itemDrafts),
+            'shadowSummary': _globalReadinessTomorrowShadowSummary(itemDrafts),
             'draftCount': itemDrafts.length,
             ...buildReviewCommandPair(
               reportDate: item.date,
@@ -5940,6 +5941,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'generatedAtUtc': report.generatedAtUtc.toIso8601String(),
       'focusSummary': _readinessFocusSummary(report.date),
       'summary': _globalReadinessTomorrowPostureSummary(drafts),
+      'shadowSummary': _globalReadinessTomorrowShadowSummary(drafts),
       'draftCount': drafts.length,
       'eventIds': readinessEvidence['eventIds'] ?? const <Object?>[],
       'reviewRefs': readinessEvidence['reviewRefs'] ?? const <Object?>[],
@@ -5958,6 +5960,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               'countdownSeconds': draft.countdownSeconds,
               'learningLabel': draft.metadata['learning_label'] ?? '',
               'repeatCount': draft.metadata['learning_repeat_count'] ?? '',
+              'shadowLabel': draft.metadata['shadow_mo_label'] ?? '',
+              'shadowTitle': draft.metadata['shadow_mo_title'] ?? '',
+              'shadowRepeatCount': draft.metadata['shadow_mo_repeat_count'] ?? '',
               'hazardSignal': draft.metadata['hazard_signal'] ?? '',
               'metadata': draft.metadata,
             },
@@ -5978,6 +5983,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'generated_at_utc,${payload['generatedAtUtc'] ?? ''}',
       'focus_summary,"${(payload['focusSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'summary,"${(payload['summary'] ?? '').toString().replaceAll('"', '""')}"',
+      'shadow_summary,"${(payload['shadowSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'draft_count,${payload['draftCount'] ?? 0}',
       'selected_event_id,${payload['selectedEventId'] ?? ''}',
       'review_refs,"${((payload['reviewRefs'] as List<Object?>?) ?? const <Object?>[]).join(', ').replaceAll('"', '""')}"',
@@ -5993,12 +5999,25 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       lines.add('draft_${i + 1}_learning_label,${draft['learningLabel'] ?? ''}');
       lines.add('draft_${i + 1}_repeat_count,${draft['repeatCount'] ?? ''}');
+      final shadowParts = <String>[
+        (draft['shadowLabel'] ?? '').toString().trim(),
+        (draft['shadowTitle'] ?? '').toString().trim(),
+        ((draft['shadowRepeatCount'] ?? '').toString().trim().isEmpty)
+            ? ''
+            : 'x${(draft['shadowRepeatCount'] ?? '').toString().trim()}',
+      ].where((value) => value.isNotEmpty).join(' • ');
+      lines.add(
+        'draft_${i + 1}_shadow_summary,"${shadowParts.replaceAll('"', '""')}"',
+      );
     }
     for (var i = 0; i < history.length; i += 1) {
       final row = history[i];
       if (row is! Map) continue;
       lines.add(
         'history_${i + 1},"${(row['summary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add(
+        'history_${i + 1}_shadow_summary,"${(row['shadowSummary'] ?? '').toString().replaceAll('"', '""')}"',
       );
       lines.addAll(
         buildHistoryReviewCommandCsvRows(
@@ -17283,6 +17302,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     final payload = _tomorrowPostureCaseFilePayload(reportDate: report.date);
     final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
+    final shadowSummary = (payload['shadowSummary'] ?? '').toString().trim();
     final eventIds =
         ((payload['eventIds'] as List<Object?>?) ?? const <Object?>[])
             .map((value) => value.toString().trim())
@@ -17306,6 +17326,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           'report_date=${report.date}\n'
           'summary=${(payload['summary'] ?? '').toString()}\n'
           '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
+          '${shadowSummary.isEmpty ? '' : 'shadow_summary=$shadowSummary\n'}'
           'review_refs=${reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', ')}\n'
           'case_file_command=/tomorrowcase json ${report.date}\n'
           'governance_command=/readinessgovernance ${report.date}\n'
@@ -17317,6 +17338,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'report_date=${report.date}\n'
         'summary=${(payload['summary'] ?? '').toString()}\n'
         '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
+        '${shadowSummary.isEmpty ? '' : 'shadow_summary=$shadowSummary\n'}'
         'case_file_command=/tomorrowcase json ${report.date}\n'
         'governance_command=/readinessgovernance ${report.date}\n'
         'Opening Governance for tomorrow-posture oversight.';
@@ -17349,16 +17371,19 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     final payload = _tomorrowPostureCaseFilePayload(reportDate: report.date);
     final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
+    final shadowSummary = (payload['shadowSummary'] ?? '').toString().trim();
     if (format == 'csv') {
       return 'ONYX TOMORROWCASE CSV\n'
           'report_date=${report.date}\n'
           '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
+          '${shadowSummary.isEmpty ? '' : 'shadow_summary=$shadowSummary\n'}'
           'review_command=/tomorrowreview ${report.date}\n'
           '${_tomorrowPostureCaseFileCsv(reportDate: report.date)}';
     }
     return 'ONYX TOMORROWCASE JSON\n'
         'report_date=${report.date}\n'
         '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
+        '${shadowSummary.isEmpty ? '' : 'shadow_summary=$shadowSummary\n'}'
         'review_command=/tomorrowreview ${report.date}\n'
         '${const JsonEncoder.withIndent('  ').convert(payload)}';
   }
