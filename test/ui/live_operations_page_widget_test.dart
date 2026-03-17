@@ -625,10 +625,8 @@ void main() {
 
       expect(find.text('Next-Shift Drafts'), findsOneWidget);
       expect(find.text('Promotion pressure'), findsOneWidget);
-      expect(
-        find.textContaining('Promote '),
-        findsOneWidget,
-      );
+      expect(find.text('Promotion execution'), findsOneWidget);
+      expect(find.textContaining('high • 40s'), findsWidgets);
       expect(
         find.textContaining('toward validated review'),
         findsWidgets,

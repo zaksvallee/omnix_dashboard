@@ -340,6 +340,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
     final progress = (action.timeUntilExecutionSeconds / 30).clamp(0.0, 1.0);
     final paused = action.status == _AiActionStatus.paused;
     final promotionPressureSummary = _promotionPressureSummary(action.metadata);
+    final promotionExecutionSummary = _promotionExecutionSummary(
+      action.metadata,
+    );
 
     return Container(
       width: double.infinity,
@@ -443,6 +446,17 @@ class _AIQueuePageState extends State<AIQueuePage> {
             const SizedBox(height: 8),
             Text(
               'Promotion pressure: $promotionPressureSummary',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF86EFAC),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+          if (promotionExecutionSummary.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Promotion execution: $promotionExecutionSummary',
               style: GoogleFonts.inter(
                 color: const Color(0xFF86EFAC),
                 fontSize: 12,
@@ -682,6 +696,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
 
   Widget _queuedRow({required int index, required _AiQueueAction action}) {
     final promotionPressureSummary = _promotionPressureSummary(action.metadata);
+    final promotionExecutionSummary = _promotionExecutionSummary(
+      action.metadata,
+    );
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
@@ -757,6 +774,17 @@ class _AIQueuePageState extends State<AIQueuePage> {
                           const SizedBox(height: 4),
                           Text(
                             'Promotion pressure: $promotionPressureSummary',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF86EFAC),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                        if (promotionExecutionSummary.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Promotion execution: $promotionExecutionSummary',
                             style: GoogleFonts.inter(
                               color: const Color(0xFF86EFAC),
                               fontSize: 10,
@@ -1698,6 +1726,15 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return buildSyntheticPromotionSummary(
       baseSummary: baseSummary,
       shadowPostureBiasSummary: _shadowPostureBiasSummary(metadata),
+    );
+  }
+
+  String _promotionExecutionSummary(Map<String, String> metadata) {
+    return buildSyntheticPromotionExecutionBiasSummary(
+      promotionPriorityBias:
+          (metadata['mo_promotion_priority_bias'] ?? '').trim(),
+      promotionCountdownBias:
+          (metadata['mo_promotion_countdown_bias'] ?? '').trim(),
     );
   }
 

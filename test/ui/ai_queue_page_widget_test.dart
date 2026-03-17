@@ -523,10 +523,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.textContaining('POLICY RECOMMENDATION'), findsOneWidget);
+      expect(find.textContaining('Promotion pressure:'), findsOneWidget);
       expect(
-        find.textContaining(
-          'Promotion pressure: Promote ',
-        ),
+        find.textContaining('Promotion execution: high • 40s'),
         findsOneWidget,
       );
       expect(

@@ -1357,6 +1357,17 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
   }
 
+  String _promotionExecutionSummaryForPlan(
+    MonitoringWatchAutonomyActionPlan plan,
+  ) {
+    return buildSyntheticPromotionExecutionBiasSummary(
+      promotionPriorityBias:
+          (plan.metadata['mo_promotion_priority_bias'] ?? '').trim(),
+      promotionCountdownBias:
+          (plan.metadata['mo_promotion_countdown_bias'] ?? '').trim(),
+    );
+  }
+
   String _shadowPostureBiasSummaryForPlan(
     MonitoringWatchAutonomyActionPlan plan,
   ) {
@@ -1400,6 +1411,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final promotionPressureSummary = linkedSyntheticPolicy == null
         ? ''
         : _promotionPressureSummaryForPlan(linkedSyntheticPolicy);
+    final promotionExecutionSummary = linkedSyntheticPolicy == null
+        ? ''
+        : _promotionExecutionSummaryForPlan(linkedSyntheticPolicy);
     return Container(
       key: ValueKey('live-next-shift-draft-card-${incident.id}'),
       width: double.infinity,
@@ -1470,6 +1484,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             ),
           if (promotionPressureSummary.isNotEmpty)
             _metaRow('Promotion pressure', promotionPressureSummary),
+          if (promotionExecutionSummary.isNotEmpty)
+            _metaRow('Promotion execution', promotionExecutionSummary),
           _metaRow('Lead Draft', leadDraft.actionType),
           _metaRow('Bias', _compactContextLabel(leadDraft.description)),
           if (drafts.length > 1)
