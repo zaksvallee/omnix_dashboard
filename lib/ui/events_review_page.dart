@@ -3111,34 +3111,18 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
 
   String _syntheticWarRoomPromotionId(
     List<MonitoringWatchAutonomyActionPlan> plans,
-  ) {
-    return plans
-        .map(
-          (plan) => (plan.metadata['mo_promotion_id'] ?? '').toString().trim(),
-        )
-        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
-  }
+  ) => buildSyntheticPromotionIdFromPlans(plans: plans);
 
   String _syntheticWarRoomPromotionTargetStatus(
     List<MonitoringWatchAutonomyActionPlan> plans,
-  ) {
-    return plans
-        .map(
-          (plan) =>
-              (plan.metadata['mo_promotion_target'] ?? '').toString().trim(),
-        )
-        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
-  }
+  ) => buildSyntheticPromotionTargetStatusFromPlans(plans: plans);
 
   String _syntheticWarRoomPromotionDecisionStatus(
     List<MonitoringWatchAutonomyActionPlan> plans,
-  ) {
-    final moId = _syntheticWarRoomPromotionId(plans);
-    if (moId.isEmpty) {
-      return '';
-    }
-    return _moPromotionDecisionStore.decisionStatusFor(moId);
-  }
+  ) => buildSyntheticPromotionDecisionStatusFromPlans(
+    plans: plans,
+    decisionStatusLookup: _moPromotionDecisionStore.decisionStatusFor,
+  );
 
   String _syntheticWarRoomPromotionDecisionSummary(
     List<MonitoringWatchAutonomyActionPlan> plans, {

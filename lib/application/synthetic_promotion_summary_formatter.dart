@@ -9,6 +9,25 @@ String _firstSyntheticPlanMetadata(
       .firstWhere((value) => value.isNotEmpty, orElse: () => '');
 }
 
+String buildSyntheticPromotionIdFromPlans({
+  required List<MonitoringWatchAutonomyActionPlan> plans,
+}) => _firstSyntheticPlanMetadata(plans, 'mo_promotion_id');
+
+String buildSyntheticPromotionTargetStatusFromPlans({
+  required List<MonitoringWatchAutonomyActionPlan> plans,
+}) => _firstSyntheticPlanMetadata(plans, 'mo_promotion_target');
+
+String buildSyntheticPromotionDecisionStatusFromPlans({
+  required List<MonitoringWatchAutonomyActionPlan> plans,
+  required String Function(String moId) decisionStatusLookup,
+}) {
+  final moId = buildSyntheticPromotionIdFromPlans(plans: plans);
+  if (moId.isEmpty) {
+    return '';
+  }
+  return decisionStatusLookup(moId);
+}
+
 String buildSyntheticPromotionSummary({
   required String baseSummary,
   String shadowTomorrowUrgencySummary = '',

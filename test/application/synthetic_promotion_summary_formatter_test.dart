@@ -70,6 +70,30 @@ void main() {
   });
 
   group('plan-aware helpers', () {
+    test('buildSyntheticPromotionIdFromPlans and target helper read plan metadata', () {
+      final plans = <MonitoringWatchAutonomyActionPlan>[
+        const MonitoringWatchAutonomyActionPlan(
+          id: 'SIM-1',
+          incidentId: 'SITE-1',
+          siteId: 'SITE-1',
+          priority: MonitoringWatchAutonomyPriority.high,
+          actionType: 'POLICY RECOMMENDATION',
+          description: 'desc',
+          countdownSeconds: 22,
+          metadata: <String, String>{
+            'mo_promotion_id': 'MO-1',
+            'mo_promotion_target': 'validated',
+          },
+        ),
+      ];
+
+      expect(buildSyntheticPromotionIdFromPlans(plans: plans), 'MO-1');
+      expect(
+        buildSyntheticPromotionTargetStatusFromPlans(plans: plans),
+        'validated',
+      );
+    });
+
     test('buildSyntheticPromotionSummaryFromPlans reads base summary from plan metadata', () {
       final plans = <MonitoringWatchAutonomyActionPlan>[
         const MonitoringWatchAutonomyActionPlan(
@@ -143,6 +167,29 @@ void main() {
           shadowTomorrowUrgencySummary: 'strength rising • critical • 22s',
         ),
         'Accepted MO-1 toward validated review. • under strength rising • critical • 22s pressure',
+      );
+    });
+
+    test('buildSyntheticPromotionDecisionStatusFromPlans reads id via lookup', () {
+      final plans = <MonitoringWatchAutonomyActionPlan>[
+        const MonitoringWatchAutonomyActionPlan(
+          id: 'SIM-1',
+          incidentId: 'SITE-1',
+          siteId: 'SITE-1',
+          priority: MonitoringWatchAutonomyPriority.high,
+          actionType: 'POLICY RECOMMENDATION',
+          description: 'desc',
+          countdownSeconds: 22,
+          metadata: <String, String>{'mo_promotion_id': 'MO-1'},
+        ),
+      ];
+
+      expect(
+        buildSyntheticPromotionDecisionStatusFromPlans(
+          plans: plans,
+          decisionStatusLookup: (moId) => moId == 'MO-1' ? 'accepted' : '',
+        ),
+        'accepted',
       );
     });
   });
