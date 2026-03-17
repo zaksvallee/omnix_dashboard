@@ -63,6 +63,14 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
   bool get _isGovernanceHandoffPreview =>
       widget.entryContext == ReportEntryContext.governanceBrandingDrift;
 
+  String get _exportModeLabel => _isGovernanceHandoffPreview
+      ? 'GOVERNANCE HANDOFF'
+      : 'STANDARD RECEIPT EXPORT';
+
+  String get _exportModeSummary => _isGovernanceHandoffPreview
+      ? 'This receipt preview is in the Governance handoff lane and uses the same oversight export framing as the report workspace.'
+      : 'This receipt preview uses the standard receipt export lane from the report workspace.';
+
   String get _previewHeaderTitle {
     final primaryLabel = _brandingConfiguration.primaryLabel.trim();
     if (_isGovernanceHandoffPreview) {
@@ -553,6 +561,16 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
                   SizedBox(
                     width: constraints.maxWidth,
                     child: OnyxSummaryStat(
+                      label: 'Export Mode',
+                      value: _exportModeLabel,
+                      accent: _isGovernanceHandoffPreview
+                          ? const Color(0xFF8FD1FF)
+                          : const Color(0xFF8AA4C9),
+                    ),
+                  ),
+                  SizedBox(
+                    width: constraints.maxWidth,
+                    child: OnyxSummaryStat(
                       label: 'Range',
                       value:
                           '${receipt.eventRangeStart}-${receipt.eventRangeEnd}',
@@ -693,6 +711,13 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
                                   const Color(0xFF8AA4C9),
                                 ),
                                 _chip(
+                                  'Export',
+                                  _exportModeLabel,
+                                  _isGovernanceHandoffPreview
+                                      ? const Color(0xFF8FD1FF)
+                                      : const Color(0xFF8AA4C9),
+                                ),
+                                _chip(
                                   'Range',
                                   '${receipt.eventRangeStart}-${receipt.eventRangeEnd}',
                                   const Color(0xFF8AA4C9),
@@ -718,7 +743,7 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
                                 ),
                               ),
                               child: Text(
-                                'Receipt integrity is tied to the generated content hash and event range. Re-open this receipt from the harness to prove replay-safe regeneration before delivery.',
+                                'Receipt integrity is tied to the generated content hash and event range. $_exportModeSummary Re-open this receipt from the harness to prove replay-safe regeneration before delivery.',
                                 style: GoogleFonts.inter(
                                   color: const Color(0xFF94ABCB),
                                   fontSize: 12,

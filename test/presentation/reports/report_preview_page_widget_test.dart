@@ -120,7 +120,7 @@ void main() {
 
     expect(find.text('Preview Context'), findsOneWidget);
     expect(find.text('Governance Handoff PDF'), findsOneWidget);
-    expect(find.textContaining('Governance handoff lane'), findsOneWidget);
+    expect(find.textContaining('Governance handoff lane'), findsWidgets);
     expect(
       find.byKey(const ValueKey('report-preview-entry-context-banner')),
       findsOneWidget,
@@ -132,6 +132,7 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(find.text('GOVERNANCE HANDOFF'), findsWidgets);
     expect(_findRichTextContaining('Receipt: RPT-PREVIEW-GOV-1'), findsWidgets);
   });
 
@@ -215,6 +216,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 250));
 
     expect(find.text('Receipt Integrity'), findsOneWidget);
+    expect(find.text('STANDARD RECEIPT EXPORT'), findsWidgets);
     expect(find.textContaining('RPT-PREVIEW-INTEGRITY-1'), findsWidgets);
     expect(find.textContaining('7-19'), findsWidgets);
     expect(find.textContaining('Matched'), findsWidgets);
