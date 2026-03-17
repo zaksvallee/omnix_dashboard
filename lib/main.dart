@@ -5342,8 +5342,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       currentReportDate: report.date,
       previousReportDate: previousReport?.date,
       reviewCommandBuilder: (reportDate) => '/activityreview $reportDate',
-      caseFileCommandBuilder: (reportDate) =>
-          '/activitycase json $reportDate',
+      caseFileCommandBuilder: (reportDate) => '/activitycase json $reportDate',
     );
     final responseText = TelegramAdminCommandFormatter.morningGovernance(
       signalHeader: _telegramAdminSignalHeader(),
@@ -5370,8 +5369,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           _globalReadinessTomorrowPostureSummary(readinessIntents),
       globalReadinessTomorrowShadowSummary:
           _globalReadinessTomorrowShadowSummary(readinessIntents),
-      globalReadinessShadowSummary:
-          (shadowMoCaseFile['summary'] ?? '').toString(),
+      globalReadinessShadowSummary: (shadowMoCaseFile['summary'] ?? '')
+          .toString(),
       globalReadinessShadowHistoryHeadline:
           (shadowMoCaseFile['historyHeadline'] ?? '').toString(),
       globalReadinessShadowHistorySummary:
@@ -5409,13 +5408,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       syntheticWarRoomHeadline: _syntheticWarRoomModeLabel(
         syntheticWarRoomPlans,
       ),
-      syntheticWarRoomSummary: _syntheticWarRoomSummary(
-        syntheticWarRoomPlans,
-      ),
+      syntheticWarRoomSummary: _syntheticWarRoomSummary(syntheticWarRoomPlans),
       syntheticWarRoomPolicySummary: _syntheticWarRoomPolicySummary(
         syntheticWarRoomPlans,
       ),
       syntheticWarRoomHazardSummary: _syntheticWarRoomHazardSummary(
+        syntheticWarRoomPlans,
+      ),
+      syntheticWarRoomShadowSummary: _syntheticWarRoomShadowSummary(
         syntheticWarRoomPlans,
       ),
       syntheticWarRoomLearningSummary: _syntheticWarRoomLearningSummary(
@@ -5446,7 +5446,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       siteActivityHeadline: siteActivityHeadline,
       siteActivitySummary: siteActivitySummary,
       currentShiftReviewCommand:
-          (activityReviewShortcuts['currentShiftReviewCommand'] ?? '').toString(),
+          (activityReviewShortcuts['currentShiftReviewCommand'] ?? '')
+              .toString(),
       currentShiftCaseFileCommand:
           (activityReviewShortcuts['currentShiftCaseFileCommand'] ?? '')
               .toString(),
@@ -5738,8 +5739,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   List<MonitoringWatchAutonomyActionPlan> _syntheticWarRoomPlansForReport(
     SovereignReport report, {
     bool includeMemory = true,
-  }
-  ) {
+  }) {
     final scopedEvents = _eventsScopedToWindow(
       report.shiftWindowStartUtc,
       report.shiftWindowEndUtc,
@@ -5751,20 +5751,27 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       historicalLearningLabels: includeMemory
           ? _syntheticHistoricalLearningLabelsForReport(report)
           : const <String>[],
+      historicalShadowMoLabels: includeMemory
+          ? _shadowHistoricalLabelsForReport(report)
+          : const <String>[],
     );
   }
 
   List<String> _syntheticHistoricalLearningLabelsForReport(
     SovereignReport report,
   ) {
-    final baseline = _morningSovereignReportHistory
-        .where(
-          (item) =>
-              item.date.trim() != report.date.trim() &&
-              item.generatedAtUtc.isBefore(report.generatedAtUtc),
-        )
-        .toList(growable: false)
-      ..sort((left, right) => right.generatedAtUtc.compareTo(left.generatedAtUtc));
+    final baseline =
+        _morningSovereignReportHistory
+            .where(
+              (item) =>
+                  item.date.trim() != report.date.trim() &&
+                  item.generatedAtUtc.isBefore(report.generatedAtUtc),
+            )
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
     return baseline
         .take(3)
         .map(
@@ -5777,14 +5784,18 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }
 
   List<String> _shadowHistoricalLabelsForReport(SovereignReport report) {
-    final baseline = _morningSovereignReportHistory
-        .where(
-          (item) =>
-              item.date.trim() != report.date.trim() &&
-              item.generatedAtUtc.isBefore(report.generatedAtUtc),
-        )
-        .toList(growable: false)
-      ..sort((left, right) => right.generatedAtUtc.compareTo(left.generatedAtUtc));
+    final baseline =
+        _morningSovereignReportHistory
+            .where(
+              (item) =>
+                  item.date.trim() != report.date.trim() &&
+                  item.generatedAtUtc.isBefore(report.generatedAtUtc),
+            )
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
     return baseline
         .take(3)
         .map((item) {
@@ -5792,7 +5803,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           if (shadowSites.isEmpty) {
             return '';
           }
-          return _orchestratorService.shadowDraftLabelForSite(shadowSites.first);
+          return _orchestratorService.shadowDraftLabelForSite(
+            shadowSites.first,
+          );
         })
         .where((label) => label.trim().isNotEmpty)
         .toList(growable: false);
@@ -5982,7 +5995,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               caseFileCommandBuilder: (value) => '/tomorrowcase json $value',
             ),
           };
-        }).toList(growable: false);
+        })
+        .toList(growable: false);
     return <String, Object?>{
       'available': true,
       'reportDate': report.date,
@@ -6010,7 +6024,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               'repeatCount': draft.metadata['learning_repeat_count'] ?? '',
               'shadowLabel': draft.metadata['shadow_mo_label'] ?? '',
               'shadowTitle': draft.metadata['shadow_mo_title'] ?? '',
-              'shadowRepeatCount': draft.metadata['shadow_mo_repeat_count'] ?? '',
+              'shadowRepeatCount':
+                  draft.metadata['shadow_mo_repeat_count'] ?? '',
               'hazardSignal': draft.metadata['hazard_signal'] ?? '',
               'metadata': draft.metadata,
             },
@@ -6045,7 +6060,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       lines.add(
         'draft_${i + 1},"${(draft['actionType'] ?? '').toString().replaceAll('"', '""')} • ${(draft['siteId'] ?? '').toString().replaceAll('"', '""')} • ${(draft['description'] ?? '').toString().replaceAll('"', '""')}"',
       );
-      lines.add('draft_${i + 1}_learning_label,${draft['learningLabel'] ?? ''}');
+      lines.add(
+        'draft_${i + 1}_learning_label,${draft['learningLabel'] ?? ''}',
+      );
       lines.add('draft_${i + 1}_repeat_count,${draft['repeatCount'] ?? ''}');
       final shadowParts = <String>[
         (draft['shadowLabel'] ?? '').toString().trim(),
@@ -6107,6 +6124,37 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
   }
 
+  String _syntheticWarRoomShadowSummary(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    final plan = plans.firstWhere(
+      (entry) => (entry.metadata['shadow_mo_label'] ?? '').trim().isNotEmpty,
+      orElse: () => const MonitoringWatchAutonomyActionPlan(
+        id: '',
+        incidentId: '',
+        siteId: '',
+        priority: MonitoringWatchAutonomyPriority.medium,
+        actionType: '',
+        description: '',
+        countdownSeconds: 0,
+      ),
+    );
+    if (plan.id.isEmpty) {
+      return '';
+    }
+    final leadSite = (plan.metadata['lead_site'] ?? plan.siteId).trim();
+    final shadowLabel = (plan.metadata['shadow_mo_label'] ?? '').trim();
+    final shadowTitle = (plan.metadata['shadow_mo_title'] ?? '').trim();
+    final repeatCount = (plan.metadata['shadow_mo_repeat_count'] ?? '').trim();
+    final parts = <String>[
+      if (shadowLabel.isNotEmpty) shadowLabel,
+      if (leadSite.isNotEmpty) leadSite,
+      if (shadowTitle.isNotEmpty) shadowTitle,
+      if (repeatCount.isNotEmpty && repeatCount != '0') 'x$repeatCount',
+    ];
+    return _singleLine(parts.join(' • '), maxLength: 220);
+  }
+
   String _syntheticWarRoomLearningMemorySummary({
     required String currentLearningLabel,
     required List<SovereignReport> history,
@@ -6140,8 +6188,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     MonitoringWatchAutonomyActionPlan? plan,
   ) {
     final actionBias = (plan?.metadata['action_bias'] ?? '').trim();
-    final priorityBoost = (plan?.metadata['memory_priority_boost'] ?? '').trim();
-    final countdownBias = (plan?.metadata['memory_countdown_bias'] ?? '').trim();
+    final priorityBoost = (plan?.metadata['memory_priority_boost'] ?? '')
+        .trim();
+    final countdownBias = (plan?.metadata['memory_countdown_bias'] ?? '')
+        .trim();
     if (actionBias.isEmpty && priorityBoost.isEmpty && countdownBias.isEmpty) {
       return '';
     }
@@ -6404,7 +6454,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               'posturalEchoCount': itemEchoCount,
               'topIntentSummary': _globalReadinessTopIntentSummary(itemIntents),
               'hazardSummary': _globalReadinessHazardSummary(itemIntents),
-              'shadowBiasSummary': _globalReadinessShadowBiasSummary(itemIntents),
+              'shadowBiasSummary': _globalReadinessShadowBiasSummary(
+                itemIntents,
+              ),
               ...buildReviewCommandPair(
                 reportDate: item.date,
                 reviewCommandBuilder: (reportDate) =>
@@ -6499,8 +6551,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           row: i + 1,
           reportDate: (row['reportDate'] ?? '').toString(),
           reviewCommandBuilder: (reportDate) => '/readinessreview $reportDate',
-          caseFileCommandBuilder:
-              (reportDate) => '/readinesscase json $reportDate',
+          caseFileCommandBuilder: (reportDate) =>
+              '/readinesscase json $reportDate',
         ),
       );
       lines.add(
@@ -6532,7 +6584,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final currentMatchCount = _shadowMoMatchCountForSites(shadowSites);
     final baseline = history
         .take(3)
-        .map((item) => _shadowMoMatchCountForSites(_shadowMoSitesForReport(item)))
+        .map(
+          (item) => _shadowMoMatchCountForSites(_shadowMoSitesForReport(item)),
+        )
         .toList(growable: false);
     final baselineAverage = baseline.isEmpty
         ? null
@@ -6546,7 +6600,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         : 'STABLE • ${baseline.length + 1}d';
     final historySummary = baselineAverage == null
         ? 'Current matches $currentMatchCount • Baseline n/a • No prior shadow-MO history is available yet.'
-        : 'Current matches $currentMatchCount • Baseline ${baselineAverage.toStringAsFixed(1)} • ${currentMatchCount > baselineAverage ? 'Shadow-MO match pressure is increasing against recent shifts.' : currentMatchCount < baselineAverage ? 'Shadow-MO match pressure eased against recent shifts.' : 'Shadow-MO match pressure is holding close to the recent baseline.'}';
+        : 'Current matches $currentMatchCount • Baseline ${baselineAverage.toStringAsFixed(1)} • ${currentMatchCount > baselineAverage
+              ? 'Shadow-MO match pressure is increasing against recent shifts.'
+              : currentMatchCount < baselineAverage
+              ? 'Shadow-MO match pressure eased against recent shifts.'
+              : 'Shadow-MO match pressure is holding close to the recent baseline.'}';
     final eventIds = shadowSites
         .expand((site) => site.moShadowEventIds)
         .map((value) => value.trim())
@@ -6662,7 +6720,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       final row = history[i];
       if (row is! Map) continue;
       lines.add('history_${i + 1}_date,${row['reportDate'] ?? ''}');
-      lines.add('history_${i + 1}_shadow_site_count,${row['shadowSiteCount'] ?? 0}');
+      lines.add(
+        'history_${i + 1}_shadow_site_count,${row['shadowSiteCount'] ?? 0}',
+      );
       lines.add('history_${i + 1}_match_count,${row['matchCount'] ?? 0}');
       lines.add(
         'history_${i + 1}_summary,"${(row['summary'] ?? '').toString().replaceAll('"', '""')}"',
@@ -6710,8 +6770,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
                     final itemPlans = _syntheticWarRoomPlansForReport(item);
                     final itemPolicyCount = itemPlans
                         .where(
-                          (plan) =>
-                              plan.actionType == 'POLICY RECOMMENDATION',
+                          (plan) => plan.actionType == 'POLICY RECOMMENDATION',
                         )
                         .length;
                     return itemPlans.length + itemPolicyCount;
@@ -6728,7 +6787,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         : 'STABLE • ${history.take(3).length + 1}d';
     final historySummary = baselinePressure == null
         ? 'Current pressure $currentPressure • Baseline n/a • No prior synthetic rehearsal history is available yet.'
-        : 'Current pressure $currentPressure • Baseline ${baselinePressure.toStringAsFixed(1)} • ${currentPressure >= baselinePressure + 1 ? 'Synthetic rehearsal is recommending stronger action than recent shifts.' : currentPressure <= baselinePressure - 1 ? 'Synthetic rehearsal pressure eased against recent shifts.' : 'Synthetic rehearsal pressure is holding close to the recent baseline.'}';
+        : 'Current pressure $currentPressure • Baseline ${baselinePressure.toStringAsFixed(1)} • ${currentPressure >= baselinePressure + 1
+              ? 'Synthetic rehearsal is recommending stronger action than recent shifts.'
+              : currentPressure <= baselinePressure - 1
+              ? 'Synthetic rehearsal pressure eased against recent shifts.'
+              : 'Synthetic rehearsal pressure is holding close to the recent baseline.'}';
     final previousReport = history.isEmpty ? null : history.first;
     final learningLabel = _syntheticWarRoomLearningLabel(plans);
     return <String, Object?>{
@@ -6743,13 +6806,16 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'summary': _syntheticWarRoomSummary(plans),
       'policySummary': _syntheticWarRoomPolicySummary(plans),
       'hazardSummary': _syntheticWarRoomHazardSummary(plans),
+      'shadowSummary': _syntheticWarRoomShadowSummary(plans),
       'learningLabel': learningLabel,
       'learningSummary': _syntheticWarRoomLearningSummary(plans),
       'learningMemorySummary': _syntheticWarRoomLearningMemorySummary(
         currentLearningLabel: learningLabel,
         history: history,
       ),
-      'actionBias': (leadPolicyPlan?.metadata['action_bias'] ?? '').toString().trim(),
+      'actionBias': (leadPolicyPlan?.metadata['action_bias'] ?? '')
+          .toString()
+          .trim(),
       'memoryPriorityBoost':
           (leadPolicyPlan?.metadata['memory_priority_boost'] ?? '')
               .toString()
@@ -6763,8 +6829,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'policyCount': policyPlans.length,
       'leadRegionId': (leadPlan?.metadata['region'] ?? '').toString().trim(),
       'leadSiteId': (leadPlan?.metadata['lead_site'] ?? '').toString().trim(),
-      'topIntentSummary':
-          (leadPlan?.metadata['top_intent'] ?? '').toString().trim(),
+      'topIntentSummary': (leadPlan?.metadata['top_intent'] ?? '')
+          .toString()
+          .trim(),
       'reviewCommand': '/syntheticreview ${report.date}',
       'caseFileCommand': '/syntheticcase json ${report.date}',
       'previousReviewCommand': previousReport == null
@@ -6777,8 +6844,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         currentReportDate: report.date,
         previousReportDate: previousReport?.date,
         reviewCommandBuilder: (reportDate) => '/syntheticreview $reportDate',
-        caseFileCommandBuilder:
-            (reportDate) => '/syntheticcase json $reportDate',
+        caseFileCommandBuilder: (reportDate) =>
+            '/syntheticcase json $reportDate',
       ),
       'historyHeadline': historyHeadline,
       'historySummary': historySummary,
@@ -6824,14 +6891,17 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               'summary': _syntheticWarRoomSummary(itemPlans),
               'policySummary': _syntheticWarRoomPolicySummary(itemPlans),
               'hazardSummary': _syntheticWarRoomHazardSummary(itemPlans),
+              'shadowSummary': _syntheticWarRoomShadowSummary(itemPlans),
               'learningLabel': _syntheticWarRoomLearningLabel(itemPlans),
               'learningSummary': _syntheticWarRoomLearningSummary(itemPlans),
-              'actionBias':
-                  (itemPolicyPlan.metadata['action_bias'] ?? '').trim(),
+              'actionBias': (itemPolicyPlan.metadata['action_bias'] ?? '')
+                  .trim(),
               'memoryPriorityBoost':
-                  (itemPolicyPlan.metadata['memory_priority_boost'] ?? '').trim(),
+                  (itemPolicyPlan.metadata['memory_priority_boost'] ?? '')
+                      .trim(),
               'memoryCountdownBias':
-                  (itemPolicyPlan.metadata['memory_countdown_bias'] ?? '').trim(),
+                  (itemPolicyPlan.metadata['memory_countdown_bias'] ?? '')
+                      .trim(),
               'biasSummary': _syntheticWarRoomBiasSummaryForPlan(
                 itemPolicyPlan.id.isEmpty ? null : itemPolicyPlan,
               ),
@@ -6866,6 +6936,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'summary,"${(payload['summary'] ?? '').toString().replaceAll('"', '""')}"',
       'policy_summary,"${(payload['policySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'hazard_summary,"${(payload['hazardSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'shadow_summary,"${(payload['shadowSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'learning_label,${payload['learningLabel'] ?? ''}',
       'learning_summary,"${(payload['learningSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'learning_memory_summary,"${(payload['learningMemorySummary'] ?? '').toString().replaceAll('"', '""')}"',
@@ -6909,7 +6980,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       lines.add(
         'history_${i + 1}_hazard_summary,"${(row['hazardSummary'] ?? '').toString().replaceAll('"', '""')}"',
       );
-      lines.add('history_${i + 1}_learning_label,${row['learningLabel'] ?? ''}');
+      lines.add(
+        'history_${i + 1}_shadow_summary,"${(row['shadowSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add(
+        'history_${i + 1}_learning_label,${row['learningLabel'] ?? ''}',
+      );
       lines.add(
         'history_${i + 1}_learning_summary,"${(row['learningSummary'] ?? '').toString().replaceAll('"', '""')}"',
       );
@@ -6932,8 +7008,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           row: i + 1,
           reportDate: (row['reportDate'] ?? '').toString(),
           reviewCommandBuilder: (reportDate) => '/syntheticreview $reportDate',
-          caseFileCommandBuilder:
-              (reportDate) => '/syntheticcase json $reportDate',
+          caseFileCommandBuilder: (reportDate) =>
+              '/syntheticcase json $reportDate',
         ),
       );
     }
@@ -11070,9 +11146,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
     final latestReview = latestIntel.isEmpty
         ? null
-        : _monitoringSceneReviewByIntelligenceId[
-            latestIntel.first.intelligenceId.trim()
-          ];
+        : _monitoringSceneReviewByIntelligenceId[latestIntel
+              .first
+              .intelligenceId
+              .trim()];
     final incidentSummary = latestIntel.isEmpty
         ? 'Dispatch execution sent to partner. Awaiting acknowledgement.'
         : _singleLine(
@@ -12802,9 +12879,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     ];
     final previousReview = shortcuts['previousShiftReviewCommand'];
     if (previousReview != null) {
-      hints.add(
-        'Previous shift: $previousReview',
-      );
+      hints.add('Previous shift: $previousReview');
     }
     return hints;
   }
@@ -17239,6 +17314,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final payload = _syntheticWarRoomCaseFilePayload(reportDate: report.date);
     final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
     final hazardSummary = (payload['hazardSummary'] ?? '').toString().trim();
+    final shadowSummary = (payload['shadowSummary'] ?? '').toString().trim();
     final learningMemorySummary = (payload['learningMemorySummary'] ?? '')
         .toString()
         .trim();
@@ -17257,6 +17333,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           'report_date=${report.date}\n'
           '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
           '${hazardSummary.isEmpty ? '' : 'hazard_summary=$hazardSummary\n'}'
+          '${shadowSummary.isEmpty ? '' : 'shadow_summary=$shadowSummary\n'}'
           '${learningSummary.isEmpty ? '' : 'learning_summary=$learningSummary\n'}'
           '${learningMemorySummary.isEmpty ? '' : 'learning_memory_summary=$learningMemorySummary\n'}'
           '${biasSummary.isEmpty ? '' : 'bias_summary=$biasSummary\n'}'
@@ -17269,6 +17346,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'report_date=${report.date}\n'
         '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
         '${hazardSummary.isEmpty ? '' : 'hazard_summary=$hazardSummary\n'}'
+        '${shadowSummary.isEmpty ? '' : 'shadow_summary=$shadowSummary\n'}'
         '${learningSummary.isEmpty ? '' : 'learning_summary=$learningSummary\n'}'
         '${learningMemorySummary.isEmpty ? '' : 'learning_memory_summary=$learningMemorySummary\n'}'
         '${biasSummary.isEmpty ? '' : 'bias_summary=$biasSummary\n'}'
@@ -17288,7 +17366,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     final payload = _shadowMoCaseFilePayload(reportDate: report.date);
     final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
-    final historyHeadline = (payload['historyHeadline'] ?? '').toString().trim();
+    final historyHeadline = (payload['historyHeadline'] ?? '')
+        .toString()
+        .trim();
     final historySummary = (payload['historySummary'] ?? '').toString().trim();
     final eventIds =
         ((payload['eventIds'] as List<Object?>?) ?? const <Object?>[])
@@ -17358,7 +17438,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     final payload = _shadowMoCaseFilePayload(reportDate: report.date);
     final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
-    final historyHeadline = (payload['historyHeadline'] ?? '').toString().trim();
+    final historyHeadline = (payload['historyHeadline'] ?? '')
+        .toString()
+        .trim();
     final historySummary = (payload['historySummary'] ?? '').toString().trim();
     final previousReviewCommand = (payload['previousReviewCommand'] ?? '')
         .toString()

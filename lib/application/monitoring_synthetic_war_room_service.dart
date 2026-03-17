@@ -1,5 +1,6 @@
 import '../domain/events/dispatch_event.dart';
 import 'hazard_response_directive_service.dart';
+import 'mo_runtime_matching_service.dart';
 import 'monitoring_global_posture_service.dart';
 import 'monitoring_orchestrator_service.dart';
 import 'monitoring_scene_review_store.dart';
@@ -19,9 +20,11 @@ class MonitoringSyntheticWarRoomService {
 
   List<MonitoringWatchAutonomyActionPlan> buildSimulationPlans({
     required List<DispatchEvent> events,
-    required Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId,
+    required Map<String, MonitoringSceneReviewRecord>
+    sceneReviewByIntelligenceId,
     String videoOpsLabel = 'CCTV',
     List<String> historicalLearningLabels = const <String>[],
+    List<String> historicalShadowMoLabels = const <String>[],
   }) {
     final snapshot = _globalPostureService.buildSnapshot(
       events: events,
@@ -45,14 +48,15 @@ class MonitoringSyntheticWarRoomService {
       }
 
       final leadSite = region.topSites.first;
-      final regionalIntents = intents
-          .where((entry) => entry.metadata['region'] == region.regionId)
-          .toList(growable: false)
-        ..sort(
-          (a, b) => _priorityWeight(b.priority).compareTo(
-            _priorityWeight(a.priority),
-          ),
-        );
+      final regionalIntents =
+          intents
+              .where((entry) => entry.metadata['region'] == region.regionId)
+              .toList(growable: false)
+            ..sort(
+              (a, b) => _priorityWeight(
+                b.priority,
+              ).compareTo(_priorityWeight(a.priority)),
+            );
       final topIntent = regionalIntents.isEmpty ? null : regionalIntents.first;
       final posturalEchoCount = regionalIntents
           .where((entry) => entry.actionType == 'POSTURAL ECHO')
@@ -61,12 +65,21 @@ class MonitoringSyntheticWarRoomService {
         _externalPressureSignals.contains,
       );
       final hasFirePressure = leadSite.dominantSignals.contains('fire');
-      final hasWaterLeakPressure =
-          leadSite.dominantSignals.contains('water_leak');
-      final hasEnvironmentalHazardPressure =
-          leadSite.dominantSignals.contains('environment_hazard');
+      final hasWaterLeakPressure = leadSite.dominantSignals.contains(
+        'water_leak',
+      );
+      final hasEnvironmentalHazardPressure = leadSite.dominantSignals.contains(
+        'environment_hazard',
+      );
+      final leadShadowMatch = leadSite.moShadowMatches.isEmpty
+          ? null
+          : leadSite.moShadowMatches.first;
+      final shadowLabel = leadSite.moShadowMatches.isEmpty
+          ? ''
+          : _orchestratorService.shadowDraftLabelForSite(leadSite);
 
-      final rehearsalFocus = topIntent?.actionType.toLowerCase() ??
+      final rehearsalFocus =
+          topIntent?.actionType.toLowerCase() ??
           '${videoOpsLabel.toLowerCase()} spillover containment';
       plans.add(
         MonitoringWatchAutonomyActionPlan(
@@ -118,21 +131,30 @@ class MonitoringSyntheticWarRoomService {
         final repeatedLearningCount = learningSignal.label.trim().isEmpty
             ? 0
             : historicalLearningLabels
-                .where((label) => label.trim() == learningSignal.label)
-                .length;
-        final policyPriority = repeatedLearningCount >= 2
+                  .where((label) => label.trim() == learningSignal.label)
+                  .length;
+        final repeatedShadowCount = shadowLabel.isEmpty
+            ? 0
+            : historicalShadowMoLabels
+                  .where((label) => label.trim() == shadowLabel)
+                  .length;
+        final effectiveMemoryCount =
+            repeatedLearningCount >= repeatedShadowCount
+            ? repeatedLearningCount
+            : repeatedShadowCount;
+        final policyPriority = effectiveMemoryCount >= 2
             ? MonitoringWatchAutonomyPriority.critical
-            : repeatedLearningCount == 1
+            : effectiveMemoryCount == 1
             ? MonitoringWatchAutonomyPriority.high
             : MonitoringWatchAutonomyPriority.medium;
-        final countdownSeconds = repeatedLearningCount >= 2
+        final countdownSeconds = effectiveMemoryCount >= 2
             ? 32
-            : repeatedLearningCount == 1
+            : effectiveMemoryCount == 1
             ? 48
             : 64;
-        final actionBias = repeatedLearningCount >= 2
+        final actionBias = effectiveMemoryCount >= 2
             ? 'Escalate rehearsal immediately for'
-            : repeatedLearningCount == 1
+            : effectiveMemoryCount == 1
             ? 'Advance rehearsal earlier for'
             : 'Recommend rehearsing';
         final memorySummary = repeatedLearningCount <= 0
@@ -140,18 +162,27 @@ class MonitoringSyntheticWarRoomService {
             : repeatedLearningCount == 1
             ? 'Memory bias: ${learningSignal.label} repeated in the previous shift.'
             : 'Memory bias: ${learningSignal.label} repeated in $repeatedLearningCount recent shifts.';
+        final shadowMemorySummary = _shadowMemorySummary(
+          shadowLabel: shadowLabel,
+          repeatedShadowCount: repeatedShadowCount,
+          leadShadowMatch: leadShadowMatch,
+        );
         final recommendation = hazardSignal.isNotEmpty
             ? _hazardDirectiveService
-                .buildForSignal(
-                  signal: hazardSignal,
-                  siteName: leadSite.siteId,
-                )
-                .syntheticRecommendation
+                  .buildForSignal(
+                    signal: hazardSignal,
+                    siteName: leadSite.siteId,
+                  )
+                  .syntheticRecommendation
             : hasExternalPressure
             ? 'earlier regional readiness before external pressure lands on-site'
             : posturalEchoCount > 0
-                ? 'earlier postural echo propagation into sibling sites'
-                : 'shorter review latency before critical posture compounds';
+            ? 'earlier postural echo propagation into sibling sites'
+            : 'shorter review latency before critical posture compounds';
+        final shadowRecommendation = _shadowRecommendation(
+          shadowLabel: shadowLabel,
+          leadShadowMatch: leadShadowMatch,
+        );
         plans.add(
           MonitoringWatchAutonomyActionPlan(
             id: 'SIM-POLICY-${region.regionId}',
@@ -160,7 +191,7 @@ class MonitoringSyntheticWarRoomService {
             priority: policyPriority,
             actionType: 'POLICY RECOMMENDATION',
             description:
-                '$actionBias $recommendation across ${region.regionId} after simulation so tomorrow’s shift starts ahead of the posture curve. ${learningSignal.summary}${memorySummary.isEmpty ? '' : ' $memorySummary'}',
+                '$actionBias $recommendation${shadowRecommendation.isEmpty ? '' : ' with $shadowRecommendation'} across ${region.regionId} after simulation so tomorrow’s shift starts ahead of the posture curve. ${learningSignal.summary}${memorySummary.isEmpty ? '' : ' $memorySummary'}${shadowMemorySummary.isEmpty ? '' : ' $shadowMemorySummary'}',
             countdownSeconds: countdownSeconds,
             metadata: <String, String>{
               'mode': 'SIMULATION',
@@ -168,15 +199,27 @@ class MonitoringSyntheticWarRoomService {
               'region': region.regionId,
               'lead_site': leadSite.siteId,
               'recommendation': recommendation,
+              if (shadowRecommendation.isNotEmpty)
+                'shadow_recommendation': shadowRecommendation,
               'action_bias': actionBias,
               'learning_label': learningSignal.label,
               'learning_summary': learningSignal.summary,
               'memory_repeat_count': repeatedLearningCount.toString(),
-              'memory_priority_boost': repeatedLearningCount <= 0
+              'memory_priority_boost': effectiveMemoryCount <= 0
                   ? 'NONE'
                   : policyPriority.name.toUpperCase(),
               'memory_countdown_bias': countdownSeconds.toString(),
               if (memorySummary.isNotEmpty) 'memory_summary': memorySummary,
+              if (shadowLabel.isNotEmpty) 'shadow_mo_label': shadowLabel,
+              if (leadShadowMatch != null)
+                'shadow_mo_title': leadShadowMatch.title,
+              'shadow_mo_repeat_count': repeatedShadowCount.toString(),
+              if (effectiveMemoryCount > 0)
+                'memory_source': repeatedShadowCount > repeatedLearningCount
+                    ? 'SHADOW'
+                    : 'LEARNING',
+              if (shadowMemorySummary.isNotEmpty)
+                'shadow_memory_summary': shadowMemorySummary,
               'top_intent': topIntent?.actionType ?? 'NONE',
               if (hazardSignal.isNotEmpty) 'hazard_signal': hazardSignal,
             },
@@ -253,14 +296,50 @@ class MonitoringSyntheticWarRoomService {
     }
     return const _SyntheticLearningSignal(label: '', summary: '');
   }
+
+  String _shadowRecommendation({
+    required String shadowLabel,
+    required OnyxMoShadowMatch? leadShadowMatch,
+  }) {
+    final title = leadShadowMatch?.title.trim() ?? '';
+    return switch (shadowLabel.trim()) {
+      'HARDEN ACCESS' =>
+        title.isEmpty
+            ? 'earlier access hardening rehearsal'
+            : 'earlier access hardening rehearsal around "$title"',
+      'ADVANCE RECON' =>
+        title.isEmpty
+            ? 'earlier reconnaissance challenge rehearsal'
+            : 'earlier reconnaissance challenge rehearsal around "$title"',
+      'PREARM SHADOW' =>
+        title.isEmpty
+            ? 'earlier shadow-watch rehearsal'
+            : 'earlier shadow-watch rehearsal around "$title"',
+      _ => '',
+    };
+  }
+
+  String _shadowMemorySummary({
+    required String shadowLabel,
+    required int repeatedShadowCount,
+    required OnyxMoShadowMatch? leadShadowMatch,
+  }) {
+    if (shadowLabel.trim().isEmpty || repeatedShadowCount <= 0) {
+      return '';
+    }
+    final title = leadShadowMatch?.title.trim() ?? '';
+    final labelSummary = title.isEmpty
+        ? shadowLabel
+        : '$shadowLabel around "$title"';
+    return repeatedShadowCount == 1
+        ? 'Shadow bias: $labelSummary repeated in the previous shift.'
+        : 'Shadow bias: $labelSummary repeated in $repeatedShadowCount recent shifts.';
+  }
 }
 
 class _SyntheticLearningSignal {
   final String label;
   final String summary;
 
-  const _SyntheticLearningSignal({
-    required this.label,
-    required this.summary,
-  });
+  const _SyntheticLearningSignal({required this.label, required this.summary});
 }

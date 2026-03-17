@@ -335,6 +335,7 @@ class _SyntheticWarRoomHistoryPoint {
   final String learningLabel;
   final String recommendationSummary;
   final String learningSummary;
+  final String shadowSummary;
   final String actionBias;
   final String memoryPriorityBoost;
   final String memoryCountdownBias;
@@ -351,6 +352,7 @@ class _SyntheticWarRoomHistoryPoint {
     required this.learningLabel,
     required this.recommendationSummary,
     required this.learningSummary,
+    required this.shadowSummary,
     required this.actionBias,
     required this.memoryPriorityBoost,
     required this.memoryCountdownBias,
@@ -2849,7 +2851,8 @@ class _GovernancePageState extends State<GovernancePage> {
         label: 'Synthetic War-Room',
         value: '${warRoomPlans.length} plans',
         detail: _syntheticWarRoomMetricDetail(warRoomPlans),
-        color: warRoomPlans.any(
+        color:
+            warRoomPlans.any(
               (plan) => plan.actionType == 'POLICY RECOMMENDATION',
             )
             ? const Color(0xFF8B5CF6)
@@ -3026,6 +3029,7 @@ class _GovernancePageState extends State<GovernancePage> {
       historicalLearningLabels: _syntheticHistoricalLearningLabelsForView(
         report,
       ),
+      historicalShadowMoLabels: _shadowHistoricalLabelsForView(report),
     );
   }
 
@@ -3054,15 +3058,20 @@ class _GovernancePageState extends State<GovernancePage> {
   }
 
   List<String> _shadowHistoricalLabelsForView(_GovernanceReportView report) {
-    final reportGeneratedAtUtc = report.generatedAtUtc ?? DateTime.now().toUtc();
-    final baseline = widget.morningSovereignReportHistory
-        .where(
-          (item) =>
-              item.date.trim() != report.reportDate.trim() &&
-              item.generatedAtUtc.isBefore(reportGeneratedAtUtc),
-        )
-        .toList(growable: false)
-      ..sort((left, right) => right.generatedAtUtc.compareTo(left.generatedAtUtc));
+    final reportGeneratedAtUtc =
+        report.generatedAtUtc ?? DateTime.now().toUtc();
+    final baseline =
+        widget.morningSovereignReportHistory
+            .where(
+              (item) =>
+                  item.date.trim() != report.reportDate.trim() &&
+                  item.generatedAtUtc.isBefore(reportGeneratedAtUtc),
+            )
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
     return baseline
         .take(3)
         .map((item) {
@@ -3077,7 +3086,9 @@ class _GovernancePageState extends State<GovernancePage> {
           if (shadowSites.isEmpty) {
             return '';
           }
-          return _orchestratorService.shadowDraftLabelForSite(shadowSites.first);
+          return _orchestratorService.shadowDraftLabelForSite(
+            shadowSites.first,
+          );
         })
         .where((label) => label.trim().isNotEmpty)
         .toList(growable: false);
@@ -3094,15 +3105,20 @@ class _GovernancePageState extends State<GovernancePage> {
       0,
       (current, site) => current + site.moShadowMatchCount,
     );
-    final reportGeneratedAtUtc = report.generatedAtUtc ?? DateTime.now().toUtc();
-    final baselineReports = widget.morningSovereignReportHistory
-        .where(
-          (item) =>
-              item.date.trim() != report.reportDate.trim() &&
-              item.generatedAtUtc.isBefore(reportGeneratedAtUtc),
-        )
-        .toList(growable: false)
-      ..sort((left, right) => right.generatedAtUtc.compareTo(left.generatedAtUtc));
+    final reportGeneratedAtUtc =
+        report.generatedAtUtc ?? DateTime.now().toUtc();
+    final baselineReports =
+        widget.morningSovereignReportHistory
+            .where(
+              (item) =>
+                  item.date.trim() != report.reportDate.trim() &&
+                  item.generatedAtUtc.isBefore(reportGeneratedAtUtc),
+            )
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
     final baseline = baselineReports
         .take(3)
         .map((item) {
@@ -3129,7 +3145,11 @@ class _GovernancePageState extends State<GovernancePage> {
         : 'STABLE • ${baseline.length + 1}d';
     final summary = baselineAverage == null
         ? 'Current matches $currentMatchCount • Baseline n/a • No prior shadow-MO history is available yet.'
-        : 'Current matches $currentMatchCount • Baseline ${baselineAverage.toStringAsFixed(1)} • ${currentMatchCount > baselineAverage ? 'Shadow-MO match pressure is increasing against recent shifts.' : currentMatchCount < baselineAverage ? 'Shadow-MO match pressure eased against recent shifts.' : 'Shadow-MO match pressure is holding close to the recent baseline.'}';
+        : 'Current matches $currentMatchCount • Baseline ${baselineAverage.toStringAsFixed(1)} • ${currentMatchCount > baselineAverage
+              ? 'Shadow-MO match pressure is increasing against recent shifts.'
+              : currentMatchCount < baselineAverage
+              ? 'Shadow-MO match pressure eased against recent shifts.'
+              : 'Shadow-MO match pressure is holding close to the recent baseline.'}';
     return (headline: headline, summary: summary);
   }
 
@@ -3201,11 +3221,14 @@ class _GovernancePageState extends State<GovernancePage> {
     final leadSite = snapshot.sites.isEmpty ? null : snapshot.sites.first;
     final hazardSegment = _hazardIntentSummary(intents);
     final shadowBiasSegment = _globalReadinessShadowBiasSummary(intents);
-    final moShadowSegment = leadSite == null || leadSite.moShadowSummary.trim().isEmpty
+    final moShadowSegment =
+        leadSite == null || leadSite.moShadowSummary.trim().isEmpty
         ? ''
         : ' • shadow ${leadSite.moShadowSummary.trim()}';
     final tomorrowSegment = _globalReadinessTomorrowPostureSummary(intents);
-    final tomorrowShadowSegment = _globalReadinessTomorrowShadowSummary(intents);
+    final tomorrowShadowSegment = _globalReadinessTomorrowShadowSummary(
+      intents,
+    );
     final regionSegment = leadRegion == null
         ? ''
         : ' • region ${leadRegion.regionId} ${leadRegion.heatLevel.name}';
@@ -3227,7 +3250,9 @@ class _GovernancePageState extends State<GovernancePage> {
   int _globalReadinessNextShiftDraftCount(
     List<MonitoringWatchAutonomyActionPlan> intents,
   ) {
-    return intents.where((plan) => plan.metadata['scope'] == 'NEXT_SHIFT').length;
+    return intents
+        .where((plan) => plan.metadata['scope'] == 'NEXT_SHIFT')
+        .length;
   }
 
   String _globalReadinessTomorrowPostureSummary(
@@ -3525,12 +3550,14 @@ class _GovernancePageState extends State<GovernancePage> {
         ? 'EASING'
         : 'STABLE';
     final trendReason = switch (trendLabel) {
-      'RISING' => currentPolicyCount > 0
-          ? 'Synthetic rehearsal is recommending more policy change than recent shifts.'
-          : 'Simulation pressure increased against recent shifts.',
-      'EASING' => currentPlans.isEmpty && baselinePressure > 0
-          ? 'Current shift no longer needs synthetic rehearsal against the recent baseline.'
-          : 'Synthetic rehearsal pressure eased against recent shifts.',
+      'RISING' =>
+        currentPolicyCount > 0
+            ? 'Synthetic rehearsal is recommending more policy change than recent shifts.'
+            : 'Simulation pressure increased against recent shifts.',
+      'EASING' =>
+        currentPlans.isEmpty && baselinePressure > 0
+            ? 'Current shift no longer needs synthetic rehearsal against the recent baseline.'
+            : 'Synthetic rehearsal pressure eased against recent shifts.',
       _ => 'Synthetic war-room output is holding close to the recent baseline.',
     };
     return _SyntheticWarRoomTrend(
@@ -3707,9 +3734,7 @@ class _GovernancePageState extends State<GovernancePage> {
     }
     final planAverage =
         baseline
-            .map(
-              (item) => _syntheticWarRoomPlansForStoredReport(item).length,
-            )
+            .map((item) => _syntheticWarRoomPlansForStoredReport(item).length)
             .reduce((left, right) => left + right) /
         baseline.length;
     final policyAverage =
@@ -3887,6 +3912,7 @@ class _GovernancePageState extends State<GovernancePage> {
         learningLabel: currentPolicyPlan.metadata['learning_label'] ?? '',
         recommendationSummary: currentRecommendation,
         learningSummary: currentLearning,
+        shadowSummary: _syntheticWarRoomShadowSummary(currentPlans),
         actionBias: currentPolicyPlan.metadata['action_bias'] ?? '',
         memoryPriorityBoost:
             currentPolicyPlan.metadata['memory_priority_boost'] ?? '',
@@ -3936,6 +3962,7 @@ class _GovernancePageState extends State<GovernancePage> {
           learningLabel: policyPlan.metadata['learning_label'] ?? '',
           recommendationSummary: recommendation,
           learningSummary: learning,
+          shadowSummary: _syntheticWarRoomShadowSummary(plans),
           actionBias: policyPlan.metadata['action_bias'] ?? '',
           memoryPriorityBoost:
               policyPlan.metadata['memory_priority_boost'] ?? '',
@@ -4041,20 +4068,27 @@ class _GovernancePageState extends State<GovernancePage> {
       historicalLearningLabels: includeMemory
           ? _syntheticHistoricalLearningLabelsForStoredReport(report)
           : const <String>[],
+      historicalShadowMoLabels: includeMemory
+          ? _shadowHistoricalLabelsForStoredReport(report)
+          : const <String>[],
     );
   }
 
   List<String> _syntheticHistoricalLearningLabelsForStoredReport(
     SovereignReport report,
   ) {
-    final baseline = widget.morningSovereignReportHistory
-        .where(
-          (item) =>
-              item.date.trim() != report.date.trim() &&
-              item.generatedAtUtc.isBefore(report.generatedAtUtc),
-        )
-        .toList(growable: false)
-      ..sort((left, right) => right.generatedAtUtc.compareTo(left.generatedAtUtc));
+    final baseline =
+        widget.morningSovereignReportHistory
+            .where(
+              (item) =>
+                  item.date.trim() != report.date.trim() &&
+                  item.generatedAtUtc.isBefore(report.generatedAtUtc),
+            )
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
     return baseline
         .take(3)
         .map(
@@ -4066,22 +4100,61 @@ class _GovernancePageState extends State<GovernancePage> {
         .toList(growable: false);
   }
 
+  List<String> _shadowHistoricalLabelsForStoredReport(SovereignReport report) {
+    final baseline =
+        widget.morningSovereignReportHistory
+            .where(
+              (item) =>
+                  item.date.trim() != report.date.trim() &&
+                  item.generatedAtUtc.isBefore(report.generatedAtUtc),
+            )
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
+    return baseline
+        .take(3)
+        .map((item) {
+          final shadowSites =
+              _globalReadinessSnapshotForWindow(
+                    item.shiftWindowStartUtc,
+                    item.shiftWindowEndUtc,
+                    generatedAtUtc: item.generatedAtUtc,
+                  ).sites
+                  .where((site) => site.moShadowMatchCount > 0)
+                  .toList(growable: false);
+          if (shadowSites.isEmpty) {
+            return '';
+          }
+          return _orchestratorService.shadowDraftLabelForSite(
+            shadowSites.first,
+          );
+        })
+        .where((label) => label.trim().isNotEmpty)
+        .toList(growable: false);
+  }
+
   List<String> _syntheticHistoricalLearningLabelsForView(
     _GovernanceReportView report,
   ) {
     final generatedAtUtc = report.generatedAtUtc;
-    final baseline = widget.morningSovereignReportHistory
-        .where((item) {
-          if (item.date.trim() == report.reportDate.trim()) {
-            return false;
-          }
-          if (generatedAtUtc == null) {
-            return true;
-          }
-          return item.generatedAtUtc.isBefore(generatedAtUtc);
-        })
-        .toList(growable: false)
-      ..sort((left, right) => right.generatedAtUtc.compareTo(left.generatedAtUtc));
+    final baseline =
+        widget.morningSovereignReportHistory
+            .where((item) {
+              if (item.date.trim() == report.reportDate.trim()) {
+                return false;
+              }
+              if (generatedAtUtc == null) {
+                return true;
+              }
+              return item.generatedAtUtc.isBefore(generatedAtUtc);
+            })
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
     return baseline
         .take(3)
         .map(
@@ -4124,6 +4197,37 @@ class _GovernancePageState extends State<GovernancePage> {
     }
     return 'Memory: $label repeated in ${matching.length + 1} of the last ${baseline.length + 1} shifts'
         '${matching.first.reportDate.trim().isEmpty ? '.' : ' (latest ${matching.first.reportDate}).'}';
+  }
+
+  String _syntheticWarRoomShadowSummary(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    final plan = plans.firstWhere(
+      (entry) => (entry.metadata['shadow_mo_label'] ?? '').trim().isNotEmpty,
+      orElse: () => const MonitoringWatchAutonomyActionPlan(
+        id: '',
+        incidentId: '',
+        siteId: '',
+        priority: MonitoringWatchAutonomyPriority.medium,
+        actionType: '',
+        description: '',
+        countdownSeconds: 0,
+      ),
+    );
+    if (plan.id.isEmpty) {
+      return '';
+    }
+    final leadSite = (plan.metadata['lead_site'] ?? plan.siteId).trim();
+    final shadowLabel = (plan.metadata['shadow_mo_label'] ?? '').trim();
+    final shadowTitle = (plan.metadata['shadow_mo_title'] ?? '').trim();
+    final repeatCount = (plan.metadata['shadow_mo_repeat_count'] ?? '').trim();
+    final parts = <String>[
+      if (shadowLabel.isNotEmpty) shadowLabel,
+      if (leadSite.isNotEmpty) leadSite,
+      if (shadowTitle.isNotEmpty) shadowTitle,
+      if (repeatCount.isNotEmpty && repeatCount != '0') 'x$repeatCount',
+    ];
+    return parts.join(' • ');
   }
 
   String _syntheticWarRoomModeLabel(
@@ -6763,9 +6867,7 @@ class _GovernancePageState extends State<GovernancePage> {
                   decoration: BoxDecoration(
                     color: modeColor.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: modeColor.withValues(alpha: 0.5),
-                    ),
+                    border: Border.all(color: modeColor.withValues(alpha: 0.5)),
                   ),
                   child: Text(
                     trend.currentModeLabel,
@@ -7632,14 +7734,13 @@ class _GovernancePageState extends State<GovernancePage> {
                           onPressed: () async {
                             await Clipboard.setData(
                               ClipboardData(
-                                text: const JsonEncoder.withIndent(
-                                  '  ',
-                                ).convert(
-                                  _globalReadinessShadowDossierPayload(
-                                    report,
-                                    shadowSites,
-                                  ),
-                                ),
+                                text: const JsonEncoder.withIndent('  ')
+                                    .convert(
+                                      _globalReadinessShadowDossierPayload(
+                                        report,
+                                        shadowSites,
+                                      ),
+                                    ),
                               ),
                             );
                             if (!mounted) {
@@ -7876,7 +7977,8 @@ class _GovernancePageState extends State<GovernancePage> {
                                       ),
                                     ),
                                     const SizedBox(height: 6),
-                                    for (final match in site.moShadowMatches) ...[
+                                    for (final match
+                                        in site.moShadowMatches) ...[
                                       Text(
                                         match.title,
                                         style: GoogleFonts.inter(
@@ -7894,7 +7996,9 @@ class _GovernancePageState extends State<GovernancePage> {
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
-                                      if (match.recommendedActionPlans.isNotEmpty) ...[
+                                      if (match
+                                          .recommendedActionPlans
+                                          .isNotEmpty) ...[
                                         const SizedBox(height: 2),
                                         Text(
                                           'Actions ${match.recommendedActionPlans.join(' • ')}',
@@ -7950,9 +8054,7 @@ class _GovernancePageState extends State<GovernancePage> {
       sites: shadowSites,
       generatedAtUtc: report.generatedAtUtc,
       countKey: 'shadowSiteCount',
-      metadata: <String, Object?>{
-        'reportDate': report.reportDate,
-      },
+      metadata: <String, Object?>{'reportDate': report.reportDate},
     );
   }
 
@@ -8102,8 +8204,9 @@ class _GovernancePageState extends State<GovernancePage> {
                                             color: const Color(
                                               0xFF8FD1FF,
                                             ).withValues(alpha: 0.14),
-                                            borderRadius:
-                                                BorderRadius.circular(999),
+                                            borderRadius: BorderRadius.circular(
+                                              999,
+                                            ),
                                             border: Border.all(
                                               color: const Color(
                                                 0xFF8FD1FF,
@@ -8129,8 +8232,9 @@ class _GovernancePageState extends State<GovernancePage> {
                                           color: _syntheticWarRoomModeColor(
                                             point.modeLabel,
                                           ).withValues(alpha: 0.14),
-                                          borderRadius:
-                                              BorderRadius.circular(999),
+                                          borderRadius: BorderRadius.circular(
+                                            999,
+                                          ),
                                           border: Border.all(
                                             color: _syntheticWarRoomModeColor(
                                               point.modeLabel,
@@ -8159,7 +8263,9 @@ class _GovernancePageState extends State<GovernancePage> {
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  if (point.topIntentSummary.trim().isNotEmpty &&
+                                  if (point.topIntentSummary
+                                          .trim()
+                                          .isNotEmpty &&
                                       point.topIntentSummary.trim() !=
                                           'NONE') ...[
                                     const SizedBox(height: 4),
@@ -8185,7 +8291,9 @@ class _GovernancePageState extends State<GovernancePage> {
                                       ),
                                     ),
                                   ],
-                                  if (point.learningSummary.trim().isNotEmpty) ...[
+                                  if (point.learningSummary
+                                      .trim()
+                                      .isNotEmpty) ...[
                                     const SizedBox(height: 4),
                                     Text(
                                       point.learningSummary,
@@ -8196,18 +8304,40 @@ class _GovernancePageState extends State<GovernancePage> {
                                       ),
                                     ),
                                   ],
+                                  if (point.shadowSummary
+                                      .trim()
+                                      .isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Shadow rehearsal • ${point.shadowSummary}',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFBAE6FD),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
                                   if (point.actionBias.trim().isNotEmpty ||
-                                      point.memoryPriorityBoost.trim().isNotEmpty ||
-                                      point.memoryCountdownBias.trim().isNotEmpty) ...[
+                                      point.memoryPriorityBoost
+                                          .trim()
+                                          .isNotEmpty ||
+                                      point.memoryCountdownBias
+                                          .trim()
+                                          .isNotEmpty) ...[
                                     const SizedBox(height: 4),
                                     Text(
                                       [
                                         if (point.actionBias.trim().isNotEmpty)
                                           point.actionBias.trim(),
-                                        if (point.memoryPriorityBoost.trim().isNotEmpty &&
-                                            point.memoryPriorityBoost.trim() != 'NONE')
+                                        if (point.memoryPriorityBoost
+                                                .trim()
+                                                .isNotEmpty &&
+                                            point.memoryPriorityBoost.trim() !=
+                                                'NONE')
                                           '${point.memoryPriorityBoost.trim().toLowerCase()} priority',
-                                        if (point.memoryCountdownBias.trim().isNotEmpty)
+                                        if (point.memoryCountdownBias
+                                            .trim()
+                                            .isNotEmpty)
                                           'T-${point.memoryCountdownBias.trim()} s',
                                       ].join(' • '),
                                       style: GoogleFonts.inter(
@@ -9398,6 +9528,7 @@ class _GovernancePageState extends State<GovernancePage> {
       'learningLabel': point.learningLabel,
       'recommendationSummary': point.recommendationSummary,
       'learningSummary': point.learningSummary,
+      'shadowSummary': point.shadowSummary,
       'actionBias': point.actionBias,
       'memoryPriorityBoost': point.memoryPriorityBoost,
       'memoryCountdownBias': point.memoryCountdownBias,
@@ -10600,8 +10731,8 @@ class _GovernancePageState extends State<GovernancePage> {
                   ? null
                   : previousShadowReportDate,
               reviewCommandBuilder: (reportDate) => '/shadowreview $reportDate',
-              caseFileCommandBuilder:
-                  (reportDate) => '/shadowcase json $reportDate',
+              caseFileCommandBuilder: (reportDate) =>
+                  '/shadowcase json $reportDate',
             ),
           },
         ),
@@ -10655,14 +10786,19 @@ class _GovernancePageState extends State<GovernancePage> {
         'learningSummary': syntheticWarRoomPlans
             .map((plan) => (plan.metadata['learning_summary'] ?? '').trim())
             .firstWhere((value) => value.isNotEmpty, orElse: () => ''),
+        'shadowSummary': _syntheticWarRoomShadowSummary(syntheticWarRoomPlans),
         'actionBias': syntheticWarRoomPlans
             .map((plan) => (plan.metadata['action_bias'] ?? '').trim())
             .firstWhere((value) => value.isNotEmpty, orElse: () => ''),
         'memoryPriorityBoost': syntheticWarRoomPlans
-            .map((plan) => (plan.metadata['memory_priority_boost'] ?? '').trim())
+            .map(
+              (plan) => (plan.metadata['memory_priority_boost'] ?? '').trim(),
+            )
             .firstWhere((value) => value.isNotEmpty, orElse: () => ''),
         'memoryCountdownBias': syntheticWarRoomPlans
-            .map((plan) => (plan.metadata['memory_countdown_bias'] ?? '').trim())
+            .map(
+              (plan) => (plan.metadata['memory_countdown_bias'] ?? '').trim(),
+            )
             .firstWhere((value) => value.isNotEmpty, orElse: () => ''),
         'learningMemorySummary': _syntheticWarRoomLearningMemorySummary(
           syntheticWarRoomHistory,
@@ -10676,8 +10812,8 @@ class _GovernancePageState extends State<GovernancePage> {
           currentReportDate: currentSyntheticWarRoomPoint?.reportDate ?? '',
           previousReportDate: previousSyntheticWarRoomPoint?.reportDate,
           reviewCommandBuilder: (reportDate) => '/syntheticreview $reportDate',
-          caseFileCommandBuilder:
-              (reportDate) => '/syntheticcase json $reportDate',
+          caseFileCommandBuilder: (reportDate) =>
+              '/syntheticcase json $reportDate',
         ),
         'trend': _syntheticWarRoomTrendJson(syntheticWarRoomTrend),
         'history': syntheticWarRoomHistory
@@ -10909,16 +11045,16 @@ class _GovernancePageState extends State<GovernancePage> {
       'global_readiness_baseline_report_days,${globalReadinessBaseline.reportDays}',
       ...buildReviewShortcutCsvRows(
         currentReportDate: report.reportDate,
-        previousReportDate:
-            previousShadowReportDate.isEmpty ? null : previousShadowReportDate,
+        previousReportDate: previousShadowReportDate.isEmpty
+            ? null
+            : previousShadowReportDate,
         currentReviewMetric: 'global_readiness_shadow_review_command',
         currentCaseMetric: 'global_readiness_shadow_case_file_command',
         previousReviewMetric: 'global_readiness_previous_shadow_review_command',
         previousCaseMetric:
             'global_readiness_previous_shadow_case_file_command',
         reviewCommandBuilder: (reportDate) => '/shadowreview $reportDate',
-        caseFileCommandBuilder:
-            (reportDate) => '/shadowcase json $reportDate',
+        caseFileCommandBuilder: (reportDate) => '/shadowcase json $reportDate',
       ),
       for (var i = 0; i < globalReadinessHistory.length; i++)
         'global_readiness_history_${i + 1},"${_globalReadinessHistoryCsvSummary(globalReadinessHistory[i]).replaceAll('"', '""')}"',
@@ -10931,6 +11067,7 @@ class _GovernancePageState extends State<GovernancePage> {
       'synthetic_war_room_mode,"${_syntheticWarRoomModeLabel(syntheticWarRoomPlans).replaceAll('"', '""')}"',
       'synthetic_war_room_learning_label,${syntheticWarRoomPlans.map((plan) => (plan.metadata['learning_label'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '')}',
       'synthetic_war_room_learning_summary,"${syntheticWarRoomPlans.map((plan) => (plan.metadata['learning_summary'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '').replaceAll('"', '""')}"',
+      'synthetic_war_room_shadow_summary,"${_syntheticWarRoomShadowSummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',
       'synthetic_war_room_learning_memory_summary,"${_syntheticWarRoomLearningMemorySummary(syntheticWarRoomHistory).replaceAll('"', '""')}"',
       'synthetic_war_room_action_bias,"${syntheticWarRoomPlans.map((plan) => (plan.metadata['action_bias'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '').replaceAll('"', '""')}"',
       'synthetic_war_room_memory_priority_boost,${syntheticWarRoomPlans.map((plan) => (plan.metadata['memory_priority_boost'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '')}',
@@ -10950,8 +11087,8 @@ class _GovernancePageState extends State<GovernancePage> {
         previousReviewMetric: 'synthetic_war_room_previous_review_command',
         previousCaseMetric: 'synthetic_war_room_previous_case_file_command',
         reviewCommandBuilder: (reportDate) => '/syntheticreview $reportDate',
-        caseFileCommandBuilder:
-            (reportDate) => '/syntheticcase json $reportDate',
+        caseFileCommandBuilder: (reportDate) =>
+            '/syntheticcase json $reportDate',
       ),
       for (var i = 0; i < syntheticWarRoomHistory.length; i++)
         'synthetic_war_room_history_${i + 1},"${_syntheticWarRoomHistoryCsvSummary(syntheticWarRoomHistory[i]).replaceAll('"', '""')}"',

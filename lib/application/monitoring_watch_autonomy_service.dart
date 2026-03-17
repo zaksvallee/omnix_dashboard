@@ -17,7 +17,8 @@ class MonitoringWatchAutonomyService {
 
   List<MonitoringWatchAutonomyActionPlan> buildPlans({
     required List<DispatchEvent> events,
-    required Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId,
+    required Map<String, MonitoringSceneReviewRecord>
+    sceneReviewByIntelligenceId,
     String videoOpsLabel = 'CCTV',
     List<String> historicalSyntheticLearningLabels = const <String>[],
     List<String> historicalShadowMoLabels = const <String>[],
@@ -34,36 +35,39 @@ class MonitoringWatchAutonomyService {
     final intelligenceEvents = events.whereType<IntelligenceReceived>().toList(
       growable: false,
     );
-    final ranked = intelligenceEvents
-        .where(
-          (event) => sceneReviewByIntelligenceId.containsKey(
-            event.intelligenceId,
-          ),
-        )
-        .map(
-          (event) => _RankedAutonomyEvent(
-            event: event,
-            review: sceneReviewByIntelligenceId[event.intelligenceId]!,
-            score: _rankScore(
-              event: event,
-              review: sceneReviewByIntelligenceId[event.intelligenceId]!,
-            ),
-          ),
-        )
-        .toList(growable: false)
-      ..sort((a, b) {
-        final scoreCompare = b.score.compareTo(a.score);
-        if (scoreCompare != 0) {
-          return scoreCompare;
-        }
-        return b.event.occurredAt.compareTo(a.event.occurredAt);
-      });
+    final ranked =
+        intelligenceEvents
+            .where(
+              (event) =>
+                  sceneReviewByIntelligenceId.containsKey(event.intelligenceId),
+            )
+            .map(
+              (event) => _RankedAutonomyEvent(
+                event: event,
+                review: sceneReviewByIntelligenceId[event.intelligenceId]!,
+                score: _rankScore(
+                  event: event,
+                  review: sceneReviewByIntelligenceId[event.intelligenceId]!,
+                ),
+              ),
+            )
+            .toList(growable: false)
+          ..sort((a, b) {
+            final scoreCompare = b.score.compareTo(a.score);
+            if (scoreCompare != 0) {
+              return scoreCompare;
+            }
+            return b.event.occurredAt.compareTo(a.event.occurredAt);
+          });
 
     final plans = ranked
         .take(4)
         .map((entry) => _buildPlan(entry, videoOpsLabel: videoOpsLabel))
         .toList(growable: false);
-    final globalPlans = _buildGlobalPlans(snapshot, videoOpsLabel: videoOpsLabel);
+    final globalPlans = _buildGlobalPlans(
+      snapshot,
+      videoOpsLabel: videoOpsLabel,
+    );
     final orchestratedPlans = _orchestratorService.buildActionIntents(
       events: events,
       sceneReviewByIntelligenceId: sceneReviewByIntelligenceId,
@@ -76,12 +80,13 @@ class MonitoringWatchAutonomyService {
       sceneReviewByIntelligenceId: sceneReviewByIntelligenceId,
       videoOpsLabel: videoOpsLabel,
       historicalLearningLabels: historicalSyntheticLearningLabels,
+      historicalShadowMoLabels: historicalShadowMoLabels,
     );
     return [...orchestratedPlans, ...syntheticPlans, ...globalPlans, ...plans]
       ..sort((a, b) {
-        final priorityCompare = _priorityWeight(b.priority).compareTo(
-          _priorityWeight(a.priority),
-        );
+        final priorityCompare = _priorityWeight(
+          b.priority,
+        ).compareTo(_priorityWeight(a.priority));
         if (priorityCompare != 0) {
           return priorityCompare;
         }

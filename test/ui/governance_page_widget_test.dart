@@ -273,7 +273,8 @@ void main() {
               decisionLabel: 'Escalation Candidate',
               decisionSummary:
                   'Likely spoofed service access with abnormal roaming.',
-              summary: 'Likely maintenance impersonation moving across office zones.',
+              summary:
+                  'Likely maintenance impersonation moving across office zones.',
               reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 1),
             ),
           },
@@ -987,7 +988,9 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.textContaining('Plans 2 • Policy 1 • Region REGION-GAUTENG • Lead SITE-VALLEE'),
+      find.textContaining(
+        'Plans 2 • Policy 1 • Region REGION-GAUTENG • Lead SITE-VALLEE',
+      ),
       findsOneWidget,
     );
   });
@@ -4498,6 +4501,7 @@ void main() {
     expect(copiedPayload, contains('"modeLabel": "QUIET REHEARSAL"'));
     expect(copiedPayload, contains('"learningLabel": ""'));
     expect(copiedPayload, contains('"learningSummary": ""'));
+    expect(copiedPayload, contains('"shadowSummary": ""'));
     expect(copiedPayload, contains('"learningMemorySummary": ""'));
     expect(copiedPayload, contains('"actionBias": ""'));
     expect(copiedPayload, contains('"memoryPriorityBoost": ""'));
@@ -4605,10 +4609,7 @@ void main() {
       copiedPayload,
       contains('global_readiness_next_shift_draft_count,0'),
     );
-    expect(
-      copiedPayload,
-      contains('global_readiness_shadow_bias_summary,""'),
-    );
+    expect(copiedPayload, contains('global_readiness_shadow_bias_summary,""'));
     expect(
       copiedPayload,
       contains('global_readiness_tomorrow_posture_summary,""'),
@@ -4619,15 +4620,21 @@ void main() {
     );
     expect(
       copiedPayload,
-      contains('global_readiness_tomorrow_review_command,/tomorrowreview 2026-03-10'),
+      contains(
+        'global_readiness_tomorrow_review_command,/tomorrowreview 2026-03-10',
+      ),
     );
     expect(
       copiedPayload,
-      contains('global_readiness_tomorrow_case_file_command,/tomorrowcase json 2026-03-10'),
+      contains(
+        'global_readiness_tomorrow_case_file_command,/tomorrowcase json 2026-03-10',
+      ),
     );
     expect(
       copiedPayload,
-      contains('global_readiness_shadow_review_command,/shadowreview 2026-03-10'),
+      contains(
+        'global_readiness_shadow_review_command,/shadowreview 2026-03-10',
+      ),
     );
     expect(
       copiedPayload,
@@ -4676,14 +4683,18 @@ void main() {
       contains('synthetic_war_room_learning_memory_summary,""'),
     );
     expect(copiedPayload, contains('synthetic_war_room_action_bias,""'));
-    expect(copiedPayload, contains('synthetic_war_room_memory_priority_boost,'));
-    expect(copiedPayload, contains('synthetic_war_room_memory_countdown_bias,'));
+    expect(
+      copiedPayload,
+      contains('synthetic_war_room_memory_priority_boost,'),
+    );
+    expect(
+      copiedPayload,
+      contains('synthetic_war_room_memory_countdown_bias,'),
+    );
     expect(copiedPayload, contains('synthetic_war_room_trend_label,STABLE'));
     expect(
       copiedPayload,
-      contains(
-        'synthetic_war_room_baseline_plan_average,0.0',
-      ),
+      contains('synthetic_war_room_baseline_plan_average,0.0'),
     );
     expect(
       copiedPayload,

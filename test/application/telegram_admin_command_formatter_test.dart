@@ -165,6 +165,8 @@ void main() {
       syntheticWarRoomPolicySummary:
           'Raise perimeter review priority for north-cluster during the next shift.',
       syntheticWarRoomHazardSummary: 'fire rehearsal recommended',
+      syntheticWarRoomShadowSummary:
+          'HARDEN ACCESS • site-alpha • Contractors moved floor to floor in office park • x1',
       syntheticWarRoomLearningSummary:
           'Learned bias: stage fire response one step earlier next shift.',
       syntheticWarRoomMemorySummary:
@@ -248,14 +250,8 @@ void main() {
         '<b>Tomorrow shadow:</b> HARDEN ACCESS • site-alpha • Contractors moved floor to floor in office park • x1',
       ),
     );
-    expect(
-      response,
-      contains('<code>/tomorrowreview 2026-03-17</code>'),
-    );
-    expect(
-      response,
-      contains('<code>/tomorrowcase json 2026-03-17</code>'),
-    );
+    expect(response, contains('<code>/tomorrowreview 2026-03-17</code>'));
+    expect(response, contains('<code>/tomorrowcase json 2026-03-17</code>'));
     expect(response, contains('<code>/readinessreview 2026-03-17</code>'));
     expect(response, contains('<code>/readinesscase json 2026-03-16</code>'));
     expect(response, contains('<code>/readinessgovernance 2026-03-17</code>'));
@@ -268,6 +264,12 @@ void main() {
     expect(response, contains('<b>Synthetic War-Room</b>'));
     expect(response, contains('<b>Mode:</b> POLICY SHIFT'));
     expect(response, contains('<b>Summary:</b> Plans 2'));
+    expect(
+      response,
+      contains(
+        '<b>Shadow rehearsal:</b> HARDEN ACCESS • site-alpha • Contractors moved floor to floor in office park • x1',
+      ),
+    );
     expect(
       response,
       contains(

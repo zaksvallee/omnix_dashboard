@@ -105,6 +105,7 @@ class TelegramAdminCommandFormatter {
     String? syntheticWarRoomSummary,
     String? syntheticWarRoomPolicySummary,
     String? syntheticWarRoomHazardSummary,
+    String? syntheticWarRoomShadowSummary,
     String? syntheticWarRoomLearningSummary,
     String? syntheticWarRoomMemorySummary,
     String? syntheticWarRoomBiasSummary,
@@ -136,26 +137,22 @@ class TelegramAdminCommandFormatter {
     final readinessEchoSummary = globalReadinessEchoSummary?.trim() ?? '';
     final readinessTopIntentSummary =
         globalReadinessTopIntentSummary?.trim() ?? '';
-    final readinessHazardSummary =
-        globalReadinessHazardSummary?.trim() ?? '';
+    final readinessHazardSummary = globalReadinessHazardSummary?.trim() ?? '';
     final readinessShadowBiasSummary =
         globalReadinessShadowBiasSummary?.trim() ?? '';
     final readinessTomorrowPostureSummary =
         globalReadinessTomorrowPostureSummary?.trim() ?? '';
     final readinessTomorrowShadowSummary =
         globalReadinessTomorrowShadowSummary?.trim() ?? '';
-    final readinessShadowSummary =
-        globalReadinessShadowSummary?.trim() ?? '';
+    final readinessShadowSummary = globalReadinessShadowSummary?.trim() ?? '';
     final readinessShadowHistoryHeadline =
         globalReadinessShadowHistoryHeadline?.trim() ?? '';
     final readinessShadowHistorySummary =
         globalReadinessShadowHistorySummary?.trim() ?? '';
     final shadowReview = currentShiftShadowReviewCommand?.trim() ?? '';
     final shadowCase = currentShiftShadowCaseFileCommand?.trim() ?? '';
-    final previousShadowReview =
-        previousShiftShadowReviewCommand?.trim() ?? '';
-    final previousShadowCase =
-        previousShiftShadowCaseFileCommand?.trim() ?? '';
+    final previousShadowReview = previousShiftShadowReviewCommand?.trim() ?? '';
+    final previousShadowCase = previousShiftShadowCaseFileCommand?.trim() ?? '';
     final tomorrowPostureReview =
         currentShiftTomorrowPostureReviewCommand?.trim() ?? '';
     final tomorrowPostureCase =
@@ -177,17 +174,15 @@ class TelegramAdminCommandFormatter {
     final warRoomHeadline = syntheticWarRoomHeadline?.trim() ?? '';
     final warRoomSummary = syntheticWarRoomSummary?.trim() ?? '';
     final warRoomPolicySummary = syntheticWarRoomPolicySummary?.trim() ?? '';
-    final warRoomHazardSummary =
-        syntheticWarRoomHazardSummary?.trim() ?? '';
+    final warRoomHazardSummary = syntheticWarRoomHazardSummary?.trim() ?? '';
+    final warRoomShadowSummary = syntheticWarRoomShadowSummary?.trim() ?? '';
     final warRoomLearningSummary =
         syntheticWarRoomLearningSummary?.trim() ?? '';
-    final warRoomMemorySummary =
-        syntheticWarRoomMemorySummary?.trim() ?? '';
+    final warRoomMemorySummary = syntheticWarRoomMemorySummary?.trim() ?? '';
     final warRoomBiasSummary = syntheticWarRoomBiasSummary?.trim() ?? '';
     final warRoomHistoryHeadline =
         syntheticWarRoomHistoryHeadline?.trim() ?? '';
-    final warRoomHistorySummary =
-        syntheticWarRoomHistorySummary?.trim() ?? '';
+    final warRoomHistorySummary = syntheticWarRoomHistorySummary?.trim() ?? '';
     final syntheticFocusSummary =
         currentShiftSyntheticFocusSummary?.trim() ?? '';
     final syntheticReview = currentShiftSyntheticReviewCommand?.trim() ?? '';
@@ -248,6 +243,7 @@ class TelegramAdminCommandFormatter {
               '${warRoomSummary.isEmpty ? '' : '• <b>Summary:</b> ${_escapeHtml(warRoomSummary)}\n'}'
               '${warRoomPolicySummary.isEmpty ? '' : '• <b>Policy:</b> ${_escapeHtml(warRoomPolicySummary)}\n'}'
               '${warRoomHazardSummary.isEmpty ? '' : '• <b>Hazard rehearsal:</b> ${_escapeHtml(warRoomHazardSummary)}\n'}'
+              '${warRoomShadowSummary.isEmpty ? '' : '• <b>Shadow rehearsal:</b> ${_escapeHtml(warRoomShadowSummary)}\n'}'
               '${warRoomLearningSummary.isEmpty ? '' : '• <b>Learning:</b> ${_escapeHtml(warRoomLearningSummary)}\n'}'
               '${warRoomMemorySummary.isEmpty ? '' : '• <b>Memory:</b> ${_escapeHtml(warRoomMemorySummary)}\n'}'
               '${warRoomBiasSummary.isEmpty ? '' : '• <b>Bias:</b> ${_escapeHtml(warRoomBiasSummary)}\n'}'

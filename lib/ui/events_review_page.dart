@@ -699,7 +699,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                                   ),
                                 ),
                                 for (final point
-                                    in tomorrowScopeSummary.history!.points) ...[
+                                    in tomorrowScopeSummary
+                                        .history!
+                                        .points) ...[
                                   const SizedBox(height: 4),
                                   Text(
                                     '${point.date} • ${point.summaryLine}${point.shadowSummary.isEmpty ? '' : ' • shadow ${point.shadowSummary}'}',
@@ -847,7 +849,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             ),
                           ),
                         ],
-                        if (syntheticScopeSummary.learningSummary.isNotEmpty) ...[
+                        if (syntheticScopeSummary
+                            .learningSummary
+                            .isNotEmpty) ...[
                           const SizedBox(height: 4),
                           Text(
                             'Learning: ${syntheticScopeSummary.learningSummary}',
@@ -858,7 +862,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             ),
                           ),
                         ],
-                        if (syntheticScopeSummary.learningMemorySummary.isNotEmpty) ...[
+                        if (syntheticScopeSummary
+                            .learningMemorySummary
+                            .isNotEmpty) ...[
                           const SizedBox(height: 4),
                           Text(
                             syntheticScopeSummary.learningMemorySummary,
@@ -1011,7 +1017,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                        if (shadowScopeSummary.focusSummary.trim().isNotEmpty) ...[
+                        if (shadowScopeSummary.focusSummary
+                            .trim()
+                            .isNotEmpty) ...[
                           const SizedBox(height: 4),
                           Text(
                             shadowScopeSummary.focusSummary,
@@ -1041,7 +1049,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          for (final point in shadowScopeSummary.history!.points) ...[
+                          for (final point
+                              in shadowScopeSummary.history!.points) ...[
                             const SizedBox(height: 3),
                             Text(
                               '${point.date} • ${point.summaryLine}',
@@ -1096,18 +1105,16 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                               actionKey: const ValueKey(
                                 'events-shadow-casefile-json-action',
                               ),
-                              onTap: () => _copyShadowCaseFileJson(
-                                shadowScopeSummary,
-                              ),
+                              onTap: () =>
+                                  _copyShadowCaseFileJson(shadowScopeSummary),
                             ),
                             _outlineAction(
                               'COPY SHADOW CSV',
                               actionKey: const ValueKey(
                                 'events-shadow-casefile-csv-action',
                               ),
-                              onTap: () => _copyShadowCaseFileCsv(
-                                shadowScopeSummary,
-                              ),
+                              onTap: () =>
+                                  _copyShadowCaseFileCsv(shadowScopeSummary),
                             ),
                             if (widget.onOpenGovernance != null)
                               _outlineAction(
@@ -1677,7 +1684,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       orElse: () => SovereignReport(
         date: normalizedReportDate,
         generatedAtUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
-        shiftWindowStartUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        shiftWindowStartUtc: DateTime.fromMillisecondsSinceEpoch(
+          0,
+          isUtc: true,
+        ),
         shiftWindowEndUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
         ledgerIntegrity: const SovereignReportLedgerIntegrity(
           totalEvents: 0,
@@ -1750,6 +1760,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       historicalLearningLabels: _syntheticHistoricalLearningLabels(
         scopedReportDate,
       ),
+      historicalShadowMoLabels: _shadowHistoricalLabels(scopedReportDate),
     );
     if (plans.isEmpty) {
       return null;
@@ -1758,7 +1769,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     final modeLabel = _syntheticWarRoomModeLabel(plans);
     final policySummary = plans
         .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
-        .map((plan) => (plan.metadata['recommendation'] ?? '').toString().trim())
+        .map(
+          (plan) => (plan.metadata['recommendation'] ?? '').toString().trim(),
+        )
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
     final leadPlan = plans.first;
     final leadPolicyPlan = plans.firstWhere(
@@ -1877,13 +1890,15 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         widget.morningSovereignReportHistory.isEmpty) {
       return null;
     }
-    final historyReports = widget.morningSovereignReportHistory
-        .where((item) => item.date.trim() != normalizedReportDate)
-        .toList(growable: false)
-      ..sort(
-        (left, right) =>
-            right.generatedAtUtc.toUtc().compareTo(left.generatedAtUtc.toUtc()),
-      );
+    final historyReports =
+        widget.morningSovereignReportHistory
+            .where((item) => item.date.trim() != normalizedReportDate)
+            .toList(growable: false)
+          ..sort(
+            (left, right) => right.generatedAtUtc.toUtc().compareTo(
+              left.generatedAtUtc.toUtc(),
+            ),
+          );
     final currentMatchCount = _shadowMatchCountForSites(currentSites);
     final baseline = historyReports
         .take(3)
@@ -1906,7 +1921,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       reason = 'Shadow-MO match pressure eased against recent shifts.';
     } else {
       label = 'STABLE';
-      reason = 'Shadow-MO match pressure is holding close to the recent baseline.';
+      reason =
+          'Shadow-MO match pressure is holding close to the recent baseline.';
     }
     final points = <_ShadowHistoryPoint>[
       _ShadowHistoryPoint(
@@ -1952,7 +1968,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         .toList(growable: false);
   }
 
-  String _shadowScopeSummaryLineForSites(List<MonitoringGlobalSitePosture> sites) {
+  String _shadowScopeSummaryLineForSites(
+    List<MonitoringGlobalSitePosture> sites,
+  ) {
     if (sites.isEmpty) {
       return 'No shadow-MO evidence matched this shift.';
     }
@@ -1976,7 +1994,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return dates.length == 1 ? dates.first : dates.last;
   }
 
-  String _activityReviewCommand(String reportDate) => '/activityreview $reportDate';
+  String _activityReviewCommand(String reportDate) =>
+      '/activityreview $reportDate';
 
   String _liveMorningReportDate(String? fallbackReportDate) {
     final current = (widget.currentMorningSovereignReportDate ?? '').trim();
@@ -2000,7 +2019,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   String _shadowCaseFileCommand(String reportDate) =>
       '/shadowcase json $reportDate';
 
-  String _tomorrowReviewCommand(String reportDate) => '/tomorrowreview $reportDate';
+  String _tomorrowReviewCommand(String reportDate) =>
+      '/tomorrowreview $reportDate';
 
   String _tomorrowCaseFileCommand(String reportDate) =>
       '/tomorrowcase json $reportDate';
@@ -2022,7 +2042,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       orElse: () => SovereignReport(
         date: normalizedReportDate,
         generatedAtUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
-        shiftWindowStartUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        shiftWindowStartUtc: DateTime.fromMillisecondsSinceEpoch(
+          0,
+          isUtc: true,
+        ),
         shiftWindowEndUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
         ledgerIntegrity: const SovereignReportLedgerIntegrity(
           totalEvents: 0,
@@ -2077,7 +2100,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       orElse: () => SovereignReport(
         date: normalizedReportDate,
         generatedAtUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
-        shiftWindowStartUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        shiftWindowStartUtc: DateTime.fromMillisecondsSinceEpoch(
+          0,
+          isUtc: true,
+        ),
         shiftWindowEndUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
         ledgerIntegrity: const SovereignReportLedgerIntegrity(
           totalEvents: 0,
@@ -2120,7 +2146,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           if (shadowSites.isEmpty) {
             return '';
           }
-          return _orchestratorService.shadowDraftLabelForSite(shadowSites.first);
+          return _orchestratorService.shadowDraftLabelForSite(
+            shadowSites.first,
+          );
         })
         .where((value) => value.isNotEmpty)
         .toList(growable: false);
@@ -2215,7 +2243,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     List<MonitoringWatchAutonomyActionPlan> plans,
   ) {
     return plans
-        .map((plan) => (plan.metadata['learning_summary'] ?? '').toString().trim())
+        .map(
+          (plan) => (plan.metadata['learning_summary'] ?? '').toString().trim(),
+        )
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
   }
 
@@ -2223,7 +2253,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     List<MonitoringWatchAutonomyActionPlan> plans,
   ) {
     return plans
-        .map((plan) => (plan.metadata['learning_label'] ?? '').toString().trim())
+        .map(
+          (plan) => (plan.metadata['learning_label'] ?? '').toString().trim(),
+        )
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
   }
 
@@ -2283,7 +2315,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return 'Memory: $learningLabel repeated across ${repeatCount + 1} linked shifts.';
   }
 
-  String _tomorrowPostureShadowSummary(MonitoringWatchAutonomyActionPlan draft) {
+  String _tomorrowPostureShadowSummary(
+    MonitoringWatchAutonomyActionPlan draft,
+  ) {
     final shadowLabel = (draft.metadata['shadow_mo_label'] ?? '')
         .toString()
         .trim();
@@ -2308,7 +2342,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return parts.join(' • ');
   }
 
-  String _tomorrowPostureHazardSummary(MonitoringWatchAutonomyActionPlan draft) {
+  String _tomorrowPostureHazardSummary(
+    MonitoringWatchAutonomyActionPlan draft,
+  ) {
     final signal = (draft.metadata['hazard_signal'] ?? '').toString().trim();
     if (signal.isEmpty) {
       return '';
@@ -2320,10 +2356,12 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     MonitoringWatchAutonomyActionPlan? plan,
   ) {
     final actionBias = (plan?.metadata['action_bias'] ?? '').toString().trim();
-    final priorityBoost =
-        (plan?.metadata['memory_priority_boost'] ?? '').toString().trim();
-    final countdownBias =
-        (plan?.metadata['memory_countdown_bias'] ?? '').toString().trim();
+    final priorityBoost = (plan?.metadata['memory_priority_boost'] ?? '')
+        .toString()
+        .trim();
+    final countdownBias = (plan?.metadata['memory_countdown_bias'] ?? '')
+        .toString()
+        .trim();
     if (actionBias.isEmpty && priorityBoost.isEmpty && countdownBias.isEmpty) {
       return '';
     }
@@ -2464,6 +2502,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         historicalLearningLabels: _syntheticHistoricalLearningLabels(
           normalizedReportDate,
         ),
+        historicalShadowMoLabels: _shadowHistoricalLabels(normalizedReportDate),
       );
       final currentPolicyPlan = currentPlans.firstWhere(
         (plan) => plan.actionType == 'POLICY RECOMMENDATION',
@@ -2506,6 +2545,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         historicalLearningLabels: _syntheticHistoricalLearningLabels(
           report.date,
         ),
+        historicalShadowMoLabels: _shadowHistoricalLabels(report.date),
       );
       final policyPlan = plans.firstWhere(
         (plan) => plan.actionType == 'POLICY RECOMMENDATION',
@@ -2555,13 +2595,15 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       reason = 'No prior synthetic rehearsal history is available yet.';
     } else if (currentPressure >= baselinePressure + 1) {
       label = 'RISING';
-      reason = 'Synthetic rehearsal is recommending stronger action than recent shifts.';
+      reason =
+          'Synthetic rehearsal is recommending stronger action than recent shifts.';
     } else if (currentPressure <= baselinePressure - 1) {
       label = 'EASING';
       reason = 'Synthetic rehearsal pressure eased against recent shifts.';
     } else {
       label = 'STABLE';
-      reason = 'Synthetic rehearsal pressure is holding close to the recent baseline.';
+      reason =
+          'Synthetic rehearsal pressure is holding close to the recent baseline.';
     }
     final baselineLabel = baselinePressure == null
         ? 'n/a'
@@ -2577,12 +2619,14 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   _TomorrowPostureHistorySummary? _tomorrowPostureHistorySummary(
     SovereignReport currentReport,
   ) {
-    final historyReports = widget.morningSovereignReportHistory
-        .where((item) => item.date.trim() != currentReport.date.trim())
-        .toList(growable: false)
-      ..sort(
-        (left, right) => right.generatedAtUtc.compareTo(left.generatedAtUtc),
-      );
+    final historyReports =
+        widget.morningSovereignReportHistory
+            .where((item) => item.date.trim() != currentReport.date.trim())
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
     if (historyReports.isEmpty) {
       return null;
     }
@@ -2637,12 +2681,14 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   List<DispatchEvent> _eventsForReportWindow(SovereignReport report) {
     final startUtc = report.shiftWindowStartUtc.toUtc();
     final endUtc = report.shiftWindowEndUtc.toUtc();
-    return widget.events.where((event) {
-      final occurredAt = event.occurredAt.toUtc();
-      final atOrAfterStart = !occurredAt.isBefore(startUtc);
-      final beforeEnd = occurredAt.isBefore(endUtc);
-      return atOrAfterStart && beforeEnd;
-    }).toList(growable: false);
+    return widget.events
+        .where((event) {
+          final occurredAt = event.occurredAt.toUtc();
+          final atOrAfterStart = !occurredAt.isBefore(startUtc);
+          final beforeEnd = occurredAt.isBefore(endUtc);
+          return atOrAfterStart && beforeEnd;
+        })
+        .toList(growable: false);
   }
 
   _PartnerScopeDetail? _partnerScopeDetail(List<DispatchEvent> scopedEvents) {
@@ -3997,14 +4043,17 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     Clipboard.setData(ClipboardData(text: payloadJson));
     logUiAction(
       'events.export_synthetic_casefile_json',
-      context: {'event_count': summary.eventCount, 'mode_label': summary.modeLabel},
+      context: {
+        'event_count': summary.eventCount,
+        'mode_label': summary.modeLabel,
+      },
     );
     _showActionMessage('Synthetic case file JSON copied.');
   }
 
   void _copyActivityCaseFileCsv(_ActivityScopeSummary summary) {
-    final previousReportDate = summary.history != null &&
-            summary.history!.points.length > 1
+    final previousReportDate =
+        summary.history != null && summary.history!.points.length > 1
         ? summary.history!.points[1].date
         : null;
     final lines = <String>[
@@ -4168,8 +4217,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   }
 
   void _copySyntheticCaseFileCsv(_SyntheticScopeSummary summary) {
-    final previousReportDate = summary.history != null &&
-            summary.history!.points.length > 1
+    final previousReportDate =
+        summary.history != null && summary.history!.points.length > 1
         ? summary.history!.points[1].date
         : null;
     final lines = <String>[
@@ -4228,14 +4277,18 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     Clipboard.setData(ClipboardData(text: lines.join('\n')));
     logUiAction(
       'events.export_synthetic_casefile_csv',
-      context: {'event_count': summary.eventCount, 'mode_label': summary.modeLabel},
+      context: {
+        'event_count': summary.eventCount,
+        'mode_label': summary.modeLabel,
+      },
     );
     _showActionMessage('Synthetic case file CSV copied.');
   }
 
   void _copyTomorrowCaseFileJson(_TomorrowPostureScopeSummary summary) {
-    final pretty = const JsonEncoder.withIndent('  ')
-        .convert(_tomorrowCaseFilePayload(summary));
+    final pretty = const JsonEncoder.withIndent(
+      '  ',
+    ).convert(_tomorrowCaseFilePayload(summary));
     Clipboard.setData(ClipboardData(text: pretty));
     logUiAction(
       'events.export_tomorrow_casefile_json',
@@ -4248,8 +4301,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   }
 
   void _copyTomorrowCaseFileCsv(_TomorrowPostureScopeSummary summary) {
-    final previousReportDate = summary.history != null &&
-            summary.history!.points.length > 1
+    final previousReportDate =
+        summary.history != null && summary.history!.points.length > 1
         ? summary.history!.points[1].date
         : null;
     final lines = <String>[
@@ -4289,9 +4342,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         final point = summary.history!.points[index];
         final row = index + 1;
         lines.add('history_${row}_date,${point.date}');
-        lines.add(
-          'history_${row}_draft_count,${point.draftCount}',
-        );
+        lines.add('history_${row}_draft_count,${point.draftCount}');
         lines.add(
           'history_${row}_summary,"${point.summaryLine.replaceAll('"', '""')}"',
         );
@@ -4320,8 +4371,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   }
 
   Map<String, Object?> _activityCaseFilePayload(_ActivityScopeSummary summary) {
-    final previousReportDate = summary.history != null &&
-            summary.history!.points.length > 1
+    final previousReportDate =
+        summary.history != null && summary.history!.points.length > 1
         ? summary.history!.points[1].date
         : null;
     return {
@@ -4454,8 +4505,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   Map<String, Object?> _tomorrowCaseFilePayload(
     _TomorrowPostureScopeSummary summary,
   ) {
-    final previousReportDate = summary.history != null &&
-            summary.history!.points.length > 1
+    final previousReportDate =
+        summary.history != null && summary.history!.points.length > 1
         ? summary.history!.points[1].date
         : null;
     return {
@@ -4506,9 +4557,11 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     };
   }
 
-  Map<String, Object?> _syntheticCaseFilePayload(_SyntheticScopeSummary summary) {
-    final previousReportDate = summary.history != null &&
-            summary.history!.points.length > 1
+  Map<String, Object?> _syntheticCaseFilePayload(
+    _SyntheticScopeSummary summary,
+  ) {
+    final previousReportDate =
+        summary.history != null && summary.history!.points.length > 1
         ? summary.history!.points[1].date
         : null;
     return {
@@ -4519,15 +4572,15 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'focusState': summary.focusState,
         'historicalFocus': summary.historicalFocus,
         'modeLabel': summary.modeLabel,
-      'summaryLine': summary.summaryLine,
-      'focusSummary': summary.focusSummary,
-      'policySummary': summary.policySummary,
-      'topIntentSummary': summary.topIntentSummary,
-      'hazardSummary': summary.hazardSummary,
-      'learningSummary': summary.learningSummary,
-      'learningMemorySummary': summary.learningMemorySummary,
-      'biasSummary': summary.biasSummary,
-      'reviewRefs': summary.reviewRefs,
+        'summaryLine': summary.summaryLine,
+        'focusSummary': summary.focusSummary,
+        'policySummary': summary.policySummary,
+        'topIntentSummary': summary.topIntentSummary,
+        'hazardSummary': summary.hazardSummary,
+        'learningSummary': summary.learningSummary,
+        'learningMemorySummary': summary.learningMemorySummary,
+        'biasSummary': summary.biasSummary,
+        'reviewRefs': summary.reviewRefs,
         'reviewShortcuts': buildReviewShortcuts(
           currentReportDate: summary.reportDate,
           previousReportDate: previousReportDate,

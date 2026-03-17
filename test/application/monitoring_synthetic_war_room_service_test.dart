@@ -93,7 +93,8 @@ void main() {
           cameraId: 'news-feed',
           sourceType: 'news',
           headline: 'Armed robbery cluster moving east',
-          summary: 'Regional robbery pressure is moving toward guarded estates.',
+          summary:
+              'Regional robbery pressure is moving toward guarded estates.',
         ),
         _intel(
           id: 'community-1',
@@ -109,7 +110,8 @@ void main() {
 
       final plans = service.buildSimulationPlans(
         events: events,
-        sceneReviewByIntelligenceId: const <String, MonitoringSceneReviewRecord>{},
+        sceneReviewByIntelligenceId:
+            const <String, MonitoringSceneReviewRecord>{},
         videoOpsLabel: 'Hikvision',
       );
 
@@ -257,6 +259,74 @@ void main() {
         policy.description,
         'Escalate rehearsal immediately for earlier fire brigade staging, occupant welfare checks, and fire spread rehearsal across REGION-GAUTENG after simulation so tomorrow’s shift starts ahead of the posture curve. Learned bias: stage fire response one step earlier next shift. Memory bias: ADVANCE FIRE repeated in 2 recent shifts.',
       );
+    });
+
+    test('uses repeated shadow MO pressure to harden rehearsal policy', () {
+      final events = <DispatchEvent>[
+        _intel(
+          id: 'news-office-pattern',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-SEED',
+          riskScore: 67,
+          cameraId: 'news-feed',
+          sourceType: 'news',
+          headline: 'Contractors roamed office floors before device theft',
+          summary:
+              'Suspects posed as maintenance contractors, moved floor to floor, and checked restricted office doors.',
+        ),
+        _intel(
+          id: 'intel-office',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-VALLEE',
+          riskScore: 84,
+          cameraId: 'office-cam',
+          headline: 'Maintenance contractor probing office doors',
+          summary:
+              'Contractor-like person moved floor to floor and tried several restricted office doors.',
+        ),
+      ];
+      final reviews = <String, MonitoringSceneReviewRecord>{
+        'intel-office': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-office',
+          sourceLabel: 'openai:gpt-5.4-mini',
+          postureLabel: 'service impersonation and roaming concern',
+          decisionLabel: 'Escalation Candidate',
+          decisionSummary:
+              'Likely spoofed service access with abnormal roaming.',
+          summary:
+              'Likely maintenance impersonation moving across office zones.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 0),
+        ),
+      };
+
+      final plans = service.buildSimulationPlans(
+        events: events,
+        sceneReviewByIntelligenceId: reviews,
+        videoOpsLabel: 'Hikvision',
+        historicalShadowMoLabels: const <String>['HARDEN ACCESS'],
+      );
+
+      final policy = plans.firstWhere(
+        (entry) => entry.actionType == 'POLICY RECOMMENDATION',
+      );
+      expect(policy.priority, MonitoringWatchAutonomyPriority.high);
+      expect(policy.countdownSeconds, 48);
+      expect(policy.metadata['shadow_mo_label'], 'HARDEN ACCESS');
+      expect(policy.metadata['shadow_mo_repeat_count'], '1');
+      expect(policy.metadata['memory_priority_boost'], 'HIGH');
+      expect(
+        policy.metadata['shadow_memory_summary'],
+        contains('Shadow bias: HARDEN ACCESS'),
+      );
+      expect(
+        policy.metadata['shadow_recommendation'],
+        contains('earlier access hardening rehearsal'),
+      );
+      expect(
+        policy.description,
+        contains('with earlier access hardening rehearsal'),
+      );
+      expect(policy.description, contains('Shadow bias: HARDEN ACCESS'));
     });
   });
 }
