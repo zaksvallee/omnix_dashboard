@@ -293,6 +293,58 @@ class _GlobalReadinessHistoryPoint {
   });
 }
 
+class _SyntheticWarRoomTrend {
+  final String trendLabel;
+  final String trendReason;
+  final String summaryLine;
+  final int reportDays;
+  final String currentModeLabel;
+
+  const _SyntheticWarRoomTrend({
+    required this.trendLabel,
+    required this.trendReason,
+    required this.summaryLine,
+    required this.reportDays,
+    required this.currentModeLabel,
+  });
+}
+
+class _SyntheticWarRoomBaselineStats {
+  final double planAverage;
+  final double policyAverage;
+  final int reportDays;
+
+  const _SyntheticWarRoomBaselineStats({
+    required this.planAverage,
+    required this.policyAverage,
+    required this.reportDays,
+  });
+}
+
+class _SyntheticWarRoomHistoryPoint {
+  final String reportDate;
+  final bool current;
+  final int planCount;
+  final int policyCount;
+  final String modeLabel;
+  final String leadRegionId;
+  final String leadSiteId;
+  final String topIntentSummary;
+  final String recommendationSummary;
+
+  const _SyntheticWarRoomHistoryPoint({
+    required this.reportDate,
+    required this.current,
+    required this.planCount,
+    required this.policyCount,
+    required this.modeLabel,
+    required this.leadRegionId,
+    required this.leadSiteId,
+    required this.topIntentSummary,
+    required this.recommendationSummary,
+  });
+}
+
 class _SiteActivityTrend {
   final String trendLabel;
   final String trendReason;
@@ -1545,6 +1597,17 @@ class _GovernancePageState extends State<GovernancePage> {
           ),
           const SizedBox(height: 6),
           _globalReadinessTrendCard(report),
+          const SizedBox(height: 8),
+          Text(
+            'Synthetic war-room drift (7 days)',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF4FF),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          _syntheticWarRoomTrendCard(report),
           const SizedBox(height: 8),
           Text(
             'Site activity truth (7 days)',
@@ -3149,6 +3212,79 @@ class _GovernancePageState extends State<GovernancePage> {
     );
   }
 
+  _SyntheticWarRoomTrend _syntheticWarRoomTrendForReport(
+    _GovernanceReportView report,
+  ) {
+    final currentPlans = _syntheticWarRoomPlansForReport(report);
+    final currentModeLabel = _syntheticWarRoomModeLabel(currentPlans);
+    final currentPolicyCount = currentPlans
+        .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
+        .length;
+    final summaryLine =
+        'Current simulation • Plans ${currentPlans.length} • Policy $currentPolicyCount';
+    final baselineReports =
+        widget.morningSovereignReportHistory
+            .where((item) {
+              if (item.generatedAtUtc == report.generatedAtUtc &&
+                  item.date == report.reportDate) {
+                return false;
+              }
+              return true;
+            })
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
+    final baseline = baselineReports.take(3).toList(growable: false);
+    if (baseline.isEmpty) {
+      return _SyntheticWarRoomTrend(
+        trendLabel: 'NEW',
+        trendReason:
+            'No prior synthetic war-room shifts are available for comparison.',
+        summaryLine: summaryLine,
+        reportDays: 1,
+        currentModeLabel: currentModeLabel,
+      );
+    }
+    final currentPressure = currentPlans.length + (currentPolicyCount * 1.5);
+    final baselinePressure =
+        baseline
+            .map((item) {
+              final plans = _syntheticWarRoomPlansForWindow(
+                item.shiftWindowStartUtc,
+                item.shiftWindowEndUtc,
+              );
+              final policyCount = plans
+                  .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
+                  .length;
+              return plans.length + (policyCount * 1.5);
+            })
+            .reduce((left, right) => left + right) /
+        baseline.length;
+    final trendLabel = currentPressure >= baselinePressure + 1.0
+        ? 'RISING'
+        : currentPressure <= baselinePressure - 1.0
+        ? 'EASING'
+        : 'STABLE';
+    final trendReason = switch (trendLabel) {
+      'RISING' => currentPolicyCount > 0
+          ? 'Synthetic rehearsal is recommending more policy change than recent shifts.'
+          : 'Simulation pressure increased against recent shifts.',
+      'EASING' => currentPlans.isEmpty && baselinePressure > 0
+          ? 'Current shift no longer needs synthetic rehearsal against the recent baseline.'
+          : 'Synthetic rehearsal pressure eased against recent shifts.',
+      _ => 'Synthetic war-room output is holding close to the recent baseline.',
+    };
+    return _SyntheticWarRoomTrend(
+      trendLabel: trendLabel,
+      trendReason: trendReason,
+      summaryLine: summaryLine,
+      reportDays: baseline.length,
+      currentModeLabel: currentModeLabel,
+    );
+  }
+
   _SiteActivityTrend _siteActivityTrendForReport(_GovernanceReportView report) {
     final currentModeLabel = _siteActivityModeLabel(report);
     final summaryLine =
@@ -3287,6 +3423,61 @@ class _GovernancePageState extends State<GovernancePage> {
     );
   }
 
+  _SyntheticWarRoomBaselineStats _syntheticWarRoomBaselineStats(
+    _GovernanceReportView report,
+  ) {
+    final baselineReports =
+        widget.morningSovereignReportHistory
+            .where((item) {
+              if (item.generatedAtUtc == report.generatedAtUtc &&
+                  item.date == report.reportDate) {
+                return false;
+              }
+              return true;
+            })
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
+    final baseline = baselineReports.take(3).toList(growable: false);
+    if (baseline.isEmpty) {
+      return const _SyntheticWarRoomBaselineStats(
+        planAverage: 0,
+        policyAverage: 0,
+        reportDays: 0,
+      );
+    }
+    final planAverage =
+        baseline
+            .map(
+              (item) => _syntheticWarRoomPlansForWindow(
+                item.shiftWindowStartUtc,
+                item.shiftWindowEndUtc,
+              ).length,
+            )
+            .reduce((left, right) => left + right) /
+        baseline.length;
+    final policyAverage =
+        baseline
+            .map((item) {
+              final plans = _syntheticWarRoomPlansForWindow(
+                item.shiftWindowStartUtc,
+                item.shiftWindowEndUtc,
+              );
+              return plans
+                  .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
+                  .length;
+            })
+            .reduce((left, right) => left + right) /
+        baseline.length;
+    return _SyntheticWarRoomBaselineStats(
+      planAverage: planAverage,
+      policyAverage: policyAverage,
+      reportDays: baseline.length,
+    );
+  }
+
   _SiteActivityBaselineStats _siteActivityBaselineStats(
     _GovernanceReportView report,
   ) {
@@ -3405,6 +3596,71 @@ class _GovernancePageState extends State<GovernancePage> {
     return points;
   }
 
+  List<_SyntheticWarRoomHistoryPoint> _syntheticWarRoomHistory(
+    _GovernanceReportView report,
+  ) {
+    final currentPlans = _syntheticWarRoomPlansForReport(report);
+    final currentPolicyCount = currentPlans
+        .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
+        .length;
+    final currentLeadPlan = currentPlans.isEmpty ? null : currentPlans.first;
+    final currentRecommendation = currentPlans
+        .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
+        .map((plan) => (plan.metadata['recommendation'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    final points = <_SyntheticWarRoomHistoryPoint>[
+      _SyntheticWarRoomHistoryPoint(
+        reportDate: report.reportDate,
+        current: true,
+        planCount: currentPlans.length,
+        policyCount: currentPolicyCount,
+        modeLabel: _syntheticWarRoomModeLabel(currentPlans),
+        leadRegionId: currentLeadPlan?.metadata['region'] ?? '',
+        leadSiteId: currentLeadPlan?.metadata['lead_site'] ?? '',
+        topIntentSummary: currentLeadPlan?.metadata['top_intent'] ?? '',
+        recommendationSummary: currentRecommendation,
+      ),
+    ];
+    for (final item in widget.morningSovereignReportHistory) {
+      if (item.generatedAtUtc == report.generatedAtUtc &&
+          item.date == report.reportDate) {
+        continue;
+      }
+      final plans = _syntheticWarRoomPlansForWindow(
+        item.shiftWindowStartUtc,
+        item.shiftWindowEndUtc,
+      );
+      final policyCount = plans
+          .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
+          .length;
+      final leadPlan = plans.isEmpty ? null : plans.first;
+      final recommendation = plans
+          .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
+          .map((plan) => (plan.metadata['recommendation'] ?? '').trim())
+          .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+      points.add(
+        _SyntheticWarRoomHistoryPoint(
+          reportDate: item.date,
+          current: false,
+          planCount: plans.length,
+          policyCount: policyCount,
+          modeLabel: _syntheticWarRoomModeLabel(plans),
+          leadRegionId: leadPlan?.metadata['region'] ?? '',
+          leadSiteId: leadPlan?.metadata['lead_site'] ?? '',
+          topIntentSummary: leadPlan?.metadata['top_intent'] ?? '',
+          recommendationSummary: recommendation,
+        ),
+      );
+    }
+    points.sort((left, right) {
+      if (left.current != right.current) {
+        return left.current ? -1 : 1;
+      }
+      return right.reportDate.compareTo(left.reportDate);
+    });
+    return points;
+  }
+
   List<_SiteActivityHistoryPoint> _siteActivityHistory(
     _GovernanceReportView report,
   ) {
@@ -3480,6 +3736,32 @@ class _GovernancePageState extends State<GovernancePage> {
     return 'STABLE POSTURE';
   }
 
+  List<MonitoringWatchAutonomyActionPlan> _syntheticWarRoomPlansForWindow(
+    DateTime? startUtc,
+    DateTime? endUtc,
+  ) {
+    final scopedEvents = _eventsScopedToWindow(startUtc, endUtc);
+    return _syntheticWarRoomService.buildSimulationPlans(
+      events: scopedEvents,
+      sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+    );
+  }
+
+  String _syntheticWarRoomModeLabel(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    final policyCount = plans
+        .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
+        .length;
+    if (policyCount > 0) {
+      return 'POLICY SHIFT';
+    }
+    if (plans.isNotEmpty) {
+      return 'SIMULATION ACTIVE';
+    }
+    return 'QUIET REHEARSAL';
+  }
+
   String _siteActivityModeLabel(_GovernanceReportView report) {
     return _siteActivityModeLabelFromSignals(
       flaggedIds: report.siteActivityFlaggedIds,
@@ -3523,6 +3805,15 @@ class _GovernancePageState extends State<GovernancePage> {
       'WATCHFUL FLOW' => const Color(0xFFF59E0B),
       'NORMAL FLOW' => const Color(0xFF22D3EE),
       'QUIET SITE' => const Color(0xFF10B981),
+      _ => const Color(0xFF9CB2D1),
+    };
+  }
+
+  Color _syntheticWarRoomModeColor(String modeLabel) {
+    return switch (modeLabel.trim().toUpperCase()) {
+      'POLICY SHIFT' => const Color(0xFF8B5CF6),
+      'SIMULATION ACTIVE' => const Color(0xFF22D3EE),
+      'QUIET REHEARSAL' => const Color(0xFF10B981),
       _ => const Color(0xFF9CB2D1),
     };
   }
@@ -6049,6 +6340,142 @@ class _GovernancePageState extends State<GovernancePage> {
     );
   }
 
+  Widget _syntheticWarRoomTrendCard(_GovernanceReportView report) {
+    final trend = _syntheticWarRoomTrendForReport(report);
+    final baseline = _syntheticWarRoomBaselineStats(report);
+    final trendColor = _partnerTrendColor(trend.trendLabel);
+    final modeColor = _syntheticWarRoomModeColor(trend.currentModeLabel);
+    final plans = _syntheticWarRoomPlansForReport(report);
+    final policyCount = plans
+        .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
+        .length;
+    return InkWell(
+      key: const ValueKey('governance-synthetic-war-room-trend-card'),
+      onTap: () => _showSyntheticWarRoomDrillIn(report),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: const Color(0x14000000),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0x22FFFFFF)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    trend.summaryLine,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFEAF4FF),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: modeColor.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: modeColor.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Text(
+                    trend.currentModeLabel,
+                    style: GoogleFonts.inter(
+                      color: modeColor,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: trendColor.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: trendColor.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Text(
+                    trend.trendLabel,
+                    style: GoogleFonts.inter(
+                      color: trendColor,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              trend.trendReason,
+              style: GoogleFonts.inter(
+                color: trendColor,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Compared against ${trend.reportDays} recent shift${trend.reportDays == 1 ? '' : 's'} • Tap to drill in.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _partnerTrendMetricChip(
+                  label: 'Current Plans',
+                  value: '${plans.length}',
+                  color: const Color(0xFF22D3EE),
+                ),
+                _partnerTrendMetricChip(
+                  label: 'Current Policy',
+                  value: '$policyCount',
+                  color: const Color(0xFF8B5CF6),
+                ),
+                _partnerTrendMetricChip(
+                  label: 'Baseline Plans',
+                  value: baseline.reportDays <= 0
+                      ? 'n/a'
+                      : baseline.planAverage.toStringAsFixed(1),
+                  color: const Color(0xFF22D3EE),
+                ),
+                _partnerTrendMetricChip(
+                  label: 'Baseline Policy',
+                  value: baseline.reportDays <= 0
+                      ? 'n/a'
+                      : baseline.policyAverage.toStringAsFixed(1),
+                  color: const Color(0xFF8B5CF6),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _siteActivityTrendCard(_GovernanceReportView report) {
     final trend = _siteActivityTrendForReport(report);
     final baseline = _siteActivityBaselineStats(report);
@@ -6995,6 +7422,238 @@ class _GovernancePageState extends State<GovernancePage> {
                                           : '${point.leadSiteId} • ${point.leadSiteSummary}',
                                       style: GoogleFonts.inter(
                                         color: const Color(0xFF8EA4C2),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showSyntheticWarRoomDrillIn(_GovernanceReportView report) {
+    final history = _syntheticWarRoomHistory(report);
+    final trend = _syntheticWarRoomTrendForReport(report);
+    final baseline = _syntheticWarRoomBaselineStats(report);
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: const Color(0xFF08111B),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 24,
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760, maxHeight: 720),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                key: const ValueKey('governance-synthetic-war-room-dialog'),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'SYNTHETIC WAR-ROOM DRILL-IN',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFFEAF4FF),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${trend.trendLabel} • ${trend.trendReason}',
+                              style: GoogleFonts.inter(
+                                color: _partnerTrendColor(trend.trendLabel),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        icon: const Icon(Icons.close, color: Color(0xFFEAF4FF)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _partnerTrendMetricChip(
+                        label: 'Current mode',
+                        value: trend.currentModeLabel,
+                        color: _syntheticWarRoomModeColor(
+                          trend.currentModeLabel,
+                        ),
+                      ),
+                      _partnerTrendMetricChip(
+                        label: 'Baseline Plans',
+                        value: baseline.reportDays <= 0
+                            ? 'n/a'
+                            : baseline.planAverage.toStringAsFixed(1),
+                        color: const Color(0xFF22D3EE),
+                      ),
+                      _partnerTrendMetricChip(
+                        label: 'Baseline Policy',
+                        value: baseline.reportDays <= 0
+                            ? 'n/a'
+                            : baseline.policyAverage.toStringAsFixed(1),
+                        color: const Color(0xFF8B5CF6),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          for (final point in history) ...[
+                            Container(
+                              key: ValueKey<String>(
+                                'governance-synthetic-war-room-history-${point.reportDate}',
+                              ),
+                              width: double.infinity,
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: point.current
+                                    ? const Color(0x1A8B5CF6)
+                                    : const Color(0x14000000),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: point.current
+                                      ? const Color(0x558B5CF6)
+                                      : const Color(0x22FFFFFF),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          point.reportDate,
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFEAF4FF),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ),
+                                      if (point.current)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 7,
+                                            vertical: 3,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: const Color(
+                                              0xFF8FD1FF,
+                                            ).withValues(alpha: 0.14),
+                                            borderRadius:
+                                                BorderRadius.circular(999),
+                                            border: Border.all(
+                                              color: const Color(
+                                                0xFF8FD1FF,
+                                              ).withValues(alpha: 0.5),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            'CURRENT',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFF8FD1FF),
+                                              fontSize: 8,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ),
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 7,
+                                          vertical: 3,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: _syntheticWarRoomModeColor(
+                                            point.modeLabel,
+                                          ).withValues(alpha: 0.14),
+                                          borderRadius:
+                                              BorderRadius.circular(999),
+                                          border: Border.all(
+                                            color: _syntheticWarRoomModeColor(
+                                              point.modeLabel,
+                                            ).withValues(alpha: 0.5),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          point.modeLabel,
+                                          style: GoogleFonts.inter(
+                                            color: _syntheticWarRoomModeColor(
+                                              point.modeLabel,
+                                            ),
+                                            fontSize: 8,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Plans ${point.planCount} • Policy ${point.policyCount} • Region ${point.leadRegionId.isEmpty ? 'n/a' : point.leadRegionId} • Lead ${point.leadSiteId.isEmpty ? 'n/a' : point.leadSiteId}',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFF9CB2D1),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  if (point.topIntentSummary.trim().isNotEmpty &&
+                                      point.topIntentSummary.trim() !=
+                                          'NONE') ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Top intent • ${point.topIntentSummary}',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFEAF4FF),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                  if (point.recommendationSummary
+                                      .trim()
+                                      .isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      point.recommendationSummary,
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFC4B5FD),
                                         fontSize: 10,
                                         fontWeight: FontWeight.w600,
                                       ),
