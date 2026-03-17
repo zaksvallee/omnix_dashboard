@@ -5394,6 +5394,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       syntheticWarRoomLearningSummary: _syntheticWarRoomLearningSummary(
         syntheticWarRoomPlans,
       ),
+      syntheticWarRoomMemorySummary:
+          (syntheticWarRoomCaseFile['learningMemorySummary'] ?? '').toString(),
       syntheticWarRoomHistoryHeadline:
           (syntheticWarRoomCaseFile['historyHeadline'] ?? '').toString(),
       syntheticWarRoomHistorySummary:
@@ -5726,6 +5728,43 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return plans
         .map((plan) => (plan.metadata['learning_summary'] ?? '').trim())
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+  }
+
+  String _syntheticWarRoomLearningLabel(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    return plans
+        .map((plan) => (plan.metadata['learning_label'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+  }
+
+  String _syntheticWarRoomLearningMemorySummary({
+    required String currentLearningLabel,
+    required List<SovereignReport> history,
+  }) {
+    final label = currentLearningLabel.trim();
+    if (label.isEmpty) {
+      return '';
+    }
+    final baseline = history.take(3).toList(growable: false);
+    if (baseline.isEmpty) {
+      return 'Memory: $label is the first tracked learning bias.';
+    }
+    final matchingDates = baseline
+        .where(
+          (item) =>
+              _syntheticWarRoomLearningLabel(
+                _syntheticWarRoomPlansForReport(item),
+              ) ==
+              label,
+        )
+        .map((item) => item.date)
+        .toList(growable: false);
+    if (matchingDates.isEmpty) {
+      return 'Memory: $label is new against the last ${baseline.length} shifts.';
+    }
+    return 'Memory: $label repeated in ${matchingDates.length + 1} of the last ${baseline.length + 1} shifts'
+        '${matchingDates.first.trim().isEmpty ? '.' : ' (latest ${matchingDates.first}).'}';
   }
 
   String _hazardSignalLabel(String signal) {
@@ -6128,6 +6167,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         ? 'Current pressure $currentPressure • Baseline n/a • No prior synthetic rehearsal history is available yet.'
         : 'Current pressure $currentPressure • Baseline ${baselinePressure.toStringAsFixed(1)} • ${currentPressure >= baselinePressure + 1 ? 'Synthetic rehearsal is recommending stronger action than recent shifts.' : currentPressure <= baselinePressure - 1 ? 'Synthetic rehearsal pressure eased against recent shifts.' : 'Synthetic rehearsal pressure is holding close to the recent baseline.'}';
     final previousReport = history.isEmpty ? null : history.first;
+    final learningLabel = _syntheticWarRoomLearningLabel(plans);
     return <String, Object?>{
       'reportDate': report.date,
       'available': true,
@@ -6140,7 +6180,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'summary': _syntheticWarRoomSummary(plans),
       'policySummary': _syntheticWarRoomPolicySummary(plans),
       'hazardSummary': _syntheticWarRoomHazardSummary(plans),
+      'learningLabel': learningLabel,
       'learningSummary': _syntheticWarRoomLearningSummary(plans),
+      'learningMemorySummary': _syntheticWarRoomLearningMemorySummary(
+        currentLearningLabel: learningLabel,
+        history: history,
+      ),
       'planCount': plans.length,
       'policyCount': policyPlans.length,
       'leadRegionId': (leadPlan?.metadata['region'] ?? '').toString().trim(),
@@ -6194,6 +6239,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               'summary': _syntheticWarRoomSummary(itemPlans),
               'policySummary': _syntheticWarRoomPolicySummary(itemPlans),
               'hazardSummary': _syntheticWarRoomHazardSummary(itemPlans),
+              'learningLabel': _syntheticWarRoomLearningLabel(itemPlans),
               'learningSummary': _syntheticWarRoomLearningSummary(itemPlans),
               'planCount': itemPlans.length,
               'policyCount': itemPolicyCount,
@@ -6226,7 +6272,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'summary,"${(payload['summary'] ?? '').toString().replaceAll('"', '""')}"',
       'policy_summary,"${(payload['policySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'hazard_summary,"${(payload['hazardSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'learning_label,${payload['learningLabel'] ?? ''}',
       'learning_summary,"${(payload['learningSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'learning_memory_summary,"${(payload['learningMemorySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'plan_count,${payload['planCount'] ?? 0}',
       'policy_count,${payload['policyCount'] ?? 0}',
       'lead_region_id,${payload['leadRegionId'] ?? ''}',
@@ -6263,6 +6311,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       lines.add(
         'history_${i + 1}_hazard_summary,"${(row['hazardSummary'] ?? '').toString().replaceAll('"', '""')}"',
       );
+      lines.add('history_${i + 1}_learning_label,${row['learningLabel'] ?? ''}');
       lines.add(
         'history_${i + 1}_learning_summary,"${(row['learningSummary'] ?? '').toString().replaceAll('"', '""')}"',
       );
@@ -16436,6 +16485,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final plans = _syntheticWarRoomPlansForReport(report);
     final payload = _syntheticWarRoomCaseFilePayload(reportDate: report.date);
     final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
+    final learningMemorySummary = (payload['learningMemorySummary'] ?? '')
+        .toString()
+        .trim();
     final learningSummary = (payload['learningSummary'] ?? '')
         .toString()
         .trim();
@@ -16462,6 +16514,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           'summary=${_syntheticWarRoomSummary(plans)}\n'
           '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
           '${learningSummary.isEmpty ? '' : 'learning_summary=$learningSummary\n'}'
+          '${learningMemorySummary.isEmpty ? '' : 'learning_memory_summary=$learningMemorySummary\n'}'
           'review_refs=${reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', ')}\n'
           'case_file_command=/syntheticcase json ${report.date}\n'
           'Opening Events Review for synthetic war-room evidence.';
@@ -16473,6 +16526,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'summary=${_syntheticWarRoomSummary(plans)}\n'
         '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
         '${learningSummary.isEmpty ? '' : 'learning_summary=$learningSummary\n'}'
+        '${learningMemorySummary.isEmpty ? '' : 'learning_memory_summary=$learningMemorySummary\n'}'
         'case_file_command=/syntheticcase json ${report.date}\n'
         'Opening Governance for synthetic war-room oversight.';
   }
@@ -16506,6 +16560,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final payload = _syntheticWarRoomCaseFilePayload(reportDate: report.date);
     final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
     final hazardSummary = (payload['hazardSummary'] ?? '').toString().trim();
+    final learningMemorySummary = (payload['learningMemorySummary'] ?? '')
+        .toString()
+        .trim();
     final learningSummary = (payload['learningSummary'] ?? '')
         .toString()
         .trim();
@@ -16521,6 +16578,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
           '${hazardSummary.isEmpty ? '' : 'hazard_summary=$hazardSummary\n'}'
           '${learningSummary.isEmpty ? '' : 'learning_summary=$learningSummary\n'}'
+          '${learningMemorySummary.isEmpty ? '' : 'learning_memory_summary=$learningMemorySummary\n'}'
           'review_command=$reviewCommand\n'
           '${previousReviewCommand.isEmpty ? '' : 'previous_review_command=$previousReviewCommand\n'}'
           '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}'
@@ -16531,6 +16589,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
         '${hazardSummary.isEmpty ? '' : 'hazard_summary=$hazardSummary\n'}'
         '${learningSummary.isEmpty ? '' : 'learning_summary=$learningSummary\n'}'
+        '${learningMemorySummary.isEmpty ? '' : 'learning_memory_summary=$learningMemorySummary\n'}'
         'review_command=$reviewCommand\n'
         '${previousReviewCommand.isEmpty ? '' : 'previous_review_command=$previousReviewCommand\n'}'
         '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}'

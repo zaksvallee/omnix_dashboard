@@ -331,6 +331,7 @@ class _SyntheticWarRoomHistoryPoint {
   final String leadRegionId;
   final String leadSiteId;
   final String topIntentSummary;
+  final String learningLabel;
   final String recommendationSummary;
   final String learningSummary;
 
@@ -343,6 +344,7 @@ class _SyntheticWarRoomHistoryPoint {
     required this.leadRegionId,
     required this.leadSiteId,
     required this.topIntentSummary,
+    required this.learningLabel,
     required this.recommendationSummary,
     required this.learningSummary,
   });
@@ -3661,6 +3663,7 @@ class _GovernancePageState extends State<GovernancePage> {
         leadRegionId: currentLeadPlan?.metadata['region'] ?? '',
         leadSiteId: currentLeadPlan?.metadata['lead_site'] ?? '',
         topIntentSummary: currentLeadPlan?.metadata['top_intent'] ?? '',
+        learningLabel: currentLeadPlan?.metadata['learning_label'] ?? '',
         recommendationSummary: currentRecommendation,
         learningSummary: currentLearning,
       ),
@@ -3695,6 +3698,7 @@ class _GovernancePageState extends State<GovernancePage> {
           leadRegionId: leadPlan?.metadata['region'] ?? '',
           leadSiteId: leadPlan?.metadata['lead_site'] ?? '',
           topIntentSummary: leadPlan?.metadata['top_intent'] ?? '',
+          learningLabel: leadPlan?.metadata['learning_label'] ?? '',
           recommendationSummary: recommendation,
           learningSummary: learning,
         ),
@@ -3793,6 +3797,31 @@ class _GovernancePageState extends State<GovernancePage> {
       events: scopedEvents,
       sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
     );
+  }
+
+  String _syntheticWarRoomLearningMemorySummary(
+    List<_SyntheticWarRoomHistoryPoint> history,
+  ) {
+    if (history.isEmpty) {
+      return '';
+    }
+    final current = history.first;
+    final label = current.learningLabel.trim();
+    if (label.isEmpty) {
+      return '';
+    }
+    final baseline = history.skip(1).take(3).toList(growable: false);
+    if (baseline.isEmpty) {
+      return 'Memory: $label is the first tracked learning bias.';
+    }
+    final matching = baseline
+        .where((point) => point.learningLabel.trim() == label)
+        .toList(growable: false);
+    if (matching.isEmpty) {
+      return 'Memory: $label is new against the last ${baseline.length} shifts.';
+    }
+    return 'Memory: $label repeated in ${matching.length + 1} of the last ${baseline.length + 1} shifts'
+        '${matching.first.reportDate.trim().isEmpty ? '.' : ' (latest ${matching.first.reportDate}).'}';
   }
 
   String _syntheticWarRoomModeLabel(
@@ -7496,6 +7525,9 @@ class _GovernancePageState extends State<GovernancePage> {
     final history = _syntheticWarRoomHistory(report);
     final trend = _syntheticWarRoomTrendForReport(report);
     final baseline = _syntheticWarRoomBaselineStats(report);
+    final learningMemorySummary = _syntheticWarRoomLearningMemorySummary(
+      history,
+    );
     showDialog<void>(
       context: context,
       builder: (dialogContext) {
@@ -7575,6 +7607,17 @@ class _GovernancePageState extends State<GovernancePage> {
                     ],
                   ),
                   const SizedBox(height: 12),
+                  if (learningMemorySummary.isNotEmpty) ...[
+                    Text(
+                      learningMemorySummary,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFDDD6FE),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   Expanded(
                     child: SingleChildScrollView(
                       child: Column(
@@ -8896,6 +8939,7 @@ class _GovernancePageState extends State<GovernancePage> {
       'leadRegionId': point.leadRegionId,
       'leadSiteId': point.leadSiteId,
       'topIntentSummary': point.topIntentSummary,
+      'learningLabel': point.learningLabel,
       'recommendationSummary': point.recommendationSummary,
       'learningSummary': point.learningSummary,
     };
@@ -10094,9 +10138,15 @@ class _GovernancePageState extends State<GovernancePage> {
         'leadSiteId': syntheticWarRoomLeadPlan?.metadata['lead_site'] ?? '',
         'topIntentSummary':
             syntheticWarRoomLeadPlan?.metadata['top_intent'] ?? '',
+        'learningLabel': syntheticWarRoomPlans
+            .map((plan) => (plan.metadata['learning_label'] ?? '').trim())
+            .firstWhere((value) => value.isNotEmpty, orElse: () => ''),
         'learningSummary': syntheticWarRoomPlans
             .map((plan) => (plan.metadata['learning_summary'] ?? '').trim())
             .firstWhere((value) => value.isNotEmpty, orElse: () => ''),
+        'learningMemorySummary': _syntheticWarRoomLearningMemorySummary(
+          syntheticWarRoomHistory,
+        ),
         'comparison': {
           'baselinePlanAverage': syntheticWarRoomBaseline.planAverage,
           'baselinePolicyAverage': syntheticWarRoomBaseline.policyAverage,
@@ -10329,7 +10379,9 @@ class _GovernancePageState extends State<GovernancePage> {
       'synthetic_war_room_focus_summary,"${_globalReadinessFocusSummary(report).replaceAll('"', '""')}"',
       'synthetic_war_room_live_report_date,$_currentMorningReportDate',
       'synthetic_war_room_mode,"${_syntheticWarRoomModeLabel(syntheticWarRoomPlans).replaceAll('"', '""')}"',
+      'synthetic_war_room_learning_label,${syntheticWarRoomPlans.map((plan) => (plan.metadata['learning_label'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '')}',
       'synthetic_war_room_learning_summary,"${syntheticWarRoomPlans.map((plan) => (plan.metadata['learning_summary'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '').replaceAll('"', '""')}"',
+      'synthetic_war_room_learning_memory_summary,"${_syntheticWarRoomLearningMemorySummary(syntheticWarRoomHistory).replaceAll('"', '""')}"',
       'synthetic_war_room_trend_label,${syntheticWarRoomTrend.trendLabel}',
       'synthetic_war_room_trend_reason,"${syntheticWarRoomTrend.trendReason.replaceAll('"', '""')}"',
       'synthetic_war_room_trend_summary,"${syntheticWarRoomTrend.summaryLine.replaceAll('"', '""')}"',

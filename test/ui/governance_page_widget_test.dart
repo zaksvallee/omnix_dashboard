@@ -4261,7 +4261,9 @@ void main() {
     expect(copiedPayload, contains('"planCount": 0'));
     expect(copiedPayload, contains('"policyCount": 0'));
     expect(copiedPayload, contains('"modeLabel": "QUIET REHEARSAL"'));
+    expect(copiedPayload, contains('"learningLabel": ""'));
     expect(copiedPayload, contains('"learningSummary": ""'));
+    expect(copiedPayload, contains('"learningMemorySummary": ""'));
     expect(copiedPayload, contains('"baselinePlanAverage": 0.0'));
     expect(copiedPayload, contains('"baselinePolicyAverage": 0.0'));
     expect(copiedPayload, contains('"trendLabel": "STABLE"'));
@@ -4385,7 +4387,12 @@ void main() {
       copiedPayload,
       contains('synthetic_war_room_mode,"QUIET REHEARSAL"'),
     );
+    expect(copiedPayload, contains('synthetic_war_room_learning_label,'));
     expect(copiedPayload, contains('synthetic_war_room_learning_summary,""'));
+    expect(
+      copiedPayload,
+      contains('synthetic_war_room_learning_memory_summary,""'),
+    );
     expect(copiedPayload, contains('synthetic_war_room_trend_label,STABLE'));
     expect(
       copiedPayload,
