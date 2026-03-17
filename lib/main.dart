@@ -5336,6 +5336,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         readinessIntents,
       ),
       globalReadinessSummary: readinessSummary,
+      globalReadinessEchoSummary: _globalReadinessEchoSummary(
+        readinessIntents,
+      ),
+      globalReadinessTopIntentSummary: _globalReadinessTopIntentSummary(
+        readinessIntents,
+      ),
       currentShiftReadinessReviewCommand: '/readinessreview ${report.date}',
       currentShiftReadinessCaseFileCommand:
           '/readinesscase json ${report.date}',
@@ -5469,6 +5475,46 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return _singleLine(detail.join(' • '), maxLength: 220);
   }
 
+  String _globalReadinessEchoSummary(
+    List<MonitoringWatchAutonomyActionPlan> intents,
+  ) {
+    final echoes = intents
+        .where((intent) => intent.actionType.trim().toUpperCase() == 'POSTURAL ECHO')
+        .toList(growable: false);
+    if (echoes.isEmpty) {
+      return '';
+    }
+    final leadSites = echoes
+        .map((intent) => (intent.metadata['lead_site'] ?? '').trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    final targets = echoes
+        .map((intent) => (intent.metadata['echo_target'] ?? intent.siteId).trim())
+        .where((value) => value.isNotEmpty)
+        .take(3)
+        .toList(growable: false);
+    final summary = <String>[
+      'Echo ${echoes.length}',
+      if (leadSites.isNotEmpty) 'lead ${leadSites.take(2).join(', ')}',
+      if (targets.isNotEmpty) 'target ${targets.join(', ')}',
+    ];
+    return _singleLine(summary.join(' • '), maxLength: 220);
+  }
+
+  String _globalReadinessTopIntentSummary(
+    List<MonitoringWatchAutonomyActionPlan> intents,
+  ) {
+    if (intents.isEmpty) {
+      return '';
+    }
+    final top = intents.first;
+    return _singleLine(
+      '${top.actionType} • ${top.siteId} • ${top.description}',
+      maxLength: 220,
+    );
+  }
+
   Map<String, Object?> _globalReadinessCaseFilePayload({String? reportDate}) {
     final report = _morningSovereignReportForDate(reportDate);
     if (report == null) {
@@ -5480,6 +5526,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     final snapshot = _globalReadinessSnapshotForReport(report);
     final intents = _globalReadinessIntentsForReport(report);
+    final posturalEchoes = intents
+        .where((intent) => intent.actionType.trim().toUpperCase() == 'POSTURAL ECHO')
+        .toList(growable: false);
     final leadRegion = snapshot.regions.isEmpty ? null : snapshot.regions.first;
     final leadSite = snapshot.sites.isEmpty ? null : snapshot.sites.first;
     final history = _morningSovereignReportHistory
@@ -5498,6 +5547,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'criticalSiteCount': snapshot.criticalSiteCount,
       'elevatedSiteCount': snapshot.elevatedSiteCount,
       'intentCount': intents.length,
+      'posturalEchoCount': posturalEchoes.length,
+      'posturalEchoSummary': _globalReadinessEchoSummary(intents),
+      'topIntentSummary': _globalReadinessTopIntentSummary(intents),
       'leadRegion': leadRegion == null
           ? null
           : <String, Object?>{
@@ -5515,9 +5567,42 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             },
       'reviewCommand': '/readinessreview ${report.date}',
       'caseFileCommand': '/readinesscase json ${report.date}',
+      'topIntents': intents
+          .take(5)
+          .map(
+            (intent) => <String, Object?>{
+              'actionType': intent.actionType,
+              'siteId': intent.siteId,
+              'priority': intent.priority.name,
+              'description': intent.description,
+              'countdownSeconds': intent.countdownSeconds,
+              'metadata': intent.metadata,
+            },
+          )
+          .toList(growable: false),
+      'posturalEchoes': posturalEchoes
+          .take(3)
+          .map(
+            (intent) => <String, Object?>{
+              'siteId': intent.siteId,
+              'priority': intent.priority.name,
+              'description': intent.description,
+              'leadSite': intent.metadata['lead_site'] ?? '',
+              'echoTarget': intent.metadata['echo_target'] ?? intent.siteId,
+              'echoHeat': intent.metadata['echo_heat'] ?? '',
+              'echoSignals': intent.metadata['echo_signals'] ?? '',
+            },
+          )
+          .toList(growable: false),
       'history': history.take(3).map((item) {
         final itemSnapshot = _globalReadinessSnapshotForReport(item);
         final itemIntents = _globalReadinessIntentsForReport(item);
+        final itemEchoCount = itemIntents
+            .where(
+              (intent) =>
+                  intent.actionType.trim().toUpperCase() == 'POSTURAL ECHO',
+            )
+            .length;
         return <String, Object?>{
           'reportDate': item.date,
           'modeLabel': _globalReadinessModeLabel(itemSnapshot, itemIntents),
@@ -5525,6 +5610,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             snapshot: itemSnapshot,
             intents: itemIntents,
           ),
+          'posturalEchoCount': itemEchoCount,
+          'topIntentSummary': _globalReadinessTopIntentSummary(itemIntents),
           'reviewCommand': '/readinessreview ${item.date}',
           'caseFileCommand': '/readinesscase json ${item.date}',
         };
@@ -5546,14 +5633,39 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'critical_site_count,${payload['criticalSiteCount'] ?? 0}',
       'elevated_site_count,${payload['elevatedSiteCount'] ?? 0}',
       'intent_count,${payload['intentCount'] ?? 0}',
+      'postural_echo_count,${payload['posturalEchoCount'] ?? 0}',
+      'postural_echo_summary,"${(payload['posturalEchoSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'top_intent_summary,"${(payload['topIntentSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'review_command,${payload['reviewCommand'] ?? ''}',
       'case_file_command,${payload['caseFileCommand'] ?? ''}',
     ];
+    final topIntents = (payload['topIntents'] as List<Object?>?) ?? const [];
+    for (var i = 0; i < topIntents.length; i += 1) {
+      final row = topIntents[i];
+      if (row is! Map) continue;
+      lines.add(
+        'top_intent_${i + 1},"${(row['actionType'] ?? '').toString().replaceAll('"', '""')} • ${(row['siteId'] ?? '').toString().replaceAll('"', '""')} • ${(row['description'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+    }
+    final echoes = (payload['posturalEchoes'] as List<Object?>?) ?? const [];
+    for (var i = 0; i < echoes.length; i += 1) {
+      final row = echoes[i];
+      if (row is! Map) continue;
+      lines.add(
+        'postural_echo_${i + 1},"${(row['leadSite'] ?? '').toString().replaceAll('"', '""')} -> ${(row['echoTarget'] ?? '').toString().replaceAll('"', '""')} • ${(row['echoHeat'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+    }
     for (var i = 0; i < history.length; i += 1) {
       final row = history[i];
       if (row is! Map) continue;
       lines.add(
         'history_${i + 1},"${(row['summary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add(
+        'history_${i + 1}_postural_echo_count,${row['posturalEchoCount'] ?? 0}',
+      );
+      lines.add(
+        'history_${i + 1}_top_intent_summary,"${(row['topIntentSummary'] ?? '').toString().replaceAll('"', '""')}"',
       );
       lines.add('history_${i + 1}_review_command,${row['reviewCommand'] ?? ''}');
       lines.add(

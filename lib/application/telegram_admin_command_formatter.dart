@@ -73,6 +73,8 @@ class TelegramAdminCommandFormatter {
     required String sceneReviewSummary,
     String? globalReadinessHeadline,
     String? globalReadinessSummary,
+    String? globalReadinessEchoSummary,
+    String? globalReadinessTopIntentSummary,
     String? currentShiftReadinessReviewCommand,
     String? currentShiftReadinessCaseFileCommand,
     String? previousShiftReadinessReviewCommand,
@@ -92,6 +94,9 @@ class TelegramAdminCommandFormatter {
     final previousCase = previousShiftCaseFileCommand?.trim() ?? '';
     final readinessHeadline = globalReadinessHeadline?.trim() ?? '';
     final readinessSummary = globalReadinessSummary?.trim() ?? '';
+    final readinessEchoSummary = globalReadinessEchoSummary?.trim() ?? '';
+    final readinessTopIntentSummary =
+        globalReadinessTopIntentSummary?.trim() ?? '';
     final readinessReview = currentShiftReadinessReviewCommand?.trim() ?? '';
     final readinessCase = currentShiftReadinessCaseFileCommand?.trim() ?? '';
     final previousReadinessReview =
@@ -116,6 +121,8 @@ class TelegramAdminCommandFormatter {
               '<b>Global Readiness</b>\n'
               '${readinessHeadline.isEmpty ? '' : '• <b>Mode:</b> ${_escapeHtml(readinessHeadline)}\n'}'
               '${readinessSummary.isEmpty ? '' : '• <b>Summary:</b> ${_escapeHtml(readinessSummary)}\n'}'
+              '${readinessEchoSummary.isEmpty ? '' : '• <b>Postural echo:</b> ${_escapeHtml(readinessEchoSummary)}\n'}'
+              '${readinessTopIntentSummary.isEmpty ? '' : '• <b>Top intent:</b> ${_escapeHtml(readinessTopIntentSummary)}\n'}'
               '• <b>Current review:</b> <code>${_escapeHtml(readinessReview)}</code>\n'
               '${readinessCase.isEmpty ? '' : '• <b>Current case:</b> <code>${_escapeHtml(readinessCase)}</code>\n'}'
               '${previousReadinessReview.isEmpty ? '' : '• <b>Previous review:</b> <code>${_escapeHtml(previousReadinessReview)}</code>\n'}'

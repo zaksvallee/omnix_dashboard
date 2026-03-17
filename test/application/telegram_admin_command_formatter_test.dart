@@ -124,6 +124,10 @@ void main() {
       globalReadinessHeadline: 'ELEVATED WATCH',
       globalReadinessSummary:
           'Critical 1 • Elevated 2 • Intents 3 • region north-cluster critical',
+      globalReadinessEchoSummary:
+          'Echo 2 • lead site-alpha • target site-bravo, site-charlie',
+      globalReadinessTopIntentSummary:
+          'POSTURAL ECHO • site-bravo • Raise CCTV perimeter attention',
       currentShiftReadinessReviewCommand: '/readinessreview 2026-03-17',
       currentShiftReadinessCaseFileCommand: '/readinesscase json 2026-03-17',
       previousShiftReadinessReviewCommand: '/readinessreview 2026-03-16',
@@ -145,6 +149,8 @@ void main() {
     expect(response, contains('<code>/activityreview 2026-03-17</code>'));
     expect(response, contains('<code>/activitycase json 2026-03-16</code>'));
     expect(response, contains('<b>Global Readiness</b>'));
+    expect(response, contains('<b>Postural echo:</b> Echo 2'));
+    expect(response, contains('<b>Top intent:</b> POSTURAL ECHO'));
     expect(response, contains('<code>/readinessreview 2026-03-17</code>'));
     expect(response, contains('<code>/readinesscase json 2026-03-16</code>'));
     expect(
