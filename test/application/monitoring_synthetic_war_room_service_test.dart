@@ -343,6 +343,12 @@ void main() {
         ),
       );
       expect(
+        policy.metadata['mo_promotion_pressure_summary'],
+        contains(
+          'Accelerate MO-EXT-NEWS-OFFICE-PATTERN toward validated review',
+        ),
+      );
+      expect(
         policy.metadata['shadow_memory_summary'],
         contains('Shadow bias: HARDEN ACCESS'),
       );

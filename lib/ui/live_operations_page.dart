@@ -1342,6 +1342,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   String _promotionPressureSummaryForPlan(
     MonitoringWatchAutonomyActionPlan plan,
   ) {
+    final prebuiltSummary =
+        (plan.metadata['mo_promotion_pressure_summary'] ?? '').trim();
+    if (prebuiltSummary.isNotEmpty) {
+      return prebuiltSummary;
+    }
     final baseSummary = (plan.metadata['mo_promotion_summary'] ?? '').trim();
     if (baseSummary.isEmpty) {
       return '';

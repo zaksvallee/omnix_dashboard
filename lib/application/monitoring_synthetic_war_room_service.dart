@@ -6,6 +6,7 @@ import 'monitoring_global_posture_service.dart';
 import 'monitoring_orchestrator_service.dart';
 import 'monitoring_scene_review_store.dart';
 import 'monitoring_watch_action_plan.dart';
+import 'synthetic_promotion_summary_formatter.dart';
 
 class MonitoringSyntheticWarRoomService {
   const MonitoringSyntheticWarRoomService();
@@ -291,6 +292,26 @@ class MonitoringSyntheticWarRoomService {
                     promotionGuidance.validationDriftSummary,
               if (promotionGuidance != null)
                 'mo_promotion_summary': promotionGuidance.summary,
+              if (promotionGuidance != null)
+                'mo_promotion_pressure_summary':
+                    buildSyntheticPromotionSummary(
+                      baseSummary: promotionGuidance.summary,
+                      shadowPostureBiasSummary: shadowPostureBias.biasLabel.isEmpty &&
+                              shadowPostureBias.priorityFloor ==
+                                  MonitoringWatchAutonomyPriority.medium &&
+                              shadowPostureBias.countdownSeconds <= 0
+                          ? ''
+                          : [
+                              if (shadowPostureBias.biasLabel.isNotEmpty)
+                                shadowPostureBias.biasLabel,
+                              if (shadowPostureBias.priorityFloor !=
+                                  MonitoringWatchAutonomyPriority.medium)
+                                shadowPostureBias.priorityFloor.name
+                                    .toUpperCase(),
+                              if (shadowPostureBias.countdownSeconds > 0)
+                                '${shadowPostureBias.countdownSeconds}s',
+                            ].join(' • '),
+                    ),
               'top_intent': topIntent?.actionType ?? 'NONE',
               if (hazardSignal.isNotEmpty) 'hazard_signal': hazardSignal,
             },

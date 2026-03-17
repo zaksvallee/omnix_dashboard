@@ -1686,6 +1686,11 @@ class _AIQueuePageState extends State<AIQueuePage> {
   }
 
   String _promotionPressureSummary(Map<String, String> metadata) {
+    final prebuiltSummary =
+        (metadata['mo_promotion_pressure_summary'] ?? '').trim();
+    if (prebuiltSummary.isNotEmpty) {
+      return prebuiltSummary;
+    }
     final baseSummary = (metadata['mo_promotion_summary'] ?? '').trim();
     if (baseSummary.isEmpty) {
       return '';
