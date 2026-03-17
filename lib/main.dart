@@ -61,6 +61,8 @@ import 'application/offline_incident_spool_service.dart';
 import 'application/ops_integration_profile.dart';
 import 'application/radio_bridge_service.dart';
 import 'application/runtime_config.dart';
+import 'application/site_activity_intelligence_service.dart';
+import 'application/site_activity_telegram_formatter.dart';
 import 'application/telegram_admin_command_formatter.dart';
 import 'application/telegram_ai_assistant_service.dart';
 import 'application/telegram_bridge_service.dart';
@@ -540,6 +542,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   static const _telegramIdentityIntakeService = TelegramIdentityIntakeService();
   static const _telegramPartnerDispatchService =
       TelegramPartnerDispatchService();
+  static const _siteActivityIntelligenceService =
+      SiteActivityIntelligenceService();
+  static const _siteActivityTelegramFormatter =
+      SiteActivityTelegramFormatter();
   static const _partnerEndpointLabelPrefix = 'PARTNER';
   late final NewsIntelligenceService _newsIntel;
   static const _browserFiles = DispatchSnapshotFileService();
@@ -10939,6 +10945,186 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     );
   }
 
+  ({String label, String summary})? _siteActivityTrendSnapshotFor(
+    SiteActivityIntelligenceSnapshot currentActivity,
+  ) {
+    final currentReport = _morningSovereignReport;
+    final baselineReports =
+        _morningSovereignReportHistory
+            .where(
+              (item) =>
+                  currentReport == null ||
+                  !_sameMorningSovereignReport(item, currentReport),
+            )
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
+    if (baselineReports.isEmpty) {
+      return null;
+    }
+    final baseline = baselineReports
+        .take(3)
+        .map((item) => item.siteActivity)
+        .toList(growable: false);
+    if (baseline.isEmpty) {
+      return null;
+    }
+    final currentPressure =
+        (currentActivity.flaggedIdentitySignals * 2.0) +
+        (currentActivity.unknownPersonSignals +
+            currentActivity.unknownVehicleSignals) +
+        currentActivity.longPresenceSignals +
+        (currentActivity.guardInteractionSignals * 0.5);
+    final baselinePressure =
+        baseline
+            .map(
+              (item) =>
+                  (item.flaggedIdentitySignals * 2.0) +
+                  item.unknownSignals +
+                  item.longPresenceSignals +
+                  (item.guardInteractionSignals * 0.5),
+            )
+            .reduce((left, right) => left + right) /
+        baseline.length;
+    final delta = currentPressure - baselinePressure;
+    String label;
+    String summary;
+    if (delta >= 1.0) {
+      label = 'ACTIVITY RISING';
+      summary =
+          'Unknown or flagged site activity increased against recent shifts.';
+    } else if (delta <= -1.0) {
+      label = 'ACTIVITY EASING';
+      summary = 'Unknown or flagged site activity eased against recent shifts.';
+    } else {
+      label = 'STABLE';
+      summary = 'Site activity held close to the recent shift baseline.';
+    }
+    return (label: label, summary: summary);
+  }
+
+  bool _sameMorningSovereignReport(SovereignReport left, SovereignReport right) {
+    return left.generatedAtUtc == right.generatedAtUtc &&
+        left.shiftWindowEndUtc == right.shiftWindowEndUtc &&
+        left.date == right.date;
+  }
+
+  String _siteActivityTelegramSummaryForScope({
+    required String clientId,
+    required String siteId,
+  }) {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    final snapshot = _siteActivityIntelligenceService.buildSnapshot(
+      events: store.allEvents(),
+      clientId: normalizedClientId,
+      siteId: normalizedSiteId,
+    );
+    final siteProfile = _monitoringSiteProfileFor(
+      clientId: normalizedClientId,
+      siteId: normalizedSiteId,
+    );
+    final trend = _siteActivityTrendSnapshotFor(snapshot);
+    return _siteActivityTelegramFormatter.formatSummary(
+      snapshot: snapshot,
+      siteLabel: siteProfile.siteName,
+      reportDate: _morningSovereignReport?.date,
+      trendLabel: trend?.label,
+      trendSummary: trend?.summary,
+    );
+  }
+
+  Future<String> _deliverSiteActivityTelegramSummary({
+    required String clientId,
+    required String siteId,
+    required bool sendClient,
+    required bool sendPartner,
+  }) async {
+    if (!_telegramBridge.isConfigured) {
+      return 'ONYX SENDACTIVITY\nTelegram bridge disabled or missing bot token.';
+    }
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    if (normalizedClientId.isEmpty || normalizedSiteId.isEmpty) {
+      return 'ONYX SENDACTIVITY\nUsage: /sendactivity [client|partner|both] [client_id site_id]';
+    }
+
+    final summary = _siteActivityTelegramSummaryForScope(
+      clientId: normalizedClientId,
+      siteId: normalizedSiteId,
+    );
+    final targets = <_TelegramBridgeTarget>[];
+    if (sendClient) {
+      targets.addAll(
+        await _resolveTelegramBridgeTargets(
+          clientId: normalizedClientId,
+          siteId: normalizedSiteId,
+        ),
+      );
+    }
+    if (sendPartner) {
+      targets.addAll(
+        await _resolveTelegramPartnerTargets(
+          clientId: normalizedClientId,
+          siteId: normalizedSiteId,
+        ),
+      );
+    }
+    if (targets.isEmpty) {
+      return 'ONYX SENDACTIVITY\n'
+          'scope=$normalizedClientId/$normalizedSiteId\n'
+          'targets=0\n'
+          'No active Telegram endpoints found for the selected delivery lane.';
+    }
+
+    final dedupedTargets = <String, _TelegramBridgeTarget>{};
+    for (final target in targets) {
+      dedupedTargets['${target.chatId}:${target.threadId ?? ''}'] = target;
+    }
+    final stamp = DateTime.now().toUtc().microsecondsSinceEpoch;
+    final messages = dedupedTargets.values
+        .map(
+          (target) => TelegramBridgeMessage(
+            messageKey:
+                'site-activity-$normalizedClientId-$normalizedSiteId-${target.chatId}-${target.threadId ?? ''}-$stamp',
+            chatId: target.chatId,
+            messageThreadId: target.threadId,
+            text: summary,
+          ),
+        )
+        .toList(growable: false);
+    final result = await _telegramBridge.sendMessages(messages: messages);
+    final sentAt = DateTime.now().toUtc();
+    if (mounted) {
+      setState(() {
+        _telegramBridgeHealthLabel = result.failedCount == 0 ? 'ok' : 'degraded';
+        _telegramBridgeHealthDetail = result.failedCount == 0
+            ? 'Site activity summary delivery succeeded.'
+            : 'Site activity summary delivery failed for ${result.failedCount}/${messages.length} target(s).';
+        _telegramBridgeHealthUpdatedAtUtc = sentAt;
+      });
+    }
+    final reasons = result.failureReasonsByMessageKey.values
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .take(2)
+        .join(' | ');
+    final lane = sendClient && sendPartner
+        ? 'both'
+        : (sendPartner ? 'partner' : 'client');
+    return 'ONYX SENDACTIVITY\n'
+        'scope=$normalizedClientId/$normalizedSiteId\n'
+        'lane=$lane\n'
+        'targets=${messages.length}\n'
+        'sent=${result.sentCount}\n'
+        'failed=${result.failedCount}'
+        '${reasons.isEmpty ? '' : '\nreasons=$reasons'}\n'
+        'UTC: ${sentAt.toIso8601String()}';
+  }
+
   _MonitoringWatchTarget? _parseMonitoringWatchScope(
     String arguments, {
     bool includeCamera = false,
@@ -11908,6 +12094,16 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           command: 'alarmtest',
           arguments: arguments,
         );
+      case '/activitytruth':
+        return _TelegramAdminCommandParseResult(
+          command: 'activitytruth',
+          arguments: arguments,
+        );
+      case '/sendactivity':
+        return _TelegramAdminCommandParseResult(
+          command: 'sendactivity',
+          arguments: arguments,
+        );
       case '/demoprep':
         return _TelegramAdminCommandParseResult(
           command: 'demoprep',
@@ -12117,6 +12313,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'partnercheck',
         'alarmbindings',
         'alarmtest',
+        'activitytruth',
+        'sendactivity',
         'demoprep',
         'demoflow',
         'autodemo',
@@ -12232,6 +12430,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     if (hasAny(const ['ops', 'operations'])) {
       return const _TelegramAdminCommandParseResult(command: 'ops');
     }
+    if (hasAny(const [
+      'site activity',
+      'activity truth',
+      'visitor truth',
+      'visitor activity',
+    ])) {
+      return const _TelegramAdminCommandParseResult(command: 'activitytruth');
+    }
     if (hasAny(const ['incident', 'incidents'])) {
       return const _TelegramAdminCommandParseResult(command: 'incidents');
     }
@@ -12297,6 +12503,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case 'unlinkalarm':
       case 'unlinkall':
       case 'alarmtest':
+      case 'sendactivity':
       case 'setoperator':
       case 'demoflow':
       case 'autodemo':
@@ -12327,6 +12534,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case 'guards':
       case 'bridges':
       case 'alarmbindings':
+      case 'activitytruth':
       case 'aidrafts':
       case 'aiconv':
       case 'whoami':
@@ -12418,6 +12626,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         return _telegramAdminAlarmBindingsCommand(arguments);
       case 'alarmtest':
         return _telegramAdminAlarmTestCommand(arguments);
+      case 'activitytruth':
+        return _telegramAdminActivityTruthCommand(arguments);
+      case 'sendactivity':
+        return _telegramAdminSendActivityCommand(arguments);
       case 'demoprep':
         return _telegramAdminDemoPrepCommand(arguments, update);
       case 'demoflow':
@@ -12550,6 +12762,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '• <code>/bindalarm &lt;account&gt; &lt;client_id&gt; &lt;site_id&gt; [partition] [zone] [zone label]</code>\n'
         '• <code>/unlinkalarm &lt;account&gt; [partition] [zone]</code> | <code>/alarmbindings [account]</code>\n'
         '• <code>/alarmtest &lt;clear|suspicious|pending|unavailable&gt; &lt;listener line&gt;</code>\n'
+        '• <code>/activitytruth [client_id site_id]</code>\n'
+        '• <code>/sendactivity [client|partner|both] [client_id site_id]</code>\n'
         '\n---\n\n'
         '<b>Admin</b>\n'
         '• <code>/exec [on|off|status|default]</code>\n'
@@ -14416,6 +14630,58 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'partner_targets=${delivery.targetCount}\n'
         'partner_delivery=${delivery.deliveredCount} sent / ${delivery.failedCount} failed\n'
         'advisory=${pipelineResult.resolution.advisoryMessage}';
+  }
+
+  String _telegramAdminActivityTruthCommand(String arguments) {
+    final scope = _parseMonitoringWatchScope(arguments);
+    if (scope == null ||
+        scope.clientId.trim().isEmpty ||
+        scope.siteId.trim().isEmpty) {
+      return 'ONYX ACTIVITYTRUTH\nUsage: /activitytruth [client_id site_id]';
+    }
+    final normalizedClientId = scope.clientId.trim();
+    final normalizedSiteId = scope.siteId.trim();
+    final summary = _siteActivityTelegramSummaryForScope(
+      clientId: normalizedClientId,
+      siteId: normalizedSiteId,
+    );
+    return 'ONYX ACTIVITYTRUTH\n'
+        'scope=$normalizedClientId/$normalizedSiteId\n'
+        '$summary';
+  }
+
+  Future<String> _telegramAdminSendActivityCommand(String arguments) async {
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    var sendClient = true;
+    var sendPartner = true;
+    var index = 0;
+    if (tokens.isNotEmpty) {
+      final lane = tokens.first.toLowerCase();
+      if (lane == 'client' || lane == 'partner' || lane == 'both') {
+        sendClient = lane != 'partner';
+        sendPartner = lane != 'client';
+        index = 1;
+      }
+    }
+    final targetTokens = tokens.sublist(index);
+    final argumentsScope = targetTokens.join(' ');
+    final scope = _parseMonitoringWatchScope(argumentsScope);
+    if (scope == null ||
+        scope.clientId.trim().isEmpty ||
+        scope.siteId.trim().isEmpty) {
+      return 'ONYX SENDACTIVITY\n'
+          'Usage: /sendactivity [client|partner|both] [client_id site_id]';
+    }
+    return _deliverSiteActivityTelegramSummary(
+      clientId: scope.clientId,
+      siteId: scope.siteId,
+      sendClient: sendClient,
+      sendPartner: sendPartner,
+    );
   }
 
   Future<_TelegramDemoReadinessReport> _telegramAdminBuildDemoReadinessReport({
