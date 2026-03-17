@@ -32,6 +32,34 @@ String buildSyntheticLearningSummaryFromPlans({
   required List<MonitoringWatchAutonomyActionPlan> plans,
 }) => _firstSyntheticPlanMetadata(plans, 'learning_summary');
 
+int buildSyntheticPolicyCountFromPlans({
+  required List<MonitoringWatchAutonomyActionPlan> plans,
+}) {
+  return plans
+      .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
+      .length;
+}
+
+String buildSyntheticLeadRegionIdFromPlans({
+  required List<MonitoringWatchAutonomyActionPlan> plans,
+}) => _firstSyntheticPlanMetadata(plans, 'region');
+
+String buildSyntheticLeadSiteIdFromPlans({
+  required List<MonitoringWatchAutonomyActionPlan> plans,
+}) => _firstSyntheticPlanMetadata(plans, 'lead_site');
+
+String buildSyntheticActionBiasFromPlans({
+  required List<MonitoringWatchAutonomyActionPlan> plans,
+}) => _firstSyntheticPlanMetadata(plans, 'action_bias');
+
+String buildSyntheticMemoryPriorityBoostFromPlans({
+  required List<MonitoringWatchAutonomyActionPlan> plans,
+}) => _firstSyntheticPlanMetadata(plans, 'memory_priority_boost');
+
+String buildSyntheticMemoryCountdownBiasFromPlans({
+  required List<MonitoringWatchAutonomyActionPlan> plans,
+}) => _firstSyntheticPlanMetadata(plans, 'memory_countdown_bias');
+
 String buildSyntheticLearningLabelFromPlans({
   required List<MonitoringWatchAutonomyActionPlan> plans,
 }) => _firstSyntheticPlanMetadata(plans, 'learning_label');

@@ -216,6 +216,52 @@ void main() {
       );
     });
 
+    test('synthetic metadata readers expose policy counts and lead ids', () {
+      const plans = <MonitoringWatchAutonomyActionPlan>[
+        MonitoringWatchAutonomyActionPlan(
+          id: 'SIM-1',
+          incidentId: 'SITE-1',
+          siteId: 'SITE-1',
+          priority: MonitoringWatchAutonomyPriority.high,
+          actionType: 'POLICY RECOMMENDATION',
+          description: 'desc',
+          countdownSeconds: 22,
+          metadata: <String, String>{
+            'region': 'REGION-GAUTENG',
+            'lead_site': 'SITE-ALPHA',
+            'action_bias': 'LOCK EARLY',
+            'memory_priority_boost': 'CRITICAL',
+            'memory_countdown_bias': '28',
+          },
+        ),
+        MonitoringWatchAutonomyActionPlan(
+          id: 'SIM-2',
+          incidentId: 'SITE-2',
+          siteId: 'SITE-2',
+          priority: MonitoringWatchAutonomyPriority.medium,
+          actionType: 'POLICY RECOMMENDATION',
+          description: 'desc',
+          countdownSeconds: 18,
+        ),
+      ];
+
+      expect(buildSyntheticPolicyCountFromPlans(plans: plans), 2);
+      expect(
+        buildSyntheticLeadRegionIdFromPlans(plans: plans),
+        'REGION-GAUTENG',
+      );
+      expect(buildSyntheticLeadSiteIdFromPlans(plans: plans), 'SITE-ALPHA');
+      expect(buildSyntheticActionBiasFromPlans(plans: plans), 'LOCK EARLY');
+      expect(
+        buildSyntheticMemoryPriorityBoostFromPlans(plans: plans),
+        'CRITICAL',
+      );
+      expect(
+        buildSyntheticMemoryCountdownBiasFromPlans(plans: plans),
+        '28',
+      );
+    });
+
     test('learning memory helper formats first/new/repeated states', () {
       expect(
         buildSyntheticLearningMemorySummaryFromHistoryLabels(

@@ -7138,22 +7138,16 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         currentLearningLabel: learningLabel,
         history: history,
       ),
-      'actionBias': (leadPolicyPlan?.metadata['action_bias'] ?? '')
-          .toString()
-          .trim(),
+      'actionBias': buildSyntheticActionBiasFromPlans(plans: plans),
       'memoryPriorityBoost':
-          (leadPolicyPlan?.metadata['memory_priority_boost'] ?? '')
-              .toString()
-              .trim(),
+          buildSyntheticMemoryPriorityBoostFromPlans(plans: plans),
       'memoryCountdownBias':
-          (leadPolicyPlan?.metadata['memory_countdown_bias'] ?? '')
-              .toString()
-              .trim(),
+          buildSyntheticMemoryCountdownBiasFromPlans(plans: plans),
       'biasSummary': _syntheticWarRoomBiasSummaryForPlan(leadPolicyPlan),
       'planCount': plans.length,
-      'policyCount': policyPlans.length,
-      'leadRegionId': (leadPlan?.metadata['region'] ?? '').toString().trim(),
-      'leadSiteId': (leadPlan?.metadata['lead_site'] ?? '').toString().trim(),
+      'policyCount': buildSyntheticPolicyCountFromPlans(plans: plans),
+      'leadRegionId': buildSyntheticLeadRegionIdFromPlans(plans: plans),
+      'leadSiteId': buildSyntheticLeadSiteIdFromPlans(plans: plans),
       'topIntentSummary': (leadPlan?.metadata['top_intent'] ?? '')
           .toString()
           .trim(),
@@ -7192,9 +7186,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           .take(3)
           .map((item) {
             final itemPlans = _syntheticWarRoomPlansForReport(item);
-            final itemPolicyCount = itemPlans
-                .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
-                .length;
             final itemPolicyPlan = itemPlans.firstWhere(
               (plan) => plan.actionType == 'POLICY RECOMMENDATION',
               orElse: () => const MonitoringWatchAutonomyActionPlan(
@@ -7271,19 +7262,24 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
                   ),
               'learningLabel': _syntheticWarRoomLearningLabel(itemPlans),
               'learningSummary': _syntheticWarRoomLearningSummary(itemPlans),
-              'actionBias': (itemPolicyPlan.metadata['action_bias'] ?? '')
-                  .trim(),
+              'actionBias': buildSyntheticActionBiasFromPlans(
+                plans: itemPlans,
+              ),
               'memoryPriorityBoost':
-                  (itemPolicyPlan.metadata['memory_priority_boost'] ?? '')
-                      .trim(),
+                  buildSyntheticMemoryPriorityBoostFromPlans(
+                    plans: itemPlans,
+                  ),
               'memoryCountdownBias':
-                  (itemPolicyPlan.metadata['memory_countdown_bias'] ?? '')
-                      .trim(),
+                  buildSyntheticMemoryCountdownBiasFromPlans(
+                    plans: itemPlans,
+                  ),
               'biasSummary': _syntheticWarRoomBiasSummaryForPlan(
                 itemPolicyPlan.id.isEmpty ? null : itemPolicyPlan,
               ),
               'planCount': itemPlans.length,
-              'policyCount': itemPolicyCount,
+              'policyCount': buildSyntheticPolicyCountFromPlans(
+                plans: itemPlans,
+              ),
               ...buildReviewCommandPair(
                 reportDate: item.date,
                 reviewCommandBuilder: (reportDate) =>
