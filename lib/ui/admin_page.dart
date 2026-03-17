@@ -12,6 +12,7 @@ import '../application/monitoring_global_posture_service.dart';
 import '../application/monitoring_identity_policy_service.dart';
 import '../application/monitoring_orchestrator_service.dart';
 import '../application/monitoring_scene_review_store.dart';
+import '../application/monitoring_synthetic_war_room_service.dart';
 import '../application/monitoring_watch_recovery_policy.dart';
 import '../application/monitoring_watch_recovery_store.dart';
 import '../application/ops_integration_profile.dart';
@@ -728,6 +729,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       MonitoringWatchRecoveryStore(policy: MonitoringWatchRecoveryPolicy());
   static const _globalPostureService = MonitoringGlobalPostureService();
   static const _orchestratorService = MonitoringOrchestratorService();
+  static const _syntheticWarRoomService = MonitoringSyntheticWarRoomService();
 
   final TextEditingController _searchController = TextEditingController();
   late final TextEditingController _radioIntentPhrasesController =
@@ -4933,6 +4935,11 @@ class _AdministrationPageState extends State<AdministrationPage> {
       sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
       videoOpsLabel: widget.videoOpsLabel,
     );
+    final warRoomPlans = _syntheticWarRoomService.buildSimulationPlans(
+      events: widget.events,
+      sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+      videoOpsLabel: widget.videoOpsLabel,
+    );
     final leadRegion = snapshot.regions.isEmpty ? null : snapshot.regions.first;
     final leadSite = snapshot.sites.isEmpty ? null : snapshot.sites.first;
     final summary = snapshot.totalSites <= 0
@@ -4983,6 +4990,15 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 value: '${intents.length}',
                 color: const Color(0xFF22D3EE),
               ),
+              _partnerScorecardChip(
+                label: 'Sim',
+                value: '${warRoomPlans.length}',
+                color: warRoomPlans.any(
+                      (plan) => plan.actionType == 'POLICY RECOMMENDATION',
+                    )
+                    ? const Color(0xFF8B5CF6)
+                    : const Color(0xFF8FD1FF),
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -5011,6 +5027,17 @@ class _AdministrationPageState extends State<AdministrationPage> {
               'Latest intent • ${intents.first.actionType} • ${intents.first.description}',
               style: GoogleFonts.inter(
                 color: const Color(0xFFFDE68A),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          if (warRoomPlans.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Simulation • ${warRoomPlans.first.actionType} • ${warRoomPlans.first.description}',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFC4B5FD),
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),

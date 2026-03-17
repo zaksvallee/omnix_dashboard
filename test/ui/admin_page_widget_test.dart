@@ -1208,6 +1208,7 @@ void main() {
     expect(find.byKey(const ValueKey('admin-global-readiness-card')), findsOneWidget);
     expect(find.text('Global Readiness'), findsOneWidget);
     expect(find.textContaining('Latest intent'), findsOneWidget);
+    expect(find.textContaining('Simulation'), findsOneWidget);
   });
 
   testWidgets('system tab shows video integrity certificate preview', (

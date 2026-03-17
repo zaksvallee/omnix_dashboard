@@ -107,6 +107,11 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Global Readiness'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('governance-metric-synthetic-war-room')),
+        findsOneWidget,
+      );
+      expect(find.text('Synthetic War-Room'), findsOneWidget);
     },
   );
 

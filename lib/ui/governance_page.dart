@@ -10,6 +10,7 @@ import '../application/morning_sovereign_report_service.dart';
 import '../application/monitoring_global_posture_service.dart';
 import '../application/monitoring_orchestrator_service.dart';
 import '../application/monitoring_scene_review_store.dart';
+import '../application/monitoring_synthetic_war_room_service.dart';
 import '../application/monitoring_watch_action_plan.dart';
 import '../application/text_share_service.dart';
 import '../domain/events/decision_created.dart';
@@ -672,6 +673,7 @@ class _GovernancePageState extends State<GovernancePage> {
   static const _emailBridge = EmailBridgeService();
   static const _globalPostureService = MonitoringGlobalPostureService();
   static const _orchestratorService = MonitoringOrchestratorService();
+  static const _syntheticWarRoomService = MonitoringSyntheticWarRoomService();
 
   bool _generatingMorningReport = false;
   GovernanceSceneActionFocus? _activeSceneActionFocus;
@@ -2688,6 +2690,7 @@ class _GovernancePageState extends State<GovernancePage> {
     final listenerParities = _listenerAlarmParityCyclesForReport(report);
     final globalPosture = _globalReadinessSnapshotForReport(report);
     final globalIntents = _globalReadinessIntentsForReport(report);
+    final warRoomPlans = _syntheticWarRoomPlansForReport(report);
     final latestListenerCycle = listenerCycles.isEmpty
         ? null
         : listenerCycles.first;
@@ -2762,6 +2765,19 @@ class _GovernancePageState extends State<GovernancePage> {
             : globalIntents.isEmpty
             ? const Color(0xFF10B981)
             : const Color(0xFF22D3EE),
+      ),
+      _reportMetric(
+        key: const ValueKey('governance-metric-synthetic-war-room'),
+        label: 'Synthetic War-Room',
+        value: '${warRoomPlans.length} plans',
+        detail: _syntheticWarRoomMetricDetail(warRoomPlans),
+        color: warRoomPlans.any(
+              (plan) => plan.actionType == 'POLICY RECOMMENDATION',
+            )
+            ? const Color(0xFF8B5CF6)
+            : warRoomPlans.isNotEmpty
+            ? const Color(0xFF22D3EE)
+            : const Color(0xFF10B981),
       ),
       _reportMetric(
         key: const ValueKey('governance-metric-listener-alarm'),
@@ -2912,6 +2928,19 @@ class _GovernancePageState extends State<GovernancePage> {
     );
   }
 
+  List<MonitoringWatchAutonomyActionPlan> _syntheticWarRoomPlansForReport(
+    _GovernanceReportView report,
+  ) {
+    final scopedEvents = _eventsScopedToWindow(
+      report.shiftWindowStartUtc,
+      report.shiftWindowEndUtc,
+    );
+    return _syntheticWarRoomService.buildSimulationPlans(
+      events: scopedEvents,
+      sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+    );
+  }
+
   MonitoringGlobalPostureSnapshot _globalReadinessSnapshotForWindow(
     DateTime? startUtc,
     DateTime? endUtc, {
@@ -3009,6 +3038,34 @@ class _GovernancePageState extends State<GovernancePage> {
         ? ''
         : ' • lead ${leadSite.siteId} ${leadSite.dominantSignals.join('/')}';
     return 'Sites ${snapshot.totalSites} • elevated ${snapshot.elevatedSiteCount} • critical ${snapshot.criticalSiteCount} • intents ${intents.length}$regionSegment$siteSegment';
+  }
+
+  String _syntheticWarRoomMetricDetail(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    if (plans.isEmpty) {
+      return 'No synthetic simulation recommendations were generated in this shift';
+    }
+    final leadPlan = plans.first;
+    final policyCount = plans
+        .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
+        .length;
+    final region = (leadPlan.metadata['region'] ?? '').trim();
+    final leadSite = (leadPlan.metadata['lead_site'] ?? '').trim();
+    final topIntent = (leadPlan.metadata['top_intent'] ?? '').trim();
+    final recommendation = plans
+        .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
+        .map((plan) => (plan.metadata['recommendation'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    final regionSegment = region.isEmpty ? '' : ' • region $region';
+    final siteSegment = leadSite.isEmpty ? '' : ' • lead $leadSite';
+    final intentSegment = topIntent.isEmpty || topIntent == 'NONE'
+        ? ''
+        : ' • top intent $topIntent';
+    final recommendationSegment = recommendation.isEmpty
+        ? ''
+        : ' • $recommendation';
+    return 'Plans ${plans.length} • policy $policyCount$regionSegment$siteSegment$intentSegment$recommendationSegment';
   }
 
   _GlobalReadinessTrend _globalReadinessTrendForReport(
