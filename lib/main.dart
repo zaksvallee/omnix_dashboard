@@ -5305,6 +5305,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final readinessSnapshot = _globalReadinessSnapshotForReport(report);
     final readinessIntents = _globalReadinessIntentsForReport(report);
     final syntheticWarRoomPlans = _syntheticWarRoomPlansForReport(report);
+    final syntheticWarRoomCaseFile = _syntheticWarRoomCaseFilePayload(
+      reportDate: report.date,
+    );
     final readinessSummary = _globalReadinessSummaryForReport(
       snapshot: readinessSnapshot,
       intents: readinessIntents,
@@ -5372,6 +5375,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       syntheticWarRoomPolicySummary: _syntheticWarRoomPolicySummary(
         syntheticWarRoomPlans,
       ),
+      syntheticWarRoomHistoryHeadline:
+          (syntheticWarRoomCaseFile['historyHeadline'] ?? '').toString(),
+      syntheticWarRoomHistorySummary:
+          (syntheticWarRoomCaseFile['historySummary'] ?? '').toString(),
       currentShiftSyntheticReviewCommand: '/syntheticreview ${report.date}',
       currentShiftSyntheticCaseFileCommand:
           '/syntheticcase json ${report.date}',
