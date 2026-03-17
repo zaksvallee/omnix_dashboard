@@ -125,6 +125,16 @@ class MonitoringSyntheticWarRoomService {
             : repeatedLearningCount == 1
             ? MonitoringWatchAutonomyPriority.high
             : MonitoringWatchAutonomyPriority.medium;
+        final countdownSeconds = repeatedLearningCount >= 2
+            ? 32
+            : repeatedLearningCount == 1
+            ? 48
+            : 64;
+        final actionBias = repeatedLearningCount >= 2
+            ? 'Escalate rehearsal immediately for'
+            : repeatedLearningCount == 1
+            ? 'Advance rehearsal earlier for'
+            : 'Recommend rehearsing';
         final memorySummary = repeatedLearningCount <= 0
             ? ''
             : repeatedLearningCount == 1
@@ -150,20 +160,22 @@ class MonitoringSyntheticWarRoomService {
             priority: policyPriority,
             actionType: 'POLICY RECOMMENDATION',
             description:
-                'Recommend rehearsing $recommendation across ${region.regionId} after simulation so tomorrow’s shift starts ahead of the posture curve. ${learningSignal.summary}${memorySummary.isEmpty ? '' : ' $memorySummary'}',
-            countdownSeconds: 64,
+                '$actionBias $recommendation across ${region.regionId} after simulation so tomorrow’s shift starts ahead of the posture curve. ${learningSignal.summary}${memorySummary.isEmpty ? '' : ' $memorySummary'}',
+            countdownSeconds: countdownSeconds,
             metadata: <String, String>{
               'mode': 'SIMULATION',
               'scope': 'SIMULATION',
               'region': region.regionId,
               'lead_site': leadSite.siteId,
               'recommendation': recommendation,
+              'action_bias': actionBias,
               'learning_label': learningSignal.label,
               'learning_summary': learningSignal.summary,
               'memory_repeat_count': repeatedLearningCount.toString(),
               'memory_priority_boost': repeatedLearningCount <= 0
                   ? 'NONE'
                   : policyPriority.name.toUpperCase(),
+              'memory_countdown_bias': countdownSeconds.toString(),
               if (memorySummary.isNotEmpty) 'memory_summary': memorySummary,
               'top_intent': topIntent?.actionType ?? 'NONE',
               if (hazardSignal.isNotEmpty) 'hazard_signal': hazardSignal,

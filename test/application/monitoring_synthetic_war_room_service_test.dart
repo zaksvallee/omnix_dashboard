@@ -197,6 +197,9 @@ void main() {
         policy.description,
         'Recommend rehearsing earlier fire brigade staging, occupant welfare checks, and fire spread rehearsal across REGION-GAUTENG after simulation so tomorrow’s shift starts ahead of the posture curve. Learned bias: stage fire response one step earlier next shift.',
       );
+      expect(policy.countdownSeconds, 64);
+      expect(policy.metadata['action_bias'], 'Recommend rehearsing');
+      expect(policy.metadata['memory_countdown_bias'], '64');
     });
 
     test('boosts synthetic policy priority when memory bias repeats', () {
@@ -238,15 +241,21 @@ void main() {
         (entry) => entry.actionType == 'POLICY RECOMMENDATION',
       );
       expect(policy.priority, MonitoringWatchAutonomyPriority.critical);
+      expect(policy.countdownSeconds, 32);
+      expect(
+        policy.metadata['action_bias'],
+        'Escalate rehearsal immediately for',
+      );
       expect(policy.metadata['memory_repeat_count'], '2');
       expect(policy.metadata['memory_priority_boost'], 'CRITICAL');
+      expect(policy.metadata['memory_countdown_bias'], '32');
       expect(
         policy.metadata['memory_summary'],
         'Memory bias: ADVANCE FIRE repeated in 2 recent shifts.',
       );
       expect(
         policy.description,
-        contains('Memory bias: ADVANCE FIRE repeated in 2 recent shifts.'),
+        'Escalate rehearsal immediately for earlier fire brigade staging, occupant welfare checks, and fire spread rehearsal across REGION-GAUTENG after simulation so tomorrow’s shift starts ahead of the posture curve. Learned bias: stage fire response one step earlier next shift. Memory bias: ADVANCE FIRE repeated in 2 recent shifts.',
       );
     });
   });
