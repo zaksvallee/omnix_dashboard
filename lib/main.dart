@@ -20366,6 +20366,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           historicalSyntheticLearningLabels: _recentSyntheticLearningLabels(),
           videoOpsLabel: _activeVideoOpsLabel,
           sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
+          onOpenEventsForScope: (eventIds, selectedEventId) {
+            _openEventsForScopedEventIds(
+              eventIds,
+              selectedEventId: selectedEventId,
+              scopeMode: 'shadow',
+            );
+          },
         );
 
       case OnyxRoute.tactical:
@@ -20437,6 +20444,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           onOpenReceiptPolicyEvent: _openEventsForEventId,
           onOpenReportsForReceiptEvent: _openReportsForReceiptEvent,
           onOpenVehicleExceptionVisit: _openEventsForVehicleVisit,
+          onOpenEventsForScope: (eventIds, selectedEventId) {
+            _openEventsForScopedEventIds(
+              eventIds,
+              selectedEventId: selectedEventId,
+              scopeMode: 'shadow',
+            );
+          },
           initialSceneActionFocus: _governanceSceneActionFocus,
           onSceneActionFocusChanged: (value) {
             setState(() {

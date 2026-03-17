@@ -1490,6 +1490,23 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                     color: const Color(0xFF8FD1FF),
                                     fontSize: 10,
                                     fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              if (widget.onOpenEventsForScope != null &&
+                                  sitePosture.moShadowEventIds.isNotEmpty) ...[
+                                const SizedBox(height: 6),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: OutlinedButton(
+                                    onPressed: () {
+                                      Navigator.of(dialogContext).pop();
+                                      widget.onOpenEventsForScope!(
+                                        sitePosture.moShadowEventIds,
+                                        sitePosture.moShadowSelectedEventId,
+                                      );
+                                    },
+                                    child: const Text('OPEN EVIDENCE'),
                                   ),
                                 ),
                               ],

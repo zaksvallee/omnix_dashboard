@@ -463,6 +463,8 @@ void main() {
     'live operations shows shadow MO intelligence for matched incident context',
     (tester) async {
       final now = DateTime.now().toUtc();
+      List<String>? openedEventIds;
+      String? openedSelectedEventId;
       await tester.pumpWidget(
         MaterialApp(
           home: LiveOperationsPage(
@@ -535,6 +537,10 @@ void main() {
                 reviewedAtUtc: now.subtract(const Duration(minutes: 1)),
               ),
             },
+            onOpenEventsForScope: (eventIds, selectedEventId) {
+              openedEventIds = eventIds;
+              openedSelectedEventId = selectedEventId;
+            },
           ),
         ),
       );
@@ -567,6 +573,12 @@ void main() {
         find.textContaining('Actions RAISE READINESS • PREPOSITION RESPONSE'),
         findsWidgets,
       );
+
+      await tester.tap(find.text('OPEN EVIDENCE').last);
+      await tester.pumpAndSettle();
+
+      expect(openedEventIds, equals(const ['evt-office']));
+      expect(openedSelectedEventId, 'evt-office');
     },
   );
 

@@ -91,6 +91,8 @@ class AIQueuePage extends StatefulWidget {
   final List<String> historicalSyntheticLearningLabels;
   final String videoOpsLabel;
   final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
+  final void Function(List<String> eventIds, String? selectedEventId)?
+  onOpenEventsForScope;
 
   const AIQueuePage({
     super.key,
@@ -98,6 +100,7 @@ class AIQueuePage extends StatefulWidget {
     this.historicalSyntheticLearningLabels = const <String>[],
     this.videoOpsLabel = 'CCTV',
     this.sceneReviewByIntelligenceId = const {},
+    this.onOpenEventsForScope,
   });
 
   @override
@@ -1113,14 +1116,31 @@ class _AIQueuePageState extends State<AIQueuePage> {
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                                if (match.recommendedActionPlans.isNotEmpty) ...[
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Actions ${match.recommendedActionPlans.join(' • ')}',
+                              if (match.recommendedActionPlans.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Actions ${match.recommendedActionPlans.join(' • ')}',
                                     style: GoogleFonts.inter(
                                       color: const Color(0xFF8FD1FF),
                                       fontSize: 10,
                                       fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                                if (widget.onOpenEventsForScope != null &&
+                                    site.moShadowEventIds.isNotEmpty) ...[
+                                  const SizedBox(height: 6),
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: OutlinedButton(
+                                      onPressed: () {
+                                        Navigator.of(dialogContext).pop();
+                                        widget.onOpenEventsForScope!(
+                                          site.moShadowEventIds,
+                                          site.moShadowSelectedEventId,
+                                        );
+                                      },
+                                      child: const Text('OPEN EVIDENCE'),
                                     ),
                                   ),
                                 ],

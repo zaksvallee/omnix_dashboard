@@ -700,6 +700,8 @@ class GovernancePage extends StatefulWidget {
   onOpenVehicleExceptionVisit;
   final void Function(String clientId, String siteId, String partnerLabel)?
   onOpenReportsForPartnerScope;
+  final void Function(List<String> eventIds, String? selectedEventId)?
+  onOpenEventsForScope;
   final GovernanceSceneActionFocus? initialSceneActionFocus;
   final ValueChanged<GovernanceSceneActionFocus?>? onSceneActionFocusChanged;
 
@@ -723,6 +725,7 @@ class GovernancePage extends StatefulWidget {
     this.onOpenReportsForReceiptEvent,
     this.onOpenVehicleExceptionVisit,
     this.onOpenReportsForPartnerScope,
+    this.onOpenEventsForScope,
     this.initialSceneActionFocus,
     this.onSceneActionFocusChanged,
   });
@@ -7743,6 +7746,23 @@ class _GovernancePageState extends State<GovernancePage> {
                                             color: const Color(0xFF8FD1FF),
                                             fontSize: 10,
                                             fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                      if (widget.onOpenEventsForScope != null &&
+                                          site.moShadowEventIds.isNotEmpty) ...[
+                                        const SizedBox(height: 6),
+                                        Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: OutlinedButton(
+                                            onPressed: () {
+                                              Navigator.of(dialogContext).pop();
+                                              widget.onOpenEventsForScope!(
+                                                site.moShadowEventIds,
+                                                site.moShadowSelectedEventId,
+                                              );
+                                            },
+                                            child: const Text('OPEN EVIDENCE'),
                                           ),
                                         ),
                                       ],

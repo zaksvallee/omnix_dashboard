@@ -11,6 +11,9 @@ Map<String, Object?> buildShadowMoSitePayload(
     'heatLevel': site.heatLevel.name,
     'matchCount': site.moShadowMatchCount,
     'summary': site.moShadowSummary,
+    'eventIds': site.moShadowEventIds,
+    'selectedEventId': site.moShadowSelectedEventId,
+    'reviewRefs': site.moShadowReviewRefs,
     'matches': site.moShadowMatches
         .map(
           (match) => <String, Object?>{

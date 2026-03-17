@@ -118,6 +118,8 @@ void main() {
   testWidgets('governance page includes shadow MO intelligence in readiness', (
     tester,
   ) async {
+    List<String>? openedEventIds;
+    String? openedSelectedEventId;
     SovereignReport buildReport({
       required String date,
       required DateTime generatedAtUtc,
@@ -222,6 +224,10 @@ void main() {
           },
           morningSovereignReport: currentReport,
           morningSovereignReportHistory: [priorReport],
+          onOpenEventsForScope: (eventIds, selectedEventId) {
+            openedEventIds = eventIds;
+            openedSelectedEventId = selectedEventId;
+          },
         ),
       ),
     );
@@ -251,6 +257,14 @@ void main() {
       find.text('Contractors moved floor to floor in office park'),
       findsWidgets,
     );
+
+    final openEvidenceButton = find.text('OPEN EVIDENCE').last;
+    await tester.ensureVisible(openEvidenceButton);
+    await tester.tap(openEvidenceButton);
+    await tester.pumpAndSettle();
+
+    expect(openedEventIds, equals(const ['evt-office']));
+    expect(openedSelectedEventId, 'evt-office');
   });
 
   testWidgets('governance page highlights hazard playbook summaries', (

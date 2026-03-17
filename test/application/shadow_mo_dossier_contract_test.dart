@@ -22,6 +22,9 @@ void main() {
       moShadowMatchCount: 1,
       moShadowSummary:
           'Contractors moved floor to floor in office park (0.89) • office_building, route_anomalies',
+      moShadowEventIds: const ['evt-office'],
+      moShadowSelectedEventId: 'evt-office',
+      moShadowReviewRefs: const ['intel-office'],
       moShadowMatches: const [
         OnyxMoShadowMatch(
           moId: 'MO-EXT-INTEL-NEWS',
@@ -44,6 +47,9 @@ void main() {
     expect(payload['siteId'], 'SITE-OFFICE');
     expect(payload['matchCount'], 1);
     expect(payload['summary'], contains('Contractors moved floor to floor'));
+    expect(payload['eventIds'], ['evt-office']);
+    expect(payload['selectedEventId'], 'evt-office');
+    expect(payload['reviewRefs'], ['intel-office']);
     final matches = payload['matches'] as List<Object?>;
     expect(matches, hasLength(1));
   });
@@ -66,6 +72,9 @@ void main() {
       moShadowMatchCount: 1,
       moShadowSummary:
           'Contractors moved floor to floor in office park (0.89) • office_building, route_anomalies',
+      moShadowEventIds: const ['evt-office'],
+      moShadowSelectedEventId: 'evt-office',
+      moShadowReviewRefs: const ['intel-office'],
       moShadowMatches: const [
         OnyxMoShadowMatch(
           moId: 'MO-EXT-INTEL-NEWS',

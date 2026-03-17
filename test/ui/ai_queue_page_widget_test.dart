@@ -251,6 +251,8 @@ void main() {
   testWidgets('ai queue surfaces shadow MO intelligence from external patterns', (
     tester,
   ) async {
+    List<String>? openedEventIds;
+    String? openedSelectedEventId;
     final events = [
       IntelligenceReceived(
         eventId: 'evt-news',
@@ -315,6 +317,10 @@ void main() {
           events: events,
           sceneReviewByIntelligenceId: reviews,
           videoOpsLabel: 'Hikvision',
+          onOpenEventsForScope: (eventIds, selectedEventId) {
+            openedEventIds = eventIds;
+            openedSelectedEventId = selectedEventId;
+          },
         ),
       ),
     );
@@ -343,5 +349,11 @@ void main() {
       find.textContaining('Actions RAISE READINESS • PREPOSITION RESPONSE'),
       findsWidgets,
     );
+
+    await tester.tap(find.text('OPEN EVIDENCE').last);
+    await tester.pumpAndSettle();
+
+    expect(openedEventIds, equals(const ['evt-office']));
+    expect(openedSelectedEventId, 'evt-office');
   });
 }

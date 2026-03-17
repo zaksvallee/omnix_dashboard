@@ -25,6 +25,9 @@ class MonitoringGlobalSitePosture {
   final int moShadowMatchCount;
   final String moShadowSummary;
   final List<OnyxMoShadowMatch> moShadowMatches;
+  final List<String> moShadowEventIds;
+  final String? moShadowSelectedEventId;
+  final List<String> moShadowReviewRefs;
 
   const MonitoringGlobalSitePosture({
     required this.clientId,
@@ -43,6 +46,9 @@ class MonitoringGlobalSitePosture {
     this.moShadowMatchCount = 0,
     this.moShadowSummary = '',
     this.moShadowMatches = const <OnyxMoShadowMatch>[],
+    this.moShadowEventIds = const <String>[],
+    this.moShadowSelectedEventId,
+    this.moShadowReviewRefs = const <String>[],
   });
 }
 
@@ -254,6 +260,17 @@ class MonitoringGlobalPostureService {
     final moShadowMatches = ordered
         .expand((item) => item.moShadowMatches)
         .toList(growable: false);
+    final moShadowEvidenceItems = ordered
+        .where((item) => item.review != null && item.moShadowMatches.isNotEmpty)
+        .toList(growable: false);
+    final moShadowEventIds = moShadowEvidenceItems
+        .map((item) => item.event.eventId.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    final moShadowReviewRefs = moShadowEvidenceItems
+        .map((item) => item.review!.intelligenceId.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
 
     return MonitoringGlobalSitePosture(
       clientId: latest.event.clientId,
@@ -272,6 +289,11 @@ class MonitoringGlobalPostureService {
       moShadowMatchCount: moShadowMatches.length,
       moShadowSummary: moRuntimeMatchingService.shadowSummary(moShadowMatches),
       moShadowMatches: moShadowMatches,
+      moShadowEventIds: moShadowEventIds,
+      moShadowSelectedEventId: moShadowEventIds.isEmpty
+          ? null
+          : moShadowEventIds.first,
+      moShadowReviewRefs: moShadowReviewRefs,
     );
   }
 
