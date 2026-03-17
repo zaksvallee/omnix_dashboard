@@ -17210,21 +17210,42 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       reportDate: scope.reportDate,
     );
     if (point == null || point.eventIds.isEmpty) {
-      return 'ONYX ACTIVITYREVIEW\n'
-          'scope=$normalizedClientId/$normalizedSiteId'
-          '${(scope.reportDate ?? '').trim().isEmpty ? '' : '\nreport_date=${scope.reportDate!.trim()}'}\n'
-          'No site-activity evidence is currently available for Events Review.';
+      return '${buildChatCaseFileHeader(
+        title: 'ONYX ACTIVITYREVIEW',
+        fields: [
+          ChatCaseFileHeaderField(
+            key: 'scope',
+            value: '$normalizedClientId/$normalizedSiteId',
+          ),
+          ChatCaseFileHeaderField(
+            key: 'report_date',
+            value: (scope.reportDate ?? '').trim(),
+          ),
+        ],
+      )}No site-activity evidence is currently available for Events Review.';
     }
     _openEventsForScopedEventIds(
       point.eventIds,
       selectedEventId: point.snapshot.selectedEventId,
     );
-    return 'ONYX ACTIVITYREVIEW\n'
-        'scope=$normalizedClientId/$normalizedSiteId\n'
-        'report_date=${point.reportDate}\n'
-        'selected=${point.snapshot.selectedEventId ?? point.eventIds.first}\n'
-        'events=${point.eventIds.length}\n'
-        'Opening Events Review for site activity investigation.';
+    return '${buildChatCaseFileHeader(
+      title: 'ONYX ACTIVITYREVIEW',
+      fields: [
+        ChatCaseFileHeaderField(
+          key: 'scope',
+          value: '$normalizedClientId/$normalizedSiteId',
+        ),
+        ChatCaseFileHeaderField(key: 'report_date', value: point.reportDate),
+        ChatCaseFileHeaderField(
+          key: 'selected',
+          value: point.snapshot.selectedEventId ?? point.eventIds.first,
+        ),
+        ChatCaseFileHeaderField(
+          key: 'events',
+          value: point.eventIds.length.toString(),
+        ),
+      ],
+    )}Opening Events Review for site activity investigation.';
   }
 
   String _telegramAdminActivityCaseCommand(String arguments) {
@@ -17254,16 +17275,36 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final normalizedClientId = scope.clientId.trim();
     final normalizedSiteId = scope.siteId.trim();
     final normalizedReportDate = scope.reportDate?.trim();
-    final scopeLine =
-        'scope=$normalizedClientId/$normalizedSiteId${normalizedReportDate == null || normalizedReportDate.isEmpty ? '' : '\nreport_date=$normalizedReportDate'}';
     if (format == 'csv') {
-      return 'ONYX ACTIVITYCASE CSV\n'
-          '$scopeLine\n'
-          '${_siteActivityCaseFileCsv(clientId: normalizedClientId, siteId: normalizedSiteId, reportDate: normalizedReportDate)}';
+      final header = buildChatCaseFileHeader(
+        title: 'ONYX ACTIVITYCASE CSV',
+        fields: [
+          ChatCaseFileHeaderField(
+            key: 'scope',
+            value: '$normalizedClientId/$normalizedSiteId',
+          ),
+          ChatCaseFileHeaderField(
+            key: 'report_date',
+            value: normalizedReportDate ?? '',
+          ),
+        ],
+      );
+      return '$header${_siteActivityCaseFileCsv(clientId: normalizedClientId, siteId: normalizedSiteId, reportDate: normalizedReportDate)}';
     }
-    return 'ONYX ACTIVITYCASE JSON\n'
-        '$scopeLine\n'
-        '${const JsonEncoder.withIndent('  ').convert(_siteActivityCaseFilePayload(clientId: normalizedClientId, siteId: normalizedSiteId, reportDate: normalizedReportDate))}';
+    final header = buildChatCaseFileHeader(
+      title: 'ONYX ACTIVITYCASE JSON',
+      fields: [
+        ChatCaseFileHeaderField(
+          key: 'scope',
+          value: '$normalizedClientId/$normalizedSiteId',
+        ),
+        ChatCaseFileHeaderField(
+          key: 'report_date',
+          value: normalizedReportDate ?? '',
+        ),
+      ],
+    );
+    return '$header${const JsonEncoder.withIndent('  ').convert(_siteActivityCaseFilePayload(clientId: normalizedClientId, siteId: normalizedSiteId, reportDate: normalizedReportDate))}';
   }
 
   String _telegramAdminReadinessReviewCommand(String arguments) {
