@@ -3154,6 +3154,7 @@ class _GovernancePageState extends State<GovernancePage> {
         ? ''
         : ' • shadow ${leadSite.moShadowSummary.trim()}';
     final tomorrowSegment = _globalReadinessTomorrowPostureSummary(intents);
+    final tomorrowShadowSegment = _globalReadinessTomorrowShadowSummary(intents);
     final regionSegment = leadRegion == null
         ? ''
         : ' • region ${leadRegion.regionId} ${leadRegion.heatLevel.name}';
@@ -3163,7 +3164,10 @@ class _GovernancePageState extends State<GovernancePage> {
     final tomorrowSuffix = tomorrowSegment.isEmpty
         ? ''
         : ' • tomorrow $tomorrowSegment';
-    return 'Sites ${snapshot.totalSites} • elevated ${snapshot.elevatedSiteCount} • critical ${snapshot.criticalSiteCount} • intents ${intents.length}$regionSegment$siteSegment$hazardSegment$moShadowSegment$tomorrowSuffix';
+    final tomorrowShadowSuffix = tomorrowShadowSegment.isEmpty
+        ? ''
+        : ' • tomorrow shadow $tomorrowShadowSegment';
+    return 'Sites ${snapshot.totalSites} • elevated ${snapshot.elevatedSiteCount} • critical ${snapshot.criticalSiteCount} • intents ${intents.length}$regionSegment$siteSegment$hazardSegment$moShadowSegment$tomorrowSuffix$tomorrowShadowSuffix';
   }
 
   int _globalReadinessNextShiftDraftCount(
@@ -3197,6 +3201,39 @@ class _GovernancePageState extends State<GovernancePage> {
       draft.actionType.trim(),
       if (leadSite.isNotEmpty) leadSite,
       if (learningLabel.isNotEmpty) learningLabel,
+      if (repeatCount.isNotEmpty) 'x$repeatCount',
+    ];
+    return parts.join(' • ');
+  }
+
+  String _globalReadinessTomorrowShadowSummary(
+    List<MonitoringWatchAutonomyActionPlan> intents,
+  ) {
+    final draft = intents.firstWhere(
+      (plan) =>
+          plan.metadata['scope'] == 'NEXT_SHIFT' &&
+          (plan.metadata['shadow_mo_label'] ?? '').trim().isNotEmpty,
+      orElse: () => const MonitoringWatchAutonomyActionPlan(
+        id: '',
+        incidentId: '',
+        siteId: '',
+        priority: MonitoringWatchAutonomyPriority.medium,
+        actionType: '',
+        description: '',
+        countdownSeconds: 0,
+      ),
+    );
+    if (draft.actionType.trim().isEmpty) {
+      return '';
+    }
+    final leadSite = (draft.metadata['lead_site'] ?? draft.siteId).trim();
+    final shadowLabel = (draft.metadata['shadow_mo_label'] ?? '').trim();
+    final shadowTitle = (draft.metadata['shadow_mo_title'] ?? '').trim();
+    final repeatCount = (draft.metadata['shadow_mo_repeat_count'] ?? '').trim();
+    final parts = <String>[
+      if (shadowLabel.isNotEmpty) shadowLabel,
+      if (leadSite.isNotEmpty) leadSite,
+      if (shadowTitle.isNotEmpty) shadowTitle,
       if (repeatCount.isNotEmpty) 'x$repeatCount',
     ];
     return parts.join(' • ');
@@ -10449,6 +10486,9 @@ class _GovernancePageState extends State<GovernancePage> {
         'tomorrowPostureSummary': _globalReadinessTomorrowPostureSummary(
           globalReadinessIntents,
         ),
+        'tomorrowShadowSummary': _globalReadinessTomorrowShadowSummary(
+          globalReadinessIntents,
+        ),
         'tomorrowPostureReviewCommand': '/tomorrowreview ${report.reportDate}',
         'tomorrowPostureCaseFileCommand':
             '/tomorrowcase json ${report.reportDate}',
@@ -10752,6 +10792,7 @@ class _GovernancePageState extends State<GovernancePage> {
       'global_readiness_intent_count,${globalReadinessIntents.length}',
       'global_readiness_next_shift_draft_count,${_globalReadinessNextShiftDraftCount(globalReadinessIntents)}',
       'global_readiness_tomorrow_posture_summary,"${_globalReadinessTomorrowPostureSummary(globalReadinessIntents).replaceAll('"', '""')}"',
+      'global_readiness_tomorrow_shadow_summary,"${_globalReadinessTomorrowShadowSummary(globalReadinessIntents).replaceAll('"', '""')}"',
       'global_readiness_tomorrow_review_command,/tomorrowreview ${report.reportDate}',
       'global_readiness_tomorrow_case_file_command,/tomorrowcase json ${report.reportDate}',
       'global_readiness_shadow_summary,"${(shadowSites.isEmpty ? '' : '${shadowSites.length} sites • ${shadowSites.first.moShadowSummary}').replaceAll('"', '""')}"',

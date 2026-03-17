@@ -5365,6 +5365,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       ),
       globalReadinessTomorrowPostureSummary:
           _globalReadinessTomorrowPostureSummary(readinessIntents),
+      globalReadinessTomorrowShadowSummary:
+          _globalReadinessTomorrowShadowSummary(readinessIntents),
       globalReadinessShadowSummary:
           (shadowMoCaseFile['summary'] ?? '').toString(),
       currentShiftShadowReviewCommand: '/shadowreview ${report.date}',
@@ -5856,6 +5858,39 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       draft.actionType.trim(),
       if (leadSite.isNotEmpty) leadSite,
       if (learningLabel.isNotEmpty) learningLabel,
+      if (repeatCount.isNotEmpty) 'x$repeatCount',
+    ];
+    return _singleLine(parts.join(' • '), maxLength: 220);
+  }
+
+  String _globalReadinessTomorrowShadowSummary(
+    List<MonitoringWatchAutonomyActionPlan> intents,
+  ) {
+    final draft = intents.firstWhere(
+      (plan) =>
+          plan.metadata['scope'] == 'NEXT_SHIFT' &&
+          (plan.metadata['shadow_mo_label'] ?? '').trim().isNotEmpty,
+      orElse: () => const MonitoringWatchAutonomyActionPlan(
+        id: '',
+        incidentId: '',
+        siteId: '',
+        priority: MonitoringWatchAutonomyPriority.medium,
+        actionType: '',
+        description: '',
+        countdownSeconds: 0,
+      ),
+    );
+    if (draft.actionType.trim().isEmpty) {
+      return '';
+    }
+    final leadSite = (draft.metadata['lead_site'] ?? draft.siteId).trim();
+    final shadowLabel = (draft.metadata['shadow_mo_label'] ?? '').trim();
+    final shadowTitle = (draft.metadata['shadow_mo_title'] ?? '').trim();
+    final repeatCount = (draft.metadata['shadow_mo_repeat_count'] ?? '').trim();
+    final parts = <String>[
+      if (shadowLabel.isNotEmpty) shadowLabel,
+      if (leadSite.isNotEmpty) leadSite,
+      if (shadowTitle.isNotEmpty) shadowTitle,
       if (repeatCount.isNotEmpty) 'x$repeatCount',
     ];
     return _singleLine(parts.join(' • '), maxLength: 220);

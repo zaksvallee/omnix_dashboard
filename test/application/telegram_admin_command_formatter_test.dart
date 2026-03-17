@@ -138,6 +138,8 @@ void main() {
       previousShiftShadowCaseFileCommand: '/shadowcase json 2026-03-16',
       globalReadinessTomorrowPostureSummary:
           'DRAFT NEXT-SHIFT FIRE READINESS • site-alpha • ADVANCE FIRE • x2',
+      globalReadinessTomorrowShadowSummary:
+          'HARDEN ACCESS • site-alpha • Contractors moved floor to floor in office park • x1',
       currentShiftTomorrowPostureReviewCommand: '/tomorrowreview 2026-03-17',
       currentShiftTomorrowPostureCaseFileCommand:
           '/tomorrowcase json 2026-03-17',
@@ -220,6 +222,12 @@ void main() {
       response,
       contains(
         '<b>Tomorrow posture:</b> DRAFT NEXT-SHIFT FIRE READINESS • site-alpha • ADVANCE FIRE • x2',
+      ),
+    );
+    expect(
+      response,
+      contains(
+        '<b>Tomorrow shadow:</b> HARDEN ACCESS • site-alpha • Contractors moved floor to floor in office park • x1',
       ),
     );
     expect(

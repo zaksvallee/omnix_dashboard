@@ -166,6 +166,50 @@ void main() {
         home: GovernancePage(
           events: <DispatchEvent>[
             IntelligenceReceived(
+              eventId: 'evt-news-prior',
+              sequence: 1,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 16, 0, 20),
+              intelligenceId: 'intel-news-prior',
+              provider: 'news_feed_monitor',
+              sourceType: 'news',
+              externalId: 'ext-news-prior',
+              clientId: 'CLIENT-VALLEE',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-OFFICE',
+              cameraId: 'feed-news-prior',
+              objectLabel: 'person',
+              objectConfidence: 0.7,
+              headline: 'Contractors moved floor to floor in office park',
+              summary:
+                  'Suspects posed as maintenance contractors before moving floor to floor through restricted office zones.',
+              riskScore: 73,
+              snapshotUrl: 'https://edge.example.com/news-office-prior.jpg',
+              canonicalHash: 'hash-news-office-prior',
+            ),
+            IntelligenceReceived(
+              eventId: 'evt-office-prior',
+              sequence: 1,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 16, 1, 0),
+              intelligenceId: 'intel-office-prior',
+              provider: 'hikvision_dvr_monitor_only',
+              sourceType: 'dvr',
+              externalId: 'ext-office-prior',
+              clientId: 'CLIENT-VALLEE',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-OFFICE',
+              cameraId: 'office-cam-prior',
+              objectLabel: 'person',
+              objectConfidence: 0.94,
+              headline: 'Maintenance contractor probing office doors',
+              summary:
+                  'Contractor-like person moved floor to floor and tried several restricted office doors.',
+              riskScore: 84,
+              snapshotUrl: 'https://edge.example.com/office-prior.jpg',
+              canonicalHash: 'hash-office-prior',
+            ),
+            IntelligenceReceived(
               eventId: 'evt-news',
               sequence: 1,
               version: 1,
@@ -211,6 +255,17 @@ void main() {
             ),
           ],
           sceneReviewByIntelligenceId: {
+            'intel-office-prior': MonitoringSceneReviewRecord(
+              intelligenceId: 'intel-office-prior',
+              sourceLabel: 'openai:gpt-5.4-mini',
+              postureLabel: 'service impersonation and roaming concern',
+              decisionLabel: 'Escalation Candidate',
+              decisionSummary:
+                  'Likely spoofed service access with abnormal roaming.',
+              summary:
+                  'Likely maintenance impersonation moving across office zones.',
+              reviewedAtUtc: DateTime.utc(2026, 3, 16, 1, 1),
+            ),
             'intel-office': MonitoringSceneReviewRecord(
               intelligenceId: 'intel-office',
               sourceLabel: 'openai:gpt-5.4-mini',
@@ -236,6 +291,12 @@ void main() {
     expect(
       find.textContaining(
         'shadow Contractors moved floor to floor in office park',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'tomorrow shadow HARDEN ACCESS • SITE-OFFICE • Contractors moved floor to floor in office park • x1',
       ),
       findsOneWidget,
     );
@@ -4534,6 +4595,10 @@ void main() {
     expect(
       copiedPayload,
       contains('global_readiness_tomorrow_posture_summary,""'),
+    );
+    expect(
+      copiedPayload,
+      contains('global_readiness_tomorrow_shadow_summary,""'),
     );
     expect(
       copiedPayload,
