@@ -1070,6 +1070,19 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             ),
                           ),
                         ],
+                        if (syntheticScopeSummary
+                            .shadowPostureBiasSummary
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Shadow posture bias: ${syntheticScopeSummary.shadowPostureBiasSummary}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFFDE68A),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                         if (syntheticScopeSummary.history != null) ...[
                           const SizedBox(height: 8),
                           Container(
@@ -1119,6 +1132,19 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                                     const SizedBox(height: 2),
                                     Text(
                                       point.biasSummary,
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFFDE68A),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                  if (point
+                                      .shadowPostureBiasSummary
+                                      .isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Shadow posture bias: ${point.shadowPostureBiasSummary}',
                                       style: GoogleFonts.inter(
                                         color: const Color(0xFFFDE68A),
                                         fontSize: 10,
@@ -2245,6 +2271,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       biasSummary: _syntheticWarRoomBiasSummaryForPlan(
         leadPolicyPlan.id.isEmpty ? null : leadPolicyPlan,
       ),
+      shadowPostureBiasSummary: _syntheticWarRoomShadowPostureBiasSummaryForPlan(
+        leadPolicyPlan.id.isEmpty ? null : leadPolicyPlan,
+      ),
       reviewRefs: reviewRefs,
       history: _syntheticHistorySummary(
         scopedEvents: scopedEvents,
@@ -3246,6 +3275,27 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return parts.join(' • ');
   }
 
+  String _syntheticWarRoomShadowPostureBiasSummaryForPlan(
+    MonitoringWatchAutonomyActionPlan? plan,
+  ) {
+    final postureBias = (plan?.metadata['shadow_posture_bias'] ?? '').trim();
+    final posturePriority = (plan?.metadata['shadow_posture_priority'] ?? '')
+        .trim();
+    final postureCountdown = (plan?.metadata['shadow_posture_countdown'] ?? '')
+        .trim();
+    if (postureBias.isEmpty &&
+        posturePriority.isEmpty &&
+        postureCountdown.isEmpty) {
+      return '';
+    }
+    final parts = <String>[
+      if (postureBias.isNotEmpty) postureBias,
+      if (posturePriority.isNotEmpty) posturePriority,
+      if (postureCountdown.isNotEmpty) '${postureCountdown}s',
+    ];
+    return parts.join(' • ');
+  }
+
   String _hazardIntentSummary(List<MonitoringWatchAutonomyActionPlan> intents) {
     final signal = intents
         .map((plan) => (plan.metadata['hazard_signal'] ?? '').trim())
@@ -3440,6 +3490,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           biasSummary: _syntheticWarRoomBiasSummaryForPlan(
             currentPolicyPlan.id.isEmpty ? null : currentPolicyPlan,
           ),
+          shadowPostureBiasSummary:
+              _syntheticWarRoomShadowPostureBiasSummaryForPlan(
+                currentPolicyPlan.id.isEmpty ? null : currentPolicyPlan,
+              ),
           shadowPostureSummary: _shadowPostureSummaryForReport(currentReport),
           shadowValidationSummary: _shadowValidationSummaryForSites(
             _shadowMoSitesForReport(currentReport),
@@ -3506,6 +3560,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           biasSummary: _syntheticWarRoomBiasSummaryForPlan(
             policyPlan.id.isEmpty ? null : policyPlan,
           ),
+          shadowPostureBiasSummary:
+              _syntheticWarRoomShadowPostureBiasSummaryForPlan(
+                policyPlan.id.isEmpty ? null : policyPlan,
+              ),
           shadowPostureSummary: _shadowPostureSummaryForReport(report),
           shadowValidationSummary: _shadowValidationSummaryForSites(
             _shadowMoSitesForReport(report),
@@ -5236,6 +5294,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       'learning_summary,"${summary.learningSummary.replaceAll('"', '""')}"',
       'learning_memory_summary,"${summary.learningMemorySummary.replaceAll('"', '""')}"',
       'bias_summary,"${summary.biasSummary.replaceAll('"', '""')}"',
+      'shadow_posture_bias_summary,"${summary.shadowPostureBiasSummary.replaceAll('"', '""')}"',
       'review_refs,"${summary.reviewRefs.join(', ').replaceAll('"', '""')}"',
       if (summary.reportDate.isNotEmpty)
         'current_review_command,${_syntheticReviewCommand(summary.reportDate)}',
@@ -5262,6 +5321,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         );
         lines.add(
           'history_${row}_bias_summary,"${point.biasSummary.replaceAll('"', '""')}"',
+        );
+        lines.add(
+          'history_${row}_shadow_posture_bias_summary,"${point.shadowPostureBiasSummary.replaceAll('"', '""')}"',
         );
         lines.add(
           'history_${row}_shadow_posture_summary,"${point.shadowPostureSummary.replaceAll('"', '""')}"',
@@ -5642,6 +5704,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'learningSummary': summary.learningSummary,
         'learningMemorySummary': summary.learningMemorySummary,
         'biasSummary': summary.biasSummary,
+        'shadowPostureBiasSummary': summary.shadowPostureBiasSummary,
         'reviewRefs': summary.reviewRefs,
         'reviewShortcuts': buildReviewShortcuts(
           currentReportDate: summary.reportDate,
@@ -5663,6 +5726,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         'modeLabel': point.modeLabel,
                         'summaryLine': point.summaryLine,
                         'biasSummary': point.biasSummary,
+                        'shadowPostureBiasSummary':
+                            point.shadowPostureBiasSummary,
                         'shadowPostureSummary': point.shadowPostureSummary,
                         'shadowValidationSummary':
                             point.shadowValidationSummary,
@@ -6240,6 +6305,7 @@ class _SyntheticScopeSummary {
   final String learningSummary;
   final String learningMemorySummary;
   final String biasSummary;
+  final String shadowPostureBiasSummary;
   final List<String> reviewRefs;
   final _SyntheticHistorySummary? history;
 
@@ -6271,6 +6337,7 @@ class _SyntheticScopeSummary {
     required this.learningSummary,
     required this.learningMemorySummary,
     required this.biasSummary,
+    required this.shadowPostureBiasSummary,
     required this.reviewRefs,
     required this.history,
   });
@@ -6440,6 +6507,7 @@ class _SyntheticHistoryPoint {
   final String modeLabel;
   final String summaryLine;
   final String biasSummary;
+  final String shadowPostureBiasSummary;
   final String shadowPostureSummary;
   final String shadowValidationSummary;
   final String shadowTomorrowUrgencySummary;
@@ -6454,6 +6522,7 @@ class _SyntheticHistoryPoint {
     required this.modeLabel,
     required this.summaryLine,
     required this.biasSummary,
+    required this.shadowPostureBiasSummary,
     required this.shadowPostureSummary,
     required this.shadowValidationSummary,
     required this.shadowTomorrowUrgencySummary,

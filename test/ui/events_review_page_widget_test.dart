@@ -1982,6 +1982,7 @@ void main() {
     expect(copiedClipboardPayload, contains('"learningSummary":'));
     expect(copiedClipboardPayload, contains('"learningMemorySummary":'));
     expect(copiedClipboardPayload, contains('"biasSummary":'));
+    expect(copiedClipboardPayload, contains('"shadowPostureBiasSummary":'));
     expect(
       copiedClipboardPayload,
       contains(
@@ -2379,6 +2380,10 @@ void main() {
     expect(
       copiedClipboardPayload,
       contains('history_1_shadow_validation_summary,"'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('history_1_shadow_posture_bias_summary,"'),
     );
     expect(
       copiedClipboardPayload,
