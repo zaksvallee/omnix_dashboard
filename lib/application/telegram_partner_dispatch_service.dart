@@ -35,6 +35,8 @@ class TelegramPartnerDispatchContext {
   final String siteId;
   final String siteName;
   final String incidentSummary;
+  final String dispatchDirective;
+  final String welfareDirective;
   final String partnerLabel;
   final DateTime occurredAtUtc;
 
@@ -46,6 +48,8 @@ class TelegramPartnerDispatchContext {
     required this.siteId,
     required this.siteName,
     required this.incidentSummary,
+    this.dispatchDirective = '',
+    this.welfareDirective = '',
     required this.partnerLabel,
     required this.occurredAtUtc,
   });
@@ -134,6 +138,8 @@ class TelegramPartnerDispatchService {
     final incidentSummary = context.incidentSummary.trim().isEmpty
         ? 'Monitoring escalation awaiting partner acknowledgement.'
         : context.incidentSummary.trim();
+    final dispatchDirective = context.dispatchDirective.trim();
+    final welfareDirective = context.welfareDirective.trim();
     return 'ONYX PARTNER DISPATCH\n'
         'incident=${context.dispatchId}\n'
         'site=${context.siteName}\n'
@@ -142,6 +148,8 @@ class TelegramPartnerDispatchService {
         'message_key=${context.messageKey}\n'
         'occurred_at=${context.occurredAtUtc.toIso8601String()}\n'
         'summary=$incidentSummary\n'
+        '${dispatchDirective.isEmpty ? '' : 'dispatch_directive=$dispatchDirective\n'}'
+        '${welfareDirective.isEmpty ? '' : 'welfare_directive=$welfareDirective\n'}'
         'Reply with: ACCEPT, ON SITE, ALL CLEAR, or CANCEL.';
   }
 

@@ -51,6 +51,39 @@ void main() {
     );
   });
 
+  test('builds a hazard-aware partner dispatch message when directives are present', () {
+    final text = service.buildDispatchMessage(
+      TelegramPartnerDispatchContext(
+        messageKey: 'tg-partner-dispatch-client-a-site-a-2',
+        dispatchId: 'DSP-2001',
+        clientId: 'CLIENT-A',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-A',
+        siteName: 'MS Vallee Residence',
+        incidentSummary: 'HIKVISION FIRE ALERT • Smoke visible in the generator room.',
+        dispatchDirective:
+            'Stage fire response to MS Vallee Residence and prioritize flame or smoke containment on arrival.',
+        welfareDirective:
+            'Confirm occupant welfare status for MS Vallee Residence as part of the first partner update.',
+        partnerLabel: 'Partner Response',
+        occurredAtUtc: DateTime.utc(2026, 3, 15, 20, 5),
+      ),
+    );
+
+    expect(
+      text,
+      contains(
+        'dispatch_directive=Stage fire response to MS Vallee Residence and prioritize flame or smoke containment on arrival.',
+      ),
+    );
+    expect(
+      text,
+      contains(
+        'welfare_directive=Confirm occupant welfare status for MS Vallee Residence as part of the first partner update.',
+      ),
+    );
+  });
+
   test(
     'accept resolves for an open dispatch and emits declared status event',
     () {
