@@ -99,7 +99,13 @@ class MonitoringWatchEscalationPolicyService {
   }) {
     final reasons = <String>[];
     final objectLabel = assessment.objectLabel.trim().toLowerCase();
-    if (objectLabel == 'person') {
+    if (assessment.fireSignal) {
+      reasons.add('fire or smoke indicators were detected');
+    } else if (assessment.waterLeakSignal) {
+      reasons.add('water leak or flooding indicators were detected');
+    } else if (assessment.environmentHazardSignal) {
+      reasons.add('environmental hazard indicators were detected');
+    } else if (objectLabel == 'person') {
       reasons.add('person activity was detected');
     } else if (objectLabel == 'vehicle') {
       reasons.add('vehicle activity was detected');

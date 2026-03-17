@@ -67,6 +67,56 @@ void main() {
       expect(decision.decisionSummary, contains('person activity was detected'));
     });
 
+    test('uses fire-specific escalation rationale for fire emergencies', () {
+      final decision = service.decide(
+        const MonitoringWatchSceneAssessment(
+          objectLabel: 'smoke',
+          effectiveRiskScore: 99,
+          confidence: MonitoringWatchSceneConfidence.high,
+          postureLabel: 'fire and smoke emergency',
+          shouldNotifyClient: true,
+          shouldEscalate: true,
+          repeatActivity: false,
+          fireSignal: true,
+        ),
+      );
+
+      expect(
+        decision.kind,
+        MonitoringWatchNotificationKind.escalationCandidate,
+      );
+      expect(
+        decision.decisionSummary,
+        contains('fire or smoke indicators were detected'),
+      );
+      expect(decision.decisionSummary, isNot(contains('activity was detected')));
+    });
+
+    test('uses water-specific escalation rationale for flood or leak emergencies', () {
+      final decision = service.decide(
+        const MonitoringWatchSceneAssessment(
+          objectLabel: 'water',
+          effectiveRiskScore: 95,
+          confidence: MonitoringWatchSceneConfidence.high,
+          postureLabel: 'flood or leak emergency',
+          shouldNotifyClient: true,
+          shouldEscalate: true,
+          repeatActivity: false,
+          waterLeakSignal: true,
+        ),
+      );
+
+      expect(
+        decision.kind,
+        MonitoringWatchNotificationKind.escalationCandidate,
+      );
+      expect(
+        decision.decisionSummary,
+        contains('water leak or flooding indicators were detected'),
+      );
+      expect(decision.decisionSummary, isNot(contains('activity was detected')));
+    });
+
     test('includes boundary, loitering, grouping, and confidence in alert rationale', () {
       final decision = service.decide(
         const MonitoringWatchSceneAssessment(

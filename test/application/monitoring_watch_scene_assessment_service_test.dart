@@ -123,6 +123,52 @@ void main() {
       expect(assessment.postureLabel, 'escalation candidate');
     });
 
+    test('escalates fire and smoke emergencies from metadata-only review', () {
+      final event = _intel(
+        objectLabel: 'smoke',
+        objectConfidence: 0.93,
+        riskScore: 74,
+        headline: 'HIKVISION_DVR_MONITOR_ONLY FIRE_ALERT',
+        summary: 'Smoke visible in the generator room.',
+        snapshotUrl: 'https://edge.example.com/snapshot.jpg',
+      );
+
+      final assessment = service.assess(
+        event: event,
+        review: buildMetadataOnlyMonitoringWatchVisionReview(event),
+        priorReviewedEvents: 0,
+      );
+
+      expect(assessment.fireSignal, isTrue);
+      expect(assessment.shouldNotifyClient, isTrue);
+      expect(assessment.shouldEscalate, isTrue);
+      expect(assessment.postureLabel, 'fire and smoke emergency');
+      expect(assessment.effectiveRiskScore, greaterThanOrEqualTo(95));
+    });
+
+    test('escalates flood or leak emergencies from metadata-only review', () {
+      final event = _intel(
+        objectLabel: 'leak',
+        objectConfidence: 0.89,
+        riskScore: 72,
+        headline: 'HIKVISION_DVR_MONITOR_ONLY WATER_ALERT',
+        summary: 'Pipe burst caused flooding near the stock room.',
+        snapshotUrl: 'https://edge.example.com/snapshot.jpg',
+      );
+
+      final assessment = service.assess(
+        event: event,
+        review: buildMetadataOnlyMonitoringWatchVisionReview(event),
+        priorReviewedEvents: 0,
+      );
+
+      expect(assessment.waterLeakSignal, isTrue);
+      expect(assessment.shouldNotifyClient, isTrue);
+      expect(assessment.shouldEscalate, isTrue);
+      expect(assessment.postureLabel, 'flood or leak emergency');
+      expect(assessment.effectiveRiskScore, greaterThanOrEqualTo(90));
+    });
+
     test(
       'uses high-confidence vision result to override weak metadata label',
       () {
