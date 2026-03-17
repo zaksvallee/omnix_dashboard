@@ -479,6 +479,20 @@ void main() {
         contains('weight '),
       );
       expect(
+        policy.metadata['mo_promotion_id'],
+        'MO-EXT-NEWS-OFFICE-POSTURE',
+      );
+      expect(policy.metadata['mo_promotion_target'], 'validated');
+      expect(policy.metadata['mo_promotion_confidence_bias'], 'HIGH');
+      expect(policy.metadata['mo_promotion_trend_bias'], '+0.26');
+      expect(policy.metadata['mo_promotion_urgency_bias'], 'ACCELERATE');
+      expect(
+        policy.metadata['mo_promotion_summary'],
+        contains(
+          'Accelerate MO-EXT-NEWS-OFFICE-POSTURE toward validated review after shadow posture surged at the lead site',
+        ),
+      );
+      expect(
         policy.description,
         contains('Shadow posture weight at SITE-VALLEE is weight '),
       );

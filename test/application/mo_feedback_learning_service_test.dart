@@ -133,6 +133,35 @@ void main() {
     );
   });
 
+  test('accelerates guidance when shadow posture surges without repeat memory', () {
+    final guidance = service.buildShadowPromotionGuidance(
+      matches: const [
+        OnyxMoShadowMatch(
+          moId: 'MO-1',
+          title: 'Office impersonation pattern',
+          incidentType: 'access_abuse',
+          behaviorStage: 'entry',
+          validationStatus: 'shadowMode',
+          matchScore: 0.81,
+        ),
+      ],
+      repeatedShadowCount: 0,
+      shadowPostureStrengthScore: 79,
+      shadowPostureBiasSummary: 'POSTURE SURGE • CRITICAL • 28s',
+    );
+
+    expect(guidance, isNotNull);
+    expect(guidance!.confidenceBias, 'HIGH');
+    expect(guidance.trendBias, '+0.26');
+    expect(guidance.urgencyBias, 'ACCELERATE');
+    expect(
+      guidance.summary,
+      contains(
+        'Accelerate MO-1 toward validated review after shadow posture surged at the lead site',
+      ),
+    );
+  });
+
   test('softens guidance when shadow-mode drift is easing', () {
     final guidance = service.buildShadowPromotionGuidance(
       matches: const [

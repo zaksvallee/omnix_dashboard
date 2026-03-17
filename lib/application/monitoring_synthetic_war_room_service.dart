@@ -194,6 +194,16 @@ class MonitoringSyntheticWarRoomService {
               matches: leadSite.moShadowMatches,
               repeatedShadowCount: repeatedShadowCount,
               shadowValidationDriftSummary: shadowValidationDriftSummary,
+              shadowPostureStrengthScore: leadSite.moShadowStrengthScore,
+              shadowPostureBiasSummary: [
+                if (shadowPostureBias.biasLabel.isNotEmpty)
+                  shadowPostureBias.biasLabel,
+                if (shadowPostureBias.priorityFloor !=
+                    MonitoringWatchAutonomyPriority.medium)
+                  shadowPostureBias.priorityFloor.name.toUpperCase(),
+                if (shadowPostureBias.countdownSeconds > 0)
+                  '${shadowPostureBias.countdownSeconds}s',
+              ].join(' • '),
             );
         final shadowLearningLabel = _shadowLearningLabel(
           shadowLabel: shadowLabel,

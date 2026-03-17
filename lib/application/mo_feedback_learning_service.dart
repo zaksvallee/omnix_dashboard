@@ -36,8 +36,10 @@ class MoFeedbackLearningService {
     required List<OnyxMoShadowMatch> matches,
     required int repeatedShadowCount,
     String shadowValidationDriftSummary = '',
+    int shadowPostureStrengthScore = 0,
+    String shadowPostureBiasSummary = '',
   }) {
-    if (matches.isEmpty || repeatedShadowCount <= 0) {
+    if (matches.isEmpty) {
       return null;
     }
     final lead = matches.first;
@@ -50,8 +52,25 @@ class MoFeedbackLearningService {
     final decisionStatus = decision?.status.name ?? 'pending';
     final driftSummary = shadowValidationDriftSummary.trim();
     final driftSignal = _driftSignalFor(driftSummary);
-    final baseTrendBias = repeatedShadowCount >= 2 ? 0.25 : 0.12;
-    if (decisionStatus == 'rejected' && repeatedShadowCount <= 1) {
+    final postureSignal = _postureSignalFor(
+      strengthScore: shadowPostureStrengthScore,
+      biasSummary: shadowPostureBiasSummary,
+    );
+    if (repeatedShadowCount <= 0 &&
+        driftSignal == _ShadowValidationDriftSignal.none &&
+        postureSignal == _ShadowPostureSignal.none) {
+      return null;
+    }
+    final baseTrendBias = repeatedShadowCount >= 2
+        ? 0.25
+        : repeatedShadowCount == 1
+        ? 0.12
+        : postureSignal == _ShadowPostureSignal.surge
+        ? 0.16
+        : 0.10;
+    final rejectedCanReopen =
+        repeatedShadowCount >= 2 || postureSignal != _ShadowPostureSignal.none;
+    if (decisionStatus == 'rejected' && !rejectedCanReopen) {
       return MoPromotionGuidance(
         moId: lead.moId,
         title: lead.title,
@@ -80,11 +99,17 @@ class MoFeedbackLearningService {
       );
     }
     final accelerated =
-        driftSignal == _ShadowValidationDriftSignal.validatedRising;
+        driftSignal == _ShadowValidationDriftSignal.validatedRising ||
+        postureSignal != _ShadowPostureSignal.none;
     final softened =
-        driftSignal == _ShadowValidationDriftSignal.shadowModeEasing;
+        driftSignal == _ShadowValidationDriftSignal.shadowModeEasing &&
+        postureSignal == _ShadowPostureSignal.none;
     final confidenceBias = accelerated
-        ? repeatedShadowCount >= 2
+        ? postureSignal == _ShadowPostureSignal.surge
+              ? repeatedShadowCount >= 2
+                    ? 'CRITICAL'
+                    : 'HIGH'
+              : repeatedShadowCount >= 2
               ? 'CRITICAL'
               : 'HIGH'
         : softened
@@ -93,7 +118,19 @@ class MoFeedbackLearningService {
         ? 'HIGH'
         : 'MEDIUM';
     final trendBias = accelerated
-        ? _trendBias(baseTrendBias + (repeatedShadowCount >= 2 ? 0.10 : 0.08))
+        ? _trendBias(
+            baseTrendBias +
+                (driftSignal == _ShadowValidationDriftSignal.validatedRising
+                    ? repeatedShadowCount >= 2
+                          ? 0.10
+                          : 0.08
+                    : 0.0) +
+                switch (postureSignal) {
+                  _ShadowPostureSignal.surge => 0.10,
+                  _ShadowPostureSignal.elevated => 0.06,
+                  _ShadowPostureSignal.none => 0.0,
+                },
+          )
         : softened
         ? _trendBias(0.04)
         : _trendBias(baseTrendBias);
@@ -104,13 +141,25 @@ class MoFeedbackLearningService {
         : decisionStatus == 'rejected'
         ? 'REOPEN'
         : 'STEADY';
-    final summary = accelerated
-        ? 'Accelerate ${lead.moId} toward $targetStatus review after validated drift rose across recent shifts • ${lead.title} • x$repeatedShadowCount'
+    final summary = accelerated &&
+            postureSignal == _ShadowPostureSignal.surge &&
+            driftSignal != _ShadowValidationDriftSignal.validatedRising
+        ? 'Accelerate ${lead.moId} toward $targetStatus review after shadow posture surged at the lead site • ${lead.title}${_repeatSuffix(repeatedShadowCount)}'
+        : accelerated &&
+                postureSignal == _ShadowPostureSignal.elevated &&
+                driftSignal != _ShadowValidationDriftSignal.validatedRising
+        ? 'Accelerate ${lead.moId} toward $targetStatus review after shadow posture stayed elevated at the lead site • ${lead.title}${_repeatSuffix(repeatedShadowCount)}'
+        : accelerated
+        ? 'Accelerate ${lead.moId} toward $targetStatus review after validated drift rose across recent shifts • ${lead.title}${_repeatSuffix(repeatedShadowCount)}'
         : softened
         ? 'Soften ${lead.moId} toward $targetStatus review while shadow-mode validation drift eases • ${lead.title} • x$repeatedShadowCount'
         : decisionStatus == 'rejected'
-        ? 'Reopen ${lead.moId} toward $targetStatus review after repeated shadow pressure • ${lead.title} • x$repeatedShadowCount'
-        : 'Promote ${lead.moId} toward $targetStatus review • ${lead.title} • x$repeatedShadowCount';
+        ? postureSignal == _ShadowPostureSignal.surge
+              ? 'Reopen ${lead.moId} toward $targetStatus review after shadow posture surged at the lead site • ${lead.title}${_repeatSuffix(repeatedShadowCount)}'
+              : postureSignal == _ShadowPostureSignal.elevated
+              ? 'Reopen ${lead.moId} toward $targetStatus review after shadow posture stayed elevated at the lead site • ${lead.title}${_repeatSuffix(repeatedShadowCount)}'
+              : 'Reopen ${lead.moId} toward $targetStatus review after repeated shadow pressure • ${lead.title}${_repeatSuffix(repeatedShadowCount)}'
+        : 'Promote ${lead.moId} toward $targetStatus review • ${lead.title}${_repeatSuffix(repeatedShadowCount)}';
     return MoPromotionGuidance(
       moId: lead.moId,
       title: lead.title,
@@ -151,6 +200,26 @@ class MoFeedbackLearningService {
       _ => '',
     };
   }
+
+  _ShadowPostureSignal _postureSignalFor({
+    required int strengthScore,
+    required String biasSummary,
+  }) {
+    final normalized = biasSummary.trim().toUpperCase();
+    if (strengthScore >= 75 || normalized.contains('POSTURE SURGE')) {
+      return _ShadowPostureSignal.surge;
+    }
+    if (strengthScore >= 65 || normalized.contains('POSTURE ELEVATED')) {
+      return _ShadowPostureSignal.elevated;
+    }
+    return _ShadowPostureSignal.none;
+  }
+
+  String _repeatSuffix(int repeatedShadowCount) {
+    return repeatedShadowCount > 0 ? ' • x$repeatedShadowCount' : '';
+  }
 }
 
 enum _ShadowValidationDriftSignal { none, validatedRising, shadowModeEasing }
+
+enum _ShadowPostureSignal { none, elevated, surge }
