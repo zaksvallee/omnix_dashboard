@@ -5719,6 +5719,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       historicalSyntheticLearningLabels:
           _syntheticHistoricalLearningLabelsForReport(report),
       historicalShadowMoLabels: _shadowHistoricalLabelsForReport(report),
+      historicalShadowStrengthLabels: _shadowHistoricalStrengthLabelsForReport(
+        report,
+      ),
     );
   }
 
@@ -5935,10 +5938,60 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         .toList(growable: false);
   }
 
+  String _shadowStrengthHandoffForReport(SovereignReport report) {
+    final baseline =
+        _morningSovereignReportHistory
+            .where(
+              (item) =>
+                  item.date.trim() != report.date.trim() &&
+                  item.generatedAtUtc.isBefore(report.generatedAtUtc),
+            )
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
+    return buildShadowMoStrengthDriftSummary(
+      currentSites: _shadowMoSitesForReport(report),
+      historySiteSets: baseline
+          .take(3)
+          .map(_shadowMoSitesForReport)
+          .toList(growable: false),
+    ).handoffSummary;
+  }
+
+  List<String> _shadowHistoricalStrengthLabelsForReport(
+    SovereignReport report,
+  ) {
+    final baseline =
+        _morningSovereignReportHistory
+            .where(
+              (item) =>
+                  item.date.trim() != report.date.trim() &&
+                  item.generatedAtUtc.isBefore(report.generatedAtUtc),
+            )
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
+    return baseline
+        .take(3)
+        .map(_shadowStrengthHandoffForReport)
+        .where((label) => label.trim().isNotEmpty)
+        .toList(growable: false);
+  }
+
   List<String> _recentShadowMoLabels() {
     return (_morningSovereignReport == null)
         ? const <String>[]
         : _shadowHistoricalLabelsForReport(_morningSovereignReport!);
+  }
+
+  List<String> _recentShadowStrengthLabels() {
+    return (_morningSovereignReport == null)
+        ? const <String>[]
+        : _shadowHistoricalStrengthLabelsForReport(_morningSovereignReport!);
   }
 
   List<String> _recentSyntheticLearningLabels() {
@@ -21704,6 +21757,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           morningSovereignReportHistory: _morningSovereignReportHistory,
           historicalSyntheticLearningLabels: _recentSyntheticLearningLabels(),
           historicalShadowMoLabels: _recentShadowMoLabels(),
+          historicalShadowStrengthLabels: _recentShadowStrengthLabels(),
           focusIncidentReference: _operationsFocusIncidentReference,
           videoOpsLabel: _activeVideoOpsLabel,
           sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
@@ -21720,6 +21774,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           events: events,
           historicalSyntheticLearningLabels: _recentSyntheticLearningLabels(),
           historicalShadowMoLabels: _recentShadowMoLabels(),
+          historicalShadowStrengthLabels: _recentShadowStrengthLabels(),
           videoOpsLabel: _activeVideoOpsLabel,
           sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
           onOpenEventsForScope: (eventIds, selectedEventId) {

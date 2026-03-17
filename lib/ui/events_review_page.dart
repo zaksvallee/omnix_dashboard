@@ -1832,6 +1832,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     final intents = _orchestratorService.buildActionIntents(
       events: scopedEvents,
       sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+      historicalShadowStrengthLabels: _shadowHistoricalStrengthLabels(
+        _readinessScopedReportDate(scopedEvents),
+      ),
     );
     if (snapshot.totalSites <= 0 && intents.isEmpty) {
       return null;
@@ -2548,6 +2551,80 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         .toList(growable: false);
   }
 
+  String _shadowStrengthHandoffForReport(SovereignReport report) {
+    final baseline =
+        widget.morningSovereignReportHistory
+            .where(
+              (item) =>
+                  item.date.trim() != report.date.trim() &&
+                  item.generatedAtUtc.isBefore(report.generatedAtUtc),
+            )
+            .toList(growable: false)
+          ..sort(
+            (left, right) => right.generatedAtUtc.toUtc().compareTo(
+              left.generatedAtUtc.toUtc(),
+            ),
+          );
+    return buildShadowMoStrengthDriftSummary(
+      currentSites: _shadowMoSitesForReport(report),
+      historySiteSets: baseline
+          .take(3)
+          .map(_shadowMoSitesForReport)
+          .toList(growable: false),
+    ).handoffSummary;
+  }
+
+  List<String> _shadowHistoricalStrengthLabels(String? reportDate) {
+    final normalizedReportDate = (reportDate ?? '').trim();
+    final reports = [...widget.morningSovereignReportHistory]
+      ..sort(
+        (a, b) => b.generatedAtUtc.toUtc().compareTo(a.generatedAtUtc.toUtc()),
+      );
+    final currentReport = reports.firstWhere(
+      (report) => report.date.trim() == normalizedReportDate,
+      orElse: () => SovereignReport(
+        date: normalizedReportDate,
+        generatedAtUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        shiftWindowStartUtc: DateTime.fromMillisecondsSinceEpoch(
+          0,
+          isUtc: true,
+        ),
+        shiftWindowEndUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        ledgerIntegrity: const SovereignReportLedgerIntegrity(
+          totalEvents: 0,
+          hashVerified: false,
+          integrityScore: 0,
+        ),
+        aiHumanDelta: const SovereignReportAiHumanDelta(
+          aiDecisions: 0,
+          humanOverrides: 0,
+          overrideReasons: <String, int>{},
+        ),
+        normDrift: const SovereignReportNormDrift(
+          sitesMonitored: 0,
+          driftDetected: 0,
+          avgMatchScore: 0,
+        ),
+        complianceBlockage: const SovereignReportComplianceBlockage(
+          psiraExpired: 0,
+          pdpExpired: 0,
+          totalBlocked: 0,
+        ),
+      ),
+    );
+    return reports
+        .where(
+          (report) =>
+              report.date.trim() != normalizedReportDate &&
+              currentReport.generatedAtUtc.millisecondsSinceEpoch > 0 &&
+              report.generatedAtUtc.isBefore(currentReport.generatedAtUtc),
+        )
+        .take(3)
+        .map(_shadowStrengthHandoffForReport)
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+  }
+
   String _syntheticWarRoomLearningMemorySummary({
     required String currentLearningLabel,
     required String? reportDate,
@@ -2743,6 +2820,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             report.date,
           ),
           historicalShadowMoLabels: _shadowHistoricalLabels(report.date),
+          historicalShadowStrengthLabels: _shadowHistoricalStrengthLabels(
+            report.date,
+          ),
         )
         .where((plan) => (plan.metadata['scope'] ?? '').trim() == 'NEXT_SHIFT')
         .toList(growable: false);

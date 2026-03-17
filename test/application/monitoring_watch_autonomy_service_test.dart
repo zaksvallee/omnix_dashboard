@@ -106,7 +106,8 @@ void main() {
 
       final plans = service.buildPlans(
         events: events,
-        sceneReviewByIntelligenceId: const <String, MonitoringSceneReviewRecord>{},
+        sceneReviewByIntelligenceId:
+            const <String, MonitoringSceneReviewRecord>{},
         videoOpsLabel: 'Hikvision',
       );
 
@@ -197,23 +198,28 @@ void main() {
       expect(nextShiftDraft.metadata['scope'], 'NEXT_SHIFT');
       expect(nextShiftDraft.metadata['mode'], 'DRAFT');
       expect(nextShiftDraft.metadata['learning_label'], 'ADVANCE FIRE');
-      expect(nextShiftDraft.description, contains('Prebuild next-shift fire readiness'));
+      expect(
+        nextShiftDraft.description,
+        contains('Prebuild next-shift fire readiness'),
+      );
     });
 
     test('builds next-shift access hardening drafts when shadow MO repeats', () {
       final events = <DispatchEvent>[
         _intel(
-          id: 'intel-shadow-news',
-          riskScore: 67,
-          siteId: 'SITE-VALLEE',
-          cameraId: 'news-wire',
-        ).copyWithSourceType(
-          'news',
-          'Suspects posed as maintenance contractors before moving across restricted office zones.',
-        ).copyWithHeadlineAndSummary(
-          'Contractors moved floor to floor in office park',
-          'Suspects posed as maintenance contractors before moving across restricted office zones.',
-        ),
+              id: 'intel-shadow-news',
+              riskScore: 67,
+              siteId: 'SITE-VALLEE',
+              cameraId: 'news-wire',
+            )
+            .copyWithSourceType(
+              'news',
+              'Suspects posed as maintenance contractors before moving across restricted office zones.',
+            )
+            .copyWithHeadlineAndSummary(
+              'Contractors moved floor to floor in office park',
+              'Suspects posed as maintenance contractors before moving across restricted office zones.',
+            ),
         _intel(
           id: 'intel-shadow-live',
           riskScore: 91,
@@ -232,7 +238,8 @@ void main() {
           decisionLabel: 'Escalation Candidate',
           decisionSummary:
               'Likely spoofed service access with abnormal roaming.',
-          summary: 'Likely maintenance impersonation moving across office zones.',
+          summary:
+              'Likely maintenance impersonation moving across office zones.',
           reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 30),
         ),
       };
@@ -253,8 +260,68 @@ void main() {
       expect(draft.metadata['shadow_mo_label'], 'HARDEN ACCESS');
       expect(draft.metadata['shadow_mo_repeat_count'], '1');
       expect(draft.metadata['draft_bias'], 'REPEATED_SHADOW_MO');
-      expect(draft.description, contains('Prebuild next-shift access hardening'));
+      expect(
+        draft.description,
+        contains('Prebuild next-shift access hardening'),
+      );
       expect(draft.description, contains('the previous shift'));
+    });
+
+    test('raises shadow next-shift urgency when strength is rising', () {
+      final events = <DispatchEvent>[
+        _intel(
+              id: 'intel-shadow-news',
+              riskScore: 67,
+              siteId: 'SITE-VALLEE',
+              cameraId: 'news-wire',
+            )
+            .copyWithSourceType(
+              'news',
+              'Suspects posed as maintenance contractors before moving across restricted office zones.',
+            )
+            .copyWithHeadlineAndSummary(
+              'Contractors moved floor to floor in office park',
+              'Suspects posed as maintenance contractors before moving across restricted office zones.',
+            ),
+        _intel(
+          id: 'intel-shadow-live',
+          riskScore: 91,
+          siteId: 'SITE-VALLEE',
+          cameraId: 'lobby-cam',
+        ).copyWithHeadlineAndSummary(
+          'Unplanned contractor roaming',
+          'Maintenance-like subject moved across restricted office doors.',
+        ),
+      ];
+      final reviews = <String, MonitoringSceneReviewRecord>{
+        'intel-shadow-live': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-shadow-live',
+          sourceLabel: 'openai:gpt-5.4-mini',
+          postureLabel: 'service impersonation and roaming concern',
+          decisionLabel: 'Escalation Candidate',
+          decisionSummary:
+              'Likely spoofed service access with abnormal roaming.',
+          summary:
+              'Likely maintenance impersonation moving across office zones.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 30),
+        ),
+      };
+
+      final plans = service.buildPlans(
+        events: events,
+        sceneReviewByIntelligenceId: reviews,
+        videoOpsLabel: 'Hikvision',
+        historicalShadowMoLabels: const <String>['HARDEN ACCESS'],
+        historicalShadowStrengthLabels: const <String>['strength rising'],
+      );
+
+      final draft = plans.firstWhere(
+        (entry) => entry.actionType == 'DRAFT NEXT-SHIFT ACCESS HARDENING',
+      );
+      expect(draft.priority, MonitoringWatchAutonomyPriority.critical);
+      expect(draft.countdownSeconds, 22);
+      expect(draft.metadata['shadow_strength_bias'], 'strength rising');
+      expect(draft.metadata['shadow_strength_priority'], 'critical');
     });
   });
 }
@@ -317,7 +384,10 @@ extension on IntelligenceReceived {
     );
   }
 
-  IntelligenceReceived copyWithHeadlineAndSummary(String headline, String summary) {
+  IntelligenceReceived copyWithHeadlineAndSummary(
+    String headline,
+    String summary,
+  ) {
     return IntelligenceReceived(
       eventId: eventId,
       sequence: sequence,

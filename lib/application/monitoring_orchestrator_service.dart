@@ -14,10 +14,12 @@ class MonitoringOrchestratorService {
 
   List<MonitoringWatchAutonomyActionPlan> buildActionIntents({
     required List<DispatchEvent> events,
-    required Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId,
+    required Map<String, MonitoringSceneReviewRecord>
+    sceneReviewByIntelligenceId,
     String videoOpsLabel = 'CCTV',
     List<String> historicalSyntheticLearningLabels = const <String>[],
     List<String> historicalShadowMoLabels = const <String>[],
+    List<String> historicalShadowStrengthLabels = const <String>[],
   }) {
     final snapshot = _globalPostureService.buildSnapshot(
       events: events,
@@ -30,7 +32,9 @@ class MonitoringOrchestratorService {
     final actionIntents = <MonitoringWatchAutonomyActionPlan>[];
     final intelligenceBySite = <String, List<IntelligenceReceived>>{};
     for (final event in events.whereType<IntelligenceReceived>()) {
-      intelligenceBySite.putIfAbsent(event.siteId, () => <IntelligenceReceived>[]).add(event);
+      intelligenceBySite
+          .putIfAbsent(event.siteId, () => <IntelligenceReceived>[])
+          .add(event);
     }
 
     for (final region in snapshot.regions.take(2)) {
@@ -39,15 +43,19 @@ class MonitoringOrchestratorService {
         continue;
       }
       final leadSite = region.topSites.first;
-      final latestSiteEvent = (intelligenceBySite[leadSite.siteId] ?? const <IntelligenceReceived>[])
-        ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+      final latestSiteEvent =
+          (intelligenceBySite[leadSite.siteId] ??
+                const <IntelligenceReceived>[])
+            ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
       final latest = latestSiteEvent.isEmpty ? null : latestSiteEvent.first;
       final hasIdentityPressure = leadSite.identitySignalCount > 0;
       final hasFirePressure = leadSite.dominantSignals.contains('fire');
-      final hasWaterLeakPressure =
-          leadSite.dominantSignals.contains('water_leak');
-      final hasEnvironmentalHazardPressure =
-          leadSite.dominantSignals.contains('environment_hazard');
+      final hasWaterLeakPressure = leadSite.dominantSignals.contains(
+        'water_leak',
+      );
+      final hasEnvironmentalHazardPressure = leadSite.dominantSignals.contains(
+        'environment_hazard',
+      );
       final hazardSignal = hasFirePressure
           ? 'fire'
           : hasWaterLeakPressure
@@ -74,16 +82,24 @@ class MonitoringOrchestratorService {
       final repeatedLearningCount = nextShiftLearningLabel.isEmpty
           ? 0
           : historicalSyntheticLearningLabels
-              .where((label) => label.trim() == nextShiftLearningLabel)
-              .length;
+                .where((label) => label.trim() == nextShiftLearningLabel)
+                .length;
       final nextShiftShadowLabel = shadowDraftLabelForSite(leadSite);
       final repeatedShadowCount = nextShiftShadowLabel.isEmpty
           ? 0
           : historicalShadowMoLabels
-              .where((label) => label.trim() == nextShiftShadowLabel)
-              .length;
+                .where((label) => label.trim() == nextShiftShadowLabel)
+                .length;
+      final shadowStrengthBias = _shadowStrengthBias(
+        historicalShadowStrengthLabels,
+      );
+      final shadowStrengthBiasCount = historicalShadowStrengthLabels
+          .where((label) => label.trim() == shadowStrengthBias)
+          .length;
 
-      if (hasFirePressure || hasWaterLeakPressure || hasEnvironmentalHazardPressure) {
+      if (hasFirePressure ||
+          hasWaterLeakPressure ||
+          hasEnvironmentalHazardPressure) {
         actionIntents.add(
           MonitoringWatchAutonomyActionPlan(
             id: 'ORCH-HAZARD-${region.regionId}',
@@ -210,10 +226,18 @@ class MonitoringOrchestratorService {
         final leadShadowMatch = leadSite.moShadowMatches.isEmpty
             ? null
             : leadSite.moShadowMatches.first;
-        final biasPriority = repeatedShadowCount >= 2
+        final baseBiasPriority = repeatedShadowCount >= 2
             ? MonitoringWatchAutonomyPriority.critical
             : MonitoringWatchAutonomyPriority.high;
-        final biasCountdown = repeatedShadowCount >= 2 ? 12 : 20;
+        final biasPriority = _applyShadowStrengthPriorityBias(
+          baseBiasPriority,
+          shadowStrengthBias,
+        );
+        final biasCountdown = _applyShadowStrengthCountdownBias(
+          repeatedShadowCount >= 2 ? 12 : 20,
+          shadowStrengthBias,
+          shadowStrengthBiasCount,
+        );
         final biasDescription = _shadowReadinessBiasDescription(
           shadowLabel: nextShiftShadowLabel,
           siteId: leadSite.siteId,
@@ -239,17 +263,34 @@ class MonitoringOrchestratorService {
                 'shadow_mo_label': nextShiftShadowLabel,
                 'shadow_mo_repeat_count': repeatedShadowCount.toString(),
                 'readiness_bias': 'ACTIVE',
-                if (leadShadowMatch != null) 'shadow_mo_title': leadShadowMatch.title,
+                if (shadowStrengthBias.isNotEmpty)
+                  'shadow_strength_bias': shadowStrengthBias,
+                if (shadowStrengthBiasCount > 0)
+                  'shadow_strength_repeat_count': shadowStrengthBiasCount
+                      .toString(),
+                'shadow_strength_countdown': biasCountdown.toString(),
+                'shadow_strength_priority': biasPriority.name,
                 if (leadShadowMatch != null)
-                  'shadow_mo_indicators': leadShadowMatch.matchedIndicators.join(', '),
+                  'shadow_mo_title': leadShadowMatch.title,
+                if (leadShadowMatch != null)
+                  'shadow_mo_indicators': leadShadowMatch.matchedIndicators
+                      .join(', '),
               },
             ),
           );
         }
-        final draftPriority = repeatedShadowCount >= 2
+        final baseDraftPriority = repeatedShadowCount >= 2
             ? MonitoringWatchAutonomyPriority.critical
             : MonitoringWatchAutonomyPriority.high;
-        final draftCountdown = repeatedShadowCount >= 2 ? 16 : 28;
+        final draftPriority = _applyShadowStrengthPriorityBias(
+          baseDraftPriority,
+          shadowStrengthBias,
+        );
+        final draftCountdown = _applyShadowStrengthCountdownBias(
+          repeatedShadowCount >= 2 ? 16 : 28,
+          shadowStrengthBias,
+          shadowStrengthBiasCount,
+        );
         final draftActionType = _nextShiftShadowDraftActionType(
           shadowLabel: nextShiftShadowLabel,
         );
@@ -280,9 +321,17 @@ class MonitoringOrchestratorService {
                 'shadow_mo_repeat_count': repeatedShadowCount.toString(),
                 'draft_bias': 'REPEATED_SHADOW_MO',
                 'draft_countdown': draftCountdown.toString(),
-                if (leadShadowMatch != null) 'shadow_mo_title': leadShadowMatch.title,
+                if (shadowStrengthBias.isNotEmpty)
+                  'shadow_strength_bias': shadowStrengthBias,
+                if (shadowStrengthBiasCount > 0)
+                  'shadow_strength_repeat_count': shadowStrengthBiasCount
+                      .toString(),
+                'shadow_strength_priority': draftPriority.name,
                 if (leadShadowMatch != null)
-                  'shadow_mo_indicators': leadShadowMatch.matchedIndicators.join(', '),
+                  'shadow_mo_title': leadShadowMatch.title,
+                if (leadShadowMatch != null)
+                  'shadow_mo_indicators': leadShadowMatch.matchedIndicators
+                      .join(', '),
               },
             ),
           );
@@ -352,7 +401,8 @@ class MonitoringOrchestratorService {
             actionType: 'POSTURAL ECHO',
             description:
                 'Raise ${videoOpsLabel.toUpperCase()} perimeter attention at ${target.siteId} because ${leadSite.siteId} is driving ${region.regionId} into ${region.heatLevel.name.toUpperCase()} posture.',
-            countdownSeconds: region.heatLevel == MonitoringGlobalHeatLevel.critical
+            countdownSeconds:
+                region.heatLevel == MonitoringGlobalHeatLevel.critical
                 ? 14
                 : 22,
             metadata: <String, String>{
@@ -390,7 +440,9 @@ class MonitoringOrchestratorService {
         );
       }
 
-      if (hasFirePressure || hasWaterLeakPressure || hasEnvironmentalHazardPressure) {
+      if (hasFirePressure ||
+          hasWaterLeakPressure ||
+          hasEnvironmentalHazardPressure) {
         actionIntents.add(
           MonitoringWatchAutonomyActionPlan(
             id: 'ORCH-SAFETY-${region.regionId}',
@@ -417,7 +469,8 @@ class MonitoringOrchestratorService {
     }
 
     for (final site in snapshot.sites.take(3)) {
-      if (site.repeatCount <= 0 || site.heatLevel == MonitoringGlobalHeatLevel.stable) {
+      if (site.repeatCount <= 0 ||
+          site.heatLevel == MonitoringGlobalHeatLevel.stable) {
         continue;
       }
       actionIntents.add(
@@ -592,5 +645,65 @@ class MonitoringOrchestratorService {
         'Bias readiness toward pre-armed shadow watch at $siteId across $regionId ${title.isEmpty ? repeatSummary : 'around "$title" $repeatSummary'}.',
       _ => '',
     };
+  }
+
+  String _shadowStrengthBias(List<String> historicalShadowStrengthLabels) {
+    final risingCount = historicalShadowStrengthLabels
+        .where((label) => label.trim() == 'strength rising')
+        .length;
+    if (risingCount > 0) {
+      return 'strength rising';
+    }
+    final easingCount = historicalShadowStrengthLabels
+        .where((label) => label.trim() == 'strength easing')
+        .length;
+    if (easingCount > 0) {
+      return 'strength easing';
+    }
+    return '';
+  }
+
+  MonitoringWatchAutonomyPriority _applyShadowStrengthPriorityBias(
+    MonitoringWatchAutonomyPriority base,
+    String shadowStrengthBias,
+  ) {
+    switch (shadowStrengthBias) {
+      case 'strength rising':
+        switch (base) {
+          case MonitoringWatchAutonomyPriority.medium:
+            return MonitoringWatchAutonomyPriority.high;
+          case MonitoringWatchAutonomyPriority.high:
+            return MonitoringWatchAutonomyPriority.critical;
+          case MonitoringWatchAutonomyPriority.critical:
+            return MonitoringWatchAutonomyPriority.critical;
+        }
+      case 'strength easing':
+        switch (base) {
+          case MonitoringWatchAutonomyPriority.critical:
+            return MonitoringWatchAutonomyPriority.high;
+          case MonitoringWatchAutonomyPriority.high:
+            return MonitoringWatchAutonomyPriority.medium;
+          case MonitoringWatchAutonomyPriority.medium:
+            return MonitoringWatchAutonomyPriority.medium;
+        }
+      default:
+        return base;
+    }
+  }
+
+  int _applyShadowStrengthCountdownBias(
+    int baseCountdown,
+    String shadowStrengthBias,
+    int shadowStrengthBiasCount,
+  ) {
+    switch (shadowStrengthBias) {
+      case 'strength rising':
+        final reduction = shadowStrengthBiasCount >= 2 ? 10 : 6;
+        return baseCountdown - reduction < 6 ? 6 : baseCountdown - reduction;
+      case 'strength easing':
+        return baseCountdown + 8;
+      default:
+        return baseCountdown;
+    }
   }
 }

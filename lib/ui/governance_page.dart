@@ -3033,6 +3033,9 @@ class _GovernancePageState extends State<GovernancePage> {
       historicalSyntheticLearningLabels:
           _syntheticHistoricalLearningLabelsForView(report),
       historicalShadowMoLabels: _shadowHistoricalLabelsForView(report),
+      historicalShadowStrengthLabels: _shadowHistoricalStrengthLabelsForView(
+        report,
+      ),
     );
   }
 
@@ -4359,6 +4362,30 @@ class _GovernancePageState extends State<GovernancePage> {
         .toList(growable: false);
   }
 
+  List<String> _shadowHistoricalStrengthLabelsForView(
+    _GovernanceReportView report,
+  ) {
+    final reportGeneratedAtUtc =
+        report.generatedAtUtc ?? DateTime.now().toUtc();
+    final baseline =
+        widget.morningSovereignReportHistory
+            .where(
+              (item) =>
+                  item.date.trim() != report.reportDate.trim() &&
+                  item.generatedAtUtc.isBefore(reportGeneratedAtUtc),
+            )
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
+    return baseline
+        .take(3)
+        .map((item) => _shadowStrengthHandoffForStoredReport(item))
+        .where((label) => label.trim().isNotEmpty)
+        .toList(growable: false);
+  }
+
   List<String> _shadowHistoricalLabelsForStoredReport(SovereignReport report) {
     final baseline =
         widget.morningSovereignReportHistory
@@ -4392,6 +4419,44 @@ class _GovernancePageState extends State<GovernancePage> {
         })
         .where((label) => label.trim().isNotEmpty)
         .toList(growable: false);
+  }
+
+  String _shadowStrengthHandoffForStoredReport(SovereignReport report) {
+    final baseline =
+        widget.morningSovereignReportHistory
+            .where(
+              (item) =>
+                  item.date.trim() != report.date.trim() &&
+                  item.generatedAtUtc.isBefore(report.generatedAtUtc),
+            )
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
+    return buildShadowMoStrengthDriftSummary(
+      currentSites:
+          _globalReadinessSnapshotForWindow(
+                report.shiftWindowStartUtc,
+                report.shiftWindowEndUtc,
+                generatedAtUtc: report.generatedAtUtc,
+              ).sites
+              .where((site) => site.moShadowMatchCount > 0)
+              .toList(growable: false),
+      historySiteSets: baseline
+          .take(3)
+          .map(
+            (item) =>
+                _globalReadinessSnapshotForWindow(
+                      item.shiftWindowStartUtc,
+                      item.shiftWindowEndUtc,
+                      generatedAtUtc: item.generatedAtUtc,
+                    ).sites
+                    .where((site) => site.moShadowMatchCount > 0)
+                    .toList(growable: false),
+          )
+          .toList(growable: false),
+    ).handoffSummary;
   }
 
   List<String> _syntheticHistoricalLearningLabelsForView(

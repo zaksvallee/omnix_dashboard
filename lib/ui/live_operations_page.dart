@@ -228,6 +228,7 @@ class LiveOperationsPage extends StatefulWidget {
   final List<SovereignReport> morningSovereignReportHistory;
   final List<String> historicalSyntheticLearningLabels;
   final List<String> historicalShadowMoLabels;
+  final List<String> historicalShadowStrengthLabels;
   final String focusIncidentReference;
   final String videoOpsLabel;
   final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
@@ -240,6 +241,7 @@ class LiveOperationsPage extends StatefulWidget {
     this.morningSovereignReportHistory = const <SovereignReport>[],
     this.historicalSyntheticLearningLabels = const <String>[],
     this.historicalShadowMoLabels = const <String>[],
+    this.historicalShadowStrengthLabels = const <String>[],
     this.focusIncidentReference = '',
     this.videoOpsLabel = 'CCTV',
     this.sceneReviewByIntelligenceId = const {},
@@ -1254,7 +1256,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     _IncidentRecord incident,
   ) {
     if (widget.historicalSyntheticLearningLabels.isEmpty &&
-        widget.historicalShadowMoLabels.isEmpty) {
+        widget.historicalShadowMoLabels.isEmpty &&
+        widget.historicalShadowStrengthLabels.isEmpty) {
       return const <MonitoringWatchAutonomyActionPlan>[];
     }
     return _orchestratorService
@@ -1265,6 +1268,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           historicalSyntheticLearningLabels:
               widget.historicalSyntheticLearningLabels,
           historicalShadowMoLabels: widget.historicalShadowMoLabels,
+          historicalShadowStrengthLabels: widget.historicalShadowStrengthLabels,
         )
         .where((plan) => plan.metadata['scope'] == 'NEXT_SHIFT')
         .where(
@@ -1281,7 +1285,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   List<MonitoringWatchAutonomyActionPlan> _readinessBiasesForIncident(
     _IncidentRecord incident,
   ) {
-    if (widget.historicalShadowMoLabels.isEmpty) {
+    if (widget.historicalShadowMoLabels.isEmpty &&
+        widget.historicalShadowStrengthLabels.isEmpty) {
       return const <MonitoringWatchAutonomyActionPlan>[];
     }
     return _orchestratorService
@@ -1292,6 +1297,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           historicalSyntheticLearningLabels:
               widget.historicalSyntheticLearningLabels,
           historicalShadowMoLabels: widget.historicalShadowMoLabels,
+          historicalShadowStrengthLabels: widget.historicalShadowStrengthLabels,
         )
         .where((plan) => plan.metadata['scope'] == 'READINESS')
         .where(

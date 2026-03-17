@@ -90,6 +90,7 @@ class AIQueuePage extends StatefulWidget {
   final List<DispatchEvent> events;
   final List<String> historicalSyntheticLearningLabels;
   final List<String> historicalShadowMoLabels;
+  final List<String> historicalShadowStrengthLabels;
   final String videoOpsLabel;
   final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
   final void Function(List<String> eventIds, String? selectedEventId)?
@@ -100,6 +101,7 @@ class AIQueuePage extends StatefulWidget {
     required this.events,
     this.historicalSyntheticLearningLabels = const <String>[],
     this.historicalShadowMoLabels = const <String>[],
+    this.historicalShadowStrengthLabels = const <String>[],
     this.videoOpsLabel = 'CCTV',
     this.sceneReviewByIntelligenceId = const {},
     this.onOpenEventsForScope,
@@ -134,6 +136,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
         oldWidget.historicalSyntheticLearningLabels !=
             widget.historicalSyntheticLearningLabels ||
         oldWidget.historicalShadowMoLabels != widget.historicalShadowMoLabels ||
+        oldWidget.historicalShadowStrengthLabels !=
+            widget.historicalShadowStrengthLabels ||
         oldWidget.videoOpsLabel != widget.videoOpsLabel ||
         oldWidget.sceneReviewByIntelligenceId !=
             widget.sceneReviewByIntelligenceId) {
@@ -1476,6 +1480,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
               historicalSyntheticLearningLabels:
                   widget.historicalSyntheticLearningLabels,
               historicalShadowMoLabels: widget.historicalShadowMoLabels,
+              historicalShadowStrengthLabels:
+                  widget.historicalShadowStrengthLabels,
             )
             .toList(growable: true)
           ..sort((left, right) {

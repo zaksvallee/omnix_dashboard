@@ -101,7 +101,8 @@ void main() {
           cameraId: 'news-feed',
           sourceType: 'news',
           headline: 'Armed robbery cluster moving east',
-          summary: 'Regional robbery pressure is moving toward guarded estates.',
+          summary:
+              'Regional robbery pressure is moving toward guarded estates.',
         ),
         _intel(
           id: 'community-1',
@@ -117,7 +118,8 @@ void main() {
 
       final intents = service.buildActionIntents(
         events: events,
-        sceneReviewByIntelligenceId: const <String, MonitoringSceneReviewRecord>{},
+        sceneReviewByIntelligenceId:
+            const <String, MonitoringSceneReviewRecord>{},
         videoOpsLabel: 'Hikvision',
       );
 
@@ -291,7 +293,8 @@ void main() {
           decisionLabel: 'Escalation Candidate',
           decisionSummary:
               'Likely spoofed service access with abnormal roaming.',
-          summary: 'Likely maintenance impersonation moving across office zones.',
+          summary:
+              'Likely maintenance impersonation moving across office zones.',
           reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 30),
         ),
       };
@@ -315,14 +318,88 @@ void main() {
       expect(draft.metadata['shadow_mo_label'], 'HARDEN ACCESS');
       expect(draft.metadata['shadow_mo_repeat_count'], '1');
       expect(draft.metadata['draft_bias'], 'REPEATED_SHADOW_MO');
-      expect(draft.description, contains('Prebuild next-shift access hardening'));
-      expect(draft.description, contains('Contractors moved floor to floor in office park'));
+      expect(
+        draft.description,
+        contains('Prebuild next-shift access hardening'),
+      );
+      expect(
+        draft.description,
+        contains('Contractors moved floor to floor in office park'),
+      );
       expect(bias.metadata['scope'], 'READINESS');
       expect(bias.metadata['readiness_bias'], 'ACTIVE');
       expect(bias.metadata['shadow_mo_label'], 'HARDEN ACCESS');
       expect(bias.metadata['shadow_mo_repeat_count'], '1');
-      expect(bias.description, contains('Bias readiness toward earlier access hardening'));
+      expect(
+        bias.description,
+        contains('Bias readiness toward earlier access hardening'),
+      );
     });
+
+    test(
+      'accelerates shadow next-shift drafts when shadow strength is rising',
+      () {
+        final events = <DispatchEvent>[
+          _intel(
+            id: 'intel-shadow-news',
+            regionId: 'REGION-GAUTENG',
+            siteId: 'SITE-VALLEE',
+            riskScore: 67,
+            sourceType: 'news',
+            cameraId: 'news-wire',
+            headline: 'Contractors moved floor to floor in office park',
+            summary:
+                'Suspects posed as maintenance contractors before moving across restricted office zones.',
+          ),
+          _intel(
+            id: 'intel-shadow-live',
+            regionId: 'REGION-GAUTENG',
+            siteId: 'SITE-VALLEE',
+            riskScore: 91,
+            cameraId: 'lobby-cam',
+            headline: 'Unplanned contractor roaming',
+            summary:
+                'Maintenance-like subject moved across restricted office doors.',
+          ),
+        ];
+        final reviews = <String, MonitoringSceneReviewRecord>{
+          'intel-shadow-live': MonitoringSceneReviewRecord(
+            intelligenceId: 'intel-shadow-live',
+            sourceLabel: 'openai:gpt-5.4-mini',
+            postureLabel: 'service impersonation and roaming concern',
+            decisionLabel: 'Escalation Candidate',
+            decisionSummary:
+                'Likely spoofed service access with abnormal roaming.',
+            summary:
+                'Likely maintenance impersonation moving across office zones.',
+            reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 30),
+          ),
+        };
+
+        final intents = service.buildActionIntents(
+          events: events,
+          sceneReviewByIntelligenceId: reviews,
+          videoOpsLabel: 'Hikvision',
+          historicalShadowMoLabels: const <String>['HARDEN ACCESS'],
+          historicalShadowStrengthLabels: const <String>['strength rising'],
+        );
+
+        final draft = intents.firstWhere(
+          (entry) => entry.actionType == 'DRAFT NEXT-SHIFT ACCESS HARDENING',
+        );
+        final bias = intents.firstWhere(
+          (entry) => entry.actionType == 'SHADOW READINESS BIAS',
+        );
+        expect(draft.priority, MonitoringWatchAutonomyPriority.critical);
+        expect(draft.countdownSeconds, 22);
+        expect(draft.metadata['shadow_strength_bias'], 'strength rising');
+        expect(draft.metadata['shadow_strength_repeat_count'], '1');
+        expect(draft.metadata['shadow_strength_priority'], 'critical');
+        expect(bias.priority, MonitoringWatchAutonomyPriority.critical);
+        expect(bias.countdownSeconds, 14);
+        expect(bias.metadata['shadow_strength_bias'], 'strength rising');
+      },
+    );
   });
 }
 
