@@ -2,6 +2,7 @@ import '../domain/events/intelligence_received.dart';
 import '../domain/intelligence/onyx_mo_record.dart';
 import 'mo_extraction_service.dart';
 import 'mo_knowledge_repository.dart';
+import 'mo_promotion_application_service.dart';
 import 'monitoring_scene_review_store.dart';
 import 'monitoring_watch_vision_review_service.dart';
 
@@ -52,10 +53,12 @@ class EmptyMoKnowledgeRepository implements MoKnowledgeRepository {
 class MoRuntimeMatchingService {
   final MoKnowledgeRepository repository;
   final MoExtractionService extractionService;
+  final MoPromotionApplicationService promotionApplicationService;
 
   const MoRuntimeMatchingService({
     this.repository = const EmptyMoKnowledgeRepository(),
     this.extractionService = const MoExtractionService(),
+    this.promotionApplicationService = const MoPromotionApplicationService(),
   });
 
   List<OnyxMoShadowMatch> matchObservedScene({
@@ -92,6 +95,7 @@ class MoRuntimeMatchingService {
   }
 
   List<OnyxMoShadowMatch> _matchRecord(OnyxMoRecord record) {
+    promotionApplicationService.applyOperatorDecisions(repository: repository);
     final knowledge = repository.readAll().where((candidate) {
       return candidate.validationStatus == OnyxMoValidationStatus.shadowMode ||
           candidate.validationStatus == OnyxMoValidationStatus.validated ||

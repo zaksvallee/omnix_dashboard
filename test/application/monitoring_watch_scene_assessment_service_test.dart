@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:omnix_dashboard/application/mo_knowledge_repository.dart';
+import 'package:omnix_dashboard/application/mo_promotion_decision_store.dart';
 import 'package:omnix_dashboard/application/mo_runtime_matching_service.dart';
 import 'package:omnix_dashboard/application/monitoring_identity_policy_service.dart';
 import 'package:omnix_dashboard/application/monitoring_temporary_identity_approval_service.dart';
@@ -12,6 +13,7 @@ import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 void main() {
   group('MonitoringWatchSceneAssessmentService', () {
     const service = MonitoringWatchSceneAssessmentService();
+    const promotionDecisionStore = MoPromotionDecisionStore();
     final policyDrivenService = MonitoringWatchSceneAssessmentService(
       identityPolicyService: MonitoringIdentityPolicyService.parseJson(
         '[{"client_id":"CLIENT-MS-VALLEE","site_id":"SITE-MS-VALLEE-RESIDENCE","allowed_face_match_ids":["RESIDENT-01"],"flagged_face_match_ids":["PERSON-44"],"allowed_plate_numbers":["CA111111"],"flagged_plate_numbers":["CA123456"]}]',
@@ -38,6 +40,10 @@ void main() {
                 ),
               ]),
         );
+
+    setUp(() {
+      promotionDecisionStore.reset();
+    });
 
     test('suppresses low-significance animal motion with weak confidence', () {
       final assessment = service.assess(
@@ -298,6 +304,73 @@ void main() {
       );
       expect(assessment.rationale, contains('mo_shadow:MO-EXT-OFFICE'));
       expect(assessment.shouldNotifyClient, isTrue);
+    });
+
+    test('applies accepted promotion decisions for injected MO repositories', () {
+      promotionDecisionStore.accept(
+        moId: 'MO-EXT-OFFICE',
+        targetValidationStatus: 'validated',
+      );
+      final repository = InMemoryMoKnowledgeRepository(
+        seedRecords: {
+          'MO-EXT-OFFICE': OnyxMoRecord(
+            moId: 'MO-EXT-OFFICE',
+            title: 'Office contractor impersonation pattern',
+            environmentTypes: const ['office_building'],
+            summary: 'Contractor impersonation moving floor to floor.',
+            sourceType: OnyxMoSourceType.externalIncident,
+            sourceLabel: 'Security Bulletin',
+            sourceConfidence: 'high',
+            patternConfidence: 'high',
+            behaviorStage: 'inside_behavior',
+            incidentType: 'deception_led_intrusion',
+            entryIndicators: const ['spoofed_service_access'],
+            insideBehaviorIndicators: const [
+              'multi_zone_roaming',
+              'room_probing',
+            ],
+            deceptionIndicators: const ['maintenance_impersonation'],
+            observableCues: const ['route_anomalies'],
+            attackGoal: 'theft',
+            evidenceQuality: 'high',
+            riskWeight: 82,
+            recommendedActionPlans: const [
+              'PROMOTE SCENE REVIEW',
+              'RAISE READINESS',
+            ],
+            observabilityScore: 0.82,
+            localRelevanceScore: 0.88,
+            firstSeenUtc: DateTime.utc(2026, 3, 10),
+            lastSeenUtc: DateTime.utc(2026, 3, 17),
+            validationStatus: OnyxMoValidationStatus.shadowMode,
+          ),
+        },
+      );
+      final moAwareService = MonitoringWatchSceneAssessmentService(
+        moRuntimeMatchingService: MoRuntimeMatchingService(
+          repository: repository,
+        ),
+      );
+      final event = _intel(
+        objectLabel: 'person',
+        objectConfidence: 0.87,
+        riskScore: 79,
+        headline: 'Maintenance-looking person roaming office floors',
+        summary:
+            'Contractor-like person moved floor to floor and tried several restricted doors.',
+        snapshotUrl: 'https://edge.example.com/snapshot.jpg',
+      );
+
+      final assessment = moAwareService.assess(
+        event: event,
+        review: buildMetadataOnlyMonitoringWatchVisionReview(event),
+        priorReviewedEvents: 0,
+      );
+
+      expect(assessment.moShadowMatchTitles, isNotEmpty);
+      expect(assessment.rationale, contains('mo_shadow:MO-EXT-OFFICE'));
+      expect(repository.readAll().first.validationStatus, OnyxMoValidationStatus.validated);
+      expect(repository.readAll().first.metadata['promotion_decision_status'], 'accepted');
     });
 
     test('labels same-pass loitering scenes explicitly', () {
