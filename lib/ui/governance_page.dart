@@ -3150,6 +3150,7 @@ class _GovernancePageState extends State<GovernancePage> {
     final leadRegion = snapshot.regions.isEmpty ? null : snapshot.regions.first;
     final leadSite = snapshot.sites.isEmpty ? null : snapshot.sites.first;
     final hazardSegment = _hazardIntentSummary(intents);
+    final shadowBiasSegment = _globalReadinessShadowBiasSummary(intents);
     final moShadowSegment = leadSite == null || leadSite.moShadowSummary.trim().isEmpty
         ? ''
         : ' • shadow ${leadSite.moShadowSummary.trim()}';
@@ -3167,7 +3168,10 @@ class _GovernancePageState extends State<GovernancePage> {
     final tomorrowShadowSuffix = tomorrowShadowSegment.isEmpty
         ? ''
         : ' • tomorrow shadow $tomorrowShadowSegment';
-    return 'Sites ${snapshot.totalSites} • elevated ${snapshot.elevatedSiteCount} • critical ${snapshot.criticalSiteCount} • intents ${intents.length}$regionSegment$siteSegment$hazardSegment$moShadowSegment$tomorrowSuffix$tomorrowShadowSuffix';
+    final shadowBiasSuffix = shadowBiasSegment.isEmpty
+        ? ''
+        : ' • shadow bias $shadowBiasSegment';
+    return 'Sites ${snapshot.totalSites} • elevated ${snapshot.elevatedSiteCount} • critical ${snapshot.criticalSiteCount} • intents ${intents.length}$regionSegment$siteSegment$hazardSegment$moShadowSegment$shadowBiasSuffix$tomorrowSuffix$tomorrowShadowSuffix';
   }
 
   int _globalReadinessNextShiftDraftCount(
@@ -3230,6 +3234,40 @@ class _GovernancePageState extends State<GovernancePage> {
     final shadowLabel = (draft.metadata['shadow_mo_label'] ?? '').trim();
     final shadowTitle = (draft.metadata['shadow_mo_title'] ?? '').trim();
     final repeatCount = (draft.metadata['shadow_mo_repeat_count'] ?? '').trim();
+    final parts = <String>[
+      if (shadowLabel.isNotEmpty) shadowLabel,
+      if (leadSite.isNotEmpty) leadSite,
+      if (shadowTitle.isNotEmpty) shadowTitle,
+      if (repeatCount.isNotEmpty) 'x$repeatCount',
+    ];
+    return parts.join(' • ');
+  }
+
+  String _globalReadinessShadowBiasSummary(
+    List<MonitoringWatchAutonomyActionPlan> intents,
+  ) {
+    final bias = intents.firstWhere(
+      (plan) =>
+          plan.actionType.trim().toUpperCase() == 'SHADOW READINESS BIAS' ||
+          (plan.metadata['readiness_bias'] ?? '').trim().toUpperCase() ==
+              'ACTIVE',
+      orElse: () => const MonitoringWatchAutonomyActionPlan(
+        id: '',
+        incidentId: '',
+        siteId: '',
+        priority: MonitoringWatchAutonomyPriority.medium,
+        actionType: '',
+        description: '',
+        countdownSeconds: 0,
+      ),
+    );
+    if (bias.actionType.trim().isEmpty) {
+      return '';
+    }
+    final leadSite = (bias.metadata['lead_site'] ?? bias.siteId).trim();
+    final shadowLabel = (bias.metadata['shadow_mo_label'] ?? '').trim();
+    final shadowTitle = (bias.metadata['shadow_mo_title'] ?? '').trim();
+    final repeatCount = (bias.metadata['shadow_mo_repeat_count'] ?? '').trim();
     final parts = <String>[
       if (shadowLabel.isNotEmpty) shadowLabel,
       if (leadSite.isNotEmpty) leadSite,
@@ -10483,6 +10521,9 @@ class _GovernancePageState extends State<GovernancePage> {
         'nextShiftDraftCount': _globalReadinessNextShiftDraftCount(
           globalReadinessIntents,
         ),
+        'shadowBiasSummary': _globalReadinessShadowBiasSummary(
+          globalReadinessIntents,
+        ),
         'tomorrowPostureSummary': _globalReadinessTomorrowPostureSummary(
           globalReadinessIntents,
         ),
@@ -10791,6 +10832,7 @@ class _GovernancePageState extends State<GovernancePage> {
       'global_readiness_critical_sites,${globalReadinessSnapshot.criticalSiteCount}',
       'global_readiness_intent_count,${globalReadinessIntents.length}',
       'global_readiness_next_shift_draft_count,${_globalReadinessNextShiftDraftCount(globalReadinessIntents)}',
+      'global_readiness_shadow_bias_summary,"${_globalReadinessShadowBiasSummary(globalReadinessIntents).replaceAll('"', '""')}"',
       'global_readiness_tomorrow_posture_summary,"${_globalReadinessTomorrowPostureSummary(globalReadinessIntents).replaceAll('"', '""')}"',
       'global_readiness_tomorrow_shadow_summary,"${_globalReadinessTomorrowShadowSummary(globalReadinessIntents).replaceAll('"', '""')}"',
       'global_readiness_tomorrow_review_command,/tomorrowreview ${report.reportDate}',

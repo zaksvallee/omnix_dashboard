@@ -130,6 +130,8 @@ void main() {
       globalReadinessTopIntentSummary:
           'POSTURAL ECHO • site-bravo • Raise CCTV perimeter attention',
       globalReadinessHazardSummary: 'fire playbook active',
+      globalReadinessShadowBiasSummary:
+          'HARDEN ACCESS • site-alpha • Contractors moved floor to floor in office park • x1',
       globalReadinessShadowSummary:
           'Sites 1 • Matches 2 • SITE-ALPHA • service impersonation and roaming concern',
       currentShiftShadowReviewCommand: '/shadowreview 2026-03-17',
@@ -210,6 +212,12 @@ void main() {
     expect(response, contains('<b>Postural echo:</b> Echo 2'));
     expect(response, contains('<b>Top intent:</b> POSTURAL ECHO'));
     expect(response, contains('<b>Hazard lane:</b> fire playbook active'));
+    expect(
+      response,
+      contains(
+        '<b>Shadow bias:</b> HARDEN ACCESS • site-alpha • Contractors moved floor to floor in office park • x1',
+      ),
+    );
     expect(
       response,
       contains(

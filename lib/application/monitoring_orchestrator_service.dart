@@ -210,6 +210,42 @@ class MonitoringOrchestratorService {
         final leadShadowMatch = leadSite.moShadowMatches.isEmpty
             ? null
             : leadSite.moShadowMatches.first;
+        final biasPriority = repeatedShadowCount >= 2
+            ? MonitoringWatchAutonomyPriority.critical
+            : MonitoringWatchAutonomyPriority.high;
+        final biasCountdown = repeatedShadowCount >= 2 ? 12 : 20;
+        final biasDescription = _shadowReadinessBiasDescription(
+          shadowLabel: nextShiftShadowLabel,
+          siteId: leadSite.siteId,
+          regionId: region.regionId,
+          repeatedShadowCount: repeatedShadowCount,
+          leadShadowMatch: leadShadowMatch,
+        );
+        if (biasDescription.isNotEmpty) {
+          actionIntents.add(
+            MonitoringWatchAutonomyActionPlan(
+              id: 'ORCH-SHADOW-BIAS-${region.regionId}-$nextShiftShadowLabel',
+              incidentId: latest?.intelligenceId ?? leadSite.siteId,
+              siteId: leadSite.siteId,
+              priority: biasPriority,
+              actionType: 'SHADOW READINESS BIAS',
+              description: biasDescription,
+              countdownSeconds: biasCountdown,
+              metadata: <String, String>{
+                'mode': 'AUTO',
+                'scope': 'READINESS',
+                'region': region.regionId,
+                'lead_site': leadSite.siteId,
+                'shadow_mo_label': nextShiftShadowLabel,
+                'shadow_mo_repeat_count': repeatedShadowCount.toString(),
+                'readiness_bias': 'ACTIVE',
+                if (leadShadowMatch != null) 'shadow_mo_title': leadShadowMatch.title,
+                if (leadShadowMatch != null)
+                  'shadow_mo_indicators': leadShadowMatch.matchedIndicators.join(', '),
+              },
+            ),
+          );
+        }
         final draftPriority = repeatedShadowCount >= 2
             ? MonitoringWatchAutonomyPriority.critical
             : MonitoringWatchAutonomyPriority.high;
@@ -532,6 +568,28 @@ class MonitoringOrchestratorService {
         'Prebuild next-shift reconnaissance watch for $siteId across $regionId so ${videoOpsLabel.toUpperCase()} can challenge early probing${indicatorSummary.isEmpty ? '' : ' on $indicatorSummary'} $repeatSummary.',
       'PREARM SHADOW' =>
         'Pre-arm next-shift shadow watch for $siteId across $regionId so repeated MO pressure is challenged earlier${title.isEmpty ? '' : ' around "$title"'} $repeatSummary.',
+      _ => '',
+    };
+  }
+
+  String _shadowReadinessBiasDescription({
+    required String shadowLabel,
+    required String siteId,
+    required String regionId,
+    required int repeatedShadowCount,
+    required OnyxMoShadowMatch? leadShadowMatch,
+  }) {
+    final repeatSummary = repeatedShadowCount >= 2
+        ? 'because the same shadow MO repeated across $repeatedShadowCount recent shifts'
+        : 'because the same shadow MO repeated in the previous shift';
+    final title = leadShadowMatch?.title.trim() ?? '';
+    return switch (shadowLabel.trim()) {
+      'HARDEN ACCESS' =>
+        'Bias readiness toward earlier access hardening at $siteId across $regionId ${title.isEmpty ? repeatSummary : 'around "$title" $repeatSummary'}.',
+      'ADVANCE RECON' =>
+        'Bias readiness toward earlier reconnaissance watch at $siteId across $regionId ${title.isEmpty ? repeatSummary : 'around "$title" $repeatSummary'}.',
+      'PREARM SHADOW' =>
+        'Bias readiness toward pre-armed shadow watch at $siteId across $regionId ${title.isEmpty ? repeatSummary : 'around "$title" $repeatSummary'}.',
       _ => '',
     };
   }

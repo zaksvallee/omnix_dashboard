@@ -81,6 +81,7 @@ class TelegramAdminCommandFormatter {
     String? globalReadinessEchoSummary,
     String? globalReadinessTopIntentSummary,
     String? globalReadinessHazardSummary,
+    String? globalReadinessShadowBiasSummary,
     String? globalReadinessTomorrowPostureSummary,
     String? globalReadinessTomorrowShadowSummary,
     String? globalReadinessShadowSummary,
@@ -135,6 +136,8 @@ class TelegramAdminCommandFormatter {
         globalReadinessTopIntentSummary?.trim() ?? '';
     final readinessHazardSummary =
         globalReadinessHazardSummary?.trim() ?? '';
+    final readinessShadowBiasSummary =
+        globalReadinessShadowBiasSummary?.trim() ?? '';
     final readinessTomorrowPostureSummary =
         globalReadinessTomorrowPostureSummary?.trim() ?? '';
     final readinessTomorrowShadowSummary =
@@ -211,6 +214,7 @@ class TelegramAdminCommandFormatter {
               '${readinessEchoSummary.isEmpty ? '' : '• <b>Postural echo:</b> ${_escapeHtml(readinessEchoSummary)}\n'}'
               '${readinessTopIntentSummary.isEmpty ? '' : '• <b>Top intent:</b> ${_escapeHtml(readinessTopIntentSummary)}\n'}'
               '${readinessHazardSummary.isEmpty ? '' : '• <b>Hazard lane:</b> ${_escapeHtml(readinessHazardSummary)}\n'}'
+              '${readinessShadowBiasSummary.isEmpty ? '' : '• <b>Shadow bias:</b> ${_escapeHtml(readinessShadowBiasSummary)}\n'}'
               '${readinessShadowSummary.isEmpty ? '' : '• <b>Shadow intelligence:</b> ${_escapeHtml(readinessShadowSummary)}\n'}'
               '${shadowReview.isEmpty ? '' : '• <b>Shadow review:</b> <code>${_escapeHtml(shadowReview)}</code>\n'}'
               '${shadowCase.isEmpty ? '' : '• <b>Shadow case:</b> <code>${_escapeHtml(shadowCase)}</code>\n'}'

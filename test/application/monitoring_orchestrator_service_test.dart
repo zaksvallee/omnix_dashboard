@@ -306,6 +306,9 @@ void main() {
       final draft = intents.firstWhere(
         (entry) => entry.actionType == 'DRAFT NEXT-SHIFT ACCESS HARDENING',
       );
+      final bias = intents.firstWhere(
+        (entry) => entry.actionType == 'SHADOW READINESS BIAS',
+      );
       expect(draft.priority, MonitoringWatchAutonomyPriority.high);
       expect(draft.countdownSeconds, 28);
       expect(draft.metadata['scope'], 'NEXT_SHIFT');
@@ -314,6 +317,11 @@ void main() {
       expect(draft.metadata['draft_bias'], 'REPEATED_SHADOW_MO');
       expect(draft.description, contains('Prebuild next-shift access hardening'));
       expect(draft.description, contains('Contractors moved floor to floor in office park'));
+      expect(bias.metadata['scope'], 'READINESS');
+      expect(bias.metadata['readiness_bias'], 'ACTIVE');
+      expect(bias.metadata['shadow_mo_label'], 'HARDEN ACCESS');
+      expect(bias.metadata['shadow_mo_repeat_count'], '1');
+      expect(bias.description, contains('Bias readiness toward earlier access hardening'));
     });
   });
 }

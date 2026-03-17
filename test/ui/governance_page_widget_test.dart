@@ -296,6 +296,12 @@ void main() {
     );
     expect(
       find.textContaining(
+        'shadow bias HARDEN ACCESS • SITE-OFFICE • Contractors moved floor to floor in office park • x1',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
         'tomorrow shadow HARDEN ACCESS • SITE-OFFICE • Contractors moved floor to floor in office park • x1',
       ),
       findsOneWidget,
@@ -4591,6 +4597,10 @@ void main() {
     expect(
       copiedPayload,
       contains('global_readiness_next_shift_draft_count,0'),
+    );
+    expect(
+      copiedPayload,
+      contains('global_readiness_shadow_bias_summary,""'),
     );
     expect(
       copiedPayload,
