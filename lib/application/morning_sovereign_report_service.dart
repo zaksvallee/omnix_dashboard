@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'hazard_response_directive_service.dart';
 import 'monitoring_scene_review_store.dart';
 import 'site_activity_intelligence_service.dart';
 import 'vehicle_throughput_summary_formatter.dart';
@@ -1460,6 +1461,7 @@ String sovereignReportVehicleVisitExceptionKey(
 
 class MorningSovereignReportService {
   static const _siteActivityService = SiteActivityIntelligenceService();
+  static const _hazardDirectiveService = HazardResponseDirectiveService();
 
   const MorningSovereignReportService();
 
@@ -2586,11 +2588,9 @@ class MorningSovereignReportService {
   }
 
   bool _isHazardSceneReviewPosture(String posture) {
-    return posture.contains('fire') ||
-        posture.contains('smoke') ||
-        posture.contains('flood') ||
-        posture.contains('leak') ||
-        posture.contains('hazard');
+    return _hazardDirectiveService.isHazardSceneReviewPosture(
+      postureLabel: posture,
+    );
   }
 
   String _latestSuppressedPattern(

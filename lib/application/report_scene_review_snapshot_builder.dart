@@ -1,9 +1,12 @@
 import '../domain/crm/reporting/report_sections.dart';
 import '../domain/events/intelligence_received.dart';
 import 'monitoring_scene_review_store.dart';
+import 'hazard_response_directive_service.dart';
 
 class ReportSceneReviewSnapshotBuilder {
   const ReportSceneReviewSnapshotBuilder();
+
+  static const _hazardDirectiveService = HazardResponseDirectiveService();
 
   SceneReviewSnapshot build({
     required String month,
@@ -146,11 +149,9 @@ class ReportSceneReviewSnapshotBuilder {
   }
 
   static bool _isHazardPosture(String posture) {
-    return posture.contains('fire') ||
-        posture.contains('smoke') ||
-        posture.contains('flood') ||
-        posture.contains('leak') ||
-        posture.contains('hazard');
+    return _hazardDirectiveService.isHazardSceneReviewPosture(
+      postureLabel: posture,
+    );
   }
 
   static String _latestSuppressedPattern(

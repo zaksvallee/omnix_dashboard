@@ -217,6 +217,17 @@ class HazardResponseDirectiveService {
     return 'escalation candidate$pluralSuffix';
   }
 
+  bool isHazardSceneReviewPosture({
+    required String postureLabel,
+    String objectLabel = '',
+  }) {
+    return sceneReviewSummaryLabel(
+          postureLabel: postureLabel,
+          objectLabel: objectLabel,
+        ) !=
+        null;
+  }
+
   String _resolveSignal({
     required String postureLabel,
     required String objectLabel,
