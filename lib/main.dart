@@ -18602,6 +18602,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       moId: moId,
       targetValidationStatus: targetStatus,
     );
+    final shadowMatchContext = _activeShadowPromotionMatchContext(moId: moId);
     final shadowTomorrowUrgencySummary =
         syntheticContext['shadowTomorrowUrgencySummary'] ?? '';
     final previousShadowTomorrowUrgencySummary =
@@ -18617,6 +18618,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'target_status=$targetStatus\n'
         'decision=${action == 'accept' ? 'accepted' : 'rejected'}\n'
         'summary=$pressureAwareSummary'
+        '${(shadowMatchContext['validationStatus'] ?? '').isEmpty ? '' : '\ncurrent_validation_status=${shadowMatchContext['validationStatus']}'}'
+        '${(shadowMatchContext['strengthSummary'] ?? '').isEmpty ? '' : '\ncurrent_strength_summary=${shadowMatchContext['strengthSummary']}'}'
         '${shadowTomorrowUrgencySummary.isEmpty ? '' : '\nshadow_tomorrow_urgency_summary=$shadowTomorrowUrgencySummary'}'
         '${previousShadowTomorrowUrgencySummary.isEmpty ? '' : '\nprevious_shadow_tomorrow_urgency_summary=$previousShadowTomorrowUrgencySummary'}'
         '${(syntheticContext['reviewCommand'] ?? '').isEmpty ? '' : '\nsynthetic_review_command=${syntheticContext['reviewCommand']}'}'
@@ -18651,6 +18654,45 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'reviewCommand': (payload['reviewCommand'] ?? '').toString().trim(),
       'caseFileCommand': (payload['caseFileCommand'] ?? '').toString().trim(),
     };
+  }
+
+  Map<String, String> _activeShadowPromotionMatchContext({
+    required String moId,
+  }) {
+    final report = _morningSovereignReport;
+    if (report == null) {
+      return const <String, String>{};
+    }
+    final payload = _shadowMoCaseFilePayload(reportDate: report.date);
+    final sites = payload['sites'];
+    if (sites is! List) {
+      return const <String, String>{};
+    }
+    for (final site in sites) {
+      if (site is! Map) {
+        continue;
+      }
+      final matches = site['matches'];
+      if (matches is! List) {
+        continue;
+      }
+      for (final match in matches) {
+        if (match is! Map) {
+          continue;
+        }
+        final matchMoId = (match['moId'] ?? '').toString().trim();
+        if (matchMoId != moId.trim()) {
+          continue;
+        }
+        return <String, String>{
+          'validationStatus': (match['validationStatus'] ?? '')
+              .toString()
+              .trim(),
+          'strengthSummary': (match['strengthSummary'] ?? '').toString().trim(),
+        };
+      }
+    }
+    return const <String, String>{};
   }
 
   Future<String> _telegramAdminSendActivityCommand(String arguments) async {
