@@ -1029,6 +1029,36 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                                       ),
                                     ),
                                   ],
+                                  if (point.promotionSummary.isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Promotion: ${point.promotionSummary}',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF86EFAC),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                  if (point
+                                      .promotionDecisionSummary
+                                      .isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      point.promotionDecisionSummary,
+                                      style: GoogleFonts.inter(
+                                        color: point.promotionDecisionStatus ==
+                                                'accepted'
+                                            ? const Color(0xFF86EFAC)
+                                            : point.promotionDecisionStatus ==
+                                                    'rejected'
+                                            ? const Color(0xFFFCA5A5)
+                                            : const Color(0xFFFDE68A),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ],
                             ),
@@ -2702,6 +2732,13 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           biasSummary: _syntheticWarRoomBiasSummaryForPlan(
             currentPolicyPlan.id.isEmpty ? null : currentPolicyPlan,
           ),
+          promotionSummary: _syntheticWarRoomPromotionSummary(currentPlans),
+          promotionDecisionStatus: _syntheticWarRoomPromotionDecisionStatus(
+            currentPlans,
+          ),
+          promotionDecisionSummary: _syntheticWarRoomPromotionDecisionSummary(
+            currentPlans,
+          ),
         ),
       );
     }
@@ -2744,6 +2781,13 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               : _syntheticWarRoomSummary(plans),
           biasSummary: _syntheticWarRoomBiasSummaryForPlan(
             policyPlan.id.isEmpty ? null : policyPlan,
+          ),
+          promotionSummary: _syntheticWarRoomPromotionSummary(plans),
+          promotionDecisionStatus: _syntheticWarRoomPromotionDecisionStatus(
+            plans,
+          ),
+          promotionDecisionSummary: _syntheticWarRoomPromotionDecisionSummary(
+            plans,
           ),
         ),
       );
@@ -4443,6 +4487,15 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         lines.add(
           'history_${row}_bias_summary,"${point.biasSummary.replaceAll('"', '""')}"',
         );
+        lines.add(
+          'history_${row}_promotion_summary,"${point.promotionSummary.replaceAll('"', '""')}"',
+        );
+        lines.add(
+          'history_${row}_promotion_decision_status,${point.promotionDecisionStatus}',
+        );
+        lines.add(
+          'history_${row}_promotion_decision_summary,"${point.promotionDecisionSummary.replaceAll('"', '""')}"',
+        );
         lines.addAll(
           buildHistoryReviewCommandCsvRows(
             row: row,
@@ -4787,6 +4840,11 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         'modeLabel': point.modeLabel,
                         'summaryLine': point.summaryLine,
                         'biasSummary': point.biasSummary,
+                        'promotionSummary': point.promotionSummary,
+                        'promotionDecisionStatus':
+                            point.promotionDecisionStatus,
+                        'promotionDecisionSummary':
+                            point.promotionDecisionSummary,
                         ...buildReviewCommandPair(
                           reportDate: point.date,
                           reviewCommandBuilder: _syntheticReviewCommand,
@@ -5485,6 +5543,9 @@ class _SyntheticHistoryPoint {
   final String modeLabel;
   final String summaryLine;
   final String biasSummary;
+  final String promotionSummary;
+  final String promotionDecisionStatus;
+  final String promotionDecisionSummary;
 
   const _SyntheticHistoryPoint({
     required this.date,
@@ -5493,6 +5554,9 @@ class _SyntheticHistoryPoint {
     required this.modeLabel,
     required this.summaryLine,
     required this.biasSummary,
+    required this.promotionSummary,
+    required this.promotionDecisionStatus,
+    required this.promotionDecisionSummary,
   });
 
   int get pressureScore => planCount + policyCount;
