@@ -3,6 +3,7 @@ import '../domain/intelligence/news_item.dart';
 import '../domain/intelligence/onyx_mo_record.dart';
 import 'mo_ontology_service.dart';
 import 'monitoring_scene_review_store.dart';
+import 'monitoring_watch_vision_review_service.dart';
 
 class MoExtractionService {
   final MoOntologyService ontologyService;
@@ -156,6 +157,66 @@ class MoExtractionService {
         'source_type': event.sourceType,
         'scene_posture_label': sceneReview?.postureLabel ?? '',
         'scene_decision_label': sceneReview?.decisionLabel ?? '',
+      },
+    );
+  }
+
+  OnyxMoRecord extractObservedScene({
+    required IntelligenceReceived event,
+    required MonitoringWatchVisionReviewResult review,
+  }) {
+    final sceneSummary = <String>[
+      event.headline.trim(),
+      event.summary.trim(),
+      review.summary.trim(),
+      review.tags.join(' ').trim(),
+    ].where((value) => value.isNotEmpty).join(' ');
+    final profile = ontologyService.profile(
+      title: event.headline,
+      summary: sceneSummary,
+      environmentHint: '${event.siteId} ${event.regionId}',
+    );
+    final observedAt = event.occurredAt.toUtc();
+    return OnyxMoRecord(
+      moId: 'MO-OBS-${_normalizeId(event.intelligenceId)}',
+      title: event.headline.trim(),
+      environmentTypes: profile.environmentTypes,
+      summary: _singleLine(sceneSummary),
+      sourceType: OnyxMoSourceType.internalIncident,
+      sourceLabel: review.sourceLabel.trim(),
+      sourceConfidence: review.usedFallback ? 'medium' : 'high',
+      patternConfidence: profile.patternConfidence == 'low'
+          ? 'medium'
+          : profile.patternConfidence,
+      behaviorStage: profile.behaviorStage,
+      incidentType: profile.incidentType,
+      preIncidentIndicators: profile.preIncidentIndicators,
+      entryIndicators: profile.entryIndicators,
+      insideBehaviorIndicators: profile.insideBehaviorIndicators,
+      coordinationIndicators: profile.coordinationIndicators,
+      extractionIndicators: profile.extractionIndicators,
+      deceptionIndicators: profile.deceptionIndicators,
+      systemPressureIndicators: profile.systemPressureIndicators,
+      observableCues: profile.observableCues,
+      falsePositiveConflicts: profile.falsePositiveConflicts,
+      attackGoal: profile.attackGoal,
+      evidenceQuality: review.usedFallback ? 'medium' : 'high',
+      riskWeight: profile.riskWeight,
+      siteTypeOverrides: profile.siteTypeOverrides,
+      recommendedActionPlans: profile.recommendedActionPlans,
+      observabilityScore: profile.observabilityScore,
+      localRelevanceScore: profile.localRelevanceScore,
+      firstSeenUtc: observedAt,
+      lastSeenUtc: observedAt,
+      trendScore: event.riskScore / 100,
+      validationStatus: OnyxMoValidationStatus.validated,
+      metadata: <String, Object?>{
+        'intelligence_id': event.intelligenceId,
+        'client_id': event.clientId,
+        'region_id': event.regionId,
+        'site_id': event.siteId,
+        'camera_id': event.cameraId ?? '',
+        'review_tags': review.tags,
       },
     );
   }

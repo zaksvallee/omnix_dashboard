@@ -1,6 +1,7 @@
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/intelligence_received.dart';
 import 'hazard_response_directive_service.dart';
+import 'mo_runtime_matching_service.dart';
 import 'monitoring_scene_review_store.dart';
 
 enum MonitoringGlobalHeatLevel { stable, elevated, critical }
@@ -19,6 +20,8 @@ class MonitoringGlobalSitePosture {
   final String latestSummary;
   final DateTime lastActivityAtUtc;
   final List<String> dominantSignals;
+  final int moShadowMatchCount;
+  final String moShadowSummary;
 
   const MonitoringGlobalSitePosture({
     required this.clientId,
@@ -34,6 +37,8 @@ class MonitoringGlobalSitePosture {
     required this.latestSummary,
     required this.lastActivityAtUtc,
     this.dominantSignals = const <String>[],
+    this.moShadowMatchCount = 0,
+    this.moShadowSummary = '',
   });
 }
 
@@ -78,7 +83,11 @@ class MonitoringGlobalPostureSnapshot {
 }
 
 class MonitoringGlobalPostureService {
-  const MonitoringGlobalPostureService();
+  final MoRuntimeMatchingService moRuntimeMatchingService;
+
+  const MonitoringGlobalPostureService({
+    this.moRuntimeMatchingService = const MoRuntimeMatchingService(),
+  });
 
   static const _hazardDirectiveService = HazardResponseDirectiveService();
 
@@ -120,6 +129,10 @@ class MonitoringGlobalPostureService {
         _PostureItem(
           event: event,
           review: sceneReviewByIntelligenceId[event.intelligenceId],
+          moShadowMatches: moRuntimeMatchingService.matchReviewedIncident(
+            event: event,
+            sceneReview: sceneReviewByIntelligenceId[event.intelligenceId],
+          ),
           score: _score(
             event,
             sceneReviewByIntelligenceId[event.intelligenceId],
@@ -195,6 +208,9 @@ class MonitoringGlobalPostureService {
     }
     final dominantSignals = signalCounts.entries.toList(growable: false)
       ..sort((a, b) => b.value.compareTo(a.value));
+    final moShadowMatches = ordered
+        .expand((item) => item.moShadowMatches)
+        .toList(growable: false);
 
     return MonitoringGlobalSitePosture(
       clientId: latest.event.clientId,
@@ -210,6 +226,8 @@ class MonitoringGlobalPostureService {
       latestSummary: _latestSummaryFor(latest),
       lastActivityAtUtc: latest.event.occurredAt.toUtc(),
       dominantSignals: dominantSignals.take(3).map((entry) => entry.key).toList(growable: false),
+      moShadowMatchCount: moShadowMatches.length,
+      moShadowSummary: moRuntimeMatchingService.shadowSummary(moShadowMatches),
     );
   }
 
@@ -299,6 +317,9 @@ class MonitoringGlobalPostureService {
       signals.add('repeat');
     } else if (decision.contains('suppress')) {
       signals.add('suppressed');
+    }
+    if (item.moShadowMatches.isNotEmpty) {
+      signals.add('mo_shadow');
     }
     return signals.toList(growable: false);
   }
@@ -401,11 +422,13 @@ class MonitoringGlobalPostureService {
 class _PostureItem {
   final IntelligenceReceived event;
   final MonitoringSceneReviewRecord? review;
+  final List<OnyxMoShadowMatch> moShadowMatches;
   final int score;
 
   const _PostureItem({
     required this.event,
     required this.review,
+    this.moShadowMatches = const <OnyxMoShadowMatch>[],
     required this.score,
   });
 }

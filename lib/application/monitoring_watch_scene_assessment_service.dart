@@ -1,5 +1,6 @@
 import '../domain/events/intelligence_received.dart';
 import 'hazard_response_directive_service.dart';
+import 'mo_runtime_matching_service.dart';
 import 'monitoring_identity_policy_service.dart';
 import 'monitoring_temporary_identity_approval_service.dart';
 import 'monitoring_watch_vision_review_service.dart';
@@ -29,6 +30,8 @@ class MonitoringWatchSceneAssessment {
   final DateTime? temporaryIdentityValidUntilUtc;
   final int groupedEventCount;
   final List<String> rationale;
+  final List<String> moShadowMatchTitles;
+  final String moShadowSummary;
 
   const MonitoringWatchSceneAssessment({
     required this.objectLabel,
@@ -53,6 +56,8 @@ class MonitoringWatchSceneAssessment {
     this.temporaryIdentityValidUntilUtc,
     this.groupedEventCount = 1,
     this.rationale = const [],
+    this.moShadowMatchTitles = const <String>[],
+    this.moShadowSummary = '',
   });
 }
 
@@ -62,11 +67,13 @@ class MonitoringWatchSceneAssessmentService {
   final MonitoringIdentityPolicyService identityPolicyService;
   final MonitoringTemporaryIdentityApprovalService
   temporaryIdentityApprovalService;
+  final MoRuntimeMatchingService moRuntimeMatchingService;
 
   const MonitoringWatchSceneAssessmentService({
     this.identityPolicyService = const MonitoringIdentityPolicyService(),
     this.temporaryIdentityApprovalService =
         const MonitoringTemporaryIdentityApprovalService(),
+    this.moRuntimeMatchingService = const MoRuntimeMatchingService(),
   });
 
   MonitoringWatchSceneAssessment assess({
@@ -279,6 +286,13 @@ class MonitoringWatchSceneAssessmentService {
     }
 
     final effectiveRiskScore = score.clamp(1, 99);
+    final moShadowMatches = moRuntimeMatchingService.matchObservedScene(
+      event: event,
+      review: review,
+    );
+    if (moShadowMatches.isNotEmpty) {
+      rationale.add('mo_shadow:${moShadowMatches.first.moId}');
+    }
     final shouldEscalate =
         fireSignal ||
         waterLeakSignal ||
@@ -328,6 +342,10 @@ class MonitoringWatchSceneAssessmentService {
       temporaryIdentityValidUntilUtc: temporaryAllowedMatch.validUntilUtc,
       groupedEventCount: groupedEventCount,
       rationale: rationale,
+      moShadowMatchTitles: moShadowMatches
+          .map((match) => match.title)
+          .toList(growable: false),
+      moShadowSummary: moRuntimeMatchingService.shadowSummary(moShadowMatches),
     );
   }
 

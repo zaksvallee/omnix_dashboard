@@ -1,8 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:omnix_dashboard/application/mo_knowledge_repository.dart';
+import 'package:omnix_dashboard/application/mo_runtime_matching_service.dart';
 import 'package:omnix_dashboard/application/monitoring_identity_policy_service.dart';
 import 'package:omnix_dashboard/application/monitoring_temporary_identity_approval_service.dart';
 import 'package:omnix_dashboard/application/monitoring_watch_scene_assessment_service.dart';
 import 'package:omnix_dashboard/application/monitoring_watch_vision_review_service.dart';
+import 'package:omnix_dashboard/domain/intelligence/onyx_mo_record.dart';
 import 'package:omnix_dashboard/application/site_identity_registry_repository.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 
@@ -228,6 +231,74 @@ void main() {
         expect(assessment.effectiveRiskScore, greaterThanOrEqualTo(90));
       },
     );
+
+    test('surfaces MO shadow match for service impersonation scene', () {
+      final moAwareService = MonitoringWatchSceneAssessmentService(
+        moRuntimeMatchingService: MoRuntimeMatchingService(
+          repository: InMemoryMoKnowledgeRepository(
+            seedRecords: {
+              'MO-EXT-OFFICE': OnyxMoRecord(
+                moId: 'MO-EXT-OFFICE',
+                title: 'Office contractor impersonation pattern',
+                environmentTypes: const ['office_building'],
+                summary: 'Contractor impersonation moving floor to floor.',
+                sourceType: OnyxMoSourceType.externalIncident,
+                sourceLabel: 'Security Bulletin',
+                sourceConfidence: 'high',
+                patternConfidence: 'high',
+                behaviorStage: 'inside_behavior',
+                incidentType: 'deception_led_intrusion',
+                entryIndicators: const ['spoofed_service_access'],
+                insideBehaviorIndicators: const [
+                  'multi_zone_roaming',
+                  'room_probing',
+                ],
+                deceptionIndicators: const ['maintenance_impersonation'],
+                observableCues: const ['route_anomalies'],
+                attackGoal: 'theft',
+                evidenceQuality: 'high',
+                riskWeight: 82,
+                recommendedActionPlans: const [
+                  'PROMOTE SCENE REVIEW',
+                  'RAISE READINESS',
+                ],
+                observabilityScore: 0.82,
+                localRelevanceScore: 0.88,
+                firstSeenUtc: DateTime.utc(2026, 3, 10),
+                lastSeenUtc: DateTime.utc(2026, 3, 17),
+                validationStatus: OnyxMoValidationStatus.shadowMode,
+              ),
+            },
+          ),
+        ),
+      );
+      final event = _intel(
+        objectLabel: 'person',
+        objectConfidence: 0.87,
+        riskScore: 79,
+        headline: 'Maintenance-looking person roaming office floors',
+        summary:
+            'Contractor-like person moved floor to floor and tried several restricted doors.',
+        snapshotUrl: 'https://edge.example.com/snapshot.jpg',
+      );
+
+      final assessment = moAwareService.assess(
+        event: event,
+        review: buildMetadataOnlyMonitoringWatchVisionReview(event),
+        priorReviewedEvents: 0,
+      );
+
+      expect(
+        assessment.moShadowMatchTitles,
+        contains('Office contractor impersonation pattern'),
+      );
+      expect(
+        assessment.moShadowSummary,
+        contains('Office contractor impersonation pattern'),
+      );
+      expect(assessment.rationale, contains('mo_shadow:MO-EXT-OFFICE'));
+      expect(assessment.shouldNotifyClient, isTrue);
+    });
 
     test('labels same-pass loitering scenes explicitly', () {
       final event = _intel(

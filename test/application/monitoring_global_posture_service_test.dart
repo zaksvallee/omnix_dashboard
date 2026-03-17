@@ -1,8 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:omnix_dashboard/application/mo_knowledge_repository.dart';
+import 'package:omnix_dashboard/application/mo_runtime_matching_service.dart';
 import 'package:omnix_dashboard/application/monitoring_global_posture_service.dart';
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
+import 'package:omnix_dashboard/domain/intelligence/onyx_mo_record.dart';
 
 void main() {
   group('MonitoringGlobalPostureService', () {
@@ -163,6 +166,84 @@ void main() {
       expect(snapshot.criticalSiteCount, 1);
       expect(snapshot.sites.first.dominantSignals, contains('fire'));
       expect(snapshot.regions.first.heatLevel, MonitoringGlobalHeatLevel.critical);
+    });
+
+    test('surfaces MO shadow signals in site posture without changing heat logic', () {
+      final moAwareService = MonitoringGlobalPostureService(
+        moRuntimeMatchingService: MoRuntimeMatchingService(
+          repository: InMemoryMoKnowledgeRepository(
+            seedRecords: {
+              'MO-EXT-OFFICE': OnyxMoRecord(
+                moId: 'MO-EXT-OFFICE',
+                title: 'Office contractor impersonation pattern',
+                environmentTypes: const ['office_building'],
+                summary: 'Contractor impersonation moving floor to floor.',
+                sourceType: OnyxMoSourceType.externalIncident,
+                sourceLabel: 'Security Bulletin',
+                sourceConfidence: 'high',
+                patternConfidence: 'high',
+                behaviorStage: 'inside_behavior',
+                incidentType: 'deception_led_intrusion',
+                entryIndicators: const ['spoofed_service_access'],
+                insideBehaviorIndicators: const [
+                  'multi_zone_roaming',
+                  'room_probing',
+                ],
+                deceptionIndicators: const ['maintenance_impersonation'],
+                observableCues: const ['route_anomalies'],
+                attackGoal: 'theft',
+                evidenceQuality: 'high',
+                riskWeight: 82,
+                recommendedActionPlans: const [
+                  'PROMOTE SCENE REVIEW',
+                  'RAISE READINESS',
+                ],
+                observabilityScore: 0.82,
+                localRelevanceScore: 0.88,
+                firstSeenUtc: DateTime.utc(2026, 3, 10),
+                lastSeenUtc: DateTime.utc(2026, 3, 17),
+                validationStatus: OnyxMoValidationStatus.shadowMode,
+              ),
+            },
+          ),
+        ),
+      );
+      final events = <DispatchEvent>[
+        _intel(
+          id: 'intel-office',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-VALLEE',
+          riskScore: 83,
+          cameraId: 'office-cam',
+          headline: 'Maintenance contractor probing office doors',
+          summary:
+              'Contractor-like person moved floor to floor and tried several restricted office doors.',
+        ),
+      ];
+      final reviews = <String, MonitoringSceneReviewRecord>{
+        'intel-office': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-office',
+          sourceLabel: 'openai:gpt-5.4-mini',
+          postureLabel: 'service impersonation and roaming concern',
+          decisionLabel: 'Escalation Candidate',
+          decisionSummary: 'Likely spoofed service access with abnormal roaming.',
+          summary: 'Likely maintenance impersonation moving across office zones.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 0),
+        ),
+      };
+
+      final snapshot = moAwareService.buildSnapshot(
+        events: events,
+        sceneReviewByIntelligenceId: reviews,
+        generatedAtUtc: DateTime.utc(2026, 3, 16, 22, 5),
+      );
+
+      expect(snapshot.sites.first.dominantSignals, contains('mo_shadow'));
+      expect(snapshot.sites.first.moShadowMatchCount, greaterThan(0));
+      expect(
+        snapshot.sites.first.moShadowSummary,
+        contains('Office contractor impersonation pattern'),
+      );
     });
   });
 }
