@@ -121,6 +121,13 @@ void main() {
       reportDate: '2026-03-17',
       generatedAtUtc: '2026-03-17T04:00:00Z',
       sceneReviewSummary: 'Incident 2 • Repeat 1 • Escalation 1 • Suppressed 0',
+      globalReadinessHeadline: 'ELEVATED WATCH',
+      globalReadinessSummary:
+          'Critical 1 • Elevated 2 • Intents 3 • region north-cluster critical',
+      currentShiftReadinessReviewCommand: '/readinessreview 2026-03-17',
+      currentShiftReadinessCaseFileCommand: '/readinesscase json 2026-03-17',
+      previousShiftReadinessReviewCommand: '/readinessreview 2026-03-16',
+      previousShiftReadinessCaseFileCommand: '/readinesscase json 2026-03-16',
       siteActivityHeadline: 'ACTIVITY RISING',
       siteActivitySummary:
           'Unknown or flagged site activity increased against recent shifts.',
@@ -137,6 +144,9 @@ void main() {
     expect(response, contains('<b>Target scope:</b> <code>client-alpha/site-1</code>'));
     expect(response, contains('<code>/activityreview 2026-03-17</code>'));
     expect(response, contains('<code>/activitycase json 2026-03-16</code>'));
+    expect(response, contains('<b>Global Readiness</b>'));
+    expect(response, contains('<code>/readinessreview 2026-03-17</code>'));
+    expect(response, contains('<code>/readinesscase json 2026-03-16</code>'));
     expect(
       response,
       contains('Activity shortcuts use the current target scope.'),

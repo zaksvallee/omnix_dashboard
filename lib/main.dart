@@ -36,8 +36,11 @@ import 'application/listener_alarm_scope_mapping_service.dart';
 import 'application/listener_alarm_scope_registry_repository.dart';
 import 'application/listener_serial_ingestor.dart';
 import 'application/morning_sovereign_report_service.dart';
+import 'application/monitoring_global_posture_service.dart';
+import 'application/monitoring_orchestrator_service.dart';
 import 'application/monitoring_shift_notification_service.dart';
 import 'application/monitoring_scene_review_store.dart';
+import 'application/monitoring_watch_action_plan.dart';
 import 'application/monitoring_watch_escalation_policy_service.dart';
 import 'application/monitoring_identity_policy_service.dart';
 import 'application/monitoring_watch_outcome_cue_store.dart';
@@ -545,6 +548,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   static const _siteActivityIntelligenceService =
       SiteActivityIntelligenceService();
   static const _siteActivityTelegramFormatter = SiteActivityTelegramFormatter();
+  static const _globalPostureService = MonitoringGlobalPostureService();
+  static const _orchestratorService = MonitoringOrchestratorService();
   static const _partnerEndpointLabelPrefix = 'PARTNER';
   late final NewsIntelligenceService _newsIntel;
   static const _browserFiles = DispatchSnapshotFileService();
@@ -5293,6 +5298,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final targetScope = targetClientId.isNotEmpty && targetSiteId.isNotEmpty
         ? '$targetClientId/$targetSiteId'
         : null;
+    final readinessSnapshot = _globalReadinessSnapshotForReport(report);
+    final readinessIntents = _globalReadinessIntentsForReport(report);
+    final readinessSummary = _globalReadinessSummaryForReport(
+      snapshot: readinessSnapshot,
+      intents: readinessIntents,
+    );
     final sceneReviewSummary = _singleLine(
       report.sceneReview.recentActionsSummary.trim().isNotEmpty
           ? report.sceneReview.recentActionsSummary
@@ -5320,6 +5331,20 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       reportDate: report.date,
       generatedAtUtc: report.generatedAtUtc.toIso8601String(),
       sceneReviewSummary: sceneReviewSummary,
+      globalReadinessHeadline: _globalReadinessModeLabel(
+        readinessSnapshot,
+        readinessIntents,
+      ),
+      globalReadinessSummary: readinessSummary,
+      currentShiftReadinessReviewCommand: '/readinessreview ${report.date}',
+      currentShiftReadinessCaseFileCommand:
+          '/readinesscase json ${report.date}',
+      previousShiftReadinessReviewCommand: previousReport == null
+          ? null
+          : '/readinessreview ${previousReport.date}',
+      previousShiftReadinessCaseFileCommand: previousReport == null
+          ? null
+          : '/readinesscase json ${previousReport.date}',
       siteActivityHeadline: siteActivityHeadline,
       siteActivitySummary: siteActivitySummary,
       currentShiftReviewCommand: '/activityreview ${report.date}',
@@ -5347,6 +5372,195 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     } catch (_) {
       // Governance digests must not block the morning report cycle.
     }
+  }
+
+  SovereignReport? _morningSovereignReportForDate(String? reportDate) {
+    final normalizedDate = (reportDate ?? '').trim();
+    if (normalizedDate.isEmpty) {
+      return _morningSovereignReport;
+    }
+    final current = _morningSovereignReport;
+    if (current != null && current.date.trim() == normalizedDate) {
+      return current;
+    }
+    for (final item in _morningSovereignReportHistory) {
+      if (item.date.trim() == normalizedDate) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  List<DispatchEvent> _eventsScopedToWindow(
+    DateTime? startUtcValue,
+    DateTime? endUtcValue,
+  ) {
+    final startUtc = startUtcValue?.toUtc();
+    final endUtc = endUtcValue?.toUtc();
+    if (startUtc == null || endUtc == null) {
+      return store.allEvents();
+    }
+    return store.allEvents()
+        .where(
+          (event) =>
+              !event.occurredAt.toUtc().isBefore(startUtc) &&
+              !event.occurredAt.toUtc().isAfter(endUtc),
+        )
+        .toList(growable: false);
+  }
+
+  MonitoringGlobalPostureSnapshot _globalReadinessSnapshotForReport(
+    SovereignReport report,
+  ) {
+    final scopedEvents = _eventsScopedToWindow(
+      report.shiftWindowStartUtc,
+      report.shiftWindowEndUtc,
+    );
+    return _globalPostureService.buildSnapshot(
+      events: scopedEvents,
+      sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
+      generatedAtUtc: report.generatedAtUtc,
+    );
+  }
+
+  List<MonitoringWatchAutonomyActionPlan> _globalReadinessIntentsForReport(
+    SovereignReport report,
+  ) {
+    final scopedEvents = _eventsScopedToWindow(
+      report.shiftWindowStartUtc,
+      report.shiftWindowEndUtc,
+    );
+    return _orchestratorService.buildActionIntents(
+      events: scopedEvents,
+      sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
+    );
+  }
+
+  String _globalReadinessModeLabel(
+    MonitoringGlobalPostureSnapshot snapshot,
+    List<MonitoringWatchAutonomyActionPlan> intents,
+  ) {
+    if (snapshot.criticalSiteCount > 0) {
+      return 'CRITICAL POSTURE';
+    }
+    if (snapshot.elevatedSiteCount > 0) {
+      return 'ELEVATED WATCH';
+    }
+    if (intents.isNotEmpty) {
+      return 'ACTIVE TENSION';
+    }
+    return 'STABLE POSTURE';
+  }
+
+  String _globalReadinessSummaryForReport({
+    required MonitoringGlobalPostureSnapshot snapshot,
+    required List<MonitoringWatchAutonomyActionPlan> intents,
+  }) {
+    final leadRegion = snapshot.regions.isEmpty ? null : snapshot.regions.first;
+    final leadSite = snapshot.sites.isEmpty ? null : snapshot.sites.first;
+    final detail = <String>[
+      'Critical ${snapshot.criticalSiteCount}',
+      'Elevated ${snapshot.elevatedSiteCount}',
+      'Intents ${intents.length}',
+      if (leadRegion != null)
+        'region ${leadRegion.regionId} ${leadRegion.heatLevel.name}',
+      if (leadSite != null) 'site ${leadSite.siteId}',
+    ];
+    return _singleLine(detail.join(' • '), maxLength: 220);
+  }
+
+  Map<String, Object?> _globalReadinessCaseFilePayload({String? reportDate}) {
+    final report = _morningSovereignReportForDate(reportDate);
+    if (report == null) {
+      return <String, Object?>{
+        'reportDate': (reportDate ?? '').trim(),
+        'available': false,
+        'message': 'No morning sovereign report is available for that shift.',
+      };
+    }
+    final snapshot = _globalReadinessSnapshotForReport(report);
+    final intents = _globalReadinessIntentsForReport(report);
+    final leadRegion = snapshot.regions.isEmpty ? null : snapshot.regions.first;
+    final leadSite = snapshot.sites.isEmpty ? null : snapshot.sites.first;
+    final history = _morningSovereignReportHistory
+        .where((item) => item.date.trim() != report.date.trim())
+        .toList(growable: false)
+      ..sort((left, right) => right.generatedAtUtc.compareTo(left.generatedAtUtc));
+    return <String, Object?>{
+      'reportDate': report.date,
+      'generatedAtUtc': report.generatedAtUtc.toIso8601String(),
+      'modeLabel': _globalReadinessModeLabel(snapshot, intents),
+      'summary': _globalReadinessSummaryForReport(
+        snapshot: snapshot,
+        intents: intents,
+      ),
+      'totalSites': snapshot.totalSites,
+      'criticalSiteCount': snapshot.criticalSiteCount,
+      'elevatedSiteCount': snapshot.elevatedSiteCount,
+      'intentCount': intents.length,
+      'leadRegion': leadRegion == null
+          ? null
+          : <String, Object?>{
+              'regionId': leadRegion.regionId,
+              'summary': leadRegion.summary,
+              'heatLevel': leadRegion.heatLevel.name,
+            },
+      'leadSite': leadSite == null
+          ? null
+          : <String, Object?>{
+              'siteId': leadSite.siteId,
+              'summary': leadSite.latestSummary,
+              'dominantSignals': leadSite.dominantSignals,
+              'heatLevel': leadSite.heatLevel.name,
+            },
+      'reviewCommand': '/readinessreview ${report.date}',
+      'caseFileCommand': '/readinesscase json ${report.date}',
+      'history': history.take(3).map((item) {
+        final itemSnapshot = _globalReadinessSnapshotForReport(item);
+        final itemIntents = _globalReadinessIntentsForReport(item);
+        return <String, Object?>{
+          'reportDate': item.date,
+          'modeLabel': _globalReadinessModeLabel(itemSnapshot, itemIntents),
+          'summary': _globalReadinessSummaryForReport(
+            snapshot: itemSnapshot,
+            intents: itemIntents,
+          ),
+          'reviewCommand': '/readinessreview ${item.date}',
+          'caseFileCommand': '/readinesscase json ${item.date}',
+        };
+      }).toList(growable: false),
+    };
+  }
+
+  String _globalReadinessCaseFileCsv({String? reportDate}) {
+    final payload = _globalReadinessCaseFilePayload(reportDate: reportDate);
+    final history = (payload['history'] as List<Object?>?) ?? const [];
+    final lines = <String>[
+      'metric,value',
+      'report_date,${payload['reportDate'] ?? ''}',
+      'available,${payload['available'] == false ? 'false' : 'true'}',
+      'generated_at_utc,${payload['generatedAtUtc'] ?? ''}',
+      'mode_label,"${(payload['modeLabel'] ?? '').toString().replaceAll('"', '""')}"',
+      'summary,"${(payload['summary'] ?? '').toString().replaceAll('"', '""')}"',
+      'total_sites,${payload['totalSites'] ?? 0}',
+      'critical_site_count,${payload['criticalSiteCount'] ?? 0}',
+      'elevated_site_count,${payload['elevatedSiteCount'] ?? 0}',
+      'intent_count,${payload['intentCount'] ?? 0}',
+      'review_command,${payload['reviewCommand'] ?? ''}',
+      'case_file_command,${payload['caseFileCommand'] ?? ''}',
+    ];
+    for (var i = 0; i < history.length; i += 1) {
+      final row = history[i];
+      if (row is! Map) continue;
+      lines.add(
+        'history_${i + 1},"${(row['summary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add('history_${i + 1}_review_command,${row['reviewCommand'] ?? ''}');
+      lines.add(
+        'history_${i + 1}_case_file_command,${row['caseFileCommand'] ?? ''}',
+      );
+    }
+    return lines.join('\n');
   }
 
   // ignore: unused_element
@@ -12581,6 +12795,16 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           command: 'activitycase',
           arguments: arguments,
         );
+      case '/readinessreview':
+        return _TelegramAdminCommandParseResult(
+          command: 'readinessreview',
+          arguments: arguments,
+        );
+      case '/readinesscase':
+        return _TelegramAdminCommandParseResult(
+          command: 'readinesscase',
+          arguments: arguments,
+        );
       case '/sendactivity':
         return _TelegramAdminCommandParseResult(
           command: 'sendactivity',
@@ -12798,6 +13022,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'activitytruth',
         'activityreview',
         'activitycase',
+        'readinessreview',
+        'readinesscase',
         'sendactivity',
         'demoprep',
         'demoflow',
@@ -12933,6 +13159,20 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     if (hasAny(const ['activity case', 'case file', 'activity dossier'])) {
       return const _TelegramAdminCommandParseResult(command: 'activitycase');
     }
+    if (hasAny(const [
+      'readiness review',
+      'global readiness review',
+      'open governance readiness',
+    ])) {
+      return const _TelegramAdminCommandParseResult(command: 'readinessreview');
+    }
+    if (hasAny(const [
+      'readiness case',
+      'readiness dossier',
+      'global readiness case',
+    ])) {
+      return const _TelegramAdminCommandParseResult(command: 'readinesscase');
+    }
     if (hasAny(const ['incident', 'incidents'])) {
       return const _TelegramAdminCommandParseResult(command: 'incidents');
     }
@@ -13032,6 +13272,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case 'activitytruth':
       case 'activityreview':
       case 'activitycase':
+      case 'readinessreview':
+      case 'readinesscase':
       case 'aidrafts':
       case 'aiconv':
       case 'whoami':
@@ -13129,6 +13371,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         return _telegramAdminActivityReviewCommand(arguments);
       case 'activitycase':
         return _telegramAdminActivityCaseCommand(arguments);
+      case 'readinessreview':
+        return _telegramAdminReadinessReviewCommand(arguments);
+      case 'readinesscase':
+        return _telegramAdminReadinessCaseCommand(arguments);
       case 'sendactivity':
         return _telegramAdminSendActivityCommand(arguments);
       case 'demoprep':
@@ -13266,6 +13512,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '• <code>/activitytruth [client_id site_id]</code>\n'
         '• <code>/activityreview [client_id site_id] [report_date]</code>\n'
         '• <code>/activitycase [json|csv] [client_id site_id] [report_date]</code>\n'
+        '• <code>/readinessreview [report_date]</code>\n'
+        '• <code>/readinesscase [json|csv] [report_date]</code>\n'
         '• <code>/sendactivity [client|partner|both] [client_id site_id]</code>\n'
         '\n---\n\n'
         '<b>Admin</b>\n'
@@ -15224,6 +15472,57 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return 'ONYX ACTIVITYCASE JSON\n'
         '$scopeLine\n'
         '${const JsonEncoder.withIndent('  ').convert(_siteActivityCaseFilePayload(clientId: normalizedClientId, siteId: normalizedSiteId, reportDate: normalizedReportDate))}';
+  }
+
+  String _telegramAdminReadinessReviewCommand(String arguments) {
+    final normalizedReportDate = arguments.trim();
+    final report = _morningSovereignReportForDate(normalizedReportDate);
+    if (report == null) {
+      return 'ONYX READINESSREVIEW\n'
+          'Usage: /readinessreview [report_date]\n'
+          'No morning sovereign report is available for that shift.';
+    }
+    final snapshot = _globalReadinessSnapshotForReport(report);
+    final intents = _globalReadinessIntentsForReport(report);
+    _openGovernanceFromAdmin();
+    return 'ONYX READINESSREVIEW\n'
+        'report_date=${report.date}\n'
+        'mode=${_globalReadinessModeLabel(snapshot, intents)}\n'
+        'summary=${_globalReadinessSummaryForReport(snapshot: snapshot, intents: intents)}\n'
+        'Opening Governance for global readiness oversight.';
+  }
+
+  String _telegramAdminReadinessCaseCommand(String arguments) {
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    var format = 'json';
+    var index = 0;
+    if (tokens.isNotEmpty) {
+      final first = tokens.first.toLowerCase();
+      if (first == 'json' || first == 'csv') {
+        format = first;
+        index = 1;
+      }
+    }
+    final reportDate = tokens.length > index ? tokens.sublist(index).join(' ') : '';
+    final normalizedReportDate = reportDate.trim();
+    final report = _morningSovereignReportForDate(normalizedReportDate);
+    if (report == null) {
+      return 'ONYX READINESSCASE\n'
+          'Usage: /readinesscase [json|csv] [report_date]\n'
+          'No morning sovereign report is available for that shift.';
+    }
+    if (format == 'csv') {
+      return 'ONYX READINESSCASE CSV\n'
+          'report_date=${report.date}\n'
+          '${_globalReadinessCaseFileCsv(reportDate: report.date)}';
+    }
+    return 'ONYX READINESSCASE JSON\n'
+        'report_date=${report.date}\n'
+        '${const JsonEncoder.withIndent('  ').convert(_globalReadinessCaseFilePayload(reportDate: report.date))}';
   }
 
   Future<String> _telegramAdminSendActivityCommand(String arguments) async {

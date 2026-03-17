@@ -71,6 +71,12 @@ class TelegramAdminCommandFormatter {
     required String reportDate,
     required String generatedAtUtc,
     required String sceneReviewSummary,
+    String? globalReadinessHeadline,
+    String? globalReadinessSummary,
+    String? currentShiftReadinessReviewCommand,
+    String? currentShiftReadinessCaseFileCommand,
+    String? previousShiftReadinessReviewCommand,
+    String? previousShiftReadinessCaseFileCommand,
     required String siteActivityHeadline,
     required String siteActivitySummary,
     required String currentShiftReviewCommand,
@@ -84,6 +90,14 @@ class TelegramAdminCommandFormatter {
     final normalizedTargetScope = targetScope?.trim() ?? '';
     final previousReview = previousShiftReviewCommand?.trim() ?? '';
     final previousCase = previousShiftCaseFileCommand?.trim() ?? '';
+    final readinessHeadline = globalReadinessHeadline?.trim() ?? '';
+    final readinessSummary = globalReadinessSummary?.trim() ?? '';
+    final readinessReview = currentShiftReadinessReviewCommand?.trim() ?? '';
+    final readinessCase = currentShiftReadinessCaseFileCommand?.trim() ?? '';
+    final previousReadinessReview =
+        previousShiftReadinessReviewCommand?.trim() ?? '';
+    final previousReadinessCase =
+        previousShiftReadinessCaseFileCommand?.trim() ?? '';
     final targetLine = normalizedTargetScope.isEmpty
         ? '• <b>Target scope:</b> required\n'
         : '• <b>Target scope:</b> <code>${_escapeHtml(normalizedTargetScope)}</code>\n';
@@ -96,6 +110,17 @@ class TelegramAdminCommandFormatter {
         ? ''
         : '• <b>Previous review:</b> <code>${_escapeHtml(previousReview)}</code>\n'
               '${previousCase.isEmpty ? '' : '• <b>Previous case:</b> <code>${_escapeHtml(previousCase)}</code>\n'}';
+    final readinessSection = readinessReview.isEmpty && readinessCase.isEmpty
+        ? ''
+        : '---\n\n'
+              '<b>Global Readiness</b>\n'
+              '${readinessHeadline.isEmpty ? '' : '• <b>Mode:</b> ${_escapeHtml(readinessHeadline)}\n'}'
+              '${readinessSummary.isEmpty ? '' : '• <b>Summary:</b> ${_escapeHtml(readinessSummary)}\n'}'
+              '• <b>Current review:</b> <code>${_escapeHtml(readinessReview)}</code>\n'
+              '${readinessCase.isEmpty ? '' : '• <b>Current case:</b> <code>${_escapeHtml(readinessCase)}</code>\n'}'
+              '${previousReadinessReview.isEmpty ? '' : '• <b>Previous review:</b> <code>${_escapeHtml(previousReadinessReview)}</code>\n'}'
+              '${previousReadinessCase.isEmpty ? '' : '• <b>Previous case:</b> <code>${_escapeHtml(previousReadinessCase)}</code>\n'}'
+              '\n';
     return '🛰️ <b>ONYX MORNING GOVERNANCE</b>\n\n'
         '<b>Signal</b>\n'
         '<code>${_escapeHtml(signalHeader)}</code>\n\n'
@@ -115,6 +140,7 @@ class TelegramAdminCommandFormatter {
         '• <b>Current case:</b> <code>${_escapeHtml(currentShiftCaseFileCommand)}</code>\n'
         '$previousLines'
         '$targetHint'
+        '$readinessSection'
         '\nUTC: ${_escapeHtml(utcStamp)}';
   }
 
