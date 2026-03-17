@@ -189,7 +189,7 @@ void main() {
       syntheticWarRoomPromotionSummary:
           'Promote MO-EXT-OFFICE toward validated review • Office contractor impersonation pattern • x1 • pressure strength rising • critical • 22s (prev strength stable • high • 28s)',
       syntheticWarRoomPromotionDecisionSummary:
-          'Accepted toward validated review.',
+          'Accepted toward validated review. • under strength rising • critical • 22s pressure (prev strength stable • high • 28s)',
       syntheticWarRoomPromotionAcceptCommand:
           '/mopromotion accept MO-EXT-OFFICE validated',
       syntheticWarRoomPromotionRejectCommand:
@@ -367,7 +367,9 @@ void main() {
     );
     expect(
       response,
-      contains('<b>Promotion decision:</b> Accepted toward validated review.'),
+      contains(
+        '<b>Promotion decision:</b> Accepted toward validated review. • under strength rising • critical • 22s pressure (prev strength stable • high • 28s)',
+      ),
     );
     expect(
       response,

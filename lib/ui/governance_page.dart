@@ -4214,6 +4214,8 @@ class _GovernancePageState extends State<GovernancePage> {
         ),
         promotionDecisionSummary: _syntheticWarRoomPromotionDecisionSummary(
           currentPlans,
+          shadowTomorrowUrgencySummary:
+              _syntheticWarRoomShadowTomorrowUrgencySummaryForReport(report),
         ),
         actionBias: currentPolicyPlan.metadata['action_bias'] ?? '',
         memoryPriorityBoost:
@@ -4299,6 +4301,13 @@ class _GovernancePageState extends State<GovernancePage> {
           ),
           promotionDecisionSummary: _syntheticWarRoomPromotionDecisionSummary(
             plans,
+            shadowTomorrowUrgencySummary:
+                _globalReadinessTomorrowUrgencySummary(
+                  _globalReadinessIntentsForWindow(
+                    item.shiftWindowStartUtc,
+                    item.shiftWindowEndUtc,
+                  ),
+                ),
           ),
           actionBias: policyPlan.metadata['action_bias'] ?? '',
           memoryPriorityBoost:
@@ -4696,16 +4705,24 @@ class _GovernancePageState extends State<GovernancePage> {
   }
 
   String _syntheticWarRoomPromotionDecisionSummary(
-    List<MonitoringWatchAutonomyActionPlan> plans,
-  ) {
+    List<MonitoringWatchAutonomyActionPlan> plans, {
+    String shadowTomorrowUrgencySummary = '',
+    String previousShadowTomorrowUrgencySummary = '',
+  }) {
     final moId = _syntheticWarRoomPromotionId(plans);
     final targetStatus = _syntheticWarRoomPromotionTargetStatus(plans);
     if (moId.isEmpty || targetStatus.isEmpty) {
       return '';
     }
-    return _moPromotionDecisionStore.decisionSummaryFor(
+    final baseSummary = _moPromotionDecisionStore.decisionSummaryFor(
       moId: moId,
       targetValidationStatus: targetStatus,
+    );
+    return buildSyntheticPromotionDecisionSummary(
+      baseSummary: baseSummary,
+      shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
+      previousShadowTomorrowUrgencySummary:
+          previousShadowTomorrowUrgencySummary,
     );
   }
 
@@ -11628,6 +11645,10 @@ class _GovernancePageState extends State<GovernancePage> {
         ),
         'promotionDecisionSummary': _syntheticWarRoomPromotionDecisionSummary(
           syntheticWarRoomPlans,
+          shadowTomorrowUrgencySummary:
+              currentSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '',
+          previousShadowTomorrowUrgencySummary:
+              previousSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '',
         ),
         'actionBias': syntheticWarRoomPlans
             .map((plan) => (plan.metadata['action_bias'] ?? '').trim())
@@ -11925,7 +11946,7 @@ class _GovernancePageState extends State<GovernancePage> {
       'synthetic_war_room_promotion_mo_id,${_syntheticWarRoomPromotionId(syntheticWarRoomPlans)}',
       'synthetic_war_room_promotion_target_status,${_syntheticWarRoomPromotionTargetStatus(syntheticWarRoomPlans)}',
       'synthetic_war_room_promotion_decision_status,${_syntheticWarRoomPromotionDecisionStatus(syntheticWarRoomPlans)}',
-      'synthetic_war_room_promotion_decision_summary,"${_syntheticWarRoomPromotionDecisionSummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',
+      'synthetic_war_room_promotion_decision_summary,"${_syntheticWarRoomPromotionDecisionSummary(syntheticWarRoomPlans, shadowTomorrowUrgencySummary: currentSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '', previousShadowTomorrowUrgencySummary: previousSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '').replaceAll('"', '""')}"',
       'synthetic_war_room_learning_memory_summary,"${_syntheticWarRoomLearningMemorySummary(syntheticWarRoomHistory).replaceAll('"', '""')}"',
       'synthetic_war_room_action_bias,"${syntheticWarRoomPlans.map((plan) => (plan.metadata['action_bias'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '').replaceAll('"', '""')}"',
       'synthetic_war_room_memory_priority_boost,${syntheticWarRoomPlans.map((plan) => (plan.metadata['memory_priority_boost'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '')}',

@@ -2179,6 +2179,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       promotionDecisionStatus: _syntheticWarRoomPromotionDecisionStatus(plans),
       promotionDecisionSummary: _syntheticWarRoomPromotionDecisionSummary(
         plans,
+        shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
+        previousShadowTomorrowUrgencySummary:
+            previousShadowTomorrowUrgencySummary,
       ),
       learningSummary: _syntheticWarRoomLearningSummary(plans),
       learningMemorySummary: _syntheticWarRoomLearningMemorySummary(
@@ -2949,16 +2952,24 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   }
 
   String _syntheticWarRoomPromotionDecisionSummary(
-    List<MonitoringWatchAutonomyActionPlan> plans,
-  ) {
+    List<MonitoringWatchAutonomyActionPlan> plans, {
+    String shadowTomorrowUrgencySummary = '',
+    String previousShadowTomorrowUrgencySummary = '',
+  }) {
     final moId = _syntheticWarRoomPromotionId(plans);
     final targetStatus = _syntheticWarRoomPromotionTargetStatus(plans);
     if (moId.isEmpty || targetStatus.isEmpty) {
       return '';
     }
-    return _moPromotionDecisionStore.decisionSummaryFor(
+    final baseSummary = _moPromotionDecisionStore.decisionSummaryFor(
       moId: moId,
       targetValidationStatus: targetStatus,
+    );
+    return buildSyntheticPromotionDecisionSummary(
+      baseSummary: baseSummary,
+      shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
+      previousShadowTomorrowUrgencySummary:
+          previousShadowTomorrowUrgencySummary,
     );
   }
 
@@ -3340,6 +3351,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           ),
           promotionDecisionSummary: _syntheticWarRoomPromotionDecisionSummary(
             currentPlans,
+            shadowTomorrowUrgencySummary:
+                _syntheticShadowTomorrowUrgencySummary(normalizedReportDate),
           ),
         ),
       );
@@ -3403,6 +3416,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           ),
           promotionDecisionSummary: _syntheticWarRoomPromotionDecisionSummary(
             plans,
+            shadowTomorrowUrgencySummary:
+                _syntheticShadowTomorrowUrgencySummary(report.date),
           ),
         ),
       );

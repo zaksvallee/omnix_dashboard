@@ -5463,7 +5463,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       syntheticWarRoomPromotionSummary:
           (syntheticWarRoomCaseFile['promotionSummary'] ?? '').toString(),
       syntheticWarRoomPromotionDecisionSummary:
-          _syntheticWarRoomPromotionDecisionSummary(syntheticWarRoomPlans),
+          (syntheticWarRoomCaseFile['promotionDecisionSummary'] ?? '')
+              .toString(),
       syntheticWarRoomPromotionAcceptCommand: _syntheticWarRoomPromotionCommand(
         syntheticWarRoomPlans,
         'accept',
@@ -6490,16 +6491,24 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }
 
   String _syntheticWarRoomPromotionDecisionSummary(
-    List<MonitoringWatchAutonomyActionPlan> plans,
-  ) {
+    List<MonitoringWatchAutonomyActionPlan> plans, {
+    String shadowTomorrowUrgencySummary = '',
+    String previousShadowTomorrowUrgencySummary = '',
+  }) {
     final moId = _syntheticWarRoomPromotionId(plans);
     final targetStatus = _syntheticWarRoomPromotionTargetStatus(plans);
     if (moId.isEmpty || targetStatus.isEmpty) {
       return '';
     }
-    return _moPromotionDecisionStore.decisionSummaryFor(
+    final baseSummary = _moPromotionDecisionStore.decisionSummaryFor(
       moId: moId,
       targetValidationStatus: targetStatus,
+    );
+    return buildSyntheticPromotionDecisionSummary(
+      baseSummary: baseSummary,
+      shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
+      previousShadowTomorrowUrgencySummary:
+          previousShadowTomorrowUrgencySummary,
     );
   }
 
@@ -7247,6 +7256,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       ),
       'promotionDecisionSummary': _syntheticWarRoomPromotionDecisionSummary(
         plans,
+        shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
+        previousShadowTomorrowUrgencySummary:
+            previousShadowTomorrowUrgencySummary,
       ),
       'learningLabel': learningLabel,
       'learningSummary': _syntheticWarRoomLearningSummary(plans),
@@ -7357,7 +7369,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               'promotionDecisionStatus':
                   _syntheticWarRoomPromotionDecisionStatus(itemPlans),
               'promotionDecisionSummary':
-                  _syntheticWarRoomPromotionDecisionSummary(itemPlans),
+                  _syntheticWarRoomPromotionDecisionSummary(
+                    itemPlans,
+                    shadowTomorrowUrgencySummary:
+                        itemShadowTomorrowUrgencySummary,
+                  ),
               'learningLabel': _syntheticWarRoomLearningLabel(itemPlans),
               'learningSummary': _syntheticWarRoomLearningSummary(itemPlans),
               'actionBias': (itemPolicyPlan.metadata['action_bias'] ?? '')

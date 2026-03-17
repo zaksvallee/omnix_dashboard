@@ -22,4 +22,27 @@ void main() {
       );
     });
   });
+
+  group('buildSyntheticPromotionDecisionSummary', () {
+    test('returns base decision when no urgency context exists', () {
+      expect(
+        buildSyntheticPromotionDecisionSummary(
+          baseSummary: 'Accepted toward validated review.',
+        ),
+        'Accepted toward validated review.',
+      );
+    });
+
+    test('adds current and previous urgency context when both exist', () {
+      expect(
+        buildSyntheticPromotionDecisionSummary(
+          baseSummary: 'Accepted toward validated review.',
+          shadowTomorrowUrgencySummary: 'strength rising • critical • 22s',
+          previousShadowTomorrowUrgencySummary:
+              'strength stable • high • 28s',
+        ),
+        'Accepted toward validated review. • under strength rising • critical • 22s pressure (prev strength stable • high • 28s)',
+      );
+    });
+  });
 }
