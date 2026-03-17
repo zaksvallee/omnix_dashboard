@@ -25,6 +25,10 @@ void main() {
               onPressed: () {},
               child: const Text('Clear Dock Target'),
             ),
+            quaternaryAction: OutlinedButton(
+              onPressed: () {},
+              child: const Text('Download Governance PDF'),
+            ),
           ),
         ),
       ),
@@ -61,6 +65,10 @@ void main() {
               onPressed: () {},
               child: const Text('Clear Dock Target'),
             ),
+            quaternaryAction: OutlinedButton(
+              onPressed: () {},
+              child: const Text('Download Governance PDF'),
+            ),
           ),
         ),
       ),
@@ -76,6 +84,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('OPENED FROM GOVERNANCE BRANDING DRIFT'), findsOneWidget);
+    expect(find.text('Download Governance PDF'), findsOneWidget);
     expect(
       find.textContaining(
         'This receipt scope was opened from Governance so operators can inspect the generated-report history behind a branding-drift shift.',

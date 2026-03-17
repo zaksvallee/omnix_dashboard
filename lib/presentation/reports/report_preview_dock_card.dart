@@ -14,6 +14,7 @@ class ReportPreviewDockCard extends StatelessWidget {
   final Widget primaryAction;
   final Widget secondaryAction;
   final Widget? tertiaryAction;
+  final Widget? quaternaryAction;
 
   const ReportPreviewDockCard({
     super.key,
@@ -27,6 +28,7 @@ class ReportPreviewDockCard extends StatelessWidget {
     required this.primaryAction,
     required this.secondaryAction,
     this.tertiaryAction,
+    this.quaternaryAction,
   });
 
   @override
@@ -118,6 +120,8 @@ class ReportPreviewDockCard extends StatelessWidget {
               SizedBox(width: 220, child: secondaryAction),
               if (tertiaryAction != null)
                 SizedBox(width: 220, child: tertiaryAction!),
+              if (quaternaryAction != null)
+                SizedBox(width: 220, child: quaternaryAction!),
             ],
           ),
         ],

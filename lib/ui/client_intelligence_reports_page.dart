@@ -5365,6 +5365,15 @@ class _ClientIntelligenceReportsPageState
     final period = _periodFromMonth(row.event.month);
     final governanceDock =
         _entryContext == ReportEntryContext.governanceBrandingDrift;
+    final openLabel = governanceDock
+        ? 'Open Governance Preview'
+        : 'Open Full Preview';
+    final copyLabel = governanceDock
+        ? 'Copy Governance Receipt'
+        : 'Copy Receipt';
+    final downloadLabel = governanceDock
+        ? 'Download Governance PDF'
+        : 'Download Receipt';
 
     return ReportPreviewDockCard(
       eventId: row.event.eventId,
@@ -5397,18 +5406,24 @@ class _ClientIntelligenceReportsPageState
         ),
       ],
       primaryAction: _pillActionButton(
-        label: 'Open Full Preview',
+        label: openLabel,
         icon: Icons.open_in_new_rounded,
         buttonKey: const ValueKey('reports-preview-dock-open'),
         onTap: () => _previewReceipt(row, hasLiveReceipts),
       ),
       secondaryAction: _pillActionButton(
-        label: 'Copy Receipt',
+        label: copyLabel,
         icon: Icons.copy_all_rounded,
         buttonKey: const ValueKey('reports-preview-dock-copy'),
         onTap: () => _copyReceipt(row),
       ),
       tertiaryAction: _pillActionButton(
+        label: downloadLabel,
+        icon: Icons.download_rounded,
+        buttonKey: const ValueKey('reports-preview-dock-download'),
+        onTap: () => _downloadReceipt(row, hasLiveReceipts),
+      ),
+      quaternaryAction: _pillActionButton(
         label: 'Clear Dock Target',
         icon: Icons.close_rounded,
         buttonKey: const ValueKey('reports-preview-dock-clear'),

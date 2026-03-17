@@ -576,10 +576,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(openedEventsScope, isNotNull);
-    expect(
-      openedEventsScope!['eventIds'],
-      <String>['ACTIVITY-1', 'ACTIVITY-2', 'ACTIVITY-3'],
-    );
+    expect(openedEventsScope!['eventIds'], <String>[
+      'ACTIVITY-1',
+      'ACTIVITY-2',
+      'ACTIVITY-3',
+    ]);
     expect(openedEventsScope!['selectedEventId'], 'ACTIVITY-3');
 
     await tester.tap(
@@ -603,9 +604,7 @@ void main() {
       findsWidgets,
     );
     expect(
-      find.byKey(
-        const ValueKey('reports-partner-scorecard-drill-in-close'),
-      ),
+      find.byKey(const ValueKey('reports-partner-scorecard-drill-in-close')),
       findsOneWidget,
     );
 
@@ -618,9 +617,7 @@ void main() {
 
     expect(find.text('Partner Shift Detail'), findsOneWidget);
     expect(
-      find.text(
-        '2026-03-15 • CLIENT-001/SITE-SANDTON • PARTNER • Alpha',
-      ),
+      find.text('2026-03-15 • CLIENT-001/SITE-SANDTON • PARTNER • Alpha'),
       findsOneWidget,
     );
     expect(find.text('Shift receipts'), findsOneWidget);
@@ -685,15 +682,12 @@ void main() {
 
     expect(find.text('Partner Shift Detail'), findsNothing);
     expect(openedEventsScope, isNotNull);
-    expect(
-      openedEventsScope!['eventIds'],
-      <String>[
-        'PARTNER-EVT-1',
-        'PARTNER-EVT-2',
-        'PARTNER-EVT-3',
-        'PARTNER-RPT-3',
-      ],
-    );
+    expect(openedEventsScope!['eventIds'], <String>[
+      'PARTNER-EVT-1',
+      'PARTNER-EVT-2',
+      'PARTNER-EVT-3',
+      'PARTNER-RPT-3',
+    ]);
     expect(openedEventsScope!['selectedEventId'], 'PARTNER-RPT-3');
 
     await tester.tap(openShiftButton);
@@ -746,16 +740,19 @@ void main() {
     expect(clipboardText, contains('partner_label,"PARTNER • Alpha"'));
     expect(clipboardText, contains('trend_label,IMPROVING'));
     expect(clipboardText, contains('site_activity_total_signals,3'));
-    expect(clipboardText, contains('site_activity_summary,"Signals 3 • Vehicles 1 • People 2 • Known IDs 2 • Unknown 1 • Guard interactions 1 • Flagged IDs 1"'));
+    expect(
+      clipboardText,
+      contains(
+        'site_activity_summary,"Signals 3 • Vehicles 1 • People 2 • Known IDs 2 • Unknown 1 • Guard interactions 1 • Flagged IDs 1"',
+      ),
+    );
     expect(
       clipboardText,
       contains('receipt_investigation_trend_label,"OVERSIGHT RISING"'),
     );
     expect(
       clipboardText,
-      contains(
-        'receipt_investigation_current_governance_handoff_count,1',
-      ),
+      contains('receipt_investigation_current_governance_handoff_count,1'),
     );
     expect(
       clipboardText,
@@ -1203,9 +1200,7 @@ void main() {
     expect(clipboardText, contains('"partnerLabel": "PARTNER • Beta"'));
 
     await tester.tap(
-      find.byKey(
-        const ValueKey('reports-partner-scorecard-drill-in-copy-csv'),
-      ),
+      find.byKey(const ValueKey('reports-partner-scorecard-drill-in-copy-csv')),
     );
     await tester.pumpAndSettle();
 
@@ -1214,9 +1209,7 @@ void main() {
     expect(clipboardText, contains('partner_label,"PARTNER • Beta"'));
 
     await tester.tap(
-      find.byKey(
-        const ValueKey('reports-partner-scorecard-drill-in-close'),
-      ),
+      find.byKey(const ValueKey('reports-partner-scorecard-drill-in-close')),
     );
     await tester.pumpAndSettle();
 
@@ -1295,9 +1288,7 @@ void main() {
 
     expect(find.text('Partner Shift Detail'), findsOneWidget);
     expect(
-      find.text(
-        '2026-03-15 • CLIENT-001/SITE-SANDTON • PARTNER • Alpha',
-      ),
+      find.text('2026-03-15 • CLIENT-001/SITE-SANDTON • PARTNER • Alpha'),
       findsOneWidget,
     );
     expect(find.text('Shift receipts'), findsOneWidget);
@@ -1640,10 +1631,7 @@ void main() {
       clipboardText,
       contains('investigation_baseline_routine_average,1.0'),
     );
-    expect(
-      clipboardText,
-      contains('investigation_baseline_receipt_count,2'),
-    );
+    expect(clipboardText, contains('investigation_baseline_receipt_count,2'));
     expect(
       clipboardText,
       contains('investigation_trend_label,"OVERSIGHT RISING"'),
@@ -3862,6 +3850,109 @@ void main() {
     );
     expect(clipboardText, contains('"eventId": "RPT-LIVE-DOCK-COPY-1"'));
   });
+
+  testWidgets(
+    'client reports governance dock shows governance-specific actions',
+    (tester) async {
+      final store = InMemoryEventStore();
+      store.append(
+        buildTestReportGenerated(
+          eventId: 'RPT-LIVE-DOCK-GOV-1',
+          occurredAt: DateTime.utc(2026, 3, 15, 0, 55),
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          reportSchemaVersion: 2,
+          projectionVersion: 2,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ClientIntelligenceReportsPage(
+            store: store,
+            selectedClient: 'CLIENT-001',
+            selectedSite: 'SITE-SANDTON',
+            reportShellState: const ReportShellState(
+              previewReceiptEventId: 'RPT-LIVE-DOCK-GOV-1',
+              previewSurface: ReportPreviewSurface.dock,
+              entryContext: ReportEntryContext.governanceBrandingDrift,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Governance Preview Dock'), findsOneWidget);
+      expect(find.text('Open Governance Preview'), findsWidgets);
+      expect(find.text('Copy Governance Receipt'), findsWidgets);
+      expect(find.text('Download Governance PDF'), findsWidgets);
+      expect(
+        find.byKey(const ValueKey('reports-preview-dock-download')),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'client reports governance dock download opens governance preview request',
+    (tester) async {
+      ReportPreviewRequest? previewRequest;
+      ReportShellState? changedState;
+      final store = InMemoryEventStore();
+      store.append(
+        buildTestReportGenerated(
+          eventId: 'RPT-LIVE-DOCK-DOWNLOAD-GOV-1',
+          occurredAt: DateTime.utc(2026, 3, 15, 0, 55),
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          reportSchemaVersion: 2,
+          projectionVersion: 2,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ClientIntelligenceReportsPage(
+            store: store,
+            selectedClient: 'CLIENT-001',
+            selectedSite: 'SITE-SANDTON',
+            reportShellState: const ReportShellState(
+              previewReceiptEventId: 'RPT-LIVE-DOCK-DOWNLOAD-GOV-1',
+              previewSurface: ReportPreviewSurface.dock,
+              entryContext: ReportEntryContext.governanceBrandingDrift,
+            ),
+            onReportShellStateChanged: (next) => changedState = next,
+            onRequestPreview: (value) => previewRequest = value,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final dockDownload = find.byKey(
+        const ValueKey('reports-preview-dock-download'),
+      );
+      await tester.ensureVisible(dockDownload);
+      await tester.tap(dockDownload);
+      await tester.pumpAndSettle();
+
+      expect(
+        previewRequest?.receiptEvent?.eventId,
+        'RPT-LIVE-DOCK-DOWNLOAD-GOV-1',
+      );
+      expect(
+        previewRequest?.entryContext,
+        ReportEntryContext.governanceBrandingDrift,
+      );
+      expect(
+        changedState?.selectedReceiptEventId,
+        'RPT-LIVE-DOCK-DOWNLOAD-GOV-1',
+      );
+      expect(
+        changedState?.previewReceiptEventId,
+        'RPT-LIVE-DOCK-DOWNLOAD-GOV-1',
+      );
+    },
+  );
 
   testWidgets('client reports preview target open triggers preview request', (
     tester,
