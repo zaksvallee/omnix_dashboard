@@ -19,6 +19,8 @@ class MonitoringSyntheticWarRoomService {
     'community_watch',
     'weather_shift',
   };
+  static const _elevatedShadowPostureScore = 65;
+  static const _criticalShadowPostureScore = 75;
 
   List<MonitoringWatchAutonomyActionPlan> buildSimulationPlans({
     required List<DispatchEvent> events,
@@ -145,19 +147,35 @@ class MonitoringSyntheticWarRoomService {
             repeatedLearningCount >= repeatedShadowCount
             ? repeatedLearningCount
             : repeatedShadowCount;
-        final policyPriority = effectiveMemoryCount >= 2
+        final basePolicyPriority = effectiveMemoryCount >= 2
             ? MonitoringWatchAutonomyPriority.critical
             : effectiveMemoryCount == 1
             ? MonitoringWatchAutonomyPriority.high
             : MonitoringWatchAutonomyPriority.medium;
-        final countdownSeconds = effectiveMemoryCount >= 2
+        final baseCountdownSeconds = effectiveMemoryCount >= 2
             ? 32
             : effectiveMemoryCount == 1
             ? 48
             : 64;
+        final shadowPostureBias = _shadowPostureBiasForSite(leadSite);
+        final policyPriority = _strongerPriority(
+          basePolicyPriority,
+          shadowPostureBias.priorityFloor,
+        );
+        final countdownSeconds = shadowPostureBias.countdownSeconds <= 0
+            ? baseCountdownSeconds
+            : shadowPostureBias.countdownSeconds < baseCountdownSeconds
+            ? shadowPostureBias.countdownSeconds
+            : baseCountdownSeconds;
         final actionBias = effectiveMemoryCount >= 2
             ? 'Escalate rehearsal immediately for'
             : effectiveMemoryCount == 1
+            ? 'Advance rehearsal earlier for'
+            : shadowPostureBias.priorityFloor ==
+                    MonitoringWatchAutonomyPriority.critical
+            ? 'Escalate rehearsal immediately for'
+            : shadowPostureBias.priorityFloor ==
+                    MonitoringWatchAutonomyPriority.high
             ? 'Advance rehearsal earlier for'
             : 'Recommend rehearsing';
         final memorySummary = repeatedLearningCount <= 0
@@ -198,6 +216,10 @@ class MonitoringSyntheticWarRoomService {
           shadowLabel: shadowLabel,
           leadShadowMatch: leadShadowMatch,
         );
+        final shadowPostureSummary = _shadowPostureSummaryForSite(leadSite);
+        final postureSummaryClause = shadowPostureSummary.isEmpty
+            ? ''
+            : ' Shadow posture weight at ${leadSite.siteId} is $shadowPostureSummary.';
         plans.add(
           MonitoringWatchAutonomyActionPlan(
             id: 'SIM-POLICY-${region.regionId}',
@@ -206,7 +228,7 @@ class MonitoringSyntheticWarRoomService {
             priority: policyPriority,
             actionType: 'POLICY RECOMMENDATION',
             description:
-                '$actionBias $recommendation${shadowRecommendation.isEmpty ? '' : ' with $shadowRecommendation'} across ${region.regionId} after simulation so tomorrow’s shift starts ahead of the posture curve. ${learningSignal.summary}${memorySummary.isEmpty ? '' : ' $memorySummary'}${shadowMemorySummary.isEmpty ? '' : ' $shadowMemorySummary'}',
+                '$actionBias $recommendation${shadowRecommendation.isEmpty ? '' : ' with $shadowRecommendation'} across ${region.regionId} after simulation so tomorrow’s shift starts ahead of the posture curve. ${learningSignal.summary}${memorySummary.isEmpty ? '' : ' $memorySummary'}${shadowMemorySummary.isEmpty ? '' : ' $shadowMemorySummary'}$postureSummaryClause',
             countdownSeconds: countdownSeconds,
             metadata: <String, String>{
               'mode': 'SIMULATION',
@@ -239,6 +261,19 @@ class MonitoringSyntheticWarRoomService {
                     : 'LEARNING',
               if (shadowMemorySummary.isNotEmpty)
                 'shadow_memory_summary': shadowMemorySummary,
+              if (shadowPostureSummary.isNotEmpty)
+                'shadow_posture_summary': shadowPostureSummary,
+              'shadow_posture_strength_score':
+                  leadSite.moShadowStrengthScore.toString(),
+              if (shadowPostureBias.biasLabel.isNotEmpty)
+                'shadow_posture_bias': shadowPostureBias.biasLabel,
+              if (shadowPostureBias.priorityFloor !=
+                  MonitoringWatchAutonomyPriority.medium)
+                'shadow_posture_priority':
+                    shadowPostureBias.priorityFloor.name,
+              if (shadowPostureBias.countdownSeconds > 0)
+                'shadow_posture_countdown':
+                    shadowPostureBias.countdownSeconds.toString(),
               if (promotionGuidance != null)
                 'mo_promotion_id': promotionGuidance.moId,
               if (promotionGuidance != null)
@@ -280,6 +315,40 @@ class MonitoringSyntheticWarRoomService {
       case MonitoringWatchAutonomyPriority.medium:
         return 1;
     }
+  }
+
+  MonitoringWatchAutonomyPriority _strongerPriority(
+    MonitoringWatchAutonomyPriority left,
+    MonitoringWatchAutonomyPriority right,
+  ) {
+    return _priorityWeight(left) >= _priorityWeight(right) ? left : right;
+  }
+
+  _SyntheticShadowPostureBias _shadowPostureBiasForSite(
+    MonitoringGlobalSitePosture site,
+  ) {
+    if (site.moShadowStrengthScore >= _criticalShadowPostureScore) {
+      return const _SyntheticShadowPostureBias(
+        biasLabel: 'POSTURE SURGE',
+        priorityFloor: MonitoringWatchAutonomyPriority.critical,
+        countdownSeconds: 28,
+      );
+    }
+    if (site.moShadowStrengthScore >= _elevatedShadowPostureScore) {
+      return const _SyntheticShadowPostureBias(
+        biasLabel: 'POSTURE ELEVATED',
+        priorityFloor: MonitoringWatchAutonomyPriority.high,
+        countdownSeconds: 40,
+      );
+    }
+    return const _SyntheticShadowPostureBias();
+  }
+
+  String _shadowPostureSummaryForSite(MonitoringGlobalSitePosture site) {
+    if (site.moShadowStrengthScore <= 0 || site.moShadowMatchCount <= 0) {
+      return '';
+    }
+    return 'weight ${site.moShadowStrengthScore} • ${site.heatLevel.name} heat • activity ${site.activityScore}';
   }
 
   _SyntheticLearningSignal _learningSignalForRegion({
@@ -392,6 +461,18 @@ class MonitoringSyntheticWarRoomService {
         ? 'Shadow bias: $labelSummary repeated in the previous shift.'
         : 'Shadow bias: $labelSummary repeated in $repeatedShadowCount recent shifts.';
   }
+}
+
+class _SyntheticShadowPostureBias {
+  final String biasLabel;
+  final MonitoringWatchAutonomyPriority priorityFloor;
+  final int countdownSeconds;
+
+  const _SyntheticShadowPostureBias({
+    this.biasLabel = '',
+    this.priorityFloor = MonitoringWatchAutonomyPriority.medium,
+    this.countdownSeconds = 0,
+  });
 }
 
 class _SyntheticLearningSignal {

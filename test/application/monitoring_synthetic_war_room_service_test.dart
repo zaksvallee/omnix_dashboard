@@ -357,6 +357,123 @@ void main() {
       expect(policy.description, contains('Shadow bias: HARDEN ACCESS'));
     });
 
+    test('uses high shadow posture weight to accelerate rehearsal policy', () {
+      final events = <DispatchEvent>[
+        _intel(
+          id: 'news-office-posture',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-SEED',
+          riskScore: 67,
+          cameraId: 'news-feed',
+          sourceType: 'news',
+          headline: 'Contractors roamed office floors before device theft',
+          summary:
+              'Suspects posed as maintenance contractors, moved floor to floor, and checked restricted office doors.',
+        ),
+        _intel(
+          id: 'intel-office-posture-1',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-VALLEE',
+          riskScore: 86,
+          cameraId: 'office-cam-1',
+          headline: 'Maintenance contractor probing office doors',
+          summary:
+              'Contractor-like person moved floor to floor and tried several restricted office doors.',
+        ),
+        _intel(
+          id: 'intel-office-posture-2',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-VALLEE',
+          riskScore: 87,
+          cameraId: 'office-cam-2',
+          headline: 'Maintenance contractor repeating office sweep',
+          summary:
+              'Contractor-like person moved floor to floor, returned to restricted office doors, and kept probing access.',
+        ),
+        _intel(
+          id: 'intel-office-posture-3',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-VALLEE',
+          riskScore: 89,
+          cameraId: 'office-cam-3',
+          headline: 'Contractor-like person revisits office floors',
+          summary:
+              'Service-looking person moved across multiple office zones and checked several restricted rooms again.',
+        ),
+      ];
+      final reviews = <String, MonitoringSceneReviewRecord>{
+        'intel-office-posture-1': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-office-posture-1',
+          sourceLabel: 'openai:gpt-5.4-mini',
+          postureLabel: 'service impersonation and roaming concern',
+          decisionLabel: 'Escalation Candidate',
+          decisionSummary:
+              'Likely spoofed service access with abnormal roaming.',
+          summary:
+              'Likely maintenance impersonation moving across office zones.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 0),
+        ),
+        'intel-office-posture-2': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-office-posture-2',
+          sourceLabel: 'openai:gpt-5.4-mini',
+          postureLabel: 'service impersonation and roaming concern',
+          decisionLabel: 'Escalation Candidate',
+          decisionSummary:
+              'Likely spoofed service access with abnormal roaming.',
+          summary:
+              'Likely maintenance impersonation moving across office zones again.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 5),
+        ),
+        'intel-office-posture-3': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-office-posture-3',
+          sourceLabel: 'openai:gpt-5.4-mini',
+          postureLabel: 'service impersonation and roaming concern',
+          decisionLabel: 'Escalation Candidate',
+          decisionSummary:
+              'Likely spoofed service access with abnormal roaming.',
+          summary:
+              'Likely maintenance impersonation moving across office zones repeatedly.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 10),
+        ),
+      };
+
+      final plans = service.buildSimulationPlans(
+        events: events,
+        sceneReviewByIntelligenceId: reviews,
+        videoOpsLabel: 'Hikvision',
+      );
+
+      final policy = plans.firstWhere(
+        (entry) => entry.actionType == 'POLICY RECOMMENDATION',
+      );
+      expect(policy.priority, MonitoringWatchAutonomyPriority.critical);
+      expect(policy.countdownSeconds, 28);
+      expect(
+        policy.metadata['shadow_posture_bias'],
+        'POSTURE SURGE',
+      );
+      expect(
+        policy.metadata['shadow_posture_priority'],
+        'critical',
+      );
+      expect(
+        policy.metadata['shadow_posture_countdown'],
+        '28',
+      );
+      expect(
+        int.parse(policy.metadata['shadow_posture_strength_score'] ?? '0'),
+        greaterThanOrEqualTo(75),
+      );
+      expect(
+        policy.metadata['shadow_posture_summary'],
+        contains('weight '),
+      );
+      expect(
+        policy.description,
+        contains('Shadow posture weight at SITE-VALLEE is weight '),
+      );
+    });
+
     test('uses accepted promotion decisions to lock future promotion hints', () {
       promotionDecisionStore.accept(
         moId: 'MO-EXT-NEWS-OFFICE-PATTERN-ACCEPTED',
