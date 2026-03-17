@@ -49,7 +49,7 @@ class MoExtractionService {
     );
     final sourceConfidence = _externalSourceConfidence(sourceLabel);
     final validationStatus =
-        profile.observabilityScore >= 0.55 &&
+        profile.observabilityScore >= 0.15 &&
             sourceConfidence != 'low' &&
             profile.recommendedActionPlans.isNotEmpty
         ? OnyxMoValidationStatus.shadowMode

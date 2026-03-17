@@ -247,4 +247,85 @@ void main() {
     );
     expect(find.textContaining('HIKVISION evidence'), findsOneWidget);
   });
+
+  testWidgets('ai queue surfaces shadow MO intelligence from external patterns', (
+    tester,
+  ) async {
+    final events = [
+      IntelligenceReceived(
+        eventId: 'evt-news',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 16, 20, 0),
+        intelligenceId: 'intel-news',
+        provider: 'security_bulletin',
+        sourceType: 'news',
+        externalId: 'news-1',
+        clientId: 'CLIENT-VALLEE',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-OFFICE',
+        cameraId: 'feed-news',
+        objectLabel: 'person',
+        objectConfidence: 0.7,
+        headline: 'Contractors moved floor to floor in office park',
+        summary:
+            'Suspects posed as maintenance contractors, moved floor to floor through a business park, and tried several restricted office doors before stealing devices.',
+        riskScore: 75,
+        snapshotUrl: 'https://edge.example.com/news-office.jpg',
+        canonicalHash: 'hash-news-office',
+      ),
+      IntelligenceReceived(
+        eventId: 'evt-office',
+        sequence: 2,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 16, 21, 14),
+        intelligenceId: 'intel-office',
+        provider: 'hikvision_dvr_monitor_only',
+        sourceType: 'dvr',
+        externalId: 'ext-office',
+        clientId: 'CLIENT-VALLEE',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-OFFICE',
+        cameraId: 'office-cam',
+        objectLabel: 'person',
+        objectConfidence: 0.95,
+        headline: 'Maintenance contractor probing office doors',
+        summary:
+            'Contractor-like person moved floor to floor and tried several restricted office doors.',
+        riskScore: 86,
+        snapshotUrl: 'https://edge.example.com/office.jpg',
+        canonicalHash: 'hash-office',
+      ),
+    ];
+    final reviews = {
+      'intel-office': MonitoringSceneReviewRecord(
+        intelligenceId: 'intel-office',
+        sourceLabel: 'openai:gpt-5.4-mini',
+        postureLabel: 'service impersonation and roaming concern',
+        decisionLabel: 'Escalation Candidate',
+        decisionSummary: 'Likely spoofed service access with abnormal roaming.',
+        summary: 'Likely maintenance impersonation moving across office zones.',
+        reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 15),
+      ),
+    };
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AIQueuePage(
+          events: events,
+          sceneReviewByIntelligenceId: reviews,
+          videoOpsLabel: 'Hikvision',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('ai-queue-mo-shadow-card')), findsOneWidget);
+    expect(find.text('Shadow MO Intelligence'), findsOneWidget);
+    expect(
+      find.textContaining('SITE-OFFICE • Contractors moved floor to floor in office park'),
+      findsOneWidget,
+    );
+    expect(find.text('mo_shadow'), findsOneWidget);
+  });
 }

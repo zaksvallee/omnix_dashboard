@@ -3115,6 +3115,9 @@ class _GovernancePageState extends State<GovernancePage> {
     final leadRegion = snapshot.regions.isEmpty ? null : snapshot.regions.first;
     final leadSite = snapshot.sites.isEmpty ? null : snapshot.sites.first;
     final hazardSegment = _hazardIntentSummary(intents);
+    final moShadowSegment = leadSite == null || leadSite.moShadowSummary.trim().isEmpty
+        ? ''
+        : ' • shadow ${leadSite.moShadowSummary.trim()}';
     final tomorrowSegment = _globalReadinessTomorrowPostureSummary(intents);
     final regionSegment = leadRegion == null
         ? ''
@@ -3125,7 +3128,7 @@ class _GovernancePageState extends State<GovernancePage> {
     final tomorrowSuffix = tomorrowSegment.isEmpty
         ? ''
         : ' • tomorrow $tomorrowSegment';
-    return 'Sites ${snapshot.totalSites} • elevated ${snapshot.elevatedSiteCount} • critical ${snapshot.criticalSiteCount} • intents ${intents.length}$regionSegment$siteSegment$hazardSegment$tomorrowSuffix';
+    return 'Sites ${snapshot.totalSites} • elevated ${snapshot.elevatedSiteCount} • critical ${snapshot.criticalSiteCount} • intents ${intents.length}$regionSegment$siteSegment$hazardSegment$moShadowSegment$tomorrowSuffix';
   }
 
   int _globalReadinessNextShiftDraftCount(

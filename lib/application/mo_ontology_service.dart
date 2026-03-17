@@ -304,7 +304,12 @@ class MoOntologyService {
         'edge_walking',
       if (_hasAny(text, const ['bag change', 'object change', 'carried out']))
         'bag_or_object_change',
-      if (_hasAny(text, const ['unauthorized zone', 'restricted area']))
+      if (_hasAny(text, const [
+        'unauthorized zone',
+        'restricted area',
+        'restricted door',
+        'restricted doors',
+      ]))
         'unauthorized_zone_entry',
       if (_hasAny(text, const ['synchronized', 'in step', 'same time']))
         'synchronized_movement',

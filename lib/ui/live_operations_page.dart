@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../application/hazard_response_directive_service.dart';
 import '../application/morning_sovereign_report_service.dart';
+import '../application/monitoring_global_posture_service.dart';
 import '../application/monitoring_orchestrator_service.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
@@ -115,6 +116,7 @@ class _IncidentRecord {
 }
 
 const _hazardDirectiveService = HazardResponseDirectiveService();
+const _globalPostureService = MonitoringGlobalPostureService();
 
 class _LadderStep {
   final String id;
@@ -1085,6 +1087,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final evidenceReady = _evidenceReadyLabel(incident);
     final partnerProgress = _partnerProgressForIncident(incident);
     final siteActivity = _siteActivitySnapshotForIncident(incident);
+    final moShadowPosture = _moShadowPostureForIncident(incident);
     final nextShiftDrafts = _nextShiftDraftsForIncident(incident);
     final suppressedReviews = _suppressedSceneReviewsForIncident(incident);
     final rows = <Widget>[
@@ -1102,6 +1105,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       if (siteActivity != null && siteActivity.totalSignals > 0) ...[
         const SizedBox(height: 8),
         _siteActivityTruthCard(incident, siteActivity),
+      ],
+      if (moShadowPosture != null && moShadowPosture.moShadowMatchCount > 0) ...[
+        const SizedBox(height: 8),
+        _moShadowCard(incident, moShadowPosture),
       ],
       if (nextShiftDrafts.isNotEmpty) ...[
         const SizedBox(height: 8),
@@ -1221,6 +1228,22 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
   }
 
+  MonitoringGlobalSitePosture? _moShadowPostureForIncident(
+    _IncidentRecord incident,
+  ) {
+    final snapshot = _globalPostureService.buildSnapshot(
+      events: widget.events,
+      sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+    );
+    for (final site in snapshot.sites) {
+      if (site.siteId.trim() == incident.siteId.trim() &&
+          site.regionId.trim() == incident.regionId.trim()) {
+        return site;
+      }
+    }
+    return null;
+  }
+
   List<MonitoringWatchAutonomyActionPlan> _nextShiftDraftsForIncident(
     _IncidentRecord incident,
   ) {
@@ -1301,6 +1324,52 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               'Supporting',
               drafts.skip(1).map((plan) => plan.actionType).join(' • '),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _moShadowCard(
+    _IncidentRecord incident,
+    MonitoringGlobalSitePosture sitePosture,
+  ) {
+    return Container(
+      key: ValueKey('live-mo-shadow-card-${incident.id}'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0x665B9BD5)),
+        color: const Color(0x2214334A),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Shadow MO Intelligence',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFB8D7FF),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${sitePosture.moShadowMatchCount} match${sitePosture.moShadowMatchCount == 1 ? '' : 'es'}',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFA6BDD9),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          _metaRow('Pattern', sitePosture.moShadowSummary),
+          _metaRow('Signal', 'mo_shadow'),
+          _metaRow('Site Heat', sitePosture.heatLevel.name),
         ],
       ),
     );

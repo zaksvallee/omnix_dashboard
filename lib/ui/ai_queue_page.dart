@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../application/monitoring_global_posture_service.dart';
 import '../application/monitoring_scene_review_store.dart';
 import '../application/monitoring_watch_action_plan.dart';
 import '../application/monitoring_watch_autonomy_service.dart';
@@ -102,6 +103,7 @@ class AIQueuePage extends StatefulWidget {
 
 class _AIQueuePageState extends State<AIQueuePage> {
   static const _autonomyService = MonitoringWatchAutonomyService();
+  static const _globalPostureService = MonitoringGlobalPostureService();
   late List<_AiQueueAction> _actions;
   late final _AiQueueDailyStats _stats;
   Timer? _ticker;
@@ -143,6 +145,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
     final activeAction = _activeAction;
     final queuedActions = _queuedActions;
     final nextShiftDrafts = _nextShiftDrafts;
+    final moShadowSites = _moShadowSites;
     final viewport = MediaQuery.sizeOf(context).width;
     final compact = viewport < 900 || isHandsetLayout(context);
     final contentPadding = compact
@@ -160,6 +163,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
               children: [
                 _header(compact: compact),
                 const SizedBox(height: 16),
+                if (moShadowSites.isNotEmpty) ...[
+                  _moShadowCard(moShadowSites),
+                  const SizedBox(height: 16),
+                ],
                 if (activeAction != null) _activeAutomationCard(activeAction),
                 const SizedBox(height: 16),
                 _queuedActionsCard(queuedActions),
@@ -915,6 +922,88 @@ class _AIQueuePageState extends State<AIQueuePage> {
     );
   }
 
+  Widget _moShadowCard(List<MonitoringGlobalSitePosture> sites) {
+    final lead = sites.first;
+    final supporting = sites.skip(1).map((site) => site.siteId).join(' • ');
+    return Container(
+      key: const ValueKey('ai-queue-mo-shadow-card'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: _panelDecoration(border: const Color(0x665B9BD5)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const Icon(
+                Icons.visibility_rounded,
+                color: Color(0xFFB8D7FF),
+                size: 20,
+              ),
+              Text(
+                'Shadow MO Intelligence',
+                style: GoogleFonts.rajdhani(
+                  color: const Color(0xFFE7F1FF),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(999),
+                  color: const Color(0x225B9BD5),
+                  border: Border.all(color: const Color(0x665B9BD5)),
+                ),
+                child: Text(
+                  '${sites.length}',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFB8D7FF),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '${lead.siteId} • ${lead.moShadowSummary}',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFE6F0FF),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            children: [
+              _detailCell('Signal', 'mo_shadow'),
+              _detailCell('Lead Site', lead.siteId),
+              _detailCell('Matches', '${lead.moShadowMatchCount}'),
+            ],
+          ),
+          if (supporting.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Supporting sites: $supporting',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF9AB5D7),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _statCard({
     required String label,
     required String value,
@@ -1045,6 +1134,16 @@ class _AIQueuePageState extends State<AIQueuePage> {
   List<_AiQueueAction> get _nextShiftDrafts => _actions
       .where((action) => action.metadata['scope'] == 'NEXT_SHIFT')
       .toList(growable: false);
+
+  List<MonitoringGlobalSitePosture> get _moShadowSites {
+    final snapshot = _globalPostureService.buildSnapshot(
+      events: widget.events,
+      sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+    );
+    return snapshot.sites
+        .where((site) => site.moShadowMatchCount > 0)
+        .toList(growable: false);
+  }
 
   void _onTick() {
     if (!mounted || _queuePaused) {

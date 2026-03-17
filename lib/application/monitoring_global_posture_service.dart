@@ -1,6 +1,8 @@
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/intelligence_received.dart';
 import 'hazard_response_directive_service.dart';
+import 'mo_extraction_service.dart';
+import 'mo_knowledge_repository.dart';
 import 'mo_runtime_matching_service.dart';
 import 'monitoring_scene_review_store.dart';
 
@@ -90,6 +92,7 @@ class MonitoringGlobalPostureService {
   });
 
   static const _hazardDirectiveService = HazardResponseDirectiveService();
+  static const _moExtractionService = MoExtractionService();
 
   static const _externalSourceTypes = <String>{
     'news',
@@ -102,6 +105,7 @@ class MonitoringGlobalPostureService {
     required Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId,
     DateTime? generatedAtUtc,
   }) {
+    final matchingService = _matchingServiceForEvents(events);
     final intelligenceEvents = events
         .whereType<IntelligenceReceived>()
         .where(
@@ -129,7 +133,7 @@ class MonitoringGlobalPostureService {
         _PostureItem(
           event: event,
           review: sceneReviewByIntelligenceId[event.intelligenceId],
-          moShadowMatches: moRuntimeMatchingService.matchReviewedIncident(
+          moShadowMatches: matchingService.matchReviewedIncident(
             event: event,
             sceneReview: sceneReviewByIntelligenceId[event.intelligenceId],
           ),
@@ -170,6 +174,43 @@ class MonitoringGlobalPostureService {
       sites: sites,
       regions: regions,
     );
+  }
+
+  MoRuntimeMatchingService _matchingServiceForEvents(List<DispatchEvent> events) {
+    if (moRuntimeMatchingService.repository.readAll().isNotEmpty) {
+      return moRuntimeMatchingService;
+    }
+    final externalKnowledge = events
+        .whereType<IntelligenceReceived>()
+        .where(
+          (event) => _externalSourceTypes.contains(
+            event.sourceType.trim().toLowerCase(),
+          ),
+        )
+        .map(
+          (event) => _moExtractionService.extractExternalIncident(
+            sourceId: event.intelligenceId,
+            title: event.headline,
+            summary: event.summary,
+            sourceLabel: event.provider.trim().isEmpty
+                ? event.sourceType
+                : event.provider,
+            environmentHint: '${event.siteId} ${event.regionId}',
+            observedAtUtc: event.occurredAt,
+            metadata: <String, Object?>{
+              'client_id': event.clientId,
+              'region_id': event.regionId,
+              'site_id': event.siteId,
+            },
+          ),
+        )
+        .toList(growable: false);
+    if (externalKnowledge.isEmpty) {
+      return moRuntimeMatchingService;
+    }
+    final repository = InMemoryMoKnowledgeRepository();
+    repository.upsertAll(externalKnowledge);
+    return MoRuntimeMatchingService(repository: repository);
   }
 
   MonitoringGlobalSitePosture _buildSitePosture(List<_PostureItem> items) {
