@@ -44,6 +44,28 @@ String buildSyntheticShadowMemorySummaryFromPlans({
   required List<MonitoringWatchAutonomyActionPlan> plans,
 }) => _firstSyntheticPlanMetadata(plans, 'shadow_memory_summary');
 
+String buildSyntheticLearningMemorySummaryFromHistoryLabels({
+  required String currentLearningLabel,
+  required List<String> historicalLearningLabels,
+  String latestMatchingReportDate = '',
+}) {
+  final label = currentLearningLabel.trim();
+  if (label.isEmpty) {
+    return '';
+  }
+  if (historicalLearningLabels.isEmpty) {
+    return 'Memory: $label is the first tracked learning bias.';
+  }
+  final repeatCount =
+      historicalLearningLabels.where((value) => value.trim() == label).length;
+  if (repeatCount <= 0) {
+    return 'Memory: $label is new against the last ${historicalLearningLabels.length} shifts.';
+  }
+  final latestDate = latestMatchingReportDate.trim();
+  return 'Memory: $label repeated in ${repeatCount + 1} of the last ${historicalLearningLabels.length + 1} shifts'
+      '${latestDate.isEmpty ? '.' : ' (latest $latestDate).'}';
+}
+
 String buildSyntheticShadowSummaryFromPlans({
   required List<MonitoringWatchAutonomyActionPlan> plans,
 }) {

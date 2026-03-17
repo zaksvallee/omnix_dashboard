@@ -4657,22 +4657,19 @@ class _GovernancePageState extends State<GovernancePage> {
       return '';
     }
     final current = history.first;
-    final label = current.learningLabel.trim();
-    if (label.isEmpty) {
-      return '';
-    }
     final baseline = history.skip(1).take(3).toList(growable: false);
-    if (baseline.isEmpty) {
-      return 'Memory: $label is the first tracked learning bias.';
-    }
-    final matching = baseline
-        .where((point) => point.learningLabel.trim() == label)
+    final baselineLabels = baseline
+        .map((point) => point.learningLabel.trim())
         .toList(growable: false);
-    if (matching.isEmpty) {
-      return 'Memory: $label is new against the last ${baseline.length} shifts.';
-    }
-    return 'Memory: $label repeated in ${matching.length + 1} of the last ${baseline.length + 1} shifts'
-        '${matching.first.reportDate.trim().isEmpty ? '.' : ' (latest ${matching.first.reportDate}).'}';
+    final latestMatchingDate = baseline
+        .where((point) => point.learningLabel.trim() == current.learningLabel.trim())
+        .map((point) => point.reportDate)
+        .firstWhere((value) => value.trim().isNotEmpty, orElse: () => '');
+    return buildSyntheticLearningMemorySummaryFromHistoryLabels(
+      currentLearningLabel: current.learningLabel,
+      historicalLearningLabels: baselineLabels,
+      latestMatchingReportDate: latestMatchingDate,
+    );
   }
 
   String _syntheticWarRoomShadowSummary(

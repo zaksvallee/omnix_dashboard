@@ -216,6 +216,38 @@ void main() {
       );
     });
 
+    test('learning memory helper formats first/new/repeated states', () {
+      expect(
+        buildSyntheticLearningMemorySummaryFromHistoryLabels(
+          currentLearningLabel: 'LOCK EARLY',
+          historicalLearningLabels: const <String>[],
+        ),
+        'Memory: LOCK EARLY is the first tracked learning bias.',
+      );
+      expect(
+        buildSyntheticLearningMemorySummaryFromHistoryLabels(
+          currentLearningLabel: 'LOCK EARLY',
+          historicalLearningLabels: const <String>[
+            'PATROL TIGHTEN',
+            'WATCHFLOW',
+          ],
+        ),
+        'Memory: LOCK EARLY is new against the last 2 shifts.',
+      );
+      expect(
+        buildSyntheticLearningMemorySummaryFromHistoryLabels(
+          currentLearningLabel: 'LOCK EARLY',
+          historicalLearningLabels: const <String>[
+            'PATROL TIGHTEN',
+            'LOCK EARLY',
+            'LOCK EARLY',
+          ],
+          latestMatchingReportDate: '2026-03-16',
+        ),
+        'Memory: LOCK EARLY repeated in 3 of the last 4 shifts (latest 2026-03-16).',
+      );
+    });
+
     test('buildSyntheticPromotionSummaryFromPlans reads base summary from plan metadata', () {
       final plans = <MonitoringWatchAutonomyActionPlan>[
         const MonitoringWatchAutonomyActionPlan(

@@ -6477,29 +6477,29 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     required String currentLearningLabel,
     required List<SovereignReport> history,
   }) {
-    final label = currentLearningLabel.trim();
-    if (label.isEmpty) {
-      return '';
-    }
     final baseline = history.take(3).toList(growable: false);
-    if (baseline.isEmpty) {
-      return 'Memory: $label is the first tracked learning bias.';
-    }
-    final matchingDates = baseline
+    final baselineLabels = baseline
+        .map(
+          (item) => _syntheticWarRoomLearningLabel(
+            _syntheticWarRoomPlansForReport(item, includeMemory: false),
+          ),
+        )
+        .toList(growable: false);
+    final latestMatchingDate = baseline
         .where(
           (item) =>
               _syntheticWarRoomLearningLabel(
                 _syntheticWarRoomPlansForReport(item, includeMemory: false),
               ) ==
-              label,
+              currentLearningLabel.trim(),
         )
         .map((item) => item.date)
-        .toList(growable: false);
-    if (matchingDates.isEmpty) {
-      return 'Memory: $label is new against the last ${baseline.length} shifts.';
-    }
-    return 'Memory: $label repeated in ${matchingDates.length + 1} of the last ${baseline.length + 1} shifts'
-        '${matchingDates.first.trim().isEmpty ? '.' : ' (latest ${matchingDates.first}).'}';
+        .firstWhere((value) => value.trim().isNotEmpty, orElse: () => '');
+    return buildSyntheticLearningMemorySummaryFromHistoryLabels(
+      currentLearningLabel: currentLearningLabel,
+      historicalLearningLabels: baselineLabels,
+      latestMatchingReportDate: latestMatchingDate,
+    );
   }
 
   String _syntheticWarRoomBiasSummaryForPlan(

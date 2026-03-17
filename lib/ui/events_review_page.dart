@@ -2954,19 +2954,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     required String currentLearningLabel,
     required String? reportDate,
   }) {
-    final label = currentLearningLabel.trim();
-    if (label.isEmpty) {
-      return '';
-    }
-    final historyLabels = _syntheticHistoricalLearningLabels(reportDate);
-    final repeatCount = historyLabels.where((value) => value == label).length;
-    if (historyLabels.isEmpty) {
-      return 'Memory: $label is the first tracked learning bias.';
-    }
-    if (repeatCount <= 0) {
-      return 'Memory: $label is new against the last ${historyLabels.length} shifts.';
-    }
-    return 'Memory: $label repeated in ${repeatCount + 1} of the last ${historyLabels.length + 1} shifts.';
+    return buildSyntheticLearningMemorySummaryFromHistoryLabels(
+      currentLearningLabel: currentLearningLabel,
+      historicalLearningLabels: _syntheticHistoricalLearningLabels(reportDate),
+    );
   }
 
   String _readinessFocusSummary(String? reportDate) {
