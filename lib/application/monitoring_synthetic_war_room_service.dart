@@ -337,6 +337,18 @@ class MonitoringSyntheticWarRoomService {
                       shadowPostureBiasSummary: shadowPostureBiasSummary.isEmpty
                           ? ''
                           : shadowPostureBiasSummary,
+                      promotionExecutionBiasSummary:
+                          buildSyntheticPromotionExecutionBiasSummary(
+                            promotionPriorityBias:
+                                promotionPriorityFloor ==
+                                        MonitoringWatchAutonomyPriority.medium
+                                    ? ''
+                                    : promotionPriorityFloor.name,
+                            promotionCountdownBias:
+                                promotionCountdownBias > 0
+                                ? promotionCountdownBias.toString()
+                                : '',
+                          ),
                     ),
               'top_intent': topIntent?.actionType ?? 'NONE',
               if (hazardSignal.isNotEmpty) 'hazard_signal': hazardSignal,

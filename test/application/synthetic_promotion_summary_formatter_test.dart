@@ -21,8 +21,9 @@ void main() {
           previousShadowTomorrowUrgencySummary:
               'strength stable • high • 28s',
           shadowPostureBiasSummary: 'POSTURE SURGE • critical • 28s',
+          promotionExecutionBiasSummary: 'high • 40s',
         ),
-        'Promote MO-1 • pressure strength rising • critical • 22s (prev strength stable • high • 28s) • posture POSTURE SURGE • critical • 28s',
+        'Promote MO-1 • pressure strength rising • critical • 22s (prev strength stable • high • 28s) • posture POSTURE SURGE • critical • 28s • execution high • 40s',
       );
       },
     );
@@ -48,8 +49,9 @@ void main() {
           previousShadowTomorrowUrgencySummary:
               'strength stable • high • 28s',
           shadowPostureBiasSummary: 'POSTURE SURGE • critical • 28s',
+          promotionExecutionBiasSummary: 'high • 40s',
         ),
-        'Accepted toward validated review. • under strength rising • critical • 22s pressure (prev strength stable • high • 28s) • posture POSTURE SURGE • critical • 28s',
+        'Accepted toward validated review. • under strength rising • critical • 22s pressure (prev strength stable • high • 28s) • posture POSTURE SURGE • critical • 28s • execution high • 40s',
       );
       },
     );
@@ -63,8 +65,9 @@ void main() {
           previousShadowTomorrowUrgencySummary:
               'strength stable • high • 28s',
           shadowPostureBiasSummary: 'POSTURE SURGE • critical • 28s',
+          promotionExecutionBiasSummary: 'high • 40s',
         ),
-        'strength rising • critical • 22s (prev strength stable • high • 28s) • posture POSTURE SURGE • critical • 28s',
+        'strength rising • critical • 22s (prev strength stable • high • 28s) • posture POSTURE SURGE • critical • 28s • execution high • 40s',
       );
     });
   });
@@ -504,6 +507,29 @@ void main() {
       );
     });
 
+    test('buildSyntheticPromotionExecutionBiasSummaryFromPlans reads plan metadata', () {
+      final plans = <MonitoringWatchAutonomyActionPlan>[
+        const MonitoringWatchAutonomyActionPlan(
+          id: 'SIM-1',
+          incidentId: 'SITE-1',
+          siteId: 'SITE-1',
+          priority: MonitoringWatchAutonomyPriority.high,
+          actionType: 'POLICY RECOMMENDATION',
+          description: 'desc',
+          countdownSeconds: 22,
+          metadata: <String, String>{
+            'mo_promotion_priority_bias': 'high',
+            'mo_promotion_countdown_bias': '40',
+          },
+        ),
+      ];
+
+      expect(
+        buildSyntheticPromotionExecutionBiasSummaryFromPlans(plans: plans),
+        'high • 40s',
+      );
+    });
+
     test('buildSyntheticPromotionDecisionSummaryFromPlans reads decision state via lookup', () {
       final plans = <MonitoringWatchAutonomyActionPlan>[
         const MonitoringWatchAutonomyActionPlan(
@@ -517,6 +543,8 @@ void main() {
           metadata: <String, String>{
             'mo_promotion_id': 'MO-1',
             'mo_promotion_target': 'validated',
+            'mo_promotion_priority_bias': 'high',
+            'mo_promotion_countdown_bias': '40',
           },
         ),
       ];
@@ -528,7 +556,7 @@ void main() {
               'Accepted $moId toward $targetStatus review.',
           shadowTomorrowUrgencySummary: 'strength rising • critical • 22s',
         ),
-        'Accepted MO-1 toward validated review. • under strength rising • critical • 22s pressure',
+        'Accepted MO-1 toward validated review. • under strength rising • critical • 22s pressure • execution high • 40s',
       );
     });
 

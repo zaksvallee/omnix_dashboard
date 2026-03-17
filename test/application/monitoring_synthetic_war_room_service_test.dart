@@ -351,6 +351,10 @@ void main() {
         ),
       );
       expect(
+        policy.metadata['mo_promotion_pressure_summary'],
+        contains('execution high • 40s'),
+      );
+      expect(
         policy.metadata['shadow_memory_summary'],
         contains('Shadow bias: HARDEN ACCESS'),
       );
@@ -495,6 +499,10 @@ void main() {
         contains(
           'Accelerate MO-EXT-NEWS-OFFICE-POSTURE toward validated review after shadow posture surged at the lead site',
         ),
+      );
+      expect(
+        policy.metadata['mo_promotion_pressure_summary'],
+        contains('execution high • 40s'),
       );
       expect(
         policy.description,

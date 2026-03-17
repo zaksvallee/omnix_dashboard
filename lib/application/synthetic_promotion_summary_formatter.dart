@@ -60,6 +60,43 @@ String buildSyntheticMemoryCountdownBiasFromPlans({
   required List<MonitoringWatchAutonomyActionPlan> plans,
 }) => _firstSyntheticPlanMetadata(plans, 'memory_countdown_bias');
 
+String buildSyntheticPromotionPriorityBiasFromPlans({
+  required List<MonitoringWatchAutonomyActionPlan> plans,
+}) => _firstSyntheticPlanMetadata(plans, 'mo_promotion_priority_bias');
+
+String buildSyntheticPromotionCountdownBiasFromPlans({
+  required List<MonitoringWatchAutonomyActionPlan> plans,
+}) => _firstSyntheticPlanMetadata(plans, 'mo_promotion_countdown_bias');
+
+String buildSyntheticPromotionExecutionBiasSummary({
+  String promotionPriorityBias = '',
+  String promotionCountdownBias = '',
+}) {
+  final priority = promotionPriorityBias.trim();
+  final countdown = promotionCountdownBias.trim();
+  if (priority.isEmpty && countdown.isEmpty) {
+    return '';
+  }
+  final parts = <String>[
+    if (priority.isNotEmpty) priority,
+    if (countdown.isNotEmpty) '${countdown}s',
+  ];
+  return parts.join(' • ');
+}
+
+String buildSyntheticPromotionExecutionBiasSummaryFromPlans({
+  required List<MonitoringWatchAutonomyActionPlan> plans,
+}) {
+  return buildSyntheticPromotionExecutionBiasSummary(
+    promotionPriorityBias: buildSyntheticPromotionPriorityBiasFromPlans(
+      plans: plans,
+    ),
+    promotionCountdownBias: buildSyntheticPromotionCountdownBiasFromPlans(
+      plans: plans,
+    ),
+  );
+}
+
 String buildSyntheticLearningLabelFromPlans({
   required List<MonitoringWatchAutonomyActionPlan> plans,
 }) => _firstSyntheticPlanMetadata(plans, 'learning_label');
@@ -424,6 +461,7 @@ String buildSyntheticPromotionSummary({
   String shadowTomorrowUrgencySummary = '',
   String previousShadowTomorrowUrgencySummary = '',
   String shadowPostureBiasSummary = '',
+  String promotionExecutionBiasSummary = '',
 }) {
   final normalizedBase = baseSummary.trim();
   if (normalizedBase.isEmpty) {
@@ -432,6 +470,7 @@ String buildSyntheticPromotionSummary({
   final currentUrgency = shadowTomorrowUrgencySummary.trim();
   final previousUrgency = previousShadowTomorrowUrgencySummary.trim();
   final postureBias = shadowPostureBiasSummary.trim();
+  final executionBias = promotionExecutionBiasSummary.trim();
   final contextParts = <String>[];
   if (currentUrgency.isNotEmpty && previousUrgency.isNotEmpty) {
     contextParts.add(
@@ -444,6 +483,9 @@ String buildSyntheticPromotionSummary({
   }
   if (postureBias.isNotEmpty) {
     contextParts.add('posture $postureBias');
+  }
+  if (executionBias.isNotEmpty) {
+    contextParts.add('execution $executionBias');
   }
   if (contextParts.isEmpty) {
     return normalizedBase;
@@ -463,6 +505,8 @@ String buildSyntheticPromotionSummaryFromPlans({
     previousShadowTomorrowUrgencySummary:
         previousShadowTomorrowUrgencySummary,
     shadowPostureBiasSummary: shadowPostureBiasSummary,
+    promotionExecutionBiasSummary:
+        buildSyntheticPromotionExecutionBiasSummaryFromPlans(plans: plans),
   );
 }
 
@@ -471,6 +515,7 @@ String buildSyntheticPromotionDecisionSummary({
   String shadowTomorrowUrgencySummary = '',
   String previousShadowTomorrowUrgencySummary = '',
   String shadowPostureBiasSummary = '',
+  String promotionExecutionBiasSummary = '',
 }) {
   final normalizedBase = baseSummary.trim();
   if (normalizedBase.isEmpty) {
@@ -479,6 +524,7 @@ String buildSyntheticPromotionDecisionSummary({
   final currentUrgency = shadowTomorrowUrgencySummary.trim();
   final previousUrgency = previousShadowTomorrowUrgencySummary.trim();
   final postureBias = shadowPostureBiasSummary.trim();
+  final executionBias = promotionExecutionBiasSummary.trim();
   final contextParts = <String>[];
   if (currentUrgency.isNotEmpty && previousUrgency.isNotEmpty) {
     contextParts.add(
@@ -491,6 +537,9 @@ String buildSyntheticPromotionDecisionSummary({
   }
   if (postureBias.isNotEmpty) {
     contextParts.add('posture $postureBias');
+  }
+  if (executionBias.isNotEmpty) {
+    contextParts.add('execution $executionBias');
   }
   if (contextParts.isEmpty) {
     return normalizedBase;
@@ -517,6 +566,8 @@ String buildSyntheticPromotionDecisionSummaryFromPlans({
     previousShadowTomorrowUrgencySummary:
         previousShadowTomorrowUrgencySummary,
     shadowPostureBiasSummary: shadowPostureBiasSummary,
+    promotionExecutionBiasSummary:
+        buildSyntheticPromotionExecutionBiasSummaryFromPlans(plans: plans),
   );
 }
 
@@ -524,10 +575,12 @@ String buildSyntheticPromotionPressureSummary({
   String shadowTomorrowUrgencySummary = '',
   String previousShadowTomorrowUrgencySummary = '',
   String shadowPostureBiasSummary = '',
+  String promotionExecutionBiasSummary = '',
 }) {
   final currentUrgency = shadowTomorrowUrgencySummary.trim();
   final previousUrgency = previousShadowTomorrowUrgencySummary.trim();
   final postureBias = shadowPostureBiasSummary.trim();
+  final executionBias = promotionExecutionBiasSummary.trim();
   final parts = <String>[];
   if (currentUrgency.isNotEmpty && previousUrgency.isNotEmpty) {
     parts.add('$currentUrgency (prev $previousUrgency)');
@@ -538,6 +591,9 @@ String buildSyntheticPromotionPressureSummary({
   }
   if (postureBias.isNotEmpty) {
     parts.add('posture $postureBias');
+  }
+  if (executionBias.isNotEmpty) {
+    parts.add('execution $executionBias');
   }
   return parts.join(' • ');
 }
@@ -560,5 +616,7 @@ String buildSyntheticPromotionPressureSummaryFromPlans({
     previousShadowTomorrowUrgencySummary:
         previousShadowTomorrowUrgencySummary,
     shadowPostureBiasSummary: shadowPostureBiasSummary,
+    promotionExecutionBiasSummary:
+        buildSyntheticPromotionExecutionBiasSummaryFromPlans(plans: plans),
   );
 }
