@@ -6,6 +6,8 @@ import '../../ui/onyx_surface.dart';
 class ReportPreviewDockCard extends StatelessWidget {
   final String eventId;
   final String detail;
+  final String? title;
+  final String? subtitle;
   final String? contextTitle;
   final String? contextDetail;
   final List<Widget> statusPills;
@@ -17,6 +19,8 @@ class ReportPreviewDockCard extends StatelessWidget {
     super.key,
     required this.eventId,
     required this.detail,
+    this.title,
+    this.subtitle,
     this.contextTitle,
     this.contextDetail,
     required this.statusPills,
@@ -29,13 +33,17 @@ class ReportPreviewDockCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final normalizedEventId = eventId.trim();
     final normalizedDetail = detail.trim();
+    final normalizedTitle = title?.trim() ?? '';
+    final normalizedSubtitle = subtitle?.trim() ?? '';
     final normalizedContextTitle = contextTitle?.trim() ?? '';
     final normalizedContextDetail = contextDetail?.trim() ?? '';
     final hasContext =
         normalizedContextTitle.isNotEmpty || normalizedContextDetail.isNotEmpty;
     return OnyxSectionCard(
-      title: 'Preview Dock',
-      subtitle: 'Shell-driven preview target held in the report workspace.',
+      title: normalizedTitle.isEmpty ? 'Preview Dock' : normalizedTitle,
+      subtitle: normalizedSubtitle.isEmpty
+          ? 'Shell-driven preview target held in the report workspace.'
+          : normalizedSubtitle,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

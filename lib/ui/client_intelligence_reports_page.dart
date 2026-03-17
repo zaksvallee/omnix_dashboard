@@ -748,8 +748,9 @@ class _ClientIntelligenceReportsPageState
     final receiptInvestigationTrendLabel = _receiptInvestigationTrendLabel(
       receiptRows,
     );
-    final receiptInvestigationComparison =
-        _receiptInvestigationComparison(receiptRows);
+    final receiptInvestigationComparison = _receiptInvestigationComparison(
+      receiptRows,
+    );
     return OnyxSectionCard(
       title: 'Partner Scorecard Focus',
       subtitle:
@@ -1057,8 +1058,9 @@ class _ClientIntelligenceReportsPageState
       clientId: widget.selectedClient,
       siteId: widget.selectedSite,
     );
-    final receiptInvestigationComparison =
-        _receiptInvestigationComparison(receiptRows);
+    final receiptInvestigationComparison = _receiptInvestigationComparison(
+      receiptRows,
+    );
     final receiptInvestigationTrendLabel = _receiptInvestigationTrendLabel(
       receiptRows,
     );
@@ -1684,7 +1686,11 @@ class _ClientIntelligenceReportsPageState
                       ),
                     ),
                     const SizedBox(height: 6),
-                    for (var index = 0; index < historyPoints.length; index++) ...[
+                    for (
+                      var index = 0;
+                      index < historyPoints.length;
+                      index++
+                    ) ...[
                       _siteActivityHistoryRow(historyPoints[index]),
                       if (index < historyPoints.length - 1)
                         const SizedBox(height: 6),
@@ -1748,8 +1754,9 @@ class _ClientIntelligenceReportsPageState
     final receiptInvestigationTrendLabel = _receiptInvestigationTrendLabel(
       receiptRows,
     );
-    final receiptInvestigationComparison =
-        _receiptInvestigationComparison(receiptRows);
+    final receiptInvestigationComparison = _receiptInvestigationComparison(
+      receiptRows,
+    );
     await showDialog<void>(
       context: context,
       builder: (context) {
@@ -1875,7 +1882,11 @@ class _ClientIntelligenceReportsPageState
                       ),
                     ),
                     const SizedBox(height: 6),
-                    for (var index = 0; index < historyPoints.length; index++) ...[
+                    for (
+                      var index = 0;
+                      index < historyPoints.length;
+                      index++
+                    ) ...[
                       _partnerScopeHistoryRow(
                         historyPoints[index],
                         onOpenShift: () =>
@@ -1896,7 +1907,11 @@ class _ClientIntelligenceReportsPageState
                       ),
                     ),
                     const SizedBox(height: 6),
-                    for (var index = 0; index < currentChains.length; index++) ...[
+                    for (
+                      var index = 0;
+                      index < currentChains.length;
+                      index++
+                    ) ...[
                       _partnerScopeDispatchChainRow(currentChains[index]),
                       if (index < currentChains.length - 1)
                         const SizedBox(height: 6),
@@ -1908,7 +1923,9 @@ class _ClientIntelligenceReportsPageState
           ),
           actions: [
             TextButton(
-              key: const ValueKey('reports-partner-scorecard-drill-in-copy-json'),
+              key: const ValueKey(
+                'reports-partner-scorecard-drill-in-copy-json',
+              ),
               onPressed: () => _copyPartnerDrillInJson(
                 clientId: clientId,
                 siteId: siteId,
@@ -1917,7 +1934,9 @@ class _ClientIntelligenceReportsPageState
               child: const Text('Copy JSON'),
             ),
             TextButton(
-              key: const ValueKey('reports-partner-scorecard-drill-in-copy-csv'),
+              key: const ValueKey(
+                'reports-partner-scorecard-drill-in-copy-csv',
+              ),
               onPressed: () => _copyPartnerDrillInCsv(
                 clientId: clientId,
                 siteId: siteId,
@@ -1936,9 +1955,7 @@ class _ClientIntelligenceReportsPageState
     );
   }
 
-  Future<void> _openPartnerShiftDetail(
-    _PartnerScopeHistoryPoint point,
-  ) async {
+  Future<void> _openPartnerShiftDetail(_PartnerScopeHistoryPoint point) async {
     final receiptRows = _partnerReceiptRowsForScopeDate(
       clientId: point.row.clientId,
       siteId: point.row.siteId,
@@ -1983,7 +2000,9 @@ class _ClientIntelligenceReportsPageState
                     runSpacing: 8,
                     children: [
                       _partnerScopeChip(
-                        label: point.current ? 'CURRENT SHIFT' : 'SHIFT SNAPSHOT',
+                        label: point.current
+                            ? 'CURRENT SHIFT'
+                            : 'SHIFT SNAPSHOT',
                         color: point.current
                             ? const Color(0xFF8FD1FF)
                             : const Color(0xFF8EA4C2),
@@ -2046,7 +2065,11 @@ class _ClientIntelligenceReportsPageState
                       ),
                     )
                   else
-                    for (var index = 0; index < receiptRows.length; index++) ...[
+                    for (
+                      var index = 0;
+                      index < receiptRows.length;
+                      index++
+                    ) ...[
                       _receiptPolicyHistoryRow(
                         receiptRows[index],
                         current: index == 0,
@@ -2341,7 +2364,8 @@ class _ClientIntelligenceReportsPageState
               fontWeight: FontWeight.w600,
             ),
           ),
-          if (widget.onOpenEventsForScope != null && point.eventIds.isNotEmpty) ...[
+          if (widget.onOpenEventsForScope != null &&
+              point.eventIds.isNotEmpty) ...[
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerLeft,
@@ -2684,10 +2708,9 @@ class _ClientIntelligenceReportsPageState
     final latestPoint = comparison.historyPoints.isEmpty
         ? null
         : comparison.historyPoints.first;
-    final latestShiftPrimaryLabel =
-        latestPoint == null
-            ? 'NO SCORE'
-            : _partnerScoreboardPrimaryLabel(latestPoint.row);
+    final latestShiftPrimaryLabel = latestPoint == null
+        ? 'NO SCORE'
+        : _partnerScoreboardPrimaryLabel(latestPoint.row);
     final latestShiftStripColor = comparison.isLeader
         ? const Color(0x1436C690)
         : comparison.trendLabel.trim().toUpperCase() == 'SLIPPING'
@@ -3926,22 +3949,20 @@ class _ClientIntelligenceReportsPageState
         baselineReceiptCount: 0,
       );
     }
-    final baselineGovernanceCount =
-        baselineRows
-            .where(
-              (row) =>
-                  _storedEntryContextForReceipt(row.event) ==
-                  ReportEntryContext.governanceBrandingDrift,
-            )
-            .length;
+    final baselineGovernanceCount = baselineRows
+        .where(
+          (row) =>
+              _storedEntryContextForReceipt(row.event) ==
+              ReportEntryContext.governanceBrandingDrift,
+        )
+        .length;
     final baselineRoutineCount = baselineRows.length - baselineGovernanceCount;
     return _ReceiptInvestigationComparison(
       currentGovernanceCount:
           currentContext == ReportEntryContext.governanceBrandingDrift ? 1 : 0,
       currentRoutineCount:
           currentContext == ReportEntryContext.governanceBrandingDrift ? 0 : 1,
-      baselineGovernanceAverage:
-          baselineGovernanceCount / baselineRows.length,
+      baselineGovernanceAverage: baselineGovernanceCount / baselineRows.length,
       baselineRoutineAverage: baselineRoutineCount / baselineRows.length,
       baselineReceiptCount: baselineRows.length,
     );
@@ -5342,10 +5363,16 @@ class _ClientIntelligenceReportsPageState
     final sceneAccent = _sceneReviewAccent(sceneSummary);
     final siteName = _humanizeSite(row.event.siteId);
     final period = _periodFromMonth(row.event.month);
+    final governanceDock =
+        _entryContext == ReportEntryContext.governanceBrandingDrift;
 
     return ReportPreviewDockCard(
       eventId: row.event.eventId,
       detail: '$siteName • $period',
+      title: governanceDock ? 'Governance Preview Dock' : null,
+      subtitle: governanceDock
+          ? 'Governance handoff preview target held in the report workspace.'
+          : null,
       contextTitle: _entryContext?.bannerTitle,
       contextDetail: _entryContext?.bannerDetail,
       statusPills: [
@@ -5971,8 +5998,9 @@ class _ClientIntelligenceReportsPageState
       clientId: clientId,
       siteId: siteId,
     );
-    final receiptInvestigationComparison =
-        _receiptInvestigationComparison(receiptRows);
+    final receiptInvestigationComparison = _receiptInvestigationComparison(
+      receiptRows,
+    );
     _PartnerScopeHistoryPoint? currentPoint;
     for (final point in historyPoints) {
       if (point.current) {
@@ -6078,9 +6106,9 @@ class _ClientIntelligenceReportsPageState
             },
           )
           .toList(growable: false),
-      'dispatchChains': chains.map((chain) => chain.toJson()).toList(
-        growable: false,
-      ),
+      'dispatchChains': chains
+          .map((chain) => chain.toJson())
+          .toList(growable: false),
       'eventIds': eventIds,
     };
   }
@@ -6324,28 +6352,36 @@ class _ClientIntelligenceReportsPageState
     final grouped = <String, List<IntelligenceReceived>>{};
     for (final event in scopedEvents) {
       final reportDate = _formatDate(event.occurredAt.toUtc());
-      grouped.putIfAbsent(reportDate, () => <IntelligenceReceived>[]).add(event);
+      grouped
+          .putIfAbsent(reportDate, () => <IntelligenceReceived>[])
+          .add(event);
     }
-    final reportDates = grouped.keys.toList(growable: false)..sort((a, b) => b.compareTo(a));
+    final reportDates = grouped.keys.toList(growable: false)
+      ..sort((a, b) => b.compareTo(a));
     final latestDate = reportDates.first;
-    return reportDates.map((reportDate) {
-      final snapshot = _siteActivitySnapshot(
-        clientId: clientId,
-        siteId: siteId,
-        reportDate: reportDate,
-      );
-      final eventIds = grouped[reportDate]!
-          .toList(growable: false)
-        ..sort((a, b) => _compareDispatchEventsByOccurredAtThenSequence(a, b));
-      return _SiteActivityHistoryPoint(
-        reportDate: reportDate,
-        clientId: clientId,
-        siteId: siteId,
-        current: reportDate == latestDate,
-        snapshot: snapshot,
-        eventIds: eventIds.map((event) => event.eventId).toList(growable: false),
-      );
-    }).toList(growable: false);
+    return reportDates
+        .map((reportDate) {
+          final snapshot = _siteActivitySnapshot(
+            clientId: clientId,
+            siteId: siteId,
+            reportDate: reportDate,
+          );
+          final eventIds = grouped[reportDate]!.toList(growable: false)
+            ..sort(
+              (a, b) => _compareDispatchEventsByOccurredAtThenSequence(a, b),
+            );
+          return _SiteActivityHistoryPoint(
+            reportDate: reportDate,
+            clientId: clientId,
+            siteId: siteId,
+            current: reportDate == latestDate,
+            snapshot: snapshot,
+            eventIds: eventIds
+                .map((event) => event.eventId)
+                .toList(growable: false),
+          );
+        })
+        .toList(growable: false);
   }
 
   SiteActivityIntelligenceSnapshot _siteActivitySnapshot({
@@ -6538,7 +6574,8 @@ class _ClientIntelligenceReportsPageState
       'site_id,$siteId',
       if (partnerLabel != null && partnerLabel.trim().isNotEmpty)
         'partner_label,"${partnerLabel.replaceAll('"', '""')}"',
-      if (currentPoint != null) 'current_report_date,${currentPoint.reportDate}',
+      if (currentPoint != null)
+        'current_report_date,${currentPoint.reportDate}',
       if (currentPoint != null)
         'current_review_command,${_siteActivityReviewCommand(clientId: clientId, siteId: siteId, reportDate: currentPoint.reportDate)}',
       if (currentPoint != null)
@@ -6573,7 +6610,11 @@ class _ClientIntelligenceReportsPageState
       lines.add(
         'history_${index + 1},"${point.reportDate} • ${point.current ? 'CURRENT' : 'HISTORY'} • ${point.snapshot.summaryLine.replaceAll('"', '""')}"',
       );
-      for (var eventIndex = 0; eventIndex < point.eventIds.length; eventIndex++) {
+      for (
+        var eventIndex = 0;
+        eventIndex < point.eventIds.length;
+        eventIndex++
+      ) {
         lines.add(
           'history_${index + 1}_event_${eventIndex + 1},${point.eventIds[eventIndex]}',
         );
@@ -6625,8 +6666,9 @@ class _ClientIntelligenceReportsPageState
       clientId: widget.selectedClient,
       siteId: widget.selectedSite,
     );
-    final receiptInvestigationComparison =
-        _receiptInvestigationComparison(receiptRows);
+    final receiptInvestigationComparison = _receiptInvestigationComparison(
+      receiptRows,
+    );
     return <String, Object?>{
       'scope': <String, Object?>{
         'clientId': widget.selectedClient,
@@ -6807,8 +6849,9 @@ class _ClientIntelligenceReportsPageState
       siteId: siteId,
       reportDate: currentPoint?.reportDate,
     );
-    final receiptInvestigationComparison =
-        _receiptInvestigationComparison(receiptRows);
+    final receiptInvestigationComparison = _receiptInvestigationComparison(
+      receiptRows,
+    );
     final lines = <String>[
       'metric,value',
       'client_id,$clientId',
@@ -6854,8 +6897,9 @@ class _ClientIntelligenceReportsPageState
       clientId: widget.selectedClient,
       siteId: widget.selectedSite,
     );
-    final receiptInvestigationComparison =
-        _receiptInvestigationComparison(receiptRows);
+    final receiptInvestigationComparison = _receiptInvestigationComparison(
+      receiptRows,
+    );
     final lines = <String>[
       'metric,value',
       'client_id,${widget.selectedClient}',

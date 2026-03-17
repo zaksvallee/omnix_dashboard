@@ -46,6 +46,9 @@ void main() {
           body: ReportPreviewDockCard(
             eventId: 'RPT-CTX-DOCK-1',
             detail: 'MS Vallee Residence • Mar 2026',
+            title: 'Governance Preview Dock',
+            subtitle:
+                'Governance handoff preview target held in the report workspace.',
             contextTitle: 'OPENED FROM GOVERNANCE BRANDING DRIFT',
             contextDetail:
                 'This receipt scope was opened from Governance so operators can inspect the generated-report history behind a branding-drift shift.',
@@ -65,6 +68,11 @@ void main() {
 
     expect(
       find.byKey(const ValueKey('report-preview-dock-context-banner')),
+      findsOneWidget,
+    );
+    expect(find.text('Governance Preview Dock'), findsOneWidget);
+    expect(
+      find.textContaining('Governance handoff preview target'),
       findsOneWidget,
     );
     expect(find.text('OPENED FROM GOVERNANCE BRANDING DRIFT'), findsOneWidget);
