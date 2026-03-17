@@ -185,6 +185,37 @@ void main() {
       );
     });
 
+    test('policy and hazard helpers read shared plan metadata', () {
+      final plans = <MonitoringWatchAutonomyActionPlan>[
+        const MonitoringWatchAutonomyActionPlan(
+          id: 'SIM-1',
+          incidentId: 'SITE-1',
+          siteId: 'SITE-1',
+          priority: MonitoringWatchAutonomyPriority.high,
+          actionType: 'POLICY RECOMMENDATION',
+          description: 'desc',
+          countdownSeconds: 22,
+          metadata: <String, String>{
+            'recommendation': 'HARDEN ACCESS EARLY',
+            'hazard_signal': 'water_leak',
+          },
+        ),
+      ];
+
+      expect(
+        buildSyntheticPolicySummaryFromPlans(plans: plans),
+        'HARDEN ACCESS EARLY',
+      );
+      expect(
+        buildHazardIntentSummaryFromPlans(plans: plans),
+        'leak playbook active',
+      );
+      expect(
+        buildHazardSimulationSummaryFromPlans(plans: plans),
+        'leak rehearsal recommended',
+      );
+    });
+
     test('buildSyntheticPromotionSummaryFromPlans reads base summary from plan metadata', () {
       final plans = <MonitoringWatchAutonomyActionPlan>[
         const MonitoringWatchAutonomyActionPlan(

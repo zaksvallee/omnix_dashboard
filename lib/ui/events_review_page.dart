@@ -3207,7 +3207,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     if (signal.isEmpty) {
       return '';
     }
-    return '${_hazardSignalLabel(signal)} playbook draft active';
+    return '${buildHazardSignalLabel(signal)} playbook draft active';
   }
 
   String _tomorrowPostureUrgencySummary(
@@ -3263,34 +3263,13 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   ) => buildSyntheticShadowPostureBiasSummaryForPlan(plan: plan);
 
   String _hazardIntentSummary(List<MonitoringWatchAutonomyActionPlan> intents) {
-    final signal = intents
-        .map((plan) => (plan.metadata['hazard_signal'] ?? '').trim())
-        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
-    if (signal.isEmpty) {
-      return '';
-    }
-    return '${_hazardSignalLabel(signal)} playbook active';
+    return buildHazardIntentSummaryFromPlans(plans: intents);
   }
 
   String _hazardSimulationSummary(
     List<MonitoringWatchAutonomyActionPlan> plans,
   ) {
-    final signal = plans
-        .map((plan) => (plan.metadata['hazard_signal'] ?? '').trim())
-        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
-    if (signal.isEmpty) {
-      return '';
-    }
-    return '${_hazardSignalLabel(signal)} rehearsal recommended';
-  }
-
-  String _hazardSignalLabel(String signal) {
-    return switch (signal.trim().toLowerCase()) {
-      'fire' => 'fire',
-      'water_leak' => 'leak',
-      'environment_hazard' => 'hazard',
-      _ => signal.trim().toLowerCase(),
-    };
+    return buildHazardSimulationSummaryFromPlans(plans: plans);
   }
 
   String _utcReportDateLabel(DateTime dateTime) {

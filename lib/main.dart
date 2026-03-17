@@ -6075,29 +6075,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   String _syntheticWarRoomPolicySummary(
     List<MonitoringWatchAutonomyActionPlan> plans,
-  ) {
-    final recommendations = plans
-        .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
-        .map((plan) => (plan.metadata['recommendation'] ?? '').trim())
-        .where((value) => value.isNotEmpty)
-        .toList(growable: false);
-    if (recommendations.isEmpty) {
-      return '';
-    }
-    return _singleLine(recommendations.first, maxLength: 220);
-  }
+  ) => _singleLine(
+    buildSyntheticPolicySummaryFromPlans(plans: plans),
+    maxLength: 220,
+  );
 
   String _globalReadinessHazardSummary(
     List<MonitoringWatchAutonomyActionPlan> intents,
-  ) {
-    final signal = intents
-        .map((plan) => (plan.metadata['hazard_signal'] ?? '').trim())
-        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
-    if (signal.isEmpty) {
-      return '';
-    }
-    return '${_hazardSignalLabel(signal)} playbook active';
-  }
+  ) => buildHazardIntentSummaryFromPlans(plans: intents);
 
   String _globalReadinessTomorrowPostureSummary(
     List<MonitoringWatchAutonomyActionPlan> intents,
@@ -6375,15 +6360,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   String _syntheticWarRoomHazardSummary(
     List<MonitoringWatchAutonomyActionPlan> plans,
-  ) {
-    final signal = plans
-        .map((plan) => (plan.metadata['hazard_signal'] ?? '').trim())
-        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
-    if (signal.isEmpty) {
-      return '';
-    }
-    return '${_hazardSignalLabel(signal)} rehearsal recommended';
-  }
+  ) => buildHazardSimulationSummaryFromPlans(plans: plans);
 
   String _syntheticWarRoomLearningSummary(
     List<MonitoringWatchAutonomyActionPlan> plans,
@@ -6552,15 +6529,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       buildSyntheticShadowPostureBiasSummaryForPlan(plan: plan),
       maxLength: 220,
     );
-  }
-
-  String _hazardSignalLabel(String signal) {
-    return switch (signal.trim().toLowerCase()) {
-      'fire' => 'fire',
-      'water_leak' => 'leak',
-      'environment_hazard' => 'hazard',
-      _ => signal.trim().toLowerCase(),
-    };
   }
 
   List<IntelligenceReceived> _reviewedIntelligenceEventsForReport(

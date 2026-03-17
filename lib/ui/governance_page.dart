@@ -3651,34 +3651,15 @@ class _GovernancePageState extends State<GovernancePage> {
   }
 
   String _hazardIntentSummary(List<MonitoringWatchAutonomyActionPlan> intents) {
-    final signal = intents
-        .map((plan) => (plan.metadata['hazard_signal'] ?? '').trim())
-        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
-    if (signal.isEmpty) {
-      return '';
-    }
-    return ' • ${_hazardSignalLabel(signal)} playbook active';
+    final summary = buildHazardIntentSummaryFromPlans(plans: intents);
+    return summary.isEmpty ? '' : ' • $summary';
   }
 
   String _hazardSimulationSummary(
     List<MonitoringWatchAutonomyActionPlan> plans,
   ) {
-    final signal = plans
-        .map((plan) => (plan.metadata['hazard_signal'] ?? '').trim())
-        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
-    if (signal.isEmpty) {
-      return '';
-    }
-    return ' • ${_hazardSignalLabel(signal)} rehearsal recommended';
-  }
-
-  String _hazardSignalLabel(String signal) {
-    return switch (signal.trim().toLowerCase()) {
-      'fire' => 'fire',
-      'water_leak' => 'leak',
-      'environment_hazard' => 'hazard',
-      _ => signal.trim().toLowerCase(),
-    };
+    final summary = buildHazardSimulationSummaryFromPlans(plans: plans);
+    return summary.isEmpty ? '' : ' • $summary';
   }
 
   _GlobalReadinessTrend _globalReadinessTrendForReport(

@@ -75,6 +75,15 @@ String buildSyntheticShadowSummaryFromPlans({
   return parts.join(' • ');
 }
 
+String buildSyntheticPolicySummaryFromPlans({
+  required List<MonitoringWatchAutonomyActionPlan> plans,
+}) {
+  return plans
+      .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
+      .map((plan) => (plan.metadata['recommendation'] ?? '').trim())
+      .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+}
+
 String buildSyntheticModeLabelFromPlans({
   required List<MonitoringWatchAutonomyActionPlan> plans,
 }) {
@@ -108,6 +117,39 @@ String buildSyntheticSummaryFromPlans({
       'top intent ${(lead.metadata['top_intent'] ?? '').trim()}',
   ];
   return summary.join(' • ');
+}
+
+String buildHazardSignalLabel(String signal) {
+  return switch (signal.trim().toLowerCase()) {
+    'fire' => 'fire',
+    'water_leak' => 'leak',
+    'environment_hazard' => 'hazard',
+    _ => signal.trim().toLowerCase(),
+  };
+}
+
+String buildHazardIntentSummaryFromPlans({
+  required List<MonitoringWatchAutonomyActionPlan> plans,
+}) {
+  final signal = plans
+      .map((plan) => (plan.metadata['hazard_signal'] ?? '').trim())
+      .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+  if (signal.isEmpty) {
+    return '';
+  }
+  return '${buildHazardSignalLabel(signal)} playbook active';
+}
+
+String buildHazardSimulationSummaryFromPlans({
+  required List<MonitoringWatchAutonomyActionPlan> plans,
+}) {
+  final signal = plans
+      .map((plan) => (plan.metadata['hazard_signal'] ?? '').trim())
+      .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+  if (signal.isEmpty) {
+    return '';
+  }
+  return '${buildHazardSignalLabel(signal)} rehearsal recommended';
 }
 
 String buildSyntheticShadowPostureBiasSummaryForPlan({
