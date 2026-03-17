@@ -910,6 +910,87 @@ void main() {
       MaterialApp(
         home: EventsReviewPage(
           events: events,
+          morningSovereignReportHistory: [
+            SovereignReport(
+              date: '2026-03-17',
+              generatedAtUtc: DateTime.utc(2026, 3, 17, 6, 0),
+              shiftWindowStartUtc: DateTime.utc(2026, 3, 16, 22, 0),
+              shiftWindowEndUtc: DateTime.utc(2026, 3, 17, 6, 0),
+              ledgerIntegrity: const SovereignReportLedgerIntegrity(
+                totalEvents: 10,
+                hashVerified: true,
+                integrityScore: 100,
+              ),
+              aiHumanDelta: const SovereignReportAiHumanDelta(
+                aiDecisions: 1,
+                humanOverrides: 0,
+                overrideReasons: <String, int>{},
+              ),
+              normDrift: const SovereignReportNormDrift(
+                sitesMonitored: 1,
+                driftDetected: 0,
+                avgMatchScore: 100,
+              ),
+              complianceBlockage: const SovereignReportComplianceBlockage(
+                psiraExpired: 0,
+                pdpExpired: 0,
+                totalBlocked: 0,
+              ),
+              siteActivity: const SovereignReportSiteActivity(
+                totalSignals: 3,
+                personSignals: 3,
+                vehicleSignals: 0,
+                knownIdentitySignals: 0,
+                flaggedIdentitySignals: 1,
+                unknownSignals: 3,
+                longPresenceSignals: 1,
+                guardInteractionSignals: 2,
+                executiveSummary: 'Activity rose overnight.',
+                headline: 'Unknown activity rose.',
+                summaryLine:
+                    'Signals 3 • People 3 • Unknown 3 • Long presence 1 • Guard interactions 2 • Flagged IDs 1',
+              ),
+            ),
+            SovereignReport(
+              date: '2026-03-16',
+              generatedAtUtc: DateTime.utc(2026, 3, 16, 6, 0),
+              shiftWindowStartUtc: DateTime.utc(2026, 3, 15, 22, 0),
+              shiftWindowEndUtc: DateTime.utc(2026, 3, 16, 6, 0),
+              ledgerIntegrity: const SovereignReportLedgerIntegrity(
+                totalEvents: 8,
+                hashVerified: true,
+                integrityScore: 100,
+              ),
+              aiHumanDelta: const SovereignReportAiHumanDelta(
+                aiDecisions: 1,
+                humanOverrides: 0,
+                overrideReasons: <String, int>{},
+              ),
+              normDrift: const SovereignReportNormDrift(
+                sitesMonitored: 1,
+                driftDetected: 0,
+                avgMatchScore: 100,
+              ),
+              complianceBlockage: const SovereignReportComplianceBlockage(
+                psiraExpired: 0,
+                pdpExpired: 0,
+                totalBlocked: 0,
+              ),
+              siteActivity: const SovereignReportSiteActivity(
+                totalSignals: 1,
+                personSignals: 1,
+                vehicleSignals: 0,
+                knownIdentitySignals: 0,
+                flaggedIdentitySignals: 0,
+                unknownSignals: 1,
+                longPresenceSignals: 0,
+                guardInteractionSignals: 0,
+                executiveSummary: 'Quiet shift.',
+                headline: 'Baseline stable.',
+                summaryLine: 'Signals 1 • People 1 • Unknown 1',
+              ),
+            ),
+          ],
           initialScopedEventIds: const [
             'ACTIVITY-1',
             'ACTIVITY-2',
@@ -940,7 +1021,7 @@ void main() {
         'Signals 3 • People 3 • Unknown 3 • Long presence 1 • Guard interactions 2 • Flagged IDs 1',
         skipOffstage: false,
       ),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(
       find.textContaining(
@@ -966,6 +1047,31 @@ void main() {
     expect(
       find.textContaining(
         'Review refs: ACTIVITY-1, ACTIVITY-3',
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('ACTIVITY RISING • 2d', skipOffstage: false),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'Current pressure 6 • Baseline 1.0 • Unknown, flagged, or guard-linked activity is above the recent baseline.',
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        '2026-03-17 • Signals 3 • People 3 • Unknown 3 • Long presence 1 • Guard interactions 2 • Flagged IDs 1',
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        '2026-03-16 • Signals 1 • People 1 • Unknown 1',
         skipOffstage: false,
       ),
       findsOneWidget,

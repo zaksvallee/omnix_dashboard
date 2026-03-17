@@ -469,6 +469,56 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             ),
                           ),
                         ],
+                        if (activityScopeSummary.history != null) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: const Color(0x3322D3EE),
+                              ),
+                              color: const Color(0x12000000),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  activityScopeSummary.history!.headline,
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFF8FD1FF),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  activityScopeSummary.history!.summary,
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFFAFC2DB),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                for (final point
+                                    in activityScopeSummary
+                                        .history!
+                                        .points) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${point.date} • ${point.summaryLine}',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFFEAF1FB),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -672,6 +722,11 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         .where((value) => value.isNotEmpty)
         .toSet()
         .toList(growable: false);
+    final clientIds = activityEvents
+        .map((event) => event.clientId.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
     return _ActivityScopeSummary(
       eventCount: snapshot.totalSignals,
       siteId: siteIds.length == 1 ? siteIds.first : null,
@@ -680,6 +735,80 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       topLongPresenceSummary: snapshot.topLongPresenceSummary,
       topGuardInteractionSummary: snapshot.topGuardInteractionSummary,
       reviewRefs: snapshot.evidenceEventIds,
+      history: clientIds.length == 1 && siteIds.length == 1
+          ? _activityHistorySummary(
+              clientId: clientIds.first,
+              siteId: siteIds.first,
+            )
+          : null,
+    );
+  }
+
+  _ActivityHistorySummary? _activityHistorySummary({
+    required String clientId,
+    required String siteId,
+  }) {
+    if (clientId.trim().isEmpty ||
+        siteId.trim().isEmpty ||
+        widget.morningSovereignReportHistory.isEmpty) {
+      return null;
+    }
+    final reports = [...widget.morningSovereignReportHistory]
+      ..sort(
+        (a, b) => b.generatedAtUtc.toUtc().compareTo(a.generatedAtUtc.toUtc()),
+      );
+    if (reports.isEmpty) {
+      return null;
+    }
+    final points = reports
+        .map(
+          (report) => _ActivityHistoryPoint(
+            date: report.date,
+            totalSignals: report.siteActivity.totalSignals,
+            unknownSignals: report.siteActivity.unknownSignals,
+            flaggedSignals: report.siteActivity.flaggedIdentitySignals,
+            guardInteractions: report.siteActivity.guardInteractionSignals,
+            summaryLine: report.siteActivity.summaryLine,
+          ),
+        )
+        .toList(growable: false);
+    if (points.isEmpty) {
+      return null;
+    }
+    final current = points.first;
+    final baseline = points.skip(1).take(3).toList(growable: false);
+    final baselinePressure = baseline.isEmpty
+        ? null
+        : baseline
+                  .map((point) => point.pressureScore)
+                  .reduce((left, right) => left + right) /
+              baseline.length;
+    final currentPressure = current.pressureScore.toDouble();
+    late final String label;
+    late final String reason;
+    if (baselinePressure == null) {
+      label = 'NEW';
+      reason = 'No prior site-activity history is available yet.';
+    } else if (currentPressure >= baselinePressure + 1) {
+      label = 'ACTIVITY RISING';
+      reason =
+          'Unknown, flagged, or guard-linked activity is above the recent baseline.';
+    } else if (currentPressure <= baselinePressure - 1) {
+      label = 'ACTIVITY EASING';
+      reason =
+          'Unknown, flagged, or guard-linked activity eased against recent shifts.';
+    } else {
+      label = 'STABLE';
+      reason = 'Activity pressure is holding close to the recent baseline.';
+    }
+    final baselineLabel = baselinePressure == null
+        ? 'n/a'
+        : baselinePressure.toStringAsFixed(1);
+    return _ActivityHistorySummary(
+      headline: '$label • ${points.length}d',
+      summary:
+          'Current pressure ${current.pressureScore} • Baseline $baselineLabel • $reason',
+      points: points.take(3).toList(growable: false),
     );
   }
 
@@ -2370,6 +2499,7 @@ class _ActivityScopeSummary {
   final String topLongPresenceSummary;
   final String topGuardInteractionSummary;
   final List<String> reviewRefs;
+  final _ActivityHistorySummary? history;
 
   const _ActivityScopeSummary({
     required this.eventCount,
@@ -2379,6 +2509,7 @@ class _ActivityScopeSummary {
     required this.topLongPresenceSummary,
     required this.topGuardInteractionSummary,
     required this.reviewRefs,
+    required this.history,
   });
 
   String get bannerText {
@@ -2386,6 +2517,38 @@ class _ActivityScopeSummary {
     final siteSuffix = siteId == null || siteId!.isEmpty ? '' : ' • ${siteId!}';
     return 'Activity investigation active for $eventCount linked CCTV $signalWord$siteSuffix.';
   }
+}
+
+class _ActivityHistorySummary {
+  final String headline;
+  final String summary;
+  final List<_ActivityHistoryPoint> points;
+
+  const _ActivityHistorySummary({
+    required this.headline,
+    required this.summary,
+    required this.points,
+  });
+}
+
+class _ActivityHistoryPoint {
+  final String date;
+  final int totalSignals;
+  final int unknownSignals;
+  final int flaggedSignals;
+  final int guardInteractions;
+  final String summaryLine;
+
+  const _ActivityHistoryPoint({
+    required this.date,
+    required this.totalSignals,
+    required this.unknownSignals,
+    required this.flaggedSignals,
+    required this.guardInteractions,
+    required this.summaryLine,
+  });
+
+  int get pressureScore => unknownSignals + flaggedSignals + guardInteractions;
 }
 
 class _PartnerScopeDetail {
