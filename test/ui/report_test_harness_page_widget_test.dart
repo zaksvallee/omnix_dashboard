@@ -1619,6 +1619,8 @@ void main() {
       expect(find.text('Clear Governance Target'), findsWidgets);
       expect(find.text('Open Governance Preview'), findsWidgets);
       expect(find.text('Copy Governance Receipt'), findsWidgets);
+      expect(find.text('Copy Receipt'), findsNothing);
+      expect(find.text('Open Full Preview'), findsNothing);
 
       final exportAllButton = find.byKey(
         const ValueKey('report-harness-export-all-button'),

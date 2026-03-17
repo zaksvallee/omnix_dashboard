@@ -274,7 +274,10 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
         : 'FOCUSED';
     final reviewActionText = filteredHistoryRows.isEmpty
         ? 'No Receipt Selected'
-        : previewTargetRow != null && _previewSurface == ReportPreviewSurface.dock
+        : _isGovernanceEntryContext
+        ? 'Open Governance Preview'
+        : previewTargetRow != null &&
+              _previewSurface == ReportPreviewSurface.dock
         ? 'Open Full Preview'
         : previewTargetRow != null
         ? 'Open Preview Target'
@@ -549,7 +552,7 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
                                       : () => _openHistoryReceipt(reviewTargetRow),
                                   secondaryActionText: reviewTargetRow == null
                                       ? null
-                                      : 'Copy Receipt',
+                                      : _copyReceiptActionLabel,
                                   onSecondaryTap: reviewTargetRow == null
                                       ? null
                                       : () => _copyHistoryReceipt(
@@ -676,7 +679,7 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
                                     secondaryActionText:
                                         reviewTargetRow == null
                                         ? null
-                                        : 'Copy Receipt',
+                                        : _copyReceiptActionLabel,
                                     onSecondaryTap: reviewTargetRow == null
                                         ? null
                                         : () => _copyHistoryReceipt(
@@ -927,7 +930,7 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
             ),
             icon: const Icon(Icons.copy_all_rounded, size: 15),
             label: Text(
-              'Copy Receipt',
+              _copyReceiptActionLabel,
               style: GoogleFonts.inter(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
@@ -1413,6 +1416,10 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
 
   bool get _isGovernanceEntryContext =>
       _entryContext == ReportEntryContext.governanceBrandingDrift;
+
+  String get _copyReceiptActionLabel => _isGovernanceEntryContext
+      ? 'Copy Governance Receipt'
+      : 'Copy Receipt';
 
   String _short(String v) => v.length <= 16 ? v : '${v.substring(0, 16)}...';
 
