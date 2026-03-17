@@ -1003,6 +1003,18 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     'Previous urgency',
                     widget.previousTomorrowUrgencySummary.trim(),
                   ),
+                if ((leadDraft.metadata['promotion_pressure_summary'] ?? '')
+                    .isNotEmpty)
+                  _detailCell(
+                    'Promotion pressure',
+                    leadDraft.metadata['promotion_pressure_summary']!,
+                  ),
+                if ((leadDraft.metadata['promotion_execution_summary'] ?? '')
+                    .isNotEmpty)
+                  _detailCell(
+                    'Promotion execution',
+                    leadDraft.metadata['promotion_execution_summary']!,
+                  ),
               ],
             ),
           ],

@@ -6,6 +6,7 @@ import 'monitoring_orchestrator_service.dart';
 import 'monitoring_scene_review_store.dart';
 import 'monitoring_synthetic_war_room_service.dart';
 import 'monitoring_watch_action_plan.dart';
+import 'synthetic_promotion_summary_formatter.dart';
 
 class MonitoringWatchAutonomyService {
   const MonitoringWatchAutonomyService();
@@ -84,7 +85,16 @@ class MonitoringWatchAutonomyService {
       historicalLearningLabels: historicalSyntheticLearningLabels,
       historicalShadowMoLabels: historicalShadowMoLabels,
     );
-    return [...orchestratedPlans, ...syntheticPlans, ...globalPlans, ...plans]
+    final decoratedOrchestratedPlans = _attachSyntheticPromotionContext(
+      orchestratedPlans,
+      syntheticPlans,
+    );
+    return [
+      ...decoratedOrchestratedPlans,
+      ...syntheticPlans,
+      ...globalPlans,
+      ...plans,
+    ]
       ..sort((a, b) {
         final rankCompare = _planRank(a).compareTo(_planRank(b));
         if (rankCompare != 0) {
@@ -309,6 +319,79 @@ class MonitoringWatchAutonomyService {
     }
     return (plan.metadata['mo_promotion_priority_bias'] ?? '').trim().isNotEmpty ||
         (plan.metadata['mo_promotion_countdown_bias'] ?? '').trim().isNotEmpty;
+  }
+
+  List<MonitoringWatchAutonomyActionPlan> _attachSyntheticPromotionContext(
+    List<MonitoringWatchAutonomyActionPlan> orchestratedPlans,
+    List<MonitoringWatchAutonomyActionPlan> syntheticPlans,
+  ) {
+    if (orchestratedPlans.isEmpty || syntheticPlans.isEmpty) {
+      return orchestratedPlans;
+    }
+    return orchestratedPlans.map((plan) {
+      if ((plan.metadata['scope'] ?? '').trim().toUpperCase() != 'NEXT_SHIFT') {
+        return plan;
+      }
+      final linkedPolicy = _linkedSyntheticPolicyForPlan(plan, syntheticPlans);
+      if (linkedPolicy == null) {
+        return plan;
+      }
+      final promotionPressureSummary =
+          (linkedPolicy.metadata['mo_promotion_pressure_summary'] ?? '').trim();
+      final promotionExecutionSummary =
+          buildSyntheticPromotionExecutionBiasSummary(
+            promotionPriorityBias:
+                (linkedPolicy.metadata['mo_promotion_priority_bias'] ?? '')
+                    .trim(),
+            promotionCountdownBias:
+                (linkedPolicy.metadata['mo_promotion_countdown_bias'] ?? '')
+                    .trim(),
+          );
+      if (promotionPressureSummary.isEmpty && promotionExecutionSummary.isEmpty) {
+        return plan;
+      }
+      return MonitoringWatchAutonomyActionPlan(
+        id: plan.id,
+        incidentId: plan.incidentId,
+        siteId: plan.siteId,
+        priority: plan.priority,
+        actionType: plan.actionType,
+        description: plan.description,
+        countdownSeconds: plan.countdownSeconds,
+        metadata: <String, String>{
+          ...plan.metadata,
+          if (promotionPressureSummary.isNotEmpty)
+            'promotion_pressure_summary': promotionPressureSummary,
+          if (promotionExecutionSummary.isNotEmpty)
+            'promotion_execution_summary': promotionExecutionSummary,
+        },
+      );
+    }).toList(growable: false);
+  }
+
+  MonitoringWatchAutonomyActionPlan? _linkedSyntheticPolicyForPlan(
+    MonitoringWatchAutonomyActionPlan plan,
+    List<MonitoringWatchAutonomyActionPlan> syntheticPlans,
+  ) {
+    final planLeadSite = (plan.metadata['lead_site'] ?? '').trim();
+    final planRegion = (plan.metadata['region'] ?? '').trim();
+    for (final syntheticPlan in syntheticPlans) {
+      if (syntheticPlan.actionType.trim().toUpperCase() !=
+          'POLICY RECOMMENDATION') {
+        continue;
+      }
+      final syntheticLeadSite = (syntheticPlan.metadata['lead_site'] ?? '')
+          .trim();
+      final syntheticRegion = (syntheticPlan.metadata['region'] ?? '').trim();
+      if (syntheticPlan.siteId.trim() == plan.siteId.trim() ||
+          syntheticLeadSite == plan.siteId.trim() ||
+          (planLeadSite.isNotEmpty && syntheticPlan.siteId.trim() == planLeadSite) ||
+          (planLeadSite.isNotEmpty && syntheticLeadSite == planLeadSite) ||
+          (planRegion.isNotEmpty && syntheticRegion == planRegion)) {
+        return syntheticPlan;
+      }
+    }
+    return null;
   }
 }
 

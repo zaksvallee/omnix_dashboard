@@ -532,7 +532,7 @@ void main() {
         find.textContaining('toward validated review'),
         findsWidgets,
       );
-      expect(find.textContaining('posture POSTURE'), findsOneWidget);
+      expect(find.textContaining('posture POSTURE'), findsWidgets);
       expect(
         find.text('DRAFT NEXT-SHIFT ACCESS HARDENING'),
         findsWidgets,
@@ -545,6 +545,14 @@ void main() {
         find.text('DRAFT NEXT-SHIFT ACCESS HARDENING').first,
       );
       expect(policyTopLeft.dy, lessThan(draftTopLeft.dy));
+      expect(
+        find.textContaining('Promotion pressure'),
+        findsWidgets,
+      );
+      expect(
+        find.textContaining('Promotion execution'),
+        findsWidgets,
+      );
     },
   );
 

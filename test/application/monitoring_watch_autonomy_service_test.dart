@@ -439,10 +439,19 @@ void main() {
         final draftIndex = plans.indexWhere(
           (entry) => entry.actionType == 'DRAFT NEXT-SHIFT ACCESS HARDENING',
         );
+        final draft = plans[draftIndex];
 
         expect(policyIndex, greaterThanOrEqualTo(0));
         expect(draftIndex, greaterThanOrEqualTo(0));
         expect(policyIndex, lessThan(draftIndex));
+        expect(
+          draft.metadata['promotion_pressure_summary'],
+          isNotEmpty,
+        );
+        expect(
+          draft.metadata['promotion_execution_summary'],
+          'high • 40s',
+        );
       },
     );
   });
