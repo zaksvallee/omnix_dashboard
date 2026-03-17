@@ -442,6 +442,8 @@ void main() {
     expect(find.text('Copy Site Activity JSON'), findsOneWidget);
     expect(find.text('Copy Site Activity CSV'), findsOneWidget);
     expect(find.text('Share Site Activity Pack'), findsOneWidget);
+    expect(find.text('Copy Site Activity Telegram'), findsOneWidget);
+    expect(find.text('Share Site Activity Telegram'), findsOneWidget);
     expect(
       find.text('Generation and delivery controls moved to Governance screen.'),
       findsOneWidget,
@@ -628,6 +630,157 @@ void main() {
     expect(copiedPayload, contains('"knownIdentitySignals": 1'));
     expect(copiedPayload, contains('"trend"'));
     expect(copiedPayload, contains('"label": "ACTIVITY RISING"'));
+  });
+
+  testWidgets('dashboard copies site activity telegram summary', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1600, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    String? copiedPayload;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final args = call.arguments as Map<dynamic, dynamic>;
+          copiedPayload = args['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+
+    final store = InMemoryEventStore();
+    store.append(
+      IntelligenceReceived(
+        eventId: 'evt-activity-telegram-1',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 9, 0, 10),
+        intelligenceId: 'intel-activity-telegram-1',
+        provider: 'hikvision_dvr_monitor_only',
+        sourceType: 'dvr',
+        externalId: 'ext-activity-telegram-1',
+        clientId: 'CLIENT-1',
+        regionId: 'REGION-1',
+        siteId: 'SITE-1',
+        cameraId: 'gate-cam',
+        objectLabel: 'vehicle',
+        objectConfidence: 0.92,
+        plateNumber: 'CA111111',
+        headline: 'Known visitor vehicle entered',
+        summary: 'Known visitor vehicle entered the gate lane.',
+        riskScore: 58,
+        snapshotUrl: 'https://edge.example.com/vehicle.jpg',
+        canonicalHash: 'hash-activity-telegram-1',
+      ),
+    );
+    store.append(
+      IntelligenceReceived(
+        eventId: 'evt-activity-telegram-2',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 9, 2, 40),
+        intelligenceId: 'intel-activity-telegram-2',
+        provider: 'hikvision_dvr_monitor_only',
+        sourceType: 'dvr',
+        externalId: 'ext-activity-telegram-2',
+        clientId: 'CLIENT-1',
+        regionId: 'REGION-1',
+        siteId: 'SITE-1',
+        cameraId: 'gate-cam',
+        objectLabel: 'human',
+        objectConfidence: 0.87,
+        headline: 'Guard conversation observed',
+        summary: 'Guard talking to unknown individual near the gate.',
+        riskScore: 66,
+        snapshotUrl: 'https://edge.example.com/person.jpg',
+        canonicalHash: 'hash-activity-telegram-2',
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DashboardPage(
+          eventStore: store,
+          morningSovereignReport: SovereignReport(
+            date: '2026-03-09',
+            generatedAtUtc: DateTime.utc(2026, 3, 9, 6, 0),
+            shiftWindowStartUtc: DateTime.utc(2026, 3, 8, 22, 0),
+            shiftWindowEndUtc: DateTime.utc(2026, 3, 9, 6, 0),
+            ledgerIntegrity: const SovereignReportLedgerIntegrity(
+              totalEvents: 42,
+              hashVerified: true,
+              integrityScore: 100,
+            ),
+            aiHumanDelta: const SovereignReportAiHumanDelta(
+              aiDecisions: 12,
+              humanOverrides: 3,
+              overrideReasons: {'HARDWARE_FAULT': 2, 'FALSE_ALARM': 1},
+            ),
+            normDrift: const SovereignReportNormDrift(
+              sitesMonitored: 4,
+              driftDetected: 1,
+              avgMatchScore: 87.5,
+            ),
+            complianceBlockage: const SovereignReportComplianceBlockage(
+              psiraExpired: 0,
+              pdpExpired: 1,
+              totalBlocked: 2,
+            ),
+          ),
+          morningSovereignReportHistory: [
+            SovereignReport(
+              date: '2026-03-08',
+              generatedAtUtc: DateTime.utc(2026, 3, 8, 6, 0),
+              shiftWindowStartUtc: DateTime.utc(2026, 3, 7, 22, 0),
+              shiftWindowEndUtc: DateTime.utc(2026, 3, 8, 6, 0),
+              ledgerIntegrity: const SovereignReportLedgerIntegrity(
+                totalEvents: 38,
+                hashVerified: true,
+                integrityScore: 100,
+              ),
+              aiHumanDelta: const SovereignReportAiHumanDelta(
+                aiDecisions: 10,
+                humanOverrides: 2,
+                overrideReasons: {'FALSE_ALARM': 2},
+              ),
+              normDrift: const SovereignReportNormDrift(
+                sitesMonitored: 4,
+                driftDetected: 0,
+                avgMatchScore: 91.0,
+              ),
+              complianceBlockage: const SovereignReportComplianceBlockage(
+                psiraExpired: 0,
+                pdpExpired: 0,
+                totalBlocked: 0,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Advanced export and share'));
+    await tester.tap(find.text('Advanced export and share'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Copy Site Activity Telegram'));
+    await tester.pump();
+
+    expect(copiedPayload, isNotNull);
+    expect(copiedPayload, contains('Site Activity Truth: Dashboard scope'));
+    expect(copiedPayload, contains('Window: 2026-03-09'));
+    expect(copiedPayload, contains('2 site-activity signals observed.'));
+    expect(copiedPayload, contains('1 vehicles • 1 people'));
+    expect(copiedPayload, contains('1 known IDs • 1 unknown'));
+    expect(copiedPayload, contains('1 guard interactions'));
+    expect(copiedPayload, contains('Trend: ACTIVITY RISING -'));
   });
 
   testWidgets('dashboard guard sync card respects alert thresholds', (

@@ -8,6 +8,7 @@ import '../application/dispatch_snapshot_file_service.dart';
 import '../application/email_bridge_service.dart';
 import '../application/morning_sovereign_report_service.dart';
 import '../application/site_activity_intelligence_service.dart';
+import '../application/site_activity_telegram_formatter.dart';
 import '../application/text_share_service.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/decision_created.dart';
@@ -1033,6 +1034,7 @@ class _RightRail extends StatelessWidget {
   static const _snapshotFiles = DispatchSnapshotFileService();
   static const _textShare = TextShareService();
   static const _emailBridge = EmailBridgeService();
+  static const _siteActivityTelegram = SiteActivityTelegramFormatter();
 
   final OperationsHealthSnapshot snapshot;
   final _ThreatState threat;
@@ -1561,6 +1563,20 @@ class _RightRail extends StatelessWidget {
       'site_activity_trend_label,${siteActivityTrend?.label ?? ''}',
       'site_activity_trend_summary,"${(siteActivityTrend?.summary ?? '').replaceAll('"', '""')}"',
     ].join('\n');
+  }
+
+  String _siteActivityTelegramSummary() {
+    final sovereignReport = morningSovereignReport;
+    final siteActivityTrend = sovereignReport == null
+        ? null
+        : _siteActivityTrendFor(sovereignReport, siteActivity);
+    return _siteActivityTelegram.formatSummary(
+      snapshot: siteActivity,
+      siteLabel: 'Dashboard scope',
+      reportDate: sovereignReport?.date,
+      trendLabel: siteActivityTrend?.label,
+      trendSummary: siteActivityTrend?.summary,
+    );
   }
 
   String _guardPolicyTelemetryCsv() {
@@ -2856,6 +2872,99 @@ class _RightRail extends StatelessWidget {
                               ),
                               child: Text(
                                 'Share Site Activity Pack',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF8FD1FF),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: TextButton(
+                              onPressed: () async {
+                                await Clipboard.setData(
+                                  ClipboardData(
+                                    text: _siteActivityTelegramSummary(),
+                                  ),
+                                );
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Site activity Telegram summary copied',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFE7F0FF),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    backgroundColor: const Color(0xFF0E203A),
+                                  ),
+                                );
+                              },
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(0, 0),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                'Copy Site Activity Telegram',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF8FD1FF),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: TextButton(
+                              onPressed: () async {
+                                if (!_textShare.supported) {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Share is not available in this environment',
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFFE7F0FF),
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      backgroundColor: const Color(0xFF0E203A),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                final shared = await _textShare.shareText(
+                                  title: 'ONYX Site Activity Telegram Summary',
+                                  text: _siteActivityTelegramSummary(),
+                                );
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      shared
+                                          ? 'Site activity Telegram share started'
+                                          : 'Site activity Telegram share unavailable',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFE7F0FF),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    backgroundColor: const Color(0xFF0E203A),
+                                  ),
+                                );
+                              },
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(0, 0),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                'Share Site Activity Telegram',
                                 style: GoogleFonts.inter(
                                   color: const Color(0xFF8FD1FF),
                                   fontSize: 11,
