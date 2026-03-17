@@ -1329,6 +1329,17 @@ void main() {
     expect(copiedClipboardPayload, contains('lead_site_id,SITE-ALPHA'));
     expect(
       copiedClipboardPayload,
+      contains('focus_state,historical_command_target'),
+    );
+    expect(copiedClipboardPayload, contains('historical_focus,true'));
+    expect(
+      copiedClipboardPayload,
+      contains(
+        'focus_summary,"Viewing command-targeted shift 2026-03-17 instead of live oversight 2026-03-18."',
+      ),
+    );
+    expect(
+      copiedClipboardPayload,
       contains('review_refs,"READY-INTEL-1, READY-INTEL-2"'),
     );
 

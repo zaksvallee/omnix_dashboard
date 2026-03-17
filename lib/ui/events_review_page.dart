@@ -959,6 +959,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       eventCount: scopedEvents.length,
       leadRegionId: leadRegion?.regionId,
       leadSiteId: leadSite?.siteId,
+      focusState: _readinessFocusState(scopedReportDate),
+      historicalFocus: _isHistoricalReadinessFocus(scopedReportDate),
       modeLabel: modeLabel,
       summaryLine: summaryParts.join(' • '),
       focusSummary: focusSummary,
@@ -996,6 +998,23 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       return 'Viewing live oversight shift $normalizedReportDate.';
     }
     return 'Viewing command-targeted shift $normalizedReportDate instead of live oversight $currentReportDate.';
+  }
+
+  bool _isHistoricalReadinessFocus(String? reportDate) {
+    final normalizedReportDate = (reportDate ?? '').trim();
+    if (normalizedReportDate.isEmpty) {
+      return false;
+    }
+    final currentReportDate = (widget.currentMorningSovereignReportDate ?? '')
+        .trim();
+    return currentReportDate.isNotEmpty &&
+        currentReportDate != normalizedReportDate;
+  }
+
+  String _readinessFocusState(String? reportDate) {
+    return _isHistoricalReadinessFocus(reportDate)
+        ? 'historical_command_target'
+        : 'live_current_shift';
   }
 
   String _utcReportDateLabel(DateTime dateTime) {
@@ -2443,6 +2462,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       'lead_region_id,${summary.leadRegionId ?? ''}',
       'lead_site_id,${summary.leadSiteId ?? ''}',
       'event_count,${summary.eventCount}',
+      'focus_state,${summary.focusState}',
+      'historical_focus,${summary.historicalFocus ? 'true' : 'false'}',
+      'focus_summary,"${summary.focusSummary.replaceAll('"', '""')}"',
       'mode_label,"${summary.modeLabel.replaceAll('"', '""')}"',
       'summary_line,"${summary.summaryLine.replaceAll('"', '""')}"',
       'postural_echo_summary,"${summary.posturalEchoSummary.replaceAll('"', '""')}"',
@@ -2501,6 +2523,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'leadRegionId': summary.leadRegionId,
         'leadSiteId': summary.leadSiteId,
         'eventCount': summary.eventCount,
+        'focusState': summary.focusState,
+        'historicalFocus': summary.historicalFocus,
         'modeLabel': summary.modeLabel,
         'summaryLine': summary.summaryLine,
         'focusSummary': summary.focusSummary,
@@ -2920,6 +2944,8 @@ class _ReadinessScopeSummary {
   final int eventCount;
   final String? leadRegionId;
   final String? leadSiteId;
+  final String focusState;
+  final bool historicalFocus;
   final String modeLabel;
   final String summaryLine;
   final String focusSummary;
@@ -2931,6 +2957,8 @@ class _ReadinessScopeSummary {
     required this.eventCount,
     required this.leadRegionId,
     required this.leadSiteId,
+    required this.focusState,
+    required this.historicalFocus,
     required this.modeLabel,
     required this.summaryLine,
     required this.focusSummary,
