@@ -293,7 +293,7 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               OnyxPageHeader(
-                title: 'Client Intelligence Reports',
+                title: _pageTitle,
                 subtitle: _pageSubtitle,
                 actions: [
                   ElevatedButton.icon(
@@ -512,7 +512,7 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
                               ),
                               const SizedBox(height: 14),
                               _infoStrip(
-                                'Use the actions above to generate a fresh preview or re-run receipt verification for the current client/site scope.',
+                                _headerInfoStripText,
                               ),
                             ],
                           ),
@@ -520,8 +520,7 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
                         const SizedBox(height: 10),
                         OnyxSectionCard(
                           title: 'Generation Lanes',
-                          subtitle:
-                              'Keep generation, replay, and operator review distinct during report handling.',
+                          subtitle: _generationLanesSubtitle,
                           child: Row(
                             children: [
                               Expanded(
@@ -638,7 +637,7 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
                                 ),
                                 const SizedBox(height: 14),
                                 _infoStrip(
-                                  'Use the actions above to generate a fresh preview or re-run receipt verification for the current client/site scope.',
+                                  _headerInfoStripText,
                                 ),
                               ],
                             ),
@@ -646,8 +645,7 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
                           const SizedBox(height: 10),
                           OnyxSectionCard(
                             title: 'Generation Lanes',
-                            subtitle:
-                                'Keep generation, replay, and operator review distinct during report handling.',
+                            subtitle: _generationLanesSubtitle,
                             child: Row(
                               children: [
                                 Expanded(
@@ -1237,6 +1235,13 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
   }
 
   String get _pageSubtitle {
+    if (_isGovernanceEntryContext) {
+      return ReportReceiptHistoryCopy.pageSubtitle(
+        scopeLabel:
+            'Governance handoff • Client ${widget.selectedClient} • Site ${widget.selectedSite}',
+        filter: _receiptFilter,
+      );
+    }
     return ReportReceiptHistoryCopy.pageSubtitle(
       scopeLabel: 'Client ${widget.selectedClient} • Site ${widget.selectedSite}',
       filter: _receiptFilter,
@@ -1245,8 +1250,9 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
 
   String get _receiptHistorySubtitle {
     return ReportReceiptHistoryCopy.historySubtitle(
-      base:
-          'Open any generated receipt to regenerate the report and confirm replay integrity.',
+      base: _isGovernanceEntryContext
+          ? 'Open any generated receipt to regenerate the governance handoff report and confirm replay integrity.'
+          : 'Open any generated receipt to regenerate the report and confirm replay integrity.',
       filter: _receiptFilter,
     );
   }
@@ -1418,6 +1424,18 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
 
   bool get _isGovernanceEntryContext =>
       _entryContext == ReportEntryContext.governanceBrandingDrift;
+
+  String get _pageTitle => _isGovernanceEntryContext
+      ? 'Governance Receipt Handoff'
+      : 'Client Intelligence Reports';
+
+  String get _headerInfoStripText => _isGovernanceEntryContext
+      ? 'Use the actions above to preview, verify, and export the Governance handoff receipt history for the current oversight scope.'
+      : 'Use the actions above to generate a fresh preview or re-run receipt verification for the current client/site scope.';
+
+  String get _generationLanesSubtitle => _isGovernanceEntryContext
+      ? 'Keep Governance generation, replay, and operator review distinct during oversight handoff handling.'
+      : 'Keep generation, replay, and operator review distinct during report handling.';
 
   String get _previewReportActionLabel => _isGovernanceEntryContext
       ? 'Preview Governance PDF'

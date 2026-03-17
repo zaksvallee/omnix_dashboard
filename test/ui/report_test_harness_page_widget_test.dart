@@ -1613,9 +1613,26 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      expect(find.text('Governance Receipt Handoff'), findsOneWidget);
       expect(find.text('Governance Preview Dock'), findsOneWidget);
       expect(find.text('Preview Governance PDF'), findsOneWidget);
       expect(find.text('Export Governance Receipts'), findsOneWidget);
+      expect(
+        find.textContaining('Governance handoff • Client CLIENT-001 • Site SITE-SANDTON'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'Use the actions above to preview, verify, and export the Governance handoff receipt history',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'Keep Governance generation, replay, and operator review distinct during oversight handoff handling.',
+        ),
+        findsOneWidget,
+      );
       expect(find.text('Open Governance Preview'), findsWidgets);
       expect(find.text('Copy Governance Receipt'), findsWidgets);
       expect(find.text('Clear Governance Target'), findsWidgets);
@@ -1625,6 +1642,7 @@ void main() {
       expect(find.text('Open Full Preview'), findsNothing);
       expect(find.text('Preview Report'), findsNothing);
       expect(find.text('Export All'), findsNothing);
+      expect(find.text('Client Intelligence Reports'), findsNothing);
 
       final exportAllButton = find.byKey(
         const ValueKey('report-harness-export-all-button'),
