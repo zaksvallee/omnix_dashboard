@@ -104,6 +104,7 @@ List<ChatCaseFileHeaderField> buildChatReviewHeaderFields({
   String summary = '',
   String focusSummary = '',
   String promotionPressureSummary = '',
+  String promotionExecutionSummary = '',
   String learningSummary = '',
   String learningMemorySummary = '',
   String historyHeadline = '',
@@ -123,6 +124,10 @@ List<ChatCaseFileHeaderField> buildChatReviewHeaderFields({
     ChatCaseFileHeaderField(
       key: 'promotion_pressure_summary',
       value: promotionPressureSummary,
+    ),
+    ChatCaseFileHeaderField(
+      key: 'promotion_execution_summary',
+      value: promotionExecutionSummary,
     ),
     ChatCaseFileHeaderField(key: 'learning_summary', value: learningSummary),
     ChatCaseFileHeaderField(

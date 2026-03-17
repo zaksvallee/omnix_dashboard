@@ -159,6 +159,7 @@ void main() {
         summary: 'Shadow MO pressure rising',
         focusSummary: 'Viewing command-targeted shift.',
         promotionPressureSummary: 'strength rising • critical • 22s',
+        promotionExecutionSummary: 'high • 40s',
         historyHeadline: 'RISING • 3d',
         historySummary: 'Shadow-MO pressure is increasing.',
         caseFileCommand: '/shadowcase json 2026-03-17',
@@ -174,6 +175,7 @@ void main() {
       'summary=Shadow MO pressure rising\n'
       'focus_summary=Viewing command-targeted shift.\n'
       'promotion_pressure_summary=strength rising • critical • 22s\n'
+      'promotion_execution_summary=high • 40s\n'
       'history_headline=RISING • 3d\n'
       'history_summary=Shadow-MO pressure is increasing.\n'
       'review_refs=intel-1, intel-2\n'
