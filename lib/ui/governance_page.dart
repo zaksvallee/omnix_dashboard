@@ -12,6 +12,7 @@ import '../application/monitoring_orchestrator_service.dart';
 import '../application/monitoring_scene_review_store.dart';
 import '../application/monitoring_synthetic_war_room_service.dart';
 import '../application/monitoring_watch_action_plan.dart';
+import '../application/review_shortcut_contract.dart';
 import '../application/text_share_service.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
@@ -10033,20 +10034,13 @@ class _GovernancePageState extends State<GovernancePage> {
           'baselinePolicyAverage': syntheticWarRoomBaseline.policyAverage,
           'baselineReportDays': syntheticWarRoomBaseline.reportDays,
         },
-        'reviewShortcuts': {
-          if (currentSyntheticWarRoomPoint != null)
-            'currentShiftReviewCommand':
-                '/syntheticreview ${currentSyntheticWarRoomPoint.reportDate}',
-          if (currentSyntheticWarRoomPoint != null)
-            'currentShiftCaseFileCommand':
-                '/syntheticcase json ${currentSyntheticWarRoomPoint.reportDate}',
-          if (previousSyntheticWarRoomPoint != null)
-            'previousShiftReviewCommand':
-                '/syntheticreview ${previousSyntheticWarRoomPoint.reportDate}',
-          if (previousSyntheticWarRoomPoint != null)
-            'previousShiftCaseFileCommand':
-                '/syntheticcase json ${previousSyntheticWarRoomPoint.reportDate}',
-        },
+        'reviewShortcuts': buildReviewShortcuts(
+          currentReportDate: currentSyntheticWarRoomPoint?.reportDate ?? '',
+          previousReportDate: previousSyntheticWarRoomPoint?.reportDate,
+          reviewCommandBuilder: (reportDate) => '/syntheticreview $reportDate',
+          caseFileCommandBuilder:
+              (reportDate) => '/syntheticcase json $reportDate',
+        ),
         'trend': _syntheticWarRoomTrendJson(syntheticWarRoomTrend),
         'history': syntheticWarRoomHistory
             .map(_syntheticWarRoomHistoryJson)
@@ -10110,25 +10104,13 @@ class _GovernancePageState extends State<GovernancePage> {
               siteActivityBaseline.guardInteractionAverage,
           'baselineReportDays': siteActivityBaseline.reportDays,
         },
-        'reviewShortcuts': {
-          if (currentSiteActivityPoint != null)
-            'currentShiftReviewCommand': _siteActivityReviewCommand(
-              currentSiteActivityPoint.reportDate,
-            ),
-          if (currentSiteActivityPoint != null)
-            'currentShiftCaseFileCommand': _siteActivityCaseFileCommand(
-              currentSiteActivityPoint.reportDate,
-            ),
-          if (previousSiteActivityPoint != null)
-            'previousShiftReviewCommand': _siteActivityReviewCommand(
-              previousSiteActivityPoint.reportDate,
-            ),
-          if (previousSiteActivityPoint != null)
-            'previousShiftCaseFileCommand': _siteActivityCaseFileCommand(
-              previousSiteActivityPoint.reportDate,
-            ),
-          'targetScopeRequired': true,
-        },
+        'reviewShortcuts': buildReviewShortcuts(
+          currentReportDate: currentSiteActivityPoint?.reportDate ?? '',
+          previousReportDate: previousSiteActivityPoint?.reportDate,
+          reviewCommandBuilder: _siteActivityReviewCommand,
+          caseFileCommandBuilder: _siteActivityCaseFileCommand,
+          targetScopeRequired: true,
+        ),
         'trend': _siteActivityTrendJson(siteActivityTrend),
         'history': siteActivityHistory
             .map(_siteActivityHistoryJson)
@@ -10286,14 +10268,17 @@ class _GovernancePageState extends State<GovernancePage> {
       'synthetic_war_room_baseline_plan_average,${syntheticWarRoomBaseline.planAverage.toStringAsFixed(1)}',
       'synthetic_war_room_baseline_policy_average,${syntheticWarRoomBaseline.policyAverage.toStringAsFixed(1)}',
       'synthetic_war_room_baseline_report_days,${syntheticWarRoomBaseline.reportDays}',
-      if (currentSyntheticWarRoomPoint != null)
-        'synthetic_war_room_current_review_command,/syntheticreview ${currentSyntheticWarRoomPoint.reportDate}',
-      if (currentSyntheticWarRoomPoint != null)
-        'synthetic_war_room_current_case_file_command,/syntheticcase json ${currentSyntheticWarRoomPoint.reportDate}',
-      if (previousSyntheticWarRoomPoint != null)
-        'synthetic_war_room_previous_review_command,/syntheticreview ${previousSyntheticWarRoomPoint.reportDate}',
-      if (previousSyntheticWarRoomPoint != null)
-        'synthetic_war_room_previous_case_file_command,/syntheticcase json ${previousSyntheticWarRoomPoint.reportDate}',
+      ...buildReviewShortcutCsvRows(
+        currentReportDate: currentSyntheticWarRoomPoint?.reportDate ?? '',
+        previousReportDate: previousSyntheticWarRoomPoint?.reportDate,
+        currentReviewMetric: 'synthetic_war_room_current_review_command',
+        currentCaseMetric: 'synthetic_war_room_current_case_file_command',
+        previousReviewMetric: 'synthetic_war_room_previous_review_command',
+        previousCaseMetric: 'synthetic_war_room_previous_case_file_command',
+        reviewCommandBuilder: (reportDate) => '/syntheticreview $reportDate',
+        caseFileCommandBuilder:
+            (reportDate) => '/syntheticcase json $reportDate',
+      ),
       for (var i = 0; i < syntheticWarRoomHistory.length; i++)
         'synthetic_war_room_history_${i + 1},"${_syntheticWarRoomHistoryCsvSummary(syntheticWarRoomHistory[i]).replaceAll('"', '""')}"',
       'receipt_generated_reports,${report.generatedReports}',
@@ -10350,14 +10335,16 @@ class _GovernancePageState extends State<GovernancePage> {
       'site_activity_baseline_guard_interactions_average,${siteActivityBaseline.guardInteractionAverage.toStringAsFixed(1)}',
       'site_activity_baseline_report_days,${siteActivityBaseline.reportDays}',
       'site_activity_target_scope_required,true',
-      if (currentSiteActivityPoint != null)
-        'site_activity_current_review_command,${_siteActivityReviewCommand(currentSiteActivityPoint.reportDate)}',
-      if (currentSiteActivityPoint != null)
-        'site_activity_current_case_file_command,${_siteActivityCaseFileCommand(currentSiteActivityPoint.reportDate)}',
-      if (previousSiteActivityPoint != null)
-        'site_activity_previous_review_command,${_siteActivityReviewCommand(previousSiteActivityPoint.reportDate)}',
-      if (previousSiteActivityPoint != null)
-        'site_activity_previous_case_file_command,${_siteActivityCaseFileCommand(previousSiteActivityPoint.reportDate)}',
+      ...buildReviewShortcutCsvRows(
+        currentReportDate: currentSiteActivityPoint?.reportDate ?? '',
+        previousReportDate: previousSiteActivityPoint?.reportDate,
+        currentReviewMetric: 'site_activity_current_review_command',
+        currentCaseMetric: 'site_activity_current_case_file_command',
+        previousReviewMetric: 'site_activity_previous_review_command',
+        previousCaseMetric: 'site_activity_previous_case_file_command',
+        reviewCommandBuilder: _siteActivityReviewCommand,
+        caseFileCommandBuilder: _siteActivityCaseFileCommand,
+      ),
       for (var i = 0; i < siteActivityHistory.length; i++)
         'site_activity_history_${i + 1},"${_siteActivityHistoryCsvSummary(siteActivityHistory[i]).replaceAll('"', '""')}"',
       for (var i = 0; i < siteActivityHistory.length; i++)

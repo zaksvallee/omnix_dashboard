@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../application/dispatch_snapshot_file_service.dart';
 import '../application/email_bridge_service.dart';
 import '../application/morning_sovereign_report_service.dart';
+import '../application/review_shortcut_contract.dart';
 import '../application/site_activity_intelligence_service.dart';
 import '../application/site_activity_telegram_formatter.dart';
 import '../application/text_share_service.dart';
@@ -1616,32 +1617,20 @@ class _RightRail extends StatelessWidget {
         if (scope != null) 'siteId': scope.siteId,
       },
       if (scope != null)
-        'reviewShortcuts': {
-          if (historyDates.isNotEmpty)
-            'currentShiftReviewCommand': _siteActivityReviewCommand(
-              clientId: scope.clientId,
-              siteId: scope.siteId,
-              reportDate: historyDates.first,
-            ),
-          if (historyDates.isNotEmpty)
-            'currentShiftCaseFileCommand': _siteActivityCaseFileCommand(
-              clientId: scope.clientId,
-              siteId: scope.siteId,
-              reportDate: historyDates.first,
-            ),
-          if (historyDates.length > 1)
-            'previousShiftReviewCommand': _siteActivityReviewCommand(
-              clientId: scope.clientId,
-              siteId: scope.siteId,
-              reportDate: historyDates[1],
-            ),
-          if (historyDates.length > 1)
-            'previousShiftCaseFileCommand': _siteActivityCaseFileCommand(
-              clientId: scope.clientId,
-              siteId: scope.siteId,
-              reportDate: historyDates[1],
-            ),
-        },
+        'reviewShortcuts': buildReviewShortcuts(
+          currentReportDate: historyDates.isEmpty ? '' : historyDates.first,
+          previousReportDate: historyDates.length > 1 ? historyDates[1] : null,
+          reviewCommandBuilder: (reportDate) => _siteActivityReviewCommand(
+            clientId: scope.clientId,
+            siteId: scope.siteId,
+            reportDate: reportDate,
+          ),
+          caseFileCommandBuilder: (reportDate) => _siteActivityCaseFileCommand(
+            clientId: scope.clientId,
+            siteId: scope.siteId,
+            reportDate: reportDate,
+          ),
+        ),
       'siteActivity': {
         'totalSignals': siteActivity.totalSignals,
         'personSignals': siteActivity.personSignals,
@@ -1679,14 +1668,26 @@ class _RightRail extends StatelessWidget {
       'generated_at_utc,${sovereignReport?.generatedAtUtc.toIso8601String() ?? ''}',
       if (scope != null) 'client_id,${scope.clientId}',
       if (scope != null) 'site_id,${scope.siteId}',
-      if (scope != null && historyDates.isNotEmpty)
-        'current_review_command,${_siteActivityReviewCommand(clientId: scope.clientId, siteId: scope.siteId, reportDate: historyDates.first)}',
-      if (scope != null && historyDates.isNotEmpty)
-        'current_case_file_command,${_siteActivityCaseFileCommand(clientId: scope.clientId, siteId: scope.siteId, reportDate: historyDates.first)}',
-      if (scope != null && historyDates.length > 1)
-        'previous_review_command,${_siteActivityReviewCommand(clientId: scope.clientId, siteId: scope.siteId, reportDate: historyDates[1])}',
-      if (scope != null && historyDates.length > 1)
-        'previous_case_file_command,${_siteActivityCaseFileCommand(clientId: scope.clientId, siteId: scope.siteId, reportDate: historyDates[1])}',
+      if (scope != null)
+        ...buildReviewShortcutCsvRows(
+          currentReportDate: historyDates.isEmpty ? '' : historyDates.first,
+          previousReportDate: historyDates.length > 1 ? historyDates[1] : null,
+          currentReviewMetric: 'current_review_command',
+          currentCaseMetric: 'current_case_file_command',
+          previousReviewMetric: 'previous_review_command',
+          previousCaseMetric: 'previous_case_file_command',
+          reviewCommandBuilder: (reportDate) => _siteActivityReviewCommand(
+            clientId: scope.clientId,
+            siteId: scope.siteId,
+            reportDate: reportDate,
+          ),
+          caseFileCommandBuilder:
+              (reportDate) => _siteActivityCaseFileCommand(
+                clientId: scope.clientId,
+                siteId: scope.siteId,
+                reportDate: reportDate,
+              ),
+        ),
       'site_activity_total_signals,${siteActivity.totalSignals}',
       'site_activity_people,${siteActivity.personSignals}',
       'site_activity_vehicles,${siteActivity.vehicleSignals}',

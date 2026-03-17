@@ -55,6 +55,7 @@ import 'application/monitoring_watch_vision_review_service.dart';
 import 'application/report_shell_state.dart';
 import 'application/report_entry_context.dart';
 import 'application/report_preview_request.dart';
+import 'application/review_shortcut_contract.dart';
 import 'application/monitoring_watch_resync_plan_service.dart';
 import 'application/monitoring_watch_resync_outcome_recorder.dart';
 import 'application/monitoring_watch_schedule_sync_plan_service.dart';
@@ -6078,15 +6079,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'previousCaseFileCommand': previousReport == null
           ? ''
           : '/syntheticcase json ${previousReport.date}',
-      'reviewShortcuts': {
-        'currentShiftReviewCommand': '/syntheticreview ${report.date}',
-        'currentShiftCaseFileCommand': '/syntheticcase json ${report.date}',
-        if (previousReport != null)
-          'previousShiftReviewCommand': '/syntheticreview ${previousReport.date}',
-        if (previousReport != null)
-          'previousShiftCaseFileCommand':
-              '/syntheticcase json ${previousReport.date}',
-      },
+      'reviewShortcuts': buildReviewShortcuts(
+        currentReportDate: report.date,
+        previousReportDate: previousReport?.date,
+        reviewCommandBuilder: (reportDate) => '/syntheticreview $reportDate',
+        caseFileCommandBuilder:
+            (reportDate) => '/syntheticcase json $reportDate',
+      ),
       'historyHeadline': historyHeadline,
       'historySummary': historySummary,
       'plans': plans

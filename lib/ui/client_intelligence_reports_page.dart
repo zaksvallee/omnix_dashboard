@@ -20,6 +20,7 @@ import '../application/report_preview_surface.dart';
 import '../application/report_generation_service.dart';
 import '../application/report_receipt_scene_filter.dart';
 import '../application/report_shell_state.dart';
+import '../application/review_shortcut_contract.dart';
 import '../application/site_activity_intelligence_service.dart';
 import '../domain/crm/reporting/report_branding_configuration.dart';
 import '../domain/crm/reporting/report_section_configuration.dart';
@@ -6525,32 +6526,20 @@ class _ClientIntelligenceReportsPageState
         if (partnerLabel != null && partnerLabel.trim().isNotEmpty)
           'partnerLabel': partnerLabel,
       },
-      'reviewShortcuts': <String, Object?>{
-        if (currentPoint != null)
-          'currentShiftReviewCommand': _siteActivityReviewCommand(
-            clientId: clientId,
-            siteId: siteId,
-            reportDate: currentPoint.reportDate,
-          ),
-        if (currentPoint != null)
-          'currentShiftCaseFileCommand': _siteActivityCaseFileCommand(
-            clientId: clientId,
-            siteId: siteId,
-            reportDate: currentPoint.reportDate,
-          ),
-        if (previousPoint != null)
-          'previousShiftReviewCommand': _siteActivityReviewCommand(
-            clientId: clientId,
-            siteId: siteId,
-            reportDate: previousPoint.reportDate,
-          ),
-        if (previousPoint != null)
-          'previousShiftCaseFileCommand': _siteActivityCaseFileCommand(
-            clientId: clientId,
-            siteId: siteId,
-            reportDate: previousPoint.reportDate,
-          ),
-      },
+      'reviewShortcuts': buildReviewShortcuts(
+        currentReportDate: currentPoint?.reportDate ?? '',
+        previousReportDate: previousPoint?.reportDate,
+        reviewCommandBuilder: (reportDate) => _siteActivityReviewCommand(
+          clientId: clientId,
+          siteId: siteId,
+          reportDate: reportDate,
+        ),
+        caseFileCommandBuilder: (reportDate) => _siteActivityCaseFileCommand(
+          clientId: clientId,
+          siteId: siteId,
+          reportDate: reportDate,
+        ),
+      ),
       'currentTruth': currentPoint == null
           ? null
           : <String, Object?>{
@@ -6611,16 +6600,26 @@ class _ClientIntelligenceReportsPageState
         'partner_label,"${partnerLabel.replaceAll('"', '""')}"',
       if (currentPoint != null)
         'current_report_date,${currentPoint.reportDate}',
-      if (currentPoint != null)
-        'current_review_command,${_siteActivityReviewCommand(clientId: clientId, siteId: siteId, reportDate: currentPoint.reportDate)}',
-      if (currentPoint != null)
-        'current_case_file_command,${_siteActivityCaseFileCommand(clientId: clientId, siteId: siteId, reportDate: currentPoint.reportDate)}',
+      ...buildReviewShortcutCsvRows(
+        currentReportDate: currentPoint?.reportDate ?? '',
+        previousReportDate: previousPoint?.reportDate,
+        currentReviewMetric: 'current_review_command',
+        currentCaseMetric: 'current_case_file_command',
+        previousReviewMetric: 'previous_review_command',
+        previousCaseMetric: 'previous_case_file_command',
+        reviewCommandBuilder: (reportDate) => _siteActivityReviewCommand(
+          clientId: clientId,
+          siteId: siteId,
+          reportDate: reportDate,
+        ),
+        caseFileCommandBuilder: (reportDate) => _siteActivityCaseFileCommand(
+          clientId: clientId,
+          siteId: siteId,
+          reportDate: reportDate,
+        ),
+      ),
       if (previousPoint != null)
         'previous_report_date,${previousPoint.reportDate}',
-      if (previousPoint != null)
-        'previous_review_command,${_siteActivityReviewCommand(clientId: clientId, siteId: siteId, reportDate: previousPoint.reportDate)}',
-      if (previousPoint != null)
-        'previous_case_file_command,${_siteActivityCaseFileCommand(clientId: clientId, siteId: siteId, reportDate: previousPoint.reportDate)}',
       if (currentPoint != null)
         'current_total_signals,${currentPoint.snapshot.totalSignals}',
       if (currentPoint != null)
