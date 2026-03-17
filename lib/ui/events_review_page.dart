@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../application/morning_sovereign_report_service.dart';
+import '../application/site_activity_intelligence_service.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_completed.dart';
@@ -77,6 +78,7 @@ class _SeededDispatchEvent extends DispatchEvent {
 }
 
 class _EventsReviewPageState extends State<EventsReviewPage> {
+  static const _siteActivityService = SiteActivityIntelligenceService();
   static const String _filterAll = 'ALL';
   static const String _sourceFilterAll = 'ALL SOURCES';
   static const String _providerFilterAll = 'ALL PROVIDERS';
@@ -196,6 +198,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       scopedEventIds: scopedEventIds,
     );
     final partnerScopeSummary = _partnerScopeSummary(scopedTimelineEvents);
+    final activityScopeSummary = _activityScopeSummary(scopedTimelineEvents);
     final scopeFiltered = scopedEventIds.isEmpty
         ? filtered
         : filtered
@@ -382,6 +385,93 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                       ),
                     ),
                   ),
+                ] else if (activityScopeSummary != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    key: const ValueKey('events-activity-scope-banner'),
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0x1422D3EE),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0x4422D3EE)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          activityScopeSummary.bannerText,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFEAF1FB),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          activityScopeSummary.summaryLine,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFAFC2DB),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (activityScopeSummary.topFlaggedIdentitySummary
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Flagged: ${activityScopeSummary.topFlaggedIdentitySummary}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFFDA4AF),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                        if (activityScopeSummary.topLongPresenceSummary
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Long presence: ${activityScopeSummary.topLongPresenceSummary}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFFDE68A),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                        if (activityScopeSummary.topGuardInteractionSummary
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Guard note: ${activityScopeSummary.topGuardInteractionSummary}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF93C5FD),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                        if (activityScopeSummary.reviewRefs.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Review refs: ${activityScopeSummary.reviewRefs.join(', ')}',
+                            style: GoogleFonts.robotoMono(
+                              color: const Color(0xFF8FD1FF),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ] else if (scopedEventIds.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Container(
@@ -557,6 +647,39 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       eventCount: partnerEvents.length,
       partnerLabel: partnerLabels.length == 1 ? partnerLabels.first : null,
       siteId: siteIds.length == 1 ? siteIds.first : null,
+    );
+  }
+
+  _ActivityScopeSummary? _activityScopeSummary(
+    List<DispatchEvent> scopedEvents,
+  ) {
+    final activityEvents = scopedEvents
+        .whereType<IntelligenceReceived>()
+        .where((event) {
+          final source = event.sourceType.trim().toLowerCase();
+          return source == 'dvr' || source == 'cctv';
+        })
+        .toList(growable: false);
+    if (activityEvents.isEmpty) {
+      return null;
+    }
+    final snapshot = _siteActivityService.buildSnapshot(events: activityEvents);
+    if (snapshot.totalSignals == 0) {
+      return null;
+    }
+    final siteIds = activityEvents
+        .map((event) => event.siteId.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    return _ActivityScopeSummary(
+      eventCount: snapshot.totalSignals,
+      siteId: siteIds.length == 1 ? siteIds.first : null,
+      summaryLine: snapshot.summaryLine,
+      topFlaggedIdentitySummary: snapshot.topFlaggedIdentitySummary,
+      topLongPresenceSummary: snapshot.topLongPresenceSummary,
+      topGuardInteractionSummary: snapshot.topGuardInteractionSummary,
+      reviewRefs: snapshot.evidenceEventIds,
     );
   }
 
@@ -2236,6 +2359,32 @@ class _PartnerScopeSummary {
         ? ''
         : ' ${detailParts.join(' • ')}';
     return 'Partner dispatch review active for $eventCount declared $actionWord.$detailSuffix';
+  }
+}
+
+class _ActivityScopeSummary {
+  final int eventCount;
+  final String? siteId;
+  final String summaryLine;
+  final String topFlaggedIdentitySummary;
+  final String topLongPresenceSummary;
+  final String topGuardInteractionSummary;
+  final List<String> reviewRefs;
+
+  const _ActivityScopeSummary({
+    required this.eventCount,
+    required this.siteId,
+    required this.summaryLine,
+    required this.topFlaggedIdentitySummary,
+    required this.topLongPresenceSummary,
+    required this.topGuardInteractionSummary,
+    required this.reviewRefs,
+  });
+
+  String get bannerText {
+    final signalWord = eventCount == 1 ? 'signal' : 'signals';
+    final siteSuffix = siteId == null || siteId!.isEmpty ? '' : ' • ${siteId!}';
+    return 'Activity investigation active for $eventCount linked CCTV $signalWord$siteSuffix.';
   }
 }
 

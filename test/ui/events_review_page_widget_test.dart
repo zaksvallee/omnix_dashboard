@@ -825,4 +825,152 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('events review shows dedicated activity investigation banner', (
+    tester,
+  ) async {
+    final events = <DispatchEvent>[
+      IntelligenceReceived(
+        eventId: 'ACTIVITY-1',
+        sequence: 3,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 16, 21, 0),
+        intelligenceId: 'INTEL-ACTIVITY-1',
+        provider: 'hikvision-dvr',
+        sourceType: 'dvr',
+        externalId: 'dvr-activity-1',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        cameraId: 'gate-cam',
+        objectLabel: 'person',
+        headline: 'Watchlist subject detected',
+        summary: 'Unauthorized person matched watchlist context.',
+        riskScore: 93,
+        canonicalHash: 'hash-activity-1',
+      ),
+      IntelligenceReceived(
+        eventId: 'ACTIVITY-2',
+        sequence: 2,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 16, 22, 0),
+        intelligenceId: 'INTEL-ACTIVITY-2',
+        provider: 'hikvision-dvr',
+        sourceType: 'dvr',
+        externalId: 'dvr-activity-2',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        cameraId: 'gate-cam',
+        objectLabel: 'human',
+        headline: 'Guard conversation observed',
+        summary: 'Guard talking to unknown individual near the gate.',
+        riskScore: 66,
+        canonicalHash: 'hash-activity-2',
+      ),
+      IntelligenceReceived(
+        eventId: 'ACTIVITY-3',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 17, 0, 30),
+        intelligenceId: 'INTEL-ACTIVITY-3',
+        provider: 'hikvision-dvr',
+        sourceType: 'dvr',
+        externalId: 'dvr-activity-3',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        cameraId: 'gate-cam',
+        objectLabel: 'human',
+        headline: 'Guard conversation continues',
+        summary: 'Guard conversation with unknown individual continued.',
+        riskScore: 68,
+        canonicalHash: 'hash-activity-3',
+      ),
+      IntelligenceReceived(
+        eventId: 'INT-UNRELATED',
+        sequence: 0,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 17, 1, 0),
+        intelligenceId: 'INTEL-UNRELATED',
+        provider: 'newsapi.org',
+        sourceType: 'news',
+        externalId: 'news-unrelated',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        headline: 'Unrelated perimeter movement',
+        summary: 'General motion near the outer wall.',
+        riskScore: 40,
+        canonicalHash: 'hash-unrelated',
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: EventsReviewPage(
+          events: events,
+          initialScopedEventIds: const [
+            'ACTIVITY-1',
+            'ACTIVITY-2',
+            'ACTIVITY-3',
+          ],
+          initialSelectedEventId: 'ACTIVITY-3',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(
+        const ValueKey('events-activity-scope-banner'),
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'Activity investigation active for 3 linked CCTV signals • SITE-SANDTON.',
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'Signals 3 • People 3 • Unknown 3 • Long presence 1 • Guard interactions 2 • Flagged IDs 1',
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'Flagged: Unknown person flagged near gate-cam',
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'Long presence: Unknown person remained near gate-cam for 3h 30m',
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'Guard note: Guard interaction observed near gate-cam',
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'Review refs: ACTIVITY-1, ACTIVITY-3',
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Visit-scoped review active for'), findsNothing);
+    expect(find.text('Unrelated perimeter movement'), findsNothing);
+  });
 }
