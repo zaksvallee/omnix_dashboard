@@ -4720,6 +4720,7 @@ void main() {
         '"historySummary": "Current matches 0 • Baseline 0.0 • Shadow-MO match pressure is holding close to the recent baseline."',
       ),
     );
+    expect(copiedPayload, contains('"validationSummary": ""'));
     expect(copiedPayload, contains('"planCount": 0'));
     expect(copiedPayload, contains('"policyCount": 0'));
     expect(copiedPayload, contains('"modeLabel": "QUIET REHEARSAL"'));
@@ -4878,6 +4879,10 @@ void main() {
       contains(
         'global_readiness_shadow_history_summary,"Current matches 0 • Baseline 0.0 • Shadow-MO match pressure is holding close to the recent baseline."',
       ),
+    );
+    expect(
+      copiedPayload,
+      contains('global_readiness_shadow_validation_summary,""'),
     );
     expect(copiedPayload, contains('synthetic_war_room_plan_count,0'));
     expect(copiedPayload, contains('synthetic_war_room_policy_count,0'));

@@ -3169,6 +3169,73 @@ class _GovernancePageState extends State<GovernancePage> {
     return (headline: headline, summary: summary);
   }
 
+  String _shadowMoValidationSummaryForSites(
+    List<MonitoringGlobalSitePosture> sites,
+  ) {
+    if (sites.isEmpty) {
+      return '';
+    }
+    final counts = <String, int>{};
+    for (final site in sites) {
+      for (final match in site.moShadowMatches) {
+        final status = match.validationStatus.trim();
+        if (status.isEmpty) {
+          continue;
+        }
+        counts.update(status, (value) => value + 1, ifAbsent: () => 1);
+      }
+    }
+    if (counts.isEmpty) {
+      return '';
+    }
+    const priority = <String>[
+      'production',
+      'validated',
+      'shadowMode',
+      'candidate',
+    ];
+    final ordered = counts.keys.toList(growable: false)
+      ..sort((left, right) {
+        final leftIndex = priority.indexOf(left);
+        final rightIndex = priority.indexOf(right);
+        if (leftIndex == -1 && rightIndex == -1) {
+          return left.compareTo(right);
+        }
+        if (leftIndex == -1) {
+          return 1;
+        }
+        if (rightIndex == -1) {
+          return -1;
+        }
+        return leftIndex.compareTo(rightIndex);
+      });
+    return ordered
+        .map(
+          (status) =>
+              '${_humanizeShadowValidationStatus(status)} ${counts[status]}',
+        )
+        .join(' • ');
+  }
+
+  String _humanizeShadowValidationStatus(String status) {
+    switch (status.trim()) {
+      case 'shadowMode':
+        return 'Shadow mode';
+      case 'validated':
+        return 'Validated';
+      case 'production':
+        return 'Production';
+      case 'candidate':
+        return 'Candidate';
+      default:
+        final trimmed = status.trim();
+        if (trimmed.isEmpty) {
+          return '';
+        }
+        return trimmed[0].toUpperCase() + trimmed.substring(1);
+    }
+  }
+
   List<DispatchEvent> _eventsScopedToWindow(
     DateTime? startUtcValue,
     DateTime? endUtcValue,
@@ -8171,7 +8238,10 @@ class _GovernancePageState extends State<GovernancePage> {
       sites: shadowSites,
       generatedAtUtc: report.generatedAtUtc,
       countKey: 'shadowSiteCount',
-      metadata: <String, Object?>{'reportDate': report.reportDate},
+      metadata: <String, Object?>{
+        'reportDate': report.reportDate,
+        'validationSummary': _shadowMoValidationSummaryForSites(shadowSites),
+      },
     );
   }
 
@@ -10980,6 +11050,9 @@ class _GovernancePageState extends State<GovernancePage> {
             'summary': shadowSites.isEmpty
                 ? ''
                 : '${shadowSites.length} sites • ${shadowSites.first.moShadowSummary}',
+            'validationSummary': _shadowMoValidationSummaryForSites(
+              shadowSites,
+            ),
             'historyHeadline': shadowHistory.headline,
             'historySummary': shadowHistory.summary,
             'reviewShortcuts': buildReviewShortcuts(
@@ -11304,6 +11377,7 @@ class _GovernancePageState extends State<GovernancePage> {
       'global_readiness_tomorrow_review_command,/tomorrowreview ${report.reportDate}',
       'global_readiness_tomorrow_case_file_command,/tomorrowcase json ${report.reportDate}',
       'global_readiness_shadow_summary,"${(shadowSites.isEmpty ? '' : '${shadowSites.length} sites • ${shadowSites.first.moShadowSummary}').replaceAll('"', '""')}"',
+      'global_readiness_shadow_validation_summary,"${_shadowMoValidationSummaryForSites(shadowSites).replaceAll('"', '""')}"',
       'global_readiness_shadow_history_headline,"${shadowHistory.headline.replaceAll('"', '""')}"',
       'global_readiness_shadow_history_summary,"${shadowHistory.summary.replaceAll('"', '""')}"',
       'global_readiness_focus_state,${_globalReadinessFocusState(report)}',
