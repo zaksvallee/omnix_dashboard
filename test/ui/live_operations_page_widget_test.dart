@@ -320,6 +320,9 @@ void main() {
     expect(find.text('Fire / Smoke Emergency'), findsWidgets);
     expect(find.text('P1'), findsWidgets);
     expect(find.textContaining('fire and smoke emergency'), findsOneWidget);
+    expect(find.text('FIRE RESPONSE'), findsOneWidget);
+    expect(find.text('CLIENT SAFETY CALL'), findsOneWidget);
+    expect(find.text('FIRE VERIFY'), findsOneWidget);
   });
 
   testWidgets(

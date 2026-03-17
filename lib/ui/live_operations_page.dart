@@ -3111,6 +3111,15 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     if (incident == null) return const [];
     final duress = _duressDetected(incident);
     final videoActivationStep = '${widget.videoOpsLabel} ACTIVATION';
+    final dispatchStep = _dispatchStepLabel(incident);
+    final clientCallStep = _clientCallStepLabel(incident);
+    final verifyStep = _verifyStepLabel(incident);
+    final dispatchActiveDetails = _dispatchActiveDetails(incident);
+    final dispatchActiveMetadata = _dispatchActiveMetadata(incident);
+    final clientCallActiveDetails = _clientCallActiveDetails(incident);
+    final videoActiveDetails = _videoActiveDetails(incident);
+    final videoActiveMetadata = _videoActiveMetadata(incident);
+    final verifyThinkingMessage = _verifyThinkingMessage(incident);
     if (incident.status == _IncidentStatus.resolved) {
       return [
         _LadderStep(
@@ -3120,12 +3129,12 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         ),
         _LadderStep(
           id: 's2',
-          name: 'AUTO-DISPATCH',
+          name: dispatchStep,
           status: _LadderStepStatus.completed,
         ),
         _LadderStep(
           id: 's3',
-          name: 'VOIP CLIENT CALL',
+          name: clientCallStep,
           status: _LadderStepStatus.completed,
         ),
         _LadderStep(
@@ -3135,7 +3144,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         ),
         _LadderStep(
           id: 's5',
-          name: 'VISION VERIFY',
+          name: verifyStep,
           status: _LadderStepStatus.completed,
         ),
       ];
@@ -3149,27 +3158,28 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         ),
         _LadderStep(
           id: 's2',
-          name: 'AUTO-DISPATCH',
+          name: dispatchStep,
           status: _LadderStepStatus.completed,
         ),
         _LadderStep(
           id: 's3',
-          name: 'VOIP CLIENT CALL',
+          name: clientCallStep,
           status: _LadderStepStatus.completed,
+          details: clientCallActiveDetails,
         ),
         _LadderStep(
           id: 's4',
           name: videoActivationStep,
           status: _LadderStepStatus.active,
-          details: 'Live perimeter stream active.',
+          details: videoActiveDetails,
           timestamp: '22:14:18',
-          metadata: 'Camera cluster N4 · confidence 98%',
+          metadata: videoActiveMetadata,
         ),
         _LadderStep(
           id: 's5',
-          name: 'VISION VERIFY',
+          name: verifyStep,
           status: _LadderStepStatus.thinking,
-          thinkingMessage: 'Comparing live capture against norm baseline...',
+          thinkingMessage: verifyThinkingMessage,
         ),
       ];
     }
@@ -3182,17 +3192,17 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         ),
         _LadderStep(
           id: 's2',
-          name: 'AUTO-DISPATCH',
+          name: dispatchStep,
           status: _LadderStepStatus.completed,
-          details: 'Officer Echo-3 • 2.4km • ETA 4m 12s',
+          details: dispatchActiveDetails,
           timestamp: '22:14:06',
-          metadata: 'Nearest armed response selected',
+          metadata: dispatchActiveMetadata,
         ),
         _LadderStep(
           id: 's3',
-          name: 'VOIP CLIENT CALL',
+          name: clientCallStep,
           status: _LadderStepStatus.active,
-          details: 'Safe-word verification call in progress.',
+          details: clientCallActiveDetails,
         ),
         _LadderStep(
           id: 's4',
@@ -3201,7 +3211,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         ),
         _LadderStep(
           id: 's5',
-          name: 'VISION VERIFY',
+          name: verifyStep,
           status: _LadderStepStatus.pending,
         ),
       ];
@@ -3212,33 +3222,186 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         name: 'SIGNAL TRIAGE',
         status: _LadderStepStatus.completed,
       ),
-      const _LadderStep(
+      _LadderStep(
         id: 's2',
-        name: 'AUTO-DISPATCH',
+        name: dispatchStep,
         status: _LadderStepStatus.active,
-        details: 'Selecting nearest available response unit...',
+        details: dispatchActiveDetails,
         timestamp: '22:14:06',
-        metadata: 'Echo-3 candidate · 2.4km',
+        metadata: dispatchActiveMetadata,
       ),
       _LadderStep(
         id: 's3',
-        name: 'VOIP CLIENT CALL',
+        name: clientCallStep,
         status: duress ? _LadderStepStatus.blocked : _LadderStepStatus.thinking,
         thinkingMessage: duress
             ? 'Silent duress suspected • waiting for forced dispatch.'
-            : 'Waiting for VoIP completion...',
+            : _clientCallThinkingMessage(incident),
       ),
       _LadderStep(
         id: 's4',
         name: videoActivationStep,
         status: _LadderStepStatus.pending,
       ),
-      const _LadderStep(
+      _LadderStep(
         id: 's5',
-        name: 'VISION VERIFY',
+        name: verifyStep,
         status: _LadderStepStatus.pending,
       ),
     ];
+  }
+
+  String _dispatchStepLabel(_IncidentRecord incident) {
+    if (_isFireIncident(incident)) {
+      return 'FIRE RESPONSE';
+    }
+    if (_isLeakIncident(incident)) {
+      return 'LEAK CONTAINMENT';
+    }
+    if (_isHazardIncident(incident)) {
+      return 'HAZARD RESPONSE';
+    }
+    return 'AUTO-DISPATCH';
+  }
+
+  String _clientCallStepLabel(_IncidentRecord incident) {
+    if (_isHazardIncident(incident)) {
+      return 'CLIENT SAFETY CALL';
+    }
+    return 'VOIP CLIENT CALL';
+  }
+
+  String _verifyStepLabel(_IncidentRecord incident) {
+    if (_isFireIncident(incident)) {
+      return 'FIRE VERIFY';
+    }
+    if (_isLeakIncident(incident)) {
+      return 'LEAK VERIFY';
+    }
+    if (_isHazardIncident(incident)) {
+      return 'HAZARD VERIFY';
+    }
+    return 'VISION VERIFY';
+  }
+
+  String _dispatchActiveDetails(_IncidentRecord incident) {
+    if (_isFireIncident(incident)) {
+      return 'Escalating fire response posture and emergency notification lane.';
+    }
+    if (_isLeakIncident(incident)) {
+      return 'Escalating water-loss response posture and site containment lane.';
+    }
+    if (_isHazardIncident(incident)) {
+      return 'Escalating hazard response posture and site safety lane.';
+    }
+    return 'Officer Echo-3 • 2.4km • ETA 4m 12s';
+  }
+
+  String _dispatchActiveMetadata(_IncidentRecord incident) {
+    if (_isFireIncident(incident)) {
+      return 'Emergency route selected • fire posture locked';
+    }
+    if (_isLeakIncident(incident)) {
+      return 'Containment route selected • water-loss posture locked';
+    }
+    if (_isHazardIncident(incident)) {
+      return 'Safety route selected • hazard posture locked';
+    }
+    return 'Nearest armed response selected';
+  }
+
+  String _clientCallActiveDetails(_IncidentRecord incident) {
+    if (_isFireIncident(incident)) {
+      return 'Client safety call in progress while ONYX checks for spread.';
+    }
+    if (_isLeakIncident(incident)) {
+      return 'Client safety call in progress while ONYX checks for worsening water loss.';
+    }
+    if (_isHazardIncident(incident)) {
+      return 'Client safety call in progress while ONYX checks for worsening hazard conditions.';
+    }
+    return 'Safe-word verification call in progress.';
+  }
+
+  String _clientCallThinkingMessage(_IncidentRecord incident) {
+    if (_isFireIncident(incident)) {
+      return 'Preparing emergency client safety call...';
+    }
+    if (_isLeakIncident(incident)) {
+      return 'Preparing flood or leak safety call...';
+    }
+    if (_isHazardIncident(incident)) {
+      return 'Preparing hazard safety call...';
+    }
+    return 'Waiting for VoIP completion...';
+  }
+
+  String _videoActiveDetails(_IncidentRecord incident) {
+    if (_isFireIncident(incident)) {
+      return 'Live thermal and smoke evidence stream active.';
+    }
+    if (_isLeakIncident(incident)) {
+      return 'Live pooling and spread evidence stream active.';
+    }
+    if (_isHazardIncident(incident)) {
+      return 'Live hazard verification stream active.';
+    }
+    return 'Live perimeter stream active.';
+  }
+
+  String _videoActiveMetadata(_IncidentRecord incident) {
+    if (_isFireIncident(incident)) {
+      return 'Generator room cluster · confidence 98%';
+    }
+    if (_isLeakIncident(incident)) {
+      return 'Stock room cluster · confidence 96%';
+    }
+    if (_isHazardIncident(incident)) {
+      return 'Safety zone cluster · confidence 94%';
+    }
+    return 'Camera cluster N4 · confidence 98%';
+  }
+
+  String _verifyThinkingMessage(_IncidentRecord incident) {
+    if (_isFireIncident(incident)) {
+      return 'Checking for flame growth, smoke density, and spread pattern...';
+    }
+    if (_isLeakIncident(incident)) {
+      return 'Checking for pooling spread, pipe-burst pattern, and ongoing water loss...';
+    }
+    if (_isHazardIncident(incident)) {
+      return 'Checking for worsening hazard indicators against baseline...';
+    }
+    return 'Comparing live capture against norm baseline...';
+  }
+
+  bool _isFireIncident(_IncidentRecord incident) {
+    final text = _incidentHazardText(incident);
+    return text.contains('fire') || text.contains('smoke');
+  }
+
+  bool _isLeakIncident(_IncidentRecord incident) {
+    final text = _incidentHazardText(incident);
+    return text.contains('flood') || text.contains('leak');
+  }
+
+  bool _isHazardIncident(_IncidentRecord incident) {
+    if (_isFireIncident(incident) || _isLeakIncident(incident)) {
+      return true;
+    }
+    return _incidentHazardText(incident).contains('hazard');
+  }
+
+  String _incidentHazardText(_IncidentRecord incident) {
+    return [
+      incident.type,
+      incident.latestSceneReviewLabel,
+      incident.latestSceneReviewSummary,
+      incident.latestSceneDecisionLabel,
+      incident.latestSceneDecisionSummary,
+      incident.latestIntelHeadline,
+      incident.latestIntelSummary,
+    ].join(' ').toLowerCase();
   }
 
   List<_LedgerEntry> _deriveLedger(List<DispatchEvent> events) {
