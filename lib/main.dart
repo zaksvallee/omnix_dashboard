@@ -5428,6 +5428,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       syntheticWarRoomPromotionSummary: _syntheticWarRoomPromotionSummary(
         syntheticWarRoomPlans,
       ),
+      syntheticWarRoomPromotionDecisionSummary:
+          _syntheticWarRoomPromotionDecisionSummary(syntheticWarRoomPlans),
       syntheticWarRoomLearningSummary: _syntheticWarRoomLearningSummary(
         syntheticWarRoomPlans,
       ),
