@@ -10,6 +10,7 @@ class SiteActivityTelegramFormatter {
     String? trendLabel,
     String? trendSummary,
     bool includeEvidenceHandoff = false,
+    String? caseFileHint,
   }) {
     final lines = <String>[
       if ((siteLabel ?? '').trim().isNotEmpty)
@@ -79,6 +80,9 @@ class SiteActivityTelegramFormatter {
 
     if (includeEvidenceHandoff && snapshot.evidenceEventIds.isNotEmpty) {
       lines.add('Review: ${snapshot.evidenceEventIds.join(', ')}');
+    }
+    if ((caseFileHint ?? '').trim().isNotEmpty) {
+      lines.add('Case file: ${caseFileHint!.trim()}');
     }
 
     return lines.join('\n');

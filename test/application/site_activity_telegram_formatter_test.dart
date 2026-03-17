@@ -59,8 +59,13 @@ void main() {
       snapshot: snapshot,
       siteLabel: 'Vallee Residence',
       includeEvidenceHandoff: true,
+      caseFileHint: '/activitycase CLIENT-1 SITE-1',
     );
     expect(operatorMessage, contains('Review: ACTIVITY-7, ACTIVITY-11'));
+    expect(
+      operatorMessage,
+      contains('Case file: /activitycase CLIENT-1 SITE-1'),
+    );
   });
 
   test('formats quiet site activity telegram summary', () {

@@ -11059,6 +11059,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     required String clientId,
     required String siteId,
     bool includeEvidenceHandoff = false,
+    bool includeCaseFileHint = false,
   }) {
     final normalizedClientId = clientId.trim();
     final normalizedSiteId = siteId.trim();
@@ -11079,7 +11080,110 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       trendLabel: trend?.label,
       trendSummary: trend?.summary,
       includeEvidenceHandoff: includeEvidenceHandoff,
+      caseFileHint: includeCaseFileHint
+          ? '/activitycase $normalizedClientId $normalizedSiteId'
+          : null,
     );
+  }
+
+  Map<String, Object?> _siteActivityCaseFilePayload({
+    required String clientId,
+    required String siteId,
+  }) {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    final snapshot = _siteActivityIntelligenceService.buildSnapshot(
+      events: store.allEvents(),
+      clientId: normalizedClientId,
+      siteId: normalizedSiteId,
+    );
+    final trend = _siteActivityTrendSnapshotFor(snapshot);
+    final history = [..._morningSovereignReportHistory]
+      ..sort(
+        (left, right) => right.generatedAtUtc.compareTo(left.generatedAtUtc),
+      );
+    return {
+      'activityCaseFile': {
+        'scope': {
+          'clientId': normalizedClientId,
+          'siteId': normalizedSiteId,
+          'reportDate': _morningSovereignReport?.date,
+          'generatedAtUtc': _morningSovereignReport?.generatedAtUtc
+              .toIso8601String(),
+        },
+        'summaryLine': snapshot.summaryLine,
+        'eventIds': snapshot.eventIds,
+        'selectedEventId': snapshot.selectedEventId,
+        'reviewRefs': snapshot.evidenceEventIds,
+        'topFlaggedIdentitySummary': snapshot.topFlaggedIdentitySummary,
+        'topLongPresenceSummary': snapshot.topLongPresenceSummary,
+        'topGuardInteractionSummary': snapshot.topGuardInteractionSummary,
+        'trend': trend == null
+            ? null
+            : {
+                'label': trend.label,
+                'summary': trend.summary,
+              },
+        'history': history
+            .take(3)
+            .map(
+              (report) => {
+                'date': report.date,
+                'totalSignals': report.siteActivity.totalSignals,
+                'unknownSignals': report.siteActivity.unknownSignals,
+                'flaggedIdentitySignals':
+                    report.siteActivity.flaggedIdentitySignals,
+                'guardInteractionSignals':
+                    report.siteActivity.guardInteractionSignals,
+                'summaryLine': report.siteActivity.summaryLine,
+              },
+            )
+            .toList(growable: false),
+      },
+    };
+  }
+
+  String _siteActivityCaseFileCsv({
+    required String clientId,
+    required String siteId,
+  }) {
+    final payload = _siteActivityCaseFilePayload(
+      clientId: clientId,
+      siteId: siteId,
+    );
+    final caseFile =
+        payload['activityCaseFile'] as Map<String, Object?>? ??
+        const <String, Object?>{};
+    final scope =
+        caseFile['scope'] as Map<String, Object?>? ?? const <String, Object?>{};
+    final trend = caseFile['trend'] as Map<String, Object?>?;
+    final history = (caseFile['history'] as List<Object?>? ?? const <Object?>[])
+        .whereType<Map<String, Object?>>()
+        .toList(growable: false);
+    final lines = <String>[
+      'metric,value',
+      'client_id,${scope['clientId'] ?? ''}',
+      'site_id,${scope['siteId'] ?? ''}',
+      'report_date,${scope['reportDate'] ?? ''}',
+      'generated_at_utc,${scope['generatedAtUtc'] ?? ''}',
+      'summary_line,"${(caseFile['summaryLine'] as String? ?? '').replaceAll('"', '""')}"',
+      'selected_event_id,${caseFile['selectedEventId'] ?? ''}',
+      'review_refs,"${((caseFile['reviewRefs'] as List<Object?>? ?? const <Object?>[]).join(', ')).replaceAll('"', '""')}"',
+      'top_flagged_identity,"${(caseFile['topFlaggedIdentitySummary'] as String? ?? '').replaceAll('"', '""')}"',
+      'top_long_presence,"${(caseFile['topLongPresenceSummary'] as String? ?? '').replaceAll('"', '""')}"',
+      'top_guard_interaction,"${(caseFile['topGuardInteractionSummary'] as String? ?? '').replaceAll('"', '""')}"',
+      'trend_label,${trend?['label'] ?? ''}',
+      'trend_summary,"${(trend?['summary'] as String? ?? '').replaceAll('"', '""')}"',
+    ];
+    for (var index = 0; index < history.length; index += 1) {
+      final row = index + 1;
+      final point = history[index];
+      lines.add('history_${row}_date,${point['date'] ?? ''}');
+      lines.add(
+        'history_${row}_summary,"${(point['summaryLine'] as String? ?? '').replaceAll('"', '""')}"',
+      );
+    }
+    return lines.join('\n');
   }
 
   Future<String> _deliverSiteActivityTelegramSummary({
@@ -11124,6 +11228,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       clientId: normalizedClientId,
       siteId: normalizedSiteId,
       includeEvidenceHandoff: true,
+      includeCaseFileHint: true,
     );
     final stamp = DateTime.now().toUtc().microsecondsSinceEpoch;
     final dedupedMessages = <String, TelegramBridgeMessage>{};
@@ -12156,6 +12261,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           command: 'activitytruth',
           arguments: arguments,
         );
+      case '/activitycase':
+        return _TelegramAdminCommandParseResult(
+          command: 'activitycase',
+          arguments: arguments,
+        );
       case '/sendactivity':
         return _TelegramAdminCommandParseResult(
           command: 'sendactivity',
@@ -12371,6 +12481,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'alarmbindings',
         'alarmtest',
         'activitytruth',
+        'activitycase',
         'sendactivity',
         'demoprep',
         'demoflow',
@@ -12495,6 +12606,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     ])) {
       return const _TelegramAdminCommandParseResult(command: 'activitytruth');
     }
+    if (hasAny(const ['activity case', 'case file', 'activity dossier'])) {
+      return const _TelegramAdminCommandParseResult(command: 'activitycase');
+    }
     if (hasAny(const ['incident', 'incidents'])) {
       return const _TelegramAdminCommandParseResult(command: 'incidents');
     }
@@ -12592,6 +12706,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case 'bridges':
       case 'alarmbindings':
       case 'activitytruth':
+      case 'activitycase':
       case 'aidrafts':
       case 'aiconv':
       case 'whoami':
@@ -12685,6 +12800,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         return _telegramAdminAlarmTestCommand(arguments);
       case 'activitytruth':
         return _telegramAdminActivityTruthCommand(arguments);
+      case 'activitycase':
+        return _telegramAdminActivityCaseCommand(arguments);
       case 'sendactivity':
         return _telegramAdminSendActivityCommand(arguments);
       case 'demoprep':
@@ -12820,6 +12937,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '• <code>/unlinkalarm &lt;account&gt; [partition] [zone]</code> | <code>/alarmbindings [account]</code>\n'
         '• <code>/alarmtest &lt;clear|suspicious|pending|unavailable&gt; &lt;listener line&gt;</code>\n'
         '• <code>/activitytruth [client_id site_id]</code>\n'
+        '• <code>/activitycase [json|csv] [client_id site_id]</code>\n'
         '• <code>/sendactivity [client|partner|both] [client_id site_id]</code>\n'
         '\n---\n\n'
         '<b>Admin</b>\n'
@@ -14702,10 +14820,44 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       clientId: normalizedClientId,
       siteId: normalizedSiteId,
       includeEvidenceHandoff: true,
+      includeCaseFileHint: true,
     );
     return 'ONYX ACTIVITYTRUTH\n'
         'scope=$normalizedClientId/$normalizedSiteId\n'
         '$summary';
+  }
+
+  String _telegramAdminActivityCaseCommand(String arguments) {
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    var format = 'json';
+    var index = 0;
+    if (tokens.isNotEmpty) {
+      final first = tokens.first.toLowerCase();
+      if (first == 'json' || first == 'csv') {
+        format = first;
+        index = 1;
+      }
+    }
+    final scope = _parseMonitoringWatchScope(tokens.sublist(index).join(' '));
+    if (scope == null ||
+        scope.clientId.trim().isEmpty ||
+        scope.siteId.trim().isEmpty) {
+      return 'ONYX ACTIVITYCASE\nUsage: /activitycase [json|csv] [client_id site_id]';
+    }
+    final normalizedClientId = scope.clientId.trim();
+    final normalizedSiteId = scope.siteId.trim();
+    if (format == 'csv') {
+      return 'ONYX ACTIVITYCASE CSV\n'
+          'scope=$normalizedClientId/$normalizedSiteId\n'
+          '${_siteActivityCaseFileCsv(clientId: normalizedClientId, siteId: normalizedSiteId)}';
+    }
+    return 'ONYX ACTIVITYCASE JSON\n'
+        'scope=$normalizedClientId/$normalizedSiteId\n'
+        '${const JsonEncoder.withIndent('  ').convert(_siteActivityCaseFilePayload(clientId: normalizedClientId, siteId: normalizedSiteId))}';
   }
 
   Future<String> _telegramAdminSendActivityCommand(String arguments) async {
