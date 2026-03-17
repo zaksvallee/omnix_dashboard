@@ -19448,6 +19448,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           events: events,
           morningSovereignReportHistory: _morningSovereignReportHistory,
           sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
+          onOpenGovernance: _openGovernanceFromAdmin,
           initialSourceFilter: _eventsSourceFilter.trim().isEmpty
               ? null
               : _eventsSourceFilter,

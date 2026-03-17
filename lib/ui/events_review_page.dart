@@ -32,6 +32,7 @@ class EventsReviewPage extends StatefulWidget {
   final List<String> initialScopedEventIds;
   final String? initialScopedMode;
   final List<SovereignReport> morningSovereignReportHistory;
+  final VoidCallback? onOpenGovernance;
 
   const EventsReviewPage({
     super.key,
@@ -43,6 +44,7 @@ class EventsReviewPage extends StatefulWidget {
     this.initialScopedEventIds = const <String>[],
     this.initialScopedMode,
     this.morningSovereignReportHistory = const <SovereignReport>[],
+    this.onOpenGovernance,
   });
 
   @override
@@ -482,6 +484,14 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                                 readinessScopeSummary,
                               ),
                             ),
+                            if (widget.onOpenGovernance != null)
+                              _outlineAction(
+                                'OPEN GOVERNANCE',
+                                actionKey: const ValueKey(
+                                  'events-readiness-open-governance-action',
+                                ),
+                                onTap: widget.onOpenGovernance!,
+                              ),
                           ],
                         ),
                       ],

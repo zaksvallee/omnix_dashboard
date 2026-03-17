@@ -1145,6 +1145,7 @@ void main() {
     tester,
   ) async {
     String? copiedClipboardPayload;
+    var governanceOpened = false;
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       SystemChannels.platform,
       (call) async {
@@ -1224,6 +1225,9 @@ void main() {
           initialScopedEventIds: const ['READY-1', 'READY-2'],
           initialSelectedEventId: 'READY-1',
           initialScopedMode: 'readiness',
+          onOpenGovernance: () {
+            governanceOpened = true;
+          },
         ),
       ),
     );
@@ -1313,5 +1317,15 @@ void main() {
       copiedClipboardPayload,
       contains('review_refs,"READY-INTEL-1, READY-INTEL-2"'),
     );
+
+    final openGovernanceAction = tester.widget<InkWell>(
+      find.byKey(
+        const ValueKey('events-readiness-open-governance-action'),
+        skipOffstage: false,
+      ),
+    );
+    openGovernanceAction.onTap!();
+    await tester.pump();
+    expect(governanceOpened, isTrue);
   });
 }
