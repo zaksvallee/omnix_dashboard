@@ -72,6 +72,7 @@ void main() {
         plans.map((entry) => entry.actionType),
         containsAll(<String>[
           'PREPOSITION RESPONSE',
+          'SYNTHETIC WAR-ROOM',
           'POSTURAL ECHO',
           'GLOBAL POSTURE SHIFT',
           'AUTO-DISPATCH HOLD',
@@ -84,6 +85,43 @@ void main() {
       expect(localEscalation.description, contains('HIKVISION evidence lock'));
       expect(localEscalation.metadata['verdict'], 'Escalation Candidate');
       expect(localEscalation.metadata['camera'], 'gate-cam');
+    });
+
+    test('builds simulation posture plans from external pressure alone', () {
+      final events = <DispatchEvent>[
+        _intel(
+          id: 'intel-news',
+          riskScore: 79,
+          siteId: 'SITE-VALLEE',
+          cameraId: 'news-feed',
+        ).copyWithSourceType('news', 'Regional pressure rises'),
+        _intel(
+          id: 'intel-community',
+          riskScore: 76,
+          siteId: 'SITE-SANDTON',
+          cameraId: 'community-feed',
+        ).copyWithSourceType('community', 'Suspicious vehicle probing estates'),
+      ];
+
+      final plans = service.buildPlans(
+        events: events,
+        sceneReviewByIntelligenceId: const <String, MonitoringSceneReviewRecord>{},
+        videoOpsLabel: 'Hikvision',
+      );
+
+      expect(
+        plans.map((entry) => entry.actionType),
+        containsAll(<String>[
+          'PREPOSITION RESPONSE',
+          'POSTURAL ECHO',
+          'GLOBAL POSTURE SHIFT',
+          'SYNTHETIC WAR-ROOM',
+        ]),
+      );
+      expect(
+        plans.any((entry) => entry.metadata['scope'] == 'SIMULATION'),
+        isTrue,
+      );
     });
   });
 }
@@ -117,4 +155,32 @@ IntelligenceReceived _intel({
     snapshotUrl: 'https://edge.example.com/$id.jpg',
     canonicalHash: 'hash-$id',
   );
+}
+
+extension on IntelligenceReceived {
+  IntelligenceReceived copyWithSourceType(String sourceType, String summary) {
+    return IntelligenceReceived(
+      eventId: eventId,
+      sequence: sequence,
+      version: version,
+      occurredAt: occurredAt,
+      intelligenceId: intelligenceId,
+      provider: provider,
+      sourceType: sourceType,
+      externalId: externalId,
+      clientId: clientId,
+      regionId: regionId,
+      siteId: siteId,
+      cameraId: cameraId,
+      faceMatchId: faceMatchId,
+      objectLabel: objectLabel,
+      objectConfidence: objectConfidence,
+      headline: headline,
+      summary: summary,
+      riskScore: riskScore,
+      snapshotUrl: snapshotUrl,
+      canonicalHash: canonicalHash,
+      plateNumber: plateNumber,
+    );
+  }
 }

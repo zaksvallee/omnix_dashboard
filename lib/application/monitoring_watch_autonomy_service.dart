@@ -3,6 +3,7 @@ import '../domain/events/intelligence_received.dart';
 import 'monitoring_global_posture_service.dart';
 import 'monitoring_orchestrator_service.dart';
 import 'monitoring_scene_review_store.dart';
+import 'monitoring_synthetic_war_room_service.dart';
 import 'monitoring_watch_action_plan.dart';
 
 class MonitoringWatchAutonomyService {
@@ -10,13 +11,14 @@ class MonitoringWatchAutonomyService {
 
   static const _globalPostureService = MonitoringGlobalPostureService();
   static const _orchestratorService = MonitoringOrchestratorService();
+  static const _syntheticWarRoomService = MonitoringSyntheticWarRoomService();
 
   List<MonitoringWatchAutonomyActionPlan> buildPlans({
     required List<DispatchEvent> events,
     required Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId,
     String videoOpsLabel = 'CCTV',
   }) {
-    if (sceneReviewByIntelligenceId.isEmpty) {
+    if (events.isEmpty) {
       return const <MonitoringWatchAutonomyActionPlan>[];
     }
 
@@ -29,7 +31,11 @@ class MonitoringWatchAutonomyService {
       growable: false,
     );
     final ranked = intelligenceEvents
-        .where((event) => sceneReviewByIntelligenceId.containsKey(event.intelligenceId))
+        .where(
+          (event) => sceneReviewByIntelligenceId.containsKey(
+            event.intelligenceId,
+          ),
+        )
         .map(
           (event) => _RankedAutonomyEvent(
             event: event,
@@ -59,7 +65,12 @@ class MonitoringWatchAutonomyService {
       sceneReviewByIntelligenceId: sceneReviewByIntelligenceId,
       videoOpsLabel: videoOpsLabel,
     );
-    return [...orchestratedPlans, ...globalPlans, ...plans]
+    final syntheticPlans = _syntheticWarRoomService.buildSimulationPlans(
+      events: events,
+      sceneReviewByIntelligenceId: sceneReviewByIntelligenceId,
+      videoOpsLabel: videoOpsLabel,
+    );
+    return [...orchestratedPlans, ...syntheticPlans, ...globalPlans, ...plans]
       ..sort((a, b) {
         final priorityCompare = _priorityWeight(b.priority).compareTo(
           _priorityWeight(a.priority),

@@ -170,9 +170,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('GLOBAL POSTURE SHIFT'), findsOneWidget);
+    expect(find.text('SYNTHETIC WAR-ROOM'), findsOneWidget);
     expect(find.text('POSTURAL ECHO'), findsOneWidget);
     expect(find.text('AUTO-DISPATCH HOLD'), findsOneWidget);
     expect(find.textContaining('HIKVISION evidence lock'), findsOneWidget);
+    expect(find.textContaining('Replay the next-shift posture'), findsOneWidget);
     expect(find.text('AUTO'), findsWidgets);
   });
 }
