@@ -1,5 +1,6 @@
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/intelligence_received.dart';
+import 'hazard_response_directive_service.dart';
 import 'monitoring_scene_review_store.dart';
 
 enum MonitoringGlobalHeatLevel { stable, elevated, critical }
@@ -78,6 +79,8 @@ class MonitoringGlobalPostureSnapshot {
 
 class MonitoringGlobalPostureService {
   const MonitoringGlobalPostureService();
+
+  static const _hazardDirectiveService = HazardResponseDirectiveService();
 
   static const _externalSourceTypes = <String>{
     'news',
@@ -261,6 +264,10 @@ class MonitoringGlobalPostureService {
     final posture = _postureLabelFor(item);
     final decision = _decisionLabelFor(item);
     final sourceType = item.event.sourceType.trim().toLowerCase();
+    final hazardSignal = _hazardDirectiveService.hazardSignal(
+      postureLabel: posture,
+      objectLabel: (item.event.objectLabel ?? '').trim(),
+    );
     if (posture.contains('boundary')) {
       signals.add('boundary');
     }
@@ -270,14 +277,8 @@ class MonitoringGlobalPostureService {
     if (posture.contains('identity')) {
       signals.add('identity');
     }
-    if (posture.contains('fire') || posture.contains('smoke')) {
-      signals.add('fire');
-    }
-    if (posture.contains('flood') || posture.contains('leak')) {
-      signals.add('water_leak');
-    }
-    if (posture.contains('hazard')) {
-      signals.add('environment_hazard');
+    if (hazardSignal.isNotEmpty) {
+      signals.add(hazardSignal);
     }
     if ((item.event.faceMatchId ?? '').trim().isNotEmpty) {
       signals.add('face_match');
@@ -310,6 +311,10 @@ class MonitoringGlobalPostureService {
     final posture = (review?.postureLabel ?? '').toLowerCase();
     final decision = (review?.decisionLabel ?? '').toLowerCase();
     final sourceType = event.sourceType.trim().toLowerCase();
+    final hazardSignal = _hazardDirectiveService.hazardSignal(
+      postureLabel: review?.postureLabel ?? '',
+      objectLabel: (event.objectLabel ?? '').trim(),
+    );
     if (decision.contains('escalation')) {
       score += 50;
     } else if (decision.contains('repeat')) {
@@ -333,13 +338,13 @@ class MonitoringGlobalPostureService {
     if (posture.contains('identity')) {
       score += 10;
     }
-    if (posture.contains('fire') || posture.contains('smoke')) {
+    if (hazardSignal == 'fire') {
       score += 36;
     }
-    if (posture.contains('flood') || posture.contains('leak')) {
+    if (hazardSignal == 'water_leak') {
       score += 26;
     }
-    if (posture.contains('hazard')) {
+    if (hazardSignal == 'environment_hazard') {
       score += 18;
     }
     if ((event.faceMatchId ?? '').trim().isNotEmpty) {

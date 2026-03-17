@@ -128,6 +128,42 @@ void main() {
         anyElement(contains('community_watch')),
       );
     });
+
+    test('uses shared hazard signals for regional fire pressure', () {
+      final events = <DispatchEvent>[
+        _intel(
+          id: 'intel-fire',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-VALLEE',
+          riskScore: 82,
+          cameraId: 'generator-room-cam',
+          objectLabel: 'smoke',
+          headline: 'HIKVISION FIRE ALERT',
+          summary: 'Smoke visible in the generator room.',
+        ),
+      ];
+      final reviews = <String, MonitoringSceneReviewRecord>{
+        'intel-fire': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-fire',
+          sourceLabel: 'openai:gpt-5.4-mini',
+          postureLabel: 'fire and smoke emergency',
+          decisionLabel: 'Escalation Candidate',
+          decisionSummary: 'Fire posture requires urgent escalation.',
+          summary: 'Smoke plume visible inside the generator room.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 3),
+        ),
+      };
+
+      final snapshot = service.buildSnapshot(
+        events: events,
+        sceneReviewByIntelligenceId: reviews,
+        generatedAtUtc: DateTime.utc(2026, 3, 16, 22, 10),
+      );
+
+      expect(snapshot.criticalSiteCount, 1);
+      expect(snapshot.sites.first.dominantSignals, contains('fire'));
+      expect(snapshot.regions.first.heatLevel, MonitoringGlobalHeatLevel.critical);
+    });
   });
 }
 
@@ -138,6 +174,7 @@ IntelligenceReceived _intel({
   required int riskScore,
   required String cameraId,
   String faceMatchId = '',
+  String objectLabel = 'person',
   String sourceType = 'dvr',
   String headline = 'HIKVISION ALERT',
   String summary = 'Alert summary',
@@ -156,7 +193,7 @@ IntelligenceReceived _intel({
     siteId: siteId,
     cameraId: cameraId,
     faceMatchId: faceMatchId.isEmpty ? null : faceMatchId,
-    objectLabel: 'person',
+    objectLabel: objectLabel,
     objectConfidence: 0.91,
     headline: headline,
     summary: summary,

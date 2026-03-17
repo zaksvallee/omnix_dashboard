@@ -228,6 +228,16 @@ class HazardResponseDirectiveService {
         null;
   }
 
+  String hazardSignal({
+    required String postureLabel,
+    String objectLabel = '',
+  }) {
+    return _resolveSignal(
+      postureLabel: postureLabel,
+      objectLabel: objectLabel,
+    );
+  }
+
   String _resolveSignal({
     required String postureLabel,
     required String objectLabel,
