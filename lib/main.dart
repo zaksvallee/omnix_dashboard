@@ -6460,23 +6460,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   String _syntheticWarRoomBiasSummaryForPlan(
     MonitoringWatchAutonomyActionPlan? plan,
-  ) {
-    final actionBias = (plan?.metadata['action_bias'] ?? '').trim();
-    final priorityBoost = (plan?.metadata['memory_priority_boost'] ?? '')
-        .trim();
-    final countdownBias = (plan?.metadata['memory_countdown_bias'] ?? '')
-        .trim();
-    if (actionBias.isEmpty && priorityBoost.isEmpty && countdownBias.isEmpty) {
-      return '';
-    }
-    final segments = <String>[
-      if (actionBias.isNotEmpty) actionBias,
-      if (priorityBoost.isNotEmpty && priorityBoost != 'NONE')
-        '${priorityBoost.toLowerCase()} priority',
-      if (countdownBias.isNotEmpty) 'T-$countdownBias s',
-    ];
-    return _singleLine(segments.join(' • '), maxLength: 220);
-  }
+  ) => _singleLine(buildSyntheticBiasSummaryForPlan(plan: plan), maxLength: 220);
 
   String _syntheticWarRoomShadowPostureBiasSummaryForPlan(
     MonitoringWatchAutonomyActionPlan? plan,

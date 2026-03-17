@@ -240,6 +240,39 @@ String buildTomorrowUrgencySummaryForDraft({
   return parts.join(' • ');
 }
 
+String buildSyntheticBiasSummary({
+  String actionBias = '',
+  String priorityBoost = '',
+  String countdownBias = '',
+}) {
+  final normalizedActionBias = actionBias.trim();
+  final normalizedPriorityBoost = priorityBoost.trim();
+  final normalizedCountdownBias = countdownBias.trim();
+  if (normalizedActionBias.isEmpty &&
+      normalizedPriorityBoost.isEmpty &&
+      normalizedCountdownBias.isEmpty) {
+    return '';
+  }
+  final parts = <String>[
+    if (normalizedActionBias.isNotEmpty) normalizedActionBias,
+    if (normalizedPriorityBoost.isNotEmpty &&
+        normalizedPriorityBoost != 'NONE')
+      '${normalizedPriorityBoost.toLowerCase()} priority',
+    if (normalizedCountdownBias.isNotEmpty) 'T-$normalizedCountdownBias s',
+  ];
+  return parts.join(' • ');
+}
+
+String buildSyntheticBiasSummaryForPlan({
+  MonitoringWatchAutonomyActionPlan? plan,
+}) {
+  return buildSyntheticBiasSummary(
+    actionBias: plan?.metadata['action_bias'] ?? '',
+    priorityBoost: plan?.metadata['memory_priority_boost'] ?? '',
+    countdownBias: plan?.metadata['memory_countdown_bias'] ?? '',
+  );
+}
+
 String buildSyntheticShadowPostureBiasSummaryForPlan({
   MonitoringWatchAutonomyActionPlan? plan,
 }) {

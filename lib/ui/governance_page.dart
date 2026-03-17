@@ -10539,14 +10539,11 @@ class _GovernancePageState extends State<GovernancePage> {
     final shadowPostureSegment = point.shadowPostureSummary.trim().isEmpty
         ? ''
         : ' • shadow posture ${point.shadowPostureSummary}';
-    final biasSegment = [
-      if (point.actionBias.trim().isNotEmpty) point.actionBias.trim(),
-      if (point.memoryPriorityBoost.trim().isNotEmpty &&
-          point.memoryPriorityBoost.trim() != 'NONE')
-        '${point.memoryPriorityBoost.trim().toLowerCase()} priority',
-      if (point.memoryCountdownBias.trim().isNotEmpty)
-        'T-${point.memoryCountdownBias.trim()} s',
-    ].join(' • ');
+    final biasSegment = buildSyntheticBiasSummary(
+      actionBias: point.actionBias,
+      priorityBoost: point.memoryPriorityBoost,
+      countdownBias: point.memoryCountdownBias,
+    );
     return '${point.reportDate} • ${point.current ? 'CURRENT' : 'HISTORY'} • Plans ${point.planCount} • Policy ${point.policyCount} • ${point.modeLabel}$leadRegionSegment$leadSiteSegment$intentSegment$recommendationSegment$learningSegment$shadowPostureSegment${biasSegment.isEmpty ? '' : ' • $biasSegment'}';
   }
 

@@ -3156,25 +3156,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
 
   String _syntheticWarRoomBiasSummaryForPlan(
     MonitoringWatchAutonomyActionPlan? plan,
-  ) {
-    final actionBias = (plan?.metadata['action_bias'] ?? '').toString().trim();
-    final priorityBoost = (plan?.metadata['memory_priority_boost'] ?? '')
-        .toString()
-        .trim();
-    final countdownBias = (plan?.metadata['memory_countdown_bias'] ?? '')
-        .toString()
-        .trim();
-    if (actionBias.isEmpty && priorityBoost.isEmpty && countdownBias.isEmpty) {
-      return '';
-    }
-    final parts = <String>[
-      if (actionBias.isNotEmpty) actionBias,
-      if (priorityBoost.isNotEmpty && priorityBoost != 'NONE')
-        '${priorityBoost.toLowerCase()} priority',
-      if (countdownBias.isNotEmpty) 'T-$countdownBias s',
-    ];
-    return parts.join(' • ');
-  }
+  ) => buildSyntheticBiasSummaryForPlan(plan: plan);
 
   String _syntheticWarRoomShadowPostureBiasSummaryForPlan(
     MonitoringWatchAutonomyActionPlan? plan,

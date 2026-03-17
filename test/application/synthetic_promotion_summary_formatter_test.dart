@@ -287,6 +287,37 @@ void main() {
       );
     });
 
+    test('synthetic bias helpers format raw fields and plan metadata', () {
+      expect(
+        buildSyntheticBiasSummary(
+          actionBias: 'LOCK EARLY',
+          priorityBoost: 'CRITICAL',
+          countdownBias: '28',
+        ),
+        'LOCK EARLY • critical priority • T-28 s',
+      );
+
+      const plan = MonitoringWatchAutonomyActionPlan(
+        id: 'SIM-2',
+        incidentId: 'SITE-2',
+        siteId: 'SITE-2',
+        priority: MonitoringWatchAutonomyPriority.high,
+        actionType: 'POLICY RECOMMENDATION',
+        description: 'desc',
+        countdownSeconds: 28,
+        metadata: <String, String>{
+          'action_bias': 'LOCK EARLY',
+          'memory_priority_boost': 'CRITICAL',
+          'memory_countdown_bias': '28',
+        },
+      );
+
+      expect(
+        buildSyntheticBiasSummaryForPlan(plan: plan),
+        'LOCK EARLY • critical priority • T-28 s',
+      );
+    });
+
     test('buildSyntheticPromotionSummaryFromPlans reads base summary from plan metadata', () {
       final plans = <MonitoringWatchAutonomyActionPlan>[
         const MonitoringWatchAutonomyActionPlan(
