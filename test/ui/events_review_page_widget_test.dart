@@ -1144,6 +1144,24 @@ void main() {
   testWidgets('events review shows dedicated readiness investigation banner', (
     tester,
   ) async {
+    String? copiedClipboardPayload;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final args = (call.arguments as Map<dynamic, dynamic>);
+          copiedClipboardPayload = args['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+
     await tester.pumpWidget(
       MaterialApp(
         home: EventsReviewPage(
@@ -1251,6 +1269,49 @@ void main() {
     expect(
       find.textContaining('Review refs: READY-INTEL-1, READY-INTEL-2'),
       findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey('events-readiness-casefile-json-action'),
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey('events-readiness-casefile-csv-action'),
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+
+    final copyJsonAction = tester.widget<InkWell>(
+      find.byKey(
+        const ValueKey('events-readiness-casefile-json-action'),
+        skipOffstage: false,
+      ),
+    );
+    copyJsonAction.onTap!();
+    await tester.pump();
+    expect(copiedClipboardPayload, contains('"readinessCaseFile"'));
+    expect(copiedClipboardPayload, contains('"leadRegionId": "REGION-GAUTENG"'));
+    expect(copiedClipboardPayload, contains('"leadSiteId": "SITE-ALPHA"'));
+    expect(copiedClipboardPayload, contains('"reviewRefs": ['));
+
+    final copyCsvAction = tester.widget<InkWell>(
+      find.byKey(
+        const ValueKey('events-readiness-casefile-csv-action'),
+        skipOffstage: false,
+      ),
+    );
+    copyCsvAction.onTap!();
+    await tester.pump();
+    expect(copiedClipboardPayload, contains('metric,value'));
+    expect(copiedClipboardPayload, contains('lead_region_id,REGION-GAUTENG'));
+    expect(copiedClipboardPayload, contains('lead_site_id,SITE-ALPHA'));
+    expect(
+      copiedClipboardPayload,
+      contains('review_refs,"READY-INTEL-1, READY-INTEL-2"'),
     );
   });
 }

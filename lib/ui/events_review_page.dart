@@ -459,6 +459,31 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             ),
                           ),
                         ],
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _outlineAction(
+                              'COPY READINESS JSON',
+                              actionKey: const ValueKey(
+                                'events-readiness-casefile-json-action',
+                              ),
+                              onTap: () => _copyReadinessCaseFileJson(
+                                readinessScopeSummary,
+                              ),
+                            ),
+                            _outlineAction(
+                              'COPY READINESS CSV',
+                              actionKey: const ValueKey(
+                                'events-readiness-casefile-csv-action',
+                              ),
+                              onTap: () => _copyReadinessCaseFileCsv(
+                                readinessScopeSummary,
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
@@ -2291,6 +2316,22 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     _showActionMessage('Activity case file JSON copied.');
   }
 
+  void _copyReadinessCaseFileJson(_ReadinessScopeSummary summary) {
+    final payloadJson = const JsonEncoder.withIndent(
+      '  ',
+    ).convert(_readinessCaseFilePayload(summary));
+    Clipboard.setData(ClipboardData(text: payloadJson));
+    logUiAction(
+      'events.export_readiness_casefile_json',
+      context: {
+        'lead_region_id': summary.leadRegionId,
+        'lead_site_id': summary.leadSiteId,
+        'event_count': summary.eventCount,
+      },
+    );
+    _showActionMessage('Readiness case file JSON copied.');
+  }
+
   void _copyActivityCaseFileCsv(_ActivityScopeSummary summary) {
     final lines = <String>[
       'metric,value',
@@ -2326,6 +2367,30 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     _showActionMessage('Activity case file CSV copied.');
   }
 
+  void _copyReadinessCaseFileCsv(_ReadinessScopeSummary summary) {
+    final lines = <String>[
+      'metric,value',
+      'lead_region_id,${summary.leadRegionId ?? ''}',
+      'lead_site_id,${summary.leadSiteId ?? ''}',
+      'event_count,${summary.eventCount}',
+      'mode_label,"${summary.modeLabel.replaceAll('"', '""')}"',
+      'summary_line,"${summary.summaryLine.replaceAll('"', '""')}"',
+      'postural_echo_summary,"${summary.posturalEchoSummary.replaceAll('"', '""')}"',
+      'top_intent_summary,"${summary.topIntentSummary.replaceAll('"', '""')}"',
+      'review_refs,"${summary.reviewRefs.join(', ').replaceAll('"', '""')}"',
+    ];
+    Clipboard.setData(ClipboardData(text: lines.join('\n')));
+    logUiAction(
+      'events.export_readiness_casefile_csv',
+      context: {
+        'lead_region_id': summary.leadRegionId,
+        'lead_site_id': summary.leadSiteId,
+        'event_count': summary.eventCount,
+      },
+    );
+    _showActionMessage('Readiness case file CSV copied.');
+  }
+
   Map<String, Object?> _activityCaseFilePayload(_ActivityScopeSummary summary) {
     return {
       'activityCaseFile': {
@@ -2354,6 +2419,21 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     )
                     .toList(growable: false),
               },
+      },
+    };
+  }
+
+  Map<String, Object?> _readinessCaseFilePayload(_ReadinessScopeSummary summary) {
+    return {
+      'readinessCaseFile': {
+        'leadRegionId': summary.leadRegionId,
+        'leadSiteId': summary.leadSiteId,
+        'eventCount': summary.eventCount,
+        'modeLabel': summary.modeLabel,
+        'summaryLine': summary.summaryLine,
+        'posturalEchoSummary': summary.posturalEchoSummary,
+        'topIntentSummary': summary.topIntentSummary,
+        'reviewRefs': summary.reviewRefs,
       },
     };
   }
