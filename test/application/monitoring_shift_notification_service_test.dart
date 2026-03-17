@@ -97,6 +97,26 @@ void main() {
     );
   });
 
+  test('formats fire incident dispatch pack with emergency-specific action wording', () {
+    final message = service.formatIncident(
+      site: site,
+      incident: MonitoringIncidentUpdate(
+        occurredAt: DateTime.utc(2026, 3, 13, 23, 16),
+        cameraLabel: 'Generator Room',
+        objectLabel: 'smoke',
+        postureLabel: 'fire and smoke emergency',
+        dispatchInitiated: true,
+      ),
+    );
+
+    expect(
+      message,
+      contains(
+        'Fire response has been staged while ONYX keeps the client safety and occupant welfare lane active.',
+      ),
+    );
+  });
+
   test('formats repeat-activity update with premium direct address', () {
     final message = service.formatRepeatActivity(
       site: site,
@@ -251,6 +271,26 @@ void main() {
       message,
       contains(
         'Monitoring remains fixed on Stock Room while ONYX checks for spread, pooling, or worsening water loss.',
+      ),
+    );
+  });
+
+  test('formats leak escalation dispatch pack with containment-specific action wording', () {
+    final message = service.formatEscalationCandidate(
+      site: site,
+      incident: MonitoringIncidentUpdate(
+        occurredAt: DateTime.utc(2026, 3, 13, 23, 25),
+        cameraLabel: 'Stock Room',
+        objectLabel: 'leak',
+        postureLabel: 'flood or leak emergency',
+        dispatchInitiated: true,
+      ),
+    );
+
+    expect(
+      message,
+      contains(
+        'Leak containment has been staged while ONYX keeps the client safety and occupant welfare lane active.',
       ),
     );
   });

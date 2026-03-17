@@ -97,7 +97,10 @@ class MonitoringShiftNotificationService {
     final verificationLine = _verificationLine(incident);
     final dispatchLine = _dispatchLine(
       incident,
-      initiatedLine: 'A response deployment has been initiated.',
+      initiatedLine: _initiatedDispatchLine(
+        incident,
+        defaultLine: 'A response deployment has been initiated.',
+      ),
       defaultPendingLine: 'No dispatch action has been initiated at this stage.',
     );
     final monitoringLine = _monitoringLine(
@@ -150,8 +153,11 @@ class MonitoringShiftNotificationService {
     final verificationLine = _verificationLine(incident);
     final dispatchLine = _dispatchLine(
       incident,
-      initiatedLine:
-          'A response deployment has been initiated while ONYX maintains focused observation on the affected camera.',
+      initiatedLine: _initiatedDispatchLine(
+        incident,
+        defaultLine:
+            'A response deployment has been initiated while ONYX maintains focused observation on the affected camera.',
+      ),
       defaultPendingLine:
           _isFireEmergency(incident)
               ? 'No dispatch action has been initiated yet. ONYX has elevated this event for urgent fire review.'
@@ -359,6 +365,22 @@ class MonitoringShiftNotificationService {
       return initiatedLine;
     }
     return defaultPendingLine;
+  }
+
+  String _initiatedDispatchLine(
+    MonitoringIncidentUpdate incident, {
+    required String defaultLine,
+  }) {
+    if (_isFireEmergency(incident)) {
+      return 'Fire response has been staged while ONYX keeps the client safety and occupant welfare lane active.';
+    }
+    if (_isLeakEmergency(incident)) {
+      return 'Leak containment has been staged while ONYX keeps the client safety and occupant welfare lane active.';
+    }
+    if (_isEnvironmentHazard(incident)) {
+      return 'Site safety response has been staged while ONYX keeps the client safety and occupant welfare lane active.';
+    }
+    return defaultLine;
   }
 
   String _monitoringLine(
