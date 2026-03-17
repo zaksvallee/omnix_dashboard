@@ -5372,6 +5372,15 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       syntheticWarRoomPolicySummary: _syntheticWarRoomPolicySummary(
         syntheticWarRoomPlans,
       ),
+      currentShiftSyntheticReviewCommand: '/syntheticreview ${report.date}',
+      currentShiftSyntheticCaseFileCommand:
+          '/syntheticcase json ${report.date}',
+      previousShiftSyntheticReviewCommand: previousReport == null
+          ? null
+          : '/syntheticreview ${previousReport.date}',
+      previousShiftSyntheticCaseFileCommand: previousReport == null
+          ? null
+          : '/syntheticcase json ${previousReport.date}',
       siteActivityHeadline: siteActivityHeadline,
       siteActivitySummary: siteActivitySummary,
       currentShiftReviewCommand: '/activityreview ${report.date}',
@@ -5977,6 +5986,142 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       lines.add(
         'history_${i + 1}_governance_command,${row['governanceCommand'] ?? ''}',
+      );
+    }
+    return lines.join('\n');
+  }
+
+  Map<String, Object?> _syntheticWarRoomCaseFilePayload({String? reportDate}) {
+    final report = _morningSovereignReportForDate(reportDate);
+    if (report == null) {
+      return <String, Object?>{
+        'reportDate': (reportDate ?? '').trim(),
+        'available': false,
+        'message': 'No morning sovereign report is available for that shift.',
+      };
+    }
+    final plans = _syntheticWarRoomPlansForReport(report);
+    final policyPlans = plans
+        .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
+        .toList(growable: false);
+    final leadPlan = plans.isEmpty ? null : plans.first;
+    final history =
+        _morningSovereignReportHistory
+            .where((item) => item.date.trim() != report.date.trim())
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
+    return <String, Object?>{
+      'reportDate': report.date,
+      'available': true,
+      'generatedAtUtc': report.generatedAtUtc.toIso8601String(),
+      'focusState': _readinessFocusState(report.date),
+      'historicalFocus': _isHistoricalReadinessFocus(report.date),
+      'focusSummary': _readinessFocusSummary(report.date),
+      'liveReportDate': (_morningSovereignReport?.date ?? '').trim(),
+      'modeLabel': _syntheticWarRoomModeLabel(plans),
+      'summary': _syntheticWarRoomSummary(plans),
+      'policySummary': _syntheticWarRoomPolicySummary(plans),
+      'planCount': plans.length,
+      'policyCount': policyPlans.length,
+      'leadRegionId': (leadPlan?.metadata['region'] ?? '').toString().trim(),
+      'leadSiteId': (leadPlan?.metadata['lead_site'] ?? '').toString().trim(),
+      'topIntentSummary':
+          (leadPlan?.metadata['top_intent'] ?? '').toString().trim(),
+      'reviewCommand': '/syntheticreview ${report.date}',
+      'caseFileCommand': '/syntheticcase json ${report.date}',
+      'plans': plans
+          .take(5)
+          .map(
+            (plan) => <String, Object?>{
+              'actionType': plan.actionType,
+              'siteId': plan.siteId,
+              'priority': plan.priority.name,
+              'description': plan.description,
+              'countdownSeconds': plan.countdownSeconds,
+              'incidentId': plan.incidentId,
+              'metadata': plan.metadata,
+            },
+          )
+          .toList(growable: false),
+      'history': history
+          .take(3)
+          .map((item) {
+            final itemPlans = _syntheticWarRoomPlansForReport(item);
+            final itemPolicyCount = itemPlans
+                .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
+                .length;
+            return <String, Object?>{
+              'reportDate': item.date,
+              'focusState': _readinessFocusState(item.date),
+              'historicalFocus': _isHistoricalReadinessFocus(item.date),
+              'focusSummary': _readinessFocusSummary(item.date),
+              'modeLabel': _syntheticWarRoomModeLabel(itemPlans),
+              'summary': _syntheticWarRoomSummary(itemPlans),
+              'policySummary': _syntheticWarRoomPolicySummary(itemPlans),
+              'planCount': itemPlans.length,
+              'policyCount': itemPolicyCount,
+              'reviewCommand': '/syntheticreview ${item.date}',
+              'caseFileCommand': '/syntheticcase json ${item.date}',
+            };
+          })
+          .toList(growable: false),
+    };
+  }
+
+  String _syntheticWarRoomCaseFileCsv({String? reportDate}) {
+    final payload = _syntheticWarRoomCaseFilePayload(reportDate: reportDate);
+    final history = (payload['history'] as List<Object?>?) ?? const [];
+    final lines = <String>[
+      'metric,value',
+      'report_date,${payload['reportDate'] ?? ''}',
+      'available,${payload['available'] == false ? 'false' : 'true'}',
+      'generated_at_utc,${payload['generatedAtUtc'] ?? ''}',
+      'focus_state,${payload['focusState'] ?? ''}',
+      'historical_focus,${payload['historicalFocus'] == true ? 'true' : 'false'}',
+      'focus_summary,"${(payload['focusSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'live_report_date,${payload['liveReportDate'] ?? ''}',
+      'mode_label,"${(payload['modeLabel'] ?? '').toString().replaceAll('"', '""')}"',
+      'summary,"${(payload['summary'] ?? '').toString().replaceAll('"', '""')}"',
+      'policy_summary,"${(payload['policySummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'plan_count,${payload['planCount'] ?? 0}',
+      'policy_count,${payload['policyCount'] ?? 0}',
+      'lead_region_id,${payload['leadRegionId'] ?? ''}',
+      'lead_site_id,${payload['leadSiteId'] ?? ''}',
+      'top_intent_summary,"${(payload['topIntentSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'review_command,${payload['reviewCommand'] ?? ''}',
+      'case_file_command,${payload['caseFileCommand'] ?? ''}',
+    ];
+    final plans = (payload['plans'] as List<Object?>?) ?? const [];
+    for (var i = 0; i < plans.length; i += 1) {
+      final row = plans[i];
+      if (row is! Map) continue;
+      lines.add(
+        'plan_${i + 1},"${(row['actionType'] ?? '').toString().replaceAll('"', '""')} • ${(row['siteId'] ?? '').toString().replaceAll('"', '""')} • ${(row['description'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+    }
+    for (var i = 0; i < history.length; i += 1) {
+      final row = history[i];
+      if (row is! Map) continue;
+      lines.add(
+        'history_${i + 1},"${(row['summary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add('history_${i + 1}_focus_state,${row['focusState'] ?? ''}');
+      lines.add(
+        'history_${i + 1}_historical_focus,${row['historicalFocus'] == true ? 'true' : 'false'}',
+      );
+      lines.add(
+        'history_${i + 1}_focus_summary,"${(row['focusSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add('history_${i + 1}_plan_count,${row['planCount'] ?? 0}');
+      lines.add('history_${i + 1}_policy_count,${row['policyCount'] ?? 0}');
+      lines.add(
+        'history_${i + 1}_review_command,${row['reviewCommand'] ?? ''}',
+      );
+      lines.add(
+        'history_${i + 1}_case_file_command,${row['caseFileCommand'] ?? ''}',
       );
     }
     return lines.join('\n');
@@ -13240,6 +13385,16 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           command: 'readinesscase',
           arguments: arguments,
         );
+      case '/syntheticreview':
+        return _TelegramAdminCommandParseResult(
+          command: 'syntheticreview',
+          arguments: arguments,
+        );
+      case '/syntheticcase':
+        return _TelegramAdminCommandParseResult(
+          command: 'syntheticcase',
+          arguments: arguments,
+        );
       case '/sendactivity':
         return _TelegramAdminCommandParseResult(
           command: 'sendactivity',
@@ -13460,6 +13615,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'readinessreview',
         'readinessgovernance',
         'readinesscase',
+        'syntheticreview',
+        'syntheticcase',
         'sendactivity',
         'demoprep',
         'demoflow',
@@ -13619,6 +13776,22 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     ])) {
       return const _TelegramAdminCommandParseResult(command: 'readinesscase');
     }
+    if (hasAny(const [
+      'synthetic war room review',
+      'war room review',
+      'synthetic review',
+      'simulation review',
+    ])) {
+      return const _TelegramAdminCommandParseResult(command: 'syntheticreview');
+    }
+    if (hasAny(const [
+      'synthetic war room case',
+      'war room case',
+      'synthetic case',
+      'simulation dossier',
+    ])) {
+      return const _TelegramAdminCommandParseResult(command: 'syntheticcase');
+    }
     if (hasAny(const ['incident', 'incidents'])) {
       return const _TelegramAdminCommandParseResult(command: 'incidents');
     }
@@ -13721,6 +13894,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case 'readinessreview':
       case 'readinessgovernance':
       case 'readinesscase':
+      case 'syntheticreview':
+      case 'syntheticcase':
       case 'aidrafts':
       case 'aiconv':
       case 'whoami':
@@ -13824,6 +13999,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         return _telegramAdminReadinessGovernanceCommand(arguments);
       case 'readinesscase':
         return _telegramAdminReadinessCaseCommand(arguments);
+      case 'syntheticreview':
+        return _telegramAdminSyntheticReviewCommand(arguments);
+      case 'syntheticcase':
+        return _telegramAdminSyntheticCaseCommand(arguments);
       case 'sendactivity':
         return _telegramAdminSendActivityCommand(arguments);
       case 'demoprep':
@@ -13964,6 +14143,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '• <code>/readinessreview [report_date]</code>\n'
         '• <code>/readinessgovernance [report_date]</code>\n'
         '• <code>/readinesscase [json|csv] [report_date]</code>\n'
+        '• <code>/syntheticreview [report_date]</code>\n'
+        '• <code>/syntheticcase [json|csv] [report_date]</code>\n'
         '• <code>/sendactivity [client|partner|both] [client_id site_id]</code>\n'
         '\n---\n\n'
         '<b>Admin</b>\n'
@@ -16042,6 +16223,69 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
         'review_command=$reviewCommand\n'
         'governance_command=$governanceCommand\n'
+        '${const JsonEncoder.withIndent('  ').convert(payload)}';
+  }
+
+  String _telegramAdminSyntheticReviewCommand(String arguments) {
+    final normalizedReportDate = arguments.trim();
+    final report = _morningSovereignReportForDate(normalizedReportDate);
+    if (report == null) {
+      return 'ONYX SYNTHETICREVIEW\n'
+          'Usage: /syntheticreview [report_date]\n'
+          'No morning sovereign report is available for that shift.';
+    }
+    final plans = _syntheticWarRoomPlansForReport(report);
+    final payload = _syntheticWarRoomCaseFilePayload(reportDate: report.date);
+    final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
+    _openGovernanceForReportDate(report.date);
+    return 'ONYX SYNTHETICREVIEW\n'
+        'report_date=${report.date}\n'
+        'mode=${_syntheticWarRoomModeLabel(plans)}\n'
+        'summary=${_syntheticWarRoomSummary(plans)}\n'
+        '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
+        'case_file_command=/syntheticcase json ${report.date}\n'
+        'Opening Governance for synthetic war-room oversight.';
+  }
+
+  String _telegramAdminSyntheticCaseCommand(String arguments) {
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    var format = 'json';
+    var index = 0;
+    if (tokens.isNotEmpty) {
+      final first = tokens.first.toLowerCase();
+      if (first == 'json' || first == 'csv') {
+        format = first;
+        index = 1;
+      }
+    }
+    final reportDate = tokens.length > index
+        ? tokens.sublist(index).join(' ')
+        : '';
+    final normalizedReportDate = reportDate.trim();
+    final report = _morningSovereignReportForDate(normalizedReportDate);
+    if (report == null) {
+      return 'ONYX SYNTHETICCASE\n'
+          'Usage: /syntheticcase [json|csv] [report_date]\n'
+          'No morning sovereign report is available for that shift.';
+    }
+    final reviewCommand = '/syntheticreview ${report.date}';
+    final payload = _syntheticWarRoomCaseFilePayload(reportDate: report.date);
+    final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
+    if (format == 'csv') {
+      return 'ONYX SYNTHETICCASE CSV\n'
+          'report_date=${report.date}\n'
+          '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
+          'review_command=$reviewCommand\n'
+          '${_syntheticWarRoomCaseFileCsv(reportDate: report.date)}';
+    }
+    return 'ONYX SYNTHETICCASE JSON\n'
+        'report_date=${report.date}\n'
+        '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
+        'review_command=$reviewCommand\n'
         '${const JsonEncoder.withIndent('  ').convert(payload)}';
   }
 

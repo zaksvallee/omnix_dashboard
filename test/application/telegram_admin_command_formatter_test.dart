@@ -144,6 +144,10 @@ void main() {
           'Plans 2 • region north-cluster • lead site-alpha • top intent POSTURAL ECHO',
       syntheticWarRoomPolicySummary:
           'Raise perimeter review priority for north-cluster during the next shift.',
+      currentShiftSyntheticReviewCommand: '/syntheticreview 2026-03-17',
+      currentShiftSyntheticCaseFileCommand: '/syntheticcase json 2026-03-17',
+      previousShiftSyntheticReviewCommand: '/syntheticreview 2026-03-16',
+      previousShiftSyntheticCaseFileCommand: '/syntheticcase json 2026-03-16',
       siteActivityHeadline: 'ACTIVITY RISING',
       siteActivitySummary:
           'Unknown or flagged site activity increased against recent shifts.',
@@ -182,6 +186,8 @@ void main() {
     expect(response, contains('<b>Synthetic War-Room</b>'));
     expect(response, contains('<b>Mode:</b> POLICY SHIFT'));
     expect(response, contains('<b>Summary:</b> Plans 2'));
+    expect(response, contains('<code>/syntheticreview 2026-03-17</code>'));
+    expect(response, contains('<code>/syntheticcase json 2026-03-16</code>'));
     expect(
       response,
       contains(

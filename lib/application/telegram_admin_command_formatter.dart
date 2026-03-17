@@ -86,6 +86,10 @@ class TelegramAdminCommandFormatter {
     String? syntheticWarRoomHeadline,
     String? syntheticWarRoomSummary,
     String? syntheticWarRoomPolicySummary,
+    String? currentShiftSyntheticReviewCommand,
+    String? currentShiftSyntheticCaseFileCommand,
+    String? previousShiftSyntheticReviewCommand,
+    String? previousShiftSyntheticCaseFileCommand,
     required String siteActivityHeadline,
     required String siteActivitySummary,
     required String currentShiftReviewCommand,
@@ -121,6 +125,12 @@ class TelegramAdminCommandFormatter {
     final warRoomHeadline = syntheticWarRoomHeadline?.trim() ?? '';
     final warRoomSummary = syntheticWarRoomSummary?.trim() ?? '';
     final warRoomPolicySummary = syntheticWarRoomPolicySummary?.trim() ?? '';
+    final syntheticReview = currentShiftSyntheticReviewCommand?.trim() ?? '';
+    final syntheticCase = currentShiftSyntheticCaseFileCommand?.trim() ?? '';
+    final previousSyntheticReview =
+        previousShiftSyntheticReviewCommand?.trim() ?? '';
+    final previousSyntheticCase =
+        previousShiftSyntheticCaseFileCommand?.trim() ?? '';
     final targetLine = normalizedTargetScope.isEmpty
         ? '• <b>Target scope:</b> required\n'
         : '• <b>Target scope:</b> <code>${_escapeHtml(normalizedTargetScope)}</code>\n';
@@ -157,6 +167,10 @@ class TelegramAdminCommandFormatter {
               '${warRoomHeadline.isEmpty ? '' : '• <b>Mode:</b> ${_escapeHtml(warRoomHeadline)}\n'}'
               '${warRoomSummary.isEmpty ? '' : '• <b>Summary:</b> ${_escapeHtml(warRoomSummary)}\n'}'
               '${warRoomPolicySummary.isEmpty ? '' : '• <b>Policy:</b> ${_escapeHtml(warRoomPolicySummary)}\n'}'
+              '${syntheticReview.isEmpty ? '' : '• <b>Current review:</b> <code>${_escapeHtml(syntheticReview)}</code>\n'}'
+              '${syntheticCase.isEmpty ? '' : '• <b>Current case:</b> <code>${_escapeHtml(syntheticCase)}</code>\n'}'
+              '${previousSyntheticReview.isEmpty ? '' : '• <b>Previous review:</b> <code>${_escapeHtml(previousSyntheticReview)}</code>\n'}'
+              '${previousSyntheticCase.isEmpty ? '' : '• <b>Previous case:</b> <code>${_escapeHtml(previousSyntheticCase)}</code>\n'}'
               '\n';
     return '🛰️ <b>ONYX MORNING GOVERNANCE</b>\n\n'
         '<b>Signal</b>\n'
