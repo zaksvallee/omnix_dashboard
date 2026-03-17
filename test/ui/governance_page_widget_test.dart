@@ -1001,6 +1001,219 @@ void main() {
     );
   });
 
+  testWidgets(
+    'governance synthetic history rows show promotion decisions',
+    (tester) async {
+      Future<void> pumpSubject() async {
+        SovereignReport buildReport({
+          required String date,
+          required DateTime generatedAtUtc,
+        }) {
+          return SovereignReport(
+            date: date,
+            generatedAtUtc: generatedAtUtc,
+            shiftWindowStartUtc: generatedAtUtc.subtract(
+              const Duration(hours: 8),
+            ),
+            shiftWindowEndUtc: generatedAtUtc,
+            ledgerIntegrity: const SovereignReportLedgerIntegrity(
+              totalEvents: 10,
+              hashVerified: true,
+              integrityScore: 99,
+            ),
+            aiHumanDelta: const SovereignReportAiHumanDelta(
+              aiDecisions: 1,
+              humanOverrides: 0,
+              overrideReasons: <String, int>{},
+            ),
+            normDrift: const SovereignReportNormDrift(
+              sitesMonitored: 1,
+              driftDetected: 0,
+              avgMatchScore: 100,
+            ),
+            complianceBlockage: const SovereignReportComplianceBlockage(
+              psiraExpired: 0,
+              pdpExpired: 0,
+              totalBlocked: 0,
+            ),
+          );
+        }
+
+        final priorReport = buildReport(
+          date: '2026-03-16',
+          generatedAtUtc: DateTime.utc(2026, 3, 16, 6, 0),
+        );
+        final currentReport = buildReport(
+          date: '2026-03-17',
+          generatedAtUtc: DateTime.utc(2026, 3, 17, 6, 0),
+        );
+
+        final events = <DispatchEvent>[
+          IntelligenceReceived(
+            eventId: 'evt-prior-news',
+            sequence: 1,
+            version: 1,
+            occurredAt: DateTime.utc(2026, 3, 16, 0, 20),
+            intelligenceId: 'intel-prior-news',
+            provider: 'newsdesk',
+            sourceType: 'news',
+            externalId: 'ext-prior-news',
+            clientId: 'CLIENT-VALLEE',
+            regionId: 'REGION-GAUTENG',
+            siteId: 'SITE-VALLEE',
+            cameraId: 'news-feed',
+            objectLabel: 'person',
+            objectConfidence: 0.8,
+            headline: 'Contractors moved floor to floor in office park',
+            summary:
+                'Suspects posed as maintenance contractors before moving across restricted office zones.',
+            riskScore: 89,
+            snapshotUrl: 'https://edge.example.com/prior-news.jpg',
+            canonicalHash: 'hash-prior-news',
+          ),
+          IntelligenceReceived(
+            eventId: 'evt-prior-live',
+            sequence: 2,
+            version: 1,
+            occurredAt: DateTime.utc(2026, 3, 16, 1, 0),
+            intelligenceId: 'intel-prior-live',
+            provider: 'hikvision_dvr_monitor_only',
+            sourceType: 'dvr',
+            externalId: 'ext-prior-live',
+            clientId: 'CLIENT-VALLEE',
+            regionId: 'REGION-GAUTENG',
+            siteId: 'SITE-VALLEE',
+            cameraId: 'office-cam-prior',
+            objectLabel: 'person',
+            objectConfidence: 0.94,
+            headline: 'Maintenance contractor probing office doors',
+            summary:
+                'Contractor-like person moved floor to floor and tried several restricted office doors.',
+            riskScore: 82,
+            snapshotUrl: 'https://edge.example.com/prior-live.jpg',
+            canonicalHash: 'hash-prior-live',
+          ),
+          IntelligenceReceived(
+            eventId: 'evt-current-news',
+            sequence: 1,
+            version: 1,
+            occurredAt: DateTime.utc(2026, 3, 17, 0, 20),
+            intelligenceId: 'intel-current-news',
+            provider: 'newsdesk',
+            sourceType: 'news',
+            externalId: 'ext-current-news',
+            clientId: 'CLIENT-VALLEE',
+            regionId: 'REGION-GAUTENG',
+            siteId: 'SITE-VALLEE',
+            cameraId: 'news-feed',
+            objectLabel: 'person',
+            objectConfidence: 0.8,
+            headline: 'Contractors moved floor to floor in office park',
+            summary:
+                'Suspects posed as maintenance contractors before moving across restricted office zones.',
+            riskScore: 91,
+            snapshotUrl: 'https://edge.example.com/current-news.jpg',
+            canonicalHash: 'hash-current-news',
+          ),
+          IntelligenceReceived(
+            eventId: 'evt-current-live',
+            sequence: 2,
+            version: 1,
+            occurredAt: DateTime.utc(2026, 3, 17, 1, 0),
+            intelligenceId: 'intel-current-live',
+            provider: 'hikvision_dvr_monitor_only',
+            sourceType: 'dvr',
+            externalId: 'ext-current-live',
+            clientId: 'CLIENT-VALLEE',
+            regionId: 'REGION-GAUTENG',
+            siteId: 'SITE-VALLEE',
+            cameraId: 'office-cam-current',
+            objectLabel: 'person',
+            objectConfidence: 0.94,
+            headline: 'Maintenance contractor probing office doors',
+            summary:
+                'Contractor-like person moved floor to floor and tried several restricted office doors.',
+            riskScore: 84,
+            snapshotUrl: 'https://edge.example.com/current-live.jpg',
+            canonicalHash: 'hash-current-live',
+          ),
+        ];
+
+        final reviews = <String, MonitoringSceneReviewRecord>{
+          'intel-prior-live': MonitoringSceneReviewRecord(
+            intelligenceId: 'intel-prior-live',
+            sourceLabel: 'openai:gpt-5.4-mini',
+            postureLabel: 'service impersonation and roaming concern',
+            decisionLabel: 'Escalation Candidate',
+            decisionSummary:
+                'Likely spoofed service access with abnormal roaming.',
+            summary:
+                'Likely maintenance impersonation moving across office zones.',
+            reviewedAtUtc: DateTime.utc(2026, 3, 16, 1, 2),
+          ),
+          'intel-current-live': MonitoringSceneReviewRecord(
+            intelligenceId: 'intel-current-live',
+            sourceLabel: 'openai:gpt-5.4-mini',
+            postureLabel: 'service impersonation and roaming concern',
+            decisionLabel: 'Escalation Candidate',
+            decisionSummary:
+                'Likely spoofed service access with abnormal roaming.',
+            summary:
+                'Likely maintenance impersonation moving across office zones.',
+            reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 2),
+          ),
+        };
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: GovernancePage(
+              events: events,
+              sceneReviewByIntelligenceId: reviews,
+              morningSovereignReport: currentReport,
+              morningSovereignReportHistory: [priorReport],
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      await pumpSubject();
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('governance-synthetic-war-room-trend-card')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('governance-synthetic-war-room-trend-card')),
+      );
+      await tester.pumpAndSettle();
+
+      final currentHistoryCard = find.byKey(
+        const ValueKey('governance-synthetic-war-room-history-2026-03-17'),
+      );
+      expect(currentHistoryCard, findsOneWidget);
+      expect(
+        find.descendant(
+          of: currentHistoryCard,
+          matching: find.textContaining('Promotion • Promote '),
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(
+        find.byKey(
+          const ValueKey('governance-synthetic-promotion-accept-action'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: currentHistoryCard,
+          matching: find.textContaining('Accepted toward '),
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
   testWidgets('governance page renders persisted morning report metadata', (
     tester,
   ) async {

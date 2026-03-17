@@ -8165,17 +8165,17 @@ class _GovernancePageState extends State<GovernancePage> {
   }
 
   void _showSyntheticWarRoomDrillIn(_GovernanceReportView report) {
-    final history = _syntheticWarRoomHistory(report);
     final trend = _syntheticWarRoomTrendForReport(report);
     final baseline = _syntheticWarRoomBaselineStats(report);
-    final learningMemorySummary = _syntheticWarRoomLearningMemorySummary(
-      history,
-    );
     showDialog<void>(
       context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (dialogContext, setDialogState) {
+            final history = _syntheticWarRoomHistory(report);
+            final learningMemorySummary = _syntheticWarRoomLearningMemorySummary(
+              history,
+            );
             final currentPromotionPoint = history.isEmpty ? null : history.first;
             return Dialog(
               backgroundColor: const Color(0xFF08111B),
@@ -8517,6 +8517,38 @@ class _GovernancePageState extends State<GovernancePage> {
                                       point.shadowMemorySummary,
                                       style: GoogleFonts.inter(
                                         color: const Color(0xFF93C5FD),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                  if (point.promotionSummary
+                                      .trim()
+                                      .isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Promotion • ${point.promotionSummary}',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF86EFAC),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                  if (point.promotionDecisionSummary
+                                      .trim()
+                                      .isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      point.promotionDecisionSummary,
+                                      style: GoogleFonts.inter(
+                                        color: point.promotionDecisionStatus ==
+                                                'accepted'
+                                            ? const Color(0xFF86EFAC)
+                                            : point.promotionDecisionStatus ==
+                                                    'rejected'
+                                            ? const Color(0xFFFCA5A5)
+                                            : const Color(0xFFFDE68A),
                                         fontSize: 10,
                                         fontWeight: FontWeight.w700,
                                       ),
