@@ -5335,6 +5335,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           : report.siteActivity.executiveSummary,
       maxLength: 220,
     );
+    final activityReviewShortcuts = buildReviewShortcuts(
+      currentReportDate: report.date,
+      previousReportDate: previousReport?.date,
+      reviewCommandBuilder: (reportDate) => '/activityreview $reportDate',
+      caseFileCommandBuilder: (reportDate) =>
+          '/activitycase json $reportDate',
+    );
     final responseText = TelegramAdminCommandFormatter.morningGovernance(
       signalHeader: _telegramAdminSignalHeader(),
       reportDate: report.date,
@@ -5396,14 +5403,15 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           : '/syntheticcase json ${previousReport.date}',
       siteActivityHeadline: siteActivityHeadline,
       siteActivitySummary: siteActivitySummary,
-      currentShiftReviewCommand: '/activityreview ${report.date}',
-      currentShiftCaseFileCommand: '/activitycase json ${report.date}',
-      previousShiftReviewCommand: previousReport == null
-          ? null
-          : '/activityreview ${previousReport.date}',
-      previousShiftCaseFileCommand: previousReport == null
-          ? null
-          : '/activitycase json ${previousReport.date}',
+      currentShiftReviewCommand:
+          (activityReviewShortcuts['currentShiftReviewCommand'] ?? '').toString(),
+      currentShiftCaseFileCommand:
+          (activityReviewShortcuts['currentShiftCaseFileCommand'] ?? '')
+              .toString(),
+      previousShiftReviewCommand:
+          activityReviewShortcuts['previousShiftReviewCommand']?.toString(),
+      previousShiftCaseFileCommand:
+          activityReviewShortcuts['previousShiftCaseFileCommand']?.toString(),
       targetScope: targetScope,
       targetScopeRequired: true,
       utcStamp: _telegramUtcStamp(),
@@ -12250,6 +12258,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       clientId: normalizedClientId,
       siteId: normalizedSiteId,
     );
+    final currentHistoryPoint = history.isEmpty ? null : history.first;
+    final previousHistoryPoint = history.length > 1 ? history[1] : null;
     final effectiveReportDate =
         targetPoint?.reportDate ??
         reportDate?.trim() ??
@@ -12276,6 +12286,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'topFlaggedIdentitySummary': snapshot.topFlaggedIdentitySummary,
         'topLongPresenceSummary': snapshot.topLongPresenceSummary,
         'topGuardInteractionSummary': snapshot.topGuardInteractionSummary,
+        'reviewShortcuts': buildReviewShortcuts(
+          currentReportDate: currentHistoryPoint?.reportDate ?? '',
+          previousReportDate: previousHistoryPoint?.reportDate,
+          reviewCommandBuilder: (reportDate) =>
+              '/activityreview $normalizedClientId $normalizedSiteId $reportDate',
+          caseFileCommandBuilder: (reportDate) =>
+              '/activitycase json $normalizedClientId $normalizedSiteId $reportDate',
+        ),
         'trend': trend == null
             ? null
             : {'label': trend.label, 'summary': trend.summary},
