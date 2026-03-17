@@ -3286,52 +3286,52 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
   String _dispatchActiveDetails(_IncidentRecord incident) {
     if (_isFireIncident(incident)) {
-      return 'Escalating fire response posture and emergency notification lane.';
+      return 'Dispatching fire response, holding emergency notification, and staging occupant welfare checks.';
     }
     if (_isLeakIncident(incident)) {
-      return 'Escalating water-loss response posture and site containment lane.';
+      return 'Dispatching leak containment, holding water-loss notification, and staging occupant welfare checks.';
     }
     if (_isHazardIncident(incident)) {
-      return 'Escalating hazard response posture and site safety lane.';
+      return 'Dispatching site safety response, holding hazard notification, and staging occupant welfare checks.';
     }
     return 'Officer Echo-3 • 2.4km • ETA 4m 12s';
   }
 
   String _dispatchActiveMetadata(_IncidentRecord incident) {
     if (_isFireIncident(incident)) {
-      return 'Emergency route selected • fire posture locked';
+      return 'Fire emergency dispatch staged • welfare check hot';
     }
     if (_isLeakIncident(incident)) {
-      return 'Containment route selected • water-loss posture locked';
+      return 'Leak containment dispatch staged • welfare check hot';
     }
     if (_isHazardIncident(incident)) {
-      return 'Safety route selected • hazard posture locked';
+      return 'Safety dispatch staged • welfare check hot';
     }
     return 'Nearest armed response selected';
   }
 
   String _clientCallActiveDetails(_IncidentRecord incident) {
     if (_isFireIncident(incident)) {
-      return 'Client safety call in progress while ONYX checks for spread.';
+      return 'Client and occupant welfare call in progress while ONYX checks for spread.';
     }
     if (_isLeakIncident(incident)) {
-      return 'Client safety call in progress while ONYX checks for worsening water loss.';
+      return 'Client and occupant welfare call in progress while ONYX checks for worsening water loss.';
     }
     if (_isHazardIncident(incident)) {
-      return 'Client safety call in progress while ONYX checks for worsening hazard conditions.';
+      return 'Client and occupant welfare call in progress while ONYX checks for worsening hazard conditions.';
     }
     return 'Safe-word verification call in progress.';
   }
 
   String _clientCallThinkingMessage(_IncidentRecord incident) {
     if (_isFireIncident(incident)) {
-      return 'Preparing emergency client safety call...';
+      return 'Preparing emergency welfare and client safety call...';
     }
     if (_isLeakIncident(incident)) {
-      return 'Preparing flood or leak safety call...';
+      return 'Preparing leak welfare and client safety call...';
     }
     if (_isHazardIncident(incident)) {
-      return 'Preparing hazard safety call...';
+      return 'Preparing hazard welfare and client safety call...';
     }
     return 'Waiting for VoIP completion...';
   }

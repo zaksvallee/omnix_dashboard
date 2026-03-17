@@ -229,8 +229,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('FIRE ESCALATION'), findsOneWidget);
+    expect(find.text('DISPATCH FIRE RESPONSE'), findsOneWidget);
+    expect(find.text('TRIGGER OCCUPANT WELFARE CHECK'), findsOneWidget);
     expect(
       find.textContaining('Promote immediate fire response'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Stage fire response for SITE-FIRE'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Trigger immediate occupant welfare verification'),
       findsOneWidget,
     );
     expect(find.textContaining('HIKVISION evidence'), findsOneWidget);

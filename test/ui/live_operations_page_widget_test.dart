@@ -323,6 +323,16 @@ void main() {
     expect(find.text('FIRE RESPONSE'), findsOneWidget);
     expect(find.text('CLIENT SAFETY CALL'), findsOneWidget);
     expect(find.text('FIRE VERIFY'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Dispatching fire response, holding emergency notification, and staging occupant welfare checks.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Fire emergency dispatch staged • welfare check hot'),
+      findsOneWidget,
+    );
   });
 
   testWidgets(
