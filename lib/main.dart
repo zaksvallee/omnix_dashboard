@@ -18046,6 +18046,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           mode: _syntheticWarRoomModeLabel(plans),
           summary: _syntheticWarRoomSummary(plans),
           focusSummary: focusSummary,
+          promotionPressureSummary:
+              (payload['promotionPressureSummary'] ?? '').toString(),
           learningSummary: learningSummary,
           learningMemorySummary: learningMemorySummary,
           caseFileCommand: '/syntheticcase json ${report.date}',
@@ -18061,6 +18063,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         mode: _syntheticWarRoomModeLabel(plans),
         summary: _syntheticWarRoomSummary(plans),
         focusSummary: focusSummary,
+        promotionPressureSummary:
+            (payload['promotionPressureSummary'] ?? '').toString(),
         learningSummary: learningSummary,
         learningMemorySummary: learningMemorySummary,
         caseFileCommand: '/syntheticcase json ${report.date}',
