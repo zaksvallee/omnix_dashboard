@@ -38,6 +38,50 @@ class MonitoringOrchestratorService {
         ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
       final latest = latestSiteEvent.isEmpty ? null : latestSiteEvent.first;
       final hasIdentityPressure = leadSite.identitySignalCount > 0;
+      final hasFirePressure = leadSite.dominantSignals.contains('fire');
+      final hasWaterLeakPressure =
+          leadSite.dominantSignals.contains('water_leak');
+      final hasEnvironmentalHazardPressure =
+          leadSite.dominantSignals.contains('environment_hazard');
+
+      if (hasFirePressure || hasWaterLeakPressure || hasEnvironmentalHazardPressure) {
+        actionIntents.add(
+          MonitoringWatchAutonomyActionPlan(
+            id: 'ORCH-HAZARD-${region.regionId}',
+            incidentId: latest?.intelligenceId ?? leadSite.siteId,
+            siteId: leadSite.siteId,
+            priority: MonitoringWatchAutonomyPriority.critical,
+            actionType: hasFirePressure
+                ? 'ACTIVATE FIRE PLAYBOOK'
+                : hasWaterLeakPressure
+                ? 'ACTIVATE LEAK PLAYBOOK'
+                : 'ACTIVATE HAZARD PLAYBOOK',
+            description: hasFirePressure
+                ? 'Lock ${videoOpsLabel.toUpperCase()} fire verification on ${leadSite.siteId}, pre-stage emergency response, and raise a client safety warning before spread compounds.'
+                : hasWaterLeakPressure
+                ? 'Lock ${videoOpsLabel.toUpperCase()} leak verification on ${leadSite.siteId}, pre-stage containment, and raise a client safety warning before water loss compounds.'
+                : 'Lock ${videoOpsLabel.toUpperCase()} hazard verification on ${leadSite.siteId}, pre-stage site safety response, and raise a client warning before conditions worsen.',
+            countdownSeconds: hasFirePressure
+                ? 6
+                : hasWaterLeakPressure
+                ? 8
+                : 12,
+            metadata: <String, String>{
+              'mode': 'AUTO',
+              'scope': 'ORCHESTRATOR',
+              'region': region.regionId,
+              'lead_site': leadSite.siteId,
+              'heat': region.heatLevel.name.toUpperCase(),
+              'hazard_signal': hasFirePressure
+                  ? 'fire'
+                  : hasWaterLeakPressure
+                  ? 'water_leak'
+                  : 'environment_hazard',
+              'signals': leadSite.dominantSignals.join(', '),
+            },
+          ),
+        );
+      }
 
       actionIntents.add(
         MonitoringWatchAutonomyActionPlan(
@@ -135,6 +179,39 @@ class MonitoringOrchestratorService {
               'region': region.regionId,
               'lead_site': leadSite.siteId,
               'identity_pressure': hasIdentityPressure ? 'YES' : 'NO',
+            },
+          ),
+        );
+      }
+
+      if (hasFirePressure || hasWaterLeakPressure || hasEnvironmentalHazardPressure) {
+        actionIntents.add(
+          MonitoringWatchAutonomyActionPlan(
+            id: 'ORCH-SAFETY-${region.regionId}',
+            incidentId: latest?.intelligenceId ?? leadSite.siteId,
+            siteId: leadSite.siteId,
+            priority: MonitoringWatchAutonomyPriority.high,
+            actionType: 'DRAFT SAFETY WARNING',
+            description: hasFirePressure
+                ? 'Prepare a client and operator fire safety warning for ${leadSite.siteId} with emergency evidence held for human veto.'
+                : hasWaterLeakPressure
+                ? 'Prepare a client and operator leak safety warning for ${leadSite.siteId} with containment evidence held for human veto.'
+                : 'Prepare a client and operator hazard safety warning for ${leadSite.siteId} with evidence held for human veto.',
+            countdownSeconds: hasFirePressure
+                ? 10
+                : hasWaterLeakPressure
+                ? 12
+                : 16,
+            metadata: <String, String>{
+              'mode': 'AUTO',
+              'scope': 'ORCHESTRATOR',
+              'region': region.regionId,
+              'lead_site': leadSite.siteId,
+              'hazard_signal': hasFirePressure
+                  ? 'fire'
+                  : hasWaterLeakPressure
+                  ? 'water_leak'
+                  : 'environment_hazard',
             },
           ),
         );

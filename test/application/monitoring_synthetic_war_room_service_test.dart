@@ -131,6 +131,50 @@ void main() {
         isTrue,
       );
     });
+
+    test('uses hazard pressure in simulation recommendations', () {
+      final events = <DispatchEvent>[
+        _intel(
+          id: 'intel-fire',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-VALLEE',
+          riskScore: 88,
+          cameraId: 'generator-room-cam',
+          headline: 'HIKVISION FIRE ALERT',
+          summary: 'Smoke visible in the generator room.',
+        ),
+      ];
+      final reviews = <String, MonitoringSceneReviewRecord>{
+        'intel-fire': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-fire',
+          sourceLabel: 'openai:gpt-5.4-mini',
+          postureLabel: 'fire and smoke emergency',
+          decisionLabel: 'Escalation Candidate',
+          decisionSummary:
+              'Escalated for urgent review because fire or smoke indicators were detected.',
+          summary: 'Smoke plume visible inside the generator room.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 30),
+        ),
+      };
+
+      final plans = service.buildSimulationPlans(
+        events: events,
+        sceneReviewByIntelligenceId: reviews,
+        videoOpsLabel: 'Hikvision',
+      );
+
+      expect(
+        plans.any(
+          (entry) =>
+              entry.actionType == 'POLICY RECOMMENDATION' &&
+              entry.metadata['hazard_signal'] == 'fire' &&
+              (entry.metadata['recommendation'] ?? '').contains(
+                'fire spread rehearsal',
+              ),
+        ),
+        isTrue,
+      );
+    });
   });
 }
 

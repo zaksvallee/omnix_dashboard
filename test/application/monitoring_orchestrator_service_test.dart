@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:omnix_dashboard/application/monitoring_orchestrator_service.dart';
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
+import 'package:omnix_dashboard/application/monitoring_watch_action_plan.dart';
 import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 
@@ -132,6 +133,51 @@ void main() {
         intents.any((entry) => entry.metadata['echo_target'] == 'SITE-SANDTON'),
         isTrue,
       );
+    });
+
+    test('emits hazard-specific response intents for fire posture', () {
+      final events = <DispatchEvent>[
+        _intel(
+          id: 'intel-fire',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-VALLEE',
+          riskScore: 88,
+          cameraId: 'generator-room-cam',
+          headline: 'HIKVISION FIRE ALERT',
+          summary: 'Smoke visible in the generator room.',
+        ),
+      ];
+      final reviews = <String, MonitoringSceneReviewRecord>{
+        'intel-fire': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-fire',
+          sourceLabel: 'openai:gpt-5.4-mini',
+          postureLabel: 'fire and smoke emergency',
+          decisionLabel: 'Escalation Candidate',
+          decisionSummary:
+              'Escalated for urgent review because fire or smoke indicators were detected.',
+          summary: 'Smoke plume visible inside the generator room.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 30),
+        ),
+      };
+
+      final intents = service.buildActionIntents(
+        events: events,
+        sceneReviewByIntelligenceId: reviews,
+        videoOpsLabel: 'Hikvision',
+      );
+
+      expect(
+        intents.map((entry) => entry.actionType),
+        containsAll(<String>[
+          'ACTIVATE FIRE PLAYBOOK',
+          'DRAFT SAFETY WARNING',
+        ]),
+      );
+      final playbook = intents.firstWhere(
+        (entry) => entry.actionType == 'ACTIVATE FIRE PLAYBOOK',
+      );
+      expect(playbook.priority, MonitoringWatchAutonomyPriority.critical);
+      expect(playbook.metadata['hazard_signal'], 'fire');
     });
   });
 }

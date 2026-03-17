@@ -57,6 +57,11 @@ class MonitoringSyntheticWarRoomService {
       final hasExternalPressure = leadSite.dominantSignals.any(
         _externalPressureSignals.contains,
       );
+      final hasFirePressure = leadSite.dominantSignals.contains('fire');
+      final hasWaterLeakPressure =
+          leadSite.dominantSignals.contains('water_leak');
+      final hasEnvironmentalHazardPressure =
+          leadSite.dominantSignals.contains('environment_hazard');
 
       final rehearsalFocus = topIntent?.actionType.toLowerCase() ??
           '${videoOpsLabel.toLowerCase()} spillover containment';
@@ -90,8 +95,17 @@ class MonitoringSyntheticWarRoomService {
 
       if (region.heatLevel == MonitoringGlobalHeatLevel.critical ||
           hasExternalPressure ||
-          posturalEchoCount > 0) {
-        final recommendation = hasExternalPressure
+          posturalEchoCount > 0 ||
+          hasFirePressure ||
+          hasWaterLeakPressure ||
+          hasEnvironmentalHazardPressure) {
+        final recommendation = hasFirePressure
+            ? 'earlier fire spread rehearsal and emergency response staging'
+            : hasWaterLeakPressure
+            ? 'earlier leak containment rehearsal and water-loss staging'
+            : hasEnvironmentalHazardPressure
+            ? 'earlier hazard isolation rehearsal and safety staging'
+            : hasExternalPressure
             ? 'earlier regional readiness before external pressure lands on-site'
             : posturalEchoCount > 0
                 ? 'earlier postural echo propagation into sibling sites'
@@ -113,6 +127,10 @@ class MonitoringSyntheticWarRoomService {
               'lead_site': leadSite.siteId,
               'recommendation': recommendation,
               'top_intent': topIntent?.actionType ?? 'NONE',
+              if (hasFirePressure) 'hazard_signal': 'fire',
+              if (hasWaterLeakPressure) 'hazard_signal': 'water_leak',
+              if (hasEnvironmentalHazardPressure)
+                'hazard_signal': 'environment_hazard',
             },
           ),
         );
