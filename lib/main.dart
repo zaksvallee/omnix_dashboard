@@ -5357,6 +5357,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       globalReadinessTopIntentSummary: _globalReadinessTopIntentSummary(
         readinessIntents,
       ),
+      globalReadinessHazardSummary: _globalReadinessHazardSummary(
+        readinessIntents,
+      ),
       currentShiftReadinessFocusSummary: _readinessFocusSummary(report.date),
       currentShiftReadinessReviewCommand: '/readinessreview ${report.date}',
       currentShiftReadinessCaseFileCommand:
@@ -5382,6 +5385,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         syntheticWarRoomPlans,
       ),
       syntheticWarRoomPolicySummary: _syntheticWarRoomPolicySummary(
+        syntheticWarRoomPlans,
+      ),
+      syntheticWarRoomHazardSummary: _syntheticWarRoomHazardSummary(
         syntheticWarRoomPlans,
       ),
       syntheticWarRoomHistoryHeadline:
@@ -5684,6 +5690,39 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       return '';
     }
     return _singleLine(recommendations.first, maxLength: 220);
+  }
+
+  String _globalReadinessHazardSummary(
+    List<MonitoringWatchAutonomyActionPlan> intents,
+  ) {
+    final signal = intents
+        .map((plan) => (plan.metadata['hazard_signal'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    if (signal.isEmpty) {
+      return '';
+    }
+    return '${_hazardSignalLabel(signal)} playbook active';
+  }
+
+  String _syntheticWarRoomHazardSummary(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    final signal = plans
+        .map((plan) => (plan.metadata['hazard_signal'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    if (signal.isEmpty) {
+      return '';
+    }
+    return '${_hazardSignalLabel(signal)} rehearsal recommended';
+  }
+
+  String _hazardSignalLabel(String signal) {
+    return switch (signal.trim().toLowerCase()) {
+      'fire' => 'fire',
+      'water_leak' => 'leak',
+      'environment_hazard' => 'hazard',
+      _ => signal.trim().toLowerCase(),
+    };
   }
 
   List<IntelligenceReceived> _reviewedIntelligenceEventsForReport(

@@ -76,6 +76,7 @@ class TelegramAdminCommandFormatter {
     String? globalReadinessSummary,
     String? globalReadinessEchoSummary,
     String? globalReadinessTopIntentSummary,
+    String? globalReadinessHazardSummary,
     String? currentShiftReadinessFocusSummary,
     String? currentShiftReadinessReviewCommand,
     String? currentShiftReadinessCaseFileCommand,
@@ -87,6 +88,7 @@ class TelegramAdminCommandFormatter {
     String? syntheticWarRoomHeadline,
     String? syntheticWarRoomSummary,
     String? syntheticWarRoomPolicySummary,
+    String? syntheticWarRoomHazardSummary,
     String? syntheticWarRoomHistoryHeadline,
     String? syntheticWarRoomHistorySummary,
     String? currentShiftSyntheticFocusSummary,
@@ -115,6 +117,8 @@ class TelegramAdminCommandFormatter {
     final readinessEchoSummary = globalReadinessEchoSummary?.trim() ?? '';
     final readinessTopIntentSummary =
         globalReadinessTopIntentSummary?.trim() ?? '';
+    final readinessHazardSummary =
+        globalReadinessHazardSummary?.trim() ?? '';
     final readinessFocusSummary =
         currentShiftReadinessFocusSummary?.trim() ?? '';
     final readinessReview = currentShiftReadinessReviewCommand?.trim() ?? '';
@@ -132,6 +136,8 @@ class TelegramAdminCommandFormatter {
     final warRoomHeadline = syntheticWarRoomHeadline?.trim() ?? '';
     final warRoomSummary = syntheticWarRoomSummary?.trim() ?? '';
     final warRoomPolicySummary = syntheticWarRoomPolicySummary?.trim() ?? '';
+    final warRoomHazardSummary =
+        syntheticWarRoomHazardSummary?.trim() ?? '';
     final warRoomHistoryHeadline =
         syntheticWarRoomHistoryHeadline?.trim() ?? '';
     final warRoomHistorySummary =
@@ -167,6 +173,7 @@ class TelegramAdminCommandFormatter {
               '${readinessFocusSummary.isEmpty ? '' : '• <b>Focus:</b> ${_escapeHtml(readinessFocusSummary)}\n'}'
               '${readinessEchoSummary.isEmpty ? '' : '• <b>Postural echo:</b> ${_escapeHtml(readinessEchoSummary)}\n'}'
               '${readinessTopIntentSummary.isEmpty ? '' : '• <b>Top intent:</b> ${_escapeHtml(readinessTopIntentSummary)}\n'}'
+              '${readinessHazardSummary.isEmpty ? '' : '• <b>Hazard lane:</b> ${_escapeHtml(readinessHazardSummary)}\n'}'
               '• <b>Current review:</b> <code>${_escapeHtml(readinessReview)}</code>\n'
               '${readinessCase.isEmpty ? '' : '• <b>Current case:</b> <code>${_escapeHtml(readinessCase)}</code>\n'}'
               '${readinessGovernance.isEmpty ? '' : '• <b>Open governance:</b> <code>${_escapeHtml(readinessGovernance)}</code>\n'}'
@@ -182,6 +189,7 @@ class TelegramAdminCommandFormatter {
               '${warRoomHeadline.isEmpty ? '' : '• <b>Mode:</b> ${_escapeHtml(warRoomHeadline)}\n'}'
               '${warRoomSummary.isEmpty ? '' : '• <b>Summary:</b> ${_escapeHtml(warRoomSummary)}\n'}'
               '${warRoomPolicySummary.isEmpty ? '' : '• <b>Policy:</b> ${_escapeHtml(warRoomPolicySummary)}\n'}'
+              '${warRoomHazardSummary.isEmpty ? '' : '• <b>Hazard rehearsal:</b> ${_escapeHtml(warRoomHazardSummary)}\n'}'
               '${syntheticFocusSummary.isEmpty ? '' : '• <b>Focus:</b> ${_escapeHtml(syntheticFocusSummary)}\n'}'
               '${warRoomHistoryHeadline.isEmpty ? '' : '• <b>Trend:</b> ${_escapeHtml(warRoomHistoryHeadline)}\n'}'
               '${warRoomHistorySummary.isEmpty ? '' : '• <b>History:</b> ${_escapeHtml(warRoomHistorySummary)}\n'}'

@@ -129,6 +129,7 @@ void main() {
           'Echo 2 • lead site-alpha • target site-bravo, site-charlie',
       globalReadinessTopIntentSummary:
           'POSTURAL ECHO • site-bravo • Raise CCTV perimeter attention',
+      globalReadinessHazardSummary: 'fire playbook active',
       currentShiftReadinessFocusSummary:
           'Viewing live oversight shift 2026-03-17.',
       currentShiftReadinessReviewCommand: '/readinessreview 2026-03-17',
@@ -145,6 +146,7 @@ void main() {
           'Plans 2 • region north-cluster • lead site-alpha • top intent POSTURAL ECHO',
       syntheticWarRoomPolicySummary:
           'Raise perimeter review priority for north-cluster during the next shift.',
+      syntheticWarRoomHazardSummary: 'fire rehearsal recommended',
       syntheticWarRoomHistoryHeadline: 'RISING • 3d',
       syntheticWarRoomHistorySummary:
           'Current pressure 3 • Baseline 1.0 • Synthetic rehearsal is recommending stronger action than recent shifts.',
@@ -188,6 +190,7 @@ void main() {
     );
     expect(response, contains('<b>Postural echo:</b> Echo 2'));
     expect(response, contains('<b>Top intent:</b> POSTURAL ECHO'));
+    expect(response, contains('<b>Hazard lane:</b> fire playbook active'));
     expect(response, contains('<code>/readinessreview 2026-03-17</code>'));
     expect(response, contains('<code>/readinesscase json 2026-03-16</code>'));
     expect(response, contains('<code>/readinessgovernance 2026-03-17</code>'));
@@ -224,6 +227,10 @@ void main() {
       contains(
         '<b>Policy:</b> Raise perimeter review priority for north-cluster during the next shift.',
       ),
+    );
+    expect(
+      response,
+      contains('<b>Hazard rehearsal:</b> fire rehearsal recommended'),
     );
     expect(
       response,
