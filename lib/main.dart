@@ -19343,6 +19343,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             focusedGovernanceReport,
           ),
           morningSovereignReportAutoRunKey: _morningSovereignReportAutoRunKey,
+          currentMorningSovereignReportDate: _morningSovereignReport?.date,
+          initialReportFocusDate: _governanceReportFocusDate.trim().isEmpty
+              ? null
+              : _governanceReportFocusDate,
           initialPartnerScopeClientId:
               _governancePartnerScopeClientId.trim().isEmpty
               ? null

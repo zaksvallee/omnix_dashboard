@@ -620,6 +620,8 @@ class GovernancePage extends StatefulWidget {
   final SovereignReport? morningSovereignReport;
   final List<SovereignReport> morningSovereignReportHistory;
   final String? morningSovereignReportAutoRunKey;
+  final String? currentMorningSovereignReportDate;
+  final String? initialReportFocusDate;
   final String? initialPartnerScopeClientId;
   final String? initialPartnerScopeSiteId;
   final String? initialPartnerScopePartnerLabel;
@@ -644,6 +646,8 @@ class GovernancePage extends StatefulWidget {
     this.morningSovereignReport,
     this.morningSovereignReportHistory = const <SovereignReport>[],
     this.morningSovereignReportAutoRunKey,
+    this.currentMorningSovereignReportDate,
+    this.initialReportFocusDate,
     this.initialPartnerScopeClientId,
     this.initialPartnerScopeSiteId,
     this.initialPartnerScopePartnerLabel,
@@ -772,6 +776,9 @@ class _GovernancePageState extends State<GovernancePage> {
                   reportSource: report.fromCanonicalReport
                       ? 'PERSISTED'
                       : 'LIVE PROJECTION',
+                  reportFocusLabel: _hasHistoricalReportFocus
+                      ? _focusedReportDate
+                      : null,
                 ),
                 const SizedBox(height: 12),
                 wide
@@ -883,7 +890,9 @@ class _GovernancePageState extends State<GovernancePage> {
     required int readiness,
     required int activeGuards,
     required String reportSource,
+    String? reportFocusLabel,
   }) {
+    final normalizedReportFocusLabel = reportFocusLabel?.trim() ?? '';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
@@ -914,6 +923,8 @@ class _GovernancePageState extends State<GovernancePage> {
           _topChip('Readiness Posture', '$readiness%'),
           _topChip('Guards Monitored', activeGuards.toString()),
           _topChip('Report Source', reportSource),
+          if (normalizedReportFocusLabel.isNotEmpty)
+            _topChip('Shift Focus', '$normalizedReportFocusLabel HISTORY'),
         ],
       ),
     );
@@ -1431,6 +1442,41 @@ class _GovernancePageState extends State<GovernancePage> {
                   const SizedBox(height: 4),
                   Text(
                     '${_partnerScopeClientId!}/${_partnerScopeSiteId!} • ${_partnerScopePartnerLabel!}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFEAF4FF),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (_hasHistoricalReportFocus) ...[
+            const SizedBox(height: 8),
+            Container(
+              key: const ValueKey('governance-report-focus-banner'),
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0x141F3A1B),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0x44588F6C)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Historical readiness focus active',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFA7F3D0),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Viewing command-targeted shift $_focusedReportDate instead of live oversight $_currentMorningReportDate.',
                     style: GoogleFonts.inter(
                       color: const Color(0xFFEAF4FF),
                       fontSize: 10,
@@ -2145,6 +2191,23 @@ class _GovernancePageState extends State<GovernancePage> {
   String? get _partnerScopePartnerLabel {
     final value = widget.initialPartnerScopePartnerLabel?.trim() ?? '';
     return value.isEmpty ? null : value;
+  }
+
+  String get _focusedReportDate {
+    return widget.initialReportFocusDate?.trim() ?? '';
+  }
+
+  String get _currentMorningReportDate {
+    return widget.currentMorningSovereignReportDate?.trim() ?? '';
+  }
+
+  bool get _hasHistoricalReportFocus {
+    final focused = _focusedReportDate;
+    if (focused.isEmpty) {
+      return false;
+    }
+    final current = _currentMorningReportDate;
+    return current.isNotEmpty && current != focused;
   }
 
   bool get _hasPartnerScopeFocus =>
@@ -3088,10 +3151,12 @@ class _GovernancePageState extends State<GovernancePage> {
     return _SiteActivityBaselineStats(
       signalsAverage: average((item) => item.siteActivity.totalSignals),
       unknownAverage: average((item) => item.siteActivity.unknownSignals),
-      flaggedAverage:
-          average((item) => item.siteActivity.flaggedIdentitySignals),
-      guardInteractionAverage:
-          average((item) => item.siteActivity.guardInteractionSignals),
+      flaggedAverage: average(
+        (item) => item.siteActivity.flaggedIdentitySignals,
+      ),
+      guardInteractionAverage: average(
+        (item) => item.siteActivity.guardInteractionSignals,
+      ),
       reportDays: baseline.length,
     );
   }
@@ -3139,7 +3204,9 @@ class _GovernancePageState extends State<GovernancePage> {
         item.shiftWindowStartUtc,
         item.shiftWindowEndUtc,
       );
-      final leadRegion = snapshot.regions.isEmpty ? null : snapshot.regions.first;
+      final leadRegion = snapshot.regions.isEmpty
+          ? null
+          : snapshot.regions.first;
       final leadSite = snapshot.sites.isEmpty ? null : snapshot.sites.first;
       points.add(
         _GlobalReadinessHistoryPoint(
@@ -6593,7 +6660,9 @@ class _GovernancePageState extends State<GovernancePage> {
                       _partnerTrendMetricChip(
                         label: 'Current mode',
                         value: trend.currentModeLabel,
-                        color: _globalReadinessModeColor(trend.currentModeLabel),
+                        color: _globalReadinessModeColor(
+                          trend.currentModeLabel,
+                        ),
                       ),
                       _partnerTrendMetricChip(
                         label: 'Baseline Critical',
@@ -6696,8 +6765,9 @@ class _GovernancePageState extends State<GovernancePage> {
                                           color: _globalReadinessModeColor(
                                             point.modeLabel,
                                           ).withValues(alpha: 0.14),
-                                          borderRadius:
-                                              BorderRadius.circular(999),
+                                          borderRadius: BorderRadius.circular(
+                                            999,
+                                          ),
                                           border: Border.all(
                                             color: _globalReadinessModeColor(
                                               point.modeLabel,
@@ -6726,7 +6796,9 @@ class _GovernancePageState extends State<GovernancePage> {
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  if (point.leadRegionSummary.trim().isNotEmpty) ...[
+                                  if (point.leadRegionSummary
+                                      .trim()
+                                      .isNotEmpty) ...[
                                     const SizedBox(height: 4),
                                     Text(
                                       point.leadRegionId.trim().isEmpty
@@ -6740,10 +6812,14 @@ class _GovernancePageState extends State<GovernancePage> {
                                     ),
                                   ],
                                   if (point.leadSiteSummary.trim().isNotEmpty ||
-                                      point.latestIntentSummary.trim().isNotEmpty) ...[
+                                      point.latestIntentSummary
+                                          .trim()
+                                          .isNotEmpty) ...[
                                     const SizedBox(height: 4),
                                     Text(
-                                      point.latestIntentSummary.trim().isNotEmpty
+                                      point.latestIntentSummary
+                                              .trim()
+                                              .isNotEmpty
                                           ? point.latestIntentSummary
                                           : '${point.leadSiteId} • ${point.leadSiteSummary}',
                                       style: GoogleFonts.inter(
@@ -6944,8 +7020,9 @@ class _GovernancePageState extends State<GovernancePage> {
                                           color: _siteActivityModeColor(
                                             point.modeLabel,
                                           ).withValues(alpha: 0.14),
-                                          borderRadius:
-                                              BorderRadius.circular(999),
+                                          borderRadius: BorderRadius.circular(
+                                            999,
+                                          ),
                                           border: Border.all(
                                             color: _siteActivityModeColor(
                                               point.modeLabel,
@@ -6974,7 +7051,9 @@ class _GovernancePageState extends State<GovernancePage> {
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  if (point.executiveSummary.trim().isNotEmpty ||
+                                  if (point.executiveSummary
+                                          .trim()
+                                          .isNotEmpty ||
                                       point.headline.trim().isNotEmpty) ...[
                                     const SizedBox(height: 4),
                                     Text(
@@ -7912,7 +7991,9 @@ class _GovernancePageState extends State<GovernancePage> {
     return '/activitycase json $reportDate';
   }
 
-  Map<String, Object?> _siteActivityHistoryJson(_SiteActivityHistoryPoint point) {
+  Map<String, Object?> _siteActivityHistoryJson(
+    _SiteActivityHistoryPoint point,
+  ) {
     return {
       'reportDate': point.reportDate,
       'current': point.current,
@@ -8167,15 +8248,12 @@ class _GovernancePageState extends State<GovernancePage> {
           siteActivityPeople: canonical.siteActivity.personSignals,
           siteActivityVehicles: canonical.siteActivity.vehicleSignals,
           siteActivityKnownIds: canonical.siteActivity.knownIdentitySignals,
-          siteActivityFlaggedIds:
-              canonical.siteActivity.flaggedIdentitySignals,
+          siteActivityFlaggedIds: canonical.siteActivity.flaggedIdentitySignals,
           siteActivityUnknownSignals: canonical.siteActivity.unknownSignals,
-          siteActivityLongPresence:
-              canonical.siteActivity.longPresenceSignals,
+          siteActivityLongPresence: canonical.siteActivity.longPresenceSignals,
           siteActivityGuardInteractions:
               canonical.siteActivity.guardInteractionSignals,
-          siteActivityExecutiveSummary:
-              canonical.siteActivity.executiveSummary,
+          siteActivityExecutiveSummary: canonical.siteActivity.executiveSummary,
           siteActivityHeadline: canonical.siteActivity.headline,
           siteActivitySummary: canonical.siteActivity.summaryLine,
           vehicleVisits: canonical.vehicleThroughput.totalVisits,

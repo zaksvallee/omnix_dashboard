@@ -56,57 +56,128 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('governance page shows global readiness metric from scene reviews', (
+  testWidgets(
+    'governance page shows global readiness metric from scene reviews',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GovernancePage(
+            events: <DispatchEvent>[
+              IntelligenceReceived(
+                eventId: 'evt-1',
+                sequence: 1,
+                version: 1,
+                occurredAt: DateTime.utc(2026, 3, 16, 22, 0),
+                intelligenceId: 'intel-1',
+                provider: 'hikvision_dvr_monitor_only',
+                sourceType: 'dvr',
+                externalId: 'ext-1',
+                clientId: 'CLIENT-1',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-VALLEE',
+                cameraId: 'gate-cam',
+                faceMatchId: 'PERSON-44',
+                objectLabel: 'person',
+                objectConfidence: 0.95,
+                headline: 'HIKVISION ALERT',
+                summary: 'Boundary activity detected',
+                riskScore: 93,
+                snapshotUrl: 'https://edge.example.com/intel-1.jpg',
+                canonicalHash: 'hash-1',
+              ),
+            ],
+            sceneReviewByIntelligenceId: {
+              'intel-1': MonitoringSceneReviewRecord(
+                intelligenceId: 'intel-1',
+                sourceLabel: 'openai:gpt-5.4-mini',
+                postureLabel: 'boundary identity concern',
+                decisionLabel: 'Escalation Candidate',
+                decisionSummary: 'Escalation posture requires response review.',
+                summary: 'Boundary activity at gate.',
+                reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 1),
+              ),
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('governance-metric-global-readiness')),
+        findsOneWidget,
+      );
+      expect(find.text('Global Readiness'), findsOneWidget);
+    },
+  );
+
+  testWidgets('governance page highlights historical readiness focus mode', (
     tester,
   ) async {
+    SovereignReport buildReport({
+      required String date,
+      required DateTime generatedAtUtc,
+    }) {
+      return SovereignReport(
+        date: date,
+        generatedAtUtc: generatedAtUtc,
+        shiftWindowStartUtc: generatedAtUtc.subtract(const Duration(hours: 8)),
+        shiftWindowEndUtc: generatedAtUtc,
+        ledgerIntegrity: const SovereignReportLedgerIntegrity(
+          totalEvents: 10,
+          hashVerified: true,
+          integrityScore: 99,
+        ),
+        aiHumanDelta: const SovereignReportAiHumanDelta(
+          aiDecisions: 1,
+          humanOverrides: 0,
+          overrideReasons: <String, int>{},
+        ),
+        normDrift: const SovereignReportNormDrift(
+          sitesMonitored: 2,
+          driftDetected: 0,
+          avgMatchScore: 100,
+        ),
+        complianceBlockage: const SovereignReportComplianceBlockage(
+          psiraExpired: 0,
+          pdpExpired: 0,
+          totalBlocked: 0,
+        ),
+      );
+    }
+
+    final currentReport = buildReport(
+      date: '2026-03-10',
+      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
+    );
+    final focusedReport = buildReport(
+      date: '2026-03-09',
+      generatedAtUtc: DateTime.utc(2026, 3, 9, 6, 0),
+    );
+
     await tester.pumpWidget(
       MaterialApp(
         home: GovernancePage(
-          events: <DispatchEvent>[
-            IntelligenceReceived(
-              eventId: 'evt-1',
-              sequence: 1,
-              version: 1,
-              occurredAt: DateTime.utc(2026, 3, 16, 22, 0),
-              intelligenceId: 'intel-1',
-              provider: 'hikvision_dvr_monitor_only',
-              sourceType: 'dvr',
-              externalId: 'ext-1',
-              clientId: 'CLIENT-1',
-              regionId: 'REGION-GAUTENG',
-              siteId: 'SITE-VALLEE',
-              cameraId: 'gate-cam',
-              faceMatchId: 'PERSON-44',
-              objectLabel: 'person',
-              objectConfidence: 0.95,
-              headline: 'HIKVISION ALERT',
-              summary: 'Boundary activity detected',
-              riskScore: 93,
-              snapshotUrl: 'https://edge.example.com/intel-1.jpg',
-              canonicalHash: 'hash-1',
-            ),
-          ],
-          sceneReviewByIntelligenceId: {
-            'intel-1': MonitoringSceneReviewRecord(
-              intelligenceId: 'intel-1',
-              sourceLabel: 'openai:gpt-5.4-mini',
-              postureLabel: 'boundary identity concern',
-              decisionLabel: 'Escalation Candidate',
-              decisionSummary: 'Escalation posture requires response review.',
-              summary: 'Boundary activity at gate.',
-              reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 1),
-            ),
-          },
+          events: const <DispatchEvent>[],
+          morningSovereignReport: focusedReport,
+          morningSovereignReportHistory: [currentReport],
+          currentMorningSovereignReportDate: '2026-03-10',
+          initialReportFocusDate: '2026-03-09',
         ),
       ),
     );
     await tester.pumpAndSettle();
 
     expect(
-      find.byKey(const ValueKey('governance-metric-global-readiness')),
+      find.byKey(const ValueKey('governance-report-focus-banner')),
       findsOneWidget,
     );
-    expect(find.text('Global Readiness'), findsOneWidget);
+    expect(find.text('Historical readiness focus active'), findsOneWidget);
+    expect(
+      find.text(
+        'Viewing command-targeted shift 2026-03-09 instead of live oversight 2026-03-10.',
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('governance page shows global readiness drift and drill-in', (
@@ -400,7 +471,10 @@ void main() {
     expect(find.text('Current Unknown: 3'), findsOneWidget);
     expect(find.text('Current Flagged: 1'), findsOneWidget);
     expect(find.text('Baseline Signals: 2.0'), findsOneWidget);
-    expect(find.textContaining('Flagged identity traffic is pushing'), findsOneWidget);
+    expect(
+      find.textContaining('Flagged identity traffic is pushing'),
+      findsOneWidget,
+    );
 
     await tester.ensureVisible(
       find.byKey(const ValueKey('governance-site-activity-trend-card')),
@@ -3969,11 +4043,16 @@ void main() {
       copiedPayload,
       contains('site_activity_trend_current_mode,"FLAGGED TRAFFIC"'),
     );
-    expect(copiedPayload, contains('site_activity_baseline_signals_average,0.0'));
+    expect(
+      copiedPayload,
+      contains('site_activity_baseline_signals_average,0.0'),
+    );
     expect(copiedPayload, contains('site_activity_target_scope_required,true'));
     expect(
       copiedPayload,
-      contains('site_activity_current_review_command,/activityreview 2026-03-10'),
+      contains(
+        'site_activity_current_review_command,/activityreview 2026-03-10',
+      ),
     );
     expect(
       copiedPayload,
