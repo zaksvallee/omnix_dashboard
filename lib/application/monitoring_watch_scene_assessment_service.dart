@@ -1,4 +1,5 @@
 import '../domain/events/intelligence_received.dart';
+import 'hazard_response_directive_service.dart';
 import 'monitoring_identity_policy_service.dart';
 import 'monitoring_temporary_identity_approval_service.dart';
 import 'monitoring_watch_vision_review_service.dart';
@@ -56,6 +57,8 @@ class MonitoringWatchSceneAssessment {
 }
 
 class MonitoringWatchSceneAssessmentService {
+  static const _hazardDirectiveService = HazardResponseDirectiveService();
+
   final MonitoringIdentityPolicyService identityPolicyService;
   final MonitoringTemporaryIdentityApprovalService
   temporaryIdentityApprovalService;
@@ -240,32 +243,22 @@ class MonitoringWatchSceneAssessmentService {
       score += 10;
       rationale.add('signal:loiter');
     }
-    final fireSignal =
-        review.indicatesFireSmoke ||
-        signalText.contains('fire') ||
-        signalText.contains('smoke') ||
-        signalText.contains('flame');
+    final hazardSignal = _hazardSignalForAssessment(
+      review: review,
+      signalText: signalText,
+      objectLabel: objectLabel,
+    );
+    final fireSignal = hazardSignal == 'fire';
     if (fireSignal) {
       score += 34;
       rationale.add('signal:fire');
     }
-    final waterLeakSignal =
-        review.indicatesWaterLeak ||
-        signalText.contains('water leak') ||
-        signalText.contains('leak') ||
-        signalText.contains('flood') ||
-        signalText.contains('burst pipe') ||
-        signalText.contains('pipe burst');
+    final waterLeakSignal = hazardSignal == 'water_leak';
     if (waterLeakSignal) {
       score += 24;
       rationale.add('signal:water_leak');
     }
-    final environmentHazardSignal =
-        review.indicatesEnvironmentHazard ||
-        signalText.contains('hazard') ||
-        signalText.contains('steam') ||
-        signalText.contains('electrical') ||
-        signalText.contains('equipment failure');
+    final environmentHazardSignal = hazardSignal == 'environment_hazard';
     if (environmentHazardSignal) {
       score += 18;
       rationale.add('signal:environment_hazard');
@@ -336,6 +329,43 @@ class MonitoringWatchSceneAssessmentService {
       groupedEventCount: groupedEventCount,
       rationale: rationale,
     );
+  }
+
+  String _hazardSignalForAssessment({
+    required MonitoringWatchVisionReviewResult review,
+    required String signalText,
+    required String objectLabel,
+  }) {
+    if (review.indicatesFireSmoke) {
+      return 'fire';
+    }
+    if (review.indicatesWaterLeak) {
+      return 'water_leak';
+    }
+    if (review.indicatesEnvironmentHazard) {
+      return 'environment_hazard';
+    }
+    final baseSignal = _hazardDirectiveService.hazardSignal(
+      postureLabel: signalText,
+      objectLabel: objectLabel,
+    );
+    if (baseSignal.isNotEmpty) {
+      return baseSignal;
+    }
+    if (signalText.contains('flame')) {
+      return 'fire';
+    }
+    if (signalText.contains('water leak') ||
+        signalText.contains('burst pipe') ||
+        signalText.contains('pipe burst')) {
+      return 'water_leak';
+    }
+    if (signalText.contains('steam') ||
+        signalText.contains('electrical') ||
+        signalText.contains('equipment failure')) {
+      return 'environment_hazard';
+    }
+    return '';
   }
 
   MonitoringWatchSceneConfidence _confidenceBand(

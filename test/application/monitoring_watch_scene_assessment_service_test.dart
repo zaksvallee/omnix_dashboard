@@ -169,6 +169,27 @@ void main() {
       expect(assessment.effectiveRiskScore, greaterThanOrEqualTo(90));
     });
 
+    test('flags environmental hazards from metadata-only review', () {
+      final event = _intel(
+        objectLabel: 'equipment',
+        objectConfidence: 0.76,
+        riskScore: 70,
+        headline: 'HIKVISION_DVR_MONITOR_ONLY EQUIPMENT_ALERT',
+        summary: 'Electrical hazard detected near the control panel.',
+        snapshotUrl: 'https://edge.example.com/snapshot.jpg',
+      );
+
+      final assessment = service.assess(
+        event: event,
+        review: buildMetadataOnlyMonitoringWatchVisionReview(event),
+        priorReviewedEvents: 0,
+      );
+
+      expect(assessment.environmentHazardSignal, isTrue);
+      expect(assessment.shouldNotifyClient, isTrue);
+      expect(assessment.postureLabel, 'environmental hazard alert');
+    });
+
     test(
       'uses high-confidence vision result to override weak metadata label',
       () {
