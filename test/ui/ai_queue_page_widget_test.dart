@@ -348,6 +348,195 @@ void main() {
     },
   );
 
+  testWidgets(
+    'ai queue explains posture-heated promotion pressure for synthetic policy',
+    (tester) async {
+      final events = [
+        IntelligenceReceived(
+          eventId: 'evt-shadow-news',
+          sequence: 1,
+          version: 1,
+          occurredAt: DateTime.utc(2026, 3, 16, 20, 50),
+          intelligenceId: 'intel-shadow-news',
+          provider: 'news_feed_monitor',
+          sourceType: 'news',
+          externalId: 'ext-shadow-news',
+          clientId: 'CLIENT-VALLEE',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-SEED',
+          cameraId: 'feed-news',
+          objectLabel: 'person',
+          objectConfidence: 0.70,
+          headline: 'Contractors moved floor to floor in office park',
+          summary:
+              'Suspects posed as maintenance contractors before moving across restricted office zones.',
+          riskScore: 67,
+          snapshotUrl: 'https://edge.example.com/shadow-news.jpg',
+          canonicalHash: 'hash-shadow-news',
+        ),
+        IntelligenceReceived(
+          eventId: 'evt-shadow-live-1',
+          sequence: 2,
+          version: 1,
+          occurredAt: DateTime.utc(2026, 3, 16, 21, 14),
+          intelligenceId: 'intel-shadow-live-1',
+          provider: 'hikvision_dvr_monitor_only',
+          sourceType: 'dvr',
+          externalId: 'ext-shadow-live-1',
+          clientId: 'CLIENT-VALLEE',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-VALLEE',
+          cameraId: 'office-cam-1',
+          objectLabel: 'person',
+          objectConfidence: 0.95,
+          headline: 'Unplanned contractor roaming',
+          summary:
+              'Maintenance-like subject moved across restricted office doors.',
+          riskScore: 86,
+          snapshotUrl: 'https://edge.example.com/shadow-live-1.jpg',
+          canonicalHash: 'hash-shadow-live-1',
+        ),
+        IntelligenceReceived(
+          eventId: 'evt-shadow-live-2',
+          sequence: 3,
+          version: 1,
+          occurredAt: DateTime.utc(2026, 3, 16, 21, 18),
+          intelligenceId: 'intel-shadow-live-2',
+          provider: 'hikvision_dvr_monitor_only',
+          sourceType: 'dvr',
+          externalId: 'ext-shadow-live-2',
+          clientId: 'CLIENT-VALLEE',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-VALLEE',
+          cameraId: 'office-cam-2',
+          objectLabel: 'person',
+          objectConfidence: 0.95,
+          headline: 'Contractor repeating office sweep',
+          summary:
+              'Maintenance-like subject kept probing multiple office doors.',
+          riskScore: 87,
+          snapshotUrl: 'https://edge.example.com/shadow-live-2.jpg',
+          canonicalHash: 'hash-shadow-live-2',
+        ),
+        IntelligenceReceived(
+          eventId: 'evt-shadow-live-3',
+          sequence: 4,
+          version: 1,
+          occurredAt: DateTime.utc(2026, 3, 16, 21, 22),
+          intelligenceId: 'intel-shadow-live-3',
+          provider: 'hikvision_dvr_monitor_only',
+          sourceType: 'dvr',
+          externalId: 'ext-shadow-live-3',
+          clientId: 'CLIENT-VALLEE',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-VALLEE',
+          cameraId: 'office-cam-3',
+          objectLabel: 'person',
+          objectConfidence: 0.95,
+          headline: 'Contractor revisits office floors',
+          summary:
+              'Service-looking subject returned to several restricted office zones.',
+          riskScore: 89,
+          snapshotUrl: 'https://edge.example.com/shadow-live-3.jpg',
+          canonicalHash: 'hash-shadow-live-3',
+        ),
+        IntelligenceReceived(
+          eventId: 'evt-shadow-live-4',
+          sequence: 5,
+          version: 1,
+          occurredAt: DateTime.utc(2026, 3, 16, 21, 26),
+          intelligenceId: 'intel-shadow-live-4',
+          provider: 'hikvision_dvr_monitor_only',
+          sourceType: 'dvr',
+          externalId: 'ext-shadow-live-4',
+          clientId: 'CLIENT-VALLEE',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-VALLEE',
+          cameraId: 'office-cam-4',
+          objectLabel: 'person',
+          objectConfidence: 0.96,
+          headline: 'Contractor returns to office zone again',
+          summary:
+              'Service-looking subject kept sweeping office floors and retrying access.',
+          riskScore: 92,
+          snapshotUrl: 'https://edge.example.com/shadow-live-4.jpg',
+          canonicalHash: 'hash-shadow-live-4',
+        ),
+      ];
+      final reviews = {
+        'intel-shadow-live-1': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-shadow-live-1',
+          sourceLabel: 'openai:gpt-5.4-mini',
+          postureLabel: 'service impersonation and roaming concern',
+          decisionLabel: 'Escalation Candidate',
+          decisionSummary:
+              'Likely spoofed service access with abnormal roaming.',
+          summary:
+              'Likely maintenance impersonation moving across office zones.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 15),
+        ),
+        'intel-shadow-live-2': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-shadow-live-2',
+          sourceLabel: 'openai:gpt-5.4-mini',
+          postureLabel: 'service impersonation and roaming concern',
+          decisionLabel: 'Escalation Candidate',
+          decisionSummary:
+              'Likely spoofed service access with abnormal roaming.',
+          summary:
+              'Likely maintenance impersonation moving across office zones repeatedly.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 18),
+        ),
+        'intel-shadow-live-3': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-shadow-live-3',
+          sourceLabel: 'openai:gpt-5.4-mini',
+          postureLabel: 'service impersonation and roaming concern',
+          decisionLabel: 'Escalation Candidate',
+          decisionSummary:
+              'Likely spoofed service access with abnormal roaming.',
+          summary:
+              'Likely maintenance impersonation moving across office zones again.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 22),
+        ),
+        'intel-shadow-live-4': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-shadow-live-4',
+          sourceLabel: 'openai:gpt-5.4-mini',
+          postureLabel: 'service impersonation and roaming concern',
+          decisionLabel: 'Escalation Candidate',
+          decisionSummary:
+              'Likely spoofed service access with abnormal roaming.',
+          summary:
+              'Likely maintenance impersonation continuing across office zones.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 26),
+        ),
+      };
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AIQueuePage(
+            events: events,
+            historicalShadowMoLabels: const ['HARDEN ACCESS'],
+            sceneReviewByIntelligenceId: reviews,
+            videoOpsLabel: 'Hikvision',
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.textContaining('POLICY RECOMMENDATION'), findsOneWidget);
+      expect(
+        find.textContaining(
+          'Promotion pressure: Promote ',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('toward validated review'),
+        findsWidgets,
+      );
+      expect(find.textContaining('posture POSTURE'), findsOneWidget);
+    },
+  );
+
   testWidgets('ai queue surfaces shadow MO intelligence from external patterns', (
     tester,
   ) async {
@@ -439,7 +628,7 @@ void main() {
     );
     expect(find.text('mo_shadow'), findsOneWidget);
     expect(find.text('POSTURE WEIGHT'), findsOneWidget);
-    expect(find.textContaining('weight '), findsOneWidget);
+    expect(find.textContaining('weight '), findsWidgets);
 
     await tester.tap(
       find.byKey(const ValueKey('ai-queue-mo-shadow-open-dossier')),

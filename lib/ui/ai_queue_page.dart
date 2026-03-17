@@ -10,6 +10,7 @@ import '../application/monitoring_scene_review_store.dart';
 import '../application/monitoring_watch_action_plan.dart';
 import '../application/monitoring_watch_autonomy_service.dart';
 import '../application/shadow_mo_dossier_contract.dart';
+import '../application/synthetic_promotion_summary_formatter.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_completed.dart';
@@ -338,6 +339,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         : const Color(0xFF22D3EE);
     final progress = (action.timeUntilExecutionSeconds / 30).clamp(0.0, 1.0);
     final paused = action.status == _AiActionStatus.paused;
+    final promotionPressureSummary = _promotionPressureSummary(action.metadata);
 
     return Container(
       width: double.infinity,
@@ -437,6 +439,17 @@ class _AIQueuePageState extends State<AIQueuePage> {
               fontWeight: FontWeight.w600,
             ),
           ),
+          if (promotionPressureSummary.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Promotion pressure: $promotionPressureSummary',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF86EFAC),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
           if (action.metadata.isNotEmpty) ...[
             const SizedBox(height: 8),
             Wrap(
@@ -668,6 +681,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
   }
 
   Widget _queuedRow({required int index, required _AiQueueAction action}) {
+    final promotionPressureSummary = _promotionPressureSummary(action.metadata);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
@@ -739,6 +753,17 @@ class _AIQueuePageState extends State<AIQueuePage> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
+                        if (promotionPressureSummary.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Promotion pressure: $promotionPressureSummary',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF86EFAC),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -1658,6 +1683,35 @@ class _AIQueuePageState extends State<AIQueuePage> {
       return priorityScore - 1;
     }
     return priorityScore + 3;
+  }
+
+  String _promotionPressureSummary(Map<String, String> metadata) {
+    final baseSummary = (metadata['mo_promotion_summary'] ?? '').trim();
+    if (baseSummary.isEmpty) {
+      return '';
+    }
+    return buildSyntheticPromotionSummary(
+      baseSummary: baseSummary,
+      shadowPostureBiasSummary: _shadowPostureBiasSummary(metadata),
+    );
+  }
+
+  String _shadowPostureBiasSummary(Map<String, String> metadata) {
+    final postureBias = (metadata['shadow_posture_bias'] ?? '').trim();
+    final posturePriority = (metadata['shadow_posture_priority'] ?? '').trim();
+    final postureCountdown =
+        (metadata['shadow_posture_countdown'] ?? '').trim();
+    if (postureBias.isEmpty &&
+        posturePriority.isEmpty &&
+        postureCountdown.isEmpty) {
+      return '';
+    }
+    final parts = <String>[
+      if (postureBias.isNotEmpty) postureBias,
+      if (posturePriority.isNotEmpty) posturePriority,
+      if (postureCountdown.isNotEmpty) '${postureCountdown}s',
+    ];
+    return parts.join(' • ');
   }
 
   _AiQueueDailyStats _buildDailyStats(List<DispatchEvent> events) {
