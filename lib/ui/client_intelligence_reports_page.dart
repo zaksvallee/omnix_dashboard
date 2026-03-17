@@ -6420,6 +6420,22 @@ class _ClientIntelligenceReportsPageState
     };
   }
 
+  String _siteActivityReviewCommand({
+    required String clientId,
+    required String siteId,
+    required String reportDate,
+  }) {
+    return '/activityreview $clientId $siteId $reportDate';
+  }
+
+  String _siteActivityCaseFileCommand({
+    required String clientId,
+    required String siteId,
+    required String reportDate,
+  }) {
+    return '/activitycase json $clientId $siteId $reportDate';
+  }
+
   Map<String, Object?> _siteActivityTruthExportPayload({
     required String clientId,
     required String siteId,
@@ -6430,12 +6446,39 @@ class _ClientIntelligenceReportsPageState
       siteId: siteId,
     );
     final currentPoint = historyPoints.isEmpty ? null : historyPoints.first;
+    final previousPoint = historyPoints.length > 1 ? historyPoints[1] : null;
     return <String, Object?>{
       'scope': <String, Object?>{
         'clientId': clientId,
         'siteId': siteId,
         if (partnerLabel != null && partnerLabel.trim().isNotEmpty)
           'partnerLabel': partnerLabel,
+      },
+      'reviewShortcuts': <String, Object?>{
+        if (currentPoint != null)
+          'currentShiftReviewCommand': _siteActivityReviewCommand(
+            clientId: clientId,
+            siteId: siteId,
+            reportDate: currentPoint.reportDate,
+          ),
+        if (currentPoint != null)
+          'currentShiftCaseFileCommand': _siteActivityCaseFileCommand(
+            clientId: clientId,
+            siteId: siteId,
+            reportDate: currentPoint.reportDate,
+          ),
+        if (previousPoint != null)
+          'previousShiftReviewCommand': _siteActivityReviewCommand(
+            clientId: clientId,
+            siteId: siteId,
+            reportDate: previousPoint.reportDate,
+          ),
+        if (previousPoint != null)
+          'previousShiftCaseFileCommand': _siteActivityCaseFileCommand(
+            clientId: clientId,
+            siteId: siteId,
+            reportDate: previousPoint.reportDate,
+          ),
       },
       'currentTruth': currentPoint == null
           ? null
@@ -6444,6 +6487,16 @@ class _ClientIntelligenceReportsPageState
               'current': currentPoint.current,
               'snapshot': _siteActivitySnapshotJson(currentPoint.snapshot),
               'eventIds': currentPoint.eventIds,
+              'reviewCommand': _siteActivityReviewCommand(
+                clientId: clientId,
+                siteId: siteId,
+                reportDate: currentPoint.reportDate,
+              ),
+              'caseFileCommand': _siteActivityCaseFileCommand(
+                clientId: clientId,
+                siteId: siteId,
+                reportDate: currentPoint.reportDate,
+              ),
             },
       'history': historyPoints
           .map(
@@ -6452,6 +6505,16 @@ class _ClientIntelligenceReportsPageState
               'current': point.current,
               'snapshot': _siteActivitySnapshotJson(point.snapshot),
               'eventIds': point.eventIds,
+              'reviewCommand': _siteActivityReviewCommand(
+                clientId: clientId,
+                siteId: siteId,
+                reportDate: point.reportDate,
+              ),
+              'caseFileCommand': _siteActivityCaseFileCommand(
+                clientId: clientId,
+                siteId: siteId,
+                reportDate: point.reportDate,
+              ),
             },
           )
           .toList(growable: false),
@@ -6468,6 +6531,7 @@ class _ClientIntelligenceReportsPageState
       siteId: siteId,
     );
     final currentPoint = historyPoints.isEmpty ? null : historyPoints.first;
+    final previousPoint = historyPoints.length > 1 ? historyPoints[1] : null;
     final lines = <String>[
       'metric,value',
       'client_id,$clientId',
@@ -6475,6 +6539,16 @@ class _ClientIntelligenceReportsPageState
       if (partnerLabel != null && partnerLabel.trim().isNotEmpty)
         'partner_label,"${partnerLabel.replaceAll('"', '""')}"',
       if (currentPoint != null) 'current_report_date,${currentPoint.reportDate}',
+      if (currentPoint != null)
+        'current_review_command,${_siteActivityReviewCommand(clientId: clientId, siteId: siteId, reportDate: currentPoint.reportDate)}',
+      if (currentPoint != null)
+        'current_case_file_command,${_siteActivityCaseFileCommand(clientId: clientId, siteId: siteId, reportDate: currentPoint.reportDate)}',
+      if (previousPoint != null)
+        'previous_report_date,${previousPoint.reportDate}',
+      if (previousPoint != null)
+        'previous_review_command,${_siteActivityReviewCommand(clientId: clientId, siteId: siteId, reportDate: previousPoint.reportDate)}',
+      if (previousPoint != null)
+        'previous_case_file_command,${_siteActivityCaseFileCommand(clientId: clientId, siteId: siteId, reportDate: previousPoint.reportDate)}',
       if (currentPoint != null)
         'current_total_signals,${currentPoint.snapshot.totalSignals}',
       if (currentPoint != null)
@@ -6504,6 +6578,12 @@ class _ClientIntelligenceReportsPageState
           'history_${index + 1}_event_${eventIndex + 1},${point.eventIds[eventIndex]}',
         );
       }
+      lines.add(
+        'history_${index + 1}_review_command,${_siteActivityReviewCommand(clientId: clientId, siteId: siteId, reportDate: point.reportDate)}',
+      );
+      lines.add(
+        'history_${index + 1}_case_file_command,${_siteActivityCaseFileCommand(clientId: clientId, siteId: siteId, reportDate: point.reportDate)}',
+      );
     }
     return lines.join('\n');
   }

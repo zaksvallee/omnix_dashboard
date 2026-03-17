@@ -500,9 +500,34 @@ void main() {
 
     expect(clipboardText, contains('"currentTruth"'));
     expect(clipboardText, contains('"siteId": "SITE-SANDTON"'));
+    expect(clipboardText, contains('"reviewShortcuts"'));
+    expect(
+      clipboardText,
+      contains(
+        '"currentShiftReviewCommand": "/activityreview CLIENT-001 SITE-SANDTON 2026-03-15"',
+      ),
+    );
+    expect(
+      clipboardText,
+      contains(
+        '"currentShiftCaseFileCommand": "/activitycase json CLIENT-001 SITE-SANDTON 2026-03-15"',
+      ),
+    );
     expect(clipboardText, contains('"totalSignals": 3'));
     expect(clipboardText, contains('"eventIds": ['));
     expect(clipboardText, contains('"ACTIVITY-3"'));
+    expect(
+      clipboardText,
+      contains(
+        '"reviewCommand": "/activityreview CLIENT-001 SITE-SANDTON 2026-03-15"',
+      ),
+    );
+    expect(
+      clipboardText,
+      contains(
+        '"caseFileCommand": "/activitycase json CLIENT-001 SITE-SANDTON 2026-03-15"',
+      ),
+    );
 
     await tester.tap(
       find.byKey(const ValueKey('reports-site-activity-truth-copy-csv')),
@@ -510,6 +535,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(clipboardText, contains('current_total_signals,3'));
+    expect(
+      clipboardText,
+      contains(
+        'current_review_command,/activityreview CLIENT-001 SITE-SANDTON 2026-03-15',
+      ),
+    );
+    expect(
+      clipboardText,
+      contains(
+        'current_case_file_command,/activitycase json CLIENT-001 SITE-SANDTON 2026-03-15',
+      ),
+    );
     expect(clipboardText, contains('current_guard_interactions,1'));
     expect(
       clipboardText,
@@ -518,6 +555,18 @@ void main() {
       ),
     );
     expect(clipboardText, contains('history_1_event_3,ACTIVITY-3'));
+    expect(
+      clipboardText,
+      contains(
+        'history_1_review_command,/activityreview CLIENT-001 SITE-SANDTON 2026-03-15',
+      ),
+    );
+    expect(
+      clipboardText,
+      contains(
+        'history_1_case_file_command,/activitycase json CLIENT-001 SITE-SANDTON 2026-03-15',
+      ),
+    );
 
     await tester.tap(
       find.byKey(
