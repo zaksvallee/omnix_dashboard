@@ -75,9 +75,11 @@ class TelegramAdminCommandFormatter {
     String? globalReadinessSummary,
     String? globalReadinessEchoSummary,
     String? globalReadinessTopIntentSummary,
+    String? currentShiftReadinessFocusSummary,
     String? currentShiftReadinessReviewCommand,
     String? currentShiftReadinessCaseFileCommand,
     String? currentShiftReadinessGovernanceCommand,
+    String? previousShiftReadinessFocusSummary,
     String? previousShiftReadinessReviewCommand,
     String? previousShiftReadinessCaseFileCommand,
     String? previousShiftReadinessGovernanceCommand,
@@ -99,10 +101,14 @@ class TelegramAdminCommandFormatter {
     final readinessEchoSummary = globalReadinessEchoSummary?.trim() ?? '';
     final readinessTopIntentSummary =
         globalReadinessTopIntentSummary?.trim() ?? '';
+    final readinessFocusSummary =
+        currentShiftReadinessFocusSummary?.trim() ?? '';
     final readinessReview = currentShiftReadinessReviewCommand?.trim() ?? '';
     final readinessCase = currentShiftReadinessCaseFileCommand?.trim() ?? '';
     final readinessGovernance =
         currentShiftReadinessGovernanceCommand?.trim() ?? '';
+    final previousReadinessFocusSummary =
+        previousShiftReadinessFocusSummary?.trim() ?? '';
     final previousReadinessReview =
         previousShiftReadinessReviewCommand?.trim() ?? '';
     final previousReadinessCase =
@@ -127,11 +133,13 @@ class TelegramAdminCommandFormatter {
               '<b>Global Readiness</b>\n'
               '${readinessHeadline.isEmpty ? '' : '• <b>Mode:</b> ${_escapeHtml(readinessHeadline)}\n'}'
               '${readinessSummary.isEmpty ? '' : '• <b>Summary:</b> ${_escapeHtml(readinessSummary)}\n'}'
+              '${readinessFocusSummary.isEmpty ? '' : '• <b>Focus:</b> ${_escapeHtml(readinessFocusSummary)}\n'}'
               '${readinessEchoSummary.isEmpty ? '' : '• <b>Postural echo:</b> ${_escapeHtml(readinessEchoSummary)}\n'}'
               '${readinessTopIntentSummary.isEmpty ? '' : '• <b>Top intent:</b> ${_escapeHtml(readinessTopIntentSummary)}\n'}'
               '• <b>Current review:</b> <code>${_escapeHtml(readinessReview)}</code>\n'
               '${readinessCase.isEmpty ? '' : '• <b>Current case:</b> <code>${_escapeHtml(readinessCase)}</code>\n'}'
               '${readinessGovernance.isEmpty ? '' : '• <b>Open governance:</b> <code>${_escapeHtml(readinessGovernance)}</code>\n'}'
+              '${previousReadinessFocusSummary.isEmpty ? '' : '• <b>Previous focus:</b> ${_escapeHtml(previousReadinessFocusSummary)}\n'}'
               '${previousReadinessReview.isEmpty ? '' : '• <b>Previous review:</b> <code>${_escapeHtml(previousReadinessReview)}</code>\n'}'
               '${previousReadinessCase.isEmpty ? '' : '• <b>Previous case:</b> <code>${_escapeHtml(previousReadinessCase)}</code>\n'}'
               '${previousReadinessGovernance.isEmpty ? '' : '• <b>Previous governance:</b> <code>${_escapeHtml(previousReadinessGovernance)}</code>\n'}'

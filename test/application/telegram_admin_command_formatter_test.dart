@@ -128,9 +128,13 @@ void main() {
           'Echo 2 • lead site-alpha • target site-bravo, site-charlie',
       globalReadinessTopIntentSummary:
           'POSTURAL ECHO • site-bravo • Raise CCTV perimeter attention',
+      currentShiftReadinessFocusSummary:
+          'Viewing live oversight shift 2026-03-17.',
       currentShiftReadinessReviewCommand: '/readinessreview 2026-03-17',
       currentShiftReadinessCaseFileCommand: '/readinesscase json 2026-03-17',
       currentShiftReadinessGovernanceCommand: '/readinessgovernance 2026-03-17',
+      previousShiftReadinessFocusSummary:
+          'Viewing command-targeted shift 2026-03-16 instead of live oversight 2026-03-17.',
       previousShiftReadinessReviewCommand: '/readinessreview 2026-03-16',
       previousShiftReadinessCaseFileCommand: '/readinesscase json 2026-03-16',
       previousShiftReadinessGovernanceCommand:
@@ -155,11 +159,21 @@ void main() {
     expect(response, contains('<code>/activityreview 2026-03-17</code>'));
     expect(response, contains('<code>/activitycase json 2026-03-16</code>'));
     expect(response, contains('<b>Global Readiness</b>'));
+    expect(
+      response,
+      contains('<b>Focus:</b> Viewing live oversight shift 2026-03-17.'),
+    );
     expect(response, contains('<b>Postural echo:</b> Echo 2'));
     expect(response, contains('<b>Top intent:</b> POSTURAL ECHO'));
     expect(response, contains('<code>/readinessreview 2026-03-17</code>'));
     expect(response, contains('<code>/readinesscase json 2026-03-16</code>'));
     expect(response, contains('<code>/readinessgovernance 2026-03-17</code>'));
+    expect(
+      response,
+      contains(
+        '<b>Previous focus:</b> Viewing command-targeted shift 2026-03-16 instead of live oversight 2026-03-17.',
+      ),
+    );
     expect(
       response,
       contains('Activity shortcuts use the current target scope.'),

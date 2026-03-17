@@ -5342,11 +5342,15 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       globalReadinessTopIntentSummary: _globalReadinessTopIntentSummary(
         readinessIntents,
       ),
+      currentShiftReadinessFocusSummary: _readinessFocusSummary(report.date),
       currentShiftReadinessReviewCommand: '/readinessreview ${report.date}',
       currentShiftReadinessCaseFileCommand:
           '/readinesscase json ${report.date}',
       currentShiftReadinessGovernanceCommand:
           '/readinessgovernance ${report.date}',
+      previousShiftReadinessFocusSummary: previousReport == null
+          ? null
+          : _readinessFocusSummary(previousReport.date),
       previousShiftReadinessReviewCommand: previousReport == null
           ? null
           : '/readinessreview ${previousReport.date}',
