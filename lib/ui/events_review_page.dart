@@ -8,6 +8,7 @@ import '../application/morning_sovereign_report_service.dart';
 import '../application/monitoring_global_posture_service.dart';
 import '../application/monitoring_orchestrator_service.dart';
 import '../application/mo_promotion_decision_store.dart';
+import '../application/oversight_focus_formatter.dart';
 import '../application/review_shortcut_contract.dart';
 import '../application/shadow_mo_validation_summary.dart';
 import '../application/shadow_mo_dossier_contract.dart';
@@ -2960,35 +2961,26 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     );
   }
 
-  String _readinessFocusSummary(String? reportDate) {
-    final normalizedReportDate = (reportDate ?? '').trim();
-    if (normalizedReportDate.isEmpty) {
-      return '';
-    }
-    final currentReportDate = (widget.currentMorningSovereignReportDate ?? '')
-        .trim();
-    if (currentReportDate.isEmpty ||
-        currentReportDate == normalizedReportDate) {
-      return 'Viewing live oversight shift $normalizedReportDate.';
-    }
-    return 'Viewing command-targeted shift $normalizedReportDate instead of live oversight $currentReportDate.';
-  }
-
   bool _isHistoricalReadinessFocus(String? reportDate) {
-    final normalizedReportDate = (reportDate ?? '').trim();
-    if (normalizedReportDate.isEmpty) {
-      return false;
-    }
-    final currentReportDate = (widget.currentMorningSovereignReportDate ?? '')
-        .trim();
-    return currentReportDate.isNotEmpty &&
-        currentReportDate != normalizedReportDate;
+    return buildOversightFocusState(
+          reportDate: reportDate ?? '',
+          currentReportDate: widget.currentMorningSovereignReportDate ?? '',
+        ) ==
+        'historical_command_target';
   }
 
   String _readinessFocusState(String? reportDate) {
-    return _isHistoricalReadinessFocus(reportDate)
-        ? 'historical_command_target'
-        : 'live_current_shift';
+    return buildOversightFocusState(
+      reportDate: reportDate ?? '',
+      currentReportDate: widget.currentMorningSovereignReportDate ?? '',
+    );
+  }
+
+  String _readinessFocusSummary(String? reportDate) {
+    return buildOversightFocusSummary(
+      reportDate: reportDate ?? '',
+      currentReportDate: widget.currentMorningSovereignReportDate ?? '',
+    );
   }
 
   String _syntheticWarRoomModeLabel(

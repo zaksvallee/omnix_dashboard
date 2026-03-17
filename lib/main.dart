@@ -41,6 +41,7 @@ import 'application/morning_sovereign_report_service.dart';
 import 'application/mo_promotion_decision_store.dart';
 import 'application/monitoring_global_posture_service.dart';
 import 'application/monitoring_orchestrator_service.dart';
+import 'application/oversight_focus_formatter.dart';
 import 'application/monitoring_shift_notification_service.dart';
 import 'application/monitoring_scene_review_store.dart';
 import 'application/monitoring_synthetic_war_room_service.dart';
@@ -5569,30 +5570,25 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }
 
   bool _isHistoricalReadinessFocus(String reportDate) {
-    final normalizedReportDate = reportDate.trim();
-    if (normalizedReportDate.isEmpty) {
-      return false;
-    }
-    final currentDate = (_morningSovereignReport?.date ?? '').trim();
-    return currentDate.isNotEmpty && currentDate != normalizedReportDate;
+    return buildOversightFocusState(
+          reportDate: reportDate,
+          currentReportDate: _morningSovereignReport?.date ?? '',
+        ) ==
+        'historical_command_target';
   }
 
   String _readinessFocusState(String reportDate) {
-    return _isHistoricalReadinessFocus(reportDate)
-        ? 'historical_command_target'
-        : 'live_current_shift';
+    return buildOversightFocusState(
+      reportDate: reportDate,
+      currentReportDate: _morningSovereignReport?.date ?? '',
+    );
   }
 
   String _readinessFocusSummary(String reportDate) {
-    final normalizedReportDate = reportDate.trim();
-    if (normalizedReportDate.isEmpty) {
-      return 'Viewing current live oversight shift.';
-    }
-    final currentDate = (_morningSovereignReport?.date ?? '').trim();
-    if (currentDate.isEmpty || currentDate == normalizedReportDate) {
-      return 'Viewing live oversight shift $normalizedReportDate.';
-    }
-    return 'Viewing command-targeted shift $normalizedReportDate instead of live oversight $currentDate.';
+    return buildOversightFocusSummary(
+      reportDate: reportDate,
+      currentReportDate: _morningSovereignReport?.date ?? '',
+    );
   }
 
   List<SovereignReport> _governanceHistoryForFocusedReport(

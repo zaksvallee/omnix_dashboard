@@ -10,6 +10,7 @@ import '../application/morning_sovereign_report_service.dart';
 import '../application/monitoring_global_posture_service.dart';
 import '../application/monitoring_orchestrator_service.dart';
 import '../application/mo_promotion_decision_store.dart';
+import '../application/oversight_focus_formatter.dart';
 import '../application/monitoring_scene_review_store.dart';
 import '../application/monitoring_synthetic_war_room_service.dart';
 import '../application/monitoring_watch_action_plan.dart';
@@ -2421,21 +2422,17 @@ class _GovernancePageState extends State<GovernancePage> {
   }
 
   String _globalReadinessFocusState(_GovernanceReportView report) {
-    return _isHistoricalGlobalReadinessFocus(report)
-        ? 'historical_command_target'
-        : 'live_current_shift';
+    return buildOversightFocusState(
+      reportDate: report.reportDate,
+      currentReportDate: _currentMorningReportDate,
+    );
   }
 
   String _globalReadinessFocusSummary(_GovernanceReportView report) {
-    final reportDate = report.reportDate.trim();
-    if (reportDate.isEmpty) {
-      return 'Viewing current live oversight shift.';
-    }
-    final current = _currentMorningReportDate;
-    if (current.isEmpty || current == reportDate) {
-      return 'Viewing live oversight shift $reportDate.';
-    }
-    return 'Viewing command-targeted shift $reportDate instead of live oversight $current.';
+    return buildOversightFocusSummary(
+      reportDate: report.reportDate,
+      currentReportDate: _currentMorningReportDate,
+    );
   }
 
   bool get _hasPartnerScopeFocus =>
