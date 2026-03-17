@@ -419,6 +419,13 @@ void main() {
       find.text('Signals 2 • Vehicles 1 • People 1 • Known IDs 1 • Unknown 1 • Guard interactions 1'),
       findsOneWidget,
     );
+    expect(find.text('Site activity trend'), findsOneWidget);
+    expect(
+      find.text(
+        'ACTIVITY RISING • Unknown or flagged site activity increased against recent shifts.',
+      ),
+      findsOneWidget,
+    );
     await tester.ensureVisible(find.text('Advanced export and share'));
     await tester.tap(find.text('Advanced export and share'));
     await tester.pumpAndSettle();

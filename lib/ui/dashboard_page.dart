@@ -1219,6 +1219,64 @@ class _RightRail extends StatelessWidget {
     );
   }
 
+  _ReceiptPolicyTrend? _siteActivityTrendFor(
+    SovereignReport report,
+    SiteActivityIntelligenceSnapshot currentActivity,
+  ) {
+    final baselineReports =
+        morningSovereignReportHistory
+            .where((item) => !_isSameSovereignReport(item, report))
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
+    if (baselineReports.isEmpty) {
+      return null;
+    }
+    final baseline = baselineReports
+        .take(3)
+        .map((item) => item.siteActivity)
+        .toList(growable: false);
+    if (baseline.isEmpty) {
+      return null;
+    }
+    final currentPressure =
+        (currentActivity.flaggedIdentitySignals * 2.0) +
+        (currentActivity.unknownPersonSignals +
+            currentActivity.unknownVehicleSignals) +
+        currentActivity.longPresenceSignals +
+        (currentActivity.guardInteractionSignals * 0.5);
+    final baselinePressure =
+        baseline
+            .map(
+              (item) =>
+                  (item.flaggedIdentitySignals * 2.0) +
+                  item.unknownSignals +
+                  item.longPresenceSignals +
+                  (item.guardInteractionSignals * 0.5),
+            )
+            .reduce((left, right) => left + right) /
+        baseline.length;
+    final delta = currentPressure - baselinePressure;
+    if (delta >= 1.0) {
+      return _ReceiptPolicyTrend(
+        label: 'ACTIVITY RISING',
+        summary: _risingSiteActivitySummary(currentActivity, baseline),
+      );
+    }
+    if (delta <= -1.0) {
+      return _ReceiptPolicyTrend(
+        label: 'ACTIVITY EASING',
+        summary: _easingSiteActivitySummary(currentActivity, baseline),
+      );
+    }
+    return _ReceiptPolicyTrend(
+      label: 'STABLE',
+      summary: _stableSiteActivitySummary(currentActivity, baseline),
+    );
+  }
+
   bool _isSameSovereignReport(SovereignReport left, SovereignReport right) {
     return left.generatedAtUtc == right.generatedAtUtc &&
         left.shiftWindowEndUtc == right.shiftWindowEndUtc &&
@@ -1357,6 +1415,49 @@ class _RightRail extends StatelessWidget {
       return 'No recent receipt investigations to compare.';
     }
     return 'Receipt investigation provenance held close to recent baseline.';
+  }
+
+  String _risingSiteActivitySummary(
+    SiteActivityIntelligenceSnapshot current,
+    List<SovereignReportSiteActivity> baseline,
+  ) {
+    final baselineFlagged = baseline.fold<int>(
+      0,
+      (value, item) => value + item.flaggedIdentitySignals,
+    );
+    if (current.flaggedIdentitySignals > 0 && baselineFlagged == 0) {
+      return 'Flagged identity traffic appeared above the recent site baseline.';
+    }
+    return 'Unknown or flagged site activity increased against recent shifts.';
+  }
+
+  String _easingSiteActivitySummary(
+    SiteActivityIntelligenceSnapshot current,
+    List<SovereignReportSiteActivity> baseline,
+  ) {
+    final baselineUnknown = baseline.fold<int>(
+      0,
+      (value, item) => value + item.unknownSignals,
+    );
+    if ((current.unknownPersonSignals + current.unknownVehicleSignals) == 0 &&
+        baselineUnknown > 0) {
+      return 'Site activity returned to a cleaner flow with no unknown signals.';
+    }
+    return 'Site activity pressure eased against recent shifts.';
+  }
+
+  String _stableSiteActivitySummary(
+    SiteActivityIntelligenceSnapshot current,
+    List<SovereignReportSiteActivity> baseline,
+  ) {
+    final baselineSignals = baseline.fold<int>(
+      0,
+      (value, item) => value + item.totalSignals,
+    );
+    if (baselineSignals <= 0 && current.totalSignals <= 0) {
+      return 'No recent site activity to compare.';
+    }
+    return 'Site activity truth is holding close to recent baseline.';
   }
 
   String _receiptPolicyRailSummary(SovereignReportReceiptPolicy policy) {
@@ -1515,6 +1616,9 @@ class _RightRail extends StatelessWidget {
     final receiptInvestigationTrend = sovereignReport == null
         ? null
         : _receiptInvestigationTrendFor(sovereignReport);
+    final siteActivityTrend = sovereignReport == null
+        ? null
+        : _siteActivityTrendFor(sovereignReport, siteActivity);
 
     return Column(
       children: [
@@ -2700,6 +2804,12 @@ class _RightRail extends StatelessWidget {
                   _RailMetricRow(
                     label: 'Site activity',
                     value: siteActivity.summaryLine,
+                  ),
+                if (siteActivityTrend != null)
+                  _RailMetricRow(
+                    label: 'Site activity trend',
+                    value:
+                        '${siteActivityTrend.label} • ${siteActivityTrend.summary}',
                   ),
                 if ((sovereignReport.partnerProgression.workflowHeadline
                         .trim()
