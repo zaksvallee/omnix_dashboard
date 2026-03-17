@@ -5342,6 +5342,8 @@ class _ClientIntelligenceReportsPageState
     required _ReceiptRow? row,
     required bool hasLiveReceipts,
   }) {
+    final governanceTarget =
+        _entryContext == ReportEntryContext.governanceBrandingDrift;
     return ReportPreviewTargetBanner(
       eventId: eventId,
       previewSurface: _previewSurface,
@@ -5349,6 +5351,9 @@ class _ClientIntelligenceReportsPageState
       onOpen: row == null ? null : () => _previewReceipt(row, hasLiveReceipts),
       onCopy: row == null ? null : () => _copyReceipt(row),
       onClear: clearReportPreviewTarget,
+      openLabel: governanceTarget ? 'Open Governance Preview' : null,
+      copyLabel: governanceTarget ? 'Copy Governance Receipt' : null,
+      clearLabel: governanceTarget ? 'Clear Governance Target' : null,
       openButtonKey: const ValueKey('reports-preview-target-open'),
       copyButtonKey: const ValueKey('reports-preview-target-copy'),
       clearButtonKey: const ValueKey('reports-preview-target-clear'),

@@ -10,6 +10,9 @@ class ReportPreviewTargetBanner extends StatelessWidget {
   final VoidCallback? onOpen;
   final VoidCallback? onCopy;
   final VoidCallback onClear;
+  final String? openLabel;
+  final String? copyLabel;
+  final String? clearLabel;
   final Key? openButtonKey;
   final Key? copyButtonKey;
   final Key? clearButtonKey;
@@ -22,6 +25,9 @@ class ReportPreviewTargetBanner extends StatelessWidget {
     this.onOpen,
     this.onCopy,
     required this.onClear,
+    this.openLabel,
+    this.copyLabel,
+    this.clearLabel,
     this.openButtonKey,
     this.copyButtonKey,
     this.clearButtonKey,
@@ -33,6 +39,9 @@ class ReportPreviewTargetBanner extends StatelessWidget {
     final targetLabel = normalizedEventId.isEmpty
         ? 'Pending target'
         : normalizedEventId;
+    final normalizedOpenLabel = openLabel?.trim();
+    final normalizedCopyLabel = copyLabel?.trim();
+    final normalizedClearLabel = clearLabel?.trim();
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -41,65 +50,94 @@ class ReportPreviewTargetBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF3A587D)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Text(
-              'Preview target: $targetLabel',
-              style: GoogleFonts.inter(
-                color: const Color(0xFFE8F1FF),
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Preview target: $targetLabel',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFE8F1FF),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: 8),
+              Text(
+                previewSurface == ReportPreviewSurface.dock ? 'Docked' : 'Route',
+                style: GoogleFonts.inter(
+                  color: surfaceLabelColor,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
           ),
-          Text(
-            previewSurface == ReportPreviewSurface.dock ? 'Docked' : 'Route',
-            style: GoogleFonts.inter(
-              color: surfaceLabelColor,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(width: 8),
-          if (onOpen != null) ...[
-            TextButton(
-              key: openButtonKey,
-              onPressed: onOpen,
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFFE8F1FF),
-                minimumSize: Size.zero,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 4,
+            runSpacing: 4,
+            children: [
+              if (onOpen != null)
+                TextButton(
+                  key: openButtonKey,
+                  onPressed: onOpen,
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFFE8F1FF),
+                    minimumSize: Size.zero,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    normalizedOpenLabel?.isNotEmpty == true
+                        ? normalizedOpenLabel!
+                        : 'Open',
+                  ),
+                ),
+              if (onCopy != null)
+                TextButton(
+                  key: copyButtonKey,
+                  onPressed: onCopy,
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFFE8F1FF),
+                    minimumSize: Size.zero,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    normalizedCopyLabel?.isNotEmpty == true
+                        ? normalizedCopyLabel!
+                        : 'Copy',
+                  ),
+                ),
+              TextButton(
+                key: clearButtonKey,
+                onPressed: onClear,
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF8FCBFF),
+                  minimumSize: Size.zero,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  normalizedClearLabel?.isNotEmpty == true
+                      ? normalizedClearLabel!
+                      : 'Clear',
+                ),
               ),
-              child: const Text('Open'),
-            ),
-            const SizedBox(width: 4),
-          ],
-          if (onCopy != null) ...[
-            TextButton(
-              key: copyButtonKey,
-              onPressed: onCopy,
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFFE8F1FF),
-                minimumSize: Size.zero,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: const Text('Copy'),
-            ),
-            const SizedBox(width: 4),
-          ],
-          TextButton(
-            key: clearButtonKey,
-            onPressed: onClear,
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF8FCBFF),
-              minimumSize: Size.zero,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: const Text('Clear'),
+            ],
           ),
         ],
       ),

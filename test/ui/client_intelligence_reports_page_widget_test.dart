@@ -3998,6 +3998,41 @@ void main() {
     expect(changedState?.previewReceiptEventId, 'RPT-LIVE-TARGET-1');
   });
 
+  testWidgets(
+    'client reports governance preview target shows governance-specific actions',
+    (tester) async {
+      final store = InMemoryEventStore();
+      store.append(
+        buildTestReportGenerated(
+          eventId: 'RPT-LIVE-TARGET-GOV-1',
+          occurredAt: DateTime.utc(2026, 3, 15, 0, 40),
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          reportSchemaVersion: 1,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ClientIntelligenceReportsPage(
+            store: store,
+            selectedClient: 'CLIENT-001',
+            selectedSite: 'SITE-SANDTON',
+            reportShellState: const ReportShellState(
+              previewReceiptEventId: 'RPT-LIVE-TARGET-GOV-1',
+              entryContext: ReportEntryContext.governanceBrandingDrift,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Open Governance Preview'), findsOneWidget);
+      expect(find.text('Copy Governance Receipt'), findsOneWidget);
+      expect(find.text('Clear Governance Target'), findsOneWidget);
+    },
+  );
+
   testWidgets('client reports preview target copy exports targeted receipt', (
     tester,
   ) async {
