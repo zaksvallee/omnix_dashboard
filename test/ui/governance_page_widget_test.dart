@@ -4208,6 +4208,27 @@ void main() {
     expect(copiedPayload, contains('"baselinePolicyAverage": 0.0'));
     expect(copiedPayload, contains('"trendLabel": "STABLE"'));
     expect(copiedPayload, contains('"recommendationSummary": ""'));
+    expect(copiedPayload, contains('"reviewShortcuts"'));
+    expect(
+      copiedPayload,
+      contains('"currentShiftReviewCommand": "/syntheticreview 2026-03-10"'),
+    );
+    expect(
+      copiedPayload,
+      contains(
+        '"currentShiftCaseFileCommand": "/syntheticcase json 2026-03-10"',
+      ),
+    );
+    expect(
+      copiedPayload,
+      contains('"previousShiftReviewCommand": "/syntheticreview 2026-03-09"'),
+    );
+    expect(
+      copiedPayload,
+      contains(
+        '"previousShiftCaseFileCommand": "/syntheticcase json 2026-03-09"',
+      ),
+    );
     expect(copiedPayload, contains('"comparison"'));
     expect(copiedPayload, contains('"baselineSignalsAverage": 0.0'));
     expect(copiedPayload, contains('"baselineUnknownAverage": 0.0'));
@@ -4293,6 +4314,30 @@ void main() {
       copiedPayload,
       contains(
         'synthetic_war_room_baseline_plan_average,0.0',
+      ),
+    );
+    expect(
+      copiedPayload,
+      contains(
+        'synthetic_war_room_current_review_command,/syntheticreview 2026-03-10',
+      ),
+    );
+    expect(
+      copiedPayload,
+      contains(
+        'synthetic_war_room_current_case_file_command,/syntheticcase json 2026-03-10',
+      ),
+    );
+    expect(
+      copiedPayload,
+      contains(
+        'synthetic_war_room_previous_review_command,/syntheticreview 2026-03-09',
+      ),
+    );
+    expect(
+      copiedPayload,
+      contains(
+        'synthetic_war_room_previous_case_file_command,/syntheticcase json 2026-03-09',
       ),
     );
     expect(

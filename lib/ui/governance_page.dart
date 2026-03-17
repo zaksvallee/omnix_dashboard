@@ -9938,6 +9938,12 @@ class _GovernancePageState extends State<GovernancePage> {
     final syntheticWarRoomLeadPlan = syntheticWarRoomPlans.isEmpty
         ? null
         : syntheticWarRoomPlans.first;
+    final currentSyntheticWarRoomPoint = syntheticWarRoomHistory.isEmpty
+        ? null
+        : syntheticWarRoomHistory.first;
+    final previousSyntheticWarRoomPoint = syntheticWarRoomHistory.length > 1
+        ? syntheticWarRoomHistory[1]
+        : null;
     final siteActivityTrend = _siteActivityTrendForReport(report);
     final siteActivityBaseline = _siteActivityBaselineStats(report);
     final siteActivityHistory = _siteActivityHistory(report);
@@ -10022,6 +10028,20 @@ class _GovernancePageState extends State<GovernancePage> {
           'baselinePlanAverage': syntheticWarRoomBaseline.planAverage,
           'baselinePolicyAverage': syntheticWarRoomBaseline.policyAverage,
           'baselineReportDays': syntheticWarRoomBaseline.reportDays,
+        },
+        'reviewShortcuts': {
+          if (currentSyntheticWarRoomPoint != null)
+            'currentShiftReviewCommand':
+                '/syntheticreview ${currentSyntheticWarRoomPoint.reportDate}',
+          if (currentSyntheticWarRoomPoint != null)
+            'currentShiftCaseFileCommand':
+                '/syntheticcase json ${currentSyntheticWarRoomPoint.reportDate}',
+          if (previousSyntheticWarRoomPoint != null)
+            'previousShiftReviewCommand':
+                '/syntheticreview ${previousSyntheticWarRoomPoint.reportDate}',
+          if (previousSyntheticWarRoomPoint != null)
+            'previousShiftCaseFileCommand':
+                '/syntheticcase json ${previousSyntheticWarRoomPoint.reportDate}',
         },
         'trend': _syntheticWarRoomTrendJson(syntheticWarRoomTrend),
         'history': syntheticWarRoomHistory
@@ -10185,6 +10205,12 @@ class _GovernancePageState extends State<GovernancePage> {
     final syntheticWarRoomPolicyCount = syntheticWarRoomPlans
         .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
         .length;
+    final currentSyntheticWarRoomPoint = syntheticWarRoomHistory.isEmpty
+        ? null
+        : syntheticWarRoomHistory.first;
+    final previousSyntheticWarRoomPoint = syntheticWarRoomHistory.length > 1
+        ? syntheticWarRoomHistory[1]
+        : null;
     final siteActivityTrend = _siteActivityTrendForReport(report);
     final siteActivityBaseline = _siteActivityBaselineStats(report);
     final siteActivityHistory = _siteActivityHistory(report);
@@ -10252,6 +10278,14 @@ class _GovernancePageState extends State<GovernancePage> {
       'synthetic_war_room_baseline_plan_average,${syntheticWarRoomBaseline.planAverage.toStringAsFixed(1)}',
       'synthetic_war_room_baseline_policy_average,${syntheticWarRoomBaseline.policyAverage.toStringAsFixed(1)}',
       'synthetic_war_room_baseline_report_days,${syntheticWarRoomBaseline.reportDays}',
+      if (currentSyntheticWarRoomPoint != null)
+        'synthetic_war_room_current_review_command,/syntheticreview ${currentSyntheticWarRoomPoint.reportDate}',
+      if (currentSyntheticWarRoomPoint != null)
+        'synthetic_war_room_current_case_file_command,/syntheticcase json ${currentSyntheticWarRoomPoint.reportDate}',
+      if (previousSyntheticWarRoomPoint != null)
+        'synthetic_war_room_previous_review_command,/syntheticreview ${previousSyntheticWarRoomPoint.reportDate}',
+      if (previousSyntheticWarRoomPoint != null)
+        'synthetic_war_room_previous_case_file_command,/syntheticcase json ${previousSyntheticWarRoomPoint.reportDate}',
       for (var i = 0; i < syntheticWarRoomHistory.length; i++)
         'synthetic_war_room_history_${i + 1},"${_syntheticWarRoomHistoryCsvSummary(syntheticWarRoomHistory[i]).replaceAll('"', '""')}"',
       'receipt_generated_reports,${report.generatedReports}',
