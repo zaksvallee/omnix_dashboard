@@ -16661,6 +16661,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final learningSummary = (payload['learningSummary'] ?? '')
         .toString()
         .trim();
+    final biasSummary = (payload['biasSummary'] ?? '').toString().trim();
     final previousReviewCommand = (payload['previousReviewCommand'] ?? '')
         .toString()
         .trim();
@@ -16674,6 +16675,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           '${hazardSummary.isEmpty ? '' : 'hazard_summary=$hazardSummary\n'}'
           '${learningSummary.isEmpty ? '' : 'learning_summary=$learningSummary\n'}'
           '${learningMemorySummary.isEmpty ? '' : 'learning_memory_summary=$learningMemorySummary\n'}'
+          '${biasSummary.isEmpty ? '' : 'bias_summary=$biasSummary\n'}'
           'review_command=$reviewCommand\n'
           '${previousReviewCommand.isEmpty ? '' : 'previous_review_command=$previousReviewCommand\n'}'
           '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}'
@@ -16685,6 +16687,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '${hazardSummary.isEmpty ? '' : 'hazard_summary=$hazardSummary\n'}'
         '${learningSummary.isEmpty ? '' : 'learning_summary=$learningSummary\n'}'
         '${learningMemorySummary.isEmpty ? '' : 'learning_memory_summary=$learningMemorySummary\n'}'
+        '${biasSummary.isEmpty ? '' : 'bias_summary=$biasSummary\n'}'
         'review_command=$reviewCommand\n'
         '${previousReviewCommand.isEmpty ? '' : 'previous_review_command=$previousReviewCommand\n'}'
         '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}'

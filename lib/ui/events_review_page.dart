@@ -631,6 +631,39 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             ),
                           ),
                         ],
+                        if (syntheticScopeSummary.learningSummary.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Learning: ${syntheticScopeSummary.learningSummary}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFDDD6FE),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                        if (syntheticScopeSummary.learningMemorySummary.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            syntheticScopeSummary.learningMemorySummary,
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFC4B5FD),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                        if (syntheticScopeSummary.biasSummary.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Bias: ${syntheticScopeSummary.biasSummary}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFFDE68A),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                         if (syntheticScopeSummary.history != null) ...[
                           const SizedBox(height: 8),
                           Container(
@@ -676,6 +709,17 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
+                                  if (point.biasSummary.isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      point.biasSummary,
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFFDE68A),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ],
                             ),
@@ -1185,14 +1229,17 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     if ((widget.initialScopedMode ?? '').trim().toLowerCase() != 'synthetic') {
       return null;
     }
+    final scopedReportDate = _readinessScopedReportDate(scopedEvents);
     final plans = _syntheticWarRoomService.buildSimulationPlans(
       events: scopedEvents,
       sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+      historicalLearningLabels: _syntheticHistoricalLearningLabels(
+        scopedReportDate,
+      ),
     );
     if (plans.isEmpty) {
       return null;
     }
-    final scopedReportDate = _readinessScopedReportDate(scopedEvents);
     final focusSummary = _readinessFocusSummary(scopedReportDate);
     final modeLabel = _syntheticWarRoomModeLabel(plans);
     final policySummary = plans
@@ -1200,6 +1247,18 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         .map((plan) => (plan.metadata['recommendation'] ?? '').toString().trim())
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
     final leadPlan = plans.first;
+    final leadPolicyPlan = plans.firstWhere(
+      (plan) => plan.actionType == 'POLICY RECOMMENDATION',
+      orElse: () => const MonitoringWatchAutonomyActionPlan(
+        id: '',
+        incidentId: '',
+        siteId: '',
+        priority: MonitoringWatchAutonomyPriority.medium,
+        actionType: '',
+        description: '',
+        countdownSeconds: 0,
+      ),
+    );
     final reviewRefs = scopedEvents
         .whereType<IntelligenceReceived>()
         .map((event) => event.intelligenceId.trim())
@@ -1227,6 +1286,14 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       policySummary: policySummary,
       topIntentSummary: leadPlan.description,
       hazardSummary: hazardSummary,
+      learningSummary: _syntheticWarRoomLearningSummary(plans),
+      learningMemorySummary: _syntheticWarRoomLearningMemorySummary(
+        currentLearningLabel: _syntheticWarRoomLearningLabel(plans),
+        reportDate: scopedReportDate,
+      ),
+      biasSummary: _syntheticWarRoomBiasSummaryForPlan(
+        leadPolicyPlan.id.isEmpty ? null : leadPolicyPlan,
+      ),
       reviewRefs: reviewRefs,
       history: _syntheticHistorySummary(
         scopedEvents: scopedEvents,
@@ -1275,6 +1342,46 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
 
   String _syntheticCaseFileCommand(String reportDate) =>
       '/syntheticcase json $reportDate';
+
+  List<String> _syntheticHistoricalLearningLabels(String? reportDate) {
+    final normalizedReportDate = (reportDate ?? '').trim();
+    final reports = [...widget.morningSovereignReportHistory]
+      ..sort(
+        (a, b) => b.generatedAtUtc.toUtc().compareTo(a.generatedAtUtc.toUtc()),
+      );
+    return reports
+        .where((report) => report.date.trim() != normalizedReportDate)
+        .take(3)
+        .map(
+          (report) => _syntheticWarRoomLearningLabel(
+            _syntheticWarRoomService.buildSimulationPlans(
+              events: _eventsForReportWindow(report),
+              sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+            ),
+          ),
+        )
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  String _syntheticWarRoomLearningMemorySummary({
+    required String currentLearningLabel,
+    required String? reportDate,
+  }) {
+    final label = currentLearningLabel.trim();
+    if (label.isEmpty) {
+      return '';
+    }
+    final historyLabels = _syntheticHistoricalLearningLabels(reportDate);
+    final repeatCount = historyLabels.where((value) => value == label).length;
+    if (historyLabels.isEmpty) {
+      return 'Memory: $label is the first tracked learning bias.';
+    }
+    if (repeatCount <= 0) {
+      return 'Memory: $label is new against the last ${historyLabels.length} shifts.';
+    }
+    return 'Memory: $label repeated in ${repeatCount + 1} of the last ${historyLabels.length + 1} shifts.';
+  }
 
   String _readinessFocusSummary(String? reportDate) {
     final normalizedReportDate = (reportDate ?? '').trim();
@@ -1340,6 +1447,42 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'top intent ${(lead.metadata['top_intent'] ?? '').toString().trim()}',
     ];
     return summary.join(' • ');
+  }
+
+  String _syntheticWarRoomLearningSummary(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    return plans
+        .map((plan) => (plan.metadata['learning_summary'] ?? '').toString().trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+  }
+
+  String _syntheticWarRoomLearningLabel(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    return plans
+        .map((plan) => (plan.metadata['learning_label'] ?? '').toString().trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+  }
+
+  String _syntheticWarRoomBiasSummaryForPlan(
+    MonitoringWatchAutonomyActionPlan? plan,
+  ) {
+    final actionBias = (plan?.metadata['action_bias'] ?? '').toString().trim();
+    final priorityBoost =
+        (plan?.metadata['memory_priority_boost'] ?? '').toString().trim();
+    final countdownBias =
+        (plan?.metadata['memory_countdown_bias'] ?? '').toString().trim();
+    if (actionBias.isEmpty && priorityBoost.isEmpty && countdownBias.isEmpty) {
+      return '';
+    }
+    final parts = <String>[
+      if (actionBias.isNotEmpty) actionBias,
+      if (priorityBoost.isNotEmpty && priorityBoost != 'NONE')
+        '${priorityBoost.toLowerCase()} priority',
+      if (countdownBias.isNotEmpty) 'T-$countdownBias s',
+    ];
+    return parts.join(' • ');
   }
 
   String _hazardIntentSummary(List<MonitoringWatchAutonomyActionPlan> intents) {
@@ -1467,6 +1610,21 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       final currentPlans = _syntheticWarRoomService.buildSimulationPlans(
         events: scopedEvents,
         sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+        historicalLearningLabels: _syntheticHistoricalLearningLabels(
+          normalizedReportDate,
+        ),
+      );
+      final currentPolicyPlan = currentPlans.firstWhere(
+        (plan) => plan.actionType == 'POLICY RECOMMENDATION',
+        orElse: () => const MonitoringWatchAutonomyActionPlan(
+          id: '',
+          incidentId: '',
+          siteId: '',
+          priority: MonitoringWatchAutonomyPriority.medium,
+          actionType: '',
+          description: '',
+          countdownSeconds: 0,
+        ),
       );
       points.add(
         _SyntheticHistoryPoint(
@@ -1479,6 +1637,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           summaryLine: _syntheticWarRoomSummary(currentPlans).isEmpty
               ? 'No synthetic rehearsal triggered.'
               : _syntheticWarRoomSummary(currentPlans),
+          biasSummary: _syntheticWarRoomBiasSummaryForPlan(
+            currentPolicyPlan.id.isEmpty ? null : currentPolicyPlan,
+          ),
         ),
       );
     }
@@ -1491,6 +1652,21 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       final plans = _syntheticWarRoomService.buildSimulationPlans(
         events: reportEvents,
         sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+        historicalLearningLabels: _syntheticHistoricalLearningLabels(
+          report.date,
+        ),
+      );
+      final policyPlan = plans.firstWhere(
+        (plan) => plan.actionType == 'POLICY RECOMMENDATION',
+        orElse: () => const MonitoringWatchAutonomyActionPlan(
+          id: '',
+          incidentId: '',
+          siteId: '',
+          priority: MonitoringWatchAutonomyPriority.medium,
+          actionType: '',
+          description: '',
+          countdownSeconds: 0,
+        ),
       );
       points.add(
         _SyntheticHistoryPoint(
@@ -1503,6 +1679,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           summaryLine: _syntheticWarRoomSummary(plans).isEmpty
               ? 'No synthetic rehearsal triggered.'
               : _syntheticWarRoomSummary(plans),
+          biasSummary: _syntheticWarRoomBiasSummaryForPlan(
+            policyPlan.id.isEmpty ? null : policyPlan,
+          ),
         ),
       );
     }
@@ -3013,6 +3192,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       'policy_summary,"${summary.policySummary.replaceAll('"', '""')}"',
       'top_intent_summary,"${summary.topIntentSummary.replaceAll('"', '""')}"',
       'hazard_summary,"${summary.hazardSummary.replaceAll('"', '""')}"',
+      'learning_summary,"${summary.learningSummary.replaceAll('"', '""')}"',
+      'learning_memory_summary,"${summary.learningMemorySummary.replaceAll('"', '""')}"',
+      'bias_summary,"${summary.biasSummary.replaceAll('"', '""')}"',
       'review_refs,"${summary.reviewRefs.join(', ').replaceAll('"', '""')}"',
       if (summary.reportDate.isNotEmpty)
         'current_review_command,${_syntheticReviewCommand(summary.reportDate)}',
@@ -3036,6 +3218,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         lines.add('history_${row}_date,${point.date}');
         lines.add(
           'history_${row}_summary,"${point.summaryLine.replaceAll('"', '""')}"',
+        );
+        lines.add(
+          'history_${row}_bias_summary,"${point.biasSummary.replaceAll('"', '""')}"',
         );
         lines.addAll(
           buildHistoryReviewCommandCsvRows(
@@ -3149,12 +3334,15 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'focusState': summary.focusState,
         'historicalFocus': summary.historicalFocus,
         'modeLabel': summary.modeLabel,
-        'summaryLine': summary.summaryLine,
-        'focusSummary': summary.focusSummary,
-        'policySummary': summary.policySummary,
-        'topIntentSummary': summary.topIntentSummary,
-        'hazardSummary': summary.hazardSummary,
-        'reviewRefs': summary.reviewRefs,
+      'summaryLine': summary.summaryLine,
+      'focusSummary': summary.focusSummary,
+      'policySummary': summary.policySummary,
+      'topIntentSummary': summary.topIntentSummary,
+      'hazardSummary': summary.hazardSummary,
+      'learningSummary': summary.learningSummary,
+      'learningMemorySummary': summary.learningMemorySummary,
+      'biasSummary': summary.biasSummary,
+      'reviewRefs': summary.reviewRefs,
         'reviewShortcuts': buildReviewShortcuts(
           currentReportDate: summary.reportDate,
           previousReportDate: previousReportDate,
@@ -3174,6 +3362,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         'policyCount': point.policyCount,
                         'modeLabel': point.modeLabel,
                         'summaryLine': point.summaryLine,
+                        'biasSummary': point.biasSummary,
                         ...buildReviewCommandPair(
                           reportDate: point.date,
                           reviewCommandBuilder: _syntheticReviewCommand,
@@ -3654,6 +3843,9 @@ class _SyntheticScopeSummary {
   final String policySummary;
   final String topIntentSummary;
   final String hazardSummary;
+  final String learningSummary;
+  final String learningMemorySummary;
+  final String biasSummary;
   final List<String> reviewRefs;
   final _SyntheticHistorySummary? history;
 
@@ -3669,6 +3861,9 @@ class _SyntheticScopeSummary {
     required this.policySummary,
     required this.topIntentSummary,
     required this.hazardSummary,
+    required this.learningSummary,
+    required this.learningMemorySummary,
+    required this.biasSummary,
     required this.reviewRefs,
     required this.history,
   });
@@ -3697,6 +3892,7 @@ class _SyntheticHistoryPoint {
   final int policyCount;
   final String modeLabel;
   final String summaryLine;
+  final String biasSummary;
 
   const _SyntheticHistoryPoint({
     required this.date,
@@ -3704,6 +3900,7 @@ class _SyntheticHistoryPoint {
     required this.policyCount,
     required this.modeLabel,
     required this.summaryLine,
+    required this.biasSummary,
   });
 
   int get pressureScore => planCount + policyCount;

@@ -1631,6 +1631,14 @@ void main() {
       findsOneWidget,
     );
     expect(
+      find.textContaining('Learning: Learned bias:'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Bias:'),
+      findsOneWidget,
+    );
+    expect(
       find.textContaining('Top intent: Replay the next-shift posture'),
       findsOneWidget,
     );
@@ -1666,6 +1674,9 @@ void main() {
     expect(copiedClipboardPayload, contains('"modeLabel": "POLICY SHIFT"'));
     expect(copiedClipboardPayload, contains('"historicalFocus": true'));
     expect(copiedClipboardPayload, contains('"hazardSummary": ""'));
+    expect(copiedClipboardPayload, contains('"learningSummary":'));
+    expect(copiedClipboardPayload, contains('"learningMemorySummary":'));
+    expect(copiedClipboardPayload, contains('"biasSummary":'));
     expect(
       copiedClipboardPayload,
       contains('"policySummary": "earlier postural echo propagation into sibling sites"'),
@@ -1717,6 +1728,9 @@ void main() {
     expect(copiedClipboardPayload, contains('focus_state,historical_command_target'));
     expect(copiedClipboardPayload, contains('historical_focus,true'));
     expect(copiedClipboardPayload, contains('hazard_summary,""'));
+    expect(copiedClipboardPayload, contains('learning_summary,"'));
+    expect(copiedClipboardPayload, contains('learning_memory_summary,"'));
+    expect(copiedClipboardPayload, contains('bias_summary,"'));
     expect(copiedClipboardPayload, contains('mode_label,"POLICY SHIFT"'));
     expect(
       copiedClipboardPayload,
@@ -1750,6 +1764,10 @@ void main() {
     expect(
       copiedClipboardPayload,
       contains('history_1_case_file_command,/syntheticcase json 2026-03-17'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('history_1_bias_summary,"'),
     );
     expect(
       copiedClipboardPayload,
