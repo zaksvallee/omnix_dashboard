@@ -18636,17 +18636,15 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       previousShadowTomorrowUrgencySummary:
           previousShadowTomorrowUrgencySummary,
     );
+    final shadowMatchPayload = buildPromotionShadowAnchorPayload(
+      context: shadowMatchContext,
+    );
     return 'ONYX MO PROMOTION\n'
         'mo_id=$moId\n'
         'target_status=$targetStatus\n'
         'decision=${action == 'accept' ? 'accepted' : 'rejected'}\n'
         'summary=$pressureAwareSummary'
-        '${(shadowMatchContext['validationStatus'] ?? '').isEmpty ? '' : '\ncurrent_validation_status=${shadowMatchContext['validationStatus']}'}'
-        '${(shadowMatchContext['strengthSummary'] ?? '').isEmpty ? '' : '\ncurrent_strength_summary=${shadowMatchContext['strengthSummary']}'}'
-        '${(shadowMatchContext['selectedEventId'] ?? '').isEmpty ? '' : '\nshadow_selected_event_id=${shadowMatchContext['selectedEventId']}'}'
-        '${(shadowMatchContext['reviewRefs'] ?? '').isEmpty ? '' : '\nshadow_review_refs=${shadowMatchContext['reviewRefs']}'}'
-        '${(shadowMatchContext['reviewCommand'] ?? '').isEmpty ? '' : '\nshadow_review_command=${shadowMatchContext['reviewCommand']}'}'
-        '${(shadowMatchContext['caseFileCommand'] ?? '').isEmpty ? '' : '\nshadow_case_file_command=${shadowMatchContext['caseFileCommand']}'}'
+        '${buildPromotionShadowFieldText(payload: shadowMatchPayload, keyPrefix: '', linePrefix: '\n')}'
         '${shadowTomorrowUrgencySummary.isEmpty ? '' : '\nshadow_tomorrow_urgency_summary=$shadowTomorrowUrgencySummary'}'
         '${previousShadowTomorrowUrgencySummary.isEmpty ? '' : '\nprevious_shadow_tomorrow_urgency_summary=$previousShadowTomorrowUrgencySummary'}'
         '${(syntheticContext['reviewCommand'] ?? '').isEmpty ? '' : '\nsynthetic_review_command=${syntheticContext['reviewCommand']}'}'

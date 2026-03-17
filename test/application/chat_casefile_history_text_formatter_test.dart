@@ -92,4 +92,23 @@ void main() {
       'promotion_shadow_case_file_command=/shadowcase json 2026-03-17\n',
     );
   });
+
+  test('buildPromotionShadowFieldText supports custom prefix and line prefix', () {
+    final text = buildPromotionShadowFieldText(
+      payload: const <String, Object?>{
+        'promotionCurrentValidationStatus': 'validated',
+        'promotionCurrentStrengthSummary': 'PROMOTED VALIDATED • 0.88',
+        'promotionShadowSelectedEventId': 'evt-office-1',
+      },
+      keyPrefix: '',
+      linePrefix: '\n',
+    );
+
+    expect(
+      text,
+      '\ncurrent_validation_status=validated\n'
+      '\ncurrent_strength_summary=PROMOTED VALIDATED • 0.88\n'
+      '\nshadow_selected_event_id=evt-office-1\n',
+    );
+  });
 }

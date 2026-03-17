@@ -23,12 +23,21 @@ String buildChatCaseFileHeader({
   required List<ChatCaseFileHeaderField> fields,
 }) {
   final buffer = StringBuffer('$title\n');
+  buffer.write(buildChatCaseFileFieldText(fields: fields));
+  return buffer.toString();
+}
+
+String buildChatCaseFileFieldText({
+  required List<ChatCaseFileHeaderField> fields,
+  String linePrefix = '',
+}) {
+  final buffer = StringBuffer();
   for (final field in fields) {
     final value = field.value.trim();
     if (value.isEmpty) {
       continue;
     }
-    buffer.writeln('${field.key}=$value');
+    buffer.write('$linePrefix${field.key}=$value\n');
   }
   return buffer.toString();
 }
@@ -73,6 +82,20 @@ List<ChatCaseFileHeaderField> buildPromotionShadowHeaderFields({
           .trim(),
     ),
   ];
+}
+
+String buildPromotionShadowFieldText({
+  required Map<String, Object?> payload,
+  String keyPrefix = 'promotion_',
+  String linePrefix = '',
+}) {
+  return buildChatCaseFileFieldText(
+    fields: buildPromotionShadowHeaderFields(
+      payload: payload,
+      keyPrefix: keyPrefix,
+    ),
+    linePrefix: linePrefix,
+  );
 }
 
 String buildChatCaseFileHistoryText({
