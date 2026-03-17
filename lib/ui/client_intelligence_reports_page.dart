@@ -1696,6 +1696,24 @@ class _ClientIntelligenceReportsPageState
           ),
           actions: [
             TextButton(
+              key: const ValueKey('reports-site-activity-truth-copy-json'),
+              onPressed: () => _copySiteActivityTruthJson(
+                clientId: clientId,
+                siteId: siteId,
+                partnerLabel: partnerLabel,
+              ),
+              child: const Text('Copy JSON'),
+            ),
+            TextButton(
+              key: const ValueKey('reports-site-activity-truth-copy-csv'),
+              onPressed: () => _copySiteActivityTruthCsv(
+                clientId: clientId,
+                siteId: siteId,
+                partnerLabel: partnerLabel,
+              ),
+              child: const Text('Copy CSV'),
+            ),
+            TextButton(
               key: const ValueKey('reports-site-activity-truth-close'),
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Close'),
@@ -5876,6 +5894,51 @@ class _ClientIntelligenceReportsPageState
     _showReceiptActionFeedback('Partner shift CSV copied.');
   }
 
+  void _copySiteActivityTruthJson({
+    required String clientId,
+    required String siteId,
+    String? partnerLabel,
+  }) {
+    final payload = _siteActivityTruthExportPayload(
+      clientId: clientId,
+      siteId: siteId,
+      partnerLabel: partnerLabel,
+    );
+    final encoded = const JsonEncoder.withIndent('  ').convert(payload);
+    Clipboard.setData(ClipboardData(text: encoded));
+    logUiAction(
+      'reports.copy_site_activity_truth_json',
+      context: <String, Object?>{
+        'client_id': clientId,
+        'site_id': siteId,
+        'partner_label': partnerLabel,
+      },
+    );
+    _showReceiptActionFeedback('Activity truth JSON copied.');
+  }
+
+  void _copySiteActivityTruthCsv({
+    required String clientId,
+    required String siteId,
+    String? partnerLabel,
+  }) {
+    final encoded = _siteActivityTruthExportCsv(
+      clientId: clientId,
+      siteId: siteId,
+      partnerLabel: partnerLabel,
+    );
+    Clipboard.setData(ClipboardData(text: encoded));
+    logUiAction(
+      'reports.copy_site_activity_truth_csv',
+      context: <String, Object?>{
+        'client_id': clientId,
+        'site_id': siteId,
+        'partner_label': partnerLabel,
+      },
+    );
+    _showReceiptActionFeedback('Activity truth CSV copied.');
+  }
+
   Map<String, Object?> _partnerScopeExportPayload() {
     final clientId = _partnerScopeClientId;
     final siteId = _partnerScopeSiteId;
@@ -6355,6 +6418,94 @@ class _ClientIntelligenceReportsPageState
       'guardInteractionSignals': snapshot.guardInteractionSignals,
       'summaryLine': snapshot.summaryLine,
     };
+  }
+
+  Map<String, Object?> _siteActivityTruthExportPayload({
+    required String clientId,
+    required String siteId,
+    String? partnerLabel,
+  }) {
+    final historyPoints = _siteActivityHistoryPointsFor(
+      clientId: clientId,
+      siteId: siteId,
+    );
+    final currentPoint = historyPoints.isEmpty ? null : historyPoints.first;
+    return <String, Object?>{
+      'scope': <String, Object?>{
+        'clientId': clientId,
+        'siteId': siteId,
+        if (partnerLabel != null && partnerLabel.trim().isNotEmpty)
+          'partnerLabel': partnerLabel,
+      },
+      'currentTruth': currentPoint == null
+          ? null
+          : <String, Object?>{
+              'reportDate': currentPoint.reportDate,
+              'current': currentPoint.current,
+              'snapshot': _siteActivitySnapshotJson(currentPoint.snapshot),
+              'eventIds': currentPoint.eventIds,
+            },
+      'history': historyPoints
+          .map(
+            (point) => <String, Object?>{
+              'reportDate': point.reportDate,
+              'current': point.current,
+              'snapshot': _siteActivitySnapshotJson(point.snapshot),
+              'eventIds': point.eventIds,
+            },
+          )
+          .toList(growable: false),
+    };
+  }
+
+  String _siteActivityTruthExportCsv({
+    required String clientId,
+    required String siteId,
+    String? partnerLabel,
+  }) {
+    final historyPoints = _siteActivityHistoryPointsFor(
+      clientId: clientId,
+      siteId: siteId,
+    );
+    final currentPoint = historyPoints.isEmpty ? null : historyPoints.first;
+    final lines = <String>[
+      'metric,value',
+      'client_id,$clientId',
+      'site_id,$siteId',
+      if (partnerLabel != null && partnerLabel.trim().isNotEmpty)
+        'partner_label,"${partnerLabel.replaceAll('"', '""')}"',
+      if (currentPoint != null) 'current_report_date,${currentPoint.reportDate}',
+      if (currentPoint != null)
+        'current_total_signals,${currentPoint.snapshot.totalSignals}',
+      if (currentPoint != null)
+        'current_people,${currentPoint.snapshot.personSignals}',
+      if (currentPoint != null)
+        'current_vehicles,${currentPoint.snapshot.vehicleSignals}',
+      if (currentPoint != null)
+        'current_known_ids,${currentPoint.snapshot.knownIdentitySignals}',
+      if (currentPoint != null)
+        'current_flagged_ids,${currentPoint.snapshot.flaggedIdentitySignals}',
+      if (currentPoint != null)
+        'current_unknown_signals,${currentPoint.snapshot.unknownPersonSignals + currentPoint.snapshot.unknownVehicleSignals}',
+      if (currentPoint != null)
+        'current_long_presence,${currentPoint.snapshot.longPresenceSignals}',
+      if (currentPoint != null)
+        'current_guard_interactions,${currentPoint.snapshot.guardInteractionSignals}',
+      if (currentPoint != null)
+        'current_summary,"${currentPoint.snapshot.summaryLine.replaceAll('"', '""')}"',
+    ];
+    for (var index = 0; index < historyPoints.length; index++) {
+      final point = historyPoints[index];
+      lines.add(
+        'history_${index + 1},"${point.reportDate} • ${point.current ? 'CURRENT' : 'HISTORY'} • ${point.snapshot.summaryLine.replaceAll('"', '""')}"',
+      );
+      for (var eventIndex = 0; eventIndex < point.eventIds.length; eventIndex++) {
+        lines.add(
+          'history_${index + 1}_event_${eventIndex + 1},${point.eventIds[eventIndex]}',
+        );
+      }
+    }
+    return lines.join('\n');
   }
 
   _ReceiptInvestigationHistorySummary? _receiptInvestigationHistorySummaryFor({

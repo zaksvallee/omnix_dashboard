@@ -494,6 +494,32 @@ void main() {
     );
 
     await tester.tap(
+      find.byKey(const ValueKey('reports-site-activity-truth-copy-json')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(clipboardText, contains('"currentTruth"'));
+    expect(clipboardText, contains('"siteId": "SITE-SANDTON"'));
+    expect(clipboardText, contains('"totalSignals": 3'));
+    expect(clipboardText, contains('"eventIds": ['));
+    expect(clipboardText, contains('"ACTIVITY-3"'));
+
+    await tester.tap(
+      find.byKey(const ValueKey('reports-site-activity-truth-copy-csv')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(clipboardText, contains('current_total_signals,3'));
+    expect(clipboardText, contains('current_guard_interactions,1'));
+    expect(
+      clipboardText,
+      contains(
+        'history_1,"2026-03-15 • CURRENT • Signals 3 • Vehicles 1 • People 2 • Known IDs 2 • Unknown 1 • Guard interactions 1 • Flagged IDs 1"',
+      ),
+    );
+    expect(clipboardText, contains('history_1_event_3,ACTIVITY-3'));
+
+    await tester.tap(
       find.byKey(
         const ValueKey('reports-site-activity-open-events-2026-03-15'),
       ),
