@@ -6128,6 +6128,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         .take(3)
         .map((item) {
           final itemDrafts = _tomorrowPostureDraftsForReport(item);
+          final leadDraft = itemDrafts.isEmpty ? null : itemDrafts.first;
           return <String, Object?>{
             'reportDate': item.date,
             'summary': _globalReadinessTomorrowPostureSummary(itemDrafts),
@@ -6139,6 +6140,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             'urgencySummary': _globalReadinessTomorrowUrgencySummary(
               itemDrafts,
             ),
+            'promotionPressureSummary':
+                buildTomorrowPromotionPressureSummaryForDraft(draft: leadDraft),
+            'promotionExecutionSummary':
+                buildTomorrowPromotionExecutionSummaryForDraft(draft: leadDraft),
             'draftCount': itemDrafts.length,
             ...buildReviewCommandPair(
               reportDate: item.date,
@@ -6157,6 +6162,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'shadowSummary': _globalReadinessTomorrowShadowSummary(report, drafts),
       'shadowPostureSummary': _shadowMoPostureSummaryForReport(report),
       'urgencySummary': _globalReadinessTomorrowUrgencySummary(drafts),
+      'promotionPressureSummary': buildTomorrowPromotionPressureSummaryForDraft(
+        draft: drafts.isEmpty ? null : drafts.first,
+      ),
+      'promotionExecutionSummary':
+          buildTomorrowPromotionExecutionSummaryForDraft(
+            draft: drafts.isEmpty ? null : drafts.first,
+          ),
       'draftCount': drafts.length,
       'eventIds': readinessEvidence['eventIds'] ?? const <Object?>[],
       'reviewRefs': readinessEvidence['reviewRefs'] ?? const <Object?>[],
@@ -6180,6 +6192,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               'shadowRepeatCount':
                   draft.metadata['shadow_mo_repeat_count'] ?? '',
               'urgencySummary': _globalReadinessTomorrowUrgencySummary([draft]),
+              'promotionPressureSummary':
+                  buildTomorrowPromotionPressureSummaryForDraft(draft: draft),
+              'promotionExecutionSummary':
+                  buildTomorrowPromotionExecutionSummaryForDraft(draft: draft),
               'hazardSignal': draft.metadata['hazard_signal'] ?? '',
               'metadata': draft.metadata,
             },
@@ -6203,6 +6219,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'shadow_summary,"${(payload['shadowSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'shadow_posture_summary,"${(payload['shadowPostureSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'urgency_summary,"${(payload['urgencySummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'promotion_pressure_summary,"${(payload['promotionPressureSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'promotion_execution_summary,"${(payload['promotionExecutionSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'draft_count,${payload['draftCount'] ?? 0}',
       'selected_event_id,${payload['selectedEventId'] ?? ''}',
       'review_refs,"${((payload['reviewRefs'] as List<Object?>?) ?? const <Object?>[]).join(', ').replaceAll('"', '""')}"',
@@ -6233,6 +6251,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       lines.add(
         'draft_${i + 1}_urgency_summary,"${(draft['urgencySummary'] ?? '').toString().replaceAll('"', '""')}"',
       );
+      lines.add(
+        'draft_${i + 1}_promotion_pressure_summary,"${(draft['promotionPressureSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add(
+        'draft_${i + 1}_promotion_execution_summary,"${(draft['promotionExecutionSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
     }
     for (var i = 0; i < history.length; i += 1) {
       final row = history[i];
@@ -6248,6 +6272,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       lines.add(
         'history_${i + 1}_urgency_summary,"${(row['urgencySummary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add(
+        'history_${i + 1}_promotion_pressure_summary,"${(row['promotionPressureSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add(
+        'history_${i + 1}_promotion_execution_summary,"${(row['promotionExecutionSummary'] ?? '').toString().replaceAll('"', '""')}"',
       );
       lines.addAll(
         buildHistoryReviewCommandCsvRows(
@@ -18404,6 +18434,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
     final shadowSummary = (payload['shadowSummary'] ?? '').toString().trim();
     final urgencySummary = (payload['urgencySummary'] ?? '').toString().trim();
+    final promotionPressureSummary =
+        (payload['promotionPressureSummary'] ?? '').toString().trim();
+    final promotionExecutionSummary =
+        (payload['promotionExecutionSummary'] ?? '').toString().trim();
     final eventIds =
         ((payload['eventIds'] as List<Object?>?) ?? const <Object?>[])
             .map((value) => value.toString().trim())
@@ -18431,6 +18465,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           focusSummary: focusSummary,
           shadowSummary: shadowSummary,
           urgencySummary: urgencySummary,
+          promotionPressureSummary: promotionPressureSummary,
+          promotionExecutionSummary: promotionExecutionSummary,
           caseFileCommand: '/tomorrowcase json ${report.date}',
           governanceCommand: '/readinessgovernance ${report.date}',
           reviewRefs: reviewRefs,
@@ -18447,6 +18483,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         focusSummary: focusSummary,
         shadowSummary: shadowSummary,
         urgencySummary: urgencySummary,
+        promotionPressureSummary: promotionPressureSummary,
+        promotionExecutionSummary: promotionExecutionSummary,
         caseFileCommand: '/tomorrowcase json ${report.date}',
         governanceCommand: '/readinessgovernance ${report.date}',
       ),
@@ -18485,6 +18523,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         .toString()
         .trim();
     final urgencySummary = (payload['urgencySummary'] ?? '').toString().trim();
+    final promotionPressureSummary =
+        (payload['promotionPressureSummary'] ?? '').toString().trim();
+    final promotionExecutionSummary =
+        (payload['promotionExecutionSummary'] ?? '').toString().trim();
     final historyRows =
         ((payload['history'] as List<Object?>?) ?? const <Object?>[])
             .cast<Map<String, Object?>>();
@@ -18507,6 +18549,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         ChatCaseFileHistoryField(
           inputKey: 'urgencySummary',
           outputKey: 'urgency_summary',
+        ),
+        ChatCaseFileHistoryField(
+          inputKey: 'promotionPressureSummary',
+          outputKey: 'promotion_pressure_summary',
+        ),
+        ChatCaseFileHistoryField(
+          inputKey: 'promotionExecutionSummary',
+          outputKey: 'promotion_execution_summary',
         ),
         ChatCaseFileHistoryField(
           inputKey: 'draftCount',
@@ -18538,6 +18588,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             value: urgencySummary,
           ),
           ChatCaseFileHeaderField(
+            key: 'promotion_pressure_summary',
+            value: promotionPressureSummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'promotion_execution_summary',
+            value: promotionExecutionSummary,
+          ),
+          ChatCaseFileHeaderField(
             key: 'review_command',
             value: '/tomorrowreview ${report.date}',
           ),
@@ -18556,6 +18614,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           value: shadowPostureSummary,
         ),
         ChatCaseFileHeaderField(key: 'urgency_summary', value: urgencySummary),
+        ChatCaseFileHeaderField(
+          key: 'promotion_pressure_summary',
+          value: promotionPressureSummary,
+        ),
+        ChatCaseFileHeaderField(
+          key: 'promotion_execution_summary',
+          value: promotionExecutionSummary,
+        ),
         ChatCaseFileHeaderField(
           key: 'review_command',
           value: '/tomorrowreview ${report.date}',

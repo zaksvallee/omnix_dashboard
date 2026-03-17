@@ -674,6 +674,32 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             ),
                           ),
                         ],
+                        if (tomorrowScopeSummary.promotionPressureSummary
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Promotion pressure: ${tomorrowScopeSummary.promotionPressureSummary}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFFDE68A),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                        if (tomorrowScopeSummary.promotionExecutionSummary
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Promotion execution: ${tomorrowScopeSummary.promotionExecutionSummary}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFFFEDD5),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                         if (tomorrowScopeSummary.hazardSummary
                             .trim()
                             .isNotEmpty) ...[
@@ -739,7 +765,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                                     '${point.date} • ${point.summaryLine}'
                                     '${point.shadowSummary.isEmpty ? '' : ' • shadow ${point.shadowSummary}'}'
                                     '${point.shadowPostureSummary.isEmpty ? '' : ' • shadow posture ${point.shadowPostureSummary}'}'
-                                    '${point.urgencySummary.isEmpty ? '' : ' • urgency ${point.urgencySummary}'}',
+                                    '${point.urgencySummary.isEmpty ? '' : ' • urgency ${point.urgencySummary}'}'
+                                    '${point.promotionPressureSummary.isEmpty ? '' : ' • promotion ${point.promotionPressureSummary}'}'
+                                    '${point.promotionExecutionSummary.isEmpty ? '' : ' • execution ${point.promotionExecutionSummary}'}',
                                     style: GoogleFonts.inter(
                                       color: const Color(0xFFEAF1FB),
                                       fontSize: 10,
@@ -2173,6 +2201,11 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       shadowSummary: _tomorrowPostureShadowSummary(report, leadDraft),
       shadowPostureSummary: _shadowPostureSummaryForReport(report),
       urgencySummary: _tomorrowPostureUrgencySummary(leadDraft),
+      promotionPressureSummary: buildTomorrowPromotionPressureSummaryForDraft(
+        draft: leadDraft,
+      ),
+      promotionExecutionSummary:
+          buildTomorrowPromotionExecutionSummaryForDraft(draft: leadDraft),
       hazardSummary: _tomorrowPostureHazardSummary(leadDraft),
       reviewRefs: reviewRefs,
       history: _tomorrowPostureHistorySummary(report),
@@ -3565,6 +3598,16 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         urgencySummary: currentDrafts.isEmpty
             ? ''
             : _tomorrowPostureUrgencySummary(currentDrafts.first),
+        promotionPressureSummary: currentDrafts.isEmpty
+            ? ''
+            : buildTomorrowPromotionPressureSummaryForDraft(
+                draft: currentDrafts.first,
+              ),
+        promotionExecutionSummary: currentDrafts.isEmpty
+            ? ''
+            : buildTomorrowPromotionExecutionSummaryForDraft(
+                draft: currentDrafts.first,
+              ),
       ),
       ...historyReports.take(2).map((item) {
         final drafts = _tomorrowPostureDraftsForReport(item);
@@ -3581,6 +3624,16 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           urgencySummary: drafts.isEmpty
               ? ''
               : _tomorrowPostureUrgencySummary(drafts.first),
+          promotionPressureSummary: drafts.isEmpty
+              ? ''
+              : buildTomorrowPromotionPressureSummaryForDraft(
+                  draft: drafts.first,
+                ),
+          promotionExecutionSummary: drafts.isEmpty
+              ? ''
+              : buildTomorrowPromotionExecutionSummaryForDraft(
+                  draft: drafts.first,
+                ),
         );
       }),
     ];
@@ -5303,6 +5356,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       'shadow_summary,"${summary.shadowSummary.replaceAll('"', '""')}"',
       'shadow_posture_summary,"${summary.shadowPostureSummary.replaceAll('"', '""')}"',
       'urgency_summary,"${summary.urgencySummary.replaceAll('"', '""')}"',
+      'promotion_pressure_summary,"${summary.promotionPressureSummary.replaceAll('"', '""')}"',
+      'promotion_execution_summary,"${summary.promotionExecutionSummary.replaceAll('"', '""')}"',
       'hazard_summary,"${summary.hazardSummary.replaceAll('"', '""')}"',
       'review_refs,"${summary.reviewRefs.join(', ').replaceAll('"', '""')}"',
       if (summary.reportDate.isNotEmpty)
@@ -5337,6 +5392,12 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         );
         lines.add(
           'history_${row}_urgency_summary,"${point.urgencySummary.replaceAll('"', '""')}"',
+        );
+        lines.add(
+          'history_${row}_promotion_pressure_summary,"${point.promotionPressureSummary.replaceAll('"', '""')}"',
+        );
+        lines.add(
+          'history_${row}_promotion_execution_summary,"${point.promotionExecutionSummary.replaceAll('"', '""')}"',
         );
         lines.addAll(
           buildHistoryReviewCommandCsvRows(
@@ -5529,6 +5590,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'shadowSummary': summary.shadowSummary,
         'shadowPostureSummary': summary.shadowPostureSummary,
         'urgencySummary': summary.urgencySummary,
+        'promotionPressureSummary': summary.promotionPressureSummary,
+        'promotionExecutionSummary': summary.promotionExecutionSummary,
         'hazardSummary': summary.hazardSummary,
         'reviewRefs': summary.reviewRefs,
         'reviewShortcuts': buildReviewShortcuts(
@@ -5551,6 +5614,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         'shadowSummary': point.shadowSummary,
                         'shadowPostureSummary': point.shadowPostureSummary,
                         'urgencySummary': point.urgencySummary,
+                        'promotionPressureSummary':
+                            point.promotionPressureSummary,
+                        'promotionExecutionSummary':
+                            point.promotionExecutionSummary,
                         ...buildReviewCommandPair(
                           reportDate: point.date,
                           reviewCommandBuilder: _tomorrowReviewCommand,
@@ -6305,6 +6372,8 @@ class _TomorrowPostureScopeSummary {
   final String shadowSummary;
   final String shadowPostureSummary;
   final String urgencySummary;
+  final String promotionPressureSummary;
+  final String promotionExecutionSummary;
   final String hazardSummary;
   final List<String> reviewRefs;
   final _TomorrowPostureHistorySummary? history;
@@ -6325,6 +6394,8 @@ class _TomorrowPostureScopeSummary {
     required this.shadowSummary,
     required this.shadowPostureSummary,
     required this.urgencySummary,
+    required this.promotionPressureSummary,
+    required this.promotionExecutionSummary,
     required this.hazardSummary,
     required this.reviewRefs,
     required this.history,
@@ -6355,6 +6426,8 @@ class _TomorrowPostureHistoryPoint {
   final String shadowSummary;
   final String shadowPostureSummary;
   final String urgencySummary;
+  final String promotionPressureSummary;
+  final String promotionExecutionSummary;
 
   const _TomorrowPostureHistoryPoint({
     required this.date,
@@ -6363,6 +6436,8 @@ class _TomorrowPostureHistoryPoint {
     required this.shadowSummary,
     required this.shadowPostureSummary,
     required this.urgencySummary,
+    required this.promotionPressureSummary,
+    required this.promotionExecutionSummary,
   });
 }
 

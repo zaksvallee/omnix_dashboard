@@ -351,6 +351,37 @@ String buildTomorrowUrgencySummaryForDraft({
   return parts.join(' • ');
 }
 
+String buildTomorrowPromotionPressureSummaryForDraft({
+  required MonitoringWatchAutonomyActionPlan? draft,
+}) {
+  final prebuiltSummary =
+      (draft?.metadata['promotion_pressure_summary'] ?? '').trim();
+  if (prebuiltSummary.isNotEmpty) {
+    return prebuiltSummary;
+  }
+  final baseSummary = (draft?.metadata['mo_promotion_summary'] ?? '').trim();
+  if (baseSummary.isEmpty) {
+    return '';
+  }
+  return buildSyntheticPromotionSummary(baseSummary: baseSummary);
+}
+
+String buildTomorrowPromotionExecutionSummaryForDraft({
+  required MonitoringWatchAutonomyActionPlan? draft,
+}) {
+  final prebuiltSummary =
+      (draft?.metadata['promotion_execution_summary'] ?? '').trim();
+  if (prebuiltSummary.isNotEmpty) {
+    return prebuiltSummary;
+  }
+  return buildSyntheticPromotionExecutionBiasSummary(
+    promotionPriorityBias:
+        (draft?.metadata['mo_promotion_priority_bias'] ?? '').trim(),
+    promotionCountdownBias:
+        (draft?.metadata['mo_promotion_countdown_bias'] ?? '').trim(),
+  );
+}
+
 String buildTomorrowLearningMemorySummaryForDraft({
   required MonitoringWatchAutonomyActionPlan? draft,
 }) {

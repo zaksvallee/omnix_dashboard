@@ -356,6 +356,9 @@ void main() {
           'shadow_strength_bias': 'strength rising',
           'shadow_strength_priority': 'critical',
           'draft_countdown': '18',
+          'promotion_pressure_summary':
+              'strength rising • critical • 22s • execution high • 40s',
+          'promotion_execution_summary': 'high • 40s',
         },
       );
 
@@ -373,6 +376,14 @@ void main() {
       expect(
         buildTomorrowUrgencySummaryForDraft(draft: draft),
         'strength rising • critical • 18s',
+      );
+      expect(
+        buildTomorrowPromotionPressureSummaryForDraft(draft: draft),
+        'strength rising • critical • 22s • execution high • 40s',
+      );
+      expect(
+        buildTomorrowPromotionExecutionSummaryForDraft(draft: draft),
+        'high • 40s',
       );
     });
 

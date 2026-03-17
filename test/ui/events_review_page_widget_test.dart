@@ -2669,6 +2669,8 @@ void main() {
     );
     expect(copiedClipboardPayload, contains('"shadowPostureSummary": "'));
     expect(copiedClipboardPayload, contains('"urgencySummary": ""'));
+    expect(copiedClipboardPayload, contains('"promotionPressureSummary": ""'));
+    expect(copiedClipboardPayload, contains('"promotionExecutionSummary": ""'));
     expect(
       copiedClipboardPayload,
       contains('"hazardSummary": "fire playbook draft active"'),
@@ -2735,6 +2737,8 @@ void main() {
     );
     expect(copiedClipboardPayload, contains('shadow_posture_summary,"'));
     expect(copiedClipboardPayload, contains('urgency_summary,""'));
+    expect(copiedClipboardPayload, contains('promotion_pressure_summary,""'));
+    expect(copiedClipboardPayload, contains('promotion_execution_summary,""'));
     expect(
       copiedClipboardPayload,
       contains('hazard_summary,"fire playbook draft active"'),
@@ -2766,6 +2770,14 @@ void main() {
     expect(
       copiedClipboardPayload,
       contains('history_1_shadow_posture_summary,"'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('history_1_promotion_pressure_summary,""'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('history_1_promotion_execution_summary,""'),
     );
     expect(
       copiedClipboardPayload,
