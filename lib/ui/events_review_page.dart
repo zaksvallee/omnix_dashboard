@@ -32,6 +32,7 @@ class EventsReviewPage extends StatefulWidget {
   final List<String> initialScopedEventIds;
   final String? initialScopedMode;
   final List<SovereignReport> morningSovereignReportHistory;
+  final String? currentMorningSovereignReportDate;
   final VoidCallback? onOpenGovernance;
 
   const EventsReviewPage({
@@ -44,6 +45,7 @@ class EventsReviewPage extends StatefulWidget {
     this.initialScopedEventIds = const <String>[],
     this.initialScopedMode,
     this.morningSovereignReportHistory = const <SovereignReport>[],
+    this.currentMorningSovereignReportDate,
     this.onOpenGovernance,
   });
 
@@ -428,7 +430,22 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        if (readinessScopeSummary.posturalEchoSummary.trim().isNotEmpty) ...[
+                        if (readinessScopeSummary.focusSummary
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            readinessScopeSummary.focusSummary,
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFD9F99D),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                        if (readinessScopeSummary.posturalEchoSummary
+                            .trim()
+                            .isNotEmpty) ...[
                           const SizedBox(height: 4),
                           Text(
                             'Postural echo: ${readinessScopeSummary.posturalEchoSummary}',
@@ -439,7 +456,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             ),
                           ),
                         ],
-                        if (readinessScopeSummary.topIntentSummary.trim().isNotEmpty) ...[
+                        if (readinessScopeSummary.topIntentSummary
+                            .trim()
+                            .isNotEmpty) ...[
                           const SizedBox(height: 4),
                           Text(
                             'Top intent: ${readinessScopeSummary.topIntentSummary}',
@@ -900,6 +919,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     }
     final leadRegion = snapshot.regions.isEmpty ? null : snapshot.regions.first;
     final leadSite = snapshot.sites.isEmpty ? null : snapshot.sites.first;
+    final scopedReportDate = _readinessScopedReportDate(scopedEvents);
+    final focusSummary = _readinessFocusSummary(scopedReportDate);
     final modeLabel = snapshot.criticalSiteCount > 0
         ? 'CRITICAL POSTURE'
         : snapshot.elevatedSiteCount > 0
@@ -921,7 +942,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         .toSet()
         .toList(growable: false);
     final posturalEchoes = intents
-        .where((intent) => intent.actionType.trim().toUpperCase() == 'POSTURAL ECHO')
+        .where(
+          (intent) => intent.actionType.trim().toUpperCase() == 'POSTURAL ECHO',
+        )
         .toList(growable: false);
     final posturalEchoSummary = posturalEchoes.isEmpty
         ? ''
@@ -938,10 +961,47 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       leadSiteId: leadSite?.siteId,
       modeLabel: modeLabel,
       summaryLine: summaryParts.join(' • '),
+      focusSummary: focusSummary,
       posturalEchoSummary: posturalEchoSummary,
       topIntentSummary: topIntentSummary,
       reviewRefs: reviewRefs,
     );
+  }
+
+  String? _readinessScopedReportDate(List<DispatchEvent> scopedEvents) {
+    final intelligenceEvents = scopedEvents
+        .whereType<IntelligenceReceived>()
+        .toList(growable: false);
+    if (intelligenceEvents.isEmpty) {
+      return null;
+    }
+    final dates =
+        intelligenceEvents
+            .map((event) => _utcReportDateLabel(event.occurredAt))
+            .toSet()
+            .toList(growable: false)
+          ..sort();
+    return dates.length == 1 ? dates.first : dates.last;
+  }
+
+  String _readinessFocusSummary(String? reportDate) {
+    final normalizedReportDate = (reportDate ?? '').trim();
+    if (normalizedReportDate.isEmpty) {
+      return '';
+    }
+    final currentReportDate = (widget.currentMorningSovereignReportDate ?? '')
+        .trim();
+    if (currentReportDate.isEmpty ||
+        currentReportDate == normalizedReportDate) {
+      return 'Viewing live oversight shift $normalizedReportDate.';
+    }
+    return 'Viewing command-targeted shift $normalizedReportDate instead of live oversight $currentReportDate.';
+  }
+
+  String _utcReportDateLabel(DateTime dateTime) {
+    final utc = dateTime.toUtc();
+    String two(int value) => value.toString().padLeft(2, '0');
+    return '${utc.year.toString().padLeft(4, '0')}-${two(utc.month)}-${two(utc.day)}';
   }
 
   _ActivityHistorySummary? _activityHistorySummary({
@@ -2433,7 +2493,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     };
   }
 
-  Map<String, Object?> _readinessCaseFilePayload(_ReadinessScopeSummary summary) {
+  Map<String, Object?> _readinessCaseFilePayload(
+    _ReadinessScopeSummary summary,
+  ) {
     return {
       'readinessCaseFile': {
         'leadRegionId': summary.leadRegionId,
@@ -2441,6 +2503,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'eventCount': summary.eventCount,
         'modeLabel': summary.modeLabel,
         'summaryLine': summary.summaryLine,
+        'focusSummary': summary.focusSummary,
         'posturalEchoSummary': summary.posturalEchoSummary,
         'topIntentSummary': summary.topIntentSummary,
         'reviewRefs': summary.reviewRefs,
@@ -2859,6 +2922,7 @@ class _ReadinessScopeSummary {
   final String? leadSiteId;
   final String modeLabel;
   final String summaryLine;
+  final String focusSummary;
   final String posturalEchoSummary;
   final String topIntentSummary;
   final List<String> reviewRefs;
@@ -2869,6 +2933,7 @@ class _ReadinessScopeSummary {
     required this.leadSiteId,
     required this.modeLabel,
     required this.summaryLine,
+    required this.focusSummary,
     required this.posturalEchoSummary,
     required this.topIntentSummary,
     required this.reviewRefs,

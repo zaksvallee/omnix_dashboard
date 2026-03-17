@@ -1217,7 +1217,8 @@ void main() {
               sourceLabel: 'openai:gpt-5.4-mini',
               postureLabel: 'boundary repeat pressure',
               decisionLabel: 'Repeat Watch',
-              decisionSummary: 'Repeat pressure is spreading across the region.',
+              decisionSummary:
+                  'Repeat pressure is spreading across the region.',
               summary: 'Sibling site movement linked to the same corridor.',
               reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 6),
             ),
@@ -1225,6 +1226,7 @@ void main() {
           initialScopedEventIds: const ['READY-1', 'READY-2'],
           initialSelectedEventId: 'READY-1',
           initialScopedMode: 'readiness',
+          currentMorningSovereignReportDate: '2026-03-18',
           onOpenGovernance: () {
             governanceOpened = true;
           },
@@ -1248,10 +1250,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.textContaining(
-        'Critical 1',
-        skipOffstage: false,
-      ),
+      find.textContaining('Critical 1', skipOffstage: false),
       findsOneWidget,
     );
     expect(
@@ -1260,6 +1259,12 @@ void main() {
     );
     expect(
       find.textContaining('site SITE-ALPHA', skipOffstage: false),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'Viewing command-targeted shift 2026-03-17 instead of live oversight 2026-03-18.',
+      ),
       findsOneWidget,
     );
     expect(
@@ -1298,8 +1303,17 @@ void main() {
     copyJsonAction.onTap!();
     await tester.pump();
     expect(copiedClipboardPayload, contains('"readinessCaseFile"'));
-    expect(copiedClipboardPayload, contains('"leadRegionId": "REGION-GAUTENG"'));
+    expect(
+      copiedClipboardPayload,
+      contains('"leadRegionId": "REGION-GAUTENG"'),
+    );
     expect(copiedClipboardPayload, contains('"leadSiteId": "SITE-ALPHA"'));
+    expect(
+      copiedClipboardPayload,
+      contains(
+        '"focusSummary": "Viewing command-targeted shift 2026-03-17 instead of live oversight 2026-03-18."',
+      ),
+    );
     expect(copiedClipboardPayload, contains('"reviewRefs": ['));
 
     final copyCsvAction = tester.widget<InkWell>(
