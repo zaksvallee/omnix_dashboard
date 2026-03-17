@@ -91,6 +91,7 @@ class AIQueuePage extends StatefulWidget {
   final List<String> historicalSyntheticLearningLabels;
   final List<String> historicalShadowMoLabels;
   final List<String> historicalShadowStrengthLabels;
+  final String previousTomorrowUrgencySummary;
   final String videoOpsLabel;
   final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
   final void Function(List<String> eventIds, String? selectedEventId)?
@@ -102,6 +103,7 @@ class AIQueuePage extends StatefulWidget {
     this.historicalSyntheticLearningLabels = const <String>[],
     this.historicalShadowMoLabels = const <String>[],
     this.historicalShadowStrengthLabels = const <String>[],
+    this.previousTomorrowUrgencySummary = '',
     this.videoOpsLabel = 'CCTV',
     this.sceneReviewByIntelligenceId = const {},
     this.onOpenEventsForScope,
@@ -942,6 +944,11 @@ class _AIQueuePageState extends State<AIQueuePage> {
                           .isNotEmpty)
                         leadDraft.metadata['shadow_strength_priority']!,
                     ].join(' • '),
+                  ),
+                if (widget.previousTomorrowUrgencySummary.trim().isNotEmpty)
+                  _detailCell(
+                    'Previous urgency',
+                    widget.previousTomorrowUrgencySummary.trim(),
                   ),
               ],
             ),

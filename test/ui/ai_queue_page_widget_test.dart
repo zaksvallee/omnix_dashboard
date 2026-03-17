@@ -320,6 +320,7 @@ void main() {
             events: events,
             historicalShadowMoLabels: const ['HARDEN ACCESS'],
             historicalShadowStrengthLabels: const ['strength rising'],
+            previousTomorrowUrgencySummary: 'strength stable • high • 28s',
             sceneReviewByIntelligenceId: reviews,
             videoOpsLabel: 'Hikvision',
           ),
@@ -333,6 +334,11 @@ void main() {
       expect(find.textContaining('HARDEN ACCESS'), findsWidgets);
       expect(find.text('URGENCY'), findsOneWidget);
       expect(find.textContaining('strength rising • critical'), findsOneWidget);
+      expect(find.text('PREVIOUS URGENCY'), findsOneWidget);
+      expect(
+        find.textContaining('strength stable • high • 28s'),
+        findsOneWidget,
+      );
 
       final biasTopLeft = tester.getTopLeft(find.text('SHADOW READINESS BIAS'));
       final draftTopLeft = tester.getTopLeft(

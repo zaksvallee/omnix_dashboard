@@ -349,6 +349,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: LiveOperationsPage(
+            previousTomorrowUrgencySummary: 'strength stable • high • 28s',
             historicalShadowMoLabels: const ['HARDEN ACCESS'],
             historicalShadowStrengthLabels: const ['strength rising'],
             events: [
@@ -431,6 +432,11 @@ void main() {
       expect(find.textContaining('HARDEN ACCESS'), findsWidgets);
       expect(find.text('Urgency'), findsOneWidget);
       expect(find.textContaining('strength rising • critical'), findsOneWidget);
+      expect(find.text('Previous urgency'), findsOneWidget);
+      expect(
+        find.textContaining('strength stable • high • 28s'),
+        findsOneWidget,
+      );
       expect(find.text('Readiness bias'), findsOneWidget);
       expect(find.textContaining('earlier access hardening'), findsOneWidget);
     },

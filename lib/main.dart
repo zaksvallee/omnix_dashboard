@@ -21830,6 +21830,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }
 
   Widget _buildPage(List<DispatchEvent> events) {
+    final previousTomorrowUrgencySummary =
+        _morningSovereignReportHistory.length > 1
+        ? _globalReadinessTomorrowUrgencySummary(
+            _globalReadinessIntentsForReport(_morningSovereignReportHistory[1]),
+          )
+        : '';
     switch (_route) {
       case OnyxRoute.dashboard:
         return LiveOperationsPage(
@@ -21838,6 +21844,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           historicalSyntheticLearningLabels: _recentSyntheticLearningLabels(),
           historicalShadowMoLabels: _recentShadowMoLabels(),
           historicalShadowStrengthLabels: _recentShadowStrengthLabels(),
+          previousTomorrowUrgencySummary: previousTomorrowUrgencySummary,
           focusIncidentReference: _operationsFocusIncidentReference,
           videoOpsLabel: _activeVideoOpsLabel,
           sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
@@ -21855,6 +21862,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           historicalSyntheticLearningLabels: _recentSyntheticLearningLabels(),
           historicalShadowMoLabels: _recentShadowMoLabels(),
           historicalShadowStrengthLabels: _recentShadowStrengthLabels(),
+          previousTomorrowUrgencySummary: previousTomorrowUrgencySummary,
           videoOpsLabel: _activeVideoOpsLabel,
           sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
           onOpenEventsForScope: (eventIds, selectedEventId) {

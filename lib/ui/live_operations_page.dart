@@ -229,6 +229,7 @@ class LiveOperationsPage extends StatefulWidget {
   final List<String> historicalSyntheticLearningLabels;
   final List<String> historicalShadowMoLabels;
   final List<String> historicalShadowStrengthLabels;
+  final String previousTomorrowUrgencySummary;
   final String focusIncidentReference;
   final String videoOpsLabel;
   final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
@@ -242,6 +243,7 @@ class LiveOperationsPage extends StatefulWidget {
     this.historicalSyntheticLearningLabels = const <String>[],
     this.historicalShadowMoLabels = const <String>[],
     this.historicalShadowStrengthLabels = const <String>[],
+    this.previousTomorrowUrgencySummary = '',
     this.focusIncidentReference = '',
     this.videoOpsLabel = 'CCTV',
     this.sceneReviewByIntelligenceId = const {},
@@ -1381,6 +1383,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     .isNotEmpty)
                   (leadDraft.metadata['shadow_strength_priority'] ?? '').trim(),
               ].join(' • '),
+            ),
+          if (widget.previousTomorrowUrgencySummary.trim().isNotEmpty)
+            _metaRow(
+              'Previous urgency',
+              widget.previousTomorrowUrgencySummary.trim(),
             ),
           if (leadBias != null)
             _metaRow(
