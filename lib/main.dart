@@ -11090,36 +11090,214 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     );
   }
 
-  Map<String, Object?> _siteActivityCaseFilePayload({
+  bool _looksLikeSiteActivityReportDate(String value) {
+    final trimmed = value.trim();
+    if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(trimmed)) {
+      return false;
+    }
+    return DateTime.tryParse(trimmed) != null;
+  }
+
+  String _siteActivityReportDate(DateTime dateTime) {
+    final utc = dateTime.toUtc();
+    String two(int value) => value.toString().padLeft(2, '0');
+    return '${utc.year.toString().padLeft(4, '0')}-${two(utc.month)}-${two(utc.day)}';
+  }
+
+  int _compareDispatchEventsByOccurredAtThenSequence(
+    DispatchEvent left,
+    DispatchEvent right,
+  ) {
+    final occurredAt = left.occurredAt.compareTo(right.occurredAt);
+    if (occurredAt != 0) {
+      return occurredAt;
+    }
+    final sequence = left.sequence.compareTo(right.sequence);
+    if (sequence != 0) {
+      return sequence;
+    }
+    return left.eventId.compareTo(right.eventId);
+  }
+
+  ({String clientId, String siteId, String? reportDate})?
+  _parseSiteActivityScopeRequest(String arguments) {
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (tokens.isEmpty) {
+      return (
+        clientId: _telegramAdminTargetClientId,
+        siteId: _telegramAdminTargetSiteId,
+        reportDate: null,
+      );
+    }
+    if (tokens.length == 1 && _looksLikeSiteActivityReportDate(tokens.first)) {
+      return (
+        clientId: _telegramAdminTargetClientId,
+        siteId: _telegramAdminTargetSiteId,
+        reportDate: tokens.first,
+      );
+    }
+    if (tokens.length == 2) {
+      return (clientId: tokens[0], siteId: tokens[1], reportDate: null);
+    }
+    if (tokens.length == 3 && _looksLikeSiteActivityReportDate(tokens[2])) {
+      return (clientId: tokens[0], siteId: tokens[1], reportDate: tokens[2]);
+    }
+    return null;
+  }
+
+  List<IntelligenceReceived> _siteActivityRowsForScope({
     required String clientId,
     required String siteId,
+    String? reportDate,
   }) {
     final normalizedClientId = clientId.trim();
     final normalizedSiteId = siteId.trim();
-    final snapshot = _siteActivityIntelligenceService.buildSnapshot(
-      events: store.allEvents(),
+    final trimmedDate = reportDate?.trim();
+    return store
+        .allEvents()
+        .whereType<IntelligenceReceived>()
+        .where(
+          (event) =>
+              event.clientId.trim() == normalizedClientId &&
+              event.siteId.trim() == normalizedSiteId &&
+              ((event.sourceType.trim().toLowerCase() == 'dvr') ||
+                  (event.sourceType.trim().toLowerCase() == 'cctv')) &&
+              (trimmedDate == null ||
+                  trimmedDate.isEmpty ||
+                  _siteActivityReportDate(event.occurredAt) == trimmedDate),
+        )
+        .toList(growable: false);
+  }
+
+  List<({
+    String reportDate,
+    SiteActivityIntelligenceSnapshot snapshot,
+    List<String> eventIds,
+    bool current,
+  })> _siteActivityHistoryPointsForScope({
+    required String clientId,
+    required String siteId,
+  }) {
+    final scopedEvents = _siteActivityRowsForScope(
+      clientId: clientId,
+      siteId: siteId,
+    );
+    if (scopedEvents.isEmpty) {
+      return const <({
+        String reportDate,
+        SiteActivityIntelligenceSnapshot snapshot,
+        List<String> eventIds,
+        bool current,
+      })>[];
+    }
+    final grouped = <String, List<IntelligenceReceived>>{};
+    for (final event in scopedEvents) {
+      final reportDate = _siteActivityReportDate(event.occurredAt);
+      grouped.putIfAbsent(reportDate, () => <IntelligenceReceived>[]).add(event);
+    }
+    final reportDates =
+        grouped.keys.toList(growable: false)..sort((a, b) => b.compareTo(a));
+    final latestDate = reportDates.first;
+    return reportDates.map((reportDate) {
+      final rows = grouped[reportDate]!.toList(growable: false)
+        ..sort(_compareDispatchEventsByOccurredAtThenSequence);
+      final snapshot = _siteActivityIntelligenceService.buildSnapshot(
+        events: rows,
+        clientId: clientId,
+        siteId: siteId,
+      );
+      return (
+        reportDate: reportDate,
+        snapshot: snapshot,
+        eventIds: rows.map((event) => event.eventId).toList(growable: false),
+        current: reportDate == latestDate,
+      );
+    }).toList(growable: false);
+  }
+
+  ({
+    String reportDate,
+    SiteActivityIntelligenceSnapshot snapshot,
+    List<String> eventIds,
+    bool current,
+  })? _siteActivityHistoryPointForScope({
+    required String clientId,
+    required String siteId,
+    String? reportDate,
+  }) {
+    final history = _siteActivityHistoryPointsForScope(
+      clientId: clientId,
+      siteId: siteId,
+    );
+    if (history.isEmpty) {
+      return null;
+    }
+    final trimmedDate = reportDate?.trim();
+    if (trimmedDate == null || trimmedDate.isEmpty) {
+      return history.first;
+    }
+    for (final point in history) {
+      if (point.reportDate == trimmedDate) {
+        return point;
+      }
+    }
+    return null;
+  }
+
+  Map<String, Object?> _siteActivityCaseFilePayload({
+    required String clientId,
+    required String siteId,
+    String? reportDate,
+  }) {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    final targetPoint = _siteActivityHistoryPointForScope(
+      clientId: normalizedClientId,
+      siteId: normalizedSiteId,
+      reportDate: reportDate,
+    );
+    final snapshot =
+        targetPoint?.snapshot ??
+        _siteActivityIntelligenceService.buildSnapshot(
+          events: _siteActivityRowsForScope(
+            clientId: normalizedClientId,
+            siteId: normalizedSiteId,
+            reportDate: reportDate,
+          ),
+          clientId: normalizedClientId,
+          siteId: normalizedSiteId,
+        );
+    final trend = _siteActivityTrendSnapshotFor(snapshot);
+    final history = _siteActivityHistoryPointsForScope(
       clientId: normalizedClientId,
       siteId: normalizedSiteId,
     );
-    final trend = _siteActivityTrendSnapshotFor(snapshot);
-    final history = [..._morningSovereignReportHistory]
-      ..sort(
-        (left, right) => right.generatedAtUtc.compareTo(left.generatedAtUtc),
-      );
+    final effectiveReportDate =
+        targetPoint?.reportDate ??
+        reportDate?.trim() ??
+        _morningSovereignReport?.date;
     return {
       'activityCaseFile': {
         'scope': {
           'clientId': normalizedClientId,
           'siteId': normalizedSiteId,
-          'reportDate': _morningSovereignReport?.date,
+          'reportDate': effectiveReportDate,
           'generatedAtUtc': _morningSovereignReport?.generatedAtUtc
               .toIso8601String(),
-          'reviewCommand': '/activityreview $normalizedClientId $normalizedSiteId',
-          'caseFileCommand': '/activitycase $normalizedClientId $normalizedSiteId',
+          'reviewCommand':
+              '/activityreview $normalizedClientId $normalizedSiteId${effectiveReportDate == null || effectiveReportDate.isEmpty ? '' : ' $effectiveReportDate'}',
+          'caseFileCommand':
+              '/activitycase json $normalizedClientId $normalizedSiteId${effectiveReportDate == null || effectiveReportDate.isEmpty ? '' : ' $effectiveReportDate'}',
+          'current': targetPoint?.current ?? reportDate == null,
         },
         'summaryLine': snapshot.summaryLine,
-        'eventIds': snapshot.eventIds,
-        'selectedEventId': snapshot.selectedEventId,
+        'eventIds': targetPoint?.eventIds ?? snapshot.eventIds,
+        'selectedEventId':
+            targetPoint?.snapshot.selectedEventId ?? snapshot.selectedEventId,
         'reviewRefs': snapshot.evidenceEventIds,
         'topFlaggedIdentitySummary': snapshot.topFlaggedIdentitySummary,
         'topLongPresenceSummary': snapshot.topLongPresenceSummary,
@@ -11133,15 +11311,22 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'history': history
             .take(3)
             .map(
-              (report) => {
-                'date': report.date,
-                'totalSignals': report.siteActivity.totalSignals,
-                'unknownSignals': report.siteActivity.unknownSignals,
-                'flaggedIdentitySignals':
-                    report.siteActivity.flaggedIdentitySignals,
+              (point) => {
+                'date': point.reportDate,
+                'current': point.current,
+                'totalSignals': point.snapshot.totalSignals,
+                'unknownSignals':
+                    point.snapshot.unknownPersonSignals +
+                    point.snapshot.unknownVehicleSignals,
+                'flaggedIdentitySignals': point.snapshot.flaggedIdentitySignals,
                 'guardInteractionSignals':
-                    report.siteActivity.guardInteractionSignals,
-                'summaryLine': report.siteActivity.summaryLine,
+                    point.snapshot.guardInteractionSignals,
+                'summaryLine': point.snapshot.summaryLine,
+                'eventIds': point.eventIds,
+                'reviewCommand':
+                    '/activityreview $normalizedClientId $normalizedSiteId ${point.reportDate}',
+                'caseFileCommand':
+                    '/activitycase json $normalizedClientId $normalizedSiteId ${point.reportDate}',
               },
             )
             .toList(growable: false),
@@ -11152,10 +11337,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   String _siteActivityCaseFileCsv({
     required String clientId,
     required String siteId,
+    String? reportDate,
   }) {
     final payload = _siteActivityCaseFilePayload(
       clientId: clientId,
       siteId: siteId,
+      reportDate: reportDate,
     );
     final caseFile =
         payload['activityCaseFile'] as Map<String, Object?>? ??
@@ -11172,6 +11359,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'site_id,${scope['siteId'] ?? ''}',
       'report_date,${scope['reportDate'] ?? ''}',
       'generated_at_utc,${scope['generatedAtUtc'] ?? ''}',
+      'current_scope,${scope['current'] ?? ''}',
       'review_command,${scope['reviewCommand'] ?? ''}',
       'case_file_command,${scope['caseFileCommand'] ?? ''}',
       'summary_line,"${(caseFile['summaryLine'] as String? ?? '').replaceAll('"', '""')}"',
@@ -11187,8 +11375,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       final row = index + 1;
       final point = history[index];
       lines.add('history_${row}_date,${point['date'] ?? ''}');
+      lines.add('history_${row}_current,${point['current'] ?? ''}');
       lines.add(
         'history_${row}_summary,"${(point['summaryLine'] as String? ?? '').replaceAll('"', '""')}"',
+      );
+      lines.add('history_${row}_review_command,${point['reviewCommand'] ?? ''}');
+      lines.add(
+        'history_${row}_case_file_command,${point['caseFileCommand'] ?? ''}',
       );
     }
     return lines.join('\n');
@@ -12963,8 +13156,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '• <code>/unlinkalarm &lt;account&gt; [partition] [zone]</code> | <code>/alarmbindings [account]</code>\n'
         '• <code>/alarmtest &lt;clear|suspicious|pending|unavailable&gt; &lt;listener line&gt;</code>\n'
         '• <code>/activitytruth [client_id site_id]</code>\n'
-        '• <code>/activityreview [client_id site_id]</code>\n'
-        '• <code>/activitycase [json|csv] [client_id site_id]</code>\n'
+        '• <code>/activityreview [client_id site_id] [report_date]</code>\n'
+        '• <code>/activitycase [json|csv] [client_id site_id] [report_date]</code>\n'
         '• <code>/sendactivity [client|partner|both] [client_id site_id]</code>\n'
         '\n---\n\n'
         '<b>Admin</b>\n'
@@ -14856,32 +15049,35 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }
 
   String _telegramAdminActivityReviewCommand(String arguments) {
-    final scope = _parseMonitoringWatchScope(arguments);
+    final scope = _parseSiteActivityScopeRequest(arguments);
     if (scope == null ||
         scope.clientId.trim().isEmpty ||
         scope.siteId.trim().isEmpty) {
-      return 'ONYX ACTIVITYREVIEW\nUsage: /activityreview [client_id site_id]';
+      return 'ONYX ACTIVITYREVIEW\n'
+          'Usage: /activityreview [client_id site_id] [report_date]';
     }
     final normalizedClientId = scope.clientId.trim();
     final normalizedSiteId = scope.siteId.trim();
-    final snapshot = _siteActivityIntelligenceService.buildSnapshot(
-      events: store.allEvents(),
+    final point = _siteActivityHistoryPointForScope(
       clientId: normalizedClientId,
       siteId: normalizedSiteId,
+      reportDate: scope.reportDate,
     );
-    if (snapshot.eventIds.isEmpty) {
+    if (point == null || point.eventIds.isEmpty) {
       return 'ONYX ACTIVITYREVIEW\n'
-          'scope=$normalizedClientId/$normalizedSiteId\n'
+          'scope=$normalizedClientId/$normalizedSiteId'
+          '${(scope.reportDate ?? '').trim().isEmpty ? '' : '\nreport_date=${scope.reportDate!.trim()}'}\n'
           'No site-activity evidence is currently available for Events Review.';
     }
     _openEventsForScopedEventIds(
-      snapshot.eventIds,
-      selectedEventId: snapshot.selectedEventId,
+      point.eventIds,
+      selectedEventId: point.snapshot.selectedEventId,
     );
     return 'ONYX ACTIVITYREVIEW\n'
         'scope=$normalizedClientId/$normalizedSiteId\n'
-        'selected=${snapshot.selectedEventId ?? snapshot.eventIds.first}\n'
-        'events=${snapshot.eventIds.length}\n'
+        'report_date=${point.reportDate}\n'
+        'selected=${point.snapshot.selectedEventId ?? point.eventIds.first}\n'
+        'events=${point.eventIds.length}\n'
         'Opening Events Review for site activity investigation.';
   }
 
@@ -14900,22 +15096,26 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         index = 1;
       }
     }
-    final scope = _parseMonitoringWatchScope(tokens.sublist(index).join(' '));
+    final scope = _parseSiteActivityScopeRequest(tokens.sublist(index).join(' '));
     if (scope == null ||
         scope.clientId.trim().isEmpty ||
         scope.siteId.trim().isEmpty) {
-      return 'ONYX ACTIVITYCASE\nUsage: /activitycase [json|csv] [client_id site_id]';
+      return 'ONYX ACTIVITYCASE\n'
+          'Usage: /activitycase [json|csv] [client_id site_id] [report_date]';
     }
     final normalizedClientId = scope.clientId.trim();
     final normalizedSiteId = scope.siteId.trim();
+    final normalizedReportDate = scope.reportDate?.trim();
+    final scopeLine =
+        'scope=$normalizedClientId/$normalizedSiteId${normalizedReportDate == null || normalizedReportDate.isEmpty ? '' : '\nreport_date=$normalizedReportDate'}';
     if (format == 'csv') {
       return 'ONYX ACTIVITYCASE CSV\n'
-          'scope=$normalizedClientId/$normalizedSiteId\n'
-          '${_siteActivityCaseFileCsv(clientId: normalizedClientId, siteId: normalizedSiteId)}';
+          '$scopeLine\n'
+          '${_siteActivityCaseFileCsv(clientId: normalizedClientId, siteId: normalizedSiteId, reportDate: normalizedReportDate)}';
     }
     return 'ONYX ACTIVITYCASE JSON\n'
-        'scope=$normalizedClientId/$normalizedSiteId\n'
-        '${const JsonEncoder.withIndent('  ').convert(_siteActivityCaseFilePayload(clientId: normalizedClientId, siteId: normalizedSiteId))}';
+        '$scopeLine\n'
+        '${const JsonEncoder.withIndent('  ').convert(_siteActivityCaseFilePayload(clientId: normalizedClientId, siteId: normalizedSiteId, reportDate: normalizedReportDate))}';
   }
 
   Future<String> _telegramAdminSendActivityCommand(String arguments) async {
