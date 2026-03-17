@@ -10,17 +10,21 @@ void main() {
       );
     });
 
-    test('adds current and previous urgency context when both exist', () {
+    test(
+      'adds urgency and posture-bias context when both exist',
+      () {
       expect(
         buildSyntheticPromotionSummary(
           baseSummary: 'Promote MO-1',
           shadowTomorrowUrgencySummary: 'strength rising • critical • 22s',
           previousShadowTomorrowUrgencySummary:
               'strength stable • high • 28s',
+          shadowPostureBiasSummary: 'POSTURE SURGE • critical • 28s',
         ),
-        'Promote MO-1 • pressure strength rising • critical • 22s (prev strength stable • high • 28s)',
+        'Promote MO-1 • pressure strength rising • critical • 22s (prev strength stable • high • 28s) • posture POSTURE SURGE • critical • 28s',
       );
-    });
+      },
+    );
   });
 
   group('buildSyntheticPromotionDecisionSummary', () {
@@ -33,16 +37,20 @@ void main() {
       );
     });
 
-    test('adds current and previous urgency context when both exist', () {
+    test(
+      'adds urgency and posture-bias context when both exist',
+      () {
       expect(
         buildSyntheticPromotionDecisionSummary(
           baseSummary: 'Accepted toward validated review.',
           shadowTomorrowUrgencySummary: 'strength rising • critical • 22s',
           previousShadowTomorrowUrgencySummary:
               'strength stable • high • 28s',
+          shadowPostureBiasSummary: 'POSTURE SURGE • critical • 28s',
         ),
-        'Accepted toward validated review. • under strength rising • critical • 22s pressure (prev strength stable • high • 28s)',
+        'Accepted toward validated review. • under strength rising • critical • 22s pressure (prev strength stable • high • 28s) • posture POSTURE SURGE • critical • 28s',
       );
-    });
+      },
+    );
   });
 }

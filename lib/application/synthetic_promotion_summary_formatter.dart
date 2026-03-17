@@ -2,6 +2,7 @@ String buildSyntheticPromotionSummary({
   required String baseSummary,
   String shadowTomorrowUrgencySummary = '',
   String previousShadowTomorrowUrgencySummary = '',
+  String shadowPostureBiasSummary = '',
 }) {
   final normalizedBase = baseSummary.trim();
   if (normalizedBase.isEmpty) {
@@ -9,22 +10,31 @@ String buildSyntheticPromotionSummary({
   }
   final currentUrgency = shadowTomorrowUrgencySummary.trim();
   final previousUrgency = previousShadowTomorrowUrgencySummary.trim();
-  if (currentUrgency.isEmpty && previousUrgency.isEmpty) {
+  final postureBias = shadowPostureBiasSummary.trim();
+  final contextParts = <String>[];
+  if (currentUrgency.isNotEmpty && previousUrgency.isNotEmpty) {
+    contextParts.add(
+      'pressure $currentUrgency (prev $previousUrgency)',
+    );
+  } else if (currentUrgency.isNotEmpty) {
+    contextParts.add('pressure $currentUrgency');
+  } else if (previousUrgency.isNotEmpty) {
+    contextParts.add('prev pressure $previousUrgency');
+  }
+  if (postureBias.isNotEmpty) {
+    contextParts.add('posture $postureBias');
+  }
+  if (contextParts.isEmpty) {
     return normalizedBase;
   }
-  if (currentUrgency.isNotEmpty && previousUrgency.isNotEmpty) {
-    return '$normalizedBase • pressure $currentUrgency (prev $previousUrgency)';
-  }
-  if (currentUrgency.isNotEmpty) {
-    return '$normalizedBase • pressure $currentUrgency';
-  }
-  return '$normalizedBase • prev pressure $previousUrgency';
+  return '$normalizedBase • ${contextParts.join(' • ')}';
 }
 
 String buildSyntheticPromotionDecisionSummary({
   required String baseSummary,
   String shadowTomorrowUrgencySummary = '',
   String previousShadowTomorrowUrgencySummary = '',
+  String shadowPostureBiasSummary = '',
 }) {
   final normalizedBase = baseSummary.trim();
   if (normalizedBase.isEmpty) {
@@ -32,14 +42,22 @@ String buildSyntheticPromotionDecisionSummary({
   }
   final currentUrgency = shadowTomorrowUrgencySummary.trim();
   final previousUrgency = previousShadowTomorrowUrgencySummary.trim();
-  if (currentUrgency.isEmpty && previousUrgency.isEmpty) {
+  final postureBias = shadowPostureBiasSummary.trim();
+  final contextParts = <String>[];
+  if (currentUrgency.isNotEmpty && previousUrgency.isNotEmpty) {
+    contextParts.add(
+      'under $currentUrgency pressure (prev $previousUrgency)',
+    );
+  } else if (currentUrgency.isNotEmpty) {
+    contextParts.add('under $currentUrgency pressure');
+  } else if (previousUrgency.isNotEmpty) {
+    contextParts.add('prev pressure $previousUrgency');
+  }
+  if (postureBias.isNotEmpty) {
+    contextParts.add('posture $postureBias');
+  }
+  if (contextParts.isEmpty) {
     return normalizedBase;
   }
-  if (currentUrgency.isNotEmpty && previousUrgency.isNotEmpty) {
-    return '$normalizedBase • under $currentUrgency pressure (prev $previousUrgency)';
-  }
-  if (currentUrgency.isNotEmpty) {
-    return '$normalizedBase • under $currentUrgency pressure';
-  }
-  return '$normalizedBase • prev pressure $previousUrgency';
+  return '$normalizedBase • ${contextParts.join(' • ')}';
 }

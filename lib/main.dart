@@ -6474,6 +6474,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     List<MonitoringWatchAutonomyActionPlan> plans, {
     String shadowTomorrowUrgencySummary = '',
     String previousShadowTomorrowUrgencySummary = '',
+    String shadowPostureBiasSummary = '',
   }) {
     final baseSummary = plans
         .map((plan) => (plan.metadata['mo_promotion_summary'] ?? '').trim())
@@ -6483,6 +6484,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
       previousShadowTomorrowUrgencySummary:
           previousShadowTomorrowUrgencySummary,
+      shadowPostureBiasSummary: shadowPostureBiasSummary,
     );
   }
 
@@ -6516,6 +6518,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     List<MonitoringWatchAutonomyActionPlan> plans, {
     String shadowTomorrowUrgencySummary = '',
     String previousShadowTomorrowUrgencySummary = '',
+    String shadowPostureBiasSummary = '',
   }) {
     final moId = _syntheticWarRoomPromotionId(plans);
     final targetStatus = _syntheticWarRoomPromotionTargetStatus(plans);
@@ -6531,6 +6534,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
       previousShadowTomorrowUrgencySummary:
           previousShadowTomorrowUrgencySummary,
+      shadowPostureBiasSummary: shadowPostureBiasSummary,
     );
   }
 
@@ -7314,6 +7318,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
         previousShadowTomorrowUrgencySummary:
             previousShadowTomorrowUrgencySummary,
+        shadowPostureBiasSummary:
+            _syntheticWarRoomShadowPostureBiasSummaryForPlan(
+              leadPolicyPlan?.id.isEmpty ?? true ? null : leadPolicyPlan,
+            ),
       ),
       'promotionMoId': promotionMoId,
       'promotionTargetStatus': _syntheticWarRoomPromotionTargetStatus(plans),
@@ -7325,6 +7333,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
         previousShadowTomorrowUrgencySummary:
             previousShadowTomorrowUrgencySummary,
+        shadowPostureBiasSummary:
+            _syntheticWarRoomShadowPostureBiasSummaryForPlan(
+              leadPolicyPlan?.id.isEmpty ?? true ? null : leadPolicyPlan,
+            ),
       ),
       ...promotionAnchorPayload,
       'learningLabel': learningLabel,
@@ -7433,6 +7445,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               'promotionSummary': _syntheticWarRoomPromotionSummary(
                 itemPlans,
                 shadowTomorrowUrgencySummary: itemShadowTomorrowUrgencySummary,
+                shadowPostureBiasSummary:
+                    _syntheticWarRoomShadowPostureBiasSummaryForPlan(
+                      itemPolicyPlan.id.isEmpty ? null : itemPolicyPlan,
+                    ),
               ),
               'promotionMoId': _syntheticWarRoomPromotionId(itemPlans),
               'promotionTargetStatus': _syntheticWarRoomPromotionTargetStatus(
@@ -7445,6 +7461,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
                     itemPlans,
                     shadowTomorrowUrgencySummary:
                         itemShadowTomorrowUrgencySummary,
+                    shadowPostureBiasSummary:
+                        _syntheticWarRoomShadowPostureBiasSummaryForPlan(
+                          itemPolicyPlan.id.isEmpty ? null : itemPolicyPlan,
+                        ),
                   ),
               'learningLabel': _syntheticWarRoomLearningLabel(itemPlans),
               'learningSummary': _syntheticWarRoomLearningSummary(itemPlans),
@@ -18741,11 +18761,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         syntheticContext['shadowTomorrowUrgencySummary'] ?? '';
     final previousShadowTomorrowUrgencySummary =
         syntheticContext['previousShadowTomorrowUrgencySummary'] ?? '';
+    final shadowPostureBiasSummary =
+        syntheticContext['shadowPostureBiasSummary'] ?? '';
     final pressureAwareSummary = buildSyntheticPromotionDecisionSummary(
       baseSummary: summary,
       shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
       previousShadowTomorrowUrgencySummary:
           previousShadowTomorrowUrgencySummary,
+      shadowPostureBiasSummary: shadowPostureBiasSummary,
     );
     final shadowMatchPayload = buildPromotionShadowAnchorPayload(
       context: shadowMatchContext,
@@ -18758,6 +18781,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '${buildPromotionShadowFieldText(payload: shadowMatchPayload, keyPrefix: '', linePrefix: '\n')}'
         '${shadowTomorrowUrgencySummary.isEmpty ? '' : '\nshadow_tomorrow_urgency_summary=$shadowTomorrowUrgencySummary'}'
         '${previousShadowTomorrowUrgencySummary.isEmpty ? '' : '\nprevious_shadow_tomorrow_urgency_summary=$previousShadowTomorrowUrgencySummary'}'
+        '${shadowPostureBiasSummary.isEmpty ? '' : '\nshadow_posture_bias_summary=$shadowPostureBiasSummary'}'
         '${(syntheticContext['reviewCommand'] ?? '').isEmpty ? '' : '\nsynthetic_review_command=${syntheticContext['reviewCommand']}'}'
         '${(syntheticContext['caseFileCommand'] ?? '').isEmpty ? '' : '\nsynthetic_case_file_command=${syntheticContext['caseFileCommand']}'}';
   }
@@ -18787,6 +18811,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           (payload['previousShadowTomorrowUrgencySummary'] ?? '')
               .toString()
               .trim(),
+      'shadowPostureBiasSummary':
+          (payload['shadowPostureBiasSummary'] ?? '').toString().trim(),
       'reviewCommand': (payload['reviewCommand'] ?? '').toString().trim(),
       'caseFileCommand': (payload['caseFileCommand'] ?? '').toString().trim(),
     };

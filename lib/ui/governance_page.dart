@@ -4241,6 +4241,10 @@ class _GovernancePageState extends State<GovernancePage> {
           currentPlans,
           shadowTomorrowUrgencySummary:
               _syntheticWarRoomShadowTomorrowUrgencySummaryForReport(report),
+          shadowPostureBiasSummary:
+              _syntheticWarRoomShadowPostureBiasSummaryForPlan(
+                currentPolicyPlan.id.isEmpty ? null : currentPolicyPlan,
+              ),
         ),
         promotionMoId: _syntheticWarRoomPromotionId(currentPlans),
         promotionTargetStatus: _syntheticWarRoomPromotionTargetStatus(
@@ -4253,6 +4257,10 @@ class _GovernancePageState extends State<GovernancePage> {
           currentPlans,
           shadowTomorrowUrgencySummary:
               _syntheticWarRoomShadowTomorrowUrgencySummaryForReport(report),
+          shadowPostureBiasSummary:
+              _syntheticWarRoomShadowPostureBiasSummaryForPlan(
+                currentPolicyPlan.id.isEmpty ? null : currentPolicyPlan,
+              ),
         ),
         actionBias: currentPolicyPlan.metadata['action_bias'] ?? '',
         memoryPriorityBoost:
@@ -4343,6 +4351,10 @@ class _GovernancePageState extends State<GovernancePage> {
                     item.shiftWindowEndUtc,
                   ),
                 ),
+            shadowPostureBiasSummary:
+                _syntheticWarRoomShadowPostureBiasSummaryForPlan(
+                  policyPlan.id.isEmpty ? null : policyPlan,
+                ),
           ),
           promotionMoId: _syntheticWarRoomPromotionId(plans),
           promotionTargetStatus: _syntheticWarRoomPromotionTargetStatus(plans),
@@ -4357,6 +4369,10 @@ class _GovernancePageState extends State<GovernancePage> {
                     item.shiftWindowStartUtc,
                     item.shiftWindowEndUtc,
                   ),
+                ),
+            shadowPostureBiasSummary:
+                _syntheticWarRoomShadowPostureBiasSummaryForPlan(
+                  policyPlan.id.isEmpty ? null : policyPlan,
                 ),
           ),
           actionBias: policyPlan.metadata['action_bias'] ?? '',
@@ -4716,6 +4732,7 @@ class _GovernancePageState extends State<GovernancePage> {
     List<MonitoringWatchAutonomyActionPlan> plans, {
     String shadowTomorrowUrgencySummary = '',
     String previousShadowTomorrowUrgencySummary = '',
+    String shadowPostureBiasSummary = '',
   }) {
     final baseSummary = plans
         .map((plan) => (plan.metadata['mo_promotion_summary'] ?? '').trim())
@@ -4725,6 +4742,7 @@ class _GovernancePageState extends State<GovernancePage> {
       shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
       previousShadowTomorrowUrgencySummary:
           previousShadowTomorrowUrgencySummary,
+      shadowPostureBiasSummary: shadowPostureBiasSummary,
     );
   }
 
@@ -4758,6 +4776,7 @@ class _GovernancePageState extends State<GovernancePage> {
     List<MonitoringWatchAutonomyActionPlan> plans, {
     String shadowTomorrowUrgencySummary = '',
     String previousShadowTomorrowUrgencySummary = '',
+    String shadowPostureBiasSummary = '',
   }) {
     final moId = _syntheticWarRoomPromotionId(plans);
     final targetStatus = _syntheticWarRoomPromotionTargetStatus(plans);
@@ -4773,6 +4792,7 @@ class _GovernancePageState extends State<GovernancePage> {
       shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
       previousShadowTomorrowUrgencySummary:
           previousShadowTomorrowUrgencySummary,
+      shadowPostureBiasSummary: shadowPostureBiasSummary,
     );
   }
 
@@ -11849,6 +11869,12 @@ class _GovernancePageState extends State<GovernancePage> {
             currentSyntheticWarRoomPoint?.shadowPostureBiasSummary ?? '',
         'promotionSummary': _syntheticWarRoomPromotionSummary(
           syntheticWarRoomPlans,
+          shadowTomorrowUrgencySummary:
+              currentSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '',
+          previousShadowTomorrowUrgencySummary:
+              previousSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '',
+          shadowPostureBiasSummary:
+              currentSyntheticWarRoomPoint?.shadowPostureBiasSummary ?? '',
         ),
         'promotionMoId': _syntheticWarRoomPromotionId(syntheticWarRoomPlans),
         'promotionTargetStatus': _syntheticWarRoomPromotionTargetStatus(
@@ -11863,6 +11889,8 @@ class _GovernancePageState extends State<GovernancePage> {
               currentSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '',
           previousShadowTomorrowUrgencySummary:
               previousSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '',
+          shadowPostureBiasSummary:
+              currentSyntheticWarRoomPoint?.shadowPostureBiasSummary ?? '',
         ),
         ...syntheticPromotionAnchorPayload,
         'actionBias': syntheticWarRoomPlans
@@ -12192,10 +12220,10 @@ class _GovernancePageState extends State<GovernancePage> {
       'synthetic_war_room_shadow_learning_summary,"${_syntheticWarRoomShadowLearningSummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',
       'synthetic_war_room_shadow_memory_summary,"${_syntheticWarRoomShadowMemorySummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',
       'synthetic_war_room_shadow_posture_bias_summary,"${(currentSyntheticWarRoomPoint?.shadowPostureBiasSummary ?? '').replaceAll('"', '""')}"',
-      'synthetic_war_room_promotion_summary,"${_syntheticWarRoomPromotionSummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',
+      'synthetic_war_room_promotion_summary,"${_syntheticWarRoomPromotionSummary(syntheticWarRoomPlans, shadowTomorrowUrgencySummary: currentSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '', previousShadowTomorrowUrgencySummary: previousSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '', shadowPostureBiasSummary: currentSyntheticWarRoomPoint?.shadowPostureBiasSummary ?? '').replaceAll('"', '""')}"',
       'synthetic_war_room_promotion_target_status,${_syntheticWarRoomPromotionTargetStatus(syntheticWarRoomPlans)}',
       'synthetic_war_room_promotion_decision_status,${_syntheticWarRoomPromotionDecisionStatus(syntheticWarRoomPlans)}',
-      'synthetic_war_room_promotion_decision_summary,"${_syntheticWarRoomPromotionDecisionSummary(syntheticWarRoomPlans, shadowTomorrowUrgencySummary: currentSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '', previousShadowTomorrowUrgencySummary: previousSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '').replaceAll('"', '""')}"',
+      'synthetic_war_room_promotion_decision_summary,"${_syntheticWarRoomPromotionDecisionSummary(syntheticWarRoomPlans, shadowTomorrowUrgencySummary: currentSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '', previousShadowTomorrowUrgencySummary: previousSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '', shadowPostureBiasSummary: currentSyntheticWarRoomPoint?.shadowPostureBiasSummary ?? '').replaceAll('"', '""')}"',
       ...buildPromotionShadowAnchorCsvRows(
         payload: syntheticPromotionAnchorPayload,
         moIdMetric: 'synthetic_war_room_promotion_mo_id',

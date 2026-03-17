@@ -193,9 +193,9 @@ void main() {
       syntheticWarRoomShadowMemorySummary:
           'Shadow bias: HARDEN ACCESS around "Contractors moved floor to floor in office park" repeated in the previous shift.',
       syntheticWarRoomPromotionSummary:
-          'Promote MO-EXT-OFFICE toward validated review • Office contractor impersonation pattern • x1 • pressure strength rising • critical • 22s (prev strength stable • high • 28s)',
+          'Promote MO-EXT-OFFICE toward validated review • Office contractor impersonation pattern • x1 • pressure strength rising • critical • 22s (prev strength stable • high • 28s) • posture POSTURE SURGE • critical • 28s',
       syntheticWarRoomPromotionDecisionSummary:
-          'Accepted toward validated review. • under strength rising • critical • 22s pressure (prev strength stable • high • 28s)',
+          'Accepted toward validated review. • under strength rising • critical • 22s pressure (prev strength stable • high • 28s) • posture POSTURE SURGE • critical • 28s',
       syntheticWarRoomPromotionAcceptCommand:
           '/mopromotion accept MO-EXT-OFFICE validated',
       syntheticWarRoomPromotionRejectCommand:
@@ -386,13 +386,13 @@ void main() {
     expect(
       response,
       contains(
-        '<b>Promotion:</b> Promote MO-EXT-OFFICE toward validated review • Office contractor impersonation pattern • x1 • pressure strength rising • critical • 22s (prev strength stable • high • 28s)',
+        '<b>Promotion:</b> Promote MO-EXT-OFFICE toward validated review • Office contractor impersonation pattern • x1 • pressure strength rising • critical • 22s (prev strength stable • high • 28s) • posture POSTURE SURGE • critical • 28s',
       ),
     );
     expect(
       response,
       contains(
-        '<b>Promotion decision:</b> Accepted toward validated review. • under strength rising • critical • 22s pressure (prev strength stable • high • 28s)',
+        '<b>Promotion decision:</b> Accepted toward validated review. • under strength rising • critical • 22s pressure (prev strength stable • high • 28s) • posture POSTURE SURGE • critical • 28s',
       ),
     );
     expect(

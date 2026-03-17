@@ -2252,6 +2252,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
         previousShadowTomorrowUrgencySummary:
             previousShadowTomorrowUrgencySummary,
+        shadowPostureBiasSummary:
+            _syntheticWarRoomShadowPostureBiasSummaryForPlan(
+              leadPolicyPlan.id.isEmpty ? null : leadPolicyPlan,
+            ),
       ),
       promotionMoId: _syntheticWarRoomPromotionId(plans),
       promotionTargetStatus: _syntheticWarRoomPromotionTargetStatus(plans),
@@ -2261,6 +2265,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
         previousShadowTomorrowUrgencySummary:
             previousShadowTomorrowUrgencySummary,
+        shadowPostureBiasSummary:
+            _syntheticWarRoomShadowPostureBiasSummaryForPlan(
+              leadPolicyPlan.id.isEmpty ? null : leadPolicyPlan,
+            ),
       ),
       promotionAnchor: promotionAnchor,
       learningSummary: _syntheticWarRoomLearningSummary(plans),
@@ -3039,6 +3047,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     List<MonitoringWatchAutonomyActionPlan> plans, {
     String shadowTomorrowUrgencySummary = '',
     String previousShadowTomorrowUrgencySummary = '',
+    String shadowPostureBiasSummary = '',
   }) {
     final baseSummary = plans
         .map(
@@ -3051,6 +3060,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
       previousShadowTomorrowUrgencySummary:
           previousShadowTomorrowUrgencySummary,
+      shadowPostureBiasSummary: shadowPostureBiasSummary,
     );
   }
 
@@ -3089,6 +3099,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     List<MonitoringWatchAutonomyActionPlan> plans, {
     String shadowTomorrowUrgencySummary = '',
     String previousShadowTomorrowUrgencySummary = '',
+    String shadowPostureBiasSummary = '',
   }) {
     final moId = _syntheticWarRoomPromotionId(plans);
     final targetStatus = _syntheticWarRoomPromotionTargetStatus(plans);
@@ -3104,6 +3115,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
       previousShadowTomorrowUrgencySummary:
           previousShadowTomorrowUrgencySummary,
+      shadowPostureBiasSummary: shadowPostureBiasSummary,
     );
   }
 
@@ -3505,6 +3517,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             currentPlans,
             shadowTomorrowUrgencySummary:
                 _syntheticShadowTomorrowUrgencySummary(normalizedReportDate),
+            shadowPostureBiasSummary:
+                _syntheticWarRoomShadowPostureBiasSummaryForPlan(
+                  currentPolicyPlan.id.isEmpty ? null : currentPolicyPlan,
+                ),
           ),
           promotionDecisionStatus: _syntheticWarRoomPromotionDecisionStatus(
             currentPlans,
@@ -3513,6 +3529,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             currentPlans,
             shadowTomorrowUrgencySummary:
                 _syntheticShadowTomorrowUrgencySummary(normalizedReportDate),
+            shadowPostureBiasSummary:
+                _syntheticWarRoomShadowPostureBiasSummaryForPlan(
+                  currentPolicyPlan.id.isEmpty ? null : currentPolicyPlan,
+                ),
           ),
         ),
       );
@@ -3575,6 +3595,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             plans,
             shadowTomorrowUrgencySummary:
                 _syntheticShadowTomorrowUrgencySummary(report.date),
+            shadowPostureBiasSummary:
+                _syntheticWarRoomShadowPostureBiasSummaryForPlan(
+                  policyPlan.id.isEmpty ? null : policyPlan,
+                ),
           ),
           promotionDecisionStatus: _syntheticWarRoomPromotionDecisionStatus(
             plans,
@@ -3583,6 +3607,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             plans,
             shadowTomorrowUrgencySummary:
                 _syntheticShadowTomorrowUrgencySummary(report.date),
+            shadowPostureBiasSummary:
+                _syntheticWarRoomShadowPostureBiasSummaryForPlan(
+                  policyPlan.id.isEmpty ? null : policyPlan,
+                ),
           ),
         ),
       );

@@ -2333,6 +2333,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Accepted toward '), findsWidgets);
+    expect(find.textContaining('posture POSTURE SURGE'), findsWidgets);
     expect(find.textContaining('Shadow validation:'), findsWidgets);
     expect(find.textContaining('Shadow posture:'), findsWidgets);
 
