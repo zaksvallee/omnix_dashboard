@@ -7019,6 +7019,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             moId: promotionMoId,
             reportDate: report.date,
           );
+    final promotionAnchorPayload = buildPromotionShadowAnchorPayload(
+      promotionMoId: promotionMoId,
+      context: promotionShadowContext,
+    );
     return buildShadowMoDossierPayload(
       sites: shadowSites,
       generatedAtUtc: report.generatedAtUtc,
@@ -7041,19 +7045,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'eventIds': eventIds,
         'reviewRefs': reviewRefs,
         'selectedEventId': selectedEventId.isEmpty ? null : selectedEventId,
-        'promotionMoId': promotionMoId,
-        'promotionCurrentValidationStatus':
-            (promotionShadowContext['validationStatus'] ?? '').trim(),
-        'promotionCurrentStrengthSummary':
-            (promotionShadowContext['strengthSummary'] ?? '').trim(),
-        'promotionShadowSelectedEventId':
-            (promotionShadowContext['selectedEventId'] ?? '').trim(),
-        'promotionShadowReviewRefs':
-            (promotionShadowContext['reviewRefs'] ?? '').trim(),
-        'promotionShadowReviewCommand':
-            (promotionShadowContext['reviewCommand'] ?? '').trim(),
-        'promotionShadowCaseFileCommand':
-            (promotionShadowContext['caseFileCommand'] ?? '').trim(),
+        ...promotionAnchorPayload,
         'reviewCommand': '/shadowreview ${report.date}',
         'caseFileCommand': '/shadowcase json ${report.date}',
         'previousReviewCommand': previousReport == null
@@ -7117,13 +7109,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'strength_history_summary,"${(payload['strengthHistorySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'tomorrow_urgency_summary,"${(payload['tomorrowUrgencySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'previous_tomorrow_urgency_summary,"${(payload['previousTomorrowUrgencySummary'] ?? '').toString().replaceAll('"', '""')}"',
-      'promotion_mo_id,${payload['promotionMoId'] ?? ''}',
-      'promotion_current_validation_status,${payload['promotionCurrentValidationStatus'] ?? ''}',
-      'promotion_current_strength_summary,"${(payload['promotionCurrentStrengthSummary'] ?? '').toString().replaceAll('"', '""')}"',
-      'promotion_shadow_selected_event_id,${payload['promotionShadowSelectedEventId'] ?? ''}',
-      'promotion_shadow_review_refs,"${(payload['promotionShadowReviewRefs'] ?? '').toString().replaceAll('"', '""')}"',
-      'promotion_shadow_review_command,${payload['promotionShadowReviewCommand'] ?? ''}',
-      'promotion_shadow_case_file_command,${payload['promotionShadowCaseFileCommand'] ?? ''}',
+      ...buildPromotionShadowAnchorCsvRows(payload: payload),
       'history_headline,"${(payload['historyHeadline'] ?? '').toString().replaceAll('"', '""')}"',
       'history_summary,"${(payload['historySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'selected_event_id,${payload['selectedEventId'] ?? ''}',
@@ -7260,6 +7246,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             moId: promotionMoId,
             reportDate: report.date,
           );
+    final promotionAnchorPayload = buildPromotionShadowAnchorPayload(
+      promotionMoId: promotionMoId,
+      context: promotionShadowContext,
+    );
     return <String, Object?>{
       'reportDate': report.date,
       'available': true,
@@ -7298,18 +7288,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         previousShadowTomorrowUrgencySummary:
             previousShadowTomorrowUrgencySummary,
       ),
-      'promotionCurrentValidationStatus':
-          (promotionShadowContext['validationStatus'] ?? '').trim(),
-      'promotionCurrentStrengthSummary':
-          (promotionShadowContext['strengthSummary'] ?? '').trim(),
-      'promotionShadowSelectedEventId':
-          (promotionShadowContext['selectedEventId'] ?? '').trim(),
-      'promotionShadowReviewRefs':
-          (promotionShadowContext['reviewRefs'] ?? '').trim(),
-      'promotionShadowReviewCommand':
-          (promotionShadowContext['reviewCommand'] ?? '').trim(),
-      'promotionShadowCaseFileCommand':
-          (promotionShadowContext['caseFileCommand'] ?? '').trim(),
+      ...promotionAnchorPayload,
       'learningLabel': learningLabel,
       'learningSummary': _syntheticWarRoomLearningSummary(plans),
       'learningMemorySummary': _syntheticWarRoomLearningMemorySummary(
@@ -7477,16 +7456,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'shadow_learning_summary,"${(payload['shadowLearningSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'shadow_memory_summary,"${(payload['shadowMemorySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'promotion_summary,"${(payload['promotionSummary'] ?? '').toString().replaceAll('"', '""')}"',
-      'promotion_mo_id,${payload['promotionMoId'] ?? ''}',
       'promotion_target_status,${payload['promotionTargetStatus'] ?? ''}',
       'promotion_decision_status,${payload['promotionDecisionStatus'] ?? ''}',
       'promotion_decision_summary,"${(payload['promotionDecisionSummary'] ?? '').toString().replaceAll('"', '""')}"',
-      'promotion_current_validation_status,${payload['promotionCurrentValidationStatus'] ?? ''}',
-      'promotion_current_strength_summary,"${(payload['promotionCurrentStrengthSummary'] ?? '').toString().replaceAll('"', '""')}"',
-      'promotion_shadow_selected_event_id,${payload['promotionShadowSelectedEventId'] ?? ''}',
-      'promotion_shadow_review_refs,"${(payload['promotionShadowReviewRefs'] ?? '').toString().replaceAll('"', '""')}"',
-      'promotion_shadow_review_command,${payload['promotionShadowReviewCommand'] ?? ''}',
-      'promotion_shadow_case_file_command,${payload['promotionShadowCaseFileCommand'] ?? ''}',
+      ...buildPromotionShadowAnchorCsvRows(payload: payload),
       'learning_label,${payload['learningLabel'] ?? ''}',
       'learning_summary,"${(payload['learningSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'learning_memory_summary,"${(payload['learningMemorySummary'] ?? '').toString().replaceAll('"', '""')}"',

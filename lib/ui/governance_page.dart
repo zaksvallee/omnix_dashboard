@@ -11500,6 +11500,10 @@ class _GovernancePageState extends State<GovernancePage> {
       report,
       syntheticPromotionMoId,
     );
+    final syntheticPromotionAnchorPayload = buildPromotionShadowAnchorPayload(
+      promotionMoId: syntheticPromotionMoId,
+      context: syntheticPromotionShadowContext,
+    );
     final siteActivityTrend = _siteActivityTrendForReport(report);
     final siteActivityBaseline = _siteActivityBaselineStats(report);
     final siteActivityHistory = _siteActivityHistory(report);
@@ -11580,24 +11584,7 @@ class _GovernancePageState extends State<GovernancePage> {
             'historyHeadline': shadowHistory.headline,
             'historySummary': shadowHistory.summary,
             'strengthHistorySummary': shadowHistory.strengthSummary,
-            'promotionMoId': syntheticPromotionMoId,
-            'promotionCurrentValidationStatus':
-                (syntheticPromotionShadowContext['validationStatus'] ?? '')
-                    .trim(),
-            'promotionCurrentStrengthSummary':
-                (syntheticPromotionShadowContext['strengthSummary'] ?? '')
-                    .trim(),
-            'promotionShadowSelectedEventId':
-                (syntheticPromotionShadowContext['selectedEventId'] ?? '')
-                    .trim(),
-            'promotionShadowReviewRefs':
-                (syntheticPromotionShadowContext['reviewRefs'] ?? '').trim(),
-            'promotionShadowReviewCommand':
-                (syntheticPromotionShadowContext['reviewCommand'] ?? '')
-                    .trim(),
-            'promotionShadowCaseFileCommand':
-                (syntheticPromotionShadowContext['caseFileCommand'] ?? '')
-                    .trim(),
+            ...syntheticPromotionAnchorPayload,
             'reviewShortcuts': buildReviewShortcuts(
               currentReportDate: report.reportDate,
               previousReportDate: previousShadowReportDate.isEmpty
@@ -11689,18 +11676,7 @@ class _GovernancePageState extends State<GovernancePage> {
           previousShadowTomorrowUrgencySummary:
               previousSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '',
         ),
-        'promotionCurrentValidationStatus':
-            (syntheticPromotionShadowContext['validationStatus'] ?? '').trim(),
-        'promotionCurrentStrengthSummary':
-            (syntheticPromotionShadowContext['strengthSummary'] ?? '').trim(),
-        'promotionShadowSelectedEventId':
-            (syntheticPromotionShadowContext['selectedEventId'] ?? '').trim(),
-        'promotionShadowReviewRefs':
-            (syntheticPromotionShadowContext['reviewRefs'] ?? '').trim(),
-        'promotionShadowReviewCommand':
-            (syntheticPromotionShadowContext['reviewCommand'] ?? '').trim(),
-        'promotionShadowCaseFileCommand':
-            (syntheticPromotionShadowContext['caseFileCommand'] ?? '').trim(),
+        ...syntheticPromotionAnchorPayload,
         'actionBias': syntheticWarRoomPlans
             .map((plan) => (plan.metadata['action_bias'] ?? '').trim())
             .firstWhere((value) => value.isNotEmpty, orElse: () => ''),
@@ -11900,8 +11876,16 @@ class _GovernancePageState extends State<GovernancePage> {
       report,
       syntheticPromotionMoId,
     );
+    final syntheticPromotionAnchorPayload = buildPromotionShadowAnchorPayload(
+      promotionMoId: syntheticPromotionMoId,
+      context: syntheticPromotionShadowContext,
+    );
     final shadowPromotionMoId = syntheticPromotionMoId;
     final shadowPromotionContext = syntheticPromotionShadowContext;
+    final shadowPromotionAnchorPayload = buildPromotionShadowAnchorPayload(
+      promotionMoId: shadowPromotionMoId,
+      context: shadowPromotionContext,
+    );
     final siteActivityTrend = _siteActivityTrendForReport(report);
     final siteActivityBaseline = _siteActivityBaselineStats(report);
     final siteActivityHistory = _siteActivityHistory(report);
@@ -11959,13 +11943,21 @@ class _GovernancePageState extends State<GovernancePage> {
       'global_readiness_shadow_history_headline,"${shadowHistory.headline.replaceAll('"', '""')}"',
       'global_readiness_shadow_history_summary,"${shadowHistory.summary.replaceAll('"', '""')}"',
       'global_readiness_shadow_strength_history_summary,"${shadowHistory.strengthSummary.replaceAll('"', '""')}"',
-      'global_readiness_shadow_promotion_mo_id,$shadowPromotionMoId',
-      'global_readiness_shadow_promotion_current_validation_status,${(shadowPromotionContext['validationStatus'] ?? '').trim()}',
-      'global_readiness_shadow_promotion_current_strength_summary,"${(shadowPromotionContext['strengthSummary'] ?? '').replaceAll('"', '""')}"',
-      'global_readiness_shadow_promotion_selected_event_id,${(shadowPromotionContext['selectedEventId'] ?? '').trim()}',
-      'global_readiness_shadow_promotion_review_refs,"${(shadowPromotionContext['reviewRefs'] ?? '').replaceAll('"', '""')}"',
-      'global_readiness_shadow_promotion_review_command,${(shadowPromotionContext['reviewCommand'] ?? '').trim()}',
-      'global_readiness_shadow_promotion_case_file_command,${(shadowPromotionContext['caseFileCommand'] ?? '').trim()}',
+      ...buildPromotionShadowAnchorCsvRows(
+        payload: shadowPromotionAnchorPayload,
+        moIdMetric: 'global_readiness_shadow_promotion_mo_id',
+        validationStatusMetric:
+            'global_readiness_shadow_promotion_current_validation_status',
+        strengthSummaryMetric:
+            'global_readiness_shadow_promotion_current_strength_summary',
+        selectedEventIdMetric:
+            'global_readiness_shadow_promotion_selected_event_id',
+        reviewRefsMetric: 'global_readiness_shadow_promotion_review_refs',
+        reviewCommandMetric:
+            'global_readiness_shadow_promotion_review_command',
+        caseFileCommandMetric:
+            'global_readiness_shadow_promotion_case_file_command',
+      ),
       'global_readiness_focus_state,${_globalReadinessFocusState(report)}',
       'global_readiness_historical_focus,${_isHistoricalGlobalReadinessFocus(report)}',
       'global_readiness_focus_summary,"${_globalReadinessFocusSummary(report).replaceAll('"', '""')}"',
@@ -12010,16 +12002,24 @@ class _GovernancePageState extends State<GovernancePage> {
       'synthetic_war_room_shadow_learning_summary,"${_syntheticWarRoomShadowLearningSummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',
       'synthetic_war_room_shadow_memory_summary,"${_syntheticWarRoomShadowMemorySummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',
       'synthetic_war_room_promotion_summary,"${_syntheticWarRoomPromotionSummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',
-      'synthetic_war_room_promotion_mo_id,${_syntheticWarRoomPromotionId(syntheticWarRoomPlans)}',
       'synthetic_war_room_promotion_target_status,${_syntheticWarRoomPromotionTargetStatus(syntheticWarRoomPlans)}',
       'synthetic_war_room_promotion_decision_status,${_syntheticWarRoomPromotionDecisionStatus(syntheticWarRoomPlans)}',
       'synthetic_war_room_promotion_decision_summary,"${_syntheticWarRoomPromotionDecisionSummary(syntheticWarRoomPlans, shadowTomorrowUrgencySummary: currentSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '', previousShadowTomorrowUrgencySummary: previousSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '').replaceAll('"', '""')}"',
-      'synthetic_war_room_promotion_current_validation_status,${(syntheticPromotionShadowContext['validationStatus'] ?? '').trim()}',
-      'synthetic_war_room_promotion_current_strength_summary,"${(syntheticPromotionShadowContext['strengthSummary'] ?? '').replaceAll('"', '""')}"',
-      'synthetic_war_room_promotion_shadow_selected_event_id,${(syntheticPromotionShadowContext['selectedEventId'] ?? '').trim()}',
-      'synthetic_war_room_promotion_shadow_review_refs,"${(syntheticPromotionShadowContext['reviewRefs'] ?? '').replaceAll('"', '""')}"',
-      'synthetic_war_room_promotion_shadow_review_command,${(syntheticPromotionShadowContext['reviewCommand'] ?? '').trim()}',
-      'synthetic_war_room_promotion_shadow_case_file_command,${(syntheticPromotionShadowContext['caseFileCommand'] ?? '').trim()}',
+      ...buildPromotionShadowAnchorCsvRows(
+        payload: syntheticPromotionAnchorPayload,
+        moIdMetric: 'synthetic_war_room_promotion_mo_id',
+        validationStatusMetric:
+            'synthetic_war_room_promotion_current_validation_status',
+        strengthSummaryMetric:
+            'synthetic_war_room_promotion_current_strength_summary',
+        selectedEventIdMetric:
+            'synthetic_war_room_promotion_shadow_selected_event_id',
+        reviewRefsMetric: 'synthetic_war_room_promotion_shadow_review_refs',
+        reviewCommandMetric:
+            'synthetic_war_room_promotion_shadow_review_command',
+        caseFileCommandMetric:
+            'synthetic_war_room_promotion_shadow_case_file_command',
+      ),
       'synthetic_war_room_learning_memory_summary,"${_syntheticWarRoomLearningMemorySummary(syntheticWarRoomHistory).replaceAll('"', '""')}"',
       'synthetic_war_room_action_bias,"${syntheticWarRoomPlans.map((plan) => (plan.metadata['action_bias'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '').replaceAll('"', '""')}"',
       'synthetic_war_room_memory_priority_boost,${syntheticWarRoomPlans.map((plan) => (plan.metadata['memory_priority_boost'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '')}',

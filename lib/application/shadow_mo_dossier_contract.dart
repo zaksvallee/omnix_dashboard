@@ -157,6 +157,44 @@ Map<String, String> buildPromotionShadowAnchorContext({
   return const <String, String>{};
 }
 
+Map<String, Object?> buildPromotionShadowAnchorPayload({
+  String promotionMoId = '',
+  Map<String, String> context = const <String, String>{},
+}) {
+  return <String, Object?>{
+    'promotionMoId': promotionMoId.trim(),
+    'promotionCurrentValidationStatus':
+        (context['validationStatus'] ?? '').trim(),
+    'promotionCurrentStrengthSummary': (context['strengthSummary'] ?? '').trim(),
+    'promotionShadowSelectedEventId': (context['selectedEventId'] ?? '').trim(),
+    'promotionShadowReviewRefs': (context['reviewRefs'] ?? '').trim(),
+    'promotionShadowReviewCommand': (context['reviewCommand'] ?? '').trim(),
+    'promotionShadowCaseFileCommand': (context['caseFileCommand'] ?? '').trim(),
+  };
+}
+
+List<String> buildPromotionShadowAnchorCsvRows({
+  required Map<String, Object?> payload,
+  bool includeMoId = true,
+  String moIdMetric = 'promotion_mo_id',
+  String validationStatusMetric = 'promotion_current_validation_status',
+  String strengthSummaryMetric = 'promotion_current_strength_summary',
+  String selectedEventIdMetric = 'promotion_shadow_selected_event_id',
+  String reviewRefsMetric = 'promotion_shadow_review_refs',
+  String reviewCommandMetric = 'promotion_shadow_review_command',
+  String caseFileCommandMetric = 'promotion_shadow_case_file_command',
+}) {
+  return <String>[
+    if (includeMoId) '$moIdMetric,${payload['promotionMoId'] ?? ''}',
+    '$validationStatusMetric,${payload['promotionCurrentValidationStatus'] ?? ''}',
+    '$strengthSummaryMetric,"${(payload['promotionCurrentStrengthSummary'] ?? '').toString().replaceAll('"', '""')}"',
+    '$selectedEventIdMetric,${payload['promotionShadowSelectedEventId'] ?? ''}',
+    '$reviewRefsMetric,"${(payload['promotionShadowReviewRefs'] ?? '').toString().replaceAll('"', '""')}"',
+    '$reviewCommandMetric,${payload['promotionShadowReviewCommand'] ?? ''}',
+    '$caseFileCommandMetric,${payload['promotionShadowCaseFileCommand'] ?? ''}',
+  ];
+}
+
 String shadowMoStrengthSummaryForSites(
   List<MonitoringGlobalSitePosture> sites,
 ) {

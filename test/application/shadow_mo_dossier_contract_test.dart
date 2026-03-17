@@ -170,6 +170,43 @@ void main() {
     expect(context['caseFileCommand'], '/shadowcase json 2026-03-17');
   });
 
+  test('builds promotion shadow anchor payload and csv rows', () {
+    final payload = buildPromotionShadowAnchorPayload(
+      promotionMoId: 'MO-REVIEWED-HIGH',
+      context: const <String, String>{
+        'validationStatus': 'validated',
+        'strengthSummary': 'PROMOTED VALIDATED • 0.88',
+        'selectedEventId': 'evt-office-1',
+        'reviewRefs': 'intel-office-1,intel-office-2',
+        'reviewCommand': '/shadowreview 2026-03-17',
+        'caseFileCommand': '/shadowcase json 2026-03-17',
+      },
+    );
+
+    expect(payload['promotionMoId'], 'MO-REVIEWED-HIGH');
+    expect(payload['promotionCurrentValidationStatus'], 'validated');
+    expect(
+      payload['promotionCurrentStrengthSummary'],
+      'PROMOTED VALIDATED • 0.88',
+    );
+    expect(payload['promotionShadowSelectedEventId'], 'evt-office-1');
+    expect(
+      payload['promotionShadowReviewRefs'],
+      'intel-office-1,intel-office-2',
+    );
+
+    final csvRows = buildPromotionShadowAnchorCsvRows(payload: payload);
+    expect(csvRows, contains('promotion_mo_id,MO-REVIEWED-HIGH'));
+    expect(
+      csvRows,
+      contains('promotion_current_validation_status,validated'),
+    );
+    expect(
+      csvRows,
+      contains('promotion_shadow_review_command,/shadowreview 2026-03-17'),
+    );
+  });
+
   test('orders shadow dossier sites by reviewed evidence strength', () {
     final newsHeavySite = MonitoringGlobalSitePosture(
       clientId: 'CLIENT-VALLEE',
