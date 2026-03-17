@@ -989,6 +989,19 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                           ),
                         ],
                         if (syntheticScopeSummary
+                            .promotionExecutionSummary
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Promotion execution: ${syntheticScopeSummary.promotionExecutionSummary}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF86EFAC),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                        if (syntheticScopeSummary
                             .learningMemorySummary
                             .isNotEmpty) ...[
                           const SizedBox(height: 4),
@@ -1211,6 +1224,18 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                                     const SizedBox(height: 2),
                                     Text(
                                       'Promotion pressure: ${point.promotionPressureSummary}',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF86EFAC),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                  if (point.promotionExecutionSummary
+                                      .isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Promotion execution: ${point.promotionExecutionSummary}',
                                       style: GoogleFonts.inter(
                                         color: const Color(0xFF86EFAC),
                                         fontSize: 10,
@@ -2279,6 +2304,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               leadPolicyPlan.id.isEmpty ? null : leadPolicyPlan,
             ),
       ),
+      promotionExecutionSummary: _syntheticWarRoomPromotionExecutionSummary(
+        plans,
+      ),
       promotionSummary: _syntheticWarRoomPromotionSummary(
         plans,
         shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
@@ -3034,6 +3062,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     );
   }
 
+  String _syntheticWarRoomPromotionExecutionSummary(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) => buildSyntheticPromotionExecutionBiasSummaryFromPlans(plans: plans);
+
   String _syntheticWarRoomPromotionId(
     List<MonitoringWatchAutonomyActionPlan> plans,
   ) => buildSyntheticPromotionIdFromPlans(plans: plans);
@@ -3334,6 +3366,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   currentPolicyPlan.id.isEmpty ? null : currentPolicyPlan,
                 ),
           ),
+          promotionExecutionSummary:
+              _syntheticWarRoomPromotionExecutionSummary(currentPlans),
           promotionSummary: _syntheticWarRoomPromotionSummary(
             currentPlans,
             shadowTomorrowUrgencySummary:
@@ -3421,6 +3455,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   policyPlan.id.isEmpty ? null : policyPlan,
                 ),
           ),
+          promotionExecutionSummary:
+              _syntheticWarRoomPromotionExecutionSummary(plans),
           promotionSummary: _syntheticWarRoomPromotionSummary(
             plans,
             shadowTomorrowUrgencySummary:
@@ -5143,6 +5179,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       'shadow_tomorrow_urgency_summary,"${summary.shadowTomorrowUrgencySummary.replaceAll('"', '""')}"',
       'previous_shadow_tomorrow_urgency_summary,"${summary.previousShadowTomorrowUrgencySummary.replaceAll('"', '""')}"',
       'promotion_pressure_summary,"${summary.promotionPressureSummary.replaceAll('"', '""')}"',
+      'promotion_execution_summary,"${summary.promotionExecutionSummary.replaceAll('"', '""')}"',
       'promotion_summary,"${summary.promotionSummary.replaceAll('"', '""')}"',
       'promotion_target_status,${summary.promotionTargetStatus}',
       'promotion_decision_status,${summary.promotionDecisionStatus}',
@@ -5195,6 +5232,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         );
         lines.add(
           'history_${row}_promotion_pressure_summary,"${point.promotionPressureSummary.replaceAll('"', '""')}"',
+        );
+        lines.add(
+          'history_${row}_promotion_execution_summary,"${point.promotionExecutionSummary.replaceAll('"', '""')}"',
         );
         lines.add(
           'history_${row}_promotion_summary,"${point.promotionSummary.replaceAll('"', '""')}"',
@@ -5558,6 +5598,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'shadowLearningSummary': summary.shadowLearningSummary,
         'shadowMemorySummary': summary.shadowMemorySummary,
         'promotionPressureSummary': summary.promotionPressureSummary,
+        'promotionExecutionSummary': summary.promotionExecutionSummary,
         'promotionSummary': summary.promotionSummary,
         'promotionMoId': summary.promotionMoId,
         'promotionTargetStatus': summary.promotionTargetStatus,
@@ -5598,6 +5639,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             point.shadowTomorrowUrgencySummary,
                         'promotionPressureSummary':
                             point.promotionPressureSummary,
+                        'promotionExecutionSummary':
+                            point.promotionExecutionSummary,
                         'promotionSummary': point.promotionSummary,
                         'promotionDecisionStatus':
                             point.promotionDecisionStatus,
@@ -6162,6 +6205,7 @@ class _SyntheticScopeSummary {
   final String shadowLearningSummary;
   final String shadowMemorySummary;
   final String promotionPressureSummary;
+  final String promotionExecutionSummary;
   final String promotionSummary;
   final String promotionMoId;
   final String promotionTargetStatus;
@@ -6195,6 +6239,7 @@ class _SyntheticScopeSummary {
     required this.shadowLearningSummary,
     required this.shadowMemorySummary,
     required this.promotionPressureSummary,
+    required this.promotionExecutionSummary,
     required this.promotionSummary,
     required this.promotionMoId,
     required this.promotionTargetStatus,
@@ -6379,6 +6424,7 @@ class _SyntheticHistoryPoint {
   final String shadowValidationSummary;
   final String shadowTomorrowUrgencySummary;
   final String promotionPressureSummary;
+  final String promotionExecutionSummary;
   final String promotionSummary;
   final String promotionDecisionStatus;
   final String promotionDecisionSummary;
@@ -6395,6 +6441,7 @@ class _SyntheticHistoryPoint {
     required this.shadowValidationSummary,
     required this.shadowTomorrowUrgencySummary,
     required this.promotionPressureSummary,
+    required this.promotionExecutionSummary,
     required this.promotionSummary,
     required this.promotionDecisionStatus,
     required this.promotionDecisionSummary,

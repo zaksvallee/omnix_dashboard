@@ -6323,6 +6323,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     );
   }
 
+  String _syntheticWarRoomPromotionExecutionSummary(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) => buildSyntheticPromotionExecutionBiasSummaryFromPlans(plans: plans);
+
   String _syntheticWarRoomPromotionId(
     List<MonitoringWatchAutonomyActionPlan> plans,
   ) => buildSyntheticPromotionIdFromPlans(plans: plans);
@@ -7106,6 +7110,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               leadPolicyPlan?.id.isEmpty ?? true ? null : leadPolicyPlan,
             ),
       ),
+      'promotionExecutionSummary': _syntheticWarRoomPromotionExecutionSummary(
+        plans,
+      ),
       'promotionSummary': _syntheticWarRoomPromotionSummary(
         plans,
         shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
@@ -7236,6 +7243,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
                           itemPolicyPlan.id.isEmpty ? null : itemPolicyPlan,
                         ),
                   ),
+              'promotionExecutionSummary':
+                  _syntheticWarRoomPromotionExecutionSummary(itemPlans),
               'promotionSummary': _syntheticWarRoomPromotionSummary(
                 itemPlans,
                 shadowTomorrowUrgencySummary: itemShadowTomorrowUrgencySummary,
@@ -17894,6 +17903,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         (payload['shadowPostureBiasSummary'] ?? '').toString().trim();
     final promotionPressureSummary =
         (payload['promotionPressureSummary'] ?? '').toString().trim();
+    final promotionExecutionSummary =
+        (payload['promotionExecutionSummary'] ?? '').toString().trim();
     final promotionSummary = (payload['promotionSummary'] ?? '')
         .toString()
         .trim();
@@ -17945,6 +17956,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         ChatCaseFileHistoryField(
           inputKey: 'promotionPressureSummary',
           outputKey: 'promotion_pressure_summary',
+        ),
+        ChatCaseFileHistoryField(
+          inputKey: 'promotionExecutionSummary',
+          outputKey: 'promotion_execution_summary',
         ),
         ChatCaseFileHistoryField(
           inputKey: 'promotionSummary',
@@ -18003,6 +18018,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           ChatCaseFileHeaderField(
             key: 'promotion_pressure_summary',
             value: promotionPressureSummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'promotion_execution_summary',
+            value: promotionExecutionSummary,
           ),
           ChatCaseFileHeaderField(
             key: 'promotion_summary',

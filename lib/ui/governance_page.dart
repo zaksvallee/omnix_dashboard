@@ -351,6 +351,7 @@ class _SyntheticWarRoomHistoryPoint {
   final String shadowMemorySummary;
   final String shadowPostureBiasSummary;
   final String promotionPressureSummary;
+  final String promotionExecutionSummary;
   final String promotionSummary;
   final String promotionMoId;
   final String promotionTargetStatus;
@@ -380,6 +381,7 @@ class _SyntheticWarRoomHistoryPoint {
     required this.shadowMemorySummary,
     required this.shadowPostureBiasSummary,
     required this.promotionPressureSummary,
+    required this.promotionExecutionSummary,
     required this.promotionSummary,
     required this.promotionMoId,
     required this.promotionTargetStatus,
@@ -4114,6 +4116,8 @@ class _GovernancePageState extends State<GovernancePage> {
                 currentPolicyPlan.id.isEmpty ? null : currentPolicyPlan,
               ),
         ),
+        promotionExecutionSummary:
+            _syntheticWarRoomPromotionExecutionSummary(currentPlans),
         promotionSummary: _syntheticWarRoomPromotionSummary(
           currentPlans,
           shadowTomorrowUrgencySummary:
@@ -4227,10 +4231,12 @@ class _GovernancePageState extends State<GovernancePage> {
                   ),
                 ),
             shadowPostureBiasSummary:
-                _syntheticWarRoomShadowPostureBiasSummaryForPlan(
-                  policyPlan.id.isEmpty ? null : policyPlan,
-                ),
+                  _syntheticWarRoomShadowPostureBiasSummaryForPlan(
+                    policyPlan.id.isEmpty ? null : policyPlan,
+                  ),
           ),
+          promotionExecutionSummary:
+              _syntheticWarRoomPromotionExecutionSummary(plans),
           promotionSummary: _syntheticWarRoomPromotionSummary(
             plans,
             shadowTomorrowUrgencySummary:
@@ -4605,6 +4611,10 @@ class _GovernancePageState extends State<GovernancePage> {
       shadowPostureBiasSummary: shadowPostureBiasSummary,
     );
   }
+
+  String _syntheticWarRoomPromotionExecutionSummary(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) => buildSyntheticPromotionExecutionBiasSummaryFromPlans(plans: plans);
 
   String _syntheticWarRoomPromotionId(
     List<MonitoringWatchAutonomyActionPlan> plans,
@@ -8799,6 +8809,20 @@ class _GovernancePageState extends State<GovernancePage> {
                         const SizedBox(height: 8),
                       ],
                       if (currentPromotionPoint != null &&
+                          currentPromotionPoint.promotionExecutionSummary
+                              .trim()
+                              .isNotEmpty) ...[
+                        Text(
+                          'Promotion execution • ${currentPromotionPoint.promotionExecutionSummary}',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF86EFAC),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      if (currentPromotionPoint != null &&
                           currentPromotionPoint.promotionSummary
                               .trim()
                               .isNotEmpty) ...[
@@ -9122,6 +9146,19 @@ class _GovernancePageState extends State<GovernancePage> {
                                         const SizedBox(height: 4),
                                         Text(
                                           'Promotion pressure • ${point.promotionPressureSummary}',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFF86EFAC),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                      if (point.promotionExecutionSummary
+                                          .trim()
+                                          .isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Promotion execution • ${point.promotionExecutionSummary}',
                                           style: GoogleFonts.inter(
                                             color: const Color(0xFF86EFAC),
                                             fontSize: 10,
@@ -10388,6 +10425,7 @@ class _GovernancePageState extends State<GovernancePage> {
       'shadowMemorySummary': point.shadowMemorySummary,
       'shadowPostureBiasSummary': point.shadowPostureBiasSummary,
       'promotionPressureSummary': point.promotionPressureSummary,
+      'promotionExecutionSummary': point.promotionExecutionSummary,
       'promotionSummary': point.promotionSummary,
       'promotionMoId': point.promotionMoId,
       'promotionTargetStatus': point.promotionTargetStatus,
@@ -12075,6 +12113,7 @@ class _GovernancePageState extends State<GovernancePage> {
       'synthetic_war_room_shadow_memory_summary,"${_syntheticWarRoomShadowMemorySummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',
       'synthetic_war_room_shadow_posture_bias_summary,"${(currentSyntheticWarRoomPoint?.shadowPostureBiasSummary ?? '').replaceAll('"', '""')}"',
       'synthetic_war_room_promotion_pressure_summary,"${_syntheticWarRoomPromotionPressureSummary(shadowTomorrowUrgencySummary: currentSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '', previousShadowTomorrowUrgencySummary: previousSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '', shadowPostureBiasSummary: currentSyntheticWarRoomPoint?.shadowPostureBiasSummary ?? '').replaceAll('"', '""')}"',
+      'synthetic_war_room_promotion_execution_summary,"${(currentSyntheticWarRoomPoint?.promotionExecutionSummary ?? '').replaceAll('"', '""')}"',
       'synthetic_war_room_promotion_summary,"${_syntheticWarRoomPromotionSummary(syntheticWarRoomPlans, shadowTomorrowUrgencySummary: currentSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '', previousShadowTomorrowUrgencySummary: previousSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '', shadowPostureBiasSummary: currentSyntheticWarRoomPoint?.shadowPostureBiasSummary ?? '').replaceAll('"', '""')}"',
       'synthetic_war_room_promotion_target_status,${_syntheticWarRoomPromotionTargetStatus(syntheticWarRoomPlans)}',
       'synthetic_war_room_promotion_decision_status,${_syntheticWarRoomPromotionDecisionStatus(syntheticWarRoomPlans)}',
