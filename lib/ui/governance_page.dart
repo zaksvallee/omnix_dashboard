@@ -281,6 +281,7 @@ class _GlobalReadinessHistoryPoint {
   final String leadSiteId;
   final String leadSiteSummary;
   final String latestIntentSummary;
+  final String tomorrowShadowPostureSummary;
   final String tomorrowUrgencySummary;
 
   const _GlobalReadinessHistoryPoint({
@@ -296,6 +297,7 @@ class _GlobalReadinessHistoryPoint {
     required this.leadSiteId,
     required this.leadSiteSummary,
     required this.latestIntentSummary,
+    required this.tomorrowShadowPostureSummary,
     required this.tomorrowUrgencySummary,
   });
 }
@@ -341,6 +343,7 @@ class _SyntheticWarRoomHistoryPoint {
   final String recommendationSummary;
   final String learningSummary;
   final String shadowSummary;
+  final String shadowPostureSummary;
   final String shadowValidationSummary;
   final String shadowTomorrowUrgencySummary;
   final String shadowLearningSummary;
@@ -367,6 +370,7 @@ class _SyntheticWarRoomHistoryPoint {
     required this.recommendationSummary,
     required this.learningSummary,
     required this.shadowSummary,
+    required this.shadowPostureSummary,
     required this.shadowValidationSummary,
     required this.shadowTomorrowUrgencySummary,
     required this.shadowLearningSummary,
@@ -3390,6 +3394,11 @@ class _GovernancePageState extends State<GovernancePage> {
       report,
       intents,
     );
+    final tomorrowShadowPostureSegment = shadowMoPostureStrengthSummaryForSites(
+      snapshot.sites
+          .where((site) => site.moShadowMatchCount > 0)
+          .toList(growable: false),
+    );
     final tomorrowUrgencySegment = _globalReadinessTomorrowUrgencySummary(
       intents,
     );
@@ -3405,13 +3414,16 @@ class _GovernancePageState extends State<GovernancePage> {
     final tomorrowShadowSuffix = tomorrowShadowSegment.isEmpty
         ? ''
         : ' • tomorrow shadow $tomorrowShadowSegment';
+    final tomorrowShadowPostureSuffix = tomorrowShadowPostureSegment.isEmpty
+        ? ''
+        : ' • tomorrow shadow posture $tomorrowShadowPostureSegment';
     final tomorrowUrgencySuffix = tomorrowUrgencySegment.isEmpty
         ? ''
         : ' • tomorrow urgency $tomorrowUrgencySegment';
     final shadowBiasSuffix = shadowBiasSegment.isEmpty
         ? ''
         : ' • shadow bias $shadowBiasSegment';
-    return 'Sites ${snapshot.totalSites} • elevated ${snapshot.elevatedSiteCount} • critical ${snapshot.criticalSiteCount} • intents ${intents.length}$regionSegment$siteSegment$hazardSegment$moShadowSegment$moShadowPostureSegment$shadowBiasSuffix$tomorrowSuffix$tomorrowShadowSuffix$tomorrowUrgencySuffix';
+    return 'Sites ${snapshot.totalSites} • elevated ${snapshot.elevatedSiteCount} • critical ${snapshot.criticalSiteCount} • intents ${intents.length}$regionSegment$siteSegment$hazardSegment$moShadowSegment$moShadowPostureSegment$shadowBiasSuffix$tomorrowSuffix$tomorrowShadowSuffix$tomorrowShadowPostureSuffix$tomorrowUrgencySuffix';
   }
 
   int _globalReadinessNextShiftDraftCount(
@@ -4075,6 +4087,11 @@ class _GovernancePageState extends State<GovernancePage> {
         latestIntentSummary: currentIntents.isEmpty
             ? ''
             : currentIntents.first.description,
+        tomorrowShadowPostureSummary: shadowMoPostureStrengthSummaryForSites(
+          currentSnapshot.sites
+              .where((site) => site.moShadowMatchCount > 0)
+              .toList(growable: false),
+        ),
         tomorrowUrgencySummary: _globalReadinessTomorrowUrgencySummary(
           currentIntents,
         ),
@@ -4112,6 +4129,11 @@ class _GovernancePageState extends State<GovernancePage> {
           leadSiteId: leadSite?.siteId ?? '',
           leadSiteSummary: leadSite?.latestSummary ?? '',
           latestIntentSummary: intents.isEmpty ? '' : intents.first.description,
+          tomorrowShadowPostureSummary: shadowMoPostureStrengthSummaryForSites(
+            snapshot.sites
+                .where((site) => site.moShadowMatchCount > 0)
+                .toList(growable: false),
+          ),
           tomorrowUrgencySummary: _globalReadinessTomorrowUrgencySummary(
             intents,
           ),
@@ -4198,6 +4220,11 @@ class _GovernancePageState extends State<GovernancePage> {
         recommendationSummary: currentRecommendation,
         learningSummary: currentLearning,
         shadowSummary: _syntheticWarRoomShadowSummary(currentPlans),
+        shadowPostureSummary: shadowMoPostureStrengthSummaryForSites(
+          _globalReadinessSnapshotForReport(report).sites
+              .where((site) => site.moShadowMatchCount > 0)
+              .toList(growable: false),
+        ),
         shadowValidationSummary: currentShadowValidation.summary,
         shadowTomorrowUrgencySummary:
             _syntheticWarRoomShadowTomorrowUrgencySummaryForReport(report),
@@ -4272,6 +4299,15 @@ class _GovernancePageState extends State<GovernancePage> {
           recommendationSummary: recommendation,
           learningSummary: learning,
           shadowSummary: _syntheticWarRoomShadowSummary(plans),
+          shadowPostureSummary: shadowMoPostureStrengthSummaryForSites(
+            _globalReadinessSnapshotForWindow(
+                  item.shiftWindowStartUtc,
+                  item.shiftWindowEndUtc,
+                  generatedAtUtc: item.generatedAtUtc,
+                ).sites
+                .where((site) => site.moShadowMatchCount > 0)
+                .toList(growable: false),
+          ),
           shadowValidationSummary: _shadowMoValidationSummaryForSites(
             _globalReadinessSnapshotForWindow(
                   item.shiftWindowStartUtc,
@@ -8465,6 +8501,19 @@ class _GovernancePageState extends State<GovernancePage> {
                                       ),
                                     ),
                                   ],
+                                  if (point.tomorrowShadowPostureSummary
+                                      .trim()
+                                      .isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Tomorrow shadow posture • ${point.tomorrowShadowPostureSummary}',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFBFDBFE),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -8491,6 +8540,21 @@ class _GovernancePageState extends State<GovernancePage> {
                                   'Tomorrow urgency • ${(shadowDossier['tomorrowUrgencySummary'] ?? '').toString().trim()}',
                                   style: GoogleFonts.inter(
                                     color: const Color(0xFFFDE68A),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            if ((shadowDossier['postureStrengthSummary'] ?? '')
+                                .toString()
+                                .trim()
+                                .isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: Text(
+                                  'Tomorrow shadow posture • ${(shadowDossier['postureStrengthSummary'] ?? '').toString().trim()}',
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFFBFDBFE),
                                     fontSize: 10,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -8787,6 +8851,20 @@ class _GovernancePageState extends State<GovernancePage> {
                         const SizedBox(height: 12),
                       ],
                       if (currentPromotionPoint != null &&
+                          currentPromotionPoint.shadowPostureSummary
+                              .trim()
+                              .isNotEmpty) ...[
+                        Text(
+                          'Shadow posture • ${currentPromotionPoint.shadowPostureSummary}',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFBFDBFE),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      if (currentPromotionPoint != null &&
                           currentPromotionPoint.shadowValidationSummary
                               .trim()
                               .isNotEmpty) ...[
@@ -9069,14 +9147,27 @@ class _GovernancePageState extends State<GovernancePage> {
                                           ),
                                         ),
                                       ],
-                                      if (point.shadowValidationSummary
-                                          .trim()
-                                          .isNotEmpty) ...[
+                                  if (point.shadowValidationSummary
+                                      .trim()
+                                      .isNotEmpty) ...[
                                         const SizedBox(height: 4),
                                         Text(
                                           'Shadow validation • ${point.shadowValidationSummary}',
                                           style: GoogleFonts.inter(
                                             color: const Color(0xFF93C5FD),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                      if (point.shadowPostureSummary
+                                          .trim()
+                                          .isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Shadow posture • ${point.shadowPostureSummary}',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFBFDBFE),
                                             fontSize: 10,
                                             fontWeight: FontWeight.w700,
                                           ),
@@ -10330,6 +10421,7 @@ class _GovernancePageState extends State<GovernancePage> {
       'leadSiteId': point.leadSiteId,
       'leadSiteSummary': point.leadSiteSummary,
       'latestIntentSummary': point.latestIntentSummary,
+      'tomorrowShadowPostureSummary': point.tomorrowShadowPostureSummary,
       'tomorrowUrgencySummary': point.tomorrowUrgencySummary,
     };
   }
@@ -10372,6 +10464,7 @@ class _GovernancePageState extends State<GovernancePage> {
       'recommendationSummary': point.recommendationSummary,
       'learningSummary': point.learningSummary,
       'shadowSummary': point.shadowSummary,
+      'shadowPostureSummary': point.shadowPostureSummary,
       'shadowValidationSummary': point.shadowValidationSummary,
       'shadowTomorrowUrgencySummary': point.shadowTomorrowUrgencySummary,
       'shadowLearningSummary': point.shadowLearningSummary,
@@ -10432,7 +10525,10 @@ class _GovernancePageState extends State<GovernancePage> {
     final urgencySegment = point.tomorrowUrgencySummary.trim().isEmpty
         ? ''
         : ' • tomorrow urgency ${point.tomorrowUrgencySummary}';
-    return '${point.reportDate} • ${point.current ? 'CURRENT' : 'HISTORY'} • Sites ${point.totalSites} • Critical ${point.criticalSiteCount} • Elevated ${point.elevatedSiteCount} • Intents ${point.intentCount} • ${point.modeLabel} • $leadSegment$intentSegment$urgencySegment';
+    final shadowPostureSegment = point.tomorrowShadowPostureSummary.trim().isEmpty
+        ? ''
+        : ' • tomorrow shadow posture ${point.tomorrowShadowPostureSummary}';
+    return '${point.reportDate} • ${point.current ? 'CURRENT' : 'HISTORY'} • Sites ${point.totalSites} • Critical ${point.criticalSiteCount} • Elevated ${point.elevatedSiteCount} • Intents ${point.intentCount} • ${point.modeLabel} • $leadSegment$intentSegment$shadowPostureSegment$urgencySegment';
   }
 
   String _syntheticWarRoomHistoryCsvSummary(
@@ -10453,6 +10549,9 @@ class _GovernancePageState extends State<GovernancePage> {
     final learningSegment = point.learningSummary.trim().isEmpty
         ? ''
         : ' • ${point.learningSummary}';
+    final shadowPostureSegment = point.shadowPostureSummary.trim().isEmpty
+        ? ''
+        : ' • shadow posture ${point.shadowPostureSummary}';
     final biasSegment = [
       if (point.actionBias.trim().isNotEmpty) point.actionBias.trim(),
       if (point.memoryPriorityBoost.trim().isNotEmpty &&
@@ -10461,7 +10560,7 @@ class _GovernancePageState extends State<GovernancePage> {
       if (point.memoryCountdownBias.trim().isNotEmpty)
         'T-${point.memoryCountdownBias.trim()} s',
     ].join(' • ');
-    return '${point.reportDate} • ${point.current ? 'CURRENT' : 'HISTORY'} • Plans ${point.planCount} • Policy ${point.policyCount} • ${point.modeLabel}$leadRegionSegment$leadSiteSegment$intentSegment$recommendationSegment$learningSegment${biasSegment.isEmpty ? '' : ' • $biasSegment'}';
+    return '${point.reportDate} • ${point.current ? 'CURRENT' : 'HISTORY'} • Plans ${point.planCount} • Policy ${point.policyCount} • ${point.modeLabel}$leadRegionSegment$leadSiteSegment$intentSegment$recommendationSegment$learningSegment$shadowPostureSegment${biasSegment.isEmpty ? '' : ' • $biasSegment'}';
   }
 
   String _siteActivityHistoryCsvSummary(_SiteActivityHistoryPoint point) {
@@ -11578,6 +11677,9 @@ class _GovernancePageState extends State<GovernancePage> {
           report,
           globalReadinessIntents,
         ),
+        'tomorrowShadowPostureSummary': shadowMoPostureStrengthSummaryForSites(
+          shadowSites,
+        ),
         'tomorrowUrgencySummary': _globalReadinessTomorrowUrgencySummary(
           globalReadinessIntents,
         ),
@@ -11671,6 +11773,8 @@ class _GovernancePageState extends State<GovernancePage> {
             .map((plan) => (plan.metadata['learning_summary'] ?? '').trim())
             .firstWhere((value) => value.isNotEmpty, orElse: () => ''),
         'shadowSummary': _syntheticWarRoomShadowSummary(syntheticWarRoomPlans),
+        'shadowPostureSummary':
+            currentSyntheticWarRoomPoint?.shadowPostureSummary ?? '',
         'shadowValidationSummary':
             currentSyntheticWarRoomPoint?.shadowValidationSummary ?? '',
         'shadowTomorrowUrgencySummary':
@@ -11955,6 +12059,7 @@ class _GovernancePageState extends State<GovernancePage> {
       'global_readiness_shadow_bias_summary,"${_globalReadinessShadowBiasSummary(globalReadinessIntents).replaceAll('"', '""')}"',
       'global_readiness_tomorrow_posture_summary,"${_globalReadinessTomorrowPostureSummary(globalReadinessIntents).replaceAll('"', '""')}"',
       'global_readiness_tomorrow_shadow_summary,"${_globalReadinessTomorrowShadowSummary(report, globalReadinessIntents).replaceAll('"', '""')}"',
+      'global_readiness_tomorrow_shadow_posture_summary,"${shadowMoPostureStrengthSummaryForSites(shadowSites).replaceAll('"', '""')}"',
       'global_readiness_tomorrow_urgency_summary,"${_globalReadinessTomorrowUrgencySummary(globalReadinessIntents).replaceAll('"', '""')}"',
       'global_readiness_tomorrow_review_command,/tomorrowreview ${report.reportDate}',
       'global_readiness_tomorrow_case_file_command,/tomorrowcase json ${report.reportDate}',
@@ -12020,6 +12125,7 @@ class _GovernancePageState extends State<GovernancePage> {
       'synthetic_war_room_learning_label,${syntheticWarRoomPlans.map((plan) => (plan.metadata['learning_label'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '')}',
       'synthetic_war_room_learning_summary,"${syntheticWarRoomPlans.map((plan) => (plan.metadata['learning_summary'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '').replaceAll('"', '""')}"',
       'synthetic_war_room_shadow_summary,"${_syntheticWarRoomShadowSummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',
+      'synthetic_war_room_shadow_posture_summary,"${(currentSyntheticWarRoomPoint?.shadowPostureSummary ?? '').replaceAll('"', '""')}"',
       'synthetic_war_room_shadow_validation_summary,"${(currentSyntheticWarRoomPoint?.shadowValidationSummary ?? '').replaceAll('"', '""')}"',
       'synthetic_war_room_shadow_tomorrow_urgency_summary,"${(currentSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '').replaceAll('"', '""')}"',
       'synthetic_war_room_previous_shadow_tomorrow_urgency_summary,"${(previousSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '').replaceAll('"', '""')}"',

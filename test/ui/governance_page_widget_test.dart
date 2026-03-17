@@ -4921,6 +4921,10 @@ void main() {
     );
     expect(
       copiedPayload,
+      contains('global_readiness_tomorrow_shadow_posture_summary,""'),
+    );
+    expect(
+      copiedPayload,
       contains('global_readiness_shadow_strength_history_summary,""'),
     );
     expect(copiedPayload, contains('synthetic_war_room_plan_count,0'));
@@ -4949,6 +4953,10 @@ void main() {
     );
     expect(copiedPayload, contains('synthetic_war_room_learning_label,'));
     expect(copiedPayload, contains('synthetic_war_room_learning_summary,""'));
+    expect(
+      copiedPayload,
+      contains('synthetic_war_room_shadow_posture_summary,""'),
+    );
     expect(
       copiedPayload,
       contains('synthetic_war_room_shadow_validation_summary,""'),
