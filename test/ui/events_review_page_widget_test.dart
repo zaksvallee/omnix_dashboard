@@ -1921,6 +1921,7 @@ void main() {
     expect(copiedClipboardPayload, contains('"hazardSummary": ""'));
     expect(copiedClipboardPayload, contains('"shadowLearningSummary": ""'));
     expect(copiedClipboardPayload, contains('"shadowMemorySummary": ""'));
+    expect(copiedClipboardPayload, contains('"promotionSummary": ""'));
     expect(copiedClipboardPayload, contains('"learningSummary":'));
     expect(copiedClipboardPayload, contains('"learningMemorySummary":'));
     expect(copiedClipboardPayload, contains('"biasSummary":'));

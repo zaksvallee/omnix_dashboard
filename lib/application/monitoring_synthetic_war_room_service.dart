@@ -1,5 +1,6 @@
 import '../domain/events/dispatch_event.dart';
 import 'hazard_response_directive_service.dart';
+import 'mo_feedback_learning_service.dart';
 import 'mo_runtime_matching_service.dart';
 import 'monitoring_global_posture_service.dart';
 import 'monitoring_orchestrator_service.dart';
@@ -12,6 +13,7 @@ class MonitoringSyntheticWarRoomService {
   static const _globalPostureService = MonitoringGlobalPostureService();
   static const _orchestratorService = MonitoringOrchestratorService();
   static const _hazardDirectiveService = HazardResponseDirectiveService();
+  static const _moFeedbackLearningService = MoFeedbackLearningService();
   static const _externalPressureSignals = <String>{
     'news_pressure',
     'community_watch',
@@ -167,6 +169,11 @@ class MonitoringSyntheticWarRoomService {
           repeatedShadowCount: repeatedShadowCount,
           leadShadowMatch: leadShadowMatch,
         );
+        final promotionGuidance = _moFeedbackLearningService
+            .buildShadowPromotionGuidance(
+              matches: leadSite.moShadowMatches,
+              repeatedShadowCount: repeatedShadowCount,
+            );
         final shadowLearningLabel = _shadowLearningLabel(
           shadowLabel: shadowLabel,
         );
@@ -230,6 +237,17 @@ class MonitoringSyntheticWarRoomService {
                     : 'LEARNING',
               if (shadowMemorySummary.isNotEmpty)
                 'shadow_memory_summary': shadowMemorySummary,
+              if (promotionGuidance != null)
+                'mo_promotion_id': promotionGuidance.moId,
+              if (promotionGuidance != null)
+                'mo_promotion_target': promotionGuidance.targetValidationStatus,
+              if (promotionGuidance != null)
+                'mo_promotion_confidence_bias':
+                    promotionGuidance.confidenceBias,
+              if (promotionGuidance != null)
+                'mo_promotion_trend_bias': promotionGuidance.trendBias,
+              if (promotionGuidance != null)
+                'mo_promotion_summary': promotionGuidance.summary,
               'top_intent': topIntent?.actionType ?? 'NONE',
               if (hazardSignal.isNotEmpty) 'hazard_signal': hazardSignal,
             },

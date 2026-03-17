@@ -901,6 +901,19 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             ),
                           ),
                         ],
+                        if (syntheticScopeSummary
+                            .promotionSummary
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Promotion: ${syntheticScopeSummary.promotionSummary}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF86EFAC),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                         if (syntheticScopeSummary.biasSummary.isNotEmpty) ...[
                           const SizedBox(height: 4),
                           Text(
@@ -1841,6 +1854,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       hazardSummary: hazardSummary,
       shadowLearningSummary: _syntheticWarRoomShadowLearningSummary(plans),
       shadowMemorySummary: _syntheticWarRoomShadowMemorySummary(plans),
+      promotionSummary: _syntheticWarRoomPromotionSummary(plans),
       learningSummary: _syntheticWarRoomLearningSummary(plans),
       learningMemorySummary: _syntheticWarRoomLearningMemorySummary(
         currentLearningLabel: _syntheticWarRoomLearningLabel(plans),
@@ -2306,6 +2320,17 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         .map(
           (plan) =>
               (plan.metadata['shadow_memory_summary'] ?? '').toString().trim(),
+        )
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+  }
+
+  String _syntheticWarRoomPromotionSummary(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    return plans
+        .map(
+          (plan) =>
+              (plan.metadata['mo_promotion_summary'] ?? '').toString().trim(),
         )
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
   }
@@ -4287,6 +4312,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       'hazard_summary,"${summary.hazardSummary.replaceAll('"', '""')}"',
       'shadow_learning_summary,"${summary.shadowLearningSummary.replaceAll('"', '""')}"',
       'shadow_memory_summary,"${summary.shadowMemorySummary.replaceAll('"', '""')}"',
+      'promotion_summary,"${summary.promotionSummary.replaceAll('"', '""')}"',
       'learning_summary,"${summary.learningSummary.replaceAll('"', '""')}"',
       'learning_memory_summary,"${summary.learningMemorySummary.replaceAll('"', '""')}"',
       'bias_summary,"${summary.biasSummary.replaceAll('"', '""')}"',
@@ -4632,6 +4658,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'hazardSummary': summary.hazardSummary,
         'shadowLearningSummary': summary.shadowLearningSummary,
         'shadowMemorySummary': summary.shadowMemorySummary,
+        'promotionSummary': summary.promotionSummary,
         'learningSummary': summary.learningSummary,
         'learningMemorySummary': summary.learningMemorySummary,
         'biasSummary': summary.biasSummary,
@@ -5169,6 +5196,7 @@ class _SyntheticScopeSummary {
   final String hazardSummary;
   final String shadowLearningSummary;
   final String shadowMemorySummary;
+  final String promotionSummary;
   final String learningSummary;
   final String learningMemorySummary;
   final String biasSummary;
@@ -5189,6 +5217,7 @@ class _SyntheticScopeSummary {
     required this.hazardSummary,
     required this.shadowLearningSummary,
     required this.shadowMemorySummary,
+    required this.promotionSummary,
     required this.learningSummary,
     required this.learningMemorySummary,
     required this.biasSummary,

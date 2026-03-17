@@ -5423,6 +5423,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       syntheticWarRoomShadowMemorySummary: _syntheticWarRoomShadowMemorySummary(
         syntheticWarRoomPlans,
       ),
+      syntheticWarRoomPromotionSummary: _syntheticWarRoomPromotionSummary(
+        syntheticWarRoomPlans,
+      ),
       syntheticWarRoomLearningSummary: _syntheticWarRoomLearningSummary(
         syntheticWarRoomPlans,
       ),
@@ -6176,6 +6179,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
   }
 
+  String _syntheticWarRoomPromotionSummary(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    return plans
+        .map((plan) => (plan.metadata['mo_promotion_summary'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+  }
+
   String _syntheticWarRoomLearningMemorySummary({
     required String currentLearningLabel,
     required List<SovereignReport> history,
@@ -6830,6 +6841,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'shadowSummary': _syntheticWarRoomShadowSummary(plans),
       'shadowLearningSummary': _syntheticWarRoomShadowLearningSummary(plans),
       'shadowMemorySummary': _syntheticWarRoomShadowMemorySummary(plans),
+      'promotionSummary': _syntheticWarRoomPromotionSummary(plans),
       'learningLabel': learningLabel,
       'learningSummary': _syntheticWarRoomLearningSummary(plans),
       'learningMemorySummary': _syntheticWarRoomLearningMemorySummary(
@@ -6921,6 +6933,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               'shadowMemorySummary': _syntheticWarRoomShadowMemorySummary(
                 itemPlans,
               ),
+              'promotionSummary': _syntheticWarRoomPromotionSummary(itemPlans),
               'learningLabel': _syntheticWarRoomLearningLabel(itemPlans),
               'learningSummary': _syntheticWarRoomLearningSummary(itemPlans),
               'actionBias': (itemPolicyPlan.metadata['action_bias'] ?? '')
@@ -6968,6 +6981,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'shadow_summary,"${(payload['shadowSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'shadow_learning_summary,"${(payload['shadowLearningSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'shadow_memory_summary,"${(payload['shadowMemorySummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'promotion_summary,"${(payload['promotionSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'learning_label,${payload['learningLabel'] ?? ''}',
       'learning_summary,"${(payload['learningSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'learning_memory_summary,"${(payload['learningMemorySummary'] ?? '').toString().replaceAll('"', '""')}"',
@@ -7019,6 +7033,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       lines.add(
         'history_${i + 1}_shadow_memory_summary,"${(row['shadowMemorySummary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add(
+        'history_${i + 1}_promotion_summary,"${(row['promotionSummary'] ?? '').toString().replaceAll('"', '""')}"',
       );
       lines.add(
         'history_${i + 1}_learning_label,${row['learningLabel'] ?? ''}',
@@ -17358,6 +17375,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final shadowMemorySummary = (payload['shadowMemorySummary'] ?? '')
         .toString()
         .trim();
+    final promotionSummary = (payload['promotionSummary'] ?? '')
+        .toString()
+        .trim();
     final learningMemorySummary = (payload['learningMemorySummary'] ?? '')
         .toString()
         .trim();
@@ -17379,6 +17399,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           '${shadowSummary.isEmpty ? '' : 'shadow_summary=$shadowSummary\n'}'
           '${shadowLearningSummary.isEmpty ? '' : 'shadow_learning_summary=$shadowLearningSummary\n'}'
           '${shadowMemorySummary.isEmpty ? '' : 'shadow_memory_summary=$shadowMemorySummary\n'}'
+          '${promotionSummary.isEmpty ? '' : 'promotion_summary=$promotionSummary\n'}'
           '${learningSummary.isEmpty ? '' : 'learning_summary=$learningSummary\n'}'
           '${learningMemorySummary.isEmpty ? '' : 'learning_memory_summary=$learningMemorySummary\n'}'
           '${biasSummary.isEmpty ? '' : 'bias_summary=$biasSummary\n'}'
@@ -17394,6 +17415,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '${shadowSummary.isEmpty ? '' : 'shadow_summary=$shadowSummary\n'}'
         '${shadowLearningSummary.isEmpty ? '' : 'shadow_learning_summary=$shadowLearningSummary\n'}'
         '${shadowMemorySummary.isEmpty ? '' : 'shadow_memory_summary=$shadowMemorySummary\n'}'
+        '${promotionSummary.isEmpty ? '' : 'promotion_summary=$promotionSummary\n'}'
         '${learningSummary.isEmpty ? '' : 'learning_summary=$learningSummary\n'}'
         '${learningMemorySummary.isEmpty ? '' : 'learning_memory_summary=$learningMemorySummary\n'}'
         '${biasSummary.isEmpty ? '' : 'bias_summary=$biasSummary\n'}'

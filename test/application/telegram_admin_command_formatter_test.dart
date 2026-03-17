@@ -171,6 +171,8 @@ void main() {
           'Learned shadow lesson: start access hardening and service-role checks one step earlier next shift.',
       syntheticWarRoomShadowMemorySummary:
           'Shadow bias: HARDEN ACCESS around "Contractors moved floor to floor in office park" repeated in the previous shift.',
+      syntheticWarRoomPromotionSummary:
+          'Promote MO-EXT-OFFICE toward validated review • Office contractor impersonation pattern • x1',
       syntheticWarRoomLearningSummary:
           'Learned bias: stage fire response one step earlier next shift.',
       syntheticWarRoomMemorySummary:
@@ -284,6 +286,12 @@ void main() {
       response,
       contains(
         '<b>Shadow memory:</b> Shadow bias: HARDEN ACCESS around "Contractors moved floor to floor in office park" repeated in the previous shift.',
+      ),
+    );
+    expect(
+      response,
+      contains(
+        '<b>Promotion:</b> Promote MO-EXT-OFFICE toward validated review • Office contractor impersonation pattern • x1',
       ),
     );
     expect(

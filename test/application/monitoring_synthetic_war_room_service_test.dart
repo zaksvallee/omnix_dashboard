@@ -319,6 +319,14 @@ void main() {
         policy.metadata['shadow_learning_summary'],
         'Learned shadow lesson: start access hardening and service-role checks one step earlier next shift.',
       );
+      expect(policy.metadata['mo_promotion_id'], 'MO-EXT-NEWS-OFFICE-PATTERN');
+      expect(policy.metadata['mo_promotion_target'], 'validated');
+      expect(policy.metadata['mo_promotion_confidence_bias'], 'MEDIUM');
+      expect(policy.metadata['mo_promotion_trend_bias'], '+0.12');
+      expect(
+        policy.metadata['mo_promotion_summary'],
+        contains('Promote MO-EXT-NEWS-OFFICE-PATTERN toward validated review'),
+      );
       expect(
         policy.metadata['shadow_memory_summary'],
         contains('Shadow bias: HARDEN ACCESS'),

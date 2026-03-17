@@ -10,6 +10,7 @@ class OnyxMoShadowMatch {
   final String title;
   final String incidentType;
   final String behaviorStage;
+  final String validationStatus;
   final double matchScore;
   final List<String> matchedIndicators;
   final List<String> recommendedActionPlans;
@@ -19,6 +20,7 @@ class OnyxMoShadowMatch {
     required this.title,
     required this.incidentType,
     required this.behaviorStage,
+    this.validationStatus = '',
     required this.matchScore,
     this.matchedIndicators = const <String>[],
     this.recommendedActionPlans = const <String>[],
@@ -115,10 +117,7 @@ class MoRuntimeMatchingService {
           record.extractionIndicators,
           candidate.extractionIndicators,
         ),
-        ..._overlap(
-          record.deceptionIndicators,
-          candidate.deceptionIndicators,
-        ),
+        ..._overlap(record.deceptionIndicators, candidate.deceptionIndicators),
         ..._overlap(
           record.systemPressureIndicators,
           candidate.systemPressureIndicators,
@@ -150,6 +149,7 @@ class MoRuntimeMatchingService {
           title: candidate.title,
           incidentType: candidate.incidentType,
           behaviorStage: candidate.behaviorStage,
+          validationStatus: candidate.validationStatus.name,
           matchScore: score > 1 ? 1 : score,
           matchedIndicators: indicators.toList(growable: false)..sort(),
           recommendedActionPlans: candidate.recommendedActionPlans,

@@ -10847,6 +10847,9 @@ class _GovernancePageState extends State<GovernancePage> {
         'shadowMemorySummary': _syntheticWarRoomShadowMemorySummary(
           syntheticWarRoomPlans,
         ),
+        'promotionSummary': syntheticWarRoomPlans
+            .map((plan) => (plan.metadata['mo_promotion_summary'] ?? '').trim())
+            .firstWhere((value) => value.isNotEmpty, orElse: () => ''),
         'actionBias': syntheticWarRoomPlans
             .map((plan) => (plan.metadata['action_bias'] ?? '').trim())
             .firstWhere((value) => value.isNotEmpty, orElse: () => ''),
@@ -11130,6 +11133,7 @@ class _GovernancePageState extends State<GovernancePage> {
       'synthetic_war_room_shadow_summary,"${_syntheticWarRoomShadowSummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',
       'synthetic_war_room_shadow_learning_summary,"${_syntheticWarRoomShadowLearningSummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',
       'synthetic_war_room_shadow_memory_summary,"${_syntheticWarRoomShadowMemorySummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',
+      'synthetic_war_room_promotion_summary,"${syntheticWarRoomPlans.map((plan) => (plan.metadata['mo_promotion_summary'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '').replaceAll('"', '""')}"',
       'synthetic_war_room_learning_memory_summary,"${_syntheticWarRoomLearningMemorySummary(syntheticWarRoomHistory).replaceAll('"', '""')}"',
       'synthetic_war_room_action_bias,"${syntheticWarRoomPlans.map((plan) => (plan.metadata['action_bias'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '').replaceAll('"', '""')}"',
       'synthetic_war_room_memory_priority_boost,${syntheticWarRoomPlans.map((plan) => (plan.metadata['memory_priority_boost'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '')}',
