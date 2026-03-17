@@ -284,6 +284,8 @@ class _GlobalReadinessHistoryPoint {
   final String latestIntentSummary;
   final String tomorrowShadowPostureSummary;
   final String tomorrowUrgencySummary;
+  final String tomorrowPromotionPressureSummary;
+  final String tomorrowPromotionExecutionSummary;
 
   const _GlobalReadinessHistoryPoint({
     required this.reportDate,
@@ -300,6 +302,8 @@ class _GlobalReadinessHistoryPoint {
     required this.latestIntentSummary,
     required this.tomorrowShadowPostureSummary,
     required this.tomorrowUrgencySummary,
+    required this.tomorrowPromotionPressureSummary,
+    required this.tomorrowPromotionExecutionSummary,
   });
 }
 
@@ -3440,19 +3444,19 @@ class _GovernancePageState extends State<GovernancePage> {
   String _globalReadinessTomorrowPostureSummary(
     List<MonitoringWatchAutonomyActionPlan> intents,
   ) => buildTomorrowPostureSummaryForDraft(
-    draft: intents.firstWhere(
-      (plan) => plan.metadata['scope'] == 'NEXT_SHIFT',
-      orElse: () => const MonitoringWatchAutonomyActionPlan(
-        id: '',
-        incidentId: '',
-        siteId: '',
-        priority: MonitoringWatchAutonomyPriority.medium,
-        actionType: '',
-        description: '',
-        countdownSeconds: 0,
-      ),
-    ),
+    draft: _firstTomorrowDraft(intents),
   );
+
+  MonitoringWatchAutonomyActionPlan? _firstTomorrowDraft(
+    List<MonitoringWatchAutonomyActionPlan> intents,
+  ) {
+    for (final plan in intents) {
+      if ((plan.metadata['scope'] ?? '').trim() == 'NEXT_SHIFT') {
+        return plan;
+      }
+    }
+    return null;
+  }
 
   String _shadowMoStrengthHandoffSummaryForReport(
     _GovernanceReportView report,
@@ -3967,6 +3971,14 @@ class _GovernancePageState extends State<GovernancePage> {
         tomorrowUrgencySummary: _globalReadinessTomorrowUrgencySummary(
           currentIntents,
         ),
+        tomorrowPromotionPressureSummary:
+            buildTomorrowPromotionPressureSummaryForDraft(
+              draft: _firstTomorrowDraft(currentIntents),
+            ),
+        tomorrowPromotionExecutionSummary:
+            buildTomorrowPromotionExecutionSummaryForDraft(
+              draft: _firstTomorrowDraft(currentIntents),
+            ),
       ),
     ];
     for (final item in widget.morningSovereignReportHistory) {
@@ -4009,6 +4021,14 @@ class _GovernancePageState extends State<GovernancePage> {
           tomorrowUrgencySummary: _globalReadinessTomorrowUrgencySummary(
             intents,
           ),
+          tomorrowPromotionPressureSummary:
+              buildTomorrowPromotionPressureSummaryForDraft(
+                draft: _firstTomorrowDraft(intents),
+              ),
+          tomorrowPromotionExecutionSummary:
+              buildTomorrowPromotionExecutionSummaryForDraft(
+                draft: _firstTomorrowDraft(intents),
+              ),
         ),
       );
     }
@@ -8387,6 +8407,32 @@ class _GovernancePageState extends State<GovernancePage> {
                                       ),
                                     ),
                                   ],
+                                  if (point.tomorrowPromotionPressureSummary
+                                      .trim()
+                                      .isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Tomorrow promotion pressure • ${point.tomorrowPromotionPressureSummary}',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFFDE68A),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                  if (point.tomorrowPromotionExecutionSummary
+                                      .trim()
+                                      .isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Tomorrow promotion execution • ${point.tomorrowPromotionExecutionSummary}',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFFFEDD5),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -10377,6 +10423,10 @@ class _GovernancePageState extends State<GovernancePage> {
       'latestIntentSummary': point.latestIntentSummary,
       'tomorrowShadowPostureSummary': point.tomorrowShadowPostureSummary,
       'tomorrowUrgencySummary': point.tomorrowUrgencySummary,
+      'tomorrowPromotionPressureSummary':
+          point.tomorrowPromotionPressureSummary,
+      'tomorrowPromotionExecutionSummary':
+          point.tomorrowPromotionExecutionSummary,
     };
   }
 
@@ -10485,7 +10535,15 @@ class _GovernancePageState extends State<GovernancePage> {
     final shadowPostureSegment = point.tomorrowShadowPostureSummary.trim().isEmpty
         ? ''
         : ' • tomorrow shadow posture ${point.tomorrowShadowPostureSummary}';
-    return '${point.reportDate} • ${point.current ? 'CURRENT' : 'HISTORY'} • Sites ${point.totalSites} • Critical ${point.criticalSiteCount} • Elevated ${point.elevatedSiteCount} • Intents ${point.intentCount} • ${point.modeLabel} • $leadSegment$intentSegment$shadowPostureSegment$urgencySegment';
+    final promotionPressureSegment =
+        point.tomorrowPromotionPressureSummary.trim().isEmpty
+        ? ''
+        : ' • tomorrow promotion ${point.tomorrowPromotionPressureSummary}';
+    final promotionExecutionSegment =
+        point.tomorrowPromotionExecutionSummary.trim().isEmpty
+        ? ''
+        : ' • tomorrow execution ${point.tomorrowPromotionExecutionSummary}';
+    return '${point.reportDate} • ${point.current ? 'CURRENT' : 'HISTORY'} • Sites ${point.totalSites} • Critical ${point.criticalSiteCount} • Elevated ${point.elevatedSiteCount} • Intents ${point.intentCount} • ${point.modeLabel} • $leadSegment$intentSegment$shadowPostureSegment$urgencySegment$promotionPressureSegment$promotionExecutionSegment';
   }
 
   String _syntheticWarRoomHistoryCsvSummary(
@@ -11641,6 +11699,14 @@ class _GovernancePageState extends State<GovernancePage> {
         'tomorrowUrgencySummary': _globalReadinessTomorrowUrgencySummary(
           globalReadinessIntents,
         ),
+        'tomorrowPromotionPressureSummary':
+            buildTomorrowPromotionPressureSummaryForDraft(
+              draft: _firstTomorrowDraft(globalReadinessIntents),
+            ),
+        'tomorrowPromotionExecutionSummary':
+            buildTomorrowPromotionExecutionSummaryForDraft(
+              draft: _firstTomorrowDraft(globalReadinessIntents),
+            ),
         'tomorrowPostureReviewCommand': '/tomorrowreview ${report.reportDate}',
         'tomorrowPostureCaseFileCommand':
             '/tomorrowcase json ${report.reportDate}',
@@ -12043,6 +12109,8 @@ class _GovernancePageState extends State<GovernancePage> {
       'global_readiness_tomorrow_shadow_summary,"${_globalReadinessTomorrowShadowSummary(report, globalReadinessIntents).replaceAll('"', '""')}"',
       'global_readiness_tomorrow_shadow_posture_summary,"${shadowMoPostureStrengthSummaryForSites(shadowSites).replaceAll('"', '""')}"',
       'global_readiness_tomorrow_urgency_summary,"${_globalReadinessTomorrowUrgencySummary(globalReadinessIntents).replaceAll('"', '""')}"',
+      'global_readiness_tomorrow_promotion_pressure_summary,"${buildTomorrowPromotionPressureSummaryForDraft(draft: _firstTomorrowDraft(globalReadinessIntents)).replaceAll('"', '""')}"',
+      'global_readiness_tomorrow_promotion_execution_summary,"${buildTomorrowPromotionExecutionSummaryForDraft(draft: _firstTomorrowDraft(globalReadinessIntents)).replaceAll('"', '""')}"',
       'global_readiness_tomorrow_review_command,/tomorrowreview ${report.reportDate}',
       'global_readiness_tomorrow_case_file_command,/tomorrowcase json ${report.reportDate}',
       'global_readiness_shadow_summary,"${(shadowSites.isEmpty ? '' : '${shadowSites.length} sites • ${shadowSites.first.moShadowSummary}').replaceAll('"', '""')}"',

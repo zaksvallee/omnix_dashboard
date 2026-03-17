@@ -4735,6 +4735,8 @@ void main() {
     expect(copiedPayload, contains('"promotionCurrentValidationStatus": ""'));
     expect(copiedPayload, contains('"promotionShadowReviewCommand": ""'));
     expect(copiedPayload, contains('"tomorrowUrgencySummary": ""'));
+    expect(copiedPayload, contains('"tomorrowPromotionPressureSummary": ""'));
+    expect(copiedPayload, contains('"tomorrowPromotionExecutionSummary": ""'));
     expect(copiedPayload, contains('"previousTomorrowUrgencySummary": ""'));
     expect(copiedPayload, contains('"planCount": 0'));
     expect(copiedPayload, contains('"policyCount": 0'));
@@ -4874,6 +4876,14 @@ void main() {
     expect(
       copiedPayload,
       contains('global_readiness_tomorrow_urgency_summary,""'),
+    );
+    expect(
+      copiedPayload,
+      contains('global_readiness_tomorrow_promotion_pressure_summary,""'),
+    );
+    expect(
+      copiedPayload,
+      contains('global_readiness_tomorrow_promotion_execution_summary,""'),
     );
     expect(
       copiedPayload,
