@@ -143,6 +143,27 @@ List<ChatCaseFileHeaderField> buildChatReviewHeaderFields({
   ];
 }
 
+List<ChatCaseFileHeaderField> buildChatGovernanceHeaderFields({
+  required String reportDate,
+  String mode = '',
+  String summary = '',
+  String focusSummary = '',
+  String reviewCommand = '',
+  String caseFileCommand = '',
+}) {
+  return <ChatCaseFileHeaderField>[
+    ChatCaseFileHeaderField(key: 'report_date', value: reportDate),
+    ChatCaseFileHeaderField(key: 'mode', value: mode),
+    ChatCaseFileHeaderField(key: 'summary', value: summary),
+    ChatCaseFileHeaderField(key: 'focus_summary', value: focusSummary),
+    ChatCaseFileHeaderField(key: 'review_command', value: reviewCommand),
+    ChatCaseFileHeaderField(
+      key: 'case_file_command',
+      value: caseFileCommand,
+    ),
+  ];
+}
+
 String buildChatCaseFileHistoryText({
   required List<Map<String, Object?>> rows,
   required List<ChatCaseFileHistoryField> fields,

@@ -17751,14 +17751,20 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final payload = _globalReadinessCaseFilePayload(reportDate: report.date);
     final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
     _openGovernanceForReportDate(report.date);
-    return 'ONYX READINESSGOVERNANCE\n'
-        'report_date=${report.date}\n'
-        'mode=${_globalReadinessModeLabel(snapshot, intents)}\n'
-        'summary=${_globalReadinessSummaryForReport(snapshot: snapshot, intents: intents)}\n'
-        '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
-        'review_command=/readinessreview ${report.date}\n'
-        'case_file_command=/readinesscase json ${report.date}\n'
-        'Opening Governance for global readiness oversight.';
+    return '${buildChatCaseFileHeader(
+      title: 'ONYX READINESSGOVERNANCE',
+      fields: buildChatGovernanceHeaderFields(
+        reportDate: report.date,
+        mode: _globalReadinessModeLabel(snapshot, intents),
+        summary: _globalReadinessSummaryForReport(
+          snapshot: snapshot,
+          intents: intents,
+        ),
+        focusSummary: focusSummary,
+        reviewCommand: '/readinessreview ${report.date}',
+        caseFileCommand: '/readinesscase json ${report.date}',
+      ),
+    )}Opening Governance for global readiness oversight.';
   }
 
   String _telegramAdminReadinessCaseCommand(String arguments) {

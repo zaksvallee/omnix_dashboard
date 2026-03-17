@@ -140,4 +140,28 @@ void main() {
       'events=2\n',
     );
   });
+
+  test('buildChatGovernanceHeaderFields preserves order and skips empty values', () {
+    final header = buildChatCaseFileHeader(
+      title: 'ONYX READINESSGOVERNANCE',
+      fields: buildChatGovernanceHeaderFields(
+        reportDate: '2026-03-17',
+        mode: 'ELEVATED',
+        summary: 'Focus readiness tightening',
+        focusSummary: '',
+        reviewCommand: '/readinessreview 2026-03-17',
+        caseFileCommand: '/readinesscase json 2026-03-17',
+      ),
+    );
+
+    expect(
+      header,
+      'ONYX READINESSGOVERNANCE\n'
+      'report_date=2026-03-17\n'
+      'mode=ELEVATED\n'
+      'summary=Focus readiness tightening\n'
+      'review_command=/readinessreview 2026-03-17\n'
+      'case_file_command=/readinesscase json 2026-03-17\n',
+    );
+  });
 }
