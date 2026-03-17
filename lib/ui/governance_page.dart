@@ -3049,7 +3049,47 @@ class _GovernancePageState extends State<GovernancePage> {
         report,
       ),
       historicalShadowMoLabels: _shadowHistoricalLabelsForView(report),
+      shadowValidationDriftSummary:
+          _syntheticShadowValidationDriftSummaryForView(report),
     );
+  }
+
+  String _syntheticShadowValidationDriftSummaryForView(
+    _GovernanceReportView report,
+  ) {
+    final reportGeneratedAt =
+        report.generatedAtUtc ?? DateTime.fromMillisecondsSinceEpoch(0);
+    final history =
+        widget.morningSovereignReportHistory
+            .where(
+              (item) =>
+                  !(item.generatedAtUtc == report.generatedAtUtc &&
+                      item.date == report.reportDate) &&
+                  item.generatedAtUtc.isBefore(reportGeneratedAt),
+            )
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
+    return buildShadowMoValidationDriftSummary(
+      currentSites: _globalReadinessSnapshotForReport(report).sites
+          .where((site) => site.moShadowMatchCount > 0)
+          .toList(growable: false),
+      historySiteSets: history
+          .take(3)
+          .map(
+            (item) =>
+                _globalReadinessSnapshotForWindow(
+                      item.shiftWindowStartUtc,
+                      item.shiftWindowEndUtc,
+                      generatedAtUtc: item.generatedAtUtc,
+                    ).sites
+                    .where((site) => site.moShadowMatchCount > 0)
+                    .toList(growable: false),
+          )
+          .toList(growable: false),
+    ).summary;
   }
 
   MonitoringGlobalPostureSnapshot _globalReadinessSnapshotForWindow(

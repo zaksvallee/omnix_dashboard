@@ -5849,7 +5849,34 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       historicalShadowMoLabels: includeMemory
           ? _shadowHistoricalLabelsForReport(report)
           : const <String>[],
+      shadowValidationDriftSummary: includeMemory
+          ? _syntheticShadowValidationDriftSummaryForReport(report)
+          : '',
     );
+  }
+
+  String _syntheticShadowValidationDriftSummaryForReport(
+    SovereignReport report,
+  ) {
+    final history =
+        _morningSovereignReportHistory
+            .where(
+              (item) =>
+                  item.date.trim() != report.date.trim() &&
+                  item.generatedAtUtc.isBefore(report.generatedAtUtc),
+            )
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
+    return buildShadowMoValidationDriftSummary(
+      currentSites: _shadowMoSitesForReport(report),
+      historySiteSets: history
+          .take(3)
+          .map(_shadowMoSitesForReport)
+          .toList(growable: false),
+    ).summary;
   }
 
   List<String> _syntheticHistoricalLearningLabelsForReport(

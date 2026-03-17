@@ -27,6 +27,7 @@ class MonitoringSyntheticWarRoomService {
     String videoOpsLabel = 'CCTV',
     List<String> historicalLearningLabels = const <String>[],
     List<String> historicalShadowMoLabels = const <String>[],
+    String shadowValidationDriftSummary = '',
   }) {
     final snapshot = _globalPostureService.buildSnapshot(
       events: events,
@@ -173,6 +174,7 @@ class MonitoringSyntheticWarRoomService {
             .buildShadowPromotionGuidance(
               matches: leadSite.moShadowMatches,
               repeatedShadowCount: repeatedShadowCount,
+              shadowValidationDriftSummary: shadowValidationDriftSummary,
             );
         final shadowLearningLabel = _shadowLearningLabel(
           shadowLabel: shadowLabel,
@@ -246,6 +248,12 @@ class MonitoringSyntheticWarRoomService {
                     promotionGuidance.confidenceBias,
               if (promotionGuidance != null)
                 'mo_promotion_trend_bias': promotionGuidance.trendBias,
+              if (promotionGuidance != null)
+                'mo_promotion_urgency_bias': promotionGuidance.urgencyBias,
+              if (promotionGuidance != null &&
+                  promotionGuidance.validationDriftSummary.isNotEmpty)
+                'mo_promotion_validation_drift':
+                    promotionGuidance.validationDriftSummary,
               if (promotionGuidance != null)
                 'mo_promotion_summary': promotionGuidance.summary,
               'top_intent': topIntent?.actionType ?? 'NONE',

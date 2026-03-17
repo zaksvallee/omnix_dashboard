@@ -100,7 +100,64 @@ void main() {
     expect(guidance.trendBias, '+0.25');
     expect(
       guidance.summary,
-      contains('Reopen MO-1 toward validated review after repeated shadow pressure'),
+      contains(
+        'Reopen MO-1 toward validated review after repeated shadow pressure',
+      ),
+    );
+  });
+
+  test('accelerates guidance when validated drift is rising', () {
+    final guidance = service.buildShadowPromotionGuidance(
+      matches: const [
+        OnyxMoShadowMatch(
+          moId: 'MO-1',
+          title: 'Office impersonation pattern',
+          incidentType: 'access_abuse',
+          behaviorStage: 'entry',
+          validationStatus: 'shadowMode',
+          matchScore: 0.81,
+        ),
+      ],
+      repeatedShadowCount: 1,
+      shadowValidationDriftSummary:
+          'Validated 1 • Shadow mode 1 • Drift validated rising',
+    );
+
+    expect(guidance, isNotNull);
+    expect(guidance!.confidenceBias, 'HIGH');
+    expect(guidance.trendBias, '+0.20');
+    expect(guidance.urgencyBias, 'ACCELERATE');
+    expect(
+      guidance.summary,
+      contains('Accelerate MO-1 toward validated review'),
+    );
+  });
+
+  test('softens guidance when shadow-mode drift is easing', () {
+    final guidance = service.buildShadowPromotionGuidance(
+      matches: const [
+        OnyxMoShadowMatch(
+          moId: 'MO-1',
+          title: 'Office impersonation pattern',
+          incidentType: 'access_abuse',
+          behaviorStage: 'entry',
+          validationStatus: 'shadowMode',
+          matchScore: 0.81,
+        ),
+      ],
+      repeatedShadowCount: 1,
+      shadowValidationDriftSummary: 'Shadow mode 1 • Drift shadow mode easing',
+    );
+
+    expect(guidance, isNotNull);
+    expect(guidance!.confidenceBias, 'LOW');
+    expect(guidance.trendBias, '+0.04');
+    expect(guidance.urgencyBias, 'SOFTEN');
+    expect(
+      guidance.summary,
+      contains(
+        'Soften MO-1 toward validated review while shadow-mode validation drift eases',
+      ),
     );
   });
 }

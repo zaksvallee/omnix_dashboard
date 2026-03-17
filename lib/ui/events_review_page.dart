@@ -1944,6 +1944,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       return null;
     }
     final scopedReportDate = _readinessScopedReportDate(scopedEvents);
+    final shadowValidationDriftSummary = _syntheticShadowValidationDriftSummary(
+      scopedReportDate,
+    );
     final plans = _syntheticWarRoomService.buildSimulationPlans(
       events: scopedEvents,
       sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
@@ -1951,6 +1954,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         scopedReportDate,
       ),
       historicalShadowMoLabels: _shadowHistoricalLabels(scopedReportDate),
+      shadowValidationDriftSummary: shadowValidationDriftSummary,
     );
     if (plans.isEmpty) {
       return null;
@@ -2406,11 +2410,31 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             _syntheticWarRoomService.buildSimulationPlans(
               events: _eventsForReportWindow(report),
               sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+              shadowValidationDriftSummary:
+                  _syntheticShadowValidationDriftSummary(report.date),
             ),
           ),
         )
         .where((value) => value.isNotEmpty)
         .toList(growable: false);
+  }
+
+  String _syntheticShadowValidationDriftSummary(String? reportDate) {
+    final currentReport = _reportForDate(reportDate);
+    final normalizedReportDate = (reportDate ?? '').trim();
+    final reports = [...widget.morningSovereignReportHistory]
+      ..sort(
+        (left, right) =>
+            right.generatedAtUtc.toUtc().compareTo(left.generatedAtUtc.toUtc()),
+      );
+    return buildShadowMoValidationDriftSummary(
+      currentSites: _shadowMoSitesForReport(currentReport),
+      historySiteSets: reports
+          .where((report) => report.date.trim() != normalizedReportDate)
+          .take(3)
+          .map(_shadowMoSitesForReport)
+          .toList(growable: false),
+    ).summary;
   }
 
   List<String> _shadowHistoricalLabels(String? reportDate) {
@@ -2941,6 +2965,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           normalizedReportDate,
         ),
         historicalShadowMoLabels: _shadowHistoricalLabels(normalizedReportDate),
+        shadowValidationDriftSummary: _syntheticShadowValidationDriftSummary(
+          normalizedReportDate,
+        ),
       );
       final currentPolicyPlan = currentPlans.firstWhere(
         (plan) => plan.actionType == 'POLICY RECOMMENDATION',
@@ -2994,6 +3021,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           report.date,
         ),
         historicalShadowMoLabels: _shadowHistoricalLabels(report.date),
+        shadowValidationDriftSummary: _syntheticShadowValidationDriftSummary(
+          report.date,
+        ),
       );
       final policyPlan = plans.firstWhere(
         (plan) => plan.actionType == 'POLICY RECOMMENDATION',

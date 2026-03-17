@@ -310,6 +310,8 @@ void main() {
         sceneReviewByIntelligenceId: reviews,
         videoOpsLabel: 'Hikvision',
         historicalShadowMoLabels: const <String>['HARDEN ACCESS'],
+        shadowValidationDriftSummary:
+            'Validated 1 • Shadow mode 1 • Drift validated rising',
       );
 
       final policy = plans.firstWhere(
@@ -327,11 +329,18 @@ void main() {
       );
       expect(policy.metadata['mo_promotion_id'], 'MO-EXT-NEWS-OFFICE-PATTERN');
       expect(policy.metadata['mo_promotion_target'], 'validated');
-      expect(policy.metadata['mo_promotion_confidence_bias'], 'MEDIUM');
-      expect(policy.metadata['mo_promotion_trend_bias'], '+0.12');
+      expect(policy.metadata['mo_promotion_confidence_bias'], 'HIGH');
+      expect(policy.metadata['mo_promotion_trend_bias'], '+0.20');
+      expect(policy.metadata['mo_promotion_urgency_bias'], 'ACCELERATE');
+      expect(
+        policy.metadata['mo_promotion_validation_drift'],
+        'Validated 1 • Shadow mode 1 • Drift validated rising',
+      );
       expect(
         policy.metadata['mo_promotion_summary'],
-        contains('Promote MO-EXT-NEWS-OFFICE-PATTERN toward validated review'),
+        contains(
+          'Accelerate MO-EXT-NEWS-OFFICE-PATTERN toward validated review',
+        ),
       );
       expect(
         policy.metadata['shadow_memory_summary'],
@@ -464,7 +473,70 @@ void main() {
       expect(policy.metadata['mo_promotion_trend_bias'], '+0.00');
       expect(
         policy.metadata['mo_promotion_summary'],
-        contains('Hold MO-EXT-NEWS-OFFICE-PATTERN-REJECTED after operator rejection'),
+        contains(
+          'Hold MO-EXT-NEWS-OFFICE-PATTERN-REJECTED after operator rejection',
+        ),
+      );
+    });
+
+    test('softens promotion hints when shadow validation drift is easing', () {
+      final events = <DispatchEvent>[
+        _intel(
+          id: 'news-office-pattern-easing',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-SEED',
+          riskScore: 67,
+          cameraId: 'news-feed',
+          sourceType: 'news',
+          headline: 'Contractors roamed office floors before device theft',
+          summary:
+              'Suspects posed as maintenance contractors, moved floor to floor, and checked restricted office doors.',
+        ),
+        _intel(
+          id: 'intel-office-easing',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-VALLEE',
+          riskScore: 84,
+          cameraId: 'office-cam',
+          headline: 'Maintenance contractor probing office doors',
+          summary:
+              'Contractor-like person moved floor to floor and tried several restricted office doors.',
+        ),
+      ];
+      final reviews = <String, MonitoringSceneReviewRecord>{
+        'intel-office-easing': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-office-easing',
+          sourceLabel: 'openai:gpt-5.4-mini',
+          postureLabel: 'service impersonation and roaming concern',
+          decisionLabel: 'Escalation Candidate',
+          decisionSummary:
+              'Likely spoofed service access with abnormal roaming.',
+          summary:
+              'Likely maintenance impersonation moving across office zones.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 0),
+        ),
+      };
+
+      final plans = service.buildSimulationPlans(
+        events: events,
+        sceneReviewByIntelligenceId: reviews,
+        videoOpsLabel: 'Hikvision',
+        historicalShadowMoLabels: const <String>['HARDEN ACCESS'],
+        shadowValidationDriftSummary:
+            'Shadow mode 1 • Drift shadow mode easing',
+      );
+
+      final policy = plans.firstWhere(
+        (entry) => entry.actionType == 'POLICY RECOMMENDATION',
+      );
+      expect(policy.metadata['mo_promotion_confidence_bias'], 'LOW');
+      expect(policy.metadata['mo_promotion_trend_bias'], '+0.04');
+      expect(policy.metadata['mo_promotion_urgency_bias'], 'SOFTEN');
+      expect(
+        policy.metadata['mo_promotion_summary'],
+        contains(
+          'Soften MO-EXT-NEWS-OFFICE-PATTERN-EASING toward validated review while shadow-mode validation drift eases',
+        ),
       );
     });
   });
