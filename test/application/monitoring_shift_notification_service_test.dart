@@ -66,6 +66,37 @@ void main() {
     );
   });
 
+  test('formats fire incident message with emergency-specific wording', () {
+    final message = service.formatIncident(
+      site: site,
+      incident: MonitoringIncidentUpdate(
+        occurredAt: DateTime.utc(2026, 3, 13, 23, 16),
+        cameraLabel: 'Generator Room',
+        objectLabel: 'smoke',
+        postureLabel: 'fire and smoke emergency',
+      ),
+    );
+
+    expect(
+      message,
+      contains(
+        'ONYX has detected likely fire or smoke indicators on Generator Room at MS Vallee Residence.',
+      ),
+    );
+    expect(
+      message,
+      contains(
+        'A verification image has been retrieved and ONYX is validating a likely fire emergency.',
+      ),
+    );
+    expect(
+      message,
+      contains(
+        'Monitoring remains fixed on Generator Room while ONYX checks for spread or worsening smoke conditions.',
+      ),
+    );
+  });
+
   test('formats repeat-activity update with premium direct address', () {
     final message = service.formatRepeatActivity(
       site: site,
@@ -182,6 +213,44 @@ void main() {
       message,
       contains(
         'No dispatch action has been initiated yet. ONYX has elevated this event for urgent review.',
+      ),
+    );
+  });
+
+  test('formats leak escalation update with emergency-specific wording', () {
+    final message = service.formatEscalationCandidate(
+      site: site,
+      incident: MonitoringIncidentUpdate(
+        occurredAt: DateTime.utc(2026, 3, 13, 23, 25),
+        cameraLabel: 'Stock Room',
+        objectLabel: 'leak',
+        postureLabel: 'flood or leak emergency',
+      ),
+    );
+
+    expect(message, contains('Muhammed,'));
+    expect(
+      message,
+      contains(
+        'ONYX has identified a likely flood or leak emergency on Stock Room at MS Vallee Residence.',
+      ),
+    );
+    expect(
+      message,
+      contains(
+        'A verification image has been retrieved and ONYX is validating a likely water-loss emergency.',
+      ),
+    );
+    expect(
+      message,
+      contains(
+        'No dispatch action has been initiated yet. ONYX has elevated this event for urgent flood or leak review.',
+      ),
+    );
+    expect(
+      message,
+      contains(
+        'Monitoring remains fixed on Stock Room while ONYX checks for spread, pooling, or worsening water loss.',
       ),
     );
   });

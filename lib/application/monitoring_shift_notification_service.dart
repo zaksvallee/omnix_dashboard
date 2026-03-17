@@ -93,22 +93,28 @@ class MonitoringShiftNotificationService {
     required MonitoringSiteProfile site,
     required MonitoringIncidentUpdate incident,
   }) {
-    final objectLabel = incident.objectLabel.trim().isEmpty
-        ? 'movement'
-        : '${incident.objectLabel.trim()} movement';
-    final dispatchLine = incident.dispatchInitiated
-        ? 'A response deployment has been initiated.'
-        : 'No dispatch action has been initiated at this stage.';
+    final incidentLead = _incidentLeadLine(incident);
+    final verificationLine = _verificationLine(incident);
+    final dispatchLine = _dispatchLine(
+      incident,
+      initiatedLine: 'A response deployment has been initiated.',
+      defaultPendingLine: 'No dispatch action has been initiated at this stage.',
+    );
+    final monitoringLine = _monitoringLine(
+      incident,
+      defaultLine:
+          'Monitoring remains focused on ${incident.cameraLabel} for any repeat or escalating activity.',
+    );
     return _compose(
       header: '🛡️ ONYX Control',
       context: '${site.siteName} | ${_timeLabel(incident.occurredAt)}',
       lines: [
         _greeting(site, fallbackPeriod: 'evening'),
-        'ONYX has detected $objectLabel on ${incident.cameraLabel} at ${site.siteName}.',
-        'A verification image has been retrieved and submitted for AI-assisted review.',
+        '$incidentLead at ${site.siteName}.',
+        verificationLine,
         'The event is currently being managed as a ${incident.postureLabel}.',
         dispatchLine,
-        'Monitoring remains focused on ${incident.cameraLabel} for any repeat or escalating activity.',
+        monitoringLine,
         'We will update you immediately should the situation change.',
       ],
     );
@@ -140,22 +146,36 @@ class MonitoringShiftNotificationService {
     required MonitoringSiteProfile site,
     required MonitoringIncidentUpdate incident,
   }) {
-    final objectLabel = incident.objectLabel.trim().isEmpty
-        ? 'activity'
-        : '${incident.objectLabel.trim()} activity';
-    final dispatchLine = incident.dispatchInitiated
-        ? 'A response deployment has been initiated while ONYX maintains focused observation on the affected camera.'
-        : 'No dispatch action has been initiated yet. ONYX has elevated this event for urgent review.';
+    final incidentLead = _incidentEscalationLeadLine(incident);
+    final verificationLine = _verificationLine(incident);
+    final dispatchLine = _dispatchLine(
+      incident,
+      initiatedLine:
+          'A response deployment has been initiated while ONYX maintains focused observation on the affected camera.',
+      defaultPendingLine:
+          _isFireEmergency(incident)
+              ? 'No dispatch action has been initiated yet. ONYX has elevated this event for urgent fire review.'
+              : _isLeakEmergency(incident)
+              ? 'No dispatch action has been initiated yet. ONYX has elevated this event for urgent flood or leak review.'
+              : _isEnvironmentHazard(incident)
+              ? 'No dispatch action has been initiated yet. ONYX has elevated this event for urgent hazard review.'
+              : 'No dispatch action has been initiated yet. ONYX has elevated this event for urgent review.',
+    );
+    final monitoringLine = _monitoringLine(
+      incident,
+      defaultLine:
+          'Monitoring remains fixed on ${incident.cameraLabel} while ONYX continues urgent assessment.',
+    );
     return _compose(
       header: '🛡️ ONYX Control',
       context: '${site.siteName} | ${_timeLabel(incident.occurredAt)}',
       lines: [
         _directAddress(site),
-        'ONYX has identified elevated $objectLabel on ${incident.cameraLabel} at ${site.siteName}.',
-        'A verification image has been retrieved and submitted for AI-assisted review.',
+        '$incidentLead at ${site.siteName}.',
+        verificationLine,
         'Current posture: ${incident.postureLabel}.',
         dispatchLine,
-        'Monitoring remains fixed on ${incident.cameraLabel} while ONYX continues urgent assessment.',
+        monitoringLine,
         'A further update will follow immediately if the posture changes.',
       ],
     );
@@ -259,6 +279,102 @@ class MonitoringShiftNotificationService {
       return 'Good $fallbackPeriod.';
     }
     return 'Good $fallbackPeriod, $name.';
+  }
+
+  bool _isFireEmergency(MonitoringIncidentUpdate incident) {
+    final posture = incident.postureLabel.trim().toLowerCase();
+    final object = incident.objectLabel.trim().toLowerCase();
+    return posture.contains('fire') ||
+        posture.contains('smoke') ||
+        object == 'fire' ||
+        object == 'smoke';
+  }
+
+  bool _isLeakEmergency(MonitoringIncidentUpdate incident) {
+    final posture = incident.postureLabel.trim().toLowerCase();
+    final object = incident.objectLabel.trim().toLowerCase();
+    return posture.contains('flood') ||
+        posture.contains('leak') ||
+        object == 'water' ||
+        object == 'leak';
+  }
+
+  bool _isEnvironmentHazard(MonitoringIncidentUpdate incident) {
+    final posture = incident.postureLabel.trim().toLowerCase();
+    final object = incident.objectLabel.trim().toLowerCase();
+    return posture.contains('hazard') || object == 'equipment';
+  }
+
+  String _incidentLeadLine(MonitoringIncidentUpdate incident) {
+    if (_isFireEmergency(incident)) {
+      return 'ONYX has detected likely fire or smoke indicators on ${incident.cameraLabel}';
+    }
+    if (_isLeakEmergency(incident)) {
+      return 'ONYX has detected likely water leak or flooding indicators on ${incident.cameraLabel}';
+    }
+    if (_isEnvironmentHazard(incident)) {
+      return 'ONYX has detected likely environmental hazard indicators on ${incident.cameraLabel}';
+    }
+    final objectLabel = incident.objectLabel.trim().isEmpty
+        ? 'movement'
+        : '${incident.objectLabel.trim()} movement';
+    return 'ONYX has detected $objectLabel on ${incident.cameraLabel}';
+  }
+
+  String _incidentEscalationLeadLine(MonitoringIncidentUpdate incident) {
+    if (_isFireEmergency(incident)) {
+      return 'ONYX has identified a likely fire or smoke emergency on ${incident.cameraLabel}';
+    }
+    if (_isLeakEmergency(incident)) {
+      return 'ONYX has identified a likely flood or leak emergency on ${incident.cameraLabel}';
+    }
+    if (_isEnvironmentHazard(incident)) {
+      return 'ONYX has identified an elevated environmental hazard on ${incident.cameraLabel}';
+    }
+    final objectLabel = incident.objectLabel.trim().isEmpty
+        ? 'activity'
+        : '${incident.objectLabel.trim()} activity';
+    return 'ONYX has identified elevated $objectLabel on ${incident.cameraLabel}';
+  }
+
+  String _verificationLine(MonitoringIncidentUpdate incident) {
+    if (_isFireEmergency(incident)) {
+      return 'A verification image has been retrieved and ONYX is validating a likely fire emergency.';
+    }
+    if (_isLeakEmergency(incident)) {
+      return 'A verification image has been retrieved and ONYX is validating a likely water-loss emergency.';
+    }
+    if (_isEnvironmentHazard(incident)) {
+      return 'A verification image has been retrieved and ONYX is validating a likely environmental hazard.';
+    }
+    return 'A verification image has been retrieved and submitted for AI-assisted review.';
+  }
+
+  String _dispatchLine(
+    MonitoringIncidentUpdate incident, {
+    required String initiatedLine,
+    required String defaultPendingLine,
+  }) {
+    if (incident.dispatchInitiated) {
+      return initiatedLine;
+    }
+    return defaultPendingLine;
+  }
+
+  String _monitoringLine(
+    MonitoringIncidentUpdate incident, {
+    required String defaultLine,
+  }) {
+    if (_isFireEmergency(incident)) {
+      return 'Monitoring remains fixed on ${incident.cameraLabel} while ONYX checks for spread or worsening smoke conditions.';
+    }
+    if (_isLeakEmergency(incident)) {
+      return 'Monitoring remains fixed on ${incident.cameraLabel} while ONYX checks for spread, pooling, or worsening water loss.';
+    }
+    if (_isEnvironmentHazard(incident)) {
+      return 'Monitoring remains fixed on ${incident.cameraLabel} while ONYX checks for worsening hazard conditions.';
+    }
+    return defaultLine;
   }
 
   String _directAddress(MonitoringSiteProfile site) {
