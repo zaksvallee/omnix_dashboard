@@ -5372,7 +5372,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       globalReadinessTomorrowPostureSummary:
           _globalReadinessTomorrowPostureSummary(readinessIntents),
       globalReadinessTomorrowShadowSummary:
-          _globalReadinessTomorrowShadowSummary(readinessIntents),
+          _globalReadinessTomorrowShadowSummary(report, readinessIntents),
       globalReadinessShadowSummary: (shadowMoCaseFile['summary'] ?? '')
           .toString(),
       globalReadinessShadowStatusSummary:
@@ -6048,7 +6048,19 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return _singleLine(parts.join(' • '), maxLength: 220);
   }
 
+  String _shadowMoStrengthHandoffSummaryForReport(SovereignReport report) {
+    return buildShadowMoStrengthDriftSummary(
+      currentSites: _shadowMoSitesForReport(report),
+      historySiteSets: _governanceHistoryForFocusedReport(report)
+          .where((item) => item.date.trim() != report.date.trim())
+          .take(3)
+          .map(_shadowMoSitesForReport)
+          .toList(growable: false),
+    ).handoffSummary;
+  }
+
   String _globalReadinessTomorrowShadowSummary(
+    SovereignReport report,
     List<MonitoringWatchAutonomyActionPlan> intents,
   ) {
     final draft = intents.firstWhere(
@@ -6072,11 +6084,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final shadowLabel = (draft.metadata['shadow_mo_label'] ?? '').trim();
     final shadowTitle = (draft.metadata['shadow_mo_title'] ?? '').trim();
     final repeatCount = (draft.metadata['shadow_mo_repeat_count'] ?? '').trim();
+    final strengthHandoff = _shadowMoStrengthHandoffSummaryForReport(report);
     final parts = <String>[
       if (shadowLabel.isNotEmpty) shadowLabel,
       if (leadSite.isNotEmpty) leadSite,
       if (shadowTitle.isNotEmpty) shadowTitle,
       if (repeatCount.isNotEmpty) 'x$repeatCount',
+      if (strengthHandoff.isNotEmpty) strengthHandoff,
     ];
     return _singleLine(parts.join(' • '), maxLength: 220);
   }
@@ -6111,7 +6125,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           return <String, Object?>{
             'reportDate': item.date,
             'summary': _globalReadinessTomorrowPostureSummary(itemDrafts),
-            'shadowSummary': _globalReadinessTomorrowShadowSummary(itemDrafts),
+            'shadowSummary': _globalReadinessTomorrowShadowSummary(
+              item,
+              itemDrafts,
+            ),
             'draftCount': itemDrafts.length,
             ...buildReviewCommandPair(
               reportDate: item.date,
@@ -6127,7 +6144,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'generatedAtUtc': report.generatedAtUtc.toIso8601String(),
       'focusSummary': _readinessFocusSummary(report.date),
       'summary': _globalReadinessTomorrowPostureSummary(drafts),
-      'shadowSummary': _globalReadinessTomorrowShadowSummary(drafts),
+      'shadowSummary': _globalReadinessTomorrowShadowSummary(report, drafts),
       'draftCount': drafts.length,
       'eventIds': readinessEvidence['eventIds'] ?? const <Object?>[],
       'reviewRefs': readinessEvidence['reviewRefs'] ?? const <Object?>[],

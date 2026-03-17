@@ -3,8 +3,12 @@ import 'monitoring_global_posture_service.dart';
 
 class ShadowMoStrengthDriftSummary {
   final String summary;
+  final String handoffSummary;
 
-  const ShadowMoStrengthDriftSummary({required this.summary});
+  const ShadowMoStrengthDriftSummary({
+    required this.summary,
+    this.handoffSummary = '',
+  });
 }
 
 List<MonitoringGlobalSitePosture> sortShadowMoSites(
@@ -134,7 +138,7 @@ ShadowMoStrengthDriftSummary buildShadowMoStrengthDriftSummary({
 }) {
   final currentStrength = _leadStrengthScore(currentSites);
   if (currentStrength <= 0) {
-    return const ShadowMoStrengthDriftSummary(summary: '');
+    return const ShadowMoStrengthDriftSummary(summary: '', handoffSummary: '');
   }
   final baselines = historySiteSets
       .map(_leadStrengthScore)
@@ -145,18 +149,26 @@ ShadowMoStrengthDriftSummary buildShadowMoStrengthDriftSummary({
     return ShadowMoStrengthDriftSummary(
       summary:
           'Current strength ${currentStrength.toStringAsFixed(2)} • Baseline n/a • No prior shadow-MO strength history is available yet.',
+      handoffSummary: 'strength new',
     );
   }
   final baselineAverage =
       baselines.reduce((left, right) => left + right) / baselines.length;
-  final reason = currentStrength > baselineAverage + 0.04
+  final isRising = currentStrength > baselineAverage + 0.04;
+  final isEasing = currentStrength < baselineAverage - 0.04;
+  final reason = isRising
       ? 'Shadow-MO runtime strength is increasing against recent shifts.'
-      : currentStrength < baselineAverage - 0.04
+      : isEasing
       ? 'Shadow-MO runtime strength eased against recent shifts.'
       : 'Shadow-MO runtime strength is holding close to the recent baseline.';
   return ShadowMoStrengthDriftSummary(
     summary:
         'Current strength ${currentStrength.toStringAsFixed(2)} • Baseline ${baselineAverage.toStringAsFixed(2)} • $reason',
+    handoffSummary: isRising
+        ? 'strength rising'
+        : isEasing
+        ? 'strength easing'
+        : 'strength stable',
   );
 }
 

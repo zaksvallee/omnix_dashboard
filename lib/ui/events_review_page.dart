@@ -1965,7 +1965,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           .toString()
           .trim(),
       learningMemorySummary: _tomorrowPostureLearningMemorySummary(leadDraft),
-      shadowSummary: _tomorrowPostureShadowSummary(leadDraft),
+      shadowSummary: _tomorrowPostureShadowSummary(report, leadDraft),
       hazardSummary: _tomorrowPostureHazardSummary(leadDraft),
       reviewRefs: reviewRefs,
       history: _tomorrowPostureHistorySummary(report),
@@ -2788,7 +2788,27 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return 'Memory: $learningLabel repeated across ${repeatCount + 1} linked shifts.';
   }
 
+  String _tomorrowPostureShadowStrengthHandoffSummary(SovereignReport report) {
+    final historyReports =
+        widget.morningSovereignReportHistory
+            .where((item) => item.date.trim() != report.date.trim())
+            .toList(growable: false)
+          ..sort(
+            (left, right) => right.generatedAtUtc.toUtc().compareTo(
+              left.generatedAtUtc.toUtc(),
+            ),
+          );
+    return buildShadowMoStrengthDriftSummary(
+      currentSites: _shadowMoSitesForReport(report),
+      historySiteSets: historyReports
+          .take(3)
+          .map(_shadowMoSitesForReport)
+          .toList(growable: false),
+    ).handoffSummary;
+  }
+
   String _tomorrowPostureShadowSummary(
+    SovereignReport report,
     MonitoringWatchAutonomyActionPlan draft,
   ) {
     final shadowLabel = (draft.metadata['shadow_mo_label'] ?? '')
@@ -2806,11 +2826,15 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     final repeatCount = (draft.metadata['shadow_mo_repeat_count'] ?? '')
         .toString()
         .trim();
+    final strengthHandoff = _tomorrowPostureShadowStrengthHandoffSummary(
+      report,
+    );
     final parts = <String>[
       shadowLabel,
       if (leadSite.isNotEmpty) leadSite,
       if (shadowTitle.isNotEmpty) shadowTitle,
       if (repeatCount.isNotEmpty) 'x$repeatCount',
+      if (strengthHandoff.isNotEmpty) strengthHandoff,
     ];
     return parts.join(' • ');
   }
@@ -3189,7 +3213,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             : _tomorrowPostureSummary(currentDrafts),
         shadowSummary: currentDrafts.isEmpty
             ? ''
-            : _tomorrowPostureShadowSummary(currentDrafts.first),
+            : _tomorrowPostureShadowSummary(currentReport, currentDrafts.first),
       ),
       ...historyReports.take(2).map((item) {
         final drafts = _tomorrowPostureDraftsForReport(item);
@@ -3201,7 +3225,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               : _tomorrowPostureSummary(drafts),
           shadowSummary: drafts.isEmpty
               ? ''
-              : _tomorrowPostureShadowSummary(drafts.first),
+              : _tomorrowPostureShadowSummary(item, drafts.first),
         );
       }),
     ];

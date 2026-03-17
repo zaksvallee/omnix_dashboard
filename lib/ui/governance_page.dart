@@ -2854,6 +2854,7 @@ class _GovernancePageState extends State<GovernancePage> {
         value:
             '${globalPosture.criticalSiteCount} critical • ${globalIntents.length} intents',
         detail: _globalReadinessMetricDetail(
+          report: report,
           snapshot: globalPosture,
           intents: globalIntents,
         ),
@@ -3356,6 +3357,7 @@ class _GovernancePageState extends State<GovernancePage> {
   }
 
   String _globalReadinessMetricDetail({
+    required _GovernanceReportView report,
     required MonitoringGlobalPostureSnapshot snapshot,
     required List<MonitoringWatchAutonomyActionPlan> intents,
   }) {
@@ -3372,6 +3374,7 @@ class _GovernancePageState extends State<GovernancePage> {
         : ' • shadow ${leadSite.moShadowSummary.trim()}';
     final tomorrowSegment = _globalReadinessTomorrowPostureSummary(intents);
     final tomorrowShadowSegment = _globalReadinessTomorrowShadowSummary(
+      report,
       intents,
     );
     final regionSegment = leadRegion == null
@@ -3430,7 +3433,50 @@ class _GovernancePageState extends State<GovernancePage> {
     return parts.join(' • ');
   }
 
+  String _shadowMoStrengthHandoffSummaryForReport(
+    _GovernanceReportView report,
+  ) {
+    final reportGeneratedAtUtc =
+        report.generatedAtUtc ?? DateTime.now().toUtc();
+    final baselineReports =
+        widget.morningSovereignReportHistory
+            .where(
+              (item) =>
+                  item.date.trim() != report.reportDate.trim() &&
+                  item.generatedAtUtc.isBefore(reportGeneratedAtUtc),
+            )
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
+    return buildShadowMoStrengthDriftSummary(
+      currentSites:
+          _globalReadinessSnapshotForWindow(
+                report.shiftWindowStartUtc,
+                report.shiftWindowEndUtc,
+                generatedAtUtc: report.generatedAtUtc,
+              ).sites
+              .where((site) => site.moShadowMatchCount > 0)
+              .toList(growable: false),
+      historySiteSets: baselineReports
+          .take(3)
+          .map(
+            (item) =>
+                _globalReadinessSnapshotForWindow(
+                      item.shiftWindowStartUtc,
+                      item.shiftWindowEndUtc,
+                      generatedAtUtc: item.generatedAtUtc,
+                    ).sites
+                    .where((site) => site.moShadowMatchCount > 0)
+                    .toList(growable: false),
+          )
+          .toList(growable: false),
+    ).handoffSummary;
+  }
+
   String _globalReadinessTomorrowShadowSummary(
+    _GovernanceReportView report,
     List<MonitoringWatchAutonomyActionPlan> intents,
   ) {
     final draft = intents.firstWhere(
@@ -3454,11 +3500,13 @@ class _GovernancePageState extends State<GovernancePage> {
     final shadowLabel = (draft.metadata['shadow_mo_label'] ?? '').trim();
     final shadowTitle = (draft.metadata['shadow_mo_title'] ?? '').trim();
     final repeatCount = (draft.metadata['shadow_mo_repeat_count'] ?? '').trim();
+    final strengthHandoff = _shadowMoStrengthHandoffSummaryForReport(report);
     final parts = <String>[
       if (shadowLabel.isNotEmpty) shadowLabel,
       if (leadSite.isNotEmpty) leadSite,
       if (shadowTitle.isNotEmpty) shadowTitle,
       if (repeatCount.isNotEmpty) 'x$repeatCount',
+      if (strengthHandoff.isNotEmpty) strengthHandoff,
     ];
     return parts.join(' • ');
   }
@@ -11192,6 +11240,7 @@ class _GovernancePageState extends State<GovernancePage> {
           globalReadinessIntents,
         ),
         'tomorrowShadowSummary': _globalReadinessTomorrowShadowSummary(
+          report,
           globalReadinessIntents,
         ),
         'tomorrowPostureReviewCommand': '/tomorrowreview ${report.reportDate}',
@@ -11532,7 +11581,7 @@ class _GovernancePageState extends State<GovernancePage> {
       'global_readiness_next_shift_draft_count,${_globalReadinessNextShiftDraftCount(globalReadinessIntents)}',
       'global_readiness_shadow_bias_summary,"${_globalReadinessShadowBiasSummary(globalReadinessIntents).replaceAll('"', '""')}"',
       'global_readiness_tomorrow_posture_summary,"${_globalReadinessTomorrowPostureSummary(globalReadinessIntents).replaceAll('"', '""')}"',
-      'global_readiness_tomorrow_shadow_summary,"${_globalReadinessTomorrowShadowSummary(globalReadinessIntents).replaceAll('"', '""')}"',
+      'global_readiness_tomorrow_shadow_summary,"${_globalReadinessTomorrowShadowSummary(report, globalReadinessIntents).replaceAll('"', '""')}"',
       'global_readiness_tomorrow_review_command,/tomorrowreview ${report.reportDate}',
       'global_readiness_tomorrow_case_file_command,/tomorrowcase json ${report.reportDate}',
       'global_readiness_shadow_summary,"${(shadowSites.isEmpty ? '' : '${shadowSites.length} sites • ${shadowSites.first.moShadowSummary}').replaceAll('"', '""')}"',

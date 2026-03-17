@@ -274,6 +274,7 @@ void main() {
         summary.summary,
         'Current strength 0.91 • Baseline 0.70 • Shadow-MO runtime strength is increasing against recent shifts.',
       );
+      expect(summary.handoffSummary, 'strength rising');
     },
   );
 }
