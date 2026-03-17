@@ -1614,6 +1614,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Governance Preview Dock'), findsOneWidget);
+      expect(find.text('Preview Governance PDF'), findsOneWidget);
+      expect(find.text('Export Governance Receipts'), findsOneWidget);
       expect(find.text('Open Governance Preview'), findsWidgets);
       expect(find.text('Copy Governance Receipt'), findsWidgets);
       expect(find.text('Clear Governance Target'), findsWidgets);
@@ -1621,6 +1623,8 @@ void main() {
       expect(find.text('Copy Governance Receipt'), findsWidgets);
       expect(find.text('Copy Receipt'), findsNothing);
       expect(find.text('Open Full Preview'), findsNothing);
+      expect(find.text('Preview Report'), findsNothing);
+      expect(find.text('Export All'), findsNothing);
 
       final exportAllButton = find.byKey(
         const ValueKey('report-harness-export-all-button'),

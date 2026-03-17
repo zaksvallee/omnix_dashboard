@@ -301,7 +301,9 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
                     style: _headerPrimaryButtonStyle(),
                     icon: const Icon(Icons.picture_as_pdf_rounded),
                     label: Text(
-                      _isGenerating ? 'Generating...' : 'Preview Report',
+                      _isGenerating
+                          ? 'Generating...'
+                          : _previewReportActionLabel,
                       style: GoogleFonts.inter(fontWeight: FontWeight.w700),
                     ),
                   ),
@@ -328,7 +330,7 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
                     style: _headerSecondaryButtonStyle(),
                     icon: const Icon(Icons.copy_all_rounded),
                     label: Text(
-                      'Export All',
+                      _exportAllActionLabel,
                       style: GoogleFonts.inter(fontWeight: FontWeight.w700),
                     ),
                   ),
@@ -1416,6 +1418,14 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
 
   bool get _isGovernanceEntryContext =>
       _entryContext == ReportEntryContext.governanceBrandingDrift;
+
+  String get _previewReportActionLabel => _isGovernanceEntryContext
+      ? 'Preview Governance PDF'
+      : 'Preview Report';
+
+  String get _exportAllActionLabel => _isGovernanceEntryContext
+      ? 'Export Governance Receipts'
+      : 'Export All';
 
   String get _copyReceiptActionLabel => _isGovernanceEntryContext
       ? 'Copy Governance Receipt'
