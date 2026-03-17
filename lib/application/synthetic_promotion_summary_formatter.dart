@@ -88,6 +88,28 @@ String buildSyntheticPromotionDecisionSummary({
   return '$normalizedBase • ${contextParts.join(' • ')}';
 }
 
+String buildSyntheticPromotionDecisionSummaryFromPlans({
+  required List<MonitoringWatchAutonomyActionPlan> plans,
+  required String Function(String moId, String targetValidationStatus)
+  decisionSummaryLookup,
+  String shadowTomorrowUrgencySummary = '',
+  String previousShadowTomorrowUrgencySummary = '',
+  String shadowPostureBiasSummary = '',
+}) {
+  final moId = _firstSyntheticPlanMetadata(plans, 'mo_promotion_id');
+  final targetStatus = _firstSyntheticPlanMetadata(plans, 'mo_promotion_target');
+  if (moId.isEmpty || targetStatus.isEmpty) {
+    return '';
+  }
+  return buildSyntheticPromotionDecisionSummary(
+    baseSummary: decisionSummaryLookup(moId, targetStatus),
+    shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
+    previousShadowTomorrowUrgencySummary:
+        previousShadowTomorrowUrgencySummary,
+    shadowPostureBiasSummary: shadowPostureBiasSummary,
+  );
+}
+
 String buildSyntheticPromotionPressureSummary({
   String shadowTomorrowUrgencySummary = '',
   String previousShadowTomorrowUrgencySummary = '',

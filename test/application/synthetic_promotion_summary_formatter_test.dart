@@ -117,5 +117,33 @@ void main() {
         'Promote MO-1 • posture POSTURE SURGE • critical • 28s',
       );
     });
+
+    test('buildSyntheticPromotionDecisionSummaryFromPlans reads decision state via lookup', () {
+      final plans = <MonitoringWatchAutonomyActionPlan>[
+        const MonitoringWatchAutonomyActionPlan(
+          id: 'SIM-1',
+          incidentId: 'SITE-1',
+          siteId: 'SITE-1',
+          priority: MonitoringWatchAutonomyPriority.high,
+          actionType: 'POLICY RECOMMENDATION',
+          description: 'desc',
+          countdownSeconds: 22,
+          metadata: <String, String>{
+            'mo_promotion_id': 'MO-1',
+            'mo_promotion_target': 'validated',
+          },
+        ),
+      ];
+
+      expect(
+        buildSyntheticPromotionDecisionSummaryFromPlans(
+          plans: plans,
+          decisionSummaryLookup: (moId, targetStatus) =>
+              'Accepted $moId toward $targetStatus review.',
+          shadowTomorrowUrgencySummary: 'strength rising • critical • 22s',
+        ),
+        'Accepted MO-1 toward validated review. • under strength rising • critical • 22s pressure',
+      );
+    });
   });
 }

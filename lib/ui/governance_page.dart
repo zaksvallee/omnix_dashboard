@@ -4816,17 +4816,13 @@ class _GovernancePageState extends State<GovernancePage> {
     String previousShadowTomorrowUrgencySummary = '',
     String shadowPostureBiasSummary = '',
   }) {
-    final moId = _syntheticWarRoomPromotionId(plans);
-    final targetStatus = _syntheticWarRoomPromotionTargetStatus(plans);
-    if (moId.isEmpty || targetStatus.isEmpty) {
-      return '';
-    }
-    final baseSummary = _moPromotionDecisionStore.decisionSummaryFor(
-      moId: moId,
-      targetValidationStatus: targetStatus,
-    );
-    return buildSyntheticPromotionDecisionSummary(
-      baseSummary: baseSummary,
+    return buildSyntheticPromotionDecisionSummaryFromPlans(
+      plans: plans,
+      decisionSummaryLookup: (moId, targetStatus) =>
+          _moPromotionDecisionStore.decisionSummaryFor(
+            moId: moId,
+            targetValidationStatus: targetStatus,
+          ),
       shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
       previousShadowTomorrowUrgencySummary:
           previousShadowTomorrowUrgencySummary,
