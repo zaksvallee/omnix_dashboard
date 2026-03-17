@@ -199,12 +199,17 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
               replayVerified: focusedReceipt.replayMatched,
               sceneReviewSummary: focusedReceipt.sceneReviewSummary,
             ),
+      entryContext: _entryContext,
     );
     final encoded = const JsonEncoder.withIndent('  ').convert(payload);
     Clipboard.setData(ClipboardData(text: encoded));
-    _showHarnessFeedback(
-      'Exported ${rows.length} receipt records to clipboard.',
-    );
+    if (_isGovernanceEntryContext) {
+      _showHarnessFeedback(
+        'Governance receipt export copied for ${rows.length} receipt records.',
+      );
+      return;
+    }
+    _showHarnessFeedback('Exported ${rows.length} receipt records to clipboard.');
   }
 
   void _showHarnessFeedback(String message) {
@@ -228,10 +233,15 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
       filter: _receiptFilter,
       selectedReceiptEventId: _selectedReceiptEventId,
       previewReceiptEventId: _previewReceiptEventId,
+      entryContext: _entryContext,
     );
     final encoded = const JsonEncoder.withIndent('  ').convert(payload);
     Clipboard.setData(ClipboardData(text: encoded));
-    _showHarnessFeedback('Receipt export copied for ${row.event.eventId}.');
+    _showHarnessFeedback(
+      _isGovernanceEntryContext
+          ? 'Governance receipt export copied for ${row.event.eventId}.'
+          : 'Receipt export copied for ${row.event.eventId}.',
+    );
   }
 
   @override
@@ -1400,6 +1410,9 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
   ReportPreviewSurface get _previewSurface => _shellBinding.previewSurface;
 
   ReportEntryContext? get _entryContext => _shellBinding.entryContext;
+
+  bool get _isGovernanceEntryContext =>
+      _entryContext == ReportEntryContext.governanceBrandingDrift;
 
   String _short(String v) => v.length <= 16 ? v : '${v.substring(0, 16)}...';
 

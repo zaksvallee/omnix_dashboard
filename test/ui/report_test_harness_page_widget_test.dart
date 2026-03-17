@@ -1567,6 +1567,24 @@ void main() {
   testWidgets(
     'report test harness governance preview surfaces use governance wording',
     (tester) async {
+      String? clipboardText;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final args = call.arguments as Map<dynamic, dynamic>;
+            clipboardText = args['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+
       final store = InMemoryEventStore();
       store.append(
         buildTestReportGenerated(
@@ -1601,6 +1619,36 @@ void main() {
       expect(find.text('Clear Governance Target'), findsWidgets);
       expect(find.text('Open Governance Preview'), findsWidgets);
       expect(find.text('Copy Governance Receipt'), findsWidgets);
+
+      final exportAllButton = find.byKey(
+        const ValueKey('report-harness-export-all-button'),
+      );
+      await tester.ensureVisible(exportAllButton);
+      await tester.tap(exportAllButton);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining(
+          'Governance receipt export copied for 1 receipt records.',
+        ),
+        findsWidgets,
+      );
+      expect(clipboardText, contains('"exportModeLabel": "GOVERNANCE HANDOFF"'));
+      expect(clipboardText, contains('"entryContext"'));
+
+      final dockCopy = find.byKey(
+        const ValueKey('report-harness-preview-dock-copy'),
+      );
+      await tester.ensureVisible(dockCopy);
+      await tester.tap(dockCopy);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining(
+          'Governance receipt export copied for RPT-HARNESS-GOV-1.',
+        ),
+        findsWidgets,
+      );
     },
   );
 
