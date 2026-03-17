@@ -17672,26 +17672,55 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final previousCaseFileCommand = (payload['previousCaseFileCommand'] ?? '')
         .toString()
         .trim();
+    final historyRows =
+        ((payload['history'] as List<Object?>?) ?? const <Object?>[])
+            .cast<Map<String, Object?>>();
+    final historyText = historyRows.asMap().entries.map((entry) {
+      final index = entry.key + 1;
+      final row = entry.value;
+      final buffer = StringBuffer();
+      final rowReportDate = (row['reportDate'] ?? '').toString().trim();
+      final matchCount = (row['matchCount'] ?? '').toString().trim();
+      final summary = (row['summary'] ?? '').toString().trim();
+      final reviewCommand = (row['reviewCommand'] ?? '').toString().trim();
+      final caseFileCommand = (row['caseFileCommand'] ?? '').toString().trim();
+      if (rowReportDate.isNotEmpty) {
+        buffer.write('history_${index}_report_date=$rowReportDate\n');
+      }
+      if (matchCount.isNotEmpty) {
+        buffer.write('history_${index}_match_count=$matchCount\n');
+      }
+      if (summary.isNotEmpty) {
+        buffer.write('history_${index}_summary=$summary\n');
+      }
+      if (reviewCommand.isNotEmpty) {
+        buffer.write('history_${index}_review_command=$reviewCommand\n');
+      }
+      if (caseFileCommand.isNotEmpty) {
+        buffer.write('history_${index}_case_file_command=$caseFileCommand\n');
+      }
+      return buffer.toString();
+    }).join();
     if (format == 'csv') {
-      return 'ONYX SHADOWCASE CSV\n'
+      final header = 'ONYX SHADOWCASE CSV\n'
           'report_date=${report.date}\n'
           '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
           '${historyHeadline.isEmpty ? '' : 'history_headline=$historyHeadline\n'}'
           '${historySummary.isEmpty ? '' : 'history_summary=$historySummary\n'}'
           'review_command=/shadowreview ${report.date}\n'
           '${previousReviewCommand.isEmpty ? '' : 'previous_review_command=$previousReviewCommand\n'}'
-          '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}'
-          '${_shadowMoCaseFileCsv(reportDate: report.date)}';
+          '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}';
+      return '$header$historyText${_shadowMoCaseFileCsv(reportDate: report.date)}';
     }
-    return 'ONYX SHADOWCASE JSON\n'
+    final header = 'ONYX SHADOWCASE JSON\n'
         'report_date=${report.date}\n'
         '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
         '${historyHeadline.isEmpty ? '' : 'history_headline=$historyHeadline\n'}'
         '${historySummary.isEmpty ? '' : 'history_summary=$historySummary\n'}'
         'review_command=/shadowreview ${report.date}\n'
         '${previousReviewCommand.isEmpty ? '' : 'previous_review_command=$previousReviewCommand\n'}'
-        '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}'
-        '${const JsonEncoder.withIndent('  ').convert(payload)}';
+        '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}';
+    return '$header$historyText${const JsonEncoder.withIndent('  ').convert(payload)}';
   }
 
   String _telegramAdminTomorrowReviewCommand(String arguments) {
@@ -17774,20 +17803,53 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final payload = _tomorrowPostureCaseFilePayload(reportDate: report.date);
     final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
     final shadowSummary = (payload['shadowSummary'] ?? '').toString().trim();
+    final historyRows =
+        ((payload['history'] as List<Object?>?) ?? const <Object?>[])
+            .cast<Map<String, Object?>>();
+    final historyText = historyRows.asMap().entries.map((entry) {
+      final index = entry.key + 1;
+      final row = entry.value;
+      final buffer = StringBuffer();
+      final rowReportDate = (row['reportDate'] ?? '').toString().trim();
+      final summary = (row['summary'] ?? '').toString().trim();
+      final rowShadowSummary = (row['shadowSummary'] ?? '').toString().trim();
+      final draftCount = (row['draftCount'] ?? '').toString().trim();
+      final reviewCommand = (row['reviewCommand'] ?? '').toString().trim();
+      final caseFileCommand = (row['caseFileCommand'] ?? '').toString().trim();
+      if (rowReportDate.isNotEmpty) {
+        buffer.write('history_${index}_report_date=$rowReportDate\n');
+      }
+      if (summary.isNotEmpty) {
+        buffer.write('history_${index}_summary=$summary\n');
+      }
+      if (rowShadowSummary.isNotEmpty) {
+        buffer.write('history_${index}_shadow_summary=$rowShadowSummary\n');
+      }
+      if (draftCount.isNotEmpty) {
+        buffer.write('history_${index}_draft_count=$draftCount\n');
+      }
+      if (reviewCommand.isNotEmpty) {
+        buffer.write('history_${index}_review_command=$reviewCommand\n');
+      }
+      if (caseFileCommand.isNotEmpty) {
+        buffer.write('history_${index}_case_file_command=$caseFileCommand\n');
+      }
+      return buffer.toString();
+    }).join();
     if (format == 'csv') {
-      return 'ONYX TOMORROWCASE CSV\n'
+      final header = 'ONYX TOMORROWCASE CSV\n'
           'report_date=${report.date}\n'
           '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
           '${shadowSummary.isEmpty ? '' : 'shadow_summary=$shadowSummary\n'}'
-          'review_command=/tomorrowreview ${report.date}\n'
-          '${_tomorrowPostureCaseFileCsv(reportDate: report.date)}';
+          'review_command=/tomorrowreview ${report.date}\n';
+      return '$header$historyText${_tomorrowPostureCaseFileCsv(reportDate: report.date)}';
     }
-    return 'ONYX TOMORROWCASE JSON\n'
+    final header = 'ONYX TOMORROWCASE JSON\n'
         'report_date=${report.date}\n'
         '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
         '${shadowSummary.isEmpty ? '' : 'shadow_summary=$shadowSummary\n'}'
-        'review_command=/tomorrowreview ${report.date}\n'
-        '${const JsonEncoder.withIndent('  ').convert(payload)}';
+        'review_command=/tomorrowreview ${report.date}\n';
+    return '$header$historyText${const JsonEncoder.withIndent('  ').convert(payload)}';
   }
 
   String _telegramAdminMoPromotionCommand(String arguments) {
