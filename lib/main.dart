@@ -5469,6 +5469,19 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       syntheticWarRoomShadowMemorySummary: _syntheticWarRoomShadowMemorySummary(
         syntheticWarRoomPlans,
       ),
+      syntheticWarRoomPromotionPressureSummary:
+          buildSyntheticPromotionPressureSummary(
+            shadowTomorrowUrgencySummary:
+                (syntheticWarRoomCaseFile['shadowTomorrowUrgencySummary'] ?? '')
+                    .toString(),
+            previousShadowTomorrowUrgencySummary:
+                (syntheticWarRoomCaseFile['previousShadowTomorrowUrgencySummary'] ??
+                        '')
+                    .toString(),
+            shadowPostureBiasSummary:
+                (syntheticWarRoomCaseFile['shadowPostureBiasSummary'] ?? '')
+                    .toString(),
+          ),
       syntheticWarRoomPromotionSummary:
           (syntheticWarRoomCaseFile['promotionSummary'] ?? '').toString(),
       syntheticWarRoomPromotionDecisionSummary:

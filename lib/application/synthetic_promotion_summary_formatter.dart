@@ -61,3 +61,25 @@ String buildSyntheticPromotionDecisionSummary({
   }
   return '$normalizedBase • ${contextParts.join(' • ')}';
 }
+
+String buildSyntheticPromotionPressureSummary({
+  String shadowTomorrowUrgencySummary = '',
+  String previousShadowTomorrowUrgencySummary = '',
+  String shadowPostureBiasSummary = '',
+}) {
+  final currentUrgency = shadowTomorrowUrgencySummary.trim();
+  final previousUrgency = previousShadowTomorrowUrgencySummary.trim();
+  final postureBias = shadowPostureBiasSummary.trim();
+  final parts = <String>[];
+  if (currentUrgency.isNotEmpty && previousUrgency.isNotEmpty) {
+    parts.add('$currentUrgency (prev $previousUrgency)');
+  } else if (currentUrgency.isNotEmpty) {
+    parts.add(currentUrgency);
+  } else if (previousUrgency.isNotEmpty) {
+    parts.add('prev $previousUrgency');
+  }
+  if (postureBias.isNotEmpty) {
+    parts.add('posture $postureBias');
+  }
+  return parts.join(' • ');
+}

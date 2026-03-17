@@ -53,4 +53,18 @@ void main() {
       },
     );
   });
+
+  group('buildSyntheticPromotionPressureSummary', () {
+    test('returns urgency and posture shorthand without base text', () {
+      expect(
+        buildSyntheticPromotionPressureSummary(
+          shadowTomorrowUrgencySummary: 'strength rising • critical • 22s',
+          previousShadowTomorrowUrgencySummary:
+              'strength stable • high • 28s',
+          shadowPostureBiasSummary: 'POSTURE SURGE • critical • 28s',
+        ),
+        'strength rising • critical • 22s (prev strength stable • high • 28s) • posture POSTURE SURGE • critical • 28s',
+      );
+    });
+  });
 }

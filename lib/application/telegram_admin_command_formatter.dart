@@ -121,6 +121,7 @@ class TelegramAdminCommandFormatter {
     String? syntheticWarRoomShadowLearningSummary,
     String? syntheticWarRoomShadowMemorySummary,
     String? syntheticWarRoomPromotionSummary,
+    String? syntheticWarRoomPromotionPressureSummary,
     String? syntheticWarRoomPromotionDecisionSummary,
     String? syntheticWarRoomPromotionAcceptCommand,
     String? syntheticWarRoomPromotionRejectCommand,
@@ -224,6 +225,8 @@ class TelegramAdminCommandFormatter {
         syntheticWarRoomShadowMemorySummary?.trim() ?? '';
     final warRoomPromotionSummary =
         syntheticWarRoomPromotionSummary?.trim() ?? '';
+    final warRoomPromotionPressureSummary =
+        syntheticWarRoomPromotionPressureSummary?.trim() ?? '';
     final warRoomPromotionDecisionSummary =
         syntheticWarRoomPromotionDecisionSummary?.trim() ?? '';
     final warRoomPromotionAcceptCommand =
@@ -312,6 +315,7 @@ class TelegramAdminCommandFormatter {
               '${warRoomPreviousShadowTomorrowUrgencySummary.isEmpty ? '' : '• <b>Previous shadow tomorrow urgency:</b> ${_escapeHtml(warRoomPreviousShadowTomorrowUrgencySummary)}\n'}'
               '${warRoomShadowLearningSummary.isEmpty ? '' : '• <b>Shadow learning:</b> ${_escapeHtml(warRoomShadowLearningSummary)}\n'}'
               '${warRoomShadowMemorySummary.isEmpty ? '' : '• <b>Shadow memory:</b> ${_escapeHtml(warRoomShadowMemorySummary)}\n'}'
+              '${warRoomPromotionPressureSummary.isEmpty ? '' : '• <b>Promotion pressure:</b> ${_escapeHtml(warRoomPromotionPressureSummary)}\n'}'
               '${warRoomPromotionSummary.isEmpty ? '' : '• <b>Promotion:</b> ${_escapeHtml(warRoomPromotionSummary)}\n'}'
               '${warRoomPromotionDecisionSummary.isEmpty ? '' : '• <b>Promotion decision:</b> ${_escapeHtml(warRoomPromotionDecisionSummary)}\n'}'
               '${warRoomPromotionAcceptCommand.isEmpty ? '' : '• <b>Promotion accept:</b> <code>${_escapeHtml(warRoomPromotionAcceptCommand)}</code>\n'}'
