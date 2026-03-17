@@ -121,6 +121,7 @@ void main() {
       reportDate: '2026-03-17',
       generatedAtUtc: '2026-03-17T04:00:00Z',
       sceneReviewSummary: 'Incident 2 • Repeat 1 • Escalation 1 • Suppressed 0',
+      sceneReviewTopPosture: 'fire and smoke emergency',
       globalReadinessHeadline: 'ELEVATED WATCH',
       globalReadinessSummary:
           'Critical 1 • Elevated 2 • Intents 3 • region north-cluster critical',
@@ -168,6 +169,12 @@ void main() {
     );
 
     expect(response, contains('<b>ONYX MORNING GOVERNANCE</b>'));
+    expect(
+      response,
+      contains(
+        '<b>Scene review:</b> Fire / smoke emergency • Incident 2 • Repeat 1 • Escalation 1 • Suppressed 0',
+      ),
+    );
     expect(
       response,
       contains('<b>Target scope:</b> <code>client-alpha/site-1</code>'),
@@ -230,6 +237,7 @@ void main() {
       reportDate: '2026-03-17',
       generatedAtUtc: '2026-03-17T04:00:00Z',
       sceneReviewSummary: 'No review actions recorded.',
+      sceneReviewTopPosture: 'none',
       siteActivityHeadline: 'ACTIVITY STABLE',
       siteActivitySummary: 'No visitor or site-activity signals detected.',
       currentShiftReviewCommand: '/activityreview 2026-03-17',

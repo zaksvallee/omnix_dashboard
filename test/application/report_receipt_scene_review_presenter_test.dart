@@ -83,4 +83,21 @@ void main() {
       'Scene review stayed below escalation threshold across 3 reviewed CCTV events with 1 alert and 2 suppressed reviews. Latest action taken: 2026-03-14T21:14:00.000Z • Camera 1 • Monitoring Alert • Vehicle remained visible in the monitored driveway.',
     );
   });
+
+  test('scene review presenter uses hazard-specific escalation narrative', () {
+    const summary = ReportReceiptSceneReviewSummary(
+      includedInReceipt: true,
+      totalReviews: 1,
+      modelReviews: 1,
+      incidentAlerts: 0,
+      repeatUpdates: 0,
+      escalationCandidates: 1,
+      topPosture: 'fire and smoke emergency',
+    );
+
+    expect(
+      ReportReceiptSceneReviewPresenter.narrative(summary),
+      'Scene review flagged 1 fire / smoke emergency in this report.',
+    );
+  });
 }

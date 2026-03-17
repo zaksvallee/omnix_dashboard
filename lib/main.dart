@@ -5347,6 +5347,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       reportDate: report.date,
       generatedAtUtc: report.generatedAtUtc.toIso8601String(),
       sceneReviewSummary: sceneReviewSummary,
+      sceneReviewTopPosture: report.sceneReview.topPosture,
       globalReadinessHeadline: _globalReadinessModeLabel(
         readinessSnapshot,
         readinessIntents,

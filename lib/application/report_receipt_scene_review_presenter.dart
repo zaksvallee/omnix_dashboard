@@ -31,7 +31,7 @@ class ReportReceiptSceneReviewPresenter {
       return 'Scene review metrics are not embedded in this receipt schema yet.';
     }
     if (summary.escalationCandidates > 0) {
-      return 'Scene review flagged ${summary.escalationCandidates} escalation candidate${summary.escalationCandidates == 1 ? '' : 's'} in this report${_actionTail(summary)}.';
+      return 'Scene review flagged ${summary.escalationCandidates} ${_escalationNarrativeLabel(summary)} in this report${_actionTail(summary)}.';
     }
     if (summary.totalReviews > 0) {
       final base =
@@ -99,5 +99,19 @@ class ReportReceiptSceneReviewPresenter {
       return '${parts.first} and ${parts.last}';
     }
     return '${parts.take(parts.length - 1).join(', ')}, and ${parts.last}';
+  }
+
+  static String _escalationNarrativeLabel(ReportReceiptSceneReviewSummary summary) {
+    final posture = summary.topPosture.trim().toLowerCase();
+    if (posture.contains('fire') || posture.contains('smoke')) {
+      return 'fire / smoke emergency${summary.escalationCandidates == 1 ? '' : 's'}';
+    }
+    if (posture.contains('flood') || posture.contains('leak')) {
+      return 'flood / leak emergency${summary.escalationCandidates == 1 ? '' : 's'}';
+    }
+    if (posture.contains('hazard')) {
+      return 'environmental hazard${summary.escalationCandidates == 1 ? '' : 's'}';
+    }
+    return 'escalation candidate${summary.escalationCandidates == 1 ? '' : 's'}';
   }
 }

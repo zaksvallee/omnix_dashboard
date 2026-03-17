@@ -71,6 +71,7 @@ class TelegramAdminCommandFormatter {
     required String reportDate,
     required String generatedAtUtc,
     required String sceneReviewSummary,
+    String? sceneReviewTopPosture,
     String? globalReadinessHeadline,
     String? globalReadinessSummary,
     String? globalReadinessEchoSummary,
@@ -105,6 +106,8 @@ class TelegramAdminCommandFormatter {
     required String utcStamp,
   }) {
     final normalizedTargetScope = targetScope?.trim() ?? '';
+    final normalizedSceneReviewTopPosture =
+        sceneReviewTopPosture?.trim().toLowerCase() ?? '';
     final previousReview = previousShiftReviewCommand?.trim() ?? '';
     final previousCase = previousShiftCaseFileCommand?.trim() ?? '';
     final readinessHeadline = globalReadinessHeadline?.trim() ?? '';
@@ -197,7 +200,7 @@ class TelegramAdminCommandFormatter {
         '• <b>Generated:</b> ${_escapeHtml(generatedAtUtc)}\n\n'
         '---\n\n'
         '<b>Oversight</b>\n'
-        '• <b>Scene review:</b> ${_escapeHtml(sceneReviewSummary)}\n'
+        '• <b>Scene review:</b> ${_escapeHtml(_sceneReviewSummaryLine(sceneReviewSummary, normalizedSceneReviewTopPosture))}\n'
         '• <b>Site activity:</b> ${_escapeHtml(siteActivityHeadline)}\n'
         '• <b>Summary:</b> ${_escapeHtml(siteActivitySummary)}\n\n'
         '---\n\n'
@@ -229,5 +232,40 @@ class TelegramAdminCommandFormatter {
         .replaceAll('&', '&amp;')
         .replaceAll('<', '&lt;')
         .replaceAll('>', '&gt;');
+  }
+
+  static String _sceneReviewSummaryLine(String summary, String topPosture) {
+    final trimmedSummary = summary.trim();
+    if (trimmedSummary.isEmpty) {
+      return 'No review actions recorded.';
+    }
+    final hazardLabel = _hazardSceneReviewLabel(topPosture);
+    if (hazardLabel == null) {
+      return trimmedSummary;
+    }
+    if (trimmedSummary.toLowerCase().contains(hazardLabel)) {
+      return trimmedSummary;
+    }
+    return '${_titleCase(hazardLabel)} • $trimmedSummary';
+  }
+
+  static String? _hazardSceneReviewLabel(String topPosture) {
+    if (topPosture.contains('fire') || topPosture.contains('smoke')) {
+      return 'fire / smoke emergency';
+    }
+    if (topPosture.contains('flood') || topPosture.contains('leak')) {
+      return 'flood / leak emergency';
+    }
+    if (topPosture.contains('hazard')) {
+      return 'environmental hazard';
+    }
+    return null;
+  }
+
+  static String _titleCase(String value) {
+    if (value.isEmpty) {
+      return value;
+    }
+    return '${value[0].toUpperCase()}${value.substring(1)}';
   }
 }
