@@ -11759,6 +11759,8 @@ class _GovernancePageState extends State<GovernancePage> {
           shadowPostureBiasSummary:
               currentSyntheticWarRoomPoint?.shadowPostureBiasSummary ?? '',
         ),
+        'promotionExecutionSummary':
+            _syntheticWarRoomPromotionExecutionSummary(syntheticWarRoomPlans),
         'promotionSummary': _syntheticWarRoomPromotionSummary(
           syntheticWarRoomPlans,
           shadowTomorrowUrgencySummary:

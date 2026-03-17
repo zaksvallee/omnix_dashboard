@@ -2368,6 +2368,10 @@ void main() {
     );
     expect(
       copiedClipboardPayload,
+      contains('"promotionExecutionSummary": "'),
+    );
+    expect(
+      copiedClipboardPayload,
       contains('"promotionCurrentValidationStatus": "'),
     );
     expect(

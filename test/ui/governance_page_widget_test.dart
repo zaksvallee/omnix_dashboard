@@ -4751,6 +4751,7 @@ void main() {
     expect(copiedPayload, contains('"shadowLearningSummary": ""'));
     expect(copiedPayload, contains('"shadowMemorySummary": ""'));
     expect(copiedPayload, contains('"promotionPressureSummary": ""'));
+    expect(copiedPayload, contains('"promotionExecutionSummary": ""'));
     expect(copiedPayload, contains('"promotionSummary": ""'));
     expect(copiedPayload, contains('"promotionCurrentValidationStatus": ""'));
     expect(copiedPayload, contains('"promotionShadowReviewCommand": ""'));
