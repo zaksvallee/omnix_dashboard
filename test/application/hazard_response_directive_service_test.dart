@@ -49,6 +49,22 @@ void main() {
       'Prepare a client and operator fire safety warning for MS Vallee Residence with emergency evidence held for human veto.',
     );
     expect(
+      directives.operatorDispatchActiveDetails,
+      'Dispatching fire response, holding emergency notification, and staging occupant welfare checks.',
+    );
+    expect(
+      directives.operatorDispatchActiveMetadata,
+      'Fire emergency dispatch staged • welfare check hot',
+    );
+    expect(
+      directives.operatorClientCallActiveDetails,
+      'Client and occupant welfare call in progress while ONYX checks for spread.',
+    );
+    expect(
+      directives.operatorClientCallThinkingMessage,
+      'Preparing emergency welfare and client safety call...',
+    );
+    expect(
       directives.syntheticRecommendation,
       'earlier fire brigade staging, occupant welfare checks, and fire spread rehearsal',
     );
@@ -77,6 +93,14 @@ void main() {
     expect(
       directives.localPlanDescription,
       'Escalate a likely water-loss incident, protect the site, and lock CCTV evidence before damage spreads.',
+    );
+    expect(
+      directives.operatorDispatchActiveMetadata,
+      'Leak containment dispatch staged • welfare check hot',
+    );
+    expect(
+      directives.operatorClientCallThinkingMessage,
+      'Preparing leak welfare and client safety call...',
     );
     expect(
       directives.syntheticRecommendation,
@@ -113,6 +137,14 @@ void main() {
       'Raise a site hazard response with CCTV evidence attached and keep human veto available.',
     );
     expect(
+      directives.operatorDispatchActiveMetadata,
+      'Safety dispatch staged • welfare check hot',
+    );
+    expect(
+      directives.operatorClientCallThinkingMessage,
+      'Preparing hazard welfare and client safety call...',
+    );
+    expect(
       directives.syntheticRecommendation,
       'earlier safety dispatch, occupant welfare checks, and hazard isolation rehearsal',
     );
@@ -133,5 +165,7 @@ void main() {
     expect(directives.localActionType, isEmpty);
     expect(directives.dispatchActionType, isEmpty);
     expect(directives.syntheticRecommendation, isEmpty);
+    expect(directives.operatorDispatchActiveDetails, isEmpty);
+    expect(directives.operatorClientCallThinkingMessage, isEmpty);
   });
 }

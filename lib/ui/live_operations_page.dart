@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../application/hazard_response_directive_service.dart';
 import '../application/site_activity_intelligence_service.dart';
 import '../application/morning_sovereign_report_service.dart';
 import '../domain/events/decision_created.dart';
@@ -110,6 +111,8 @@ class _IncidentRecord {
     );
   }
 }
+
+const _hazardDirectiveService = HazardResponseDirectiveService();
 
 class _LadderStep {
   final String id;
@@ -3285,55 +3288,44 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   }
 
   String _dispatchActiveDetails(_IncidentRecord incident) {
-    if (_isFireIncident(incident)) {
-      return 'Dispatching fire response, holding emergency notification, and staging occupant welfare checks.';
-    }
-    if (_isLeakIncident(incident)) {
-      return 'Dispatching leak containment, holding water-loss notification, and staging occupant welfare checks.';
-    }
-    if (_isHazardIncident(incident)) {
-      return 'Dispatching site safety response, holding hazard notification, and staging occupant welfare checks.';
+    final directives = _hazardDirectivesForIncident(incident);
+    if (directives.hasHazard) {
+      return directives.operatorDispatchActiveDetails;
     }
     return 'Officer Echo-3 • 2.4km • ETA 4m 12s';
   }
 
   String _dispatchActiveMetadata(_IncidentRecord incident) {
-    if (_isFireIncident(incident)) {
-      return 'Fire emergency dispatch staged • welfare check hot';
-    }
-    if (_isLeakIncident(incident)) {
-      return 'Leak containment dispatch staged • welfare check hot';
-    }
-    if (_isHazardIncident(incident)) {
-      return 'Safety dispatch staged • welfare check hot';
+    final directives = _hazardDirectivesForIncident(incident);
+    if (directives.hasHazard) {
+      return directives.operatorDispatchActiveMetadata;
     }
     return 'Nearest armed response selected';
   }
 
   String _clientCallActiveDetails(_IncidentRecord incident) {
-    if (_isFireIncident(incident)) {
-      return 'Client and occupant welfare call in progress while ONYX checks for spread.';
-    }
-    if (_isLeakIncident(incident)) {
-      return 'Client and occupant welfare call in progress while ONYX checks for worsening water loss.';
-    }
-    if (_isHazardIncident(incident)) {
-      return 'Client and occupant welfare call in progress while ONYX checks for worsening hazard conditions.';
+    final directives = _hazardDirectivesForIncident(incident);
+    if (directives.hasHazard) {
+      return directives.operatorClientCallActiveDetails;
     }
     return 'Safe-word verification call in progress.';
   }
 
   String _clientCallThinkingMessage(_IncidentRecord incident) {
-    if (_isFireIncident(incident)) {
-      return 'Preparing emergency welfare and client safety call...';
-    }
-    if (_isLeakIncident(incident)) {
-      return 'Preparing leak welfare and client safety call...';
-    }
-    if (_isHazardIncident(incident)) {
-      return 'Preparing hazard welfare and client safety call...';
+    final directives = _hazardDirectivesForIncident(incident);
+    if (directives.hasHazard) {
+      return directives.operatorClientCallThinkingMessage;
     }
     return 'Waiting for VoIP completion...';
+  }
+
+  HazardResponseDirectives _hazardDirectivesForIncident(
+    _IncidentRecord incident,
+  ) {
+    return _hazardDirectiveService.build(
+      postureLabel: incident.latestSceneReviewLabel ?? incident.type,
+      siteName: incident.site,
+    );
   }
 
   String _videoActiveDetails(_IncidentRecord incident) {

@@ -11,6 +11,10 @@ class HazardResponseDirectives {
   final String dispatchPlanDescription;
   final String welfarePlanDescription;
   final String safetyWarningDescription;
+  final String operatorDispatchActiveDetails;
+  final String operatorDispatchActiveMetadata;
+  final String operatorClientCallActiveDetails;
+  final String operatorClientCallThinkingMessage;
   final String responsePolicy;
   final String syntheticRecommendation;
 
@@ -27,6 +31,10 @@ class HazardResponseDirectives {
     required this.dispatchPlanDescription,
     required this.welfarePlanDescription,
     required this.safetyWarningDescription,
+    required this.operatorDispatchActiveDetails,
+    required this.operatorDispatchActiveMetadata,
+    required this.operatorClientCallActiveDetails,
+    required this.operatorClientCallThinkingMessage,
     required this.responsePolicy,
     required this.syntheticRecommendation,
   });
@@ -76,6 +84,14 @@ class HazardResponseDirectiveService {
             'Trigger immediate occupant welfare verification for $normalizedSiteName while fire response staging is underway.',
         safetyWarningDescription:
             'Prepare a client and operator fire safety warning for $normalizedSiteName with emergency evidence held for human veto.',
+        operatorDispatchActiveDetails:
+            'Dispatching fire response, holding emergency notification, and staging occupant welfare checks.',
+        operatorDispatchActiveMetadata:
+            'Fire emergency dispatch staged • welfare check hot',
+        operatorClientCallActiveDetails:
+            'Client and occupant welfare call in progress while ONYX checks for spread.',
+        operatorClientCallThinkingMessage:
+            'Preparing emergency welfare and client safety call...',
         responsePolicy: 'fire_emergency_dispatch',
         syntheticRecommendation:
             'earlier fire brigade staging, occupant welfare checks, and fire spread rehearsal',
@@ -101,6 +117,14 @@ class HazardResponseDirectiveService {
             'Trigger immediate occupant welfare verification for $normalizedSiteName while leak containment staging is underway.',
         safetyWarningDescription:
             'Prepare a client and operator leak safety warning for $normalizedSiteName with containment evidence held for human veto.',
+        operatorDispatchActiveDetails:
+            'Dispatching leak containment, holding water-loss notification, and staging occupant welfare checks.',
+        operatorDispatchActiveMetadata:
+            'Leak containment dispatch staged • welfare check hot',
+        operatorClientCallActiveDetails:
+            'Client and occupant welfare call in progress while ONYX checks for worsening water loss.',
+        operatorClientCallThinkingMessage:
+            'Preparing leak welfare and client safety call...',
         responsePolicy: 'leak_containment_dispatch',
         syntheticRecommendation:
             'earlier leak containment dispatch, occupant welfare checks, and water-loss rehearsal',
@@ -126,6 +150,14 @@ class HazardResponseDirectiveService {
             'Trigger immediate occupant welfare verification for $normalizedSiteName while the safety response is staging.',
         safetyWarningDescription:
             'Prepare a client and operator hazard safety warning for $normalizedSiteName with evidence held for human veto.',
+        operatorDispatchActiveDetails:
+            'Dispatching site safety response, holding hazard notification, and staging occupant welfare checks.',
+        operatorDispatchActiveMetadata:
+            'Safety dispatch staged • welfare check hot',
+        operatorClientCallActiveDetails:
+            'Client and occupant welfare call in progress while ONYX checks for worsening hazard conditions.',
+        operatorClientCallThinkingMessage:
+            'Preparing hazard welfare and client safety call...',
         responsePolicy: 'hazard_safety_dispatch',
         syntheticRecommendation:
             'earlier safety dispatch, occupant welfare checks, and hazard isolation rehearsal',
@@ -143,6 +175,10 @@ class HazardResponseDirectiveService {
         dispatchPlanDescription: '',
         welfarePlanDescription: '',
         safetyWarningDescription: '',
+        operatorDispatchActiveDetails: '',
+        operatorDispatchActiveMetadata: '',
+        operatorClientCallActiveDetails: '',
+        operatorClientCallThinkingMessage: '',
         responsePolicy: '',
         syntheticRecommendation: '',
       ),
