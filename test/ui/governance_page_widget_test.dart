@@ -4739,6 +4739,11 @@ void main() {
     expect(copiedPayload, contains('"learningSummary": ""'));
     expect(copiedPayload, contains('"shadowSummary": ""'));
     expect(copiedPayload, contains('"shadowValidationSummary": ""'));
+    expect(copiedPayload, contains('"shadowTomorrowUrgencySummary": ""'));
+    expect(
+      copiedPayload,
+      contains('"previousShadowTomorrowUrgencySummary": ""'),
+    );
     expect(copiedPayload, contains('"shadowLearningSummary": ""'));
     expect(copiedPayload, contains('"shadowMemorySummary": ""'));
     expect(copiedPayload, contains('"promotionSummary": ""'));

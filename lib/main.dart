@@ -5447,6 +5447,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       syntheticWarRoomShadowValidationSummary:
           (syntheticWarRoomCaseFile['shadowValidationSummary'] ?? '')
               .toString(),
+      syntheticWarRoomShadowTomorrowUrgencySummary:
+          (syntheticWarRoomCaseFile['shadowTomorrowUrgencySummary'] ?? '')
+              .toString(),
+      syntheticWarRoomPreviousShadowTomorrowUrgencySummary:
+          (syntheticWarRoomCaseFile['previousShadowTomorrowUrgencySummary'] ??
+                  '')
+              .toString(),
       syntheticWarRoomShadowLearningSummary:
           _syntheticWarRoomShadowLearningSummary(syntheticWarRoomPlans),
       syntheticWarRoomShadowMemorySummary: _syntheticWarRoomShadowMemorySummary(
@@ -6432,6 +6439,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
   }
 
+  String _syntheticWarRoomShadowTomorrowUrgencySummaryForReport(
+    SovereignReport report,
+  ) {
+    return _globalReadinessTomorrowUrgencySummary(
+      _globalReadinessIntentsForReport(report),
+    );
+  }
+
   String _syntheticWarRoomPromotionSummary(
     List<MonitoringWatchAutonomyActionPlan> plans,
   ) {
@@ -7199,6 +7214,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'shadowValidationSummary': shadowValidationDrift.summary,
       'shadowValidationHeadline': shadowValidationDrift.headline,
       'shadowValidationHistorySummary': shadowValidationDrift.historySummary,
+      'shadowTomorrowUrgencySummary':
+          _syntheticWarRoomShadowTomorrowUrgencySummaryForReport(report),
+      'previousShadowTomorrowUrgencySummary': previousReport == null
+          ? ''
+          : _syntheticWarRoomShadowTomorrowUrgencySummaryForReport(
+              previousReport,
+            ),
       'shadowLearningSummary': _syntheticWarRoomShadowLearningSummary(plans),
       'shadowMemorySummary': _syntheticWarRoomShadowMemorySummary(plans),
       'promotionSummary': _syntheticWarRoomPromotionSummary(plans),
@@ -7298,6 +7320,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               'shadowValidationSummary': _shadowMoValidationSummaryForSites(
                 _shadowMoSitesForReport(item),
               ),
+              'shadowTomorrowUrgencySummary':
+                  _syntheticWarRoomShadowTomorrowUrgencySummaryForReport(item),
               'shadowLearningSummary': _syntheticWarRoomShadowLearningSummary(
                 itemPlans,
               ),
@@ -7361,6 +7385,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'shadow_validation_summary,"${(payload['shadowValidationSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'shadow_validation_headline,"${(payload['shadowValidationHeadline'] ?? '').toString().replaceAll('"', '""')}"',
       'shadow_validation_history_summary,"${(payload['shadowValidationHistorySummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'shadow_tomorrow_urgency_summary,"${(payload['shadowTomorrowUrgencySummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'previous_shadow_tomorrow_urgency_summary,"${(payload['previousShadowTomorrowUrgencySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'shadow_learning_summary,"${(payload['shadowLearningSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'shadow_memory_summary,"${(payload['shadowMemorySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'promotion_summary,"${(payload['promotionSummary'] ?? '').toString().replaceAll('"', '""')}"',
@@ -7416,6 +7442,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       lines.add(
         'history_${i + 1}_shadow_validation_summary,"${(row['shadowValidationSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add(
+        'history_${i + 1}_shadow_tomorrow_urgency_summary,"${(row['shadowTomorrowUrgencySummary'] ?? '').toString().replaceAll('"', '""')}"',
       );
       lines.add(
         'history_${i + 1}_shadow_learning_summary,"${(row['shadowLearningSummary'] ?? '').toString().replaceAll('"', '""')}"',
@@ -17896,6 +17925,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         .trim();
     final shadowValidationHistorySummary =
         (payload['shadowValidationHistorySummary'] ?? '').toString().trim();
+    final shadowTomorrowUrgencySummary =
+        (payload['shadowTomorrowUrgencySummary'] ?? '').toString().trim();
+    final previousShadowTomorrowUrgencySummary =
+        (payload['previousShadowTomorrowUrgencySummary'] ?? '')
+            .toString()
+            .trim();
     final shadowLearningSummary = (payload['shadowLearningSummary'] ?? '')
         .toString()
         .trim();
@@ -17939,6 +17974,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           outputKey: 'shadow_validation_summary',
         ),
         ChatCaseFileHistoryField(
+          inputKey: 'shadowTomorrowUrgencySummary',
+          outputKey: 'shadow_tomorrow_urgency_summary',
+        ),
+        ChatCaseFileHistoryField(
           inputKey: 'promotionSummary',
           outputKey: 'promotion_summary',
         ),
@@ -17967,6 +18006,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           ChatCaseFileHeaderField(
             key: 'shadow_validation_history_summary',
             value: shadowValidationHistorySummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'shadow_tomorrow_urgency_summary',
+            value: shadowTomorrowUrgencySummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'previous_shadow_tomorrow_urgency_summary',
+            value: previousShadowTomorrowUrgencySummary,
           ),
           ChatCaseFileHeaderField(
             key: 'shadow_learning_summary',
@@ -18024,6 +18071,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         ChatCaseFileHeaderField(
           key: 'shadow_validation_history_summary',
           value: shadowValidationHistorySummary,
+        ),
+        ChatCaseFileHeaderField(
+          key: 'shadow_tomorrow_urgency_summary',
+          value: shadowTomorrowUrgencySummary,
+        ),
+        ChatCaseFileHeaderField(
+          key: 'previous_shadow_tomorrow_urgency_summary',
+          value: previousShadowTomorrowUrgencySummary,
         ),
         ChatCaseFileHeaderField(
           key: 'shadow_learning_summary',

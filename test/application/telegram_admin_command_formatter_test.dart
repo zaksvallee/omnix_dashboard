@@ -178,6 +178,10 @@ void main() {
           'HARDEN ACCESS • site-alpha • Contractors moved floor to floor in office park • x1',
       syntheticWarRoomShadowValidationSummary:
           'Validated 1 • Shadow mode 1 • Drift validated rising',
+      syntheticWarRoomShadowTomorrowUrgencySummary:
+          'strength rising • critical • 22s',
+      syntheticWarRoomPreviousShadowTomorrowUrgencySummary:
+          'strength stable • high • 28s',
       syntheticWarRoomShadowLearningSummary:
           'Learned shadow lesson: start access hardening and service-role checks one step earlier next shift.',
       syntheticWarRoomShadowMemorySummary:
@@ -329,6 +333,18 @@ void main() {
       response,
       contains(
         '<b>Shadow validation:</b> Validated 1 • Shadow mode 1 • Drift validated rising',
+      ),
+    );
+    expect(
+      response,
+      contains(
+        '<b>Shadow tomorrow urgency:</b> strength rising • critical • 22s',
+      ),
+    );
+    expect(
+      response,
+      contains(
+        '<b>Previous shadow tomorrow urgency:</b> strength stable • high • 28s',
       ),
     );
     expect(

@@ -113,6 +113,8 @@ class TelegramAdminCommandFormatter {
     String? syntheticWarRoomHazardSummary,
     String? syntheticWarRoomShadowSummary,
     String? syntheticWarRoomShadowValidationSummary,
+    String? syntheticWarRoomShadowTomorrowUrgencySummary,
+    String? syntheticWarRoomPreviousShadowTomorrowUrgencySummary,
     String? syntheticWarRoomShadowLearningSummary,
     String? syntheticWarRoomShadowMemorySummary,
     String? syntheticWarRoomPromotionSummary,
@@ -203,6 +205,10 @@ class TelegramAdminCommandFormatter {
     final warRoomShadowSummary = syntheticWarRoomShadowSummary?.trim() ?? '';
     final warRoomShadowValidationSummary =
         syntheticWarRoomShadowValidationSummary?.trim() ?? '';
+    final warRoomShadowTomorrowUrgencySummary =
+        syntheticWarRoomShadowTomorrowUrgencySummary?.trim() ?? '';
+    final warRoomPreviousShadowTomorrowUrgencySummary =
+        syntheticWarRoomPreviousShadowTomorrowUrgencySummary?.trim() ?? '';
     final warRoomShadowLearningSummary =
         syntheticWarRoomShadowLearningSummary?.trim() ?? '';
     final warRoomShadowMemorySummary =
@@ -290,6 +296,8 @@ class TelegramAdminCommandFormatter {
               '${warRoomHazardSummary.isEmpty ? '' : '• <b>Hazard rehearsal:</b> ${_escapeHtml(warRoomHazardSummary)}\n'}'
               '${warRoomShadowSummary.isEmpty ? '' : '• <b>Shadow rehearsal:</b> ${_escapeHtml(warRoomShadowSummary)}\n'}'
               '${warRoomShadowValidationSummary.isEmpty ? '' : '• <b>Shadow validation:</b> ${_escapeHtml(warRoomShadowValidationSummary)}\n'}'
+              '${warRoomShadowTomorrowUrgencySummary.isEmpty ? '' : '• <b>Shadow tomorrow urgency:</b> ${_escapeHtml(warRoomShadowTomorrowUrgencySummary)}\n'}'
+              '${warRoomPreviousShadowTomorrowUrgencySummary.isEmpty ? '' : '• <b>Previous shadow tomorrow urgency:</b> ${_escapeHtml(warRoomPreviousShadowTomorrowUrgencySummary)}\n'}'
               '${warRoomShadowLearningSummary.isEmpty ? '' : '• <b>Shadow learning:</b> ${_escapeHtml(warRoomShadowLearningSummary)}\n'}'
               '${warRoomShadowMemorySummary.isEmpty ? '' : '• <b>Shadow memory:</b> ${_escapeHtml(warRoomShadowMemorySummary)}\n'}'
               '${warRoomPromotionSummary.isEmpty ? '' : '• <b>Promotion:</b> ${_escapeHtml(warRoomPromotionSummary)}\n'}'

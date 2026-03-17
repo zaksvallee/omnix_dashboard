@@ -341,6 +341,7 @@ class _SyntheticWarRoomHistoryPoint {
   final String learningSummary;
   final String shadowSummary;
   final String shadowValidationSummary;
+  final String shadowTomorrowUrgencySummary;
   final String shadowLearningSummary;
   final String shadowMemorySummary;
   final String promotionSummary;
@@ -366,6 +367,7 @@ class _SyntheticWarRoomHistoryPoint {
     required this.learningSummary,
     required this.shadowSummary,
     required this.shadowValidationSummary,
+    required this.shadowTomorrowUrgencySummary,
     required this.shadowLearningSummary,
     required this.shadowMemorySummary,
     required this.promotionSummary,
@@ -4191,6 +4193,8 @@ class _GovernancePageState extends State<GovernancePage> {
         learningSummary: currentLearning,
         shadowSummary: _syntheticWarRoomShadowSummary(currentPlans),
         shadowValidationSummary: currentShadowValidation.summary,
+        shadowTomorrowUrgencySummary:
+            _syntheticWarRoomShadowTomorrowUrgencySummaryForReport(report),
         shadowLearningSummary: _syntheticWarRoomShadowLearningSummary(
           currentPlans,
         ),
@@ -4264,6 +4268,12 @@ class _GovernancePageState extends State<GovernancePage> {
                 ).sites
                 .where((site) => site.moShadowMatchCount > 0)
                 .toList(growable: false),
+          ),
+          shadowTomorrowUrgencySummary: _globalReadinessTomorrowUrgencySummary(
+            _globalReadinessIntentsForWindow(
+              item.shiftWindowStartUtc,
+              item.shiftWindowEndUtc,
+            ),
           ),
           shadowLearningSummary: _syntheticWarRoomShadowLearningSummary(plans),
           shadowMemorySummary: _syntheticWarRoomShadowMemorySummary(plans),
@@ -4619,6 +4629,14 @@ class _GovernancePageState extends State<GovernancePage> {
     return plans
         .map((plan) => (plan.metadata['shadow_memory_summary'] ?? '').trim())
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+  }
+
+  String _syntheticWarRoomShadowTomorrowUrgencySummaryForReport(
+    _GovernanceReportView report,
+  ) {
+    return _globalReadinessTomorrowUrgencySummary(
+      _globalReadinessIntentsForReport(report),
+    );
   }
 
   String _syntheticWarRoomPromotionSummary(
@@ -8597,6 +8615,9 @@ class _GovernancePageState extends State<GovernancePage> {
             final currentPromotionPoint = history.isEmpty
                 ? null
                 : history.first;
+            final previousSyntheticWarRoomPoint = history.length > 1
+                ? history[1]
+                : null;
             return Dialog(
               backgroundColor: const Color(0xFF08111B),
               insetPadding: const EdgeInsets.symmetric(
@@ -8700,6 +8721,35 @@ class _GovernancePageState extends State<GovernancePage> {
                             color: const Color(0xFF93C5FD),
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      if (currentPromotionPoint != null &&
+                          currentPromotionPoint.shadowTomorrowUrgencySummary
+                              .trim()
+                              .isNotEmpty) ...[
+                        Text(
+                          'Shadow tomorrow urgency • ${currentPromotionPoint.shadowTomorrowUrgencySummary}',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFFDE68A),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      if (previousSyntheticWarRoomPoint != null &&
+                          previousSyntheticWarRoomPoint
+                              .shadowTomorrowUrgencySummary
+                              .trim()
+                              .isNotEmpty) ...[
+                        Text(
+                          'Previous shadow tomorrow urgency • ${previousSyntheticWarRoomPoint.shadowTomorrowUrgencySummary}',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFFCD34D),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -8952,6 +9002,19 @@ class _GovernancePageState extends State<GovernancePage> {
                                           'Shadow validation • ${point.shadowValidationSummary}',
                                           style: GoogleFonts.inter(
                                             color: const Color(0xFF93C5FD),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                      if (point.shadowTomorrowUrgencySummary
+                                          .trim()
+                                          .isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Shadow tomorrow urgency • ${point.shadowTomorrowUrgencySummary}',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFFDE68A),
                                             fontSize: 10,
                                             fontWeight: FontWeight.w700,
                                           ),
@@ -10235,6 +10298,7 @@ class _GovernancePageState extends State<GovernancePage> {
       'learningSummary': point.learningSummary,
       'shadowSummary': point.shadowSummary,
       'shadowValidationSummary': point.shadowValidationSummary,
+      'shadowTomorrowUrgencySummary': point.shadowTomorrowUrgencySummary,
       'shadowLearningSummary': point.shadowLearningSummary,
       'shadowMemorySummary': point.shadowMemorySummary,
       'promotionSummary': point.promotionSummary,
@@ -11520,6 +11584,10 @@ class _GovernancePageState extends State<GovernancePage> {
         'shadowSummary': _syntheticWarRoomShadowSummary(syntheticWarRoomPlans),
         'shadowValidationSummary':
             currentSyntheticWarRoomPoint?.shadowValidationSummary ?? '',
+        'shadowTomorrowUrgencySummary':
+            currentSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '',
+        'previousShadowTomorrowUrgencySummary':
+            previousSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '',
         'shadowLearningSummary': _syntheticWarRoomShadowLearningSummary(
           syntheticWarRoomPlans,
         ),
@@ -11827,6 +11895,8 @@ class _GovernancePageState extends State<GovernancePage> {
       'synthetic_war_room_learning_summary,"${syntheticWarRoomPlans.map((plan) => (plan.metadata['learning_summary'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '').replaceAll('"', '""')}"',
       'synthetic_war_room_shadow_summary,"${_syntheticWarRoomShadowSummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',
       'synthetic_war_room_shadow_validation_summary,"${(currentSyntheticWarRoomPoint?.shadowValidationSummary ?? '').replaceAll('"', '""')}"',
+      'synthetic_war_room_shadow_tomorrow_urgency_summary,"${(currentSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '').replaceAll('"', '""')}"',
+      'synthetic_war_room_previous_shadow_tomorrow_urgency_summary,"${(previousSyntheticWarRoomPoint?.shadowTomorrowUrgencySummary ?? '').replaceAll('"', '""')}"',
       'synthetic_war_room_shadow_learning_summary,"${_syntheticWarRoomShadowLearningSummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',
       'synthetic_war_room_shadow_memory_summary,"${_syntheticWarRoomShadowMemorySummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',
       'synthetic_war_room_promotion_summary,"${_syntheticWarRoomPromotionSummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',

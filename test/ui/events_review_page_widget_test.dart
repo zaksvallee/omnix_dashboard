@@ -1960,6 +1960,14 @@ void main() {
     expect(copiedClipboardPayload, contains('"historicalFocus": true'));
     expect(copiedClipboardPayload, contains('"hazardSummary": ""'));
     expect(copiedClipboardPayload, contains('"shadowValidationSummary": ""'));
+    expect(
+      copiedClipboardPayload,
+      contains('"shadowTomorrowUrgencySummary": ""'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('"previousShadowTomorrowUrgencySummary": ""'),
+    );
     expect(copiedClipboardPayload, contains('"shadowLearningSummary": ""'));
     expect(copiedClipboardPayload, contains('"shadowMemorySummary": ""'));
     expect(copiedClipboardPayload, contains('"promotionSummary": ""'));
@@ -1999,6 +2007,15 @@ void main() {
     expect(copiedClipboardPayload, contains('"shadowValidationSummary": "'));
     expect(
       copiedClipboardPayload,
+      contains('"shadowTomorrowUrgencySummary": "'),
+    );
+    expect(copiedClipboardPayload, contains('"history": {'));
+    expect(
+      copiedClipboardPayload,
+      contains('"shadowTomorrowUrgencySummary": "'),
+    );
+    expect(
+      copiedClipboardPayload,
       contains('"reviewCommand": "/syntheticreview 2026-03-16"'),
     );
     expect(
@@ -2023,6 +2040,14 @@ void main() {
     );
     expect(copiedClipboardPayload, contains('historical_focus,true'));
     expect(copiedClipboardPayload, contains('hazard_summary,""'));
+    expect(
+      copiedClipboardPayload,
+      contains('shadow_tomorrow_urgency_summary,"'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('previous_shadow_tomorrow_urgency_summary,"'),
+    );
     expect(copiedClipboardPayload, contains('shadow_validation_summary,""'));
     expect(copiedClipboardPayload, contains('learning_summary,"'));
     expect(copiedClipboardPayload, contains('learning_memory_summary,"'));
