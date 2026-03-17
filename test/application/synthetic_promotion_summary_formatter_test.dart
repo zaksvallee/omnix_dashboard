@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:omnix_dashboard/application/monitoring_watch_action_plan.dart';
 import 'package:omnix_dashboard/application/synthetic_promotion_summary_formatter.dart';
 
 void main() {
@@ -64,6 +65,56 @@ void main() {
           shadowPostureBiasSummary: 'POSTURE SURGE • critical • 28s',
         ),
         'strength rising • critical • 22s (prev strength stable • high • 28s) • posture POSTURE SURGE • critical • 28s',
+      );
+    });
+  });
+
+  group('plan-aware helpers', () {
+    test('buildSyntheticPromotionSummaryFromPlans reads base summary from plan metadata', () {
+      final plans = <MonitoringWatchAutonomyActionPlan>[
+        const MonitoringWatchAutonomyActionPlan(
+          id: 'SIM-1',
+          incidentId: 'SITE-1',
+          siteId: 'SITE-1',
+          priority: MonitoringWatchAutonomyPriority.high,
+          actionType: 'POLICY RECOMMENDATION',
+          description: 'desc',
+          countdownSeconds: 22,
+          metadata: <String, String>{'mo_promotion_summary': 'Promote MO-1'},
+        ),
+      ];
+
+      expect(
+        buildSyntheticPromotionSummaryFromPlans(
+          plans: plans,
+          shadowTomorrowUrgencySummary: 'strength rising • critical • 22s',
+        ),
+        'Promote MO-1 • pressure strength rising • critical • 22s',
+      );
+    });
+
+    test('buildSyntheticPromotionPressureSummaryFromPlans prefers prebuilt metadata', () {
+      final plans = <MonitoringWatchAutonomyActionPlan>[
+        const MonitoringWatchAutonomyActionPlan(
+          id: 'SIM-1',
+          incidentId: 'SITE-1',
+          siteId: 'SITE-1',
+          priority: MonitoringWatchAutonomyPriority.high,
+          actionType: 'POLICY RECOMMENDATION',
+          description: 'desc',
+          countdownSeconds: 22,
+          metadata: <String, String>{
+            'mo_promotion_pressure_summary': 'Promote MO-1 • posture POSTURE SURGE • critical • 28s',
+          },
+        ),
+      ];
+
+      expect(
+        buildSyntheticPromotionPressureSummaryFromPlans(
+          plans: plans,
+          shadowTomorrowUrgencySummary: 'ignored',
+        ),
+        'Promote MO-1 • posture POSTURE SURGE • critical • 28s',
       );
     });
   });

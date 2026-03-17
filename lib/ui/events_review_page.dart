@@ -3084,14 +3084,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     String previousShadowTomorrowUrgencySummary = '',
     String shadowPostureBiasSummary = '',
   }) {
-    final baseSummary = plans
-        .map(
-          (plan) =>
-              (plan.metadata['mo_promotion_summary'] ?? '').toString().trim(),
-        )
-        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
-    return buildSyntheticPromotionSummary(
-      baseSummary: baseSummary,
+    return buildSyntheticPromotionSummaryFromPlans(
+      plans: plans,
       shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
       previousShadowTomorrowUrgencySummary:
           previousShadowTomorrowUrgencySummary,
@@ -3106,13 +3100,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     String previousShadowTomorrowUrgencySummary = '',
     String shadowPostureBiasSummary = '',
   }) {
-    final prebuiltSummary = plans
-        .map((plan) => (plan.metadata['mo_promotion_pressure_summary'] ?? '').toString().trim())
-        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
-    if (prebuiltSummary.isNotEmpty) {
-      return prebuiltSummary;
-    }
-    return buildSyntheticPromotionPressureSummary(
+    return buildSyntheticPromotionPressureSummaryFromPlans(
+      plans: plans,
       shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
       previousShadowTomorrowUrgencySummary:
           previousShadowTomorrowUrgencySummary,

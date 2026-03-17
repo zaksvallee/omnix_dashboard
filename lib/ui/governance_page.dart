@@ -4759,11 +4759,8 @@ class _GovernancePageState extends State<GovernancePage> {
     String previousShadowTomorrowUrgencySummary = '',
     String shadowPostureBiasSummary = '',
   }) {
-    final baseSummary = plans
-        .map((plan) => (plan.metadata['mo_promotion_summary'] ?? '').trim())
-        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
-    return buildSyntheticPromotionSummary(
-      baseSummary: baseSummary,
+    return buildSyntheticPromotionSummaryFromPlans(
+      plans: plans,
       shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
       previousShadowTomorrowUrgencySummary:
           previousShadowTomorrowUrgencySummary,
@@ -4778,13 +4775,8 @@ class _GovernancePageState extends State<GovernancePage> {
     String previousShadowTomorrowUrgencySummary = '',
     String shadowPostureBiasSummary = '',
   }) {
-    final prebuiltSummary = plans
-        .map((plan) => (plan.metadata['mo_promotion_pressure_summary'] ?? '').trim())
-        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
-    if (prebuiltSummary.isNotEmpty) {
-      return prebuiltSummary;
-    }
-    return buildSyntheticPromotionPressureSummary(
+    return buildSyntheticPromotionPressureSummaryFromPlans(
+      plans: plans,
       shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
       previousShadowTomorrowUrgencySummary:
           previousShadowTomorrowUrgencySummary,
