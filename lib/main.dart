@@ -5484,6 +5484,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
                 (syntheticWarRoomCaseFile['shadowPostureBiasSummary'] ?? '')
                     .toString(),
           ),
+      syntheticWarRoomPromotionExecutionSummary:
+          (syntheticWarRoomCaseFile['promotionExecutionSummary'] ?? '')
+              .toString(),
       syntheticWarRoomPromotionSummary:
           (syntheticWarRoomCaseFile['promotionSummary'] ?? '').toString(),
       syntheticWarRoomPromotionDecisionSummary:
@@ -18605,12 +18608,15 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         syntheticContext['shadowPostureBiasSummary'] ?? '';
     final promotionPressureSummary =
         syntheticContext['promotionPressureSummary'] ?? '';
+    final promotionExecutionSummary =
+        syntheticContext['promotionExecutionSummary'] ?? '';
     final pressureAwareSummary = buildSyntheticPromotionDecisionSummary(
       baseSummary: summary,
       shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
       previousShadowTomorrowUrgencySummary:
           previousShadowTomorrowUrgencySummary,
       shadowPostureBiasSummary: shadowPostureBiasSummary,
+      promotionExecutionBiasSummary: promotionExecutionSummary,
     );
     final shadowMatchPayload = buildPromotionShadowAnchorPayload(
       context: shadowMatchContext,
@@ -18625,6 +18631,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '${previousShadowTomorrowUrgencySummary.isEmpty ? '' : '\nprevious_shadow_tomorrow_urgency_summary=$previousShadowTomorrowUrgencySummary'}'
         '${shadowPostureBiasSummary.isEmpty ? '' : '\nshadow_posture_bias_summary=$shadowPostureBiasSummary'}'
         '${promotionPressureSummary.isEmpty ? '' : '\npromotion_pressure_summary=$promotionPressureSummary'}'
+        '${promotionExecutionSummary.isEmpty ? '' : '\npromotion_execution_summary=$promotionExecutionSummary'}'
         '${(syntheticContext['reviewCommand'] ?? '').isEmpty ? '' : '\nsynthetic_review_command=${syntheticContext['reviewCommand']}'}'
         '${(syntheticContext['caseFileCommand'] ?? '').isEmpty ? '' : '\nsynthetic_case_file_command=${syntheticContext['caseFileCommand']}'}';
   }
