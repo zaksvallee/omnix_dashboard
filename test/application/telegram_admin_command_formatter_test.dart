@@ -138,6 +138,8 @@ void main() {
       globalReadinessShadowHistoryHeadline: 'RISING • 3d',
       globalReadinessShadowHistorySummary:
           'Current matches 2 • Baseline 0.0 • Shadow-MO match pressure is increasing against recent shifts.',
+      globalReadinessShadowStrengthHistorySummary:
+          'Current strength 0.91 • Baseline 0.70 • Shadow-MO runtime strength is increasing against recent shifts.',
       currentShiftShadowReviewCommand: '/shadowreview 2026-03-17',
       currentShiftShadowCaseFileCommand: '/shadowcase json 2026-03-17',
       previousShiftShadowReviewCommand: '/shadowreview 2026-03-16',
@@ -253,6 +255,12 @@ void main() {
       response,
       contains(
         '<b>Shadow history:</b> Current matches 2 • Baseline 0.0 • Shadow-MO match pressure is increasing against recent shifts.',
+      ),
+    );
+    expect(
+      response,
+      contains(
+        '<b>Shadow strength:</b> Current strength 0.91 • Baseline 0.70 • Shadow-MO runtime strength is increasing against recent shifts.',
       ),
     );
     expect(response, contains('<code>/shadowreview 2026-03-17</code>'));

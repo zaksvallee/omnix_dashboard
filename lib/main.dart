@@ -5381,6 +5381,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           (shadowMoCaseFile['historyHeadline'] ?? '').toString(),
       globalReadinessShadowHistorySummary:
           (shadowMoCaseFile['historySummary'] ?? '').toString(),
+      globalReadinessShadowStrengthHistorySummary:
+          (shadowMoCaseFile['strengthHistorySummary'] ?? '').toString(),
       currentShiftShadowReviewCommand: '/shadowreview ${report.date}',
       currentShiftShadowCaseFileCommand: '/shadowcase json ${report.date}',
       previousShiftShadowReviewCommand: previousReport == null
