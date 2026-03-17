@@ -130,6 +130,9 @@ class ReportSceneReviewSnapshotBuilder {
     if (decision.contains('alert') || decision.contains('incident')) {
       return _SceneReviewDecisionBucket.incident;
     }
+    if (_isHazardPosture(posture)) {
+      return _SceneReviewDecisionBucket.escalation;
+    }
     if (posture.contains('escalation')) {
       return _SceneReviewDecisionBucket.escalation;
     }
@@ -140,6 +143,14 @@ class ReportSceneReviewSnapshotBuilder {
       return _SceneReviewDecisionBucket.incident;
     }
     return _SceneReviewDecisionBucket.suppressed;
+  }
+
+  static bool _isHazardPosture(String posture) {
+    return posture.contains('fire') ||
+        posture.contains('smoke') ||
+        posture.contains('flood') ||
+        posture.contains('leak') ||
+        posture.contains('hazard');
   }
 
   static String _latestSuppressedPattern(

@@ -144,5 +144,42 @@ void main() {
       expect(snapshot.topPosture, 'none');
       expect(snapshot.highlights, isEmpty);
     });
+
+    test('treats hazard posture as escalation without explicit decision label', () {
+      final snapshot = builder.build(
+        month: '2026-03',
+        intelligenceEvents: [
+          buildTestIntelligenceReceived(
+            eventId: 'evt-fire',
+            sequence: 1,
+            occurredAt: DateTime.utc(2026, 3, 14, 22, 14),
+            intelligenceId: 'intel-fire',
+            cameraId: 'channel-4',
+            headline: 'Fire alert',
+            summary: 'Smoke visible in the generator room.',
+            riskScore: 81,
+          ),
+        ],
+        sceneReviewByIntelligenceId: {
+          'intel-fire': MonitoringSceneReviewRecord(
+            intelligenceId: 'intel-fire',
+            evidenceRecordHash: 'evidence-fire',
+            sourceLabel: 'openai:gpt-4.1-mini',
+            postureLabel: 'fire and smoke emergency',
+            summary: 'Smoke plume visible inside the generator room.',
+            reviewedAtUtc: DateTime.utc(2026, 3, 14, 22, 14, 6),
+          ),
+        },
+      );
+
+      expect(snapshot.incidentAlerts, 0);
+      expect(snapshot.repeatUpdates, 0);
+      expect(snapshot.escalationCandidates, 1);
+      expect(snapshot.topPosture, 'fire and smoke emergency');
+      expect(
+        snapshot.latestActionTaken,
+        '2026-03-14T22:14:00.000Z • Camera 4 • Smoke plume visible inside the generator room.',
+      );
+    });
   });
 }

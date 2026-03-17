@@ -647,5 +647,54 @@ void main() {
         );
       },
     );
+
+    test('counts hazard posture as escalation in morning scene review summary', () {
+      final service = const MorningSovereignReportService();
+      final report = service.generate(
+        nowUtc: DateTime.utc(2026, 3, 17, 8, 0),
+        events: [
+          IntelligenceReceived(
+            eventId: 'INT-FIRE',
+            sequence: 1,
+            version: 1,
+            occurredAt: DateTime.utc(2026, 3, 17, 1, 12),
+            intelligenceId: 'INT-FIRE',
+            provider: 'feed',
+            sourceType: 'dvr',
+            externalId: 'EXT-FIRE',
+            clientId: 'CLIENT-1',
+            regionId: 'REGION-1',
+            siteId: 'SITE-1',
+            headline: 'Fire alert',
+            summary: 'Smoke visible in the generator room.',
+            riskScore: 88,
+            canonicalHash: 'hash-fire',
+            cameraId: 'channel-4',
+            objectLabel: 'smoke',
+          ),
+        ],
+        recentMedia: const [],
+        guardOutcomePolicyDenied24h: 0,
+        sceneReviewByIntelligenceId: {
+          'INT-FIRE': MonitoringSceneReviewRecord(
+            intelligenceId: 'INT-FIRE',
+            sourceLabel: 'openai:gpt-4.1-mini',
+            postureLabel: 'fire and smoke emergency',
+            summary: 'Smoke plume visible inside the generator room.',
+            reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 13),
+          ),
+        },
+      );
+
+      expect(report.sceneReview.totalReviews, 1);
+      expect(report.sceneReview.incidentAlerts, 0);
+      expect(report.sceneReview.repeatUpdates, 0);
+      expect(report.sceneReview.escalationCandidates, 1);
+      expect(report.sceneReview.topPosture, 'fire and smoke emergency');
+      expect(
+        report.sceneReview.latestActionTaken,
+        '2026-03-17T01:12:00.000Z • Camera 4 • Smoke plume visible inside the generator room.',
+      );
+    });
   });
 }

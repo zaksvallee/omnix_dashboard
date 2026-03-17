@@ -2570,6 +2570,9 @@ class MorningSovereignReportService {
     if (decision.contains('alert') || decision.contains('incident')) {
       return _SceneReviewDecisionBucket.incident;
     }
+    if (_isHazardSceneReviewPosture(posture)) {
+      return _SceneReviewDecisionBucket.escalation;
+    }
     if (posture.contains('escalation')) {
       return _SceneReviewDecisionBucket.escalation;
     }
@@ -2580,6 +2583,14 @@ class MorningSovereignReportService {
       return _SceneReviewDecisionBucket.incident;
     }
     return _SceneReviewDecisionBucket.suppressed;
+  }
+
+  bool _isHazardSceneReviewPosture(String posture) {
+    return posture.contains('fire') ||
+        posture.contains('smoke') ||
+        posture.contains('flood') ||
+        posture.contains('leak') ||
+        posture.contains('hazard');
   }
 
   String _latestSuppressedPattern(
