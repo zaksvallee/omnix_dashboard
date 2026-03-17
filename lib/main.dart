@@ -18598,11 +18598,59 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       moId: moId,
       targetValidationStatus: targetStatus,
     );
+    final syntheticContext = _activeSyntheticPromotionContext(
+      moId: moId,
+      targetValidationStatus: targetStatus,
+    );
+    final shadowTomorrowUrgencySummary =
+        syntheticContext['shadowTomorrowUrgencySummary'] ?? '';
+    final previousShadowTomorrowUrgencySummary =
+        syntheticContext['previousShadowTomorrowUrgencySummary'] ?? '';
+    final pressureAwareSummary = buildSyntheticPromotionDecisionSummary(
+      baseSummary: summary,
+      shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
+      previousShadowTomorrowUrgencySummary:
+          previousShadowTomorrowUrgencySummary,
+    );
     return 'ONYX MO PROMOTION\n'
         'mo_id=$moId\n'
         'target_status=$targetStatus\n'
         'decision=${action == 'accept' ? 'accepted' : 'rejected'}\n'
-        'summary=$summary';
+        'summary=$pressureAwareSummary'
+        '${shadowTomorrowUrgencySummary.isEmpty ? '' : '\nshadow_tomorrow_urgency_summary=$shadowTomorrowUrgencySummary'}'
+        '${previousShadowTomorrowUrgencySummary.isEmpty ? '' : '\nprevious_shadow_tomorrow_urgency_summary=$previousShadowTomorrowUrgencySummary'}'
+        '${(syntheticContext['reviewCommand'] ?? '').isEmpty ? '' : '\nsynthetic_review_command=${syntheticContext['reviewCommand']}'}'
+        '${(syntheticContext['caseFileCommand'] ?? '').isEmpty ? '' : '\nsynthetic_case_file_command=${syntheticContext['caseFileCommand']}'}';
+  }
+
+  Map<String, String> _activeSyntheticPromotionContext({
+    required String moId,
+    required String targetValidationStatus,
+  }) {
+    final report = _morningSovereignReport;
+    if (report == null) {
+      return const <String, String>{};
+    }
+    final payload = _syntheticWarRoomCaseFilePayload(
+      reportDate: report.date,
+    );
+    final payloadMoId = (payload['promotionMoId'] ?? '').toString().trim();
+    final payloadTarget =
+        (payload['promotionTargetStatus'] ?? '').toString().trim();
+    if (payloadMoId != moId.trim() ||
+        payloadTarget != targetValidationStatus.trim()) {
+      return const <String, String>{};
+    }
+    return <String, String>{
+      'shadowTomorrowUrgencySummary':
+          (payload['shadowTomorrowUrgencySummary'] ?? '').toString().trim(),
+      'previousShadowTomorrowUrgencySummary':
+          (payload['previousShadowTomorrowUrgencySummary'] ?? '')
+              .toString()
+              .trim(),
+      'reviewCommand': (payload['reviewCommand'] ?? '').toString().trim(),
+      'caseFileCommand': (payload['caseFileCommand'] ?? '').toString().trim(),
+    };
   }
 
   Future<String> _telegramAdminSendActivityCommand(String arguments) async {
