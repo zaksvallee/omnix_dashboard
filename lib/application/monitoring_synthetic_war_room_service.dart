@@ -266,6 +266,19 @@ class MonitoringSyntheticWarRoomService {
                 'shadow_posture_summary': shadowPostureSummary,
               'shadow_posture_strength_score':
                   leadSite.moShadowStrengthScore.toString(),
+              if (shadowPostureBias.biasLabel.isNotEmpty ||
+                  shadowPostureBias.priorityFloor !=
+                      MonitoringWatchAutonomyPriority.medium ||
+                  shadowPostureBias.countdownSeconds > 0)
+                'shadow_posture_bias_summary': [
+                  if (shadowPostureBias.biasLabel.isNotEmpty)
+                    shadowPostureBias.biasLabel,
+                  if (shadowPostureBias.priorityFloor !=
+                      MonitoringWatchAutonomyPriority.medium)
+                    shadowPostureBias.priorityFloor.name.toUpperCase(),
+                  if (shadowPostureBias.countdownSeconds > 0)
+                    '${shadowPostureBias.countdownSeconds}s',
+                ].join(' • '),
               if (shadowPostureBias.biasLabel.isNotEmpty)
                 'shadow_posture_bias': shadowPostureBias.biasLabel,
               if (shadowPostureBias.priorityFloor !=

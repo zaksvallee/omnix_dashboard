@@ -467,6 +467,10 @@ void main() {
         '28',
       );
       expect(
+        policy.metadata['shadow_posture_bias_summary'],
+        'POSTURE SURGE • CRITICAL • 28s',
+      );
+      expect(
         int.parse(policy.metadata['shadow_posture_strength_score'] ?? '0'),
         greaterThanOrEqualTo(75),
       );

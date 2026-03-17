@@ -1360,6 +1360,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   String _shadowPostureBiasSummaryForPlan(
     MonitoringWatchAutonomyActionPlan plan,
   ) {
+    final prebuiltSummary =
+        (plan.metadata['shadow_posture_bias_summary'] ?? '').trim();
+    if (prebuiltSummary.isNotEmpty) {
+      return prebuiltSummary;
+    }
     final postureBias = (plan.metadata['shadow_posture_bias'] ?? '').trim();
     final posturePriority =
         (plan.metadata['shadow_posture_priority'] ?? '').trim();

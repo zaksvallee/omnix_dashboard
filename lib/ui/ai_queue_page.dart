@@ -1702,6 +1702,11 @@ class _AIQueuePageState extends State<AIQueuePage> {
   }
 
   String _shadowPostureBiasSummary(Map<String, String> metadata) {
+    final prebuiltSummary =
+        (metadata['shadow_posture_bias_summary'] ?? '').trim();
+    if (prebuiltSummary.isNotEmpty) {
+      return prebuiltSummary;
+    }
     final postureBias = (metadata['shadow_posture_bias'] ?? '').trim();
     final posturePriority = (metadata['shadow_posture_priority'] ?? '').trim();
     final postureCountdown =
