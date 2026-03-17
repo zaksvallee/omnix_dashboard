@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../application/morning_sovereign_report_service.dart';
+import '../application/monitoring_global_posture_service.dart';
+import '../application/monitoring_orchestrator_service.dart';
 import '../application/site_activity_intelligence_service.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
@@ -28,6 +30,7 @@ class EventsReviewPage extends StatefulWidget {
   final String? initialProviderFilter;
   final String? initialSelectedEventId;
   final List<String> initialScopedEventIds;
+  final String? initialScopedMode;
   final List<SovereignReport> morningSovereignReportHistory;
 
   const EventsReviewPage({
@@ -38,6 +41,7 @@ class EventsReviewPage extends StatefulWidget {
     this.initialProviderFilter,
     this.initialSelectedEventId,
     this.initialScopedEventIds = const <String>[],
+    this.initialScopedMode,
     this.morningSovereignReportHistory = const <SovereignReport>[],
   });
 
@@ -79,6 +83,8 @@ class _SeededDispatchEvent extends DispatchEvent {
 
 class _EventsReviewPageState extends State<EventsReviewPage> {
   static const _siteActivityService = SiteActivityIntelligenceService();
+  static const _globalPostureService = MonitoringGlobalPostureService();
+  static const _orchestratorService = MonitoringOrchestratorService();
   static const String _filterAll = 'ALL';
   static const String _sourceFilterAll = 'ALL SOURCES';
   static const String _providerFilterAll = 'ALL PROVIDERS';
@@ -198,6 +204,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       scopedEventIds: scopedEventIds,
     );
     final partnerScopeSummary = _partnerScopeSummary(scopedTimelineEvents);
+    final readinessScopeSummary = _readinessScopeSummary(scopedTimelineEvents);
     final activityScopeSummary = _activityScopeSummary(scopedTimelineEvents);
     final scopeFiltered = scopedEventIds.isEmpty
         ? filtered
@@ -383,6 +390,76 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
+                    ),
+                  ),
+                ] else if (readinessScopeSummary != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    key: const ValueKey('events-readiness-scope-banner'),
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0x1410B981),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0x4410B981)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          readinessScopeSummary.bannerText,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFEAF1FB),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          readinessScopeSummary.summaryLine,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFAFC2DB),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (readinessScopeSummary.posturalEchoSummary.trim().isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Postural echo: ${readinessScopeSummary.posturalEchoSummary}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF86EFAC),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                        if (readinessScopeSummary.topIntentSummary.trim().isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Top intent: ${readinessScopeSummary.topIntentSummary}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFBBF7D0),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                        if (readinessScopeSummary.reviewRefs.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Review refs: ${readinessScopeSummary.reviewRefs.join(', ')}',
+                            style: GoogleFonts.robotoMono(
+                              color: const Color(0xFF8FD1FF),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ] else if (activityScopeSummary != null) ...[
@@ -766,6 +843,69 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               siteId: siteIds.first,
             )
           : null,
+    );
+  }
+
+  _ReadinessScopeSummary? _readinessScopeSummary(
+    List<DispatchEvent> scopedEvents,
+  ) {
+    if ((widget.initialScopedMode ?? '').trim().toLowerCase() != 'readiness') {
+      return null;
+    }
+    final snapshot = _globalPostureService.buildSnapshot(
+      events: scopedEvents,
+      sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+    );
+    final intents = _orchestratorService.buildActionIntents(
+      events: scopedEvents,
+      sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+    );
+    if (snapshot.totalSites <= 0 && intents.isEmpty) {
+      return null;
+    }
+    final leadRegion = snapshot.regions.isEmpty ? null : snapshot.regions.first;
+    final leadSite = snapshot.sites.isEmpty ? null : snapshot.sites.first;
+    final modeLabel = snapshot.criticalSiteCount > 0
+        ? 'CRITICAL POSTURE'
+        : snapshot.elevatedSiteCount > 0
+        ? 'ELEVATED WATCH'
+        : intents.isNotEmpty
+        ? 'ACTIVE TENSION'
+        : 'STABLE POSTURE';
+    final summaryParts = <String>[
+      'Critical ${snapshot.criticalSiteCount}',
+      'Elevated ${snapshot.elevatedSiteCount}',
+      'Intents ${intents.length}',
+      if (leadRegion != null) 'region ${leadRegion.regionId}',
+      if (leadSite != null) 'site ${leadSite.siteId}',
+    ];
+    final reviewRefs = scopedEvents
+        .whereType<IntelligenceReceived>()
+        .map((event) => event.intelligenceId.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    final posturalEchoes = intents
+        .where((intent) => intent.actionType.trim().toUpperCase() == 'POSTURAL ECHO')
+        .toList(growable: false);
+    final posturalEchoSummary = posturalEchoes.isEmpty
+        ? ''
+        : [
+            'Echo ${posturalEchoes.length}',
+            'target ${posturalEchoes.map((intent) => intent.siteId).take(3).join(', ')}',
+          ].join(' • ');
+    final topIntentSummary = intents.isEmpty
+        ? ''
+        : '${intents.first.actionType} • ${intents.first.description}';
+    return _ReadinessScopeSummary(
+      eventCount: scopedEvents.length,
+      leadRegionId: leadRegion?.regionId,
+      leadSiteId: leadSite?.siteId,
+      modeLabel: modeLabel,
+      summaryLine: summaryParts.join(' • '),
+      posturalEchoSummary: posturalEchoSummary,
+      topIntentSummary: topIntentSummary,
+      reviewRefs: reviewRefs,
     );
   }
 
@@ -2620,6 +2760,40 @@ class _ActivityScopeSummary {
     final signalWord = eventCount == 1 ? 'signal' : 'signals';
     final siteSuffix = siteId == null || siteId!.isEmpty ? '' : ' • ${siteId!}';
     return 'Activity investigation active for $eventCount linked CCTV $signalWord$siteSuffix.';
+  }
+}
+
+class _ReadinessScopeSummary {
+  final int eventCount;
+  final String? leadRegionId;
+  final String? leadSiteId;
+  final String modeLabel;
+  final String summaryLine;
+  final String posturalEchoSummary;
+  final String topIntentSummary;
+  final List<String> reviewRefs;
+
+  const _ReadinessScopeSummary({
+    required this.eventCount,
+    required this.leadRegionId,
+    required this.leadSiteId,
+    required this.modeLabel,
+    required this.summaryLine,
+    required this.posturalEchoSummary,
+    required this.topIntentSummary,
+    required this.reviewRefs,
+  });
+
+  String get bannerText {
+    final evidenceWord = eventCount == 1 ? 'signal' : 'signals';
+    final detailParts = <String>[
+      if (leadRegionId != null && leadRegionId!.isNotEmpty) leadRegionId!,
+      if (leadSiteId != null && leadSiteId!.isNotEmpty) leadSiteId!,
+    ];
+    final detailSuffix = detailParts.isEmpty
+        ? ''
+        : ' • ${detailParts.join(' • ')}';
+    return 'Global readiness investigation active for $eventCount linked $evidenceWord$detailSuffix.';
   }
 }
 

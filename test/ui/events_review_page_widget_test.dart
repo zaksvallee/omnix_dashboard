@@ -1140,4 +1140,117 @@ void main() {
     expect(find.textContaining('Visit-scoped review active for'), findsNothing);
     expect(find.text('Unrelated perimeter movement'), findsNothing);
   });
+
+  testWidgets('events review shows dedicated readiness investigation banner', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: EventsReviewPage(
+          events: <DispatchEvent>[
+            IntelligenceReceived(
+              eventId: 'READY-1',
+              sequence: 2,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 17, 1, 0),
+              intelligenceId: 'READY-INTEL-1',
+              provider: 'frigate',
+              sourceType: 'cctv',
+              externalId: 'ready-1',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-ALPHA',
+              headline: 'Perimeter pressure building',
+              summary: 'Repeated movement detected near the east wall.',
+              riskScore: 93,
+              canonicalHash: 'hash-ready-1',
+            ),
+            IntelligenceReceived(
+              eventId: 'READY-2',
+              sequence: 1,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 17, 1, 5),
+              intelligenceId: 'READY-INTEL-2',
+              provider: 'frigate',
+              sourceType: 'cctv',
+              externalId: 'ready-2',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-BRAVO',
+              headline: 'Boundary movement repeated',
+              summary: 'Linked activity detected at sibling site.',
+              riskScore: 88,
+              canonicalHash: 'hash-ready-2',
+            ),
+          ],
+          sceneReviewByIntelligenceId: {
+            'READY-INTEL-1': MonitoringSceneReviewRecord(
+              intelligenceId: 'READY-INTEL-1',
+              sourceLabel: 'openai:gpt-5.4-mini',
+              postureLabel: 'boundary escalation',
+              decisionLabel: 'Escalation Candidate',
+              decisionSummary: 'Escalated due to repeat boundary pressure.',
+              summary: 'Repeated movement near the east wall.',
+              reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 2),
+            ),
+            'READY-INTEL-2': MonitoringSceneReviewRecord(
+              intelligenceId: 'READY-INTEL-2',
+              sourceLabel: 'openai:gpt-5.4-mini',
+              postureLabel: 'boundary repeat pressure',
+              decisionLabel: 'Repeat Watch',
+              decisionSummary: 'Repeat pressure is spreading across the region.',
+              summary: 'Sibling site movement linked to the same corridor.',
+              reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 6),
+            ),
+          },
+          initialScopedEventIds: const ['READY-1', 'READY-2'],
+          initialSelectedEventId: 'READY-1',
+          initialScopedMode: 'readiness',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(
+        const ValueKey('events-readiness-scope-banner'),
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'Global readiness investigation active for 2 linked signals',
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'Critical 1',
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('region REGION-GAUTENG', skipOffstage: false),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('site SITE-ALPHA', skipOffstage: false),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Postural echo: Echo 1 • target SITE-BRAVO'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Top intent: PREPOSITION RESPONSE'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Review refs: READY-INTEL-1, READY-INTEL-2'),
+      findsOneWidget,
+    );
+  });
 }

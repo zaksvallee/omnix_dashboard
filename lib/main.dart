@@ -989,6 +989,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   String _eventsProviderFilter = '';
   String _eventsSelectedEventId = '';
   List<String> _eventsScopedEventIds = const <String>[];
+  String _eventsScopedMode = '';
   ReportShellState _reportShellState = const ReportShellState();
   String _operationsFocusIncidentReference = '';
   VideoFleetWatchActionDrilldown? _tacticalWatchActionDrilldown;
@@ -15741,6 +15742,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _openEventsForScopedEventIds(
         eventIds,
         selectedEventId: selectedEventId.isEmpty ? null : selectedEventId,
+        scopeMode: 'readiness',
       );
       return 'ONYX READINESSREVIEW\n'
           'report_date=${report.date}\n'
@@ -18012,6 +18014,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _eventsProviderFilter = provider;
       _eventsSelectedEventId = selectedEventId ?? '';
       _eventsScopedEventIds = const <String>[];
+      _eventsScopedMode = '';
     });
   }
 
@@ -18044,6 +18047,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _eventsProviderFilter = '';
       _eventsSelectedEventId = ref;
       _eventsScopedEventIds = const <String>[];
+      _eventsScopedMode = '';
       _route = OnyxRoute.events;
     });
   }
@@ -18057,6 +18061,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _eventsProviderFilter = '';
       _eventsSelectedEventId = ref;
       _eventsScopedEventIds = const <String>[];
+      _eventsScopedMode = '';
       _route = OnyxRoute.events;
     });
   }
@@ -18064,6 +18069,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   void _openEventsForScopedEventIds(
     List<String> eventIds, {
     String? selectedEventId,
+    String scopeMode = '',
   }) {
     final scopedIds = eventIds
         .map((value) => value.trim())
@@ -18081,6 +18087,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           ? selected
           : scopedIds.first;
       _eventsScopedEventIds = scopedIds;
+      _eventsScopedMode = scopeMode.trim();
       _route = OnyxRoute.events;
     });
   }
@@ -19451,6 +19458,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               ? null
               : _eventsSelectedEventId,
           initialScopedEventIds: _eventsScopedEventIds,
+          initialScopedMode: _eventsScopedMode.trim().isEmpty
+              ? null
+              : _eventsScopedMode,
         );
 
       case OnyxRoute.ledger:
