@@ -260,6 +260,68 @@ void main() {
     expect(find.textContaining('clip.mp4'), findsOneWidget);
   });
 
+  testWidgets('live operations classifies fire scenes as emergency incidents', (
+    tester,
+  ) async {
+    final now = DateTime.now().toUtc();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LiveOperationsPage(
+          events: [
+            DecisionCreated(
+              eventId: 'decision-fire',
+              sequence: 1,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 3)),
+              dispatchId: 'D-2001',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-FIRE',
+            ),
+            IntelligenceReceived(
+              eventId: 'intel-fire',
+              sequence: 2,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 2)),
+              intelligenceId: 'INT-FIRE',
+              provider: 'hikvision_dvr_monitor_only',
+              sourceType: 'dvr',
+              externalId: 'evt-fire',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-FIRE',
+              cameraId: 'generator-room-cam',
+              objectLabel: 'smoke',
+              objectConfidence: 0.94,
+              headline: 'HIKVISION FIRE ALERT',
+              summary: 'Smoke visible in the generator room.',
+              riskScore: 74,
+              snapshotUrl: 'https://edge.example.com/fire.jpg',
+              canonicalHash: 'hash-fire',
+            ),
+          ],
+          sceneReviewByIntelligenceId: {
+            'INT-FIRE': MonitoringSceneReviewRecord(
+              intelligenceId: 'INT-FIRE',
+              sourceLabel: 'openai:gpt-5.4-mini',
+              postureLabel: 'fire and smoke emergency',
+              decisionLabel: 'Escalation Candidate',
+              decisionSummary:
+                  'Escalated for urgent review because fire or smoke indicators were detected.',
+              summary: 'Smoke plume visible inside the generator room.',
+              reviewedAtUtc: now.subtract(const Duration(minutes: 1)),
+            ),
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Fire / Smoke Emergency'), findsWidgets);
+    expect(find.text('P1'), findsWidgets);
+    expect(find.textContaining('fire and smoke emergency'), findsOneWidget);
+  });
+
   testWidgets(
     'live operations switches latest intel and ladder labels for DVR',
     (tester) async {

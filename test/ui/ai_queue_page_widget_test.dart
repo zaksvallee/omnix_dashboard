@@ -177,4 +177,62 @@ void main() {
     expect(find.textContaining('Replay the next-shift posture'), findsOneWidget);
     expect(find.text('AUTO'), findsWidgets);
   });
+
+  testWidgets('ai queue surfaces fire escalation plans from hazard posture', (
+    tester,
+  ) async {
+    final events = [
+      IntelligenceReceived(
+        eventId: 'evt-fire',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 16, 21, 14),
+        intelligenceId: 'intel-fire',
+        provider: 'hikvision_dvr_monitor_only',
+        sourceType: 'dvr',
+        externalId: 'ext-fire',
+        clientId: 'CLIENT-VALLEE',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-FIRE',
+        cameraId: 'generator-room-cam',
+        objectLabel: 'smoke',
+        objectConfidence: 0.96,
+        headline: 'HIKVISION FIRE ALERT',
+        summary: 'Smoke detected near the generator room.',
+        riskScore: 78,
+        snapshotUrl: 'https://edge.example.com/fire.jpg',
+        canonicalHash: 'hash-fire',
+      ),
+    ];
+    final reviews = {
+      'intel-fire': MonitoringSceneReviewRecord(
+        intelligenceId: 'intel-fire',
+        sourceLabel: 'openai:gpt-5.4-mini',
+        postureLabel: 'fire and smoke emergency',
+        decisionLabel: 'Escalation Candidate',
+        decisionSummary:
+            'Escalated for urgent review because fire or smoke indicators were detected.',
+        summary: 'Smoke plume visible in the generator room.',
+        reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 15),
+      ),
+    };
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AIQueuePage(
+          events: events,
+          sceneReviewByIntelligenceId: reviews,
+          videoOpsLabel: 'Hikvision',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('FIRE ESCALATION'), findsOneWidget);
+    expect(
+      find.textContaining('Promote immediate fire response'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('HIKVISION evidence'), findsOneWidget);
+  });
 }

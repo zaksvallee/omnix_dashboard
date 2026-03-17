@@ -3000,27 +3000,27 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   ? decision.dispatchId
                   : 'INC-${decision.dispatchId}';
               final risk = riskBySite[decision.siteId] ?? 55;
-              final priority = risk >= 85
-                  ? _IncidentPriority.p1Critical
-                  : risk >= 70
-                  ? _IncidentPriority.p2High
-                  : risk >= 50
-                  ? _IncidentPriority.p3Medium
-                  : _IncidentPriority.p4Low;
-              final status = _statusOverrides[normalizedId] ?? baseStatus;
               final latestIntel = latestHardwareIntelBySite[decision.siteId];
               final latestSceneReview = latestIntel == null
                   ? null
                   : widget.sceneReviewByIntelligenceId[latestIntel
                         .intelligenceId
                         .trim()];
+              final priority = _incidentPriorityFor(
+                risk,
+                latestSceneReview: latestSceneReview,
+              );
+              final status = _statusOverrides[normalizedId] ?? baseStatus;
               return _IncidentRecord(
                 id: normalizedId,
                 clientId: decision.clientId,
                 regionId: decision.regionId,
                 siteId: decision.siteId,
                 priority: priority,
-                type: risk >= 85 ? 'Breach Detection' : 'Perimeter Alarm',
+                type: _incidentTypeFor(
+                  risk,
+                  latestSceneReview: latestSceneReview,
+                ),
                 site: decision.siteId,
                 timestamp: _hhmm(decision.occurredAt.toLocal()),
                 status: status,
@@ -3602,6 +3602,48 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       _IncidentPriority.p3Medium => 2,
       _IncidentPriority.p4Low => 3,
     };
+  }
+
+  _IncidentPriority _incidentPriorityFor(
+    int risk, {
+    required MonitoringSceneReviewRecord? latestSceneReview,
+  }) {
+    final basePriority = switch (risk) {
+      >= 85 => _IncidentPriority.p1Critical,
+      >= 70 => _IncidentPriority.p2High,
+      >= 50 => _IncidentPriority.p3Medium,
+      _ => _IncidentPriority.p4Low,
+    };
+    final posture = (latestSceneReview?.postureLabel ?? '').trim().toLowerCase();
+    if (posture.contains('fire') || posture.contains('smoke')) {
+      return _IncidentPriority.p1Critical;
+    }
+    if (posture.contains('flood') || posture.contains('leak')) {
+      return _IncidentPriority.p1Critical;
+    }
+    if (posture.contains('hazard')) {
+      if (_priorityRank(basePriority) > _priorityRank(_IncidentPriority.p2High)) {
+        return _IncidentPriority.p2High;
+      }
+    }
+    return basePriority;
+  }
+
+  String _incidentTypeFor(
+    int risk, {
+    required MonitoringSceneReviewRecord? latestSceneReview,
+  }) {
+    final posture = (latestSceneReview?.postureLabel ?? '').trim().toLowerCase();
+    if (posture.contains('fire') || posture.contains('smoke')) {
+      return 'Fire / Smoke Emergency';
+    }
+    if (posture.contains('flood') || posture.contains('leak')) {
+      return 'Flood / Leak Emergency';
+    }
+    if (posture.contains('hazard')) {
+      return 'Environmental Hazard';
+    }
+    return risk >= 85 ? 'Breach Detection' : 'Perimeter Alarm';
   }
 
   String _hhmm(DateTime timestamp) {
