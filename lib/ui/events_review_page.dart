@@ -863,6 +863,19 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                           ),
                         ],
                         if (syntheticScopeSummary
+                            .shadowLearningSummary
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Shadow learning: ${syntheticScopeSummary.shadowLearningSummary}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFBFDBFE),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                        if (syntheticScopeSummary
                             .learningMemorySummary
                             .isNotEmpty) ...[
                           const SizedBox(height: 4),
@@ -870,6 +883,19 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             syntheticScopeSummary.learningMemorySummary,
                             style: GoogleFonts.inter(
                               color: const Color(0xFFC4B5FD),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                        if (syntheticScopeSummary
+                            .shadowMemorySummary
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            syntheticScopeSummary.shadowMemorySummary,
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF93C5FD),
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
                             ),
@@ -1813,6 +1839,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       policySummary: policySummary,
       topIntentSummary: leadPlan.description,
       hazardSummary: hazardSummary,
+      shadowLearningSummary: _syntheticWarRoomShadowLearningSummary(plans),
+      shadowMemorySummary: _syntheticWarRoomShadowMemorySummary(plans),
       learningSummary: _syntheticWarRoomLearningSummary(plans),
       learningMemorySummary: _syntheticWarRoomLearningMemorySummary(
         currentLearningLabel: _syntheticWarRoomLearningLabel(plans),
@@ -2255,6 +2283,29 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return plans
         .map(
           (plan) => (plan.metadata['learning_label'] ?? '').toString().trim(),
+        )
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+  }
+
+  String _syntheticWarRoomShadowLearningSummary(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    return plans
+        .map(
+          (plan) => (plan.metadata['shadow_learning_summary'] ?? '')
+              .toString()
+              .trim(),
+        )
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+  }
+
+  String _syntheticWarRoomShadowMemorySummary(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    return plans
+        .map(
+          (plan) =>
+              (plan.metadata['shadow_memory_summary'] ?? '').toString().trim(),
         )
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
   }
@@ -4234,6 +4285,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       'policy_summary,"${summary.policySummary.replaceAll('"', '""')}"',
       'top_intent_summary,"${summary.topIntentSummary.replaceAll('"', '""')}"',
       'hazard_summary,"${summary.hazardSummary.replaceAll('"', '""')}"',
+      'shadow_learning_summary,"${summary.shadowLearningSummary.replaceAll('"', '""')}"',
+      'shadow_memory_summary,"${summary.shadowMemorySummary.replaceAll('"', '""')}"',
       'learning_summary,"${summary.learningSummary.replaceAll('"', '""')}"',
       'learning_memory_summary,"${summary.learningMemorySummary.replaceAll('"', '""')}"',
       'bias_summary,"${summary.biasSummary.replaceAll('"', '""')}"',
@@ -4577,6 +4630,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'policySummary': summary.policySummary,
         'topIntentSummary': summary.topIntentSummary,
         'hazardSummary': summary.hazardSummary,
+        'shadowLearningSummary': summary.shadowLearningSummary,
+        'shadowMemorySummary': summary.shadowMemorySummary,
         'learningSummary': summary.learningSummary,
         'learningMemorySummary': summary.learningMemorySummary,
         'biasSummary': summary.biasSummary,
@@ -5112,6 +5167,8 @@ class _SyntheticScopeSummary {
   final String policySummary;
   final String topIntentSummary;
   final String hazardSummary;
+  final String shadowLearningSummary;
+  final String shadowMemorySummary;
   final String learningSummary;
   final String learningMemorySummary;
   final String biasSummary;
@@ -5130,6 +5187,8 @@ class _SyntheticScopeSummary {
     required this.policySummary,
     required this.topIntentSummary,
     required this.hazardSummary,
+    required this.shadowLearningSummary,
+    required this.shadowMemorySummary,
     required this.learningSummary,
     required this.learningMemorySummary,
     required this.biasSummary,

@@ -314,6 +314,11 @@ void main() {
       expect(policy.metadata['shadow_mo_label'], 'HARDEN ACCESS');
       expect(policy.metadata['shadow_mo_repeat_count'], '1');
       expect(policy.metadata['memory_priority_boost'], 'HIGH');
+      expect(policy.metadata['shadow_learning_label'], 'HARDEN ACCESS EARLIER');
+      expect(
+        policy.metadata['shadow_learning_summary'],
+        'Learned shadow lesson: start access hardening and service-role checks one step earlier next shift.',
+      );
       expect(
         policy.metadata['shadow_memory_summary'],
         contains('Shadow bias: HARDEN ACCESS'),

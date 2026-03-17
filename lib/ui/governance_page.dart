@@ -336,6 +336,8 @@ class _SyntheticWarRoomHistoryPoint {
   final String recommendationSummary;
   final String learningSummary;
   final String shadowSummary;
+  final String shadowLearningSummary;
+  final String shadowMemorySummary;
   final String actionBias;
   final String memoryPriorityBoost;
   final String memoryCountdownBias;
@@ -353,6 +355,8 @@ class _SyntheticWarRoomHistoryPoint {
     required this.recommendationSummary,
     required this.learningSummary,
     required this.shadowSummary,
+    required this.shadowLearningSummary,
+    required this.shadowMemorySummary,
     required this.actionBias,
     required this.memoryPriorityBoost,
     required this.memoryCountdownBias,
@@ -3913,6 +3917,10 @@ class _GovernancePageState extends State<GovernancePage> {
         recommendationSummary: currentRecommendation,
         learningSummary: currentLearning,
         shadowSummary: _syntheticWarRoomShadowSummary(currentPlans),
+        shadowLearningSummary: _syntheticWarRoomShadowLearningSummary(
+          currentPlans,
+        ),
+        shadowMemorySummary: _syntheticWarRoomShadowMemorySummary(currentPlans),
         actionBias: currentPolicyPlan.metadata['action_bias'] ?? '',
         memoryPriorityBoost:
             currentPolicyPlan.metadata['memory_priority_boost'] ?? '',
@@ -3963,6 +3971,8 @@ class _GovernancePageState extends State<GovernancePage> {
           recommendationSummary: recommendation,
           learningSummary: learning,
           shadowSummary: _syntheticWarRoomShadowSummary(plans),
+          shadowLearningSummary: _syntheticWarRoomShadowLearningSummary(plans),
+          shadowMemorySummary: _syntheticWarRoomShadowMemorySummary(plans),
           actionBias: policyPlan.metadata['action_bias'] ?? '',
           memoryPriorityBoost:
               policyPlan.metadata['memory_priority_boost'] ?? '',
@@ -4228,6 +4238,22 @@ class _GovernancePageState extends State<GovernancePage> {
       if (repeatCount.isNotEmpty && repeatCount != '0') 'x$repeatCount',
     ];
     return parts.join(' • ');
+  }
+
+  String _syntheticWarRoomShadowLearningSummary(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    return plans
+        .map((plan) => (plan.metadata['shadow_learning_summary'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+  }
+
+  String _syntheticWarRoomShadowMemorySummary(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    return plans
+        .map((plan) => (plan.metadata['shadow_memory_summary'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
   }
 
   String _syntheticWarRoomModeLabel(
@@ -8317,6 +8343,32 @@ class _GovernancePageState extends State<GovernancePage> {
                                       ),
                                     ),
                                   ],
+                                  if (point.shadowLearningSummary
+                                      .trim()
+                                      .isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Shadow learning • ${point.shadowLearningSummary}',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFBFDBFE),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                  if (point.shadowMemorySummary
+                                      .trim()
+                                      .isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      point.shadowMemorySummary,
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF93C5FD),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
                                   if (point.actionBias.trim().isNotEmpty ||
                                       point.memoryPriorityBoost
                                           .trim()
@@ -9529,6 +9581,8 @@ class _GovernancePageState extends State<GovernancePage> {
       'recommendationSummary': point.recommendationSummary,
       'learningSummary': point.learningSummary,
       'shadowSummary': point.shadowSummary,
+      'shadowLearningSummary': point.shadowLearningSummary,
+      'shadowMemorySummary': point.shadowMemorySummary,
       'actionBias': point.actionBias,
       'memoryPriorityBoost': point.memoryPriorityBoost,
       'memoryCountdownBias': point.memoryCountdownBias,
@@ -10787,6 +10841,12 @@ class _GovernancePageState extends State<GovernancePage> {
             .map((plan) => (plan.metadata['learning_summary'] ?? '').trim())
             .firstWhere((value) => value.isNotEmpty, orElse: () => ''),
         'shadowSummary': _syntheticWarRoomShadowSummary(syntheticWarRoomPlans),
+        'shadowLearningSummary': _syntheticWarRoomShadowLearningSummary(
+          syntheticWarRoomPlans,
+        ),
+        'shadowMemorySummary': _syntheticWarRoomShadowMemorySummary(
+          syntheticWarRoomPlans,
+        ),
         'actionBias': syntheticWarRoomPlans
             .map((plan) => (plan.metadata['action_bias'] ?? '').trim())
             .firstWhere((value) => value.isNotEmpty, orElse: () => ''),
@@ -11068,6 +11128,8 @@ class _GovernancePageState extends State<GovernancePage> {
       'synthetic_war_room_learning_label,${syntheticWarRoomPlans.map((plan) => (plan.metadata['learning_label'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '')}',
       'synthetic_war_room_learning_summary,"${syntheticWarRoomPlans.map((plan) => (plan.metadata['learning_summary'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '').replaceAll('"', '""')}"',
       'synthetic_war_room_shadow_summary,"${_syntheticWarRoomShadowSummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',
+      'synthetic_war_room_shadow_learning_summary,"${_syntheticWarRoomShadowLearningSummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',
+      'synthetic_war_room_shadow_memory_summary,"${_syntheticWarRoomShadowMemorySummary(syntheticWarRoomPlans).replaceAll('"', '""')}"',
       'synthetic_war_room_learning_memory_summary,"${_syntheticWarRoomLearningMemorySummary(syntheticWarRoomHistory).replaceAll('"', '""')}"',
       'synthetic_war_room_action_bias,"${syntheticWarRoomPlans.map((plan) => (plan.metadata['action_bias'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '').replaceAll('"', '""')}"',
       'synthetic_war_room_memory_priority_boost,${syntheticWarRoomPlans.map((plan) => (plan.metadata['memory_priority_boost'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '')}',

@@ -1372,10 +1372,7 @@ void main() {
       find.textContaining('Contractors moved floor to floor in office park'),
       findsWidgets,
     );
-    expect(
-      find.textContaining('Review refs: SHADOW-INTEL-1'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Review refs: SHADOW-INTEL-1'), findsOneWidget);
 
     final copyJsonAction = tester.widget<InkWell>(
       find.byKey(
@@ -1399,8 +1396,16 @@ void main() {
     );
     expect(copiedClipboardPayload, contains('"reviewRefs": ['));
     expect(copiedClipboardPayload, contains('"siteId": "SITE-ALPHA"'));
-    expect(copiedClipboardPayload, contains('"historyHeadline": "RISING • 3d"'));
-    expect(copiedClipboardPayload, contains('"historySummary": "Current matches 2 • Baseline 0.0 • Shadow-MO match pressure is increasing against recent shifts."'));
+    expect(
+      copiedClipboardPayload,
+      contains('"historyHeadline": "RISING • 3d"'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains(
+        '"historySummary": "Current matches 2 • Baseline 0.0 • Shadow-MO match pressure is increasing against recent shifts."',
+      ),
+    );
     expect(copiedClipboardPayload, contains('"history": {'));
     expect(copiedClipboardPayload, contains('"date": "2026-03-17"'));
 
@@ -1426,7 +1431,9 @@ void main() {
     expect(copiedClipboardPayload, contains('history_headline,"RISING • 3d"'));
     expect(
       copiedClipboardPayload,
-      contains('history_summary,"Current matches 2 • Baseline 0.0 • Shadow-MO match pressure is increasing against recent shifts."'),
+      contains(
+        'history_summary,"Current matches 2 • Baseline 0.0 • Shadow-MO match pressure is increasing against recent shifts."',
+      ),
     );
     expect(copiedClipboardPayload, contains('history_1_date,2026-03-17'));
     expect(copiedClipboardPayload, contains('history_1_match_count,2'));
@@ -1874,14 +1881,8 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(
-      find.textContaining('Learning: Learned bias:'),
-      findsOneWidget,
-    );
-    expect(
-      find.textContaining('Bias:'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Learning: Learned bias:'), findsOneWidget);
+    expect(find.textContaining('Bias:'), findsOneWidget);
     expect(
       find.textContaining('Top intent: Replay the next-shift posture'),
       findsOneWidget,
@@ -1918,12 +1919,16 @@ void main() {
     expect(copiedClipboardPayload, contains('"modeLabel": "POLICY SHIFT"'));
     expect(copiedClipboardPayload, contains('"historicalFocus": true'));
     expect(copiedClipboardPayload, contains('"hazardSummary": ""'));
+    expect(copiedClipboardPayload, contains('"shadowLearningSummary": ""'));
+    expect(copiedClipboardPayload, contains('"shadowMemorySummary": ""'));
     expect(copiedClipboardPayload, contains('"learningSummary":'));
     expect(copiedClipboardPayload, contains('"learningMemorySummary":'));
     expect(copiedClipboardPayload, contains('"biasSummary":'));
     expect(
       copiedClipboardPayload,
-      contains('"policySummary": "earlier postural echo propagation into sibling sites"'),
+      contains(
+        '"policySummary": "earlier postural echo propagation into sibling sites"',
+      ),
     );
     expect(copiedClipboardPayload, contains('"reviewShortcuts"'));
     expect(
@@ -1969,7 +1974,10 @@ void main() {
     expect(copiedClipboardPayload, contains('metric,value'));
     expect(copiedClipboardPayload, contains('report_date,2026-03-17'));
     expect(copiedClipboardPayload, contains('live_report_date,2026-03-18'));
-    expect(copiedClipboardPayload, contains('focus_state,historical_command_target'));
+    expect(
+      copiedClipboardPayload,
+      contains('focus_state,historical_command_target'),
+    );
     expect(copiedClipboardPayload, contains('historical_focus,true'));
     expect(copiedClipboardPayload, contains('hazard_summary,""'));
     expect(copiedClipboardPayload, contains('learning_summary,"'));
@@ -1978,7 +1986,9 @@ void main() {
     expect(copiedClipboardPayload, contains('mode_label,"POLICY SHIFT"'));
     expect(
       copiedClipboardPayload,
-      contains('policy_summary,"earlier postural echo propagation into sibling sites"'),
+      contains(
+        'policy_summary,"earlier postural echo propagation into sibling sites"',
+      ),
     );
     expect(copiedClipboardPayload, contains('history_headline,"RISING • 2d"'));
     expect(
@@ -1997,10 +2007,7 @@ void main() {
       copiedClipboardPayload,
       contains('previous_case_file_command,/syntheticcase json 2026-03-16'),
     );
-    expect(
-      copiedClipboardPayload,
-      contains('history_1_date,2026-03-17'),
-    );
+    expect(copiedClipboardPayload, contains('history_1_date,2026-03-17'));
     expect(
       copiedClipboardPayload,
       contains('history_1_review_command,/syntheticreview 2026-03-17'),
@@ -2009,14 +2016,8 @@ void main() {
       copiedClipboardPayload,
       contains('history_1_case_file_command,/syntheticcase json 2026-03-17'),
     );
-    expect(
-      copiedClipboardPayload,
-      contains('history_1_bias_summary,"'),
-    );
-    expect(
-      copiedClipboardPayload,
-      contains('history_2_date,2026-03-16'),
-    );
+    expect(copiedClipboardPayload, contains('history_1_bias_summary,"'));
+    expect(copiedClipboardPayload, contains('history_2_date,2026-03-16'));
     expect(
       copiedClipboardPayload,
       contains('history_2_review_command,/syntheticreview 2026-03-16'),
@@ -2243,12 +2244,11 @@ void main() {
       find.textContaining('Prebuild next-shift fire readiness'),
       findsOneWidget,
     );
+    expect(find.textContaining('Learning: ADVANCE FIRE'), findsOneWidget);
     expect(
-      find.textContaining('Learning: ADVANCE FIRE'),
-      findsOneWidget,
-    );
-    expect(
-      find.textContaining('Memory: ADVANCE FIRE repeated across 2 linked shifts.'),
+      find.textContaining(
+        'Memory: ADVANCE FIRE repeated across 2 linked shifts.',
+      ),
       findsOneWidget,
     );
     expect(
@@ -2265,9 +2265,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.textContaining(
-        '2026-03-16 • No tomorrow-posture drafts triggered.',
-      ),
+      find.textContaining('2026-03-16 • No tomorrow-posture drafts triggered.'),
       findsOneWidget,
     );
 
@@ -2287,10 +2285,15 @@ void main() {
       copiedClipboardPayload,
       contains('"leadDraftActionType": "DRAFT NEXT-SHIFT FIRE READINESS"'),
     );
-    expect(copiedClipboardPayload, contains('"learningSummary": "ADVANCE FIRE"'));
     expect(
       copiedClipboardPayload,
-      contains('"learningMemorySummary": "Memory: ADVANCE FIRE repeated across 2 linked shifts."'),
+      contains('"learningSummary": "ADVANCE FIRE"'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains(
+        '"learningMemorySummary": "Memory: ADVANCE FIRE repeated across 2 linked shifts."',
+      ),
     );
     expect(
       copiedClipboardPayload,
@@ -2338,17 +2341,17 @@ void main() {
     expect(copiedClipboardPayload, contains('metric,value'));
     expect(copiedClipboardPayload, contains('report_date,2026-03-17'));
     expect(copiedClipboardPayload, contains('live_report_date,2026-03-18'));
-    expect(copiedClipboardPayload, contains('focus_state,historical_command_target'));
+    expect(
+      copiedClipboardPayload,
+      contains('focus_state,historical_command_target'),
+    );
     expect(copiedClipboardPayload, contains('historical_focus,true'));
     expect(copiedClipboardPayload, contains('draft_count,1'));
     expect(
       copiedClipboardPayload,
       contains('lead_draft_action_type,"DRAFT NEXT-SHIFT FIRE READINESS"'),
     );
-    expect(
-      copiedClipboardPayload,
-      contains('learning_summary,"ADVANCE FIRE"'),
-    );
+    expect(copiedClipboardPayload, contains('learning_summary,"ADVANCE FIRE"'));
     expect(
       copiedClipboardPayload,
       contains(
@@ -2475,7 +2478,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('events-detail-SHADOW-1')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('events-detail-SHADOW-1')),
+      findsOneWidget,
+    );
     expect(find.text('SCENE REVIEW'), findsOneWidget);
     expect(
       find.text('Likely maintenance impersonation moving across office zones.'),

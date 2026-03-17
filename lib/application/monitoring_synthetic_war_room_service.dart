@@ -167,6 +167,12 @@ class MonitoringSyntheticWarRoomService {
           repeatedShadowCount: repeatedShadowCount,
           leadShadowMatch: leadShadowMatch,
         );
+        final shadowLearningLabel = _shadowLearningLabel(
+          shadowLabel: shadowLabel,
+        );
+        final shadowLearningSummary = _shadowLearningSummary(
+          shadowLabel: shadowLabel,
+        );
         final recommendation = hazardSignal.isNotEmpty
             ? _hazardDirectiveService
                   .buildForSignal(
@@ -214,6 +220,10 @@ class MonitoringSyntheticWarRoomService {
               if (leadShadowMatch != null)
                 'shadow_mo_title': leadShadowMatch.title,
               'shadow_mo_repeat_count': repeatedShadowCount.toString(),
+              if (shadowLearningLabel.isNotEmpty)
+                'shadow_learning_label': shadowLearningLabel,
+              if (shadowLearningSummary.isNotEmpty)
+                'shadow_learning_summary': shadowLearningSummary,
               if (effectiveMemoryCount > 0)
                 'memory_source': repeatedShadowCount > repeatedLearningCount
                     ? 'SHADOW'
@@ -315,6 +325,27 @@ class MonitoringSyntheticWarRoomService {
         title.isEmpty
             ? 'earlier shadow-watch rehearsal'
             : 'earlier shadow-watch rehearsal around "$title"',
+      _ => '',
+    };
+  }
+
+  String _shadowLearningLabel({required String shadowLabel}) {
+    return switch (shadowLabel.trim()) {
+      'HARDEN ACCESS' => 'HARDEN ACCESS EARLIER',
+      'ADVANCE RECON' => 'ADVANCE RECON WATCH',
+      'PREARM SHADOW' => 'PREARM SHADOW WATCH',
+      _ => '',
+    };
+  }
+
+  String _shadowLearningSummary({required String shadowLabel}) {
+    return switch (shadowLabel.trim()) {
+      'HARDEN ACCESS' =>
+        'Learned shadow lesson: start access hardening and service-role checks one step earlier next shift.',
+      'ADVANCE RECON' =>
+        'Learned shadow lesson: move reconnaissance challenge watch earlier next shift.',
+      'PREARM SHADOW' =>
+        'Learned shadow lesson: pre-arm shadow-watch posture earlier next shift.',
       _ => '',
     };
   }

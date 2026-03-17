@@ -5418,6 +5418,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       syntheticWarRoomShadowSummary: _syntheticWarRoomShadowSummary(
         syntheticWarRoomPlans,
       ),
+      syntheticWarRoomShadowLearningSummary:
+          _syntheticWarRoomShadowLearningSummary(syntheticWarRoomPlans),
+      syntheticWarRoomShadowMemorySummary: _syntheticWarRoomShadowMemorySummary(
+        syntheticWarRoomPlans,
+      ),
       syntheticWarRoomLearningSummary: _syntheticWarRoomLearningSummary(
         syntheticWarRoomPlans,
       ),
@@ -6155,6 +6160,22 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return _singleLine(parts.join(' • '), maxLength: 220);
   }
 
+  String _syntheticWarRoomShadowLearningSummary(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    return plans
+        .map((plan) => (plan.metadata['shadow_learning_summary'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+  }
+
+  String _syntheticWarRoomShadowMemorySummary(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    return plans
+        .map((plan) => (plan.metadata['shadow_memory_summary'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+  }
+
   String _syntheticWarRoomLearningMemorySummary({
     required String currentLearningLabel,
     required List<SovereignReport> history,
@@ -6807,6 +6828,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'policySummary': _syntheticWarRoomPolicySummary(plans),
       'hazardSummary': _syntheticWarRoomHazardSummary(plans),
       'shadowSummary': _syntheticWarRoomShadowSummary(plans),
+      'shadowLearningSummary': _syntheticWarRoomShadowLearningSummary(plans),
+      'shadowMemorySummary': _syntheticWarRoomShadowMemorySummary(plans),
       'learningLabel': learningLabel,
       'learningSummary': _syntheticWarRoomLearningSummary(plans),
       'learningMemorySummary': _syntheticWarRoomLearningMemorySummary(
@@ -6892,6 +6915,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               'policySummary': _syntheticWarRoomPolicySummary(itemPlans),
               'hazardSummary': _syntheticWarRoomHazardSummary(itemPlans),
               'shadowSummary': _syntheticWarRoomShadowSummary(itemPlans),
+              'shadowLearningSummary': _syntheticWarRoomShadowLearningSummary(
+                itemPlans,
+              ),
+              'shadowMemorySummary': _syntheticWarRoomShadowMemorySummary(
+                itemPlans,
+              ),
               'learningLabel': _syntheticWarRoomLearningLabel(itemPlans),
               'learningSummary': _syntheticWarRoomLearningSummary(itemPlans),
               'actionBias': (itemPolicyPlan.metadata['action_bias'] ?? '')
@@ -6937,6 +6966,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'policy_summary,"${(payload['policySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'hazard_summary,"${(payload['hazardSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'shadow_summary,"${(payload['shadowSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'shadow_learning_summary,"${(payload['shadowLearningSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'shadow_memory_summary,"${(payload['shadowMemorySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'learning_label,${payload['learningLabel'] ?? ''}',
       'learning_summary,"${(payload['learningSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'learning_memory_summary,"${(payload['learningMemorySummary'] ?? '').toString().replaceAll('"', '""')}"',
@@ -6982,6 +7013,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       lines.add(
         'history_${i + 1}_shadow_summary,"${(row['shadowSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add(
+        'history_${i + 1}_shadow_learning_summary,"${(row['shadowLearningSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add(
+        'history_${i + 1}_shadow_memory_summary,"${(row['shadowMemorySummary'] ?? '').toString().replaceAll('"', '""')}"',
       );
       lines.add(
         'history_${i + 1}_learning_label,${row['learningLabel'] ?? ''}',
@@ -17315,6 +17352,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
     final hazardSummary = (payload['hazardSummary'] ?? '').toString().trim();
     final shadowSummary = (payload['shadowSummary'] ?? '').toString().trim();
+    final shadowLearningSummary = (payload['shadowLearningSummary'] ?? '')
+        .toString()
+        .trim();
+    final shadowMemorySummary = (payload['shadowMemorySummary'] ?? '')
+        .toString()
+        .trim();
     final learningMemorySummary = (payload['learningMemorySummary'] ?? '')
         .toString()
         .trim();
@@ -17334,6 +17377,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
           '${hazardSummary.isEmpty ? '' : 'hazard_summary=$hazardSummary\n'}'
           '${shadowSummary.isEmpty ? '' : 'shadow_summary=$shadowSummary\n'}'
+          '${shadowLearningSummary.isEmpty ? '' : 'shadow_learning_summary=$shadowLearningSummary\n'}'
+          '${shadowMemorySummary.isEmpty ? '' : 'shadow_memory_summary=$shadowMemorySummary\n'}'
           '${learningSummary.isEmpty ? '' : 'learning_summary=$learningSummary\n'}'
           '${learningMemorySummary.isEmpty ? '' : 'learning_memory_summary=$learningMemorySummary\n'}'
           '${biasSummary.isEmpty ? '' : 'bias_summary=$biasSummary\n'}'
@@ -17347,6 +17392,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
         '${hazardSummary.isEmpty ? '' : 'hazard_summary=$hazardSummary\n'}'
         '${shadowSummary.isEmpty ? '' : 'shadow_summary=$shadowSummary\n'}'
+        '${shadowLearningSummary.isEmpty ? '' : 'shadow_learning_summary=$shadowLearningSummary\n'}'
+        '${shadowMemorySummary.isEmpty ? '' : 'shadow_memory_summary=$shadowMemorySummary\n'}'
         '${learningSummary.isEmpty ? '' : 'learning_summary=$learningSummary\n'}'
         '${learningMemorySummary.isEmpty ? '' : 'learning_memory_summary=$learningMemorySummary\n'}'
         '${biasSummary.isEmpty ? '' : 'bias_summary=$biasSummary\n'}'

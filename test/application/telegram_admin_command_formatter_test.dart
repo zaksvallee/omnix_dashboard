@@ -167,6 +167,10 @@ void main() {
       syntheticWarRoomHazardSummary: 'fire rehearsal recommended',
       syntheticWarRoomShadowSummary:
           'HARDEN ACCESS • site-alpha • Contractors moved floor to floor in office park • x1',
+      syntheticWarRoomShadowLearningSummary:
+          'Learned shadow lesson: start access hardening and service-role checks one step earlier next shift.',
+      syntheticWarRoomShadowMemorySummary:
+          'Shadow bias: HARDEN ACCESS around "Contractors moved floor to floor in office park" repeated in the previous shift.',
       syntheticWarRoomLearningSummary:
           'Learned bias: stage fire response one step earlier next shift.',
       syntheticWarRoomMemorySummary:
@@ -268,6 +272,18 @@ void main() {
       response,
       contains(
         '<b>Shadow rehearsal:</b> HARDEN ACCESS • site-alpha • Contractors moved floor to floor in office park • x1',
+      ),
+    );
+    expect(
+      response,
+      contains(
+        '<b>Shadow learning:</b> Learned shadow lesson: start access hardening and service-role checks one step earlier next shift.',
+      ),
+    );
+    expect(
+      response,
+      contains(
+        '<b>Shadow memory:</b> Shadow bias: HARDEN ACCESS around "Contractors moved floor to floor in office park" repeated in the previous shift.',
       ),
     );
     expect(

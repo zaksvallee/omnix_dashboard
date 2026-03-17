@@ -4502,6 +4502,8 @@ void main() {
     expect(copiedPayload, contains('"learningLabel": ""'));
     expect(copiedPayload, contains('"learningSummary": ""'));
     expect(copiedPayload, contains('"shadowSummary": ""'));
+    expect(copiedPayload, contains('"shadowLearningSummary": ""'));
+    expect(copiedPayload, contains('"shadowMemorySummary": ""'));
     expect(copiedPayload, contains('"learningMemorySummary": ""'));
     expect(copiedPayload, contains('"actionBias": ""'));
     expect(copiedPayload, contains('"memoryPriorityBoost": ""'));

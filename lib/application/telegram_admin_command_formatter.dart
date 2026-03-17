@@ -106,6 +106,8 @@ class TelegramAdminCommandFormatter {
     String? syntheticWarRoomPolicySummary,
     String? syntheticWarRoomHazardSummary,
     String? syntheticWarRoomShadowSummary,
+    String? syntheticWarRoomShadowLearningSummary,
+    String? syntheticWarRoomShadowMemorySummary,
     String? syntheticWarRoomLearningSummary,
     String? syntheticWarRoomMemorySummary,
     String? syntheticWarRoomBiasSummary,
@@ -176,6 +178,10 @@ class TelegramAdminCommandFormatter {
     final warRoomPolicySummary = syntheticWarRoomPolicySummary?.trim() ?? '';
     final warRoomHazardSummary = syntheticWarRoomHazardSummary?.trim() ?? '';
     final warRoomShadowSummary = syntheticWarRoomShadowSummary?.trim() ?? '';
+    final warRoomShadowLearningSummary =
+        syntheticWarRoomShadowLearningSummary?.trim() ?? '';
+    final warRoomShadowMemorySummary =
+        syntheticWarRoomShadowMemorySummary?.trim() ?? '';
     final warRoomLearningSummary =
         syntheticWarRoomLearningSummary?.trim() ?? '';
     final warRoomMemorySummary = syntheticWarRoomMemorySummary?.trim() ?? '';
@@ -244,6 +250,8 @@ class TelegramAdminCommandFormatter {
               '${warRoomPolicySummary.isEmpty ? '' : '• <b>Policy:</b> ${_escapeHtml(warRoomPolicySummary)}\n'}'
               '${warRoomHazardSummary.isEmpty ? '' : '• <b>Hazard rehearsal:</b> ${_escapeHtml(warRoomHazardSummary)}\n'}'
               '${warRoomShadowSummary.isEmpty ? '' : '• <b>Shadow rehearsal:</b> ${_escapeHtml(warRoomShadowSummary)}\n'}'
+              '${warRoomShadowLearningSummary.isEmpty ? '' : '• <b>Shadow learning:</b> ${_escapeHtml(warRoomShadowLearningSummary)}\n'}'
+              '${warRoomShadowMemorySummary.isEmpty ? '' : '• <b>Shadow memory:</b> ${_escapeHtml(warRoomShadowMemorySummary)}\n'}'
               '${warRoomLearningSummary.isEmpty ? '' : '• <b>Learning:</b> ${_escapeHtml(warRoomLearningSummary)}\n'}'
               '${warRoomMemorySummary.isEmpty ? '' : '• <b>Memory:</b> ${_escapeHtml(warRoomMemorySummary)}\n'}'
               '${warRoomBiasSummary.isEmpty ? '' : '• <b>Bias:</b> ${_escapeHtml(warRoomBiasSummary)}\n'}'
