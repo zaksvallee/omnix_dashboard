@@ -139,6 +139,11 @@ void main() {
       previousShiftReadinessCaseFileCommand: '/readinesscase json 2026-03-16',
       previousShiftReadinessGovernanceCommand:
           '/readinessgovernance 2026-03-16',
+      syntheticWarRoomHeadline: 'POLICY SHIFT',
+      syntheticWarRoomSummary:
+          'Plans 2 • region north-cluster • lead site-alpha • top intent POSTURAL ECHO',
+      syntheticWarRoomPolicySummary:
+          'Raise perimeter review priority for north-cluster during the next shift.',
       siteActivityHeadline: 'ACTIVITY RISING',
       siteActivitySummary:
           'Unknown or flagged site activity increased against recent shifts.',
@@ -172,6 +177,15 @@ void main() {
       response,
       contains(
         '<b>Previous focus:</b> Viewing command-targeted shift 2026-03-16 instead of live oversight 2026-03-17.',
+      ),
+    );
+    expect(response, contains('<b>Synthetic War-Room</b>'));
+    expect(response, contains('<b>Mode:</b> POLICY SHIFT'));
+    expect(response, contains('<b>Summary:</b> Plans 2'));
+    expect(
+      response,
+      contains(
+        '<b>Policy:</b> Raise perimeter review priority for north-cluster during the next shift.',
       ),
     );
     expect(

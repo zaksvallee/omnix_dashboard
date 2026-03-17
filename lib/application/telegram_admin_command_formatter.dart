@@ -83,6 +83,9 @@ class TelegramAdminCommandFormatter {
     String? previousShiftReadinessReviewCommand,
     String? previousShiftReadinessCaseFileCommand,
     String? previousShiftReadinessGovernanceCommand,
+    String? syntheticWarRoomHeadline,
+    String? syntheticWarRoomSummary,
+    String? syntheticWarRoomPolicySummary,
     required String siteActivityHeadline,
     required String siteActivitySummary,
     required String currentShiftReviewCommand,
@@ -115,6 +118,9 @@ class TelegramAdminCommandFormatter {
         previousShiftReadinessCaseFileCommand?.trim() ?? '';
     final previousReadinessGovernance =
         previousShiftReadinessGovernanceCommand?.trim() ?? '';
+    final warRoomHeadline = syntheticWarRoomHeadline?.trim() ?? '';
+    final warRoomSummary = syntheticWarRoomSummary?.trim() ?? '';
+    final warRoomPolicySummary = syntheticWarRoomPolicySummary?.trim() ?? '';
     final targetLine = normalizedTargetScope.isEmpty
         ? '• <b>Target scope:</b> required\n'
         : '• <b>Target scope:</b> <code>${_escapeHtml(normalizedTargetScope)}</code>\n';
@@ -144,6 +150,14 @@ class TelegramAdminCommandFormatter {
               '${previousReadinessCase.isEmpty ? '' : '• <b>Previous case:</b> <code>${_escapeHtml(previousReadinessCase)}</code>\n'}'
               '${previousReadinessGovernance.isEmpty ? '' : '• <b>Previous governance:</b> <code>${_escapeHtml(previousReadinessGovernance)}</code>\n'}'
               '\n';
+    final warRoomSection = warRoomHeadline.isEmpty && warRoomSummary.isEmpty
+        ? ''
+        : '---\n\n'
+              '<b>Synthetic War-Room</b>\n'
+              '${warRoomHeadline.isEmpty ? '' : '• <b>Mode:</b> ${_escapeHtml(warRoomHeadline)}\n'}'
+              '${warRoomSummary.isEmpty ? '' : '• <b>Summary:</b> ${_escapeHtml(warRoomSummary)}\n'}'
+              '${warRoomPolicySummary.isEmpty ? '' : '• <b>Policy:</b> ${_escapeHtml(warRoomPolicySummary)}\n'}'
+              '\n';
     return '🛰️ <b>ONYX MORNING GOVERNANCE</b>\n\n'
         '<b>Signal</b>\n'
         '<code>${_escapeHtml(signalHeader)}</code>\n\n'
@@ -164,6 +178,7 @@ class TelegramAdminCommandFormatter {
         '$previousLines'
         '$targetHint'
         '$readinessSection'
+        '$warRoomSection'
         '\nUTC: ${_escapeHtml(utcStamp)}';
   }
 

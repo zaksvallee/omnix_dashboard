@@ -8813,6 +8813,34 @@ class _GovernancePageState extends State<GovernancePage> {
     };
   }
 
+  Map<String, Object?> _syntheticWarRoomTrendJson(
+    _SyntheticWarRoomTrend trend,
+  ) {
+    return {
+      'trendLabel': trend.trendLabel,
+      'trendReason': trend.trendReason,
+      'summaryLine': trend.summaryLine,
+      'reportDays': trend.reportDays,
+      'currentModeLabel': trend.currentModeLabel,
+    };
+  }
+
+  Map<String, Object?> _syntheticWarRoomHistoryJson(
+    _SyntheticWarRoomHistoryPoint point,
+  ) {
+    return {
+      'reportDate': point.reportDate,
+      'current': point.current,
+      'planCount': point.planCount,
+      'policyCount': point.policyCount,
+      'modeLabel': point.modeLabel,
+      'leadRegionId': point.leadRegionId,
+      'leadSiteId': point.leadSiteId,
+      'topIntentSummary': point.topIntentSummary,
+      'recommendationSummary': point.recommendationSummary,
+    };
+  }
+
   String _siteActivityReviewCommand(String reportDate) {
     return '/activityreview $reportDate';
   }
@@ -8853,6 +8881,24 @@ class _GovernancePageState extends State<GovernancePage> {
         ? ''
         : ' • ${point.latestIntentSummary}';
     return '${point.reportDate} • ${point.current ? 'CURRENT' : 'HISTORY'} • Sites ${point.totalSites} • Critical ${point.criticalSiteCount} • Elevated ${point.elevatedSiteCount} • Intents ${point.intentCount} • ${point.modeLabel} • $leadSegment$intentSegment';
+  }
+
+  String _syntheticWarRoomHistoryCsvSummary(
+    _SyntheticWarRoomHistoryPoint point,
+  ) {
+    final leadRegionSegment = point.leadRegionId.trim().isEmpty
+        ? ''
+        : ' • Region ${point.leadRegionId}';
+    final leadSiteSegment = point.leadSiteId.trim().isEmpty
+        ? ''
+        : ' • Lead ${point.leadSiteId}';
+    final intentSegment = point.topIntentSummary.trim().isEmpty
+        ? ''
+        : ' • ${point.topIntentSummary}';
+    final recommendationSegment = point.recommendationSummary.trim().isEmpty
+        ? ''
+        : ' • ${point.recommendationSummary}';
+    return '${point.reportDate} • ${point.current ? 'CURRENT' : 'HISTORY'} • Plans ${point.planCount} • Policy ${point.policyCount} • ${point.modeLabel}$leadRegionSegment$leadSiteSegment$intentSegment$recommendationSegment';
   }
 
   String _siteActivityHistoryCsvSummary(_SiteActivityHistoryPoint point) {
@@ -9882,6 +9928,16 @@ class _GovernancePageState extends State<GovernancePage> {
     final globalReadinessTrend = _globalReadinessTrendForReport(report);
     final globalReadinessBaseline = _globalReadinessBaselineStats(report);
     final globalReadinessHistory = _globalReadinessHistory(report);
+    final syntheticWarRoomTrend = _syntheticWarRoomTrendForReport(report);
+    final syntheticWarRoomBaseline = _syntheticWarRoomBaselineStats(report);
+    final syntheticWarRoomHistory = _syntheticWarRoomHistory(report);
+    final syntheticWarRoomPlans = _syntheticWarRoomPlansForReport(report);
+    final syntheticWarRoomPolicyCount = syntheticWarRoomPlans
+        .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
+        .length;
+    final syntheticWarRoomLeadPlan = syntheticWarRoomPlans.isEmpty
+        ? null
+        : syntheticWarRoomPlans.first;
     final siteActivityTrend = _siteActivityTrendForReport(report);
     final siteActivityBaseline = _siteActivityBaselineStats(report);
     final siteActivityHistory = _siteActivityHistory(report);
@@ -9952,6 +10008,24 @@ class _GovernancePageState extends State<GovernancePage> {
         'trend': _globalReadinessTrendJson(globalReadinessTrend),
         'history': globalReadinessHistory
             .map(_globalReadinessHistoryJson)
+            .toList(growable: false),
+      },
+      'syntheticWarRoom': {
+        'planCount': syntheticWarRoomPlans.length,
+        'policyCount': syntheticWarRoomPolicyCount,
+        'modeLabel': _syntheticWarRoomModeLabel(syntheticWarRoomPlans),
+        'leadRegionId': syntheticWarRoomLeadPlan?.metadata['region'] ?? '',
+        'leadSiteId': syntheticWarRoomLeadPlan?.metadata['lead_site'] ?? '',
+        'topIntentSummary':
+            syntheticWarRoomLeadPlan?.metadata['top_intent'] ?? '',
+        'comparison': {
+          'baselinePlanAverage': syntheticWarRoomBaseline.planAverage,
+          'baselinePolicyAverage': syntheticWarRoomBaseline.policyAverage,
+          'baselineReportDays': syntheticWarRoomBaseline.reportDays,
+        },
+        'trend': _syntheticWarRoomTrendJson(syntheticWarRoomTrend),
+        'history': syntheticWarRoomHistory
+            .map(_syntheticWarRoomHistoryJson)
             .toList(growable: false),
       },
       'receiptPolicy': {
@@ -10104,6 +10178,13 @@ class _GovernancePageState extends State<GovernancePage> {
     final globalReadinessTrend = _globalReadinessTrendForReport(report);
     final globalReadinessBaseline = _globalReadinessBaselineStats(report);
     final globalReadinessHistory = _globalReadinessHistory(report);
+    final syntheticWarRoomTrend = _syntheticWarRoomTrendForReport(report);
+    final syntheticWarRoomBaseline = _syntheticWarRoomBaselineStats(report);
+    final syntheticWarRoomHistory = _syntheticWarRoomHistory(report);
+    final syntheticWarRoomPlans = _syntheticWarRoomPlansForReport(report);
+    final syntheticWarRoomPolicyCount = syntheticWarRoomPlans
+        .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
+        .length;
     final siteActivityTrend = _siteActivityTrendForReport(report);
     final siteActivityBaseline = _siteActivityBaselineStats(report);
     final siteActivityHistory = _siteActivityHistory(report);
@@ -10161,6 +10242,18 @@ class _GovernancePageState extends State<GovernancePage> {
       'global_readiness_baseline_report_days,${globalReadinessBaseline.reportDays}',
       for (var i = 0; i < globalReadinessHistory.length; i++)
         'global_readiness_history_${i + 1},"${_globalReadinessHistoryCsvSummary(globalReadinessHistory[i]).replaceAll('"', '""')}"',
+      'synthetic_war_room_plan_count,${syntheticWarRoomPlans.length}',
+      'synthetic_war_room_policy_count,$syntheticWarRoomPolicyCount',
+      'synthetic_war_room_mode,"${_syntheticWarRoomModeLabel(syntheticWarRoomPlans).replaceAll('"', '""')}"',
+      'synthetic_war_room_trend_label,${syntheticWarRoomTrend.trendLabel}',
+      'synthetic_war_room_trend_reason,"${syntheticWarRoomTrend.trendReason.replaceAll('"', '""')}"',
+      'synthetic_war_room_trend_summary,"${syntheticWarRoomTrend.summaryLine.replaceAll('"', '""')}"',
+      'synthetic_war_room_trend_report_days,${syntheticWarRoomTrend.reportDays}',
+      'synthetic_war_room_baseline_plan_average,${syntheticWarRoomBaseline.planAverage.toStringAsFixed(1)}',
+      'synthetic_war_room_baseline_policy_average,${syntheticWarRoomBaseline.policyAverage.toStringAsFixed(1)}',
+      'synthetic_war_room_baseline_report_days,${syntheticWarRoomBaseline.reportDays}',
+      for (var i = 0; i < syntheticWarRoomHistory.length; i++)
+        'synthetic_war_room_history_${i + 1},"${_syntheticWarRoomHistoryCsvSummary(syntheticWarRoomHistory[i]).replaceAll('"', '""')}"',
       'receipt_generated_reports,${report.generatedReports}',
       'receipt_tracked_configuration_reports,${report.trackedConfigurationReports}',
       'receipt_legacy_configuration_reports,${report.legacyConfigurationReports}',

@@ -4200,6 +4200,14 @@ void main() {
     expect(copiedPayload, contains('"personSignals": 4'));
     expect(copiedPayload, contains('"vehicleSignals": 3'));
     expect(copiedPayload, contains('"flaggedIdentitySignals": 1'));
+    expect(copiedPayload, contains('"syntheticWarRoom"'));
+    expect(copiedPayload, contains('"planCount": 0'));
+    expect(copiedPayload, contains('"policyCount": 0'));
+    expect(copiedPayload, contains('"modeLabel": "QUIET REHEARSAL"'));
+    expect(copiedPayload, contains('"baselinePlanAverage": 0.0'));
+    expect(copiedPayload, contains('"baselinePolicyAverage": 0.0'));
+    expect(copiedPayload, contains('"trendLabel": "STABLE"'));
+    expect(copiedPayload, contains('"recommendationSummary": ""'));
     expect(copiedPayload, contains('"comparison"'));
     expect(copiedPayload, contains('"baselineSignalsAverage": 0.0'));
     expect(copiedPayload, contains('"baselineUnknownAverage": 0.0'));
@@ -4273,6 +4281,25 @@ void main() {
     expect(
       copiedPayload,
       contains('global_readiness_live_report_date,2026-03-10'),
+    );
+    expect(copiedPayload, contains('synthetic_war_room_plan_count,0'));
+    expect(copiedPayload, contains('synthetic_war_room_policy_count,0'));
+    expect(
+      copiedPayload,
+      contains('synthetic_war_room_mode,"QUIET REHEARSAL"'),
+    );
+    expect(copiedPayload, contains('synthetic_war_room_trend_label,STABLE'));
+    expect(
+      copiedPayload,
+      contains(
+        'synthetic_war_room_baseline_plan_average,0.0',
+      ),
+    );
+    expect(
+      copiedPayload,
+      contains(
+        'synthetic_war_room_history_1,"2026-03-10 • CURRENT • Plans 0 • Policy 0 • QUIET REHEARSAL',
+      ),
     );
     expect(copiedPayload, contains('site_activity_people,4'));
     expect(copiedPayload, contains('site_activity_vehicles,3'));

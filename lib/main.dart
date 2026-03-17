@@ -40,6 +40,7 @@ import 'application/monitoring_global_posture_service.dart';
 import 'application/monitoring_orchestrator_service.dart';
 import 'application/monitoring_shift_notification_service.dart';
 import 'application/monitoring_scene_review_store.dart';
+import 'application/monitoring_synthetic_war_room_service.dart';
 import 'application/monitoring_watch_action_plan.dart';
 import 'application/monitoring_watch_escalation_policy_service.dart';
 import 'application/monitoring_identity_policy_service.dart';
@@ -550,6 +551,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   static const _siteActivityTelegramFormatter = SiteActivityTelegramFormatter();
   static const _globalPostureService = MonitoringGlobalPostureService();
   static const _orchestratorService = MonitoringOrchestratorService();
+  static const _syntheticWarRoomService = MonitoringSyntheticWarRoomService();
   static const _partnerEndpointLabelPrefix = 'PARTNER';
   late final NewsIntelligenceService _newsIntel;
   static const _browserFiles = DispatchSnapshotFileService();
@@ -5302,6 +5304,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         : null;
     final readinessSnapshot = _globalReadinessSnapshotForReport(report);
     final readinessIntents = _globalReadinessIntentsForReport(report);
+    final syntheticWarRoomPlans = _syntheticWarRoomPlansForReport(report);
     final readinessSummary = _globalReadinessSummaryForReport(
       snapshot: readinessSnapshot,
       intents: readinessIntents,
@@ -5360,6 +5363,15 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       previousShiftReadinessGovernanceCommand: previousReport == null
           ? null
           : '/readinessgovernance ${previousReport.date}',
+      syntheticWarRoomHeadline: _syntheticWarRoomModeLabel(
+        syntheticWarRoomPlans,
+      ),
+      syntheticWarRoomSummary: _syntheticWarRoomSummary(
+        syntheticWarRoomPlans,
+      ),
+      syntheticWarRoomPolicySummary: _syntheticWarRoomPolicySummary(
+        syntheticWarRoomPlans,
+      ),
       siteActivityHeadline: siteActivityHeadline,
       siteActivitySummary: siteActivitySummary,
       currentShiftReviewCommand: '/activityreview ${report.date}',
@@ -5578,6 +5590,69 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       '${top.actionType} • ${top.siteId} • ${top.description}',
       maxLength: 220,
     );
+  }
+
+  List<MonitoringWatchAutonomyActionPlan> _syntheticWarRoomPlansForReport(
+    SovereignReport report,
+  ) {
+    final scopedEvents = _eventsScopedToWindow(
+      report.shiftWindowStartUtc,
+      report.shiftWindowEndUtc,
+    );
+    return _syntheticWarRoomService.buildSimulationPlans(
+      events: scopedEvents,
+      sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
+      videoOpsLabel: _activeVideoOpsLabel,
+    );
+  }
+
+  String _syntheticWarRoomModeLabel(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    final policyCount = plans
+        .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
+        .length;
+    if (policyCount > 0) {
+      return 'POLICY SHIFT';
+    }
+    if (plans.isNotEmpty) {
+      return 'SIMULATION ACTIVE';
+    }
+    return 'QUIET REHEARSAL';
+  }
+
+  String _syntheticWarRoomSummary(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    if (plans.isEmpty) {
+      return '';
+    }
+    final lead = plans.first;
+    final summary = <String>[
+      'Plans ${plans.length}',
+      if ((lead.metadata['region'] ?? '').trim().isNotEmpty)
+        'region ${(lead.metadata['region'] ?? '').trim()}',
+      if ((lead.metadata['lead_site'] ?? '').trim().isNotEmpty)
+        'lead ${(lead.metadata['lead_site'] ?? '').trim()}',
+      if ((lead.metadata['top_intent'] ?? '').trim().isNotEmpty &&
+          (lead.metadata['top_intent'] ?? '').trim() != 'NONE')
+        'top intent ${(lead.metadata['top_intent'] ?? '').trim()}',
+    ];
+    return _singleLine(summary.join(' • '), maxLength: 220);
+  }
+
+  String _syntheticWarRoomPolicySummary(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    final recommendations = plans
+        .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
+        .map((plan) => (plan.metadata['recommendation'] ?? '').trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (recommendations.isEmpty) {
+      return '';
+    }
+    return _singleLine(recommendations.first, maxLength: 220);
   }
 
   List<IntelligenceReceived> _reviewedIntelligenceEventsForReport(
