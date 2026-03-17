@@ -115,6 +115,56 @@ void main() {
     },
   );
 
+  testWidgets('governance page highlights hazard playbook summaries', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GovernancePage(
+          events: [
+            IntelligenceReceived(
+              eventId: 'evt-fire',
+              sequence: 1,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 16, 22, 0),
+              intelligenceId: 'intel-fire',
+              provider: 'hikvision_dvr_monitor_only',
+              sourceType: 'dvr',
+              externalId: 'ext-fire',
+              clientId: 'CLIENT-1',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-VALLEE',
+              cameraId: 'generator-room-cam',
+              objectLabel: 'smoke',
+              objectConfidence: 0.95,
+              headline: 'HIKVISION FIRE ALERT',
+              summary: 'Smoke visible in the generator room.',
+              riskScore: 93,
+              snapshotUrl: 'https://edge.example.com/intel-fire.jpg',
+              canonicalHash: 'hash-fire',
+            ),
+          ],
+          sceneReviewByIntelligenceId: {
+            'intel-fire': MonitoringSceneReviewRecord(
+              intelligenceId: 'intel-fire',
+              sourceLabel: 'openai:gpt-5.4-mini',
+              postureLabel: 'fire and smoke emergency',
+              decisionLabel: 'Escalation Candidate',
+              decisionSummary:
+                  'Escalation posture requires fire response review.',
+              summary: 'Smoke plume visible inside the generator room.',
+              reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 1),
+            ),
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('fire playbook active'), findsOneWidget);
+    expect(find.textContaining('fire rehearsal recommended'), findsOneWidget);
+  });
+
   testWidgets('governance page highlights historical readiness focus mode', (
     tester,
   ) async {

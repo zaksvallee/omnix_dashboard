@@ -3095,13 +3095,14 @@ class _GovernancePageState extends State<GovernancePage> {
     }
     final leadRegion = snapshot.regions.isEmpty ? null : snapshot.regions.first;
     final leadSite = snapshot.sites.isEmpty ? null : snapshot.sites.first;
+    final hazardSegment = _hazardIntentSummary(intents);
     final regionSegment = leadRegion == null
         ? ''
         : ' • region ${leadRegion.regionId} ${leadRegion.heatLevel.name}';
     final siteSegment = leadSite == null
         ? ''
         : ' • lead ${leadSite.siteId} ${leadSite.dominantSignals.join('/')}';
-    return 'Sites ${snapshot.totalSites} • elevated ${snapshot.elevatedSiteCount} • critical ${snapshot.criticalSiteCount} • intents ${intents.length}$regionSegment$siteSegment';
+    return 'Sites ${snapshot.totalSites} • elevated ${snapshot.elevatedSiteCount} • critical ${snapshot.criticalSiteCount} • intents ${intents.length}$regionSegment$siteSegment$hazardSegment';
   }
 
   String _syntheticWarRoomMetricDetail(
@@ -3129,7 +3130,39 @@ class _GovernancePageState extends State<GovernancePage> {
     final recommendationSegment = recommendation.isEmpty
         ? ''
         : ' • $recommendation';
-    return 'Plans ${plans.length} • policy $policyCount$regionSegment$siteSegment$intentSegment$recommendationSegment';
+    final hazardSegment = _hazardSimulationSummary(plans);
+    return 'Plans ${plans.length} • policy $policyCount$regionSegment$siteSegment$intentSegment$recommendationSegment$hazardSegment';
+  }
+
+  String _hazardIntentSummary(List<MonitoringWatchAutonomyActionPlan> intents) {
+    final signal = intents
+        .map((plan) => (plan.metadata['hazard_signal'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    if (signal.isEmpty) {
+      return '';
+    }
+    return ' • ${_hazardSignalLabel(signal)} playbook active';
+  }
+
+  String _hazardSimulationSummary(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    final signal = plans
+        .map((plan) => (plan.metadata['hazard_signal'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    if (signal.isEmpty) {
+      return '';
+    }
+    return ' • ${_hazardSignalLabel(signal)} rehearsal recommended';
+  }
+
+  String _hazardSignalLabel(String signal) {
+    return switch (signal.trim().toLowerCase()) {
+      'fire' => 'fire',
+      'water_leak' => 'leak',
+      'environment_hazard' => 'hazard',
+      _ => signal.trim().toLowerCase(),
+    };
   }
 
   _GlobalReadinessTrend _globalReadinessTrendForReport(

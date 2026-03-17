@@ -13,6 +13,7 @@ import '../application/monitoring_identity_policy_service.dart';
 import '../application/monitoring_orchestrator_service.dart';
 import '../application/monitoring_scene_review_store.dart';
 import '../application/monitoring_synthetic_war_room_service.dart';
+import '../application/monitoring_watch_action_plan.dart';
 import '../application/monitoring_watch_recovery_policy.dart';
 import '../application/monitoring_watch_recovery_store.dart';
 import '../application/ops_integration_profile.dart';
@@ -4942,11 +4943,14 @@ class _AdministrationPageState extends State<AdministrationPage> {
     );
     final leadRegion = snapshot.regions.isEmpty ? null : snapshot.regions.first;
     final leadSite = snapshot.sites.isEmpty ? null : snapshot.sites.first;
+    final hazardIntentSummary = _hazardIntentSummary(intents);
+    final hazardSimulationSummary = _hazardSimulationSummary(warRoomPlans);
     final summary = snapshot.totalSites <= 0
         ? 'No cross-site posture signals are active yet.'
         : 'Sites ${snapshot.totalSites} • elevated ${snapshot.elevatedSiteCount} • critical ${snapshot.criticalSiteCount} • intents ${intents.length}'
             '${leadRegion == null ? '' : ' • region ${leadRegion.regionId} ${leadRegion.heatLevel.name.toUpperCase()}'}'
-            '${leadSite == null ? '' : ' • lead ${leadSite.siteId}'}';
+            '${leadSite == null ? '' : ' • lead ${leadSite.siteId}'}'
+            '${hazardIntentSummary.isEmpty ? '' : ' • $hazardIntentSummary'}';
     return Container(
       key: const ValueKey('admin-global-readiness-card'),
       width: double.infinity,
@@ -5032,6 +5036,17 @@ class _AdministrationPageState extends State<AdministrationPage> {
               ),
             ),
           ],
+          if (hazardIntentSummary.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Hazard lane • $hazardIntentSummary',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFFCA5A5),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
           if (warRoomPlans.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
@@ -5043,9 +5058,51 @@ class _AdministrationPageState extends State<AdministrationPage> {
               ),
             ),
           ],
+          if (hazardSimulationSummary.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Hazard rehearsal • $hazardSimulationSummary',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFC4B5FD),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  String _hazardIntentSummary(List<MonitoringWatchAutonomyActionPlan> intents) {
+    final signal = intents
+        .map((plan) => (plan.metadata['hazard_signal'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    if (signal.isEmpty) {
+      return '';
+    }
+    return '${_hazardSignalLabel(signal)} playbook active';
+  }
+
+  String _hazardSimulationSummary(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    final signal = plans
+        .map((plan) => (plan.metadata['hazard_signal'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    if (signal.isEmpty) {
+      return '';
+    }
+    return '${_hazardSignalLabel(signal)} rehearsal recommended';
+  }
+
+  String _hazardSignalLabel(String signal) {
+    return switch (signal.trim().toLowerCase()) {
+      'fire' => 'Fire',
+      'water_leak' => 'Leak',
+      'environment_hazard' => 'Hazard',
+      _ => signal.trim(),
+    };
   }
 
   Widget _listenerAlarmSummaryRow({
