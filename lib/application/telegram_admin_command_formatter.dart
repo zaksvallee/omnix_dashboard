@@ -81,6 +81,7 @@ class TelegramAdminCommandFormatter {
     String? globalReadinessEchoSummary,
     String? globalReadinessTopIntentSummary,
     String? globalReadinessHazardSummary,
+    String? globalReadinessTomorrowPostureSummary,
     String? currentShiftReadinessFocusSummary,
     String? currentShiftReadinessReviewCommand,
     String? currentShiftReadinessCaseFileCommand,
@@ -126,6 +127,8 @@ class TelegramAdminCommandFormatter {
         globalReadinessTopIntentSummary?.trim() ?? '';
     final readinessHazardSummary =
         globalReadinessHazardSummary?.trim() ?? '';
+    final readinessTomorrowPostureSummary =
+        globalReadinessTomorrowPostureSummary?.trim() ?? '';
     final readinessFocusSummary =
         currentShiftReadinessFocusSummary?.trim() ?? '';
     final readinessReview = currentShiftReadinessReviewCommand?.trim() ?? '';
@@ -186,6 +189,7 @@ class TelegramAdminCommandFormatter {
               '${readinessEchoSummary.isEmpty ? '' : '• <b>Postural echo:</b> ${_escapeHtml(readinessEchoSummary)}\n'}'
               '${readinessTopIntentSummary.isEmpty ? '' : '• <b>Top intent:</b> ${_escapeHtml(readinessTopIntentSummary)}\n'}'
               '${readinessHazardSummary.isEmpty ? '' : '• <b>Hazard lane:</b> ${_escapeHtml(readinessHazardSummary)}\n'}'
+              '${readinessTomorrowPostureSummary.isEmpty ? '' : '• <b>Tomorrow posture:</b> ${_escapeHtml(readinessTomorrowPostureSummary)}\n'}'
               '• <b>Current review:</b> <code>${_escapeHtml(readinessReview)}</code>\n'
               '${readinessCase.isEmpty ? '' : '• <b>Current case:</b> <code>${_escapeHtml(readinessCase)}</code>\n'}'
               '${readinessGovernance.isEmpty ? '' : '• <b>Open governance:</b> <code>${_escapeHtml(readinessGovernance)}</code>\n'}'

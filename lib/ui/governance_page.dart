@@ -3115,13 +3115,53 @@ class _GovernancePageState extends State<GovernancePage> {
     final leadRegion = snapshot.regions.isEmpty ? null : snapshot.regions.first;
     final leadSite = snapshot.sites.isEmpty ? null : snapshot.sites.first;
     final hazardSegment = _hazardIntentSummary(intents);
+    final tomorrowSegment = _globalReadinessTomorrowPostureSummary(intents);
     final regionSegment = leadRegion == null
         ? ''
         : ' • region ${leadRegion.regionId} ${leadRegion.heatLevel.name}';
     final siteSegment = leadSite == null
         ? ''
         : ' • lead ${leadSite.siteId} ${leadSite.dominantSignals.join('/')}';
-    return 'Sites ${snapshot.totalSites} • elevated ${snapshot.elevatedSiteCount} • critical ${snapshot.criticalSiteCount} • intents ${intents.length}$regionSegment$siteSegment$hazardSegment';
+    final tomorrowSuffix = tomorrowSegment.isEmpty
+        ? ''
+        : ' • tomorrow $tomorrowSegment';
+    return 'Sites ${snapshot.totalSites} • elevated ${snapshot.elevatedSiteCount} • critical ${snapshot.criticalSiteCount} • intents ${intents.length}$regionSegment$siteSegment$hazardSegment$tomorrowSuffix';
+  }
+
+  int _globalReadinessNextShiftDraftCount(
+    List<MonitoringWatchAutonomyActionPlan> intents,
+  ) {
+    return intents.where((plan) => plan.metadata['scope'] == 'NEXT_SHIFT').length;
+  }
+
+  String _globalReadinessTomorrowPostureSummary(
+    List<MonitoringWatchAutonomyActionPlan> intents,
+  ) {
+    final draft = intents.firstWhere(
+      (plan) => plan.metadata['scope'] == 'NEXT_SHIFT',
+      orElse: () => const MonitoringWatchAutonomyActionPlan(
+        id: '',
+        incidentId: '',
+        siteId: '',
+        priority: MonitoringWatchAutonomyPriority.medium,
+        actionType: '',
+        description: '',
+        countdownSeconds: 0,
+      ),
+    );
+    if (draft.actionType.trim().isEmpty) {
+      return '';
+    }
+    final leadSite = (draft.metadata['lead_site'] ?? draft.siteId).trim();
+    final learningLabel = (draft.metadata['learning_label'] ?? '').trim();
+    final repeatCount = (draft.metadata['learning_repeat_count'] ?? '').trim();
+    final parts = <String>[
+      draft.actionType.trim(),
+      if (leadSite.isNotEmpty) leadSite,
+      if (learningLabel.isNotEmpty) learningLabel,
+      if (repeatCount.isNotEmpty) 'x$repeatCount',
+    ];
+    return parts.join(' • ');
   }
 
   String _syntheticWarRoomMetricDetail(
@@ -10225,6 +10265,12 @@ class _GovernancePageState extends State<GovernancePage> {
         'elevatedSiteCount': globalReadinessSnapshot.elevatedSiteCount,
         'criticalSiteCount': globalReadinessSnapshot.criticalSiteCount,
         'intentCount': globalReadinessIntents.length,
+        'nextShiftDraftCount': _globalReadinessNextShiftDraftCount(
+          globalReadinessIntents,
+        ),
+        'tomorrowPostureSummary': _globalReadinessTomorrowPostureSummary(
+          globalReadinessIntents,
+        ),
         'modeLabel': _globalReadinessModeLabel(
           globalReadinessSnapshot,
           globalReadinessIntents,
@@ -10497,6 +10543,8 @@ class _GovernancePageState extends State<GovernancePage> {
       'global_readiness_elevated_sites,${globalReadinessSnapshot.elevatedSiteCount}',
       'global_readiness_critical_sites,${globalReadinessSnapshot.criticalSiteCount}',
       'global_readiness_intent_count,${globalReadinessIntents.length}',
+      'global_readiness_next_shift_draft_count,${_globalReadinessNextShiftDraftCount(globalReadinessIntents)}',
+      'global_readiness_tomorrow_posture_summary,"${_globalReadinessTomorrowPostureSummary(globalReadinessIntents).replaceAll('"', '""')}"',
       'global_readiness_focus_state,${_globalReadinessFocusState(report)}',
       'global_readiness_historical_focus,${_isHistoricalGlobalReadinessFocus(report)}',
       'global_readiness_focus_summary,"${_globalReadinessFocusSummary(report).replaceAll('"', '""')}"',

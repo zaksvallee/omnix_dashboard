@@ -4366,6 +4366,14 @@ void main() {
       copiedPayload,
       contains('global_readiness_live_report_date,2026-03-10'),
     );
+    expect(
+      copiedPayload,
+      contains('global_readiness_next_shift_draft_count,0'),
+    );
+    expect(
+      copiedPayload,
+      contains('global_readiness_tomorrow_posture_summary,""'),
+    );
     expect(copiedPayload, contains('synthetic_war_room_plan_count,0'));
     expect(copiedPayload, contains('synthetic_war_room_policy_count,0'));
     expect(

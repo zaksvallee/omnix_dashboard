@@ -130,6 +130,8 @@ void main() {
       globalReadinessTopIntentSummary:
           'POSTURAL ECHO • site-bravo • Raise CCTV perimeter attention',
       globalReadinessHazardSummary: 'fire playbook active',
+      globalReadinessTomorrowPostureSummary:
+          'DRAFT NEXT-SHIFT FIRE READINESS • site-alpha • ADVANCE FIRE • x2',
       currentShiftReadinessFocusSummary:
           'Viewing live oversight shift 2026-03-17.',
       currentShiftReadinessReviewCommand: '/readinessreview 2026-03-17',
@@ -197,6 +199,12 @@ void main() {
     expect(response, contains('<b>Postural echo:</b> Echo 2'));
     expect(response, contains('<b>Top intent:</b> POSTURAL ECHO'));
     expect(response, contains('<b>Hazard lane:</b> fire playbook active'));
+    expect(
+      response,
+      contains(
+        '<b>Tomorrow posture:</b> DRAFT NEXT-SHIFT FIRE READINESS • site-alpha • ADVANCE FIRE • x2',
+      ),
+    );
     expect(response, contains('<code>/readinessreview 2026-03-17</code>'));
     expect(response, contains('<code>/readinesscase json 2026-03-16</code>'));
     expect(response, contains('<code>/readinessgovernance 2026-03-17</code>'));

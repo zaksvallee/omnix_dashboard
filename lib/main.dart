@@ -5361,6 +5361,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       globalReadinessHazardSummary: _globalReadinessHazardSummary(
         readinessIntents,
       ),
+      globalReadinessTomorrowPostureSummary:
+          _globalReadinessTomorrowPostureSummary(readinessIntents),
       currentShiftReadinessFocusSummary: _readinessFocusSummary(report.date),
       currentShiftReadinessReviewCommand: '/readinessreview ${report.date}',
       currentShiftReadinessCaseFileCommand:
@@ -5755,6 +5757,36 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       return '';
     }
     return '${_hazardSignalLabel(signal)} playbook active';
+  }
+
+  String _globalReadinessTomorrowPostureSummary(
+    List<MonitoringWatchAutonomyActionPlan> intents,
+  ) {
+    final draft = intents.firstWhere(
+      (plan) => plan.metadata['scope'] == 'NEXT_SHIFT',
+      orElse: () => const MonitoringWatchAutonomyActionPlan(
+        id: '',
+        incidentId: '',
+        siteId: '',
+        priority: MonitoringWatchAutonomyPriority.medium,
+        actionType: '',
+        description: '',
+        countdownSeconds: 0,
+      ),
+    );
+    if (draft.actionType.trim().isEmpty) {
+      return '';
+    }
+    final leadSite = (draft.metadata['lead_site'] ?? draft.siteId).trim();
+    final learningLabel = (draft.metadata['learning_label'] ?? '').trim();
+    final repeatCount = (draft.metadata['learning_repeat_count'] ?? '').trim();
+    final parts = <String>[
+      draft.actionType.trim(),
+      if (leadSite.isNotEmpty) leadSite,
+      if (learningLabel.isNotEmpty) learningLabel,
+      if (repeatCount.isNotEmpty) 'x$repeatCount',
+    ];
+    return _singleLine(parts.join(' • '), maxLength: 220);
   }
 
   String _syntheticWarRoomHazardSummary(
