@@ -1439,6 +1439,60 @@ void main() {
           initialScopedEventIds: const ['SYN-1', 'SYN-2'],
           initialSelectedEventId: 'SYN-1',
           initialScopedMode: 'synthetic',
+          morningSovereignReportHistory: [
+            SovereignReport(
+              date: '2026-03-17',
+              generatedAtUtc: DateTime.utc(2026, 3, 17, 6, 0),
+              shiftWindowStartUtc: DateTime.utc(2026, 3, 16, 22, 0),
+              shiftWindowEndUtc: DateTime.utc(2026, 3, 17, 6, 0),
+              ledgerIntegrity: const SovereignReportLedgerIntegrity(
+                totalEvents: 10,
+                hashVerified: true,
+                integrityScore: 100,
+              ),
+              aiHumanDelta: const SovereignReportAiHumanDelta(
+                aiDecisions: 1,
+                humanOverrides: 0,
+                overrideReasons: <String, int>{},
+              ),
+              normDrift: const SovereignReportNormDrift(
+                sitesMonitored: 2,
+                driftDetected: 0,
+                avgMatchScore: 100,
+              ),
+              complianceBlockage: const SovereignReportComplianceBlockage(
+                psiraExpired: 0,
+                pdpExpired: 0,
+                totalBlocked: 0,
+              ),
+            ),
+            SovereignReport(
+              date: '2026-03-16',
+              generatedAtUtc: DateTime.utc(2026, 3, 16, 6, 0),
+              shiftWindowStartUtc: DateTime.utc(2026, 3, 15, 22, 0),
+              shiftWindowEndUtc: DateTime.utc(2026, 3, 16, 6, 0),
+              ledgerIntegrity: const SovereignReportLedgerIntegrity(
+                totalEvents: 6,
+                hashVerified: true,
+                integrityScore: 100,
+              ),
+              aiHumanDelta: const SovereignReportAiHumanDelta(
+                aiDecisions: 1,
+                humanOverrides: 0,
+                overrideReasons: <String, int>{},
+              ),
+              normDrift: const SovereignReportNormDrift(
+                sitesMonitored: 2,
+                driftDetected: 0,
+                avgMatchScore: 100,
+              ),
+              complianceBlockage: const SovereignReportComplianceBlockage(
+                psiraExpired: 0,
+                pdpExpired: 0,
+                totalBlocked: 0,
+              ),
+            ),
+          ],
           currentMorningSovereignReportDate: '2026-03-18',
           onOpenGovernance: () {
             governanceOpened = true;
@@ -1486,6 +1540,19 @@ void main() {
       find.textContaining('Review refs: SYN-INTEL-1, SYN-INTEL-2'),
       findsOneWidget,
     );
+    expect(find.textContaining('RISING • 2d'), findsOneWidget);
+    expect(
+      find.textContaining('Current pressure 3 • Baseline 0.0'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('2026-03-17 • Plans 2 • region REGION-GAUTENG'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('2026-03-16 • No synthetic rehearsal triggered.'),
+      findsOneWidget,
+    );
 
     final copyJsonAction = tester.widget<InkWell>(
       find.byKey(
@@ -1502,6 +1569,9 @@ void main() {
       copiedClipboardPayload,
       contains('"policySummary": "earlier postural echo propagation into sibling sites"'),
     );
+    expect(copiedClipboardPayload, contains('"history": {'));
+    expect(copiedClipboardPayload, contains('"headline": "RISING • 2d"'));
+    expect(copiedClipboardPayload, contains('"date": "2026-03-16"'));
 
     final copyCsvAction = tester.widget<InkWell>(
       find.byKey(
@@ -1518,6 +1588,15 @@ void main() {
     expect(
       copiedClipboardPayload,
       contains('policy_summary,"earlier postural echo propagation into sibling sites"'),
+    );
+    expect(copiedClipboardPayload, contains('history_headline,"RISING • 2d"'));
+    expect(
+      copiedClipboardPayload,
+      contains('history_1_date,2026-03-17'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('history_2_date,2026-03-16'),
     );
 
     final openGovernanceAction = tester.widget<InkWell>(

@@ -604,6 +604,56 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             ),
                           ),
                         ],
+                        if (syntheticScopeSummary.history != null) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: const Color(0x338B5CF6),
+                              ),
+                              color: const Color(0x12000000),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  syntheticScopeSummary.history!.headline,
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFFC4B5FD),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  syntheticScopeSummary.history!.summary,
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFFAFC2DB),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                for (final point
+                                    in syntheticScopeSummary
+                                        .history!
+                                        .points) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${point.date} • ${point.summaryLine}',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFFEAF1FB),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 8),
                         Wrap(
                           spacing: 8,
@@ -1139,6 +1189,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       policySummary: policySummary,
       topIntentSummary: leadPlan.description,
       reviewRefs: reviewRefs,
+      history: _syntheticHistorySummary(
+        scopedEvents: scopedEvents,
+        reportDate: scopedReportDate,
+      ),
     );
   }
 
@@ -1202,6 +1256,26 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       return 'SIMULATION ACTIVE';
     }
     return 'QUIET REHEARSAL';
+  }
+
+  String _syntheticWarRoomSummary(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    if (plans.isEmpty) {
+      return '';
+    }
+    final lead = plans.first;
+    final summary = <String>[
+      'Plans ${plans.length}',
+      if ((lead.metadata['region'] ?? '').toString().trim().isNotEmpty)
+        'region ${(lead.metadata['region'] ?? '').toString().trim()}',
+      if ((lead.metadata['lead_site'] ?? '').toString().trim().isNotEmpty)
+        'lead ${(lead.metadata['lead_site'] ?? '').toString().trim()}',
+      if ((lead.metadata['top_intent'] ?? '').toString().trim().isNotEmpty &&
+          (lead.metadata['top_intent'] ?? '').toString().trim() != 'NONE')
+        'top intent ${(lead.metadata['top_intent'] ?? '').toString().trim()}',
+    ];
+    return summary.join(' • ');
   }
 
   String _utcReportDateLabel(DateTime dateTime) {
@@ -1276,6 +1350,114 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           'Current pressure ${current.pressureScore} • Baseline $baselineLabel • $reason',
       points: points.take(3).toList(growable: false),
     );
+  }
+
+  _SyntheticHistorySummary? _syntheticHistorySummary({
+    required List<DispatchEvent> scopedEvents,
+    required String? reportDate,
+  }) {
+    if (widget.morningSovereignReportHistory.isEmpty) {
+      return null;
+    }
+    final normalizedReportDate = (reportDate ?? '').trim();
+    final reports = [...widget.morningSovereignReportHistory]
+      ..sort(
+        (a, b) => b.generatedAtUtc.toUtc().compareTo(a.generatedAtUtc.toUtc()),
+      );
+    if (reports.isEmpty) {
+      return null;
+    }
+    final points = <_SyntheticHistoryPoint>[];
+    if (normalizedReportDate.isNotEmpty) {
+      final currentPlans = _syntheticWarRoomService.buildSimulationPlans(
+        events: scopedEvents,
+        sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+      );
+      points.add(
+        _SyntheticHistoryPoint(
+          date: normalizedReportDate,
+          planCount: currentPlans.length,
+          policyCount: currentPlans
+              .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
+              .length,
+          modeLabel: _syntheticWarRoomModeLabel(currentPlans),
+          summaryLine: _syntheticWarRoomSummary(currentPlans).isEmpty
+              ? 'No synthetic rehearsal triggered.'
+              : _syntheticWarRoomSummary(currentPlans),
+        ),
+      );
+    }
+    for (final report in reports) {
+      if (normalizedReportDate.isNotEmpty &&
+          report.date.trim() == normalizedReportDate) {
+        continue;
+      }
+      final reportEvents = _eventsForReportWindow(report);
+      final plans = _syntheticWarRoomService.buildSimulationPlans(
+        events: reportEvents,
+        sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+      );
+      points.add(
+        _SyntheticHistoryPoint(
+          date: report.date,
+          planCount: plans.length,
+          policyCount: plans
+              .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
+              .length,
+          modeLabel: _syntheticWarRoomModeLabel(plans),
+          summaryLine: _syntheticWarRoomSummary(plans).isEmpty
+              ? 'No synthetic rehearsal triggered.'
+              : _syntheticWarRoomSummary(plans),
+        ),
+      );
+    }
+    if (points.isEmpty) {
+      return null;
+    }
+    final current = points.first;
+    final baseline = points.skip(1).take(3).toList(growable: false);
+    final baselinePressure = baseline.isEmpty
+        ? null
+        : baseline
+                  .map((point) => point.pressureScore)
+                  .reduce((left, right) => left + right) /
+              baseline.length;
+    final currentPressure = current.pressureScore.toDouble();
+    late final String label;
+    late final String reason;
+    if (baselinePressure == null) {
+      label = 'NEW';
+      reason = 'No prior synthetic rehearsal history is available yet.';
+    } else if (currentPressure >= baselinePressure + 1) {
+      label = 'RISING';
+      reason = 'Synthetic rehearsal is recommending stronger action than recent shifts.';
+    } else if (currentPressure <= baselinePressure - 1) {
+      label = 'EASING';
+      reason = 'Synthetic rehearsal pressure eased against recent shifts.';
+    } else {
+      label = 'STABLE';
+      reason = 'Synthetic rehearsal pressure is holding close to the recent baseline.';
+    }
+    final baselineLabel = baselinePressure == null
+        ? 'n/a'
+        : baselinePressure.toStringAsFixed(1);
+    return _SyntheticHistorySummary(
+      headline: '$label • ${points.length}d',
+      summary:
+          'Current pressure ${current.pressureScore} • Baseline $baselineLabel • $reason',
+      points: points.take(3).toList(growable: false),
+    );
+  }
+
+  List<DispatchEvent> _eventsForReportWindow(SovereignReport report) {
+    final startUtc = report.shiftWindowStartUtc.toUtc();
+    final endUtc = report.shiftWindowEndUtc.toUtc();
+    return widget.events.where((event) {
+      final occurredAt = event.occurredAt.toUtc();
+      final atOrAfterStart = !occurredAt.isBefore(startUtc);
+      final beforeEnd = occurredAt.isBefore(endUtc);
+      return atOrAfterStart && beforeEnd;
+    }).toList(growable: false);
   }
 
   _PartnerScopeDetail? _partnerScopeDetail(List<DispatchEvent> scopedEvents) {
@@ -2695,6 +2877,22 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       'top_intent_summary,"${summary.topIntentSummary.replaceAll('"', '""')}"',
       'review_refs,"${summary.reviewRefs.join(', ').replaceAll('"', '""')}"',
     ];
+    if (summary.history != null) {
+      lines.add(
+        'history_headline,"${summary.history!.headline.replaceAll('"', '""')}"',
+      );
+      lines.add(
+        'history_summary,"${summary.history!.summary.replaceAll('"', '""')}"',
+      );
+      for (var index = 0; index < summary.history!.points.length; index += 1) {
+        final point = summary.history!.points[index];
+        final row = index + 1;
+        lines.add('history_${row}_date,${point.date}');
+        lines.add(
+          'history_${row}_summary,"${point.summaryLine.replaceAll('"', '""')}"',
+        );
+      }
+    }
     Clipboard.setData(ClipboardData(text: lines.join('\n')));
     logUiAction(
       'events.export_synthetic_casefile_csv',
@@ -2767,6 +2965,23 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'policySummary': summary.policySummary,
         'topIntentSummary': summary.topIntentSummary,
         'reviewRefs': summary.reviewRefs,
+        'history': summary.history == null
+            ? null
+            : {
+                'headline': summary.history!.headline,
+                'summary': summary.history!.summary,
+                'points': summary.history!.points
+                    .map(
+                      (point) => {
+                        'date': point.date,
+                        'planCount': point.planCount,
+                        'policyCount': point.policyCount,
+                        'modeLabel': point.modeLabel,
+                        'summaryLine': point.summaryLine,
+                      },
+                    )
+                    .toList(growable: false),
+              },
       },
     };
   }
@@ -3226,6 +3441,7 @@ class _SyntheticScopeSummary {
   final String policySummary;
   final String topIntentSummary;
   final List<String> reviewRefs;
+  final _SyntheticHistorySummary? history;
 
   const _SyntheticScopeSummary({
     required this.eventCount,
@@ -3237,12 +3453,43 @@ class _SyntheticScopeSummary {
     required this.policySummary,
     required this.topIntentSummary,
     required this.reviewRefs,
+    required this.history,
   });
 
   String get bannerText {
     final evidenceWord = eventCount == 1 ? 'signal' : 'signals';
     return 'Synthetic war-room investigation active for $eventCount linked $evidenceWord.';
   }
+}
+
+class _SyntheticHistorySummary {
+  final String headline;
+  final String summary;
+  final List<_SyntheticHistoryPoint> points;
+
+  const _SyntheticHistorySummary({
+    required this.headline,
+    required this.summary,
+    required this.points,
+  });
+}
+
+class _SyntheticHistoryPoint {
+  final String date;
+  final int planCount;
+  final int policyCount;
+  final String modeLabel;
+  final String summaryLine;
+
+  const _SyntheticHistoryPoint({
+    required this.date,
+    required this.planCount,
+    required this.policyCount,
+    required this.modeLabel,
+    required this.summaryLine,
+  });
+
+  int get pressureScore => planCount + policyCount;
 }
 
 class _ActivityHistorySummary {
