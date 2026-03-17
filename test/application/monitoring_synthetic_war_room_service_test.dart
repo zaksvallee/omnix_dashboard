@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:omnix_dashboard/application/mo_promotion_decision_store.dart';
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 import 'package:omnix_dashboard/application/monitoring_synthetic_war_room_service.dart';
 import 'package:omnix_dashboard/application/monitoring_watch_action_plan.dart';
@@ -8,6 +9,11 @@ import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 void main() {
   group('MonitoringSyntheticWarRoomService', () {
     const service = MonitoringSyntheticWarRoomService();
+    const promotionDecisionStore = MoPromotionDecisionStore();
+
+    setUp(() {
+      promotionDecisionStore.reset();
+    });
 
     test('emits simulation and policy plans from heated regional posture', () {
       final events = <DispatchEvent>[
@@ -340,6 +346,126 @@ void main() {
         contains('with earlier access hardening rehearsal'),
       );
       expect(policy.description, contains('Shadow bias: HARDEN ACCESS'));
+    });
+
+    test('uses accepted promotion decisions to lock future promotion hints', () {
+      promotionDecisionStore.accept(
+        moId: 'MO-EXT-NEWS-OFFICE-PATTERN-ACCEPTED',
+        targetValidationStatus: 'validated',
+      );
+      final events = <DispatchEvent>[
+        _intel(
+          id: 'news-office-pattern-accepted',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-SEED',
+          riskScore: 67,
+          cameraId: 'news-feed',
+          sourceType: 'news',
+          headline: 'Contractors roamed office floors before device theft',
+          summary:
+              'Suspects posed as maintenance contractors, moved floor to floor, and checked restricted office doors.',
+        ),
+        _intel(
+          id: 'intel-office-accepted',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-VALLEE',
+          riskScore: 84,
+          cameraId: 'office-cam',
+          headline: 'Maintenance contractor probing office doors',
+          summary:
+              'Contractor-like person moved floor to floor and tried several restricted office doors.',
+        ),
+      ];
+      final reviews = <String, MonitoringSceneReviewRecord>{
+        'intel-office-accepted': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-office-accepted',
+          sourceLabel: 'openai:gpt-5.4-mini',
+          postureLabel: 'service impersonation and roaming concern',
+          decisionLabel: 'Escalation Candidate',
+          decisionSummary:
+              'Likely spoofed service access with abnormal roaming.',
+          summary:
+              'Likely maintenance impersonation moving across office zones.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 0),
+        ),
+      };
+
+      final plans = service.buildSimulationPlans(
+        events: events,
+        sceneReviewByIntelligenceId: reviews,
+        videoOpsLabel: 'Hikvision',
+        historicalShadowMoLabels: const <String>['HARDEN ACCESS'],
+      );
+
+      final policy = plans.firstWhere(
+        (entry) => entry.actionType == 'POLICY RECOMMENDATION',
+      );
+      expect(policy.metadata['mo_promotion_confidence_bias'], 'LOCKED');
+      expect(policy.metadata['mo_promotion_trend_bias'], '+0.00');
+      expect(
+        policy.metadata['mo_promotion_summary'],
+        contains('Promotion accepted for MO-EXT-NEWS-OFFICE-PATTERN-ACCEPTED'),
+      );
+    });
+
+    test('holds rejected promotion hints until repeated shadow pressure grows', () {
+      promotionDecisionStore.reject(
+        moId: 'MO-EXT-NEWS-OFFICE-PATTERN-REJECTED',
+        targetValidationStatus: 'validated',
+      );
+      final events = <DispatchEvent>[
+        _intel(
+          id: 'news-office-pattern-rejected',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-SEED',
+          riskScore: 67,
+          cameraId: 'news-feed',
+          sourceType: 'news',
+          headline: 'Contractors roamed office floors before device theft',
+          summary:
+              'Suspects posed as maintenance contractors, moved floor to floor, and checked restricted office doors.',
+        ),
+        _intel(
+          id: 'intel-office-rejected',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-VALLEE',
+          riskScore: 84,
+          cameraId: 'office-cam',
+          headline: 'Maintenance contractor probing office doors',
+          summary:
+              'Contractor-like person moved floor to floor and tried several restricted office doors.',
+        ),
+      ];
+      final reviews = <String, MonitoringSceneReviewRecord>{
+        'intel-office-rejected': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-office-rejected',
+          sourceLabel: 'openai:gpt-5.4-mini',
+          postureLabel: 'service impersonation and roaming concern',
+          decisionLabel: 'Escalation Candidate',
+          decisionSummary:
+              'Likely spoofed service access with abnormal roaming.',
+          summary:
+              'Likely maintenance impersonation moving across office zones.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 0),
+        ),
+      };
+
+      final plans = service.buildSimulationPlans(
+        events: events,
+        sceneReviewByIntelligenceId: reviews,
+        videoOpsLabel: 'Hikvision',
+        historicalShadowMoLabels: const <String>['HARDEN ACCESS'],
+      );
+
+      final policy = plans.firstWhere(
+        (entry) => entry.actionType == 'POLICY RECOMMENDATION',
+      );
+      expect(policy.metadata['mo_promotion_confidence_bias'], 'HOLD');
+      expect(policy.metadata['mo_promotion_trend_bias'], '+0.00');
+      expect(
+        policy.metadata['mo_promotion_summary'],
+        contains('Hold MO-EXT-NEWS-OFFICE-PATTERN-REJECTED after operator rejection'),
+      );
     });
   });
 }
