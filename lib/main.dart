@@ -6638,6 +6638,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   String _syntheticWarRoomShadowPostureBiasSummaryForPlan(
     MonitoringWatchAutonomyActionPlan? plan,
   ) {
+    final prebuiltSummary =
+        (plan?.metadata['shadow_posture_bias_summary'] ?? '').trim();
+    if (prebuiltSummary.isNotEmpty) {
+      return _singleLine(prebuiltSummary, maxLength: 220);
+    }
     final postureBias = (plan?.metadata['shadow_posture_bias'] ?? '').trim();
     final posturePriority = (plan?.metadata['shadow_posture_priority'] ?? '')
         .trim();
