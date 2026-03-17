@@ -9,6 +9,7 @@ import '../application/monitoring_global_posture_service.dart';
 import '../application/monitoring_orchestrator_service.dart';
 import '../application/mo_promotion_decision_store.dart';
 import '../application/oversight_focus_formatter.dart';
+import '../application/readiness_summary_formatter.dart';
 import '../application/review_shortcut_contract.dart';
 import '../application/shadow_mo_validation_summary.dart';
 import '../application/shadow_mo_dossier_contract.dart';
@@ -2045,20 +2046,14 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         .where((value) => value.isNotEmpty)
         .toSet()
         .toList(growable: false);
-    final posturalEchoes = intents
-        .where(
-          (intent) => intent.actionType.trim().toUpperCase() == 'POSTURAL ECHO',
-        )
-        .toList(growable: false);
-    final posturalEchoSummary = posturalEchoes.isEmpty
-        ? ''
-        : [
-            'Echo ${posturalEchoes.length}',
-            'target ${posturalEchoes.map((intent) => intent.siteId).take(3).join(', ')}',
-          ].join(' • ');
-    final topIntentSummary = intents.isEmpty
-        ? ''
-        : '${intents.first.actionType} • ${intents.first.description}';
+    final posturalEchoSummary = buildGlobalReadinessPosturalEchoSummary(
+      intents: intents,
+      includeLeadSites: false,
+    );
+    final topIntentSummary = buildGlobalReadinessTopIntentSummary(
+      intents: intents,
+      includeSiteId: false,
+    );
     final hazardSummary = _hazardIntentSummary(intents);
     return _ReadinessScopeSummary(
       eventCount: scopedEvents.length,

@@ -42,6 +42,7 @@ import 'application/mo_promotion_decision_store.dart';
 import 'application/monitoring_global_posture_service.dart';
 import 'application/monitoring_orchestrator_service.dart';
 import 'application/oversight_focus_formatter.dart';
+import 'application/readiness_summary_formatter.dart';
 import 'application/monitoring_shift_notification_service.dart';
 import 'application/monitoring_scene_review_store.dart';
 import 'application/monitoring_synthetic_war_room_service.dart';
@@ -5811,47 +5812,17 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   String _globalReadinessEchoSummary(
     List<MonitoringWatchAutonomyActionPlan> intents,
-  ) {
-    final echoes = intents
-        .where(
-          (intent) => intent.actionType.trim().toUpperCase() == 'POSTURAL ECHO',
-        )
-        .toList(growable: false);
-    if (echoes.isEmpty) {
-      return '';
-    }
-    final leadSites = echoes
-        .map((intent) => (intent.metadata['lead_site'] ?? '').trim())
-        .where((value) => value.isNotEmpty)
-        .toSet()
-        .toList(growable: false);
-    final targets = echoes
-        .map(
-          (intent) => (intent.metadata['echo_target'] ?? intent.siteId).trim(),
-        )
-        .where((value) => value.isNotEmpty)
-        .take(3)
-        .toList(growable: false);
-    final summary = <String>[
-      'Echo ${echoes.length}',
-      if (leadSites.isNotEmpty) 'lead ${leadSites.take(2).join(', ')}',
-      if (targets.isNotEmpty) 'target ${targets.join(', ')}',
-    ];
-    return _singleLine(summary.join(' • '), maxLength: 220);
-  }
+  ) => _singleLine(
+    buildGlobalReadinessPosturalEchoSummary(intents: intents),
+    maxLength: 220,
+  );
 
   String _globalReadinessTopIntentSummary(
     List<MonitoringWatchAutonomyActionPlan> intents,
-  ) {
-    if (intents.isEmpty) {
-      return '';
-    }
-    final top = intents.first;
-    return _singleLine(
-      '${top.actionType} • ${top.siteId} • ${top.description}',
-      maxLength: 220,
-    );
-  }
+  ) => _singleLine(
+    buildGlobalReadinessTopIntentSummary(intents: intents),
+    maxLength: 220,
+  );
 
   String _globalReadinessShadowBiasSummary(
     List<MonitoringWatchAutonomyActionPlan> intents,
