@@ -151,6 +151,8 @@ void main() {
           'Learned bias: stage fire response one step earlier next shift.',
       syntheticWarRoomMemorySummary:
           'Memory: ADVANCE FIRE repeated in 2 of the last 3 shifts (latest 2026-03-16).',
+      syntheticWarRoomBiasSummary:
+          'Escalate rehearsal immediately for • critical priority • T-32 s',
       syntheticWarRoomHistoryHeadline: 'RISING • 3d',
       syntheticWarRoomHistorySummary:
           'Current pressure 3 • Baseline 1.0 • Synthetic rehearsal is recommending stronger action than recent shifts.',
@@ -217,6 +219,12 @@ void main() {
       response,
       contains(
         '<b>Memory:</b> Memory: ADVANCE FIRE repeated in 2 of the last 3 shifts (latest 2026-03-16).',
+      ),
+    );
+    expect(
+      response,
+      contains(
+        '<b>Bias:</b> Escalate rehearsal immediately for • critical priority • T-32 s',
       ),
     );
     expect(

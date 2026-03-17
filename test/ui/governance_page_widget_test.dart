@@ -4264,6 +4264,9 @@ void main() {
     expect(copiedPayload, contains('"learningLabel": ""'));
     expect(copiedPayload, contains('"learningSummary": ""'));
     expect(copiedPayload, contains('"learningMemorySummary": ""'));
+    expect(copiedPayload, contains('"actionBias": ""'));
+    expect(copiedPayload, contains('"memoryPriorityBoost": ""'));
+    expect(copiedPayload, contains('"memoryCountdownBias": ""'));
     expect(copiedPayload, contains('"baselinePlanAverage": 0.0'));
     expect(copiedPayload, contains('"baselinePolicyAverage": 0.0'));
     expect(copiedPayload, contains('"trendLabel": "STABLE"'));
@@ -4393,6 +4396,9 @@ void main() {
       copiedPayload,
       contains('synthetic_war_room_learning_memory_summary,""'),
     );
+    expect(copiedPayload, contains('synthetic_war_room_action_bias,""'));
+    expect(copiedPayload, contains('synthetic_war_room_memory_priority_boost,'));
+    expect(copiedPayload, contains('synthetic_war_room_memory_countdown_bias,'));
     expect(copiedPayload, contains('synthetic_war_room_trend_label,STABLE'));
     expect(
       copiedPayload,

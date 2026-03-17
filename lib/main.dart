@@ -5396,6 +5396,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       ),
       syntheticWarRoomMemorySummary:
           (syntheticWarRoomCaseFile['learningMemorySummary'] ?? '').toString(),
+      syntheticWarRoomBiasSummary:
+          (syntheticWarRoomCaseFile['biasSummary'] ?? '').toString(),
       syntheticWarRoomHistoryHeadline:
           (syntheticWarRoomCaseFile['historyHeadline'] ?? '').toString(),
       syntheticWarRoomHistorySummary:
@@ -5794,6 +5796,24 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '${matchingDates.first.trim().isEmpty ? '.' : ' (latest ${matchingDates.first}).'}';
   }
 
+  String _syntheticWarRoomBiasSummaryForPlan(
+    MonitoringWatchAutonomyActionPlan? plan,
+  ) {
+    final actionBias = (plan?.metadata['action_bias'] ?? '').trim();
+    final priorityBoost = (plan?.metadata['memory_priority_boost'] ?? '').trim();
+    final countdownBias = (plan?.metadata['memory_countdown_bias'] ?? '').trim();
+    if (actionBias.isEmpty && priorityBoost.isEmpty && countdownBias.isEmpty) {
+      return '';
+    }
+    final segments = <String>[
+      if (actionBias.isNotEmpty) actionBias,
+      if (priorityBoost.isNotEmpty && priorityBoost != 'NONE')
+        '${priorityBoost.toLowerCase()} priority',
+      if (countdownBias.isNotEmpty) 'T-$countdownBias s',
+    ];
+    return _singleLine(segments.join(' • '), maxLength: 220);
+  }
+
   String _hazardSignalLabel(String signal) {
     return switch (signal.trim().toLowerCase()) {
       'fire' => 'fire',
@@ -6158,6 +6178,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
         .toList(growable: false);
     final leadPlan = plans.isEmpty ? null : plans.first;
+    final leadPolicyPlan = policyPlans.isEmpty ? null : policyPlans.first;
     final history =
         _morningSovereignReportHistory
             .where((item) => item.date.trim() != report.date.trim())
@@ -6213,6 +6234,16 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         currentLearningLabel: learningLabel,
         history: history,
       ),
+      'actionBias': (leadPolicyPlan?.metadata['action_bias'] ?? '').toString().trim(),
+      'memoryPriorityBoost':
+          (leadPolicyPlan?.metadata['memory_priority_boost'] ?? '')
+              .toString()
+              .trim(),
+      'memoryCountdownBias':
+          (leadPolicyPlan?.metadata['memory_countdown_bias'] ?? '')
+              .toString()
+              .trim(),
+      'biasSummary': _syntheticWarRoomBiasSummaryForPlan(leadPolicyPlan),
       'planCount': plans.length,
       'policyCount': policyPlans.length,
       'leadRegionId': (leadPlan?.metadata['region'] ?? '').toString().trim(),
@@ -6257,6 +6288,18 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             final itemPolicyCount = itemPlans
                 .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
                 .length;
+            final itemPolicyPlan = itemPlans.firstWhere(
+              (plan) => plan.actionType == 'POLICY RECOMMENDATION',
+              orElse: () => const MonitoringWatchAutonomyActionPlan(
+                id: '',
+                incidentId: '',
+                siteId: '',
+                priority: MonitoringWatchAutonomyPriority.medium,
+                actionType: '',
+                description: '',
+                countdownSeconds: 0,
+              ),
+            );
             return <String, Object?>{
               'reportDate': item.date,
               'focusState': _readinessFocusState(item.date),
@@ -6268,6 +6311,15 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               'hazardSummary': _syntheticWarRoomHazardSummary(itemPlans),
               'learningLabel': _syntheticWarRoomLearningLabel(itemPlans),
               'learningSummary': _syntheticWarRoomLearningSummary(itemPlans),
+              'actionBias':
+                  (itemPolicyPlan.metadata['action_bias'] ?? '').trim(),
+              'memoryPriorityBoost':
+                  (itemPolicyPlan.metadata['memory_priority_boost'] ?? '').trim(),
+              'memoryCountdownBias':
+                  (itemPolicyPlan.metadata['memory_countdown_bias'] ?? '').trim(),
+              'biasSummary': _syntheticWarRoomBiasSummaryForPlan(
+                itemPolicyPlan.id.isEmpty ? null : itemPolicyPlan,
+              ),
               'planCount': itemPlans.length,
               'policyCount': itemPolicyCount,
               ...buildReviewCommandPair(
@@ -6302,6 +6354,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'learning_label,${payload['learningLabel'] ?? ''}',
       'learning_summary,"${(payload['learningSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'learning_memory_summary,"${(payload['learningMemorySummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'action_bias,"${(payload['actionBias'] ?? '').toString().replaceAll('"', '""')}"',
+      'memory_priority_boost,${payload['memoryPriorityBoost'] ?? ''}',
+      'memory_countdown_bias,${payload['memoryCountdownBias'] ?? ''}',
+      'bias_summary,"${(payload['biasSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'plan_count,${payload['planCount'] ?? 0}',
       'policy_count,${payload['policyCount'] ?? 0}',
       'lead_region_id,${payload['leadRegionId'] ?? ''}',
@@ -6341,6 +6397,18 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       lines.add('history_${i + 1}_learning_label,${row['learningLabel'] ?? ''}');
       lines.add(
         'history_${i + 1}_learning_summary,"${(row['learningSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add(
+        'history_${i + 1}_action_bias,"${(row['actionBias'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add(
+        'history_${i + 1}_memory_priority_boost,${row['memoryPriorityBoost'] ?? ''}',
+      );
+      lines.add(
+        'history_${i + 1}_memory_countdown_bias,${row['memoryCountdownBias'] ?? ''}',
+      );
+      lines.add(
+        'history_${i + 1}_bias_summary,"${(row['biasSummary'] ?? '').toString().replaceAll('"', '""')}"',
       );
       lines.add('history_${i + 1}_plan_count,${row['planCount'] ?? 0}');
       lines.add('history_${i + 1}_policy_count,${row['policyCount'] ?? 0}');

@@ -95,6 +95,7 @@ class TelegramAdminCommandFormatter {
     String? syntheticWarRoomHazardSummary,
     String? syntheticWarRoomLearningSummary,
     String? syntheticWarRoomMemorySummary,
+    String? syntheticWarRoomBiasSummary,
     String? syntheticWarRoomHistoryHeadline,
     String? syntheticWarRoomHistorySummary,
     String? currentShiftSyntheticFocusSummary,
@@ -148,6 +149,7 @@ class TelegramAdminCommandFormatter {
         syntheticWarRoomLearningSummary?.trim() ?? '';
     final warRoomMemorySummary =
         syntheticWarRoomMemorySummary?.trim() ?? '';
+    final warRoomBiasSummary = syntheticWarRoomBiasSummary?.trim() ?? '';
     final warRoomHistoryHeadline =
         syntheticWarRoomHistoryHeadline?.trim() ?? '';
     final warRoomHistorySummary =
@@ -202,6 +204,7 @@ class TelegramAdminCommandFormatter {
               '${warRoomHazardSummary.isEmpty ? '' : '• <b>Hazard rehearsal:</b> ${_escapeHtml(warRoomHazardSummary)}\n'}'
               '${warRoomLearningSummary.isEmpty ? '' : '• <b>Learning:</b> ${_escapeHtml(warRoomLearningSummary)}\n'}'
               '${warRoomMemorySummary.isEmpty ? '' : '• <b>Memory:</b> ${_escapeHtml(warRoomMemorySummary)}\n'}'
+              '${warRoomBiasSummary.isEmpty ? '' : '• <b>Bias:</b> ${_escapeHtml(warRoomBiasSummary)}\n'}'
               '${syntheticFocusSummary.isEmpty ? '' : '• <b>Focus:</b> ${_escapeHtml(syntheticFocusSummary)}\n'}'
               '${warRoomHistoryHeadline.isEmpty ? '' : '• <b>Trend:</b> ${_escapeHtml(warRoomHistoryHeadline)}\n'}'
               '${warRoomHistorySummary.isEmpty ? '' : '• <b>History:</b> ${_escapeHtml(warRoomHistorySummary)}\n'}'

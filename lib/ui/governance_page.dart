@@ -334,6 +334,9 @@ class _SyntheticWarRoomHistoryPoint {
   final String learningLabel;
   final String recommendationSummary;
   final String learningSummary;
+  final String actionBias;
+  final String memoryPriorityBoost;
+  final String memoryCountdownBias;
 
   const _SyntheticWarRoomHistoryPoint({
     required this.reportDate,
@@ -347,6 +350,9 @@ class _SyntheticWarRoomHistoryPoint {
     required this.learningLabel,
     required this.recommendationSummary,
     required this.learningSummary,
+    required this.actionBias,
+    required this.memoryPriorityBoost,
+    required this.memoryCountdownBias,
   });
 }
 
@@ -3640,6 +3646,18 @@ class _GovernancePageState extends State<GovernancePage> {
         .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
         .length;
     final currentLeadPlan = currentPlans.isEmpty ? null : currentPlans.first;
+    final currentPolicyPlan = currentPlans.firstWhere(
+      (plan) => plan.actionType == 'POLICY RECOMMENDATION',
+      orElse: () => const MonitoringWatchAutonomyActionPlan(
+        id: '',
+        incidentId: '',
+        siteId: '',
+        priority: MonitoringWatchAutonomyPriority.medium,
+        actionType: '',
+        description: '',
+        countdownSeconds: 0,
+      ),
+    );
     final currentRecommendation = currentPlans
         .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
         .map((plan) => (plan.metadata['recommendation'] ?? '').trim())
@@ -3657,9 +3675,14 @@ class _GovernancePageState extends State<GovernancePage> {
         leadRegionId: currentLeadPlan?.metadata['region'] ?? '',
         leadSiteId: currentLeadPlan?.metadata['lead_site'] ?? '',
         topIntentSummary: currentLeadPlan?.metadata['top_intent'] ?? '',
-        learningLabel: currentLeadPlan?.metadata['learning_label'] ?? '',
+        learningLabel: currentPolicyPlan.metadata['learning_label'] ?? '',
         recommendationSummary: currentRecommendation,
         learningSummary: currentLearning,
+        actionBias: currentPolicyPlan.metadata['action_bias'] ?? '',
+        memoryPriorityBoost:
+            currentPolicyPlan.metadata['memory_priority_boost'] ?? '',
+        memoryCountdownBias:
+            currentPolicyPlan.metadata['memory_countdown_bias'] ?? '',
       ),
     ];
     for (final item in widget.morningSovereignReportHistory) {
@@ -3672,6 +3695,18 @@ class _GovernancePageState extends State<GovernancePage> {
           .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
           .length;
       final leadPlan = plans.isEmpty ? null : plans.first;
+      final policyPlan = plans.firstWhere(
+        (plan) => plan.actionType == 'POLICY RECOMMENDATION',
+        orElse: () => const MonitoringWatchAutonomyActionPlan(
+          id: '',
+          incidentId: '',
+          siteId: '',
+          priority: MonitoringWatchAutonomyPriority.medium,
+          actionType: '',
+          description: '',
+          countdownSeconds: 0,
+        ),
+      );
       final recommendation = plans
           .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
           .map((plan) => (plan.metadata['recommendation'] ?? '').trim())
@@ -3689,9 +3724,14 @@ class _GovernancePageState extends State<GovernancePage> {
           leadRegionId: leadPlan?.metadata['region'] ?? '',
           leadSiteId: leadPlan?.metadata['lead_site'] ?? '',
           topIntentSummary: leadPlan?.metadata['top_intent'] ?? '',
-          learningLabel: leadPlan?.metadata['learning_label'] ?? '',
+          learningLabel: policyPlan.metadata['learning_label'] ?? '',
           recommendationSummary: recommendation,
           learningSummary: learning,
+          actionBias: policyPlan.metadata['action_bias'] ?? '',
+          memoryPriorityBoost:
+              policyPlan.metadata['memory_priority_boost'] ?? '',
+          memoryCountdownBias:
+              policyPlan.metadata['memory_countdown_bias'] ?? '',
         ),
       );
     }
@@ -7814,6 +7854,27 @@ class _GovernancePageState extends State<GovernancePage> {
                                       ),
                                     ),
                                   ],
+                                  if (point.actionBias.trim().isNotEmpty ||
+                                      point.memoryPriorityBoost.trim().isNotEmpty ||
+                                      point.memoryCountdownBias.trim().isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      [
+                                        if (point.actionBias.trim().isNotEmpty)
+                                          point.actionBias.trim(),
+                                        if (point.memoryPriorityBoost.trim().isNotEmpty &&
+                                            point.memoryPriorityBoost.trim() != 'NONE')
+                                          '${point.memoryPriorityBoost.trim().toLowerCase()} priority',
+                                        if (point.memoryCountdownBias.trim().isNotEmpty)
+                                          'T-${point.memoryCountdownBias.trim()} s',
+                                      ].join(' • '),
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFFDE68A),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -8995,6 +9056,9 @@ class _GovernancePageState extends State<GovernancePage> {
       'learningLabel': point.learningLabel,
       'recommendationSummary': point.recommendationSummary,
       'learningSummary': point.learningSummary,
+      'actionBias': point.actionBias,
+      'memoryPriorityBoost': point.memoryPriorityBoost,
+      'memoryCountdownBias': point.memoryCountdownBias,
     };
   }
 
@@ -9061,7 +9125,15 @@ class _GovernancePageState extends State<GovernancePage> {
     final learningSegment = point.learningSummary.trim().isEmpty
         ? ''
         : ' • ${point.learningSummary}';
-    return '${point.reportDate} • ${point.current ? 'CURRENT' : 'HISTORY'} • Plans ${point.planCount} • Policy ${point.policyCount} • ${point.modeLabel}$leadRegionSegment$leadSiteSegment$intentSegment$recommendationSegment$learningSegment';
+    final biasSegment = [
+      if (point.actionBias.trim().isNotEmpty) point.actionBias.trim(),
+      if (point.memoryPriorityBoost.trim().isNotEmpty &&
+          point.memoryPriorityBoost.trim() != 'NONE')
+        '${point.memoryPriorityBoost.trim().toLowerCase()} priority',
+      if (point.memoryCountdownBias.trim().isNotEmpty)
+        'T-${point.memoryCountdownBias.trim()} s',
+    ].join(' • ');
+    return '${point.reportDate} • ${point.current ? 'CURRENT' : 'HISTORY'} • Plans ${point.planCount} • Policy ${point.policyCount} • ${point.modeLabel}$leadRegionSegment$leadSiteSegment$intentSegment$recommendationSegment$learningSegment${biasSegment.isEmpty ? '' : ' • $biasSegment'}';
   }
 
   String _siteActivityHistoryCsvSummary(_SiteActivityHistoryPoint point) {
@@ -10197,6 +10269,15 @@ class _GovernancePageState extends State<GovernancePage> {
         'learningSummary': syntheticWarRoomPlans
             .map((plan) => (plan.metadata['learning_summary'] ?? '').trim())
             .firstWhere((value) => value.isNotEmpty, orElse: () => ''),
+        'actionBias': syntheticWarRoomPlans
+            .map((plan) => (plan.metadata['action_bias'] ?? '').trim())
+            .firstWhere((value) => value.isNotEmpty, orElse: () => ''),
+        'memoryPriorityBoost': syntheticWarRoomPlans
+            .map((plan) => (plan.metadata['memory_priority_boost'] ?? '').trim())
+            .firstWhere((value) => value.isNotEmpty, orElse: () => ''),
+        'memoryCountdownBias': syntheticWarRoomPlans
+            .map((plan) => (plan.metadata['memory_countdown_bias'] ?? '').trim())
+            .firstWhere((value) => value.isNotEmpty, orElse: () => ''),
         'learningMemorySummary': _syntheticWarRoomLearningMemorySummary(
           syntheticWarRoomHistory,
         ),
@@ -10435,6 +10516,9 @@ class _GovernancePageState extends State<GovernancePage> {
       'synthetic_war_room_learning_label,${syntheticWarRoomPlans.map((plan) => (plan.metadata['learning_label'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '')}',
       'synthetic_war_room_learning_summary,"${syntheticWarRoomPlans.map((plan) => (plan.metadata['learning_summary'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '').replaceAll('"', '""')}"',
       'synthetic_war_room_learning_memory_summary,"${_syntheticWarRoomLearningMemorySummary(syntheticWarRoomHistory).replaceAll('"', '""')}"',
+      'synthetic_war_room_action_bias,"${syntheticWarRoomPlans.map((plan) => (plan.metadata['action_bias'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '').replaceAll('"', '""')}"',
+      'synthetic_war_room_memory_priority_boost,${syntheticWarRoomPlans.map((plan) => (plan.metadata['memory_priority_boost'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '')}',
+      'synthetic_war_room_memory_countdown_bias,${syntheticWarRoomPlans.map((plan) => (plan.metadata['memory_countdown_bias'] ?? '').trim()).firstWhere((value) => value.isNotEmpty, orElse: () => '')}',
       'synthetic_war_room_trend_label,${syntheticWarRoomTrend.trendLabel}',
       'synthetic_war_room_trend_reason,"${syntheticWarRoomTrend.trendReason.replaceAll('"', '""')}"',
       'synthetic_war_room_trend_summary,"${syntheticWarRoomTrend.summaryLine.replaceAll('"', '""')}"',
