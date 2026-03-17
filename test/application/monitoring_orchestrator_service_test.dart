@@ -209,6 +209,55 @@ void main() {
         'Prepare a client and operator fire safety warning for SITE-VALLEE with emergency evidence held for human veto.',
       );
     });
+
+    test('drafts next-shift fire readiness when synthetic learning repeats', () {
+      final events = <DispatchEvent>[
+        _intel(
+          id: 'intel-fire-draft',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-VALLEE',
+          riskScore: 88,
+          cameraId: 'generator-room-cam',
+          headline: 'HIKVISION FIRE ALERT',
+          summary: 'Smoke visible in the generator room.',
+        ),
+      ];
+      final reviews = <String, MonitoringSceneReviewRecord>{
+        'intel-fire-draft': MonitoringSceneReviewRecord(
+          intelligenceId: 'intel-fire-draft',
+          sourceLabel: 'openai:gpt-5.4-mini',
+          postureLabel: 'fire and smoke emergency',
+          decisionLabel: 'Escalation Candidate',
+          decisionSummary:
+              'Escalated for urgent review because fire or smoke indicators were detected.',
+          summary: 'Smoke plume visible inside the generator room.',
+          reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 30),
+        ),
+      };
+
+      final intents = service.buildActionIntents(
+        events: events,
+        sceneReviewByIntelligenceId: reviews,
+        videoOpsLabel: 'Hikvision',
+        historicalSyntheticLearningLabels: const <String>[
+          'ADVANCE FIRE',
+          'ADVANCE FIRE',
+        ],
+      );
+
+      final draft = intents.firstWhere(
+        (entry) => entry.actionType == 'DRAFT NEXT-SHIFT FIRE READINESS',
+      );
+      expect(draft.priority, MonitoringWatchAutonomyPriority.critical);
+      expect(draft.countdownSeconds, 18);
+      expect(draft.metadata['scope'], 'NEXT_SHIFT');
+      expect(draft.metadata['learning_label'], 'ADVANCE FIRE');
+      expect(draft.metadata['learning_repeat_count'], '2');
+      expect(
+        draft.description,
+        'Prebuild next-shift fire readiness for SITE-VALLEE with earlier fire brigade staging, occupant welfare checks, and fire spread rehearsal and hold HIKVISION verification tighter because the same synthetic lesson repeated across 2 recent shifts.',
+      );
+    });
   });
 }
 

@@ -15,6 +15,7 @@ class MonitoringOrchestratorService {
     required List<DispatchEvent> events,
     required Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId,
     String videoOpsLabel = 'CCTV',
+    List<String> historicalSyntheticLearningLabels = const <String>[],
   }) {
     final snapshot = _globalPostureService.buildSnapshot(
       events: events,
@@ -56,6 +57,23 @@ class MonitoringOrchestratorService {
         signal: hazardSignal,
         siteName: leadSite.siteId,
       );
+      final nextShiftLearningLabel = _nextShiftLearningLabelForRegion(
+        heatLevel: region.heatLevel,
+        posturalEchoTargets: region.topSites.length - 1,
+        hasExternalPressure: leadSite.dominantSignals.any(
+          (signal) => const <String>{
+            'news_pressure',
+            'community_watch',
+            'weather_shift',
+          }.contains(signal),
+        ),
+        hazardSignal: hazardSignal,
+      );
+      final repeatedLearningCount = nextShiftLearningLabel.isEmpty
+          ? 0
+          : historicalSyntheticLearningLabels
+              .where((label) => label.trim() == nextShiftLearningLabel)
+              .length;
 
       if (hasFirePressure || hasWaterLeakPressure || hasEnvironmentalHazardPressure) {
         actionIntents.add(
@@ -136,6 +154,48 @@ class MonitoringOrchestratorService {
             },
           ),
         );
+      }
+
+      if (repeatedLearningCount > 0) {
+        final draftPriority = repeatedLearningCount >= 2
+            ? MonitoringWatchAutonomyPriority.critical
+            : MonitoringWatchAutonomyPriority.high;
+        final draftCountdown = repeatedLearningCount >= 2 ? 18 : 30;
+        final draftActionType = _nextShiftDraftActionType(
+          learningLabel: nextShiftLearningLabel,
+        );
+        final draftDescription = _nextShiftDraftDescription(
+          learningLabel: nextShiftLearningLabel,
+          siteId: leadSite.siteId,
+          regionId: region.regionId,
+          videoOpsLabel: videoOpsLabel,
+          hazardDirectives: hazardDirectives,
+          repeatedLearningCount: repeatedLearningCount,
+        );
+        if (draftActionType.isNotEmpty && draftDescription.isNotEmpty) {
+          actionIntents.add(
+            MonitoringWatchAutonomyActionPlan(
+              id: 'ORCH-NEXT-SHIFT-${region.regionId}-$nextShiftLearningLabel',
+              incidentId: latest?.intelligenceId ?? leadSite.siteId,
+              siteId: leadSite.siteId,
+              priority: draftPriority,
+              actionType: draftActionType,
+              description: draftDescription,
+              countdownSeconds: draftCountdown,
+              metadata: <String, String>{
+                'mode': 'DRAFT',
+                'scope': 'NEXT_SHIFT',
+                'region': region.regionId,
+                'lead_site': leadSite.siteId,
+                'learning_label': nextShiftLearningLabel,
+                'learning_repeat_count': repeatedLearningCount.toString(),
+                'draft_bias': 'REPEATED_SYNTHETIC_LEARNING',
+                'draft_countdown': draftCountdown.toString(),
+                if (hazardSignal.isNotEmpty) 'hazard_signal': hazardSignal,
+              },
+            ),
+          );
+        }
       }
 
       actionIntents.add(
@@ -295,5 +355,72 @@ class MonitoringOrchestratorService {
       deduped.putIfAbsent(plan.id, () => plan);
     }
     return deduped.values.toList(growable: false);
+  }
+
+  String _nextShiftLearningLabelForRegion({
+    required MonitoringGlobalHeatLevel heatLevel,
+    required int posturalEchoTargets,
+    required bool hasExternalPressure,
+    required String hazardSignal,
+  }) {
+    if (hazardSignal == 'fire') {
+      return 'ADVANCE FIRE';
+    }
+    if (hazardSignal == 'water_leak') {
+      return 'ADVANCE LEAK';
+    }
+    if (hazardSignal == 'environment_hazard') {
+      return 'ADVANCE SAFETY';
+    }
+    if (hasExternalPressure) {
+      return 'PRE-ARM REGION';
+    }
+    if (posturalEchoTargets > 0) {
+      return 'ECHO EARLIER';
+    }
+    if (heatLevel == MonitoringGlobalHeatLevel.critical) {
+      return 'SHORTEN REVIEW';
+    }
+    return '';
+  }
+
+  String _nextShiftDraftActionType({required String learningLabel}) {
+    return switch (learningLabel.trim()) {
+      'ADVANCE FIRE' => 'DRAFT NEXT-SHIFT FIRE READINESS',
+      'ADVANCE LEAK' => 'DRAFT NEXT-SHIFT LEAK READINESS',
+      'ADVANCE SAFETY' => 'DRAFT NEXT-SHIFT SAFETY READINESS',
+      'PRE-ARM REGION' => 'DRAFT NEXT-SHIFT REGIONAL READINESS',
+      'ECHO EARLIER' => 'DRAFT NEXT-SHIFT ECHO READINESS',
+      'SHORTEN REVIEW' => 'DRAFT NEXT-SHIFT REVIEW ACCELERATION',
+      _ => '',
+    };
+  }
+
+  String _nextShiftDraftDescription({
+    required String learningLabel,
+    required String siteId,
+    required String regionId,
+    required String videoOpsLabel,
+    required HazardResponseDirectives hazardDirectives,
+    required int repeatedLearningCount,
+  }) {
+    final repeatSummary = repeatedLearningCount >= 2
+        ? 'because the same synthetic lesson repeated across $repeatedLearningCount recent shifts'
+        : 'because the same synthetic lesson repeated in the previous shift';
+    return switch (learningLabel.trim()) {
+      'ADVANCE FIRE' =>
+        'Prebuild next-shift fire readiness for $siteId with ${hazardDirectives.syntheticRecommendation} and hold ${videoOpsLabel.toUpperCase()} verification tighter $repeatSummary.',
+      'ADVANCE LEAK' =>
+        'Prebuild next-shift leak readiness for $siteId with ${hazardDirectives.syntheticRecommendation} and hold ${videoOpsLabel.toUpperCase()} verification tighter $repeatSummary.',
+      'ADVANCE SAFETY' =>
+        'Prebuild next-shift safety readiness for $siteId with ${hazardDirectives.syntheticRecommendation} and hold ${videoOpsLabel.toUpperCase()} verification tighter $repeatSummary.',
+      'PRE-ARM REGION' =>
+        'Pre-arm regional readiness across $regionId for the next shift so $siteId starts ahead of incoming external pressure $repeatSummary.',
+      'ECHO EARLIER' =>
+        'Draft next-shift echo readiness from $siteId into sibling sites across $regionId so ${videoOpsLabel.toUpperCase()} attention rises earlier $repeatSummary.',
+      'SHORTEN REVIEW' =>
+        'Draft a faster next-shift review cadence for $siteId across $regionId so posture pressure is met earlier $repeatSummary.',
+      _ => '',
+    };
   }
 }

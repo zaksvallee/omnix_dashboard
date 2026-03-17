@@ -5557,6 +5557,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return _orchestratorService.buildActionIntents(
       events: scopedEvents,
       sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
+      historicalSyntheticLearningLabels:
+          _syntheticHistoricalLearningLabelsForReport(report),
     );
   }
 

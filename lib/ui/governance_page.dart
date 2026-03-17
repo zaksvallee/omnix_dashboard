@@ -2996,9 +2996,15 @@ class _GovernancePageState extends State<GovernancePage> {
   List<MonitoringWatchAutonomyActionPlan> _globalReadinessIntentsForReport(
     _GovernanceReportView report,
   ) {
-    return _globalReadinessIntentsForWindow(
+    final scopedEvents = _eventsScopedToWindow(
       report.shiftWindowStartUtc,
       report.shiftWindowEndUtc,
+    );
+    return _orchestratorService.buildActionIntents(
+      events: scopedEvents,
+      sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+      historicalSyntheticLearningLabels:
+          _syntheticHistoricalLearningLabelsForView(report),
     );
   }
 
