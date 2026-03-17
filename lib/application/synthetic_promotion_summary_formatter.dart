@@ -189,6 +189,42 @@ String buildSyntheticSummaryFromPlans({
   return summary.join(' • ');
 }
 
+String buildSyntheticMetricDetailFromPlans({
+  required List<MonitoringWatchAutonomyActionPlan> plans,
+  String emptySummary = 'No synthetic simulation recommendations were generated in this shift',
+  String policyLabel = 'policy',
+  String leadLabel = 'lead',
+  bool includeTopIntent = true,
+  bool includeRecommendation = true,
+  bool includeLearning = true,
+  bool includeHazard = true,
+}) {
+  if (plans.isEmpty) {
+    return emptySummary;
+  }
+  final policyCount = buildSyntheticPolicyCountFromPlans(plans: plans);
+  final region = buildSyntheticLeadRegionIdFromPlans(plans: plans);
+  final leadSite = buildSyntheticLeadSiteIdFromPlans(plans: plans);
+  final topIntent = _firstSyntheticPlanMetadata(plans, 'top_intent');
+  final recommendation = buildSyntheticPolicySummaryFromPlans(plans: plans);
+  final learning = buildSyntheticLearningSummaryFromPlans(plans: plans);
+  final hazard = includeHazard
+      ? buildHazardSimulationSummaryFromPlans(plans: plans)
+      : '';
+  final parts = <String>[
+    'Plans ${plans.length}',
+    '$policyLabel $policyCount',
+    if (region.isNotEmpty) 'region $region',
+    if (leadSite.isNotEmpty) '$leadLabel $leadSite',
+    if (includeTopIntent && topIntent.isNotEmpty && topIntent != 'NONE')
+      'top intent $topIntent',
+    if (includeRecommendation && recommendation.isNotEmpty) recommendation,
+    if (includeLearning && learning.isNotEmpty) learning,
+    if (hazard.isNotEmpty) hazard,
+  ];
+  return parts.join(' • ');
+}
+
 String buildHazardSignalLabel(String signal) {
   return switch (signal.trim().toLowerCase()) {
     'fire' => 'fire',

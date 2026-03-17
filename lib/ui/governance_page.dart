@@ -3540,46 +3540,10 @@ class _GovernancePageState extends State<GovernancePage> {
 
   String _syntheticWarRoomMetricDetail(
     List<MonitoringWatchAutonomyActionPlan> plans,
-  ) {
-    if (plans.isEmpty) {
-      return 'No synthetic simulation recommendations were generated in this shift';
-    }
-    final leadPlan = plans.first;
-    final policyCount = plans
-        .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
-        .length;
-    final region = (leadPlan.metadata['region'] ?? '').trim();
-    final leadSite = (leadPlan.metadata['lead_site'] ?? '').trim();
-    final topIntent = (leadPlan.metadata['top_intent'] ?? '').trim();
-    final recommendation = plans
-        .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
-        .map((plan) => (plan.metadata['recommendation'] ?? '').trim())
-        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
-    final learning = plans
-        .map((plan) => (plan.metadata['learning_summary'] ?? '').trim())
-        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
-    final regionSegment = region.isEmpty ? '' : ' • region $region';
-    final siteSegment = leadSite.isEmpty ? '' : ' • lead $leadSite';
-    final intentSegment = topIntent.isEmpty || topIntent == 'NONE'
-        ? ''
-        : ' • top intent $topIntent';
-    final recommendationSegment = recommendation.isEmpty
-        ? ''
-        : ' • $recommendation';
-    final learningSegment = learning.isEmpty ? '' : ' • $learning';
-    final hazardSegment = _hazardSimulationSummary(plans);
-    return 'Plans ${plans.length} • policy $policyCount$regionSegment$siteSegment$intentSegment$recommendationSegment$learningSegment$hazardSegment';
-  }
+  ) => buildSyntheticMetricDetailFromPlans(plans: plans);
 
   String _hazardIntentSummary(List<MonitoringWatchAutonomyActionPlan> intents) {
     final summary = buildHazardIntentSummaryFromPlans(plans: intents);
-    return summary.isEmpty ? '' : ' • $summary';
-  }
-
-  String _hazardSimulationSummary(
-    List<MonitoringWatchAutonomyActionPlan> plans,
-  ) {
-    final summary = buildHazardSimulationSummaryFromPlans(plans: plans);
     return summary.isEmpty ? '' : ' • $summary';
   }
 

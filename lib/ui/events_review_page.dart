@@ -2203,14 +2203,6 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         .where((value) => value.isNotEmpty)
         .toSet()
         .toList(growable: false);
-    final summaryParts = <String>[
-      'Plans ${plans.length}',
-      'Policy ${plans.where((plan) => plan.actionType == 'POLICY RECOMMENDATION').length}',
-      if ((leadPlan.metadata['region'] ?? '').toString().trim().isNotEmpty)
-        'region ${(leadPlan.metadata['region'] ?? '').toString().trim()}',
-      if ((leadPlan.metadata['lead_site'] ?? '').toString().trim().isNotEmpty)
-        'site ${(leadPlan.metadata['lead_site'] ?? '').toString().trim()}',
-    ];
     final hazardSummary = _hazardSimulationSummary(plans);
     final currentReport = _reportForDate(scopedReportDate);
     final syntheticHistoryReports = [...widget.morningSovereignReportHistory]
@@ -2255,7 +2247,16 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       focusState: _readinessFocusState(scopedReportDate),
       historicalFocus: _isHistoricalReadinessFocus(scopedReportDate),
       modeLabel: modeLabel,
-      summaryLine: summaryParts.join(' • '),
+      summaryLine: buildSyntheticMetricDetailFromPlans(
+        plans: plans,
+        emptySummary: '',
+        policyLabel: 'Policy',
+        leadLabel: 'site',
+        includeTopIntent: false,
+        includeRecommendation: false,
+        includeLearning: false,
+        includeHazard: false,
+      ),
       focusSummary: focusSummary,
       policySummary: policySummary,
       topIntentSummary: leadPlan.description,

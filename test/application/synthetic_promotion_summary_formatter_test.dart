@@ -262,6 +262,46 @@ void main() {
       );
     });
 
+    test('synthetic metric detail helper formats rich and compact variants', () {
+      const plans = <MonitoringWatchAutonomyActionPlan>[
+        MonitoringWatchAutonomyActionPlan(
+          id: 'SIM-1',
+          incidentId: 'SITE-1',
+          siteId: 'SITE-1',
+          priority: MonitoringWatchAutonomyPriority.high,
+          actionType: 'POLICY RECOMMENDATION',
+          description: 'desc',
+          countdownSeconds: 22,
+          metadata: <String, String>{
+            'region': 'REGION-GAUTENG',
+            'lead_site': 'SITE-ALPHA',
+            'top_intent': 'NEXT_SHIFT',
+            'recommendation': 'HARDEN ACCESS EARLY',
+            'learning_summary': 'Bias toward early access lockdown',
+            'hazard_signal': 'water_leak',
+          },
+        ),
+      ];
+
+      expect(
+        buildSyntheticMetricDetailFromPlans(plans: plans),
+        'Plans 1 • policy 1 • region REGION-GAUTENG • lead SITE-ALPHA • top intent NEXT_SHIFT • HARDEN ACCESS EARLY • Bias toward early access lockdown • leak rehearsal recommended',
+      );
+      expect(
+        buildSyntheticMetricDetailFromPlans(
+          plans: plans,
+          emptySummary: '',
+          policyLabel: 'Policy',
+          leadLabel: 'site',
+          includeTopIntent: false,
+          includeRecommendation: false,
+          includeLearning: false,
+          includeHazard: false,
+        ),
+        'Plans 1 • Policy 1 • region REGION-GAUTENG • site SITE-ALPHA',
+      );
+    });
+
     test('learning memory helper formats first/new/repeated states', () {
       expect(
         buildSyntheticLearningMemorySummaryFromHistoryLabels(
