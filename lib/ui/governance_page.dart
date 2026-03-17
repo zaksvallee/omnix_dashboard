@@ -3380,6 +3380,11 @@ class _GovernancePageState extends State<GovernancePage> {
         leadSite == null || leadSite.moShadowSummary.trim().isEmpty
         ? ''
         : ' • shadow ${leadSite.moShadowSummary.trim()}';
+    final moShadowPostureSegment =
+        leadSite == null ||
+            shadowMoPostureStrengthSummary(leadSite).trim().isEmpty
+        ? ''
+        : ' • shadow posture ${shadowMoPostureStrengthSummary(leadSite).trim()}';
     final tomorrowSegment = _globalReadinessTomorrowPostureSummary(intents);
     final tomorrowShadowSegment = _globalReadinessTomorrowShadowSummary(
       report,
@@ -3406,7 +3411,7 @@ class _GovernancePageState extends State<GovernancePage> {
     final shadowBiasSuffix = shadowBiasSegment.isEmpty
         ? ''
         : ' • shadow bias $shadowBiasSegment';
-    return 'Sites ${snapshot.totalSites} • elevated ${snapshot.elevatedSiteCount} • critical ${snapshot.criticalSiteCount} • intents ${intents.length}$regionSegment$siteSegment$hazardSegment$moShadowSegment$shadowBiasSuffix$tomorrowSuffix$tomorrowShadowSuffix$tomorrowUrgencySuffix';
+    return 'Sites ${snapshot.totalSites} • elevated ${snapshot.elevatedSiteCount} • critical ${snapshot.criticalSiteCount} • intents ${intents.length}$regionSegment$siteSegment$hazardSegment$moShadowSegment$moShadowPostureSegment$shadowBiasSuffix$tomorrowSuffix$tomorrowShadowSuffix$tomorrowUrgencySuffix';
   }
 
   int _globalReadinessNextShiftDraftCount(
@@ -8530,6 +8535,20 @@ class _GovernancePageState extends State<GovernancePage> {
                                         fontWeight: FontWeight.w700,
                                       ),
                                     ),
+                                    if (shadowMoPostureStrengthSummary(
+                                          site,
+                                        ).isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 3),
+                                        child: Text(
+                                          'Posture weight ${shadowMoPostureStrengthSummary(site)}',
+                                          style: GoogleFonts.robotoMono(
+                                            color: const Color(0xFFFDE68A),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
                                     const SizedBox(height: 6),
                                     for (final match
                                         in site.moShadowMatches) ...[
@@ -8636,6 +8655,9 @@ class _GovernancePageState extends State<GovernancePage> {
         'reportDate': report.reportDate,
         'validationSummary': _shadowMoValidationSummaryForSites(shadowSites),
         'strengthSummary': shadowMoStrengthSummaryForSites(shadowSites),
+        'postureStrengthSummary': shadowMoPostureStrengthSummaryForSites(
+          shadowSites,
+        ),
         'strengthHistorySummary': _shadowMoHistoryForView(
           report,
         ).strengthSummary,
@@ -11574,6 +11596,9 @@ class _GovernancePageState extends State<GovernancePage> {
               shadowSites,
             ),
             'strengthSummary': shadowMoStrengthSummaryForSites(shadowSites),
+            'postureStrengthSummary': shadowMoPostureStrengthSummaryForSites(
+              shadowSites,
+            ),
             'tomorrowUrgencySummary': _globalReadinessTomorrowUrgencySummary(
               globalReadinessIntents,
             ),
@@ -11936,6 +11961,7 @@ class _GovernancePageState extends State<GovernancePage> {
       'global_readiness_shadow_summary,"${(shadowSites.isEmpty ? '' : '${shadowSites.length} sites • ${shadowSites.first.moShadowSummary}').replaceAll('"', '""')}"',
       'global_readiness_shadow_validation_summary,"${_shadowMoValidationSummaryForSites(shadowSites).replaceAll('"', '""')}"',
       'global_readiness_shadow_strength_summary,"${shadowMoStrengthSummaryForSites(shadowSites).replaceAll('"', '""')}"',
+      'global_readiness_shadow_posture_strength_summary,"${shadowMoPostureStrengthSummaryForSites(shadowSites).replaceAll('"', '""')}"',
       'global_readiness_shadow_tomorrow_urgency_summary,"${_globalReadinessTomorrowUrgencySummary(globalReadinessIntents).replaceAll('"', '""')}"',
       'global_readiness_shadow_previous_tomorrow_urgency_summary,"${globalReadinessHistory.length > 1 ? globalReadinessHistory[1].tomorrowUrgencySummary.replaceAll('"', '""') : ''}"',
       'global_readiness_shadow_history_headline,"${shadowHistory.headline.replaceAll('"', '""')}"',

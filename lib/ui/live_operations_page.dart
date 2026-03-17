@@ -1446,6 +1446,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           const SizedBox(height: 6),
           _metaRow('Pattern', sitePosture.moShadowSummary),
           _metaRow('Signal', 'mo_shadow'),
+          _metaRow(
+            'Posture Weight',
+            shadowMoPostureStrengthSummary(sitePosture),
+          ),
           _metaRow('Site Heat', sitePosture.heatLevel.name),
           const SizedBox(height: 8),
           Align(

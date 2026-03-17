@@ -335,6 +335,7 @@ void main() {
       find.text('Contractors moved floor to floor in office park'),
       findsWidgets,
     );
+    expect(find.textContaining('Posture weight weight '), findsOneWidget);
     expect(find.textContaining('Strength '), findsWidgets);
     expect(find.textContaining('VALIDATED'), findsWidgets);
 
@@ -4727,6 +4728,7 @@ void main() {
         '"historySummary": "Current matches 0 • Baseline 0.0 • Shadow-MO match pressure is holding close to the recent baseline."',
       ),
     );
+    expect(copiedPayload, contains('"postureStrengthSummary": ""'));
     expect(copiedPayload, contains('"validationSummary": ""'));
     expect(copiedPayload, contains('"strengthSummary": ""'));
     expect(copiedPayload, contains('"strengthHistorySummary": ""'));
@@ -4912,6 +4914,10 @@ void main() {
     expect(
       copiedPayload,
       contains('global_readiness_shadow_strength_summary,""'),
+    );
+    expect(
+      copiedPayload,
+      contains('global_readiness_shadow_posture_strength_summary,""'),
     );
     expect(
       copiedPayload,

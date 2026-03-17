@@ -95,6 +95,7 @@ Map<String, Object?> buildShadowMoSitePayload(
     'heatLevel': site.heatLevel.name,
     'matchCount': site.moShadowMatchCount,
     'summary': site.moShadowSummary,
+    'postureStrengthSummary': shadowMoPostureStrengthSummary(site),
     'eventIds': orderedEventIds,
     'selectedEventId': site.moShadowSelectedEventId,
     'reviewRefs': site.moShadowReviewRefs,
@@ -115,6 +116,26 @@ Map<String, Object?> buildShadowMoSitePayload(
         )
         .toList(growable: false),
   };
+}
+
+String shadowMoPostureStrengthSummary(MonitoringGlobalSitePosture site) {
+  if (site.moShadowMatchCount <= 0 || site.moShadowStrengthScore <= 0) {
+    return '';
+  }
+  return 'weight ${site.moShadowStrengthScore} • ${site.heatLevel.name} heat • activity ${site.activityScore}';
+}
+
+String shadowMoPostureStrengthSummaryForSites(
+  List<MonitoringGlobalSitePosture> sites,
+) {
+  if (sites.isEmpty) {
+    return '';
+  }
+  final orderedSites = sortShadowMoSites(sites);
+  if (orderedSites.isEmpty) {
+    return '';
+  }
+  return shadowMoPostureStrengthSummary(orderedSites.first);
 }
 
 Map<String, String> buildPromotionShadowAnchorContext({

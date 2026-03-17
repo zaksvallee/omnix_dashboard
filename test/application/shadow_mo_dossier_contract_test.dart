@@ -20,6 +20,7 @@ void main() {
       lastActivityAtUtc: DateTime.utc(2026, 3, 17, 1, 0),
       dominantSignals: const ['escalation', 'mo_shadow'],
       moShadowMatchCount: 1,
+      moShadowStrengthScore: 41,
       moShadowSummary:
           'Contractors moved floor to floor in office park (0.89) • office_building, route_anomalies',
       moShadowEventIds: const ['evt-office'],
@@ -49,6 +50,10 @@ void main() {
     expect(payload['siteId'], 'SITE-OFFICE');
     expect(payload['matchCount'], 1);
     expect(payload['summary'], contains('Contractors moved floor to floor'));
+    expect(
+      payload['postureStrengthSummary'],
+      'weight 41 • elevated heat • activity 88',
+    );
     expect(payload['eventIds'], ['evt-office']);
     expect(payload['selectedEventId'], 'evt-office');
     expect(payload['reviewRefs'], ['intel-office']);
@@ -114,6 +119,38 @@ void main() {
     expect(payload['shadowSiteCount'], 1);
     final sites = payload['sites'] as List<Object?>;
     expect(sites, hasLength(1));
+  });
+
+  test('builds posture strength summary from site posture', () {
+    final summary = shadowMoPostureStrengthSummary(
+      MonitoringGlobalSitePosture(
+        clientId: 'CLIENT-VALLEE',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-OFFICE',
+        heatLevel: MonitoringGlobalHeatLevel.critical,
+        activityScore: 104,
+        intelligenceCount: 2,
+        escalationCount: 1,
+        repeatCount: 0,
+        suppressedCount: 0,
+        identitySignalCount: 0,
+        latestSummary: 'Service impersonation concern.',
+        lastActivityAtUtc: DateTime.utc(2026, 3, 17, 1, 0),
+        moShadowMatchCount: 1,
+        moShadowStrengthScore: 46,
+        moShadowMatches: const [
+          OnyxMoShadowMatch(
+            moId: 'MO-EXT-INTEL-NEWS',
+            title: 'Contractors moved floor to floor in office park',
+            incidentType: 'deception_led_intrusion',
+            behaviorStage: 'inside_behavior',
+            matchScore: 0.89,
+          ),
+        ],
+      ),
+    );
+
+    expect(summary, 'weight 46 • critical heat • activity 104');
   });
 
   test('builds promotion shadow anchor context from matched dossier sites', () {

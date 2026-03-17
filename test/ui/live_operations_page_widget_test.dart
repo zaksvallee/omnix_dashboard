@@ -656,6 +656,8 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('mo_shadow'), findsOneWidget);
+      expect(find.text('Posture Weight'), findsOneWidget);
+      expect(find.textContaining('weight '), findsOneWidget);
 
       final dossierButton = find.byKey(
         const ValueKey('live-mo-shadow-open-dossier-INC-D-3001'),
