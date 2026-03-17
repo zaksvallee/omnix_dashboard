@@ -1228,6 +1228,32 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             ),
                           ),
                         ],
+                        if (shadowScopeSummary.tomorrowUrgencySummary
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Tomorrow urgency: ${shadowScopeSummary.tomorrowUrgencySummary}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFFDE68A),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                        if (shadowScopeSummary.previousTomorrowUrgencySummary
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            'Previous tomorrow urgency: ${shadowScopeSummary.previousTomorrowUrgencySummary}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFFCD34D),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                         if (shadowScopeSummary.history != null) ...[
                           const SizedBox(height: 4),
                           Text(
@@ -1285,6 +1311,15 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                                 'Strength ${point.strengthSummary}',
                                 style: GoogleFonts.robotoMono(
                                   color: const Color(0xFFBFDBFE),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            if (point.tomorrowUrgencySummary.trim().isNotEmpty)
+                              Text(
+                                'Tomorrow urgency ${point.tomorrowUrgencySummary}',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFFFDE68A),
                                   fontSize: 10,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -2136,6 +2171,18 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       0,
       (current, site) => current + site.moShadowMatchCount,
     );
+    final report = _reportForDate(scopedReportDate);
+    final previousReports =
+        widget.morningSovereignReportHistory
+            .where(
+              (item) => item.date.trim() != (scopedReportDate ?? '').trim(),
+            )
+            .toList(growable: false)
+          ..sort(
+            (left, right) => right.generatedAtUtc.toUtc().compareTo(
+              left.generatedAtUtc.toUtc(),
+            ),
+          );
     return _ShadowScopeSummary(
       eventCount: scopedEvents.length,
       reportDate: scopedReportDate ?? '',
@@ -2147,6 +2194,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       focusSummary: _readinessFocusSummary(scopedReportDate),
       validationSummary: _shadowValidationSummaryForSites(shadowSites),
       strengthSummary: shadowMoStrengthSummaryForSites(shadowSites),
+      tomorrowUrgencySummary: _shadowTomorrowUrgencySummaryForReport(report),
+      previousTomorrowUrgencySummary: previousReports.isEmpty
+          ? ''
+          : _shadowTomorrowUrgencySummaryForReport(previousReports.first),
       reviewRefs: reviewRefs,
       sites: shadowSites,
       history: _shadowHistorySummary(
@@ -2207,6 +2258,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         summaryLine: _shadowScopeSummaryLineForSites(currentSites),
         validationSummary: _shadowValidationSummaryForSites(currentSites),
         strengthSummary: shadowMoStrengthSummaryForSites(currentSites),
+        tomorrowUrgencySummary: _shadowTomorrowUrgencySummaryForReport(
+          _reportForDate(normalizedReportDate),
+        ),
       ),
       ...historyReports.take(2).map((item) {
         final itemSites = _shadowMoSitesForReport(item);
@@ -2217,6 +2271,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           summaryLine: _shadowScopeSummaryLineForSites(itemSites),
           validationSummary: _shadowValidationSummaryForSites(itemSites),
           strengthSummary: shadowMoStrengthSummaryForSites(itemSites),
+          tomorrowUrgencySummary: _shadowTomorrowUrgencySummaryForReport(item),
         );
       }),
     ];
@@ -2241,6 +2296,14 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       0,
       (current, site) => current + site.moShadowMatchCount,
     );
+  }
+
+  String _shadowTomorrowUrgencySummaryForReport(SovereignReport report) {
+    final drafts = _tomorrowPostureDraftsForReport(report);
+    if (drafts.isEmpty) {
+      return '';
+    }
+    return _tomorrowPostureUrgencySummary(drafts.first);
   }
 
   List<MonitoringGlobalSitePosture> _shadowMoSitesForReport(
@@ -4849,6 +4912,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       'summary_line,"${summary.summaryLine.replaceAll('"', '""')}"',
       'validation_summary,"${summary.validationSummary.replaceAll('"', '""')}"',
       'strength_summary,"${summary.strengthSummary.replaceAll('"', '""')}"',
+      'tomorrow_urgency_summary,"${summary.tomorrowUrgencySummary.replaceAll('"', '""')}"',
+      'previous_tomorrow_urgency_summary,"${summary.previousTomorrowUrgencySummary.replaceAll('"', '""')}"',
       'review_refs,"${summary.reviewRefs.join(', ').replaceAll('"', '""')}"',
       if (summary.history != null)
         'history_headline,"${summary.history!.headline.replaceAll('"', '""')}"',
@@ -4891,6 +4956,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         );
         lines.add(
           'history_${row}_strength_summary,"${point.strengthSummary.replaceAll('"', '""')}"',
+        );
+        lines.add(
+          'history_${row}_tomorrow_urgency_summary,"${point.tomorrowUrgencySummary.replaceAll('"', '""')}"',
         );
         lines.addAll(
           buildHistoryReviewCommandCsvRows(
@@ -5188,6 +5256,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           'summaryLine': summary.summaryLine,
           'validationSummary': summary.validationSummary,
           'strengthSummary': summary.strengthSummary,
+          'tomorrowUrgencySummary': summary.tomorrowUrgencySummary,
+          'previousTomorrowUrgencySummary':
+              summary.previousTomorrowUrgencySummary,
           'reviewRefs': summary.reviewRefs,
           'historyHeadline': summary.history?.headline,
           'historySummary': summary.history?.summary,
@@ -5212,6 +5283,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                           'summaryLine': point.summaryLine,
                           'validationSummary': point.validationSummary,
                           'strengthSummary': point.strengthSummary,
+                          'tomorrowUrgencySummary':
+                              point.tomorrowUrgencySummary,
                           ...buildReviewCommandPair(
                             reportDate: point.date,
                             reviewCommandBuilder: _shadowReviewCommand,
@@ -5806,6 +5879,8 @@ class _ShadowScopeSummary {
   final String focusSummary;
   final String validationSummary;
   final String strengthSummary;
+  final String tomorrowUrgencySummary;
+  final String previousTomorrowUrgencySummary;
   final List<String> reviewRefs;
   final List<MonitoringGlobalSitePosture> sites;
   final _ShadowHistorySummary? history;
@@ -5820,6 +5895,8 @@ class _ShadowScopeSummary {
     required this.focusSummary,
     required this.validationSummary,
     required this.strengthSummary,
+    required this.tomorrowUrgencySummary,
+    required this.previousTomorrowUrgencySummary,
     required this.reviewRefs,
     required this.sites,
     required this.history,
@@ -6032,6 +6109,7 @@ class _ShadowHistoryPoint {
   final String summaryLine;
   final String validationSummary;
   final String strengthSummary;
+  final String tomorrowUrgencySummary;
 
   const _ShadowHistoryPoint({
     required this.date,
@@ -6040,6 +6118,7 @@ class _ShadowHistoryPoint {
     required this.summaryLine,
     required this.validationSummary,
     required this.strengthSummary,
+    required this.tomorrowUrgencySummary,
   });
 }
 

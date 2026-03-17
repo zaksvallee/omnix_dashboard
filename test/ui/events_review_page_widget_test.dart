@@ -1419,6 +1419,11 @@ void main() {
     );
     expect(copiedClipboardPayload, contains('"strengthSummary": "'));
     expect(copiedClipboardPayload, contains('"strengthHistorySummary": "'));
+    expect(copiedClipboardPayload, contains('"tomorrowUrgencySummary": "'));
+    expect(
+      copiedClipboardPayload,
+      contains('"previousTomorrowUrgencySummary": "'),
+    );
     expect(copiedClipboardPayload, contains('"history": {'));
     expect(copiedClipboardPayload, contains('"date": "2026-03-17"'));
     expect(find.textContaining('Strength:'), findsWidgets);
@@ -1456,6 +1461,11 @@ void main() {
     );
     expect(copiedClipboardPayload, contains('strength_summary,"'));
     expect(copiedClipboardPayload, contains('strength_history_summary,"'));
+    expect(copiedClipboardPayload, contains('tomorrow_urgency_summary,"'));
+    expect(
+      copiedClipboardPayload,
+      contains('previous_tomorrow_urgency_summary,"'),
+    );
     expect(copiedClipboardPayload, contains('history_1_date,2026-03-17'));
     expect(copiedClipboardPayload, contains('history_1_match_count,2'));
     expect(
@@ -1463,6 +1473,10 @@ void main() {
       contains('history_1_validation_summary,"Shadow mode 2"'),
     );
     expect(copiedClipboardPayload, contains('history_1_strength_summary,"'));
+    expect(
+      copiedClipboardPayload,
+      contains('history_1_tomorrow_urgency_summary,"'),
+    );
 
     final openGovernanceAction = tester.widget<InkWell>(
       find.byKey(

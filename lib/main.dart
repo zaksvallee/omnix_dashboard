@@ -6953,6 +6953,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           .map(_shadowMoSitesForReport)
           .toList(growable: false),
     ).summary;
+    final tomorrowUrgencySummary = _globalReadinessTomorrowUrgencySummary(
+      _globalReadinessIntentsForReport(report),
+    );
+    final previousTomorrowUrgencySummary = previousReport == null
+        ? ''
+        : _globalReadinessTomorrowUrgencySummary(
+            _globalReadinessIntentsForReport(previousReport),
+          );
     final eventIds = shadowSites
         .expand((site) => site.moShadowEventIds)
         .map((value) => value.trim())
@@ -6983,6 +6991,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'validationSummary': _shadowMoValidationSummaryForSites(shadowSites),
         'strengthSummary': strengthSummary,
         'strengthHistorySummary': strengthHistorySummary,
+        'tomorrowUrgencySummary': tomorrowUrgencySummary,
+        'previousTomorrowUrgencySummary': previousTomorrowUrgencySummary,
         'historyHeadline': historyHeadline,
         'historySummary': historySummary,
         'eventIds': eventIds,
@@ -7015,6 +7025,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
                   itemSites,
                 ),
                 'strengthSummary': shadowMoStrengthSummaryForSites(itemSites),
+                'tomorrowUrgencySummary':
+                    _globalReadinessTomorrowUrgencySummary(
+                      _globalReadinessIntentsForReport(item),
+                    ),
                 ...buildReviewCommandPair(
                   reportDate: item.date,
                   reviewCommandBuilder: (value) => '/shadowreview $value',
@@ -7045,6 +7059,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'validation_summary,"${(payload['validationSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'strength_summary,"${(payload['strengthSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'strength_history_summary,"${(payload['strengthHistorySummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'tomorrow_urgency_summary,"${(payload['tomorrowUrgencySummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'previous_tomorrow_urgency_summary,"${(payload['previousTomorrowUrgencySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'history_headline,"${(payload['historyHeadline'] ?? '').toString().replaceAll('"', '""')}"',
       'history_summary,"${(payload['historySummary'] ?? '').toString().replaceAll('"', '""')}"',
       'selected_event_id,${payload['selectedEventId'] ?? ''}',
@@ -7090,6 +7106,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       lines.add(
         'history_${i + 1}_strength_summary,"${(row['strengthSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add(
+        'history_${i + 1}_tomorrow_urgency_summary,"${(row['tomorrowUrgencySummary'] ?? '').toString().replaceAll('"', '""')}"',
       );
       lines.addAll(
         buildHistoryReviewCommandCsvRows(
@@ -18150,6 +18169,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final strengthHistorySummary = (payload['strengthHistorySummary'] ?? '')
         .toString()
         .trim();
+    final tomorrowUrgencySummary = (payload['tomorrowUrgencySummary'] ?? '')
+        .toString()
+        .trim();
+    final previousTomorrowUrgencySummary =
+        (payload['previousTomorrowUrgencySummary'] ?? '').toString().trim();
     final previousReviewCommand = (payload['previousReviewCommand'] ?? '')
         .toString()
         .trim();
@@ -18178,6 +18202,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         ChatCaseFileHistoryField(
           inputKey: 'strengthSummary',
           outputKey: 'strength_summary',
+        ),
+        ChatCaseFileHistoryField(
+          inputKey: 'tomorrowUrgencySummary',
+          outputKey: 'tomorrow_urgency_summary',
         ),
         ChatCaseFileHistoryField(
           inputKey: 'reviewCommand',
@@ -18216,6 +18244,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             value: strengthHistorySummary,
           ),
           ChatCaseFileHeaderField(
+            key: 'tomorrow_urgency_summary',
+            value: tomorrowUrgencySummary,
+          ),
+          ChatCaseFileHeaderField(
+            key: 'previous_tomorrow_urgency_summary',
+            value: previousTomorrowUrgencySummary,
+          ),
+          ChatCaseFileHeaderField(
             key: 'review_command',
             value: '/shadowreview ${report.date}',
           ),
@@ -18252,6 +18288,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         ChatCaseFileHeaderField(
           key: 'strength_history_summary',
           value: strengthHistorySummary,
+        ),
+        ChatCaseFileHeaderField(
+          key: 'tomorrow_urgency_summary',
+          value: tomorrowUrgencySummary,
+        ),
+        ChatCaseFileHeaderField(
+          key: 'previous_tomorrow_urgency_summary',
+          value: previousTomorrowUrgencySummary,
         ),
         ChatCaseFileHeaderField(
           key: 'review_command',

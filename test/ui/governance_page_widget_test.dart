@@ -4730,6 +4730,8 @@ void main() {
     expect(copiedPayload, contains('"validationSummary": ""'));
     expect(copiedPayload, contains('"strengthSummary": ""'));
     expect(copiedPayload, contains('"strengthHistorySummary": ""'));
+    expect(copiedPayload, contains('"tomorrowUrgencySummary": ""'));
+    expect(copiedPayload, contains('"previousTomorrowUrgencySummary": ""'));
     expect(copiedPayload, contains('"planCount": 0'));
     expect(copiedPayload, contains('"policyCount": 0'));
     expect(copiedPayload, contains('"modeLabel": "QUIET REHEARSAL"'));

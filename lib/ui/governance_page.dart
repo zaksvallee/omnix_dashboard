@@ -8124,6 +8124,10 @@ class _GovernancePageState extends State<GovernancePage> {
     final shadowSites = currentSnapshot.sites
         .where((site) => site.moShadowMatchCount > 0)
         .toList(growable: false);
+    final shadowDossier = _globalReadinessShadowDossierPayload(
+      report,
+      shadowSites,
+    );
     showDialog<void>(
       context: context,
       builder: (dialogContext) {
@@ -8173,13 +8177,9 @@ class _GovernancePageState extends State<GovernancePage> {
                           onPressed: () async {
                             await Clipboard.setData(
                               ClipboardData(
-                                text: const JsonEncoder.withIndent('  ')
-                                    .convert(
-                                      _globalReadinessShadowDossierPayload(
-                                        report,
-                                        shadowSites,
-                                      ),
-                                    ),
+                                text: const JsonEncoder.withIndent(
+                                  '  ',
+                                ).convert(shadowDossier),
                               ),
                             );
                             if (!mounted) {
@@ -8405,6 +8405,37 @@ class _GovernancePageState extends State<GovernancePage> {
                               ),
                             ),
                             const SizedBox(height: 8),
+                            if ((shadowDossier['tomorrowUrgencySummary'] ?? '')
+                                .toString()
+                                .trim()
+                                .isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: Text(
+                                  'Tomorrow urgency • ${(shadowDossier['tomorrowUrgencySummary'] ?? '').toString().trim()}',
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFFFDE68A),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            if ((shadowDossier['previousTomorrowUrgencySummary'] ??
+                                    '')
+                                .toString()
+                                .trim()
+                                .isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: Text(
+                                  'Previous tomorrow urgency • ${(shadowDossier['previousTomorrowUrgencySummary'] ?? '').toString().trim()}',
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFFFCD34D),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
                             for (final site in shadowSites) ...[
                               Container(
                                 width: double.infinity,
@@ -8515,6 +8546,17 @@ class _GovernancePageState extends State<GovernancePage> {
     _GovernanceReportView report,
     List<MonitoringGlobalSitePosture> shadowSites,
   ) {
+    final history =
+        widget.morningSovereignReportHistory
+            .where((item) => item.date.trim() != report.reportDate.trim())
+            .toList(growable: false)
+          ..sort(
+            (left, right) => right.generatedAtUtc.toUtc().compareTo(
+              left.generatedAtUtc.toUtc(),
+            ),
+          );
+    final previousReport = history.isEmpty ? null : history.first;
+    final currentIntents = _globalReadinessIntentsForReport(report);
     return buildShadowMoDossierPayload(
       sites: shadowSites,
       generatedAtUtc: report.generatedAtUtc,
@@ -8526,6 +8568,17 @@ class _GovernancePageState extends State<GovernancePage> {
         'strengthHistorySummary': _shadowMoHistoryForView(
           report,
         ).strengthSummary,
+        'tomorrowUrgencySummary': _globalReadinessTomorrowUrgencySummary(
+          currentIntents,
+        ),
+        'previousTomorrowUrgencySummary': previousReport == null
+            ? ''
+            : _globalReadinessTomorrowUrgencySummary(
+                _globalReadinessIntentsForWindow(
+                  previousReport.shiftWindowStartUtc,
+                  previousReport.shiftWindowEndUtc,
+                ),
+              ),
       },
     );
   }
@@ -11394,6 +11447,12 @@ class _GovernancePageState extends State<GovernancePage> {
               shadowSites,
             ),
             'strengthSummary': shadowMoStrengthSummaryForSites(shadowSites),
+            'tomorrowUrgencySummary': _globalReadinessTomorrowUrgencySummary(
+              globalReadinessIntents,
+            ),
+            'previousTomorrowUrgencySummary': globalReadinessHistory.length > 1
+                ? globalReadinessHistory[1].tomorrowUrgencySummary
+                : '',
             'historyHeadline': shadowHistory.headline,
             'historySummary': shadowHistory.summary,
             'strengthHistorySummary': shadowHistory.strengthSummary,
@@ -11724,6 +11783,8 @@ class _GovernancePageState extends State<GovernancePage> {
       'global_readiness_shadow_summary,"${(shadowSites.isEmpty ? '' : '${shadowSites.length} sites • ${shadowSites.first.moShadowSummary}').replaceAll('"', '""')}"',
       'global_readiness_shadow_validation_summary,"${_shadowMoValidationSummaryForSites(shadowSites).replaceAll('"', '""')}"',
       'global_readiness_shadow_strength_summary,"${shadowMoStrengthSummaryForSites(shadowSites).replaceAll('"', '""')}"',
+      'global_readiness_shadow_tomorrow_urgency_summary,"${_globalReadinessTomorrowUrgencySummary(globalReadinessIntents).replaceAll('"', '""')}"',
+      'global_readiness_shadow_previous_tomorrow_urgency_summary,"${globalReadinessHistory.length > 1 ? globalReadinessHistory[1].tomorrowUrgencySummary.replaceAll('"', '""') : ''}"',
       'global_readiness_shadow_history_headline,"${shadowHistory.headline.replaceAll('"', '""')}"',
       'global_readiness_shadow_history_summary,"${shadowHistory.summary.replaceAll('"', '""')}"',
       'global_readiness_shadow_strength_history_summary,"${shadowHistory.strengthSummary.replaceAll('"', '""')}"',
