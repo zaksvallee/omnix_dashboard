@@ -1367,6 +1367,7 @@ void main() {
       contains('"leadRegionId": "REGION-GAUTENG"'),
     );
     expect(copiedClipboardPayload, contains('"leadSiteId": "SITE-ALPHA"'));
+    expect(copiedClipboardPayload, contains('"hazardSummary": ""'));
     expect(
       copiedClipboardPayload,
       contains(
@@ -1411,6 +1412,7 @@ void main() {
       copiedClipboardPayload,
       contains('focus_state,historical_command_target'),
     );
+    expect(copiedClipboardPayload, contains('hazard_summary,""'));
     expect(copiedClipboardPayload, contains('historical_focus,true'));
     expect(
       copiedClipboardPayload,
@@ -1663,6 +1665,7 @@ void main() {
     expect(copiedClipboardPayload, contains('"liveReportDate": "2026-03-18"'));
     expect(copiedClipboardPayload, contains('"modeLabel": "POLICY SHIFT"'));
     expect(copiedClipboardPayload, contains('"historicalFocus": true'));
+    expect(copiedClipboardPayload, contains('"hazardSummary": ""'));
     expect(
       copiedClipboardPayload,
       contains('"policySummary": "earlier postural echo propagation into sibling sites"'),
@@ -1713,6 +1716,7 @@ void main() {
     expect(copiedClipboardPayload, contains('live_report_date,2026-03-18'));
     expect(copiedClipboardPayload, contains('focus_state,historical_command_target'));
     expect(copiedClipboardPayload, contains('historical_focus,true'));
+    expect(copiedClipboardPayload, contains('hazard_summary,""'));
     expect(copiedClipboardPayload, contains('mode_label,"POLICY SHIFT"'));
     expect(
       copiedClipboardPayload,

@@ -5879,6 +5879,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'posturalEchoCount': posturalEchoes.length,
       'posturalEchoSummary': _globalReadinessEchoSummary(intents),
       'topIntentSummary': _globalReadinessTopIntentSummary(intents),
+      'hazardSummary': _globalReadinessHazardSummary(intents),
       'eventIds': primaryEvidence['eventIds'] ?? const <Object?>[],
       'reviewRefs': primaryEvidence['reviewRefs'] ?? const <Object?>[],
       'selectedEventId': primaryEvidence['selectedEventId'],
@@ -5963,6 +5964,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               ),
               'posturalEchoCount': itemEchoCount,
               'topIntentSummary': _globalReadinessTopIntentSummary(itemIntents),
+              'hazardSummary': _globalReadinessHazardSummary(itemIntents),
               ...buildReviewCommandPair(
                 reportDate: item.date,
                 reviewCommandBuilder: (reportDate) =>
@@ -5998,6 +6000,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'postural_echo_count,${payload['posturalEchoCount'] ?? 0}',
       'postural_echo_summary,"${(payload['posturalEchoSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'top_intent_summary,"${(payload['topIntentSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'hazard_summary,"${(payload['hazardSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'selected_event_id,${payload['selectedEventId'] ?? ''}',
       'review_refs,"${(((payload['reviewRefs'] as List<Object?>?) ?? const <Object?>[]).join(', ')).replaceAll('"', '""')}"',
       'lead_region_review_refs,"${(((payload['leadRegion'] as Map<Object?, Object?>?)?['reviewRefs'] as List<Object?>?) ?? const <Object?>[]).join(', ').replaceAll('"', '""')}"',
@@ -6043,6 +6046,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       lines.add(
         'history_${i + 1}_top_intent_summary,"${(row['topIntentSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add(
+        'history_${i + 1}_hazard_summary,"${(row['hazardSummary'] ?? '').toString().replaceAll('"', '""')}"',
       );
       lines.addAll(
         buildHistoryReviewCommandCsvRows(
@@ -6121,6 +6127,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'modeLabel': _syntheticWarRoomModeLabel(plans),
       'summary': _syntheticWarRoomSummary(plans),
       'policySummary': _syntheticWarRoomPolicySummary(plans),
+      'hazardSummary': _syntheticWarRoomHazardSummary(plans),
       'planCount': plans.length,
       'policyCount': policyPlans.length,
       'leadRegionId': (leadPlan?.metadata['region'] ?? '').toString().trim(),
@@ -6173,6 +6180,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               'modeLabel': _syntheticWarRoomModeLabel(itemPlans),
               'summary': _syntheticWarRoomSummary(itemPlans),
               'policySummary': _syntheticWarRoomPolicySummary(itemPlans),
+              'hazardSummary': _syntheticWarRoomHazardSummary(itemPlans),
               'planCount': itemPlans.length,
               'policyCount': itemPolicyCount,
               ...buildReviewCommandPair(
@@ -6203,6 +6211,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'mode_label,"${(payload['modeLabel'] ?? '').toString().replaceAll('"', '""')}"',
       'summary,"${(payload['summary'] ?? '').toString().replaceAll('"', '""')}"',
       'policy_summary,"${(payload['policySummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'hazard_summary,"${(payload['hazardSummary'] ?? '').toString().replaceAll('"', '""')}"',
       'plan_count,${payload['planCount'] ?? 0}',
       'policy_count,${payload['policyCount'] ?? 0}',
       'lead_region_id,${payload['leadRegionId'] ?? ''}',
@@ -6235,6 +6244,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       lines.add(
         'history_${i + 1}_focus_summary,"${(row['focusSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add(
+        'history_${i + 1}_hazard_summary,"${(row['hazardSummary'] ?? '').toString().replaceAll('"', '""')}"',
       );
       lines.add('history_${i + 1}_plan_count,${row['planCount'] ?? 0}');
       lines.add('history_${i + 1}_policy_count,${row['policyCount'] ?? 0}');
@@ -16365,10 +16377,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final governanceCommand = '/readinessgovernance ${report.date}';
     final payload = _globalReadinessCaseFilePayload(reportDate: report.date);
     final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
+    final hazardSummary = (payload['hazardSummary'] ?? '').toString().trim();
     if (format == 'csv') {
       return 'ONYX READINESSCASE CSV\n'
           'report_date=${report.date}\n'
           '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
+          '${hazardSummary.isEmpty ? '' : 'hazard_summary=$hazardSummary\n'}'
           'review_command=$reviewCommand\n'
           'governance_command=$governanceCommand\n'
           '${_globalReadinessCaseFileCsv(reportDate: report.date)}';
@@ -16376,6 +16390,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return 'ONYX READINESSCASE JSON\n'
         'report_date=${report.date}\n'
         '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
+        '${hazardSummary.isEmpty ? '' : 'hazard_summary=$hazardSummary\n'}'
         'review_command=$reviewCommand\n'
         'governance_command=$governanceCommand\n'
         '${const JsonEncoder.withIndent('  ').convert(payload)}';
@@ -16456,6 +16471,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final reviewCommand = '/syntheticreview ${report.date}';
     final payload = _syntheticWarRoomCaseFilePayload(reportDate: report.date);
     final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
+    final hazardSummary = (payload['hazardSummary'] ?? '').toString().trim();
     final previousReviewCommand = (payload['previousReviewCommand'] ?? '')
         .toString()
         .trim();
@@ -16466,6 +16482,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       return 'ONYX SYNTHETICCASE CSV\n'
           'report_date=${report.date}\n'
           '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
+          '${hazardSummary.isEmpty ? '' : 'hazard_summary=$hazardSummary\n'}'
           'review_command=$reviewCommand\n'
           '${previousReviewCommand.isEmpty ? '' : 'previous_review_command=$previousReviewCommand\n'}'
           '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}'
@@ -16474,6 +16491,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return 'ONYX SYNTHETICCASE JSON\n'
         'report_date=${report.date}\n'
         '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
+        '${hazardSummary.isEmpty ? '' : 'hazard_summary=$hazardSummary\n'}'
         'review_command=$reviewCommand\n'
         '${previousReviewCommand.isEmpty ? '' : 'previous_review_command=$previousReviewCommand\n'}'
         '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}'

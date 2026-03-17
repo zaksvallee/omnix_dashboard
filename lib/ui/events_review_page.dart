@@ -474,6 +474,19 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             ),
                           ),
                         ],
+                        if (readinessScopeSummary.hazardSummary
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Hazard lane: ${readinessScopeSummary.hazardSummary}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFFCA5A5),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                         if (readinessScopeSummary.reviewRefs.isNotEmpty) ...[
                           const SizedBox(height: 4),
                           Text(
@@ -589,6 +602,19 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             'Top intent: ${syntheticScopeSummary.topIntentSummary}',
                             style: GoogleFonts.inter(
                               color: const Color(0xFFC4B5FD),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                        if (syntheticScopeSummary.hazardSummary
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Hazard rehearsal: ${syntheticScopeSummary.hazardSummary}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFE9D5FF),
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
                             ),
@@ -1134,6 +1160,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     final topIntentSummary = intents.isEmpty
         ? ''
         : '${intents.first.actionType} • ${intents.first.description}';
+    final hazardSummary = _hazardIntentSummary(intents);
     return _ReadinessScopeSummary(
       eventCount: scopedEvents.length,
       reportDate: scopedReportDate ?? '',
@@ -1147,6 +1174,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       focusSummary: focusSummary,
       posturalEchoSummary: posturalEchoSummary,
       topIntentSummary: topIntentSummary,
+      hazardSummary: hazardSummary,
       reviewRefs: reviewRefs,
     );
   }
@@ -1186,6 +1214,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       if ((leadPlan.metadata['lead_site'] ?? '').toString().trim().isNotEmpty)
         'site ${(leadPlan.metadata['lead_site'] ?? '').toString().trim()}',
     ];
+    final hazardSummary = _hazardSimulationSummary(plans);
     return _SyntheticScopeSummary(
       eventCount: scopedEvents.length,
       reportDate: scopedReportDate ?? '',
@@ -1197,6 +1226,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       focusSummary: focusSummary,
       policySummary: policySummary,
       topIntentSummary: leadPlan.description,
+      hazardSummary: hazardSummary,
       reviewRefs: reviewRefs,
       history: _syntheticHistorySummary(
         scopedEvents: scopedEvents,
@@ -1310,6 +1340,37 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'top intent ${(lead.metadata['top_intent'] ?? '').toString().trim()}',
     ];
     return summary.join(' • ');
+  }
+
+  String _hazardIntentSummary(List<MonitoringWatchAutonomyActionPlan> intents) {
+    final signal = intents
+        .map((plan) => (plan.metadata['hazard_signal'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    if (signal.isEmpty) {
+      return '';
+    }
+    return '${_hazardSignalLabel(signal)} playbook active';
+  }
+
+  String _hazardSimulationSummary(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    final signal = plans
+        .map((plan) => (plan.metadata['hazard_signal'] ?? '').trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    if (signal.isEmpty) {
+      return '';
+    }
+    return '${_hazardSignalLabel(signal)} rehearsal recommended';
+  }
+
+  String _hazardSignalLabel(String signal) {
+    return switch (signal.trim().toLowerCase()) {
+      'fire' => 'fire',
+      'water_leak' => 'leak',
+      'environment_hazard' => 'hazard',
+      _ => signal.trim().toLowerCase(),
+    };
   }
 
   String _utcReportDateLabel(DateTime dateTime) {
@@ -2911,6 +2972,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       'summary_line,"${summary.summaryLine.replaceAll('"', '""')}"',
       'postural_echo_summary,"${summary.posturalEchoSummary.replaceAll('"', '""')}"',
       'top_intent_summary,"${summary.topIntentSummary.replaceAll('"', '""')}"',
+      'hazard_summary,"${summary.hazardSummary.replaceAll('"', '""')}"',
       'review_refs,"${summary.reviewRefs.join(', ').replaceAll('"', '""')}"',
       if (summary.reportDate.isNotEmpty)
         'current_review_command,${_readinessReviewCommand(summary.reportDate)}',
@@ -2950,6 +3012,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       'summary_line,"${summary.summaryLine.replaceAll('"', '""')}"',
       'policy_summary,"${summary.policySummary.replaceAll('"', '""')}"',
       'top_intent_summary,"${summary.topIntentSummary.replaceAll('"', '""')}"',
+      'hazard_summary,"${summary.hazardSummary.replaceAll('"', '""')}"',
       'review_refs,"${summary.reviewRefs.join(', ').replaceAll('"', '""')}"',
       if (summary.reportDate.isNotEmpty)
         'current_review_command,${_syntheticReviewCommand(summary.reportDate)}',
@@ -3061,6 +3124,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'focusSummary': summary.focusSummary,
         'posturalEchoSummary': summary.posturalEchoSummary,
         'topIntentSummary': summary.topIntentSummary,
+        'hazardSummary': summary.hazardSummary,
         'reviewRefs': summary.reviewRefs,
         'reviewShortcuts': buildReviewShortcuts(
           currentReportDate: summary.reportDate,
@@ -3089,6 +3153,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'focusSummary': summary.focusSummary,
         'policySummary': summary.policySummary,
         'topIntentSummary': summary.topIntentSummary,
+        'hazardSummary': summary.hazardSummary,
         'reviewRefs': summary.reviewRefs,
         'reviewShortcuts': buildReviewShortcuts(
           currentReportDate: summary.reportDate,
@@ -3544,6 +3609,7 @@ class _ReadinessScopeSummary {
   final String focusSummary;
   final String posturalEchoSummary;
   final String topIntentSummary;
+  final String hazardSummary;
   final List<String> reviewRefs;
 
   const _ReadinessScopeSummary({
@@ -3559,6 +3625,7 @@ class _ReadinessScopeSummary {
     required this.focusSummary,
     required this.posturalEchoSummary,
     required this.topIntentSummary,
+    required this.hazardSummary,
     required this.reviewRefs,
   });
 
@@ -3586,6 +3653,7 @@ class _SyntheticScopeSummary {
   final String focusSummary;
   final String policySummary;
   final String topIntentSummary;
+  final String hazardSummary;
   final List<String> reviewRefs;
   final _SyntheticHistorySummary? history;
 
@@ -3600,6 +3668,7 @@ class _SyntheticScopeSummary {
     required this.focusSummary,
     required this.policySummary,
     required this.topIntentSummary,
+    required this.hazardSummary,
     required this.reviewRefs,
     required this.history,
   });
