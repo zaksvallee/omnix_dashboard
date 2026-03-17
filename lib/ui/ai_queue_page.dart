@@ -903,6 +903,16 @@ class _AIQueuePageState extends State<AIQueuePage> {
               spacing: 16,
               runSpacing: 8,
               children: [
+                if ((leadDraft.metadata['shadow_mo_label'] ?? '').isNotEmpty)
+                  _detailCell(
+                    'Shadow',
+                    [
+                      leadDraft.metadata['shadow_mo_label']!,
+                      if ((leadDraft.metadata['shadow_mo_repeat_count'] ?? '')
+                          .isNotEmpty)
+                        'x${leadDraft.metadata['shadow_mo_repeat_count']}',
+                    ].join(' • '),
+                  ),
                 if ((leadDraft.metadata['learning_label'] ?? '').isNotEmpty)
                   _detailCell('Learning', leadDraft.metadata['learning_label']!),
                 if ((leadDraft.metadata['learning_repeat_count'] ?? '').isNotEmpty)
@@ -1442,13 +1452,25 @@ class _AIQueuePageState extends State<AIQueuePage> {
     List<DispatchEvent> events,
     Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId,
   ) {
-    final autonomyPlans = _autonomyService.buildPlans(
-      events: events,
-      sceneReviewByIntelligenceId: sceneReviewByIntelligenceId,
-      videoOpsLabel: widget.videoOpsLabel,
-      historicalSyntheticLearningLabels: widget.historicalSyntheticLearningLabels,
-      historicalShadowMoLabels: widget.historicalShadowMoLabels,
-    );
+    final autonomyPlans = _autonomyService
+        .buildPlans(
+          events: events,
+          sceneReviewByIntelligenceId: sceneReviewByIntelligenceId,
+          videoOpsLabel: widget.videoOpsLabel,
+          historicalSyntheticLearningLabels:
+              widget.historicalSyntheticLearningLabels,
+          historicalShadowMoLabels: widget.historicalShadowMoLabels,
+        )
+        .toList(growable: true)
+      ..sort((left, right) {
+        final byPriority = _autonomyPlanRank(left).compareTo(
+          _autonomyPlanRank(right),
+        );
+        if (byPriority != 0) {
+          return byPriority;
+        }
+        return left.countdownSeconds.compareTo(right.countdownSeconds);
+      });
     if (autonomyPlans.isNotEmpty) {
       return autonomyPlans.asMap().entries.map((entry) {
         final plan = entry.value;
@@ -1572,6 +1594,21 @@ class _AIQueuePageState extends State<AIQueuePage> {
       );
     }
     return seeded;
+  }
+
+  int _autonomyPlanRank(MonitoringWatchAutonomyActionPlan plan) {
+    final priorityScore = switch (plan.priority) {
+      MonitoringWatchAutonomyPriority.critical => 0,
+      MonitoringWatchAutonomyPriority.high => 1,
+      MonitoringWatchAutonomyPriority.medium => 2,
+    };
+    if (plan.actionType.trim().toUpperCase() == 'SHADOW READINESS BIAS') {
+      return priorityScore - 3;
+    }
+    if ((plan.metadata['scope'] ?? '').trim().toUpperCase() == 'NEXT_SHIFT') {
+      return priorityScore - 1;
+    }
+    return priorityScore + 3;
   }
 
   _AiQueueDailyStats _buildDailyStats(List<DispatchEvent> events) {

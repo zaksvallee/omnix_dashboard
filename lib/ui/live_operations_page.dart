@@ -1276,14 +1276,45 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         .toList(growable: false);
   }
 
+  List<MonitoringWatchAutonomyActionPlan> _readinessBiasesForIncident(
+    _IncidentRecord incident,
+  ) {
+    if (widget.historicalShadowMoLabels.isEmpty) {
+      return const <MonitoringWatchAutonomyActionPlan>[];
+    }
+    return _orchestratorService
+        .buildActionIntents(
+          events: widget.events,
+          sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+          videoOpsLabel: widget.videoOpsLabel,
+          historicalSyntheticLearningLabels:
+              widget.historicalSyntheticLearningLabels,
+          historicalShadowMoLabels: widget.historicalShadowMoLabels,
+        )
+        .where((plan) => plan.metadata['scope'] == 'READINESS')
+        .where(
+          (plan) =>
+              plan.siteId.trim() == incident.siteId.trim() ||
+              (plan.metadata['lead_site'] ?? '').trim() ==
+                  incident.siteId.trim() ||
+              (plan.metadata['region'] ?? '').trim() == incident.regionId.trim(),
+        )
+        .toList(growable: false);
+  }
+
   Widget _nextShiftDraftCard(
     _IncidentRecord incident,
     List<MonitoringWatchAutonomyActionPlan> drafts,
   ) {
     final leadDraft = drafts.first;
+    final readinessBiases = _readinessBiasesForIncident(incident);
+    final leadBias = readinessBiases.isEmpty ? null : readinessBiases.first;
     final learningLabel = (leadDraft.metadata['learning_label'] ?? '').trim();
     final repeatCount = (leadDraft.metadata['learning_repeat_count'] ?? '')
         .trim();
+    final shadowLabel = (leadDraft.metadata['shadow_mo_label'] ?? '').trim();
+    final shadowRepeatCount =
+        (leadDraft.metadata['shadow_mo_repeat_count'] ?? '').trim();
     return Container(
       key: ValueKey('live-next-shift-draft-card-${incident.id}'),
       width: double.infinity,
@@ -1324,6 +1355,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               'Memory',
               'Repeated across $repeatCount recent shift${repeatCount == '1' ? '' : 's'}',
             ),
+          if (shadowLabel.isNotEmpty)
+            _metaRow(
+              'Shadow',
+              '$shadowLabel${shadowRepeatCount.isEmpty ? '' : ' • x$shadowRepeatCount'}',
+            ),
+          if (leadBias != null)
+            _metaRow('Readiness bias', _compactContextLabel(leadBias.description)),
           _metaRow('Lead Draft', leadDraft.actionType),
           _metaRow('Bias', _compactContextLabel(leadDraft.description)),
           if (drafts.length > 1)

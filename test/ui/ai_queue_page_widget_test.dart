@@ -248,6 +248,91 @@ void main() {
     expect(find.textContaining('HIKVISION evidence'), findsOneWidget);
   });
 
+  testWidgets('ai queue prioritizes shadow readiness bias from repeated MO memory', (
+    tester,
+  ) async {
+    final events = [
+      IntelligenceReceived(
+        eventId: 'evt-shadow-news',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 16, 20, 50),
+        intelligenceId: 'intel-shadow-news',
+        provider: 'news_feed_monitor',
+        sourceType: 'news',
+        externalId: 'ext-shadow-news',
+        clientId: 'CLIENT-VALLEE',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-OFFICE',
+        cameraId: 'feed-news',
+        objectLabel: 'person',
+        objectConfidence: 0.70,
+        headline: 'Contractors moved floor to floor in office park',
+        summary:
+            'Suspects posed as maintenance contractors before moving across restricted office zones.',
+        riskScore: 67,
+        snapshotUrl: 'https://edge.example.com/shadow-news.jpg',
+        canonicalHash: 'hash-shadow-news',
+      ),
+      IntelligenceReceived(
+        eventId: 'evt-shadow-live',
+        sequence: 2,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 16, 21, 14),
+        intelligenceId: 'intel-shadow-live',
+        provider: 'hikvision_dvr_monitor_only',
+        sourceType: 'dvr',
+        externalId: 'ext-shadow-live',
+        clientId: 'CLIENT-VALLEE',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-OFFICE',
+        cameraId: 'lobby-cam',
+        objectLabel: 'person',
+        objectConfidence: 0.95,
+        headline: 'Unplanned contractor roaming',
+        summary:
+            'Maintenance-like subject moved across restricted office doors.',
+        riskScore: 91,
+        snapshotUrl: 'https://edge.example.com/shadow-live.jpg',
+        canonicalHash: 'hash-shadow-live',
+      ),
+    ];
+    final reviews = {
+      'intel-shadow-live': MonitoringSceneReviewRecord(
+        intelligenceId: 'intel-shadow-live',
+        sourceLabel: 'openai:gpt-5.4-mini',
+        postureLabel: 'service impersonation and roaming concern',
+        decisionLabel: 'Escalation Candidate',
+        decisionSummary: 'Likely spoofed service access with abnormal roaming.',
+        summary: 'Likely maintenance impersonation moving across office zones.',
+        reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 15),
+      ),
+    };
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AIQueuePage(
+          events: events,
+          historicalShadowMoLabels: const ['HARDEN ACCESS'],
+          sceneReviewByIntelligenceId: reviews,
+          videoOpsLabel: 'Hikvision',
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('SHADOW READINESS BIAS'), findsOneWidget);
+    expect(find.text('DRAFT NEXT-SHIFT ACCESS HARDENING'), findsWidgets);
+    expect(find.text('SHADOW'), findsOneWidget);
+    expect(find.textContaining('HARDEN ACCESS'), findsWidgets);
+
+    final biasTopLeft = tester.getTopLeft(find.text('SHADOW READINESS BIAS'));
+    final draftTopLeft = tester.getTopLeft(
+      find.text('DRAFT NEXT-SHIFT ACCESS HARDENING').first,
+    );
+    expect(biasTopLeft.dy, lessThan(draftTopLeft.dy));
+  });
+
   testWidgets('ai queue surfaces shadow MO intelligence from external patterns', (
     tester,
   ) async {
