@@ -16237,6 +16237,32 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final plans = _syntheticWarRoomPlansForReport(report);
     final payload = _syntheticWarRoomCaseFilePayload(reportDate: report.date);
     final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
+    final eventIds = _reviewedIntelligenceEventsForReport(report)
+        .map((event) => event.eventId.trim())
+        .where((value) => value.isNotEmpty)
+        .take(8)
+        .toList(growable: false);
+    final selectedEventId = eventIds.isEmpty ? '' : eventIds.first;
+    final reviewRefs = _reviewedIntelligenceEventsForReport(report)
+        .map((event) => event.intelligenceId.trim())
+        .where((value) => value.isNotEmpty)
+        .take(8)
+        .toList(growable: false);
+    if (eventIds.isNotEmpty) {
+      _openEventsForScopedEventIds(
+        eventIds,
+        selectedEventId: selectedEventId,
+        scopeMode: 'synthetic',
+      );
+      return 'ONYX SYNTHETICREVIEW\n'
+          'report_date=${report.date}\n'
+          'mode=${_syntheticWarRoomModeLabel(plans)}\n'
+          'summary=${_syntheticWarRoomSummary(plans)}\n'
+          '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
+          'review_refs=${reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', ')}\n'
+          'case_file_command=/syntheticcase json ${report.date}\n'
+          'Opening Events Review for synthetic war-room evidence.';
+    }
     _openGovernanceForReportDate(report.date);
     return 'ONYX SYNTHETICREVIEW\n'
         'report_date=${report.date}\n'

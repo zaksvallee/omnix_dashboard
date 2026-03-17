@@ -8,6 +8,8 @@ import '../application/morning_sovereign_report_service.dart';
 import '../application/monitoring_global_posture_service.dart';
 import '../application/monitoring_orchestrator_service.dart';
 import '../application/site_activity_intelligence_service.dart';
+import '../application/monitoring_synthetic_war_room_service.dart';
+import '../application/monitoring_watch_action_plan.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_completed.dart';
@@ -89,6 +91,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   static const _siteActivityService = SiteActivityIntelligenceService();
   static const _globalPostureService = MonitoringGlobalPostureService();
   static const _orchestratorService = MonitoringOrchestratorService();
+  static const _syntheticWarRoomService = MonitoringSyntheticWarRoomService();
   static const String _filterAll = 'ALL';
   static const String _sourceFilterAll = 'ALL SOURCES';
   static const String _providerFilterAll = 'ALL PROVIDERS';
@@ -209,6 +212,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     );
     final partnerScopeSummary = _partnerScopeSummary(scopedTimelineEvents);
     final readinessScopeSummary = _readinessScopeSummary(scopedTimelineEvents);
+    final syntheticScopeSummary = _syntheticScopeSummary(scopedTimelineEvents);
     final activityScopeSummary = _activityScopeSummary(scopedTimelineEvents);
     final scopeFiltered = scopedEventIds.isEmpty
         ? filtered
@@ -508,6 +512,126 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                                 'OPEN GOVERNANCE',
                                 actionKey: const ValueKey(
                                   'events-readiness-open-governance-action',
+                                ),
+                                onTap: widget.onOpenGovernance!,
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else if (syntheticScopeSummary != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    key: const ValueKey('events-synthetic-scope-banner'),
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0x148B5CF6),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0x448B5CF6)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          syntheticScopeSummary.bannerText,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFEAF1FB),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          syntheticScopeSummary.summaryLine,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFAFC2DB),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (syntheticScopeSummary.focusSummary
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            syntheticScopeSummary.focusSummary,
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFD9F99D),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                        if (syntheticScopeSummary.policySummary
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Policy: ${syntheticScopeSummary.policySummary}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFE9D5FF),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                        if (syntheticScopeSummary.topIntentSummary
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Top intent: ${syntheticScopeSummary.topIntentSummary}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFC4B5FD),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                        if (syntheticScopeSummary.reviewRefs.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Review refs: ${syntheticScopeSummary.reviewRefs.join(', ')}',
+                            style: GoogleFonts.robotoMono(
+                              color: const Color(0xFF8FD1FF),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _outlineAction(
+                              'COPY SYNTHETIC JSON',
+                              actionKey: const ValueKey(
+                                'events-synthetic-casefile-json-action',
+                              ),
+                              onTap: () => _copySyntheticCaseFileJson(
+                                syntheticScopeSummary,
+                              ),
+                            ),
+                            _outlineAction(
+                              'COPY SYNTHETIC CSV',
+                              actionKey: const ValueKey(
+                                'events-synthetic-casefile-csv-action',
+                              ),
+                              onTap: () => _copySyntheticCaseFileCsv(
+                                syntheticScopeSummary,
+                              ),
+                            ),
+                            if (widget.onOpenGovernance != null)
+                              _outlineAction(
+                                'OPEN GOVERNANCE',
+                                actionKey: const ValueKey(
+                                  'events-synthetic-open-governance-action',
                                 ),
                                 onTap: widget.onOpenGovernance!,
                               ),
@@ -970,6 +1094,54 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     );
   }
 
+  _SyntheticScopeSummary? _syntheticScopeSummary(
+    List<DispatchEvent> scopedEvents,
+  ) {
+    if ((widget.initialScopedMode ?? '').trim().toLowerCase() != 'synthetic') {
+      return null;
+    }
+    final plans = _syntheticWarRoomService.buildSimulationPlans(
+      events: scopedEvents,
+      sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+    );
+    if (plans.isEmpty) {
+      return null;
+    }
+    final scopedReportDate = _readinessScopedReportDate(scopedEvents);
+    final focusSummary = _readinessFocusSummary(scopedReportDate);
+    final modeLabel = _syntheticWarRoomModeLabel(plans);
+    final policySummary = plans
+        .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
+        .map((plan) => (plan.metadata['recommendation'] ?? '').toString().trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    final leadPlan = plans.first;
+    final reviewRefs = scopedEvents
+        .whereType<IntelligenceReceived>()
+        .map((event) => event.intelligenceId.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    final summaryParts = <String>[
+      'Plans ${plans.length}',
+      'Policy ${plans.where((plan) => plan.actionType == 'POLICY RECOMMENDATION').length}',
+      if ((leadPlan.metadata['region'] ?? '').toString().trim().isNotEmpty)
+        'region ${(leadPlan.metadata['region'] ?? '').toString().trim()}',
+      if ((leadPlan.metadata['lead_site'] ?? '').toString().trim().isNotEmpty)
+        'site ${(leadPlan.metadata['lead_site'] ?? '').toString().trim()}',
+    ];
+    return _SyntheticScopeSummary(
+      eventCount: scopedEvents.length,
+      focusState: _readinessFocusState(scopedReportDate),
+      historicalFocus: _isHistoricalReadinessFocus(scopedReportDate),
+      modeLabel: modeLabel,
+      summaryLine: summaryParts.join(' • '),
+      focusSummary: focusSummary,
+      policySummary: policySummary,
+      topIntentSummary: leadPlan.description,
+      reviewRefs: reviewRefs,
+    );
+  }
+
   String? _readinessScopedReportDate(List<DispatchEvent> scopedEvents) {
     final intelligenceEvents = scopedEvents
         .whereType<IntelligenceReceived>()
@@ -1015,6 +1187,21 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return _isHistoricalReadinessFocus(reportDate)
         ? 'historical_command_target'
         : 'live_current_shift';
+  }
+
+  String _syntheticWarRoomModeLabel(
+    List<MonitoringWatchAutonomyActionPlan> plans,
+  ) {
+    final policyCount = plans
+        .where((plan) => plan.actionType == 'POLICY RECOMMENDATION')
+        .length;
+    if (policyCount > 0) {
+      return 'POLICY SHIFT';
+    }
+    if (plans.isNotEmpty) {
+      return 'SIMULATION ACTIVE';
+    }
+    return 'QUIET REHEARSAL';
   }
 
   String _utcReportDateLabel(DateTime dateTime) {
@@ -2421,6 +2608,18 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     _showActionMessage('Readiness case file JSON copied.');
   }
 
+  void _copySyntheticCaseFileJson(_SyntheticScopeSummary summary) {
+    final payloadJson = const JsonEncoder.withIndent(
+      '  ',
+    ).convert(_syntheticCaseFilePayload(summary));
+    Clipboard.setData(ClipboardData(text: payloadJson));
+    logUiAction(
+      'events.export_synthetic_casefile_json',
+      context: {'event_count': summary.eventCount, 'mode_label': summary.modeLabel},
+    );
+    _showActionMessage('Synthetic case file JSON copied.');
+  }
+
   void _copyActivityCaseFileCsv(_ActivityScopeSummary summary) {
     final lines = <String>[
       'metric,value',
@@ -2483,6 +2682,27 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     _showActionMessage('Readiness case file CSV copied.');
   }
 
+  void _copySyntheticCaseFileCsv(_SyntheticScopeSummary summary) {
+    final lines = <String>[
+      'metric,value',
+      'event_count,${summary.eventCount}',
+      'focus_state,${summary.focusState}',
+      'historical_focus,${summary.historicalFocus ? 'true' : 'false'}',
+      'focus_summary,"${summary.focusSummary.replaceAll('"', '""')}"',
+      'mode_label,"${summary.modeLabel.replaceAll('"', '""')}"',
+      'summary_line,"${summary.summaryLine.replaceAll('"', '""')}"',
+      'policy_summary,"${summary.policySummary.replaceAll('"', '""')}"',
+      'top_intent_summary,"${summary.topIntentSummary.replaceAll('"', '""')}"',
+      'review_refs,"${summary.reviewRefs.join(', ').replaceAll('"', '""')}"',
+    ];
+    Clipboard.setData(ClipboardData(text: lines.join('\n')));
+    logUiAction(
+      'events.export_synthetic_casefile_csv',
+      context: {'event_count': summary.eventCount, 'mode_label': summary.modeLabel},
+    );
+    _showActionMessage('Synthetic case file CSV copied.');
+  }
+
   Map<String, Object?> _activityCaseFilePayload(_ActivityScopeSummary summary) {
     return {
       'activityCaseFile': {
@@ -2529,6 +2749,22 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         'summaryLine': summary.summaryLine,
         'focusSummary': summary.focusSummary,
         'posturalEchoSummary': summary.posturalEchoSummary,
+        'topIntentSummary': summary.topIntentSummary,
+        'reviewRefs': summary.reviewRefs,
+      },
+    };
+  }
+
+  Map<String, Object?> _syntheticCaseFilePayload(_SyntheticScopeSummary summary) {
+    return {
+      'syntheticCaseFile': {
+        'eventCount': summary.eventCount,
+        'focusState': summary.focusState,
+        'historicalFocus': summary.historicalFocus,
+        'modeLabel': summary.modeLabel,
+        'summaryLine': summary.summaryLine,
+        'focusSummary': summary.focusSummary,
+        'policySummary': summary.policySummary,
         'topIntentSummary': summary.topIntentSummary,
         'reviewRefs': summary.reviewRefs,
       },
@@ -2977,6 +3213,35 @@ class _ReadinessScopeSummary {
         ? ''
         : ' • ${detailParts.join(' • ')}';
     return 'Global readiness investigation active for $eventCount linked $evidenceWord$detailSuffix.';
+  }
+}
+
+class _SyntheticScopeSummary {
+  final int eventCount;
+  final String focusState;
+  final bool historicalFocus;
+  final String modeLabel;
+  final String summaryLine;
+  final String focusSummary;
+  final String policySummary;
+  final String topIntentSummary;
+  final List<String> reviewRefs;
+
+  const _SyntheticScopeSummary({
+    required this.eventCount,
+    required this.focusState,
+    required this.historicalFocus,
+    required this.modeLabel,
+    required this.summaryLine,
+    required this.focusSummary,
+    required this.policySummary,
+    required this.topIntentSummary,
+    required this.reviewRefs,
+  });
+
+  String get bannerText {
+    final evidenceWord = eventCount == 1 ? 'signal' : 'signals';
+    return 'Synthetic war-room investigation active for $eventCount linked $evidenceWord.';
   }
 }
 

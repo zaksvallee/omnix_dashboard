@@ -1353,4 +1353,181 @@ void main() {
     await tester.pump();
     expect(governanceOpened, isTrue);
   });
+
+  testWidgets('events review shows dedicated synthetic investigation banner', (
+    tester,
+  ) async {
+    String? copiedClipboardPayload;
+    var governanceOpened = false;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final args = (call.arguments as Map<dynamic, dynamic>);
+          copiedClipboardPayload = args['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: EventsReviewPage(
+          events: <DispatchEvent>[
+            IntelligenceReceived(
+              eventId: 'SYN-1',
+              sequence: 2,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 17, 1, 0),
+              intelligenceId: 'SYN-INTEL-1',
+              provider: 'frigate',
+              sourceType: 'cctv',
+              externalId: 'syn-1',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-ALPHA',
+              headline: 'Perimeter pressure building',
+              summary: 'Repeated movement detected near the east wall.',
+              riskScore: 93,
+              canonicalHash: 'hash-syn-1',
+            ),
+            IntelligenceReceived(
+              eventId: 'SYN-2',
+              sequence: 1,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 17, 1, 5),
+              intelligenceId: 'SYN-INTEL-2',
+              provider: 'frigate',
+              sourceType: 'cctv',
+              externalId: 'syn-2',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-BRAVO',
+              headline: 'Boundary movement repeated',
+              summary: 'Linked activity detected at sibling site.',
+              riskScore: 88,
+              canonicalHash: 'hash-syn-2',
+            ),
+          ],
+          sceneReviewByIntelligenceId: {
+            'SYN-INTEL-1': MonitoringSceneReviewRecord(
+              intelligenceId: 'SYN-INTEL-1',
+              sourceLabel: 'openai:gpt-5.4-mini',
+              postureLabel: 'boundary escalation',
+              decisionLabel: 'Escalation Candidate',
+              decisionSummary: 'Escalated due to repeat boundary pressure.',
+              summary: 'Repeated movement near the east wall.',
+              reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 2),
+            ),
+            'SYN-INTEL-2': MonitoringSceneReviewRecord(
+              intelligenceId: 'SYN-INTEL-2',
+              sourceLabel: 'openai:gpt-5.4-mini',
+              postureLabel: 'boundary repeat pressure',
+              decisionLabel: 'Repeat Watch',
+              decisionSummary:
+                  'Repeat pressure is spreading across the region.',
+              summary: 'Sibling site movement linked to the same corridor.',
+              reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 6),
+            ),
+          },
+          initialScopedEventIds: const ['SYN-1', 'SYN-2'],
+          initialSelectedEventId: 'SYN-1',
+          initialScopedMode: 'synthetic',
+          currentMorningSovereignReportDate: '2026-03-18',
+          onOpenGovernance: () {
+            governanceOpened = true;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(
+        const ValueKey('events-synthetic-scope-banner'),
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'Synthetic war-room investigation active for 2 linked signals',
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Plans 2 • Policy 1 • region REGION-GAUTENG'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'Viewing command-targeted shift 2026-03-17 instead of live oversight 2026-03-18.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'Policy: earlier postural echo propagation into sibling sites',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Top intent: Replay the next-shift posture'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Review refs: SYN-INTEL-1, SYN-INTEL-2'),
+      findsOneWidget,
+    );
+
+    final copyJsonAction = tester.widget<InkWell>(
+      find.byKey(
+        const ValueKey('events-synthetic-casefile-json-action'),
+        skipOffstage: false,
+      ),
+    );
+    copyJsonAction.onTap!();
+    await tester.pump();
+    expect(copiedClipboardPayload, contains('"syntheticCaseFile"'));
+    expect(copiedClipboardPayload, contains('"modeLabel": "POLICY SHIFT"'));
+    expect(copiedClipboardPayload, contains('"historicalFocus": true'));
+    expect(
+      copiedClipboardPayload,
+      contains('"policySummary": "earlier postural echo propagation into sibling sites"'),
+    );
+
+    final copyCsvAction = tester.widget<InkWell>(
+      find.byKey(
+        const ValueKey('events-synthetic-casefile-csv-action'),
+        skipOffstage: false,
+      ),
+    );
+    copyCsvAction.onTap!();
+    await tester.pump();
+    expect(copiedClipboardPayload, contains('metric,value'));
+    expect(copiedClipboardPayload, contains('focus_state,historical_command_target'));
+    expect(copiedClipboardPayload, contains('historical_focus,true'));
+    expect(copiedClipboardPayload, contains('mode_label,"POLICY SHIFT"'));
+    expect(
+      copiedClipboardPayload,
+      contains('policy_summary,"earlier postural echo propagation into sibling sites"'),
+    );
+
+    final openGovernanceAction = tester.widget<InkWell>(
+      find.byKey(
+        const ValueKey('events-synthetic-open-governance-action'),
+        skipOffstage: false,
+      ),
+    );
+    openGovernanceAction.onTap!();
+    await tester.pump();
+    expect(governanceOpened, isTrue);
+  });
 }
