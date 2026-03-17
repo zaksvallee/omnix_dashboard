@@ -130,6 +130,12 @@ void main() {
       globalReadinessTopIntentSummary:
           'POSTURAL ECHO • site-bravo • Raise CCTV perimeter attention',
       globalReadinessHazardSummary: 'fire playbook active',
+      globalReadinessShadowSummary:
+          'Sites 1 • Matches 2 • SITE-ALPHA • service impersonation and roaming concern',
+      currentShiftShadowReviewCommand: '/shadowreview 2026-03-17',
+      currentShiftShadowCaseFileCommand: '/shadowcase json 2026-03-17',
+      previousShiftShadowReviewCommand: '/shadowreview 2026-03-16',
+      previousShiftShadowCaseFileCommand: '/shadowcase json 2026-03-16',
       globalReadinessTomorrowPostureSummary:
           'DRAFT NEXT-SHIFT FIRE READINESS • site-alpha • ADVANCE FIRE • x2',
       currentShiftTomorrowPostureReviewCommand: '/tomorrowreview 2026-03-17',
@@ -202,6 +208,14 @@ void main() {
     expect(response, contains('<b>Postural echo:</b> Echo 2'));
     expect(response, contains('<b>Top intent:</b> POSTURAL ECHO'));
     expect(response, contains('<b>Hazard lane:</b> fire playbook active'));
+    expect(
+      response,
+      contains(
+        '<b>Shadow intelligence:</b> Sites 1 • Matches 2 • SITE-ALPHA • service impersonation and roaming concern',
+      ),
+    );
+    expect(response, contains('<code>/shadowreview 2026-03-17</code>'));
+    expect(response, contains('<code>/shadowcase json 2026-03-16</code>'));
     expect(
       response,
       contains(

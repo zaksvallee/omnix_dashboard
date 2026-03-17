@@ -57,6 +57,7 @@ import 'application/report_shell_state.dart';
 import 'application/report_entry_context.dart';
 import 'application/report_preview_request.dart';
 import 'application/review_shortcut_contract.dart';
+import 'application/shadow_mo_dossier_contract.dart';
 import 'application/monitoring_watch_resync_plan_service.dart';
 import 'application/monitoring_watch_resync_outcome_recorder.dart';
 import 'application/monitoring_watch_schedule_sync_plan_service.dart';
@@ -5310,6 +5311,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final syntheticWarRoomCaseFile = _syntheticWarRoomCaseFilePayload(
       reportDate: report.date,
     );
+    final shadowMoCaseFile = _shadowMoCaseFilePayload(reportDate: report.date);
     final readinessSummary = _globalReadinessSummaryForReport(
       snapshot: readinessSnapshot,
       intents: readinessIntents,
@@ -5363,6 +5365,16 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       ),
       globalReadinessTomorrowPostureSummary:
           _globalReadinessTomorrowPostureSummary(readinessIntents),
+      globalReadinessShadowSummary:
+          (shadowMoCaseFile['summary'] ?? '').toString(),
+      currentShiftShadowReviewCommand: '/shadowreview ${report.date}',
+      currentShiftShadowCaseFileCommand: '/shadowcase json ${report.date}',
+      previousShiftShadowReviewCommand: previousReport == null
+          ? null
+          : '/shadowreview ${previousReport.date}',
+      previousShiftShadowCaseFileCommand: previousReport == null
+          ? null
+          : '/shadowcase json ${previousReport.date}',
       currentShiftTomorrowPostureReviewCommand:
           '/tomorrowreview ${report.date}',
       currentShiftTomorrowPostureCaseFileCommand:
@@ -5551,6 +5563,33 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       sceneReviewByIntelligenceId: _monitoringSceneReviewByIntelligenceId,
       generatedAtUtc: report.generatedAtUtc,
     );
+  }
+
+  List<MonitoringGlobalSitePosture> _shadowMoSitesForReport(
+    SovereignReport report,
+  ) {
+    final snapshot = _globalReadinessSnapshotForReport(report);
+    return snapshot.sites
+        .where((site) => site.moShadowMatchCount > 0)
+        .toList(growable: false);
+  }
+
+  String _shadowMoSummaryForSites(List<MonitoringGlobalSitePosture> sites) {
+    if (sites.isEmpty) {
+      return '';
+    }
+    final leadSite = sites.first;
+    final totalMatches = sites.fold<int>(
+      0,
+      (current, site) => current + site.moShadowMatchCount,
+    );
+    final parts = <String>[
+      'Sites ${sites.length}',
+      'Matches $totalMatches',
+      if (leadSite.siteId.trim().isNotEmpty) leadSite.siteId.trim(),
+      if (leadSite.moShadowSummary.trim().isNotEmpty) leadSite.moShadowSummary,
+    ];
+    return _singleLine(parts.join(' • '), maxLength: 220);
   }
 
   List<MonitoringWatchAutonomyActionPlan> _globalReadinessIntentsForReport(
@@ -6329,6 +6368,150 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       lines.add(
         'history_${i + 1}_governance_command,${row['governanceCommand'] ?? ''}',
+      );
+    }
+    return lines.join('\n');
+  }
+
+  Map<String, Object?> _shadowMoCaseFilePayload({String? reportDate}) {
+    final report = _morningSovereignReportForDate(reportDate);
+    if (report == null) {
+      return <String, Object?>{
+        'reportDate': (reportDate ?? '').trim(),
+        'available': false,
+        'message': 'No morning sovereign report is available for that shift.',
+      };
+    }
+    final shadowSites = _shadowMoSitesForReport(report);
+    final history =
+        _morningSovereignReportHistory
+            .where((item) => item.date.trim() != report.date.trim())
+            .toList(growable: false)
+          ..sort(
+            (left, right) =>
+                right.generatedAtUtc.compareTo(left.generatedAtUtc),
+          );
+    final previousReport = history.isEmpty ? null : history.first;
+    final eventIds = shadowSites
+        .expand((site) => site.moShadowEventIds)
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    final reviewRefs = shadowSites
+        .expand((site) => site.moShadowReviewRefs)
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    final selectedEventId = shadowSites
+        .map((site) => site.moShadowSelectedEventId?.trim() ?? '')
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    return buildShadowMoDossierPayload(
+      sites: shadowSites,
+      generatedAtUtc: report.generatedAtUtc,
+      countKey: 'shadowSiteCount',
+      metadata: <String, Object?>{
+        'reportDate': report.date,
+        'available': true,
+        'focusState': _readinessFocusState(report.date),
+        'historicalFocus': _isHistoricalReadinessFocus(report.date),
+        'focusSummary': _readinessFocusSummary(report.date),
+        'liveReportDate': (_morningSovereignReport?.date ?? '').trim(),
+        'summary': _shadowMoSummaryForSites(shadowSites),
+        'eventIds': eventIds,
+        'reviewRefs': reviewRefs,
+        'selectedEventId': selectedEventId.isEmpty ? null : selectedEventId,
+        'reviewCommand': '/shadowreview ${report.date}',
+        'caseFileCommand': '/shadowcase json ${report.date}',
+        'previousReviewCommand': previousReport == null
+            ? ''
+            : '/shadowreview ${previousReport.date}',
+        'previousCaseFileCommand': previousReport == null
+            ? ''
+            : '/shadowcase json ${previousReport.date}',
+        'reviewShortcuts': buildReviewShortcuts(
+          currentReportDate: report.date,
+          previousReportDate: previousReport?.date,
+          reviewCommandBuilder: (value) => '/shadowreview $value',
+          caseFileCommandBuilder: (value) => '/shadowcase json $value',
+        ),
+        'history': history
+            .take(3)
+            .map((item) {
+              final itemSites = _shadowMoSitesForReport(item);
+              return <String, Object?>{
+                'reportDate': item.date,
+                'shadowSiteCount': itemSites.length,
+                'summary': _shadowMoSummaryForSites(itemSites),
+                ...buildReviewCommandPair(
+                  reportDate: item.date,
+                  reviewCommandBuilder: (value) => '/shadowreview $value',
+                  caseFileCommandBuilder: (value) => '/shadowcase json $value',
+                ),
+              };
+            })
+            .toList(growable: false),
+      },
+    );
+  }
+
+  String _shadowMoCaseFileCsv({String? reportDate}) {
+    final payload = _shadowMoCaseFilePayload(reportDate: reportDate);
+    final sites = (payload['sites'] as List<Object?>?) ?? const [];
+    final history = (payload['history'] as List<Object?>?) ?? const [];
+    final lines = <String>[
+      'metric,value',
+      'report_date,${payload['reportDate'] ?? ''}',
+      'available,${payload['available'] == false ? 'false' : 'true'}',
+      'generated_at_utc,${payload['generatedAtUtc'] ?? ''}',
+      'focus_state,${payload['focusState'] ?? ''}',
+      'historical_focus,${payload['historicalFocus'] == true ? 'true' : 'false'}',
+      'focus_summary,"${(payload['focusSummary'] ?? '').toString().replaceAll('"', '""')}"',
+      'live_report_date,${payload['liveReportDate'] ?? ''}',
+      'shadow_site_count,${payload['shadowSiteCount'] ?? 0}',
+      'summary,"${(payload['summary'] ?? '').toString().replaceAll('"', '""')}"',
+      'selected_event_id,${payload['selectedEventId'] ?? ''}',
+      'review_refs,"${(((payload['reviewRefs'] as List<Object?>?) ?? const <Object?>[]).join(', ')).replaceAll('"', '""')}"',
+      'review_command,${payload['reviewCommand'] ?? ''}',
+      'case_file_command,${payload['caseFileCommand'] ?? ''}',
+      'previous_review_command,${payload['previousReviewCommand'] ?? ''}',
+      'previous_case_file_command,${payload['previousCaseFileCommand'] ?? ''}',
+    ];
+    for (var i = 0; i < sites.length; i += 1) {
+      final site = sites[i];
+      if (site is! Map) continue;
+      lines.add('site_${i + 1}_id,${site['siteId'] ?? ''}');
+      lines.add(
+        'site_${i + 1}_summary,"${(site['summary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.add('site_${i + 1}_match_count,${site['matchCount'] ?? 0}');
+      lines.add(
+        'site_${i + 1}_review_refs,"${(((site['reviewRefs'] as List<Object?>?) ?? const <Object?>[]).join(', ')).replaceAll('"', '""')}"',
+      );
+      final matches = (site['matches'] as List<Object?>?) ?? const [];
+      for (var j = 0; j < matches.length; j += 1) {
+        final match = matches[j];
+        if (match is! Map) continue;
+        lines.add(
+          'site_${i + 1}_match_${j + 1},"${(match['title'] ?? '').toString().replaceAll('"', '""')}"',
+        );
+      }
+    }
+    for (var i = 0; i < history.length; i += 1) {
+      final row = history[i];
+      if (row is! Map) continue;
+      lines.add('history_${i + 1}_date,${row['reportDate'] ?? ''}');
+      lines.add(
+        'history_${i + 1}_summary,"${(row['summary'] ?? '').toString().replaceAll('"', '""')}"',
+      );
+      lines.addAll(
+        buildHistoryReviewCommandCsvRows(
+          row: i + 1,
+          reportDate: (row['reportDate'] ?? '').toString(),
+          reviewCommandBuilder: (value) => '/shadowreview $value',
+          caseFileCommandBuilder: (value) => '/shadowcase json $value',
+        ),
       );
     }
     return lines.join('\n');
@@ -13905,6 +14088,16 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           command: 'syntheticcase',
           arguments: arguments,
         );
+      case '/shadowreview':
+        return _TelegramAdminCommandParseResult(
+          command: 'shadowreview',
+          arguments: arguments,
+        );
+      case '/shadowcase':
+        return _TelegramAdminCommandParseResult(
+          command: 'shadowcase',
+          arguments: arguments,
+        );
       case '/tomorrowreview':
         return _TelegramAdminCommandParseResult(
           command: 'tomorrowreview',
@@ -14137,6 +14330,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'readinesscase',
         'syntheticreview',
         'syntheticcase',
+        'shadowreview',
+        'shadowcase',
         'tomorrowreview',
         'tomorrowcase',
         'sendactivity',
@@ -14315,6 +14510,22 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       return const _TelegramAdminCommandParseResult(command: 'syntheticcase');
     }
     if (hasAny(const [
+      'shadow mo review',
+      'shadow review',
+      'shadow intelligence review',
+      'mo review',
+    ])) {
+      return const _TelegramAdminCommandParseResult(command: 'shadowreview');
+    }
+    if (hasAny(const [
+      'shadow mo case',
+      'shadow case',
+      'shadow dossier',
+      'mo dossier',
+    ])) {
+      return const _TelegramAdminCommandParseResult(command: 'shadowcase');
+    }
+    if (hasAny(const [
       'tomorrow posture',
       'next shift posture',
       'tomorrow review',
@@ -14426,6 +14637,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case 'readinesscase':
       case 'syntheticreview':
       case 'syntheticcase':
+      case 'shadowreview':
+      case 'shadowcase':
       case 'tomorrowreview':
       case 'tomorrowcase':
       case 'aidrafts':
@@ -14535,6 +14748,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         return _telegramAdminSyntheticReviewCommand(arguments);
       case 'syntheticcase':
         return _telegramAdminSyntheticCaseCommand(arguments);
+      case 'shadowreview':
+        return _telegramAdminShadowReviewCommand(arguments);
+      case 'shadowcase':
+        return _telegramAdminShadowCaseCommand(arguments);
       case 'tomorrowreview':
         return _telegramAdminTomorrowReviewCommand(arguments);
       case 'tomorrowcase':
@@ -14681,6 +14898,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '• <code>/readinesscase [json|csv] [report_date]</code>\n'
         '• <code>/syntheticreview [report_date]</code>\n'
         '• <code>/syntheticcase [json|csv] [report_date]</code>\n'
+        '• <code>/shadowreview [report_date]</code>\n'
+        '• <code>/shadowcase [json|csv] [report_date]</code>\n'
         '• <code>/tomorrowreview [report_date]</code>\n'
         '• <code>/tomorrowcase [json|csv] [report_date]</code>\n'
         '• <code>/sendactivity [client|partner|both] [client_id site_id]</code>\n'
@@ -16887,6 +17106,104 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '${learningMemorySummary.isEmpty ? '' : 'learning_memory_summary=$learningMemorySummary\n'}'
         '${biasSummary.isEmpty ? '' : 'bias_summary=$biasSummary\n'}'
         'review_command=$reviewCommand\n'
+        '${previousReviewCommand.isEmpty ? '' : 'previous_review_command=$previousReviewCommand\n'}'
+        '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}'
+        '${const JsonEncoder.withIndent('  ').convert(payload)}';
+  }
+
+  String _telegramAdminShadowReviewCommand(String arguments) {
+    final normalizedReportDate = arguments.trim();
+    final report = _morningSovereignReportForDate(normalizedReportDate);
+    if (report == null) {
+      return 'ONYX SHADOWREVIEW\n'
+          'Usage: /shadowreview [report_date]\n'
+          'No morning sovereign report is available for that shift.';
+    }
+    final payload = _shadowMoCaseFilePayload(reportDate: report.date);
+    final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
+    final eventIds =
+        ((payload['eventIds'] as List<Object?>?) ?? const <Object?>[])
+            .map((value) => value.toString().trim())
+            .where((value) => value.isNotEmpty)
+            .toList(growable: false);
+    final selectedEventId = (payload['selectedEventId'] ?? '')
+        .toString()
+        .trim();
+    final reviewRefs =
+        ((payload['reviewRefs'] as List<Object?>?) ?? const <Object?>[])
+            .map((value) => value.toString().trim())
+            .where((value) => value.isNotEmpty)
+            .toList(growable: false);
+    if (eventIds.isNotEmpty) {
+      _openEventsForScopedEventIds(
+        eventIds,
+        selectedEventId: selectedEventId.isEmpty ? null : selectedEventId,
+        scopeMode: 'shadow',
+      );
+      return 'ONYX SHADOWREVIEW\n'
+          'report_date=${report.date}\n'
+          'summary=${(payload['summary'] ?? '').toString()}\n'
+          '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
+          'review_refs=${reviewRefs.isEmpty ? 'n/a' : reviewRefs.join(', ')}\n'
+          'case_file_command=/shadowcase json ${report.date}\n'
+          'events=${eventIds.length}\n'
+          'Opening Events Review for shadow MO evidence.';
+    }
+    _openGovernanceForReportDate(report.date);
+    return 'ONYX SHADOWREVIEW\n'
+        'report_date=${report.date}\n'
+        'summary=${(payload['summary'] ?? '').toString()}\n'
+        '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
+        'case_file_command=/shadowcase json ${report.date}\n'
+        'Opening Governance for shadow MO oversight.';
+  }
+
+  String _telegramAdminShadowCaseCommand(String arguments) {
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    var format = 'json';
+    var index = 0;
+    if (tokens.isNotEmpty) {
+      final first = tokens.first.toLowerCase();
+      if (first == 'json' || first == 'csv') {
+        format = first;
+        index = 1;
+      }
+    }
+    final reportDate = tokens.length > index
+        ? tokens.sublist(index).join(' ')
+        : '';
+    final normalizedReportDate = reportDate.trim();
+    final report = _morningSovereignReportForDate(normalizedReportDate);
+    if (report == null) {
+      return 'ONYX SHADOWCASE\n'
+          'Usage: /shadowcase [json|csv] [report_date]\n'
+          'No morning sovereign report is available for that shift.';
+    }
+    final payload = _shadowMoCaseFilePayload(reportDate: report.date);
+    final focusSummary = (payload['focusSummary'] ?? '').toString().trim();
+    final previousReviewCommand = (payload['previousReviewCommand'] ?? '')
+        .toString()
+        .trim();
+    final previousCaseFileCommand = (payload['previousCaseFileCommand'] ?? '')
+        .toString()
+        .trim();
+    if (format == 'csv') {
+      return 'ONYX SHADOWCASE CSV\n'
+          'report_date=${report.date}\n'
+          '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
+          'review_command=/shadowreview ${report.date}\n'
+          '${previousReviewCommand.isEmpty ? '' : 'previous_review_command=$previousReviewCommand\n'}'
+          '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}'
+          '${_shadowMoCaseFileCsv(reportDate: report.date)}';
+    }
+    return 'ONYX SHADOWCASE JSON\n'
+        'report_date=${report.date}\n'
+        '${focusSummary.isEmpty ? '' : 'focus_summary=$focusSummary\n'}'
+        'review_command=/shadowreview ${report.date}\n'
         '${previousReviewCommand.isEmpty ? '' : 'previous_review_command=$previousReviewCommand\n'}'
         '${previousCaseFileCommand.isEmpty ? '' : 'previous_case_file_command=$previousCaseFileCommand\n'}'
         '${const JsonEncoder.withIndent('  ').convert(payload)}';

@@ -82,6 +82,11 @@ class TelegramAdminCommandFormatter {
     String? globalReadinessTopIntentSummary,
     String? globalReadinessHazardSummary,
     String? globalReadinessTomorrowPostureSummary,
+    String? globalReadinessShadowSummary,
+    String? currentShiftShadowReviewCommand,
+    String? currentShiftShadowCaseFileCommand,
+    String? previousShiftShadowReviewCommand,
+    String? previousShiftShadowCaseFileCommand,
     String? currentShiftTomorrowPostureReviewCommand,
     String? currentShiftTomorrowPostureCaseFileCommand,
     String? currentShiftReadinessFocusSummary,
@@ -131,6 +136,14 @@ class TelegramAdminCommandFormatter {
         globalReadinessHazardSummary?.trim() ?? '';
     final readinessTomorrowPostureSummary =
         globalReadinessTomorrowPostureSummary?.trim() ?? '';
+    final readinessShadowSummary =
+        globalReadinessShadowSummary?.trim() ?? '';
+    final shadowReview = currentShiftShadowReviewCommand?.trim() ?? '';
+    final shadowCase = currentShiftShadowCaseFileCommand?.trim() ?? '';
+    final previousShadowReview =
+        previousShiftShadowReviewCommand?.trim() ?? '';
+    final previousShadowCase =
+        previousShiftShadowCaseFileCommand?.trim() ?? '';
     final tomorrowPostureReview =
         currentShiftTomorrowPostureReviewCommand?.trim() ?? '';
     final tomorrowPostureCase =
@@ -195,6 +208,11 @@ class TelegramAdminCommandFormatter {
               '${readinessEchoSummary.isEmpty ? '' : '• <b>Postural echo:</b> ${_escapeHtml(readinessEchoSummary)}\n'}'
               '${readinessTopIntentSummary.isEmpty ? '' : '• <b>Top intent:</b> ${_escapeHtml(readinessTopIntentSummary)}\n'}'
               '${readinessHazardSummary.isEmpty ? '' : '• <b>Hazard lane:</b> ${_escapeHtml(readinessHazardSummary)}\n'}'
+              '${readinessShadowSummary.isEmpty ? '' : '• <b>Shadow intelligence:</b> ${_escapeHtml(readinessShadowSummary)}\n'}'
+              '${shadowReview.isEmpty ? '' : '• <b>Shadow review:</b> <code>${_escapeHtml(shadowReview)}</code>\n'}'
+              '${shadowCase.isEmpty ? '' : '• <b>Shadow case:</b> <code>${_escapeHtml(shadowCase)}</code>\n'}'
+              '${previousShadowReview.isEmpty ? '' : '• <b>Previous shadow review:</b> <code>${_escapeHtml(previousShadowReview)}</code>\n'}'
+              '${previousShadowCase.isEmpty ? '' : '• <b>Previous shadow case:</b> <code>${_escapeHtml(previousShadowCase)}</code>\n'}'
               '${readinessTomorrowPostureSummary.isEmpty ? '' : '• <b>Tomorrow posture:</b> ${_escapeHtml(readinessTomorrowPostureSummary)}\n'}'
               '${tomorrowPostureReview.isEmpty ? '' : '• <b>Tomorrow review:</b> <code>${_escapeHtml(tomorrowPostureReview)}</code>\n'}'
               '${tomorrowPostureCase.isEmpty ? '' : '• <b>Tomorrow case:</b> <code>${_escapeHtml(tomorrowPostureCase)}</code>\n'}'

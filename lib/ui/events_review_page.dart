@@ -8,6 +8,7 @@ import '../application/morning_sovereign_report_service.dart';
 import '../application/monitoring_global_posture_service.dart';
 import '../application/monitoring_orchestrator_service.dart';
 import '../application/review_shortcut_contract.dart';
+import '../application/shadow_mo_dossier_contract.dart';
 import '../application/site_activity_intelligence_service.dart';
 import '../application/monitoring_synthetic_war_room_service.dart';
 import '../application/monitoring_watch_action_plan.dart';
@@ -217,6 +218,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     );
     final readinessScopeSummary = _readinessScopeSummary(scopedTimelineEvents);
     final syntheticScopeSummary = _syntheticScopeSummary(scopedTimelineEvents);
+    final shadowScopeSummary = _shadowScopeSummary(scopedTimelineEvents);
     final activityScopeSummary = _activityScopeSummary(scopedTimelineEvents);
     final scopeFiltered = scopedEventIds.isEmpty
         ? filtered
@@ -958,6 +960,120 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                       ],
                     ),
                   ),
+                ] else if (shadowScopeSummary != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    key: const ValueKey('events-shadow-scope-banner'),
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0x141E40AF),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0x445B8CFF)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          shadowScopeSummary.bannerText,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFEAF1FB),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          shadowScopeSummary.summaryLine,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFB8D7FF),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        if (shadowScopeSummary.focusSummary.trim().isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            shadowScopeSummary.focusSummary,
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFD9F99D),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                        for (final site in shadowScopeSummary.sites) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            '${site.siteId} • ${site.moShadowSummary}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFEAF1FB),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          for (final match in site.moShadowMatches.take(3)) ...[
+                            const SizedBox(height: 3),
+                            Text(
+                              '${match.title} • ${match.matchedIndicators.join(', ')}',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFFAFC2DB),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ],
+                        if (shadowScopeSummary.reviewRefs.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Review refs: ${shadowScopeSummary.reviewRefs.join(', ')}',
+                            style: GoogleFonts.robotoMono(
+                              color: const Color(0xFF8FD1FF),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _outlineAction(
+                              'COPY SHADOW JSON',
+                              actionKey: const ValueKey(
+                                'events-shadow-casefile-json-action',
+                              ),
+                              onTap: () => _copyShadowCaseFileJson(
+                                shadowScopeSummary,
+                              ),
+                            ),
+                            _outlineAction(
+                              'COPY SHADOW CSV',
+                              actionKey: const ValueKey(
+                                'events-shadow-casefile-csv-action',
+                              ),
+                              onTap: () => _copyShadowCaseFileCsv(
+                                shadowScopeSummary,
+                              ),
+                            ),
+                            if (widget.onOpenGovernance != null)
+                              _outlineAction(
+                                'OPEN GOVERNANCE',
+                                actionKey: const ValueKey(
+                                  'events-shadow-open-governance-action',
+                                ),
+                                onTap: widget.onOpenGovernance!,
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 ] else if (activityScopeSummary != null) ...[
                   const SizedBox(height: 8),
                   Container(
@@ -1574,6 +1690,54 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     );
   }
 
+  _ShadowScopeSummary? _shadowScopeSummary(List<DispatchEvent> scopedEvents) {
+    if ((widget.initialScopedMode ?? '').trim().toLowerCase() != 'shadow') {
+      return null;
+    }
+    final scopedSiteIds = scopedEvents
+        .whereType<IntelligenceReceived>()
+        .map((event) => event.siteId.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet();
+    final snapshot = _globalPostureService.buildSnapshot(
+      events: widget.events,
+      sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+    );
+    final shadowSites = snapshot.sites
+        .where(
+          (site) =>
+              site.moShadowMatchCount > 0 &&
+              (scopedSiteIds.isEmpty || scopedSiteIds.contains(site.siteId)),
+        )
+        .toList(growable: false);
+    if (shadowSites.isEmpty) {
+      return null;
+    }
+    final scopedReportDate = _readinessScopedReportDate(scopedEvents);
+    final reviewRefs = shadowSites
+        .expand((site) => site.moShadowReviewRefs)
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    final totalMatches = shadowSites.fold<int>(
+      0,
+      (current, site) => current + site.moShadowMatchCount,
+    );
+    return _ShadowScopeSummary(
+      eventCount: scopedEvents.length,
+      reportDate: scopedReportDate ?? '',
+      liveReportDate: _liveMorningReportDate(scopedReportDate),
+      focusState: _readinessFocusState(scopedReportDate),
+      historicalFocus: _isHistoricalReadinessFocus(scopedReportDate),
+      summaryLine:
+          'Sites ${shadowSites.length} • Matches $totalMatches • ${shadowSites.first.siteId} • ${shadowSites.first.moShadowSummary}',
+      focusSummary: _readinessFocusSummary(scopedReportDate),
+      reviewRefs: reviewRefs,
+      sites: shadowSites,
+    );
+  }
+
   String? _readinessScopedReportDate(List<DispatchEvent> scopedEvents) {
     final intelligenceEvents = scopedEvents
         .whereType<IntelligenceReceived>()
@@ -1608,6 +1772,11 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
 
   String _readinessCaseFileCommand(String reportDate) =>
       '/readinesscase json $reportDate';
+
+  String _shadowReviewCommand(String reportDate) => '/shadowreview $reportDate';
+
+  String _shadowCaseFileCommand(String reportDate) =>
+      '/shadowcase json $reportDate';
 
   String _tomorrowReviewCommand(String reportDate) => '/tomorrowreview $reportDate';
 
@@ -3492,6 +3661,18 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     _showActionMessage('Readiness case file JSON copied.');
   }
 
+  void _copyShadowCaseFileJson(_ShadowScopeSummary summary) {
+    final payloadJson = const JsonEncoder.withIndent(
+      '  ',
+    ).convert(_shadowCaseFilePayload(summary));
+    Clipboard.setData(ClipboardData(text: payloadJson));
+    logUiAction(
+      'events.export_shadow_casefile_json',
+      context: {'event_count': summary.eventCount},
+    );
+    _showActionMessage('Shadow MO case file JSON copied.');
+  }
+
   void _copySyntheticCaseFileJson(_SyntheticScopeSummary summary) {
     final payloadJson = const JsonEncoder.withIndent(
       '  ',
@@ -3600,6 +3781,48 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       },
     );
     _showActionMessage('Readiness case file CSV copied.');
+  }
+
+  void _copyShadowCaseFileCsv(_ShadowScopeSummary summary) {
+    final previousReportDate = summary.historicalFocus
+        ? widget.currentMorningSovereignReportDate
+        : null;
+    final lines = <String>[
+      'metric,value',
+      'report_date,${summary.reportDate}',
+      'live_report_date,${summary.liveReportDate}',
+      'event_count,${summary.eventCount}',
+      'focus_state,${summary.focusState}',
+      'historical_focus,${summary.historicalFocus ? 'true' : 'false'}',
+      'focus_summary,"${summary.focusSummary.replaceAll('"', '""')}"',
+      'summary_line,"${summary.summaryLine.replaceAll('"', '""')}"',
+      'review_refs,"${summary.reviewRefs.join(', ').replaceAll('"', '""')}"',
+      if (summary.reportDate.isNotEmpty)
+        'current_review_command,${_shadowReviewCommand(summary.reportDate)}',
+      if (summary.reportDate.isNotEmpty)
+        'current_case_file_command,${_shadowCaseFileCommand(summary.reportDate)}',
+      if ((previousReportDate ?? '').trim().isNotEmpty)
+        'previous_review_command,${_shadowReviewCommand(previousReportDate!.trim())}',
+      if ((previousReportDate ?? '').trim().isNotEmpty)
+        'previous_case_file_command,${_shadowCaseFileCommand(previousReportDate!.trim())}',
+    ];
+    for (var i = 0; i < summary.sites.length; i += 1) {
+      final site = summary.sites[i];
+      lines.add('site_${i + 1}_id,${site.siteId}');
+      lines.add(
+        'site_${i + 1}_summary,"${site.moShadowSummary.replaceAll('"', '""')}"',
+      );
+      lines.add('site_${i + 1}_match_count,${site.moShadowMatchCount}');
+      lines.add(
+        'site_${i + 1}_review_refs,"${site.moShadowReviewRefs.join(', ').replaceAll('"', '""')}"',
+      );
+    }
+    Clipboard.setData(ClipboardData(text: lines.join('\n')));
+    logUiAction(
+      'events.export_shadow_casefile_csv',
+      context: {'event_count': summary.eventCount},
+    );
+    _showActionMessage('Shadow MO case file CSV copied.');
   }
 
   void _copySyntheticCaseFileCsv(_SyntheticScopeSummary summary) {
@@ -3828,6 +4051,34 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           caseFileCommandBuilder: _readinessCaseFileCommand,
         ),
       },
+    };
+  }
+
+  Map<String, Object?> _shadowCaseFilePayload(_ShadowScopeSummary summary) {
+    final previousReportDate = summary.historicalFocus
+        ? widget.currentMorningSovereignReportDate
+        : null;
+    return {
+      'shadowMoCaseFile': buildShadowMoDossierPayload(
+        sites: summary.sites,
+        countKey: 'shadowSiteCount',
+        metadata: <String, Object?>{
+          'reportDate': summary.reportDate,
+          'liveReportDate': summary.liveReportDate,
+          'eventCount': summary.eventCount,
+          'focusState': summary.focusState,
+          'historicalFocus': summary.historicalFocus,
+          'focusSummary': summary.focusSummary,
+          'summaryLine': summary.summaryLine,
+          'reviewRefs': summary.reviewRefs,
+          'reviewShortcuts': buildReviewShortcuts(
+            currentReportDate: summary.reportDate,
+            previousReportDate: previousReportDate,
+            reviewCommandBuilder: _shadowReviewCommand,
+            caseFileCommandBuilder: _shadowCaseFileCommand,
+          ),
+        },
+      ),
     };
   }
 
@@ -4345,6 +4596,35 @@ class _ActivityScopeSummary {
     final signalWord = eventCount == 1 ? 'signal' : 'signals';
     final siteSuffix = siteId == null || siteId!.isEmpty ? '' : ' • ${siteId!}';
     return 'Activity investigation active for $eventCount linked CCTV $signalWord$siteSuffix.';
+  }
+}
+
+class _ShadowScopeSummary {
+  final int eventCount;
+  final String reportDate;
+  final String liveReportDate;
+  final String focusState;
+  final bool historicalFocus;
+  final String summaryLine;
+  final String focusSummary;
+  final List<String> reviewRefs;
+  final List<MonitoringGlobalSitePosture> sites;
+
+  const _ShadowScopeSummary({
+    required this.eventCount,
+    required this.reportDate,
+    required this.liveReportDate,
+    required this.focusState,
+    required this.historicalFocus,
+    required this.summaryLine,
+    required this.focusSummary,
+    required this.reviewRefs,
+    required this.sites,
+  });
+
+  String get bannerText {
+    final evidenceWord = eventCount == 1 ? 'signal' : 'signals';
+    return 'Shadow MO investigation active for $eventCount linked $evidenceWord.';
   }
 }
 

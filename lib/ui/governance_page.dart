@@ -10349,6 +10349,13 @@ class _GovernancePageState extends State<GovernancePage> {
     final globalReadinessTrend = _globalReadinessTrendForReport(report);
     final globalReadinessBaseline = _globalReadinessBaselineStats(report);
     final globalReadinessHistory = _globalReadinessHistory(report);
+    final shadowSites = globalReadinessSnapshot.sites
+        .where((site) => site.moShadowMatchCount > 0)
+        .toList(growable: false);
+    final previousShadowReportDate = widget.morningSovereignReportHistory
+        .where((item) => item.date.trim() != report.reportDate.trim())
+        .map((item) => item.date.trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
     final syntheticWarRoomTrend = _syntheticWarRoomTrendForReport(report);
     final syntheticWarRoomBaseline = _syntheticWarRoomBaselineStats(report);
     final syntheticWarRoomHistory = _syntheticWarRoomHistory(report);
@@ -10414,6 +10421,25 @@ class _GovernancePageState extends State<GovernancePage> {
         'tomorrowPostureReviewCommand': '/tomorrowreview ${report.reportDate}',
         'tomorrowPostureCaseFileCommand':
             '/tomorrowcase json ${report.reportDate}',
+        'shadowMo': buildShadowMoDossierPayload(
+          sites: shadowSites,
+          generatedAtUtc: report.generatedAtUtc,
+          countKey: 'shadowSiteCount',
+          metadata: <String, Object?>{
+            'summary': shadowSites.isEmpty
+                ? ''
+                : '${shadowSites.length} sites • ${shadowSites.first.moShadowSummary}',
+            'reviewShortcuts': buildReviewShortcuts(
+              currentReportDate: report.reportDate,
+              previousReportDate: previousShadowReportDate.isEmpty
+                  ? null
+                  : previousShadowReportDate,
+              reviewCommandBuilder: (reportDate) => '/shadowreview $reportDate',
+              caseFileCommandBuilder:
+                  (reportDate) => '/shadowcase json $reportDate',
+            ),
+          },
+        ),
         'modeLabel': _globalReadinessModeLabel(
           globalReadinessSnapshot,
           globalReadinessIntents,
@@ -10631,6 +10657,13 @@ class _GovernancePageState extends State<GovernancePage> {
     final globalReadinessTrend = _globalReadinessTrendForReport(report);
     final globalReadinessBaseline = _globalReadinessBaselineStats(report);
     final globalReadinessHistory = _globalReadinessHistory(report);
+    final shadowSites = globalReadinessSnapshot.sites
+        .where((site) => site.moShadowMatchCount > 0)
+        .toList(growable: false);
+    final previousShadowReportDate = widget.morningSovereignReportHistory
+        .where((item) => item.date.trim() != report.reportDate.trim())
+        .map((item) => item.date.trim())
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
     final syntheticWarRoomTrend = _syntheticWarRoomTrendForReport(report);
     final syntheticWarRoomBaseline = _syntheticWarRoomBaselineStats(report);
     final syntheticWarRoomHistory = _syntheticWarRoomHistory(report);
@@ -10690,6 +10723,7 @@ class _GovernancePageState extends State<GovernancePage> {
       'global_readiness_tomorrow_posture_summary,"${_globalReadinessTomorrowPostureSummary(globalReadinessIntents).replaceAll('"', '""')}"',
       'global_readiness_tomorrow_review_command,/tomorrowreview ${report.reportDate}',
       'global_readiness_tomorrow_case_file_command,/tomorrowcase json ${report.reportDate}',
+      'global_readiness_shadow_summary,"${(shadowSites.isEmpty ? '' : '${shadowSites.length} sites • ${shadowSites.first.moShadowSummary}').replaceAll('"', '""')}"',
       'global_readiness_focus_state,${_globalReadinessFocusState(report)}',
       'global_readiness_historical_focus,${_isHistoricalGlobalReadinessFocus(report)}',
       'global_readiness_focus_summary,"${_globalReadinessFocusSummary(report).replaceAll('"', '""')}"',
@@ -10703,6 +10737,19 @@ class _GovernancePageState extends State<GovernancePage> {
       'global_readiness_baseline_elevated_average,${globalReadinessBaseline.elevatedAverage.toStringAsFixed(1)}',
       'global_readiness_baseline_intent_average,${globalReadinessBaseline.intentAverage.toStringAsFixed(1)}',
       'global_readiness_baseline_report_days,${globalReadinessBaseline.reportDays}',
+      ...buildReviewShortcutCsvRows(
+        currentReportDate: report.reportDate,
+        previousReportDate:
+            previousShadowReportDate.isEmpty ? null : previousShadowReportDate,
+        currentReviewMetric: 'global_readiness_shadow_review_command',
+        currentCaseMetric: 'global_readiness_shadow_case_file_command',
+        previousReviewMetric: 'global_readiness_previous_shadow_review_command',
+        previousCaseMetric:
+            'global_readiness_previous_shadow_case_file_command',
+        reviewCommandBuilder: (reportDate) => '/shadowreview $reportDate',
+        caseFileCommandBuilder:
+            (reportDate) => '/shadowcase json $reportDate',
+      ),
       for (var i = 0; i < globalReadinessHistory.length; i++)
         'global_readiness_history_${i + 1},"${_globalReadinessHistoryCsvSummary(globalReadinessHistory[i]).replaceAll('"', '""')}"',
       'synthetic_war_room_plan_count,${syntheticWarRoomPlans.length}',

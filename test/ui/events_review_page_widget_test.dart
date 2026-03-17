@@ -1198,6 +1198,178 @@ void main() {
     expect(find.text('Unrelated perimeter movement'), findsNothing);
   });
 
+  testWidgets('events review shows dedicated shadow investigation banner', (
+    tester,
+  ) async {
+    String? copiedClipboardPayload;
+    var governanceOpened = false;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final args = (call.arguments as Map<dynamic, dynamic>);
+          copiedClipboardPayload = args['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: EventsReviewPage(
+          events: <DispatchEvent>[
+            IntelligenceReceived(
+              eventId: 'SHADOW-NEWS-1',
+              sequence: 1,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 17, 0, 20),
+              intelligenceId: 'SHADOW-NEWS-INTEL-1',
+              provider: 'newsdesk',
+              sourceType: 'news',
+              externalId: 'shadow-news-1',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-ALPHA',
+              headline: 'Contractors moved floor to floor in office park',
+              summary:
+                  'Suspects posed as maintenance contractors before moving across restricted office zones.',
+              riskScore: 91,
+              canonicalHash: 'shadow-news-hash-1',
+            ),
+            IntelligenceReceived(
+              eventId: 'SHADOW-1',
+              sequence: 2,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 17, 1, 0),
+              intelligenceId: 'SHADOW-INTEL-1',
+              provider: 'frigate',
+              sourceType: 'cctv',
+              externalId: 'shadow-1',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-ALPHA',
+              headline: 'Unplanned contractor roaming',
+              summary:
+                  'Maintenance-like subject moved across restricted office doors.',
+              riskScore: 92,
+              canonicalHash: 'shadow-hash-1',
+            ),
+          ],
+          sceneReviewByIntelligenceId: {
+            'SHADOW-INTEL-1': MonitoringSceneReviewRecord(
+              intelligenceId: 'SHADOW-INTEL-1',
+              sourceLabel: 'openai:gpt-5.4-mini',
+              postureLabel: 'service impersonation and roaming concern',
+              decisionLabel: 'Escalation Candidate',
+              decisionSummary:
+                  'Likely spoofed service access with abnormal roaming.',
+              summary:
+                  'Likely maintenance impersonation moving across office zones.',
+              reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 2),
+            ),
+          },
+          initialScopedEventIds: const ['SHADOW-1'],
+          initialSelectedEventId: 'SHADOW-1',
+          initialScopedMode: 'shadow',
+          currentMorningSovereignReportDate: '2026-03-18',
+          onOpenGovernance: () {
+            governanceOpened = true;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(
+        const ValueKey('events-shadow-scope-banner'),
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'Shadow MO investigation active for 1 linked signal',
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('SITE-ALPHA'), findsWidgets);
+    expect(
+      find.textContaining(
+        'Viewing command-targeted shift 2026-03-17 instead of live oversight 2026-03-18.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Contractors moved floor to floor in office park'),
+      findsWidgets,
+    );
+    expect(
+      find.textContaining('Review refs: SHADOW-INTEL-1'),
+      findsOneWidget,
+    );
+
+    final copyJsonAction = tester.widget<InkWell>(
+      find.byKey(
+        const ValueKey('events-shadow-casefile-json-action'),
+        skipOffstage: false,
+      ),
+    );
+    copyJsonAction.onTap!();
+    await tester.pump();
+    expect(copiedClipboardPayload, contains('"shadowMoCaseFile"'));
+    expect(copiedClipboardPayload, contains('"reportDate": "2026-03-17"'));
+    expect(copiedClipboardPayload, contains('"liveReportDate": "2026-03-18"'));
+    expect(copiedClipboardPayload, contains('"reviewShortcuts"'));
+    expect(
+      copiedClipboardPayload,
+      contains('"currentShiftReviewCommand": "/shadowreview 2026-03-17"'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('"currentShiftCaseFileCommand": "/shadowcase json 2026-03-17"'),
+    );
+    expect(copiedClipboardPayload, contains('"reviewRefs": ['));
+    expect(copiedClipboardPayload, contains('"siteId": "SITE-ALPHA"'));
+
+    final copyCsvAction = tester.widget<InkWell>(
+      find.byKey(
+        const ValueKey('events-shadow-casefile-csv-action'),
+        skipOffstage: false,
+      ),
+    );
+    copyCsvAction.onTap!();
+    await tester.pump();
+    expect(copiedClipboardPayload, contains('metric,value'));
+    expect(copiedClipboardPayload, contains('report_date,2026-03-17'));
+    expect(copiedClipboardPayload, contains('live_report_date,2026-03-18'));
+    expect(
+      copiedClipboardPayload,
+      contains('current_review_command,/shadowreview 2026-03-17'),
+    );
+    expect(
+      copiedClipboardPayload,
+      contains('current_case_file_command,/shadowcase json 2026-03-17'),
+    );
+
+    final openGovernanceAction = tester.widget<InkWell>(
+      find.byKey(
+        const ValueKey('events-shadow-open-governance-action'),
+        skipOffstage: false,
+      ),
+    );
+    openGovernanceAction.onTap!();
+    await tester.pump();
+    expect(governanceOpened, isTrue);
+  });
+
   testWidgets('events review shows dedicated readiness investigation banner', (
     tester,
   ) async {

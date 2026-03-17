@@ -4410,6 +4410,15 @@ void main() {
       contains('"focusSummary": "Viewing live oversight shift 2026-03-10."'),
     );
     expect(copiedPayload, contains('"liveReportDate": "2026-03-10"'));
+    expect(copiedPayload, contains('"shadowMo"'));
+    expect(
+      copiedPayload,
+      contains('"currentShiftReviewCommand": "/shadowreview 2026-03-10"'),
+    );
+    expect(
+      copiedPayload,
+      contains('"currentShiftCaseFileCommand": "/shadowcase json 2026-03-10"'),
+    );
     expect(copiedPayload, contains('"planCount": 0'));
     expect(copiedPayload, contains('"policyCount": 0'));
     expect(copiedPayload, contains('"modeLabel": "QUIET REHEARSAL"'));
@@ -4533,6 +4542,16 @@ void main() {
     expect(
       copiedPayload,
       contains('global_readiness_tomorrow_case_file_command,/tomorrowcase json 2026-03-10'),
+    );
+    expect(
+      copiedPayload,
+      contains('global_readiness_shadow_review_command,/shadowreview 2026-03-10'),
+    );
+    expect(
+      copiedPayload,
+      contains(
+        'global_readiness_shadow_case_file_command,/shadowcase json 2026-03-10',
+      ),
     );
     expect(copiedPayload, contains('synthetic_war_room_plan_count,0'));
     expect(copiedPayload, contains('synthetic_war_room_policy_count,0'));
