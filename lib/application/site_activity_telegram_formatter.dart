@@ -9,6 +9,8 @@ class SiteActivityTelegramFormatter {
     String? reportDate,
     String? trendLabel,
     String? trendSummary,
+    String? quietFallbackLine,
+    String? quietFallbackDetail,
     bool includeEvidenceHandoff = false,
     String? reviewCommandHint,
     String? caseFileHint,
@@ -23,7 +25,16 @@ class SiteActivityTelegramFormatter {
     ];
 
     if (snapshot.totalSignals <= 0) {
-      lines.add('No visitor or site-activity signals detected.');
+      final fallbackLine = (quietFallbackLine ?? '').trim();
+      if (fallbackLine.isNotEmpty) {
+        lines.add(fallbackLine);
+        final fallbackDetail = (quietFallbackDetail ?? '').trim();
+        if (fallbackDetail.isNotEmpty) {
+          lines.add(fallbackDetail);
+        }
+      } else {
+        lines.add('No visitor or site-activity signals detected.');
+      }
       if ((trendLabel ?? '').trim().isNotEmpty &&
           (trendSummary ?? '').trim().isNotEmpty) {
         lines.add('Trend: ${trendLabel!.trim()} - ${trendSummary!.trim()}');

@@ -10,6 +10,7 @@ class DvrScopeConfig {
   final String username;
   final String password;
   final String bearerToken;
+  final Map<String, String> cameraLabels;
 
   const DvrScopeConfig({
     required this.clientId,
@@ -21,6 +22,7 @@ class DvrScopeConfig {
     required this.username,
     required this.password,
     required this.bearerToken,
+    this.cameraLabels = const <String, String>{},
   });
 
   String get scopeKey => '${clientId.trim()}|${siteId.trim()}';
@@ -60,6 +62,23 @@ class DvrScopeConfig {
         return (item[key] ?? fallback).toString().trim();
       }
 
+      Map<String, String> readCameraLabels() {
+        final raw = item['camera_labels'];
+        if (raw is! Map) {
+          return const <String, String>{};
+        }
+        final output = <String, String>{};
+        for (final entry in raw.entries) {
+          final key = entry.key.toString().trim().toLowerCase();
+          final value = entry.value.toString().trim();
+          if (key.isEmpty || value.isEmpty) {
+            continue;
+          }
+          output[key] = value;
+        }
+        return output;
+      }
+
       final eventsUrl = readString(
         'events_url',
         fallback: fallbackEventsUri?.toString() ?? '',
@@ -78,6 +97,7 @@ class DvrScopeConfig {
             'bearer_token',
             fallback: fallbackBearerToken,
           ),
+          cameraLabels: readCameraLabels(),
         ),
       );
     }

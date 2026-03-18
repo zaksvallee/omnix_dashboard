@@ -43,6 +43,8 @@ class EventsReviewPage extends StatefulWidget {
   final List<SovereignReport> morningSovereignReportHistory;
   final String? currentMorningSovereignReportDate;
   final VoidCallback? onOpenGovernance;
+  final void Function(String clientId, String siteId)? onOpenGovernanceForScope;
+  final ValueChanged<String>? onOpenLedger;
 
   const EventsReviewPage({
     super.key,
@@ -56,6 +58,8 @@ class EventsReviewPage extends StatefulWidget {
     this.morningSovereignReportHistory = const <SovereignReport>[],
     this.currentMorningSovereignReportDate,
     this.onOpenGovernance,
+    this.onOpenGovernanceForScope,
+    this.onOpenLedger,
   });
 
   @override
@@ -124,6 +128,34 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   final Map<String, GlobalKey> _rowKeys = <String, GlobalKey>{};
   String _lastAutoEnsuredEventId = '';
 
+  ({String clientId, String siteId})? _governanceScopeForEvents(
+    List<DispatchEvent> events,
+  ) {
+    final clientIds = events
+        .map(_eventClientId)
+        .where((value) => value.trim().isNotEmpty)
+        .map((value) => value.trim())
+        .toSet();
+    final siteIds = events
+        .map(_eventSiteId)
+        .where((value) => value.trim().isNotEmpty)
+        .map((value) => value.trim())
+        .toSet();
+    if (clientIds.length != 1 || siteIds.length != 1) {
+      return null;
+    }
+    return (clientId: clientIds.first, siteId: siteIds.first);
+  }
+
+  VoidCallback? _openGovernanceActionForEvents(List<DispatchEvent> events) {
+    final scopedCallback = widget.onOpenGovernanceForScope;
+    final scope = _governanceScopeForEvents(events);
+    if (scopedCallback != null && scope != null) {
+      return () => scopedCallback(scope.clientId, scope.siteId);
+    }
+    return widget.onOpenGovernance;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -188,12 +220,24 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   @override
   Widget build(BuildContext context) {
     final requestedSelectedId = (widget.initialSelectedEventId ?? '').trim();
+    final scopedEventIds = _normalizedScopedEventIds(
+      widget.initialScopedEventIds,
+    );
+    final scopedBaseEvents = _scopedTimelineEvents(
+      timeline: widget.events,
+      scopedEventIds: scopedEventIds,
+    );
+    final focusedFallbackScope = _focusedFallbackScope(
+      scopedEvents: scopedBaseEvents,
+      allEvents: widget.events,
+    );
     final hasFocusedFallback =
         requestedSelectedId.isNotEmpty &&
         !widget.events.any((event) => event.eventId == requestedSelectedId);
     final timelineSource = _timelineWithFocusedFallback(
       baseEvents: widget.events,
       focusedEventId: requestedSelectedId,
+      fallbackScope: focusedFallbackScope,
     );
     final timeline = [...timelineSource]
       ..sort((a, b) => b.sequence.compareTo(a.sequence));
@@ -211,9 +255,6 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     _activeSourceFilter;
               })
               .toList(growable: false);
-    final scopedEventIds = _normalizedScopedEventIds(
-      widget.initialScopedEventIds,
-    );
     final scopedTimelineEvents = _scopedTimelineEvents(
       timeline: timeline,
       scopedEventIds: scopedEventIds,
@@ -226,6 +267,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     final syntheticScopeSummary = _syntheticScopeSummary(scopedTimelineEvents);
     final shadowScopeSummary = _shadowScopeSummary(scopedTimelineEvents);
     final activityScopeSummary = _activityScopeSummary(scopedTimelineEvents);
+    final openGovernanceAction = _openGovernanceActionForEvents(
+      scopedTimelineEvents,
+    );
     final scopeFiltered = scopedEventIds.isEmpty
         ? filtered
         : filtered
@@ -361,7 +405,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                       border: Border.all(color: const Color(0x665FAAFF)),
                     ),
                     child: Text(
-                      'Seeded placeholder loaded for $requestedSelectedId. This row will be replaced automatically once live ingest publishes the same event ID.',
+                      _focusedFallbackBannerText(
+                        requestedSelectedId,
+                        focusedFallbackScope,
+                      ),
                       style: GoogleFonts.inter(
                         color: const Color(0xFFEAF1FB),
                         fontSize: 11,
@@ -536,13 +583,13 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                                 readinessScopeSummary,
                               ),
                             ),
-                            if (widget.onOpenGovernance != null)
+                            if (openGovernanceAction != null)
                               _outlineAction(
                                 'OPEN GOVERNANCE',
                                 actionKey: const ValueKey(
                                   'events-readiness-open-governance-action',
                                 ),
-                                onTap: widget.onOpenGovernance!,
+                                onTap: openGovernanceAction,
                               ),
                           ],
                         ),
@@ -802,13 +849,13 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                                 tomorrowScopeSummary,
                               ),
                             ),
-                            if (widget.onOpenGovernance != null)
+                            if (openGovernanceAction != null)
                               _outlineAction(
                                 'OPEN GOVERNANCE',
                                 actionKey: const ValueKey(
                                   'events-tomorrow-open-governance-action',
                                 ),
-                                onTap: widget.onOpenGovernance!,
+                                onTap: openGovernanceAction,
                               ),
                           ],
                         ),
@@ -1247,7 +1294,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                                       ),
                                     ),
                                   ],
-                                  if (point.promotionPressureSummary
+                                  if (point
+                                      .promotionPressureSummary
                                       .isNotEmpty) ...[
                                     const SizedBox(height: 2),
                                     Text(
@@ -1259,7 +1307,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                                       ),
                                     ),
                                   ],
-                                  if (point.promotionExecutionSummary
+                                  if (point
+                                      .promotionExecutionSummary
                                       .isNotEmpty) ...[
                                     const SizedBox(height: 2),
                                     Text(
@@ -1330,13 +1379,13 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                                 syntheticScopeSummary,
                               ),
                             ),
-                            if (widget.onOpenGovernance != null)
+                            if (openGovernanceAction != null)
                               _outlineAction(
                                 'OPEN GOVERNANCE',
                                 actionKey: const ValueKey(
                                   'events-synthetic-open-governance-action',
                                 ),
-                                onTap: widget.onOpenGovernance!,
+                                onTap: openGovernanceAction,
                               ),
                           ],
                         ),
@@ -1577,13 +1626,13 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                               onTap: () =>
                                   _copyShadowCaseFileCsv(shadowScopeSummary),
                             ),
-                            if (widget.onOpenGovernance != null)
+                            if (openGovernanceAction != null)
                               _outlineAction(
                                 'OPEN GOVERNANCE',
                                 actionKey: const ValueKey(
                                   'events-shadow-open-governance-action',
                                 ),
-                                onTap: widget.onOpenGovernance!,
+                                onTap: openGovernanceAction,
                               ),
                           ],
                         ),
@@ -1833,6 +1882,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   List<DispatchEvent> _timelineWithFocusedFallback({
     required List<DispatchEvent> baseEvents,
     required String focusedEventId,
+    ({String clientId, String siteId})? fallbackScope,
   }) {
     if (focusedEventId.trim().isEmpty ||
         baseEvents.any((event) => event.eventId == focusedEventId)) {
@@ -1850,13 +1900,43 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         sequence: maxSequence + 1,
         version: 2,
         occurredAt: DateTime.now().toUtc(),
-        summary: 'Seeded demo incident reference awaiting live ingest.',
-        clientId: 'DEMO-CLT',
+        summary: _focusedFallbackSummary(fallbackScope),
+        clientId: fallbackScope?.clientId ?? 'DEMO-CLT',
         regionId: 'REGION-GAUTENG',
-        siteId: 'DEMO-SITE',
+        siteId: fallbackScope?.siteId ?? 'DEMO-SITE',
       ),
       ...baseEvents,
     ];
+  }
+
+  ({String clientId, String siteId})? _focusedFallbackScope({
+    required List<DispatchEvent> scopedEvents,
+    required List<DispatchEvent> allEvents,
+  }) {
+    final scopedSummary = _governanceScopeForEvents(scopedEvents);
+    if (scopedSummary != null) {
+      return scopedSummary;
+    }
+    return _governanceScopeForEvents(allEvents);
+  }
+
+  String _focusedFallbackSummary(
+    ({String clientId, String siteId})? scope,
+  ) {
+    if (scope == null) {
+      return 'Focused event reference awaiting live ingest.';
+    }
+    return 'Scoped event reference awaiting live ingest for ${scope.clientId}/${scope.siteId}.';
+  }
+
+  String _focusedFallbackBannerText(
+    String focusedEventId,
+    ({String clientId, String siteId})? scope,
+  ) {
+    if (scope == null) {
+      return 'Focused placeholder loaded for $focusedEventId. This row will auto-link when live ingest publishes the same event ID.';
+    }
+    return 'Scoped placeholder loaded for $focusedEventId on ${scope.clientId}/${scope.siteId}. This row will auto-link when live ingest publishes the same event ID.';
   }
 
   Set<String> _normalizedScopedEventIds(Iterable<String> eventIds) {
@@ -2204,8 +2284,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       promotionPressureSummary: buildTomorrowPromotionPressureSummaryForDraft(
         draft: leadDraft,
       ),
-      promotionExecutionSummary:
-          buildTomorrowPromotionExecutionSummaryForDraft(draft: leadDraft),
+      promotionExecutionSummary: buildTomorrowPromotionExecutionSummaryForDraft(
+        draft: leadDraft,
+      ),
       hazardSummary: _tomorrowPostureHazardSummary(leadDraft),
       reviewRefs: reviewRefs,
       history: _tomorrowPostureHistorySummary(report),
@@ -2278,8 +2359,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           .map(_shadowMoSitesForReport)
           .toList(growable: false),
     );
-    final shadowTomorrowUrgencySummary =
-        _syntheticShadowTomorrowUrgencySummary(scopedReportDate);
+    final shadowTomorrowUrgencySummary = _syntheticShadowTomorrowUrgencySummary(
+      scopedReportDate,
+    );
     final previousShadowTomorrowUrgencySummary =
         widget.currentMorningSovereignReportDate == null ||
             widget.currentMorningSovereignReportDate!.trim().isEmpty ||
@@ -2372,9 +2454,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       biasSummary: _syntheticWarRoomBiasSummaryForPlan(
         leadPolicyPlan.id.isEmpty ? null : leadPolicyPlan,
       ),
-      shadowPostureBiasSummary: _syntheticWarRoomShadowPostureBiasSummaryForPlan(
-        leadPolicyPlan.id.isEmpty ? null : leadPolicyPlan,
-      ),
+      shadowPostureBiasSummary:
+          _syntheticWarRoomShadowPostureBiasSummaryForPlan(
+            leadPolicyPlan.id.isEmpty ? null : leadPolicyPlan,
+          ),
       reviewRefs: reviewRefs,
       history: _syntheticHistorySummary(
         scopedEvents: scopedEvents,
@@ -2423,7 +2506,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             .where(
               (item) => item.date.trim() != (scopedReportDate ?? '').trim(),
             )
-          .toList(growable: false)
+            .toList(growable: false)
           ..sort(
             (left, right) => right.generatedAtUtc.toUtc().compareTo(
               left.generatedAtUtc.toUtc(),
@@ -2646,7 +2729,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   }
 
   String _shadowPostureSummaryForReport(SovereignReport report) {
-    return shadowMoPostureStrengthSummaryForSites(_shadowMoSitesForReport(report));
+    return shadowMoPostureStrengthSummaryForSites(
+      _shadowMoSitesForReport(report),
+    );
   }
 
   String _humanizeShadowValidationStatus(String status) {
@@ -3122,11 +3207,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   }) {
     return buildSyntheticPromotionDecisionSummaryFromPlans(
       plans: plans,
-      decisionSummaryLookup: (moId, targetStatus) =>
-          _moPromotionDecisionStore.decisionSummaryFor(
-            moId: moId,
-            targetValidationStatus: targetStatus,
-          ),
+      decisionSummaryLookup: (moId, targetStatus) => _moPromotionDecisionStore
+          .decisionSummaryFor(moId: moId, targetValidationStatus: targetStatus),
       shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
       previousShadowTomorrowUrgencySummary:
           previousShadowTomorrowUrgencySummary,
@@ -3187,7 +3269,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     MonitoringWatchAutonomyActionPlan draft,
   ) => buildTomorrowShadowSummaryForDraft(
     draft: draft,
-    strengthHandoffSummary: _tomorrowPostureShadowStrengthHandoffSummary(report),
+    strengthHandoffSummary: _tomorrowPostureShadowStrengthHandoffSummary(
+      report,
+    ),
   );
 
   String _tomorrowPostureHazardSummary(
@@ -3399,8 +3483,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   currentPolicyPlan.id.isEmpty ? null : currentPolicyPlan,
                 ),
           ),
-          promotionExecutionSummary:
-              _syntheticWarRoomPromotionExecutionSummary(currentPlans),
+          promotionExecutionSummary: _syntheticWarRoomPromotionExecutionSummary(
+            currentPlans,
+          ),
           promotionSummary: _syntheticWarRoomPromotionSummary(
             currentPlans,
             shadowTomorrowUrgencySummary:
@@ -3488,8 +3573,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   policyPlan.id.isEmpty ? null : policyPlan,
                 ),
           ),
-          promotionExecutionSummary:
-              _syntheticWarRoomPromotionExecutionSummary(plans),
+          promotionExecutionSummary: _syntheticWarRoomPromotionExecutionSummary(
+            plans,
+          ),
           promotionSummary: _syntheticWarRoomPromotionSummary(
             plans,
             shadowTomorrowUrgencySummary:
@@ -4613,6 +4699,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               'events.view_in_ledger',
               context: {'event_id': selected.eventId},
             );
+            if (widget.onOpenLedger != null) {
+              widget.onOpenLedger!.call(selected.eventId);
+              return;
+            }
             _showActionMessage(
               'Open Sovereign Ledger to inspect ${selected.eventId}.',
             );

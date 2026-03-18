@@ -1,0 +1,21 @@
+=== VALLEE_WORRIED ===
+You are not alone. We are treating this as live at MS Vallee Residence and checking it now. I will send the next confirmed update as soon as control has it.
+usedLearnedApprovalStyle=false
+=== VALLEE_PRESSURED_LEARNED ===
+We are on it at MS Vallee Residence now. I will update you here the moment control confirms the next step.
+usedLearnedApprovalStyle=true
+=== VALLEE_ONSITE ===
+Security is already on site at MS Vallee Residence. We are checking the latest on-site position there now. I will send the next confirmed on-site step as soon as control has it.
+usedLearnedApprovalStyle=false
+=== VALLEE_CLOSURE ===
+You are welcome. The latest confirmed position is that MS Vallee Residence is secure. If anything changes, message here immediately.
+usedLearnedApprovalStyle=false
+=== TOWER_ACCESS ===
+We are checking access-control status for Sandton Tower now. I will send the next confirmed step as soon as control has it.
+usedLearnedApprovalStyle=false
+=== TOWER_STATUS ===
+We are actively checking the latest position for Sandton Tower now. I will send the next confirmed update as soon as control has it.
+usedLearnedApprovalStyle=false
+=== TOWER_CLOSURE ===
+You are welcome. The latest confirmed position is that Sandton Tower is secure. If anything changes, message here immediately.
+usedLearnedApprovalStyle=false

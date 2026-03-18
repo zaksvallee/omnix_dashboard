@@ -1,0 +1,117 @@
+Launching lib/main.dart on Chrome in debug mode...
+Waiting for connection from debug service on Chrome...             11.8s
+
+Flutter run key commands.
+r Hot reload. 🔥🔥🔥
+R Hot restart.
+h List all available interactive commands.
+d Detach (terminate "flutter run" but leave application running).
+c Clear the screen
+q Quit (terminate the application on the device).
+
+Debug service listening on ws://127.0.0.1:55096/x1BlQeLHOBU=/ws
+A Dart VM Service on Chrome is available at: http://127.0.0.1:55096/x1BlQeLHOBU=
+The Flutter DevTools debugger and profiler on Chrome is available at: http://127.0.0.1:55096/x1BlQeLHOBU=/devtools/?uri=ws://127.0.0.1:55096/x1BlQeLHOBU=/ws
+Starting application from main method in: org-dartlang-app:/web_entrypoint.dart.
+supabase.supabase_flutter: INFO: ***** Supabase init completed ***** 
+Seed complete. Event count: 29
+ONYX Telegram admin loop start: router=on admin=on ai=on chat=-5247743742 bridge=configured
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(1/1 appended)
+ONYX Telegram quick action handled: action=status scope=CLIENT-MS-VALLEE/SITE-MS-VALLEE-RESIDENCE chat=-1003635485432#371 result=sent reply=🛡️ ONYX STATUS | MS Vallee Residence | 15:06 | Monitoring: ACTIVE | Window: 24h watch (started 18:00) | Reviewed activity: 19 | Latest activity: Response arrival | Latest posture: field activity observed | Current assessment: field activity active on site
+ONYX Telegram quick action handled: action=status scope=CLIENT-MS-VALLEE/SITE-MS-VALLEE-RESIDENCE chat=-1003635485432#371 result=sent reply=🛡️ ONYX STATUS | MS Vallee Residence | 15:06 | Monitoring: ACTIVE | Window: 24h watch (started 18:00) | Reviewed activity: 19 | Latest activity: Response arrival | Latest posture: field activity observed | Current assessment: field activity active on site
+Could not find a set of Noto fonts to display all missing characters. Please add a font asset for the missing characters. See: https://docs.flutter.dev/cookbook/design/fonts
+ONYX Telegram quick action handled: action=statusFull scope=CLIENT-MS-VALLEE/SITE-MS-VALLEE-RESIDENCE chat=-1003635485432#371 result=sent reply=🧾 ONYX STATUS (FULL) | MS Vallee Residence | 15:06 | Monitoring: ACTIVE | Window: 24h watch (started 18:00) | Reviewed activity: 19 | Latest activity source: Response arrival | Latest posture: field activity observed | Current assessment: field activity active on site | Latest review summary: A field response unit arrived on site. | Latest decision: No client-facing action has been required | Open follow-up actions: 0 | Monitoring availability: available
+ONYX Telegram quick action handled: action=sleepCheck scope=CLIENT-MS-VALLEE/SITE-MS-VALLEE-RESIDENCE chat=-1003635485432#371 result=sent reply=🌙 ONYX SLEEP CHECK | MS Vallee Residence | 15:06 | Monitoring: ACTIVE | Window: 24h watch (started 18:00) | Latest activity: Response arrival | Latest posture: field activity observed | Open follow-up actions: 0
+ONYX Telegram quick action handled: action=status scope=CLIENT-MS-VALLEE/SITE-MS-VALLEE-RESIDENCE chat=-1003635485432#380 result=sent reply=🛡️ ONYX STATUS | MS Vallee Residence | 15:07 | Monitoring: ACTIVE | Window: 24h watch (started 18:00) | Reviewed activity: 19 | Latest activity: Response arrival | Latest posture: field activity observed | Current assessment: field activity active on site
+ONYX Telegram quick action handled: action=statusFull scope=CLIENT-MS-VALLEE/SITE-MS-VALLEE-RESIDENCE chat=-1003635485432#382 result=sent reply=🧾 ONYX STATUS (FULL) | MS Vallee Residence | 15:07 | Monitoring: ACTIVE | Window: 24h watch (started 18:00) | Reviewed activity: 19 | Latest activity source: Response arrival | Latest posture: field activity observed | Current assessment: field activity active on site | Latest review summary: A field response unit arrived on site. | Latest decision: No client-facing action has been required | Open follow-up actions: 0 | Monitoring availability: available
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX_UI_ACTION {"action":"client_app.reopen_selected_incident","context":{"role":"client","reference_label":"Client Advisory","source":"clients_incident_feed","event_id":"E-INT-ab7fd2ad000afa9044f7"},"captured_at_utc":"2026-03-18T13:08:20.420Z"}
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX_UI_ACTION {"action":"client_app.reopen_selected_incident","context":{"role":"client","reference_label":"Client Advisory","source":"clients_incident_feed","event_id":"E-INT-ab7fd2ad000afa9044f7"},"captured_at_utc":"2026-03-18T13:13:47.008Z"}
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX_UI_ACTION {"action":"sites.add_site","context":{"selected_site_id":"SITE-MS-VALLEE-RESIDENCE"},"captured_at_utc":"2026-03-18T13:14:16.015Z"}
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX Telegram quick action handled: action=status scope=CLIENT-MS-VALLEE/SITE-MS-VALLEE-RESIDENCE chat=-1003635485432#384 result=sent reply=🛡️ ONYX STATUS | MS Vallee Residence | 15:23 | Monitoring: ACTIVE | Window: 24h watch (started 18:00) | Reviewed activity: 19 | Latest activity: Response arrival | Latest posture: field activity observed | Current assessment: field activity active on site
+ONYX Telegram quick action handled: action=statusFull scope=CLIENT-MS-VALLEE/SITE-MS-VALLEE-RESIDENCE chat=-1003635485432#388 result=sent reply=🧾 ONYX STATUS (FULL) | MS Vallee Residence | 15:23 | Monitoring: ACTIVE | Window: 24h watch (started 18:00) | Reviewed activity: 19 | Latest activity source: Response arrival | Latest posture: field activity observed | Current assessment: field activity active on site | Latest review summary: A field response unit arrived on site. | Latest decision: No client-facing action has been required | Open follow-up actions: 0 | Monitoring availability: available
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX Telegram quick action handled: action=status scope=CLIENT-MS-VALLEE/SITE-MS-VALLEE-RESIDENCE chat=-1003635485432#390 result=sent reply=🛡️ ONYX STATUS | MS Vallee Residence | 15:25 | Monitoring: ACTIVE | Window: 24h watch (started 18:00) | Reviewed activity: 19 | Latest activity: Response arrival | Latest posture: field activity observed | Current assessment: field activity active on site
+ONYX Telegram quick action handled: action=statusFull scope=CLIENT-MS-VALLEE/SITE-MS-VALLEE-RESIDENCE chat=-1003635485432#392 result=sent reply=🧾 ONYX STATUS (FULL) | MS Vallee Residence | 15:25 | Monitoring: ACTIVE | Window: 24h watch (started 18:00) | Reviewed activity: 19 | Latest activity source: Response arrival | Latest posture: field activity observed | Current assessment: field activity active on site | Latest review summary: A field response unit arrived on site. | Latest decision: No client-facing action has been required | Open follow-up actions: 0 | Monitoring availability: available
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX Telegram quick action handled: action=status scope=CLIENT-MS-VALLEE/SITE-MS-VALLEE-RESIDENCE chat=-1003635485432#394 result=sent reply=🛡️ ONYX STATUS | MS Vallee Residence | 15:30 | Monitoring: ACTIVE | Window: 24h watch (started 18:00) | Reviewed activity: 19 | Latest activity: Response arrival | Latest posture: field activity observed | Current assessment: field activity active on site
+ONYX Telegram quick action handled: action=statusFull scope=CLIENT-MS-VALLEE/SITE-MS-VALLEE-RESIDENCE chat=-1003635485432#394 result=sent reply=🧾 ONYX STATUS (FULL) | MS Vallee Residence | 15:30 | Monitoring: ACTIVE | Window: 24h watch (started 18:00) | Reviewed activity: 19 | Latest activity source: Response arrival | Latest posture: field activity observed | Current assessment: field activity active on site | Latest review summary: A field response unit arrived on site. | Latest decision: No client-facing action has been required | Open follow-up actions: 0 | Monitoring availability: available
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX Telegram quick action handled: action=status scope=CLIENT-MS-VALLEE/SITE-MS-VALLEE-RESIDENCE chat=-1003635485432#398 result=sent reply=🛡️ ONYX STATUS | MS Vallee Residence | 15:41 | Monitoring: ACTIVE | Window: 24h watch (started 18:00) | Reviewed activity: 19 | Latest activity: Response arrival | Latest posture: field activity observed | Current assessment: field activity active on site
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX Telegram quick action handled: action=statusFull scope=CLIENT-MS-VALLEE/SITE-MS-VALLEE-RESIDENCE chat=-1003635485432#400 result=sent reply=🧾 ONYX STATUS (FULL) | MS Vallee Residence | 15:41 | Monitoring: ACTIVE | Window: 24h watch (started 18:00) | Reviewed activity: 19 | Latest activity source: Response arrival | Latest posture: field activity observed | Current assessment: field activity active on site | Latest review summary: A field response unit arrived on site. | Latest decision: No client-facing action has been required | Open follow-up actions: 0 | Monitoring availability: available
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX Telegram quick action handled: action=status scope=CLIENT-MS-VALLEE/SITE-MS-VALLEE-RESIDENCE chat=-1003635485432#402 result=sent reply=🛡️ ONYX STATUS | MS Vallee Residence | 15:48 | Monitoring: ACTIVE | Window: 24h watch (started 18:00) | Reviewed activity: 19 | Latest activity: Response arrival | Latest posture: field activity observed | Current assessment: field activity active on site
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)
+ONYX Telegram quick action handled: action=status scope=CLIENT-MS-VALLEE/SITE-MS-VALLEE-RESIDENCE chat=-1003635485432#404 result=sent reply=🛡️ ONYX STATUS | MS Vallee Residence | 16:07 | Monitoring: ACTIVE | Window: 24h watch (started 18:00) | Reviewed activity: 19 | Latest activity: Response arrival | Latest posture: field activity observed | Current assessment: field activity active on site
+ONYX Telegram quick action handled: action=statusFull scope=CLIENT-MS-VALLEE/SITE-MS-VALLEE-RESIDENCE chat=-1003635485432#404 result=sent reply=🧾 ONYX STATUS (FULL) | MS Vallee Residence | 16:07 | Monitoring: ACTIVE | Window: 24h watch (started 18:00) | Reviewed activity: 19 | Latest activity source: Response arrival | Latest posture: field activity observed | Current assessment: field activity active on site | Latest review summary: A field response unit arrived on site. | Latest decision: No client-facing action has been required | Open follow-up actions: 0 | Monitoring availability: available
+ONYX ops poll: Ops poll • ok 2/2 • cctv:ok(0/0 appended • hikvision_dvr_monitor_only • no events yet • evidence ok 0) • news:ok(0/1 appended)

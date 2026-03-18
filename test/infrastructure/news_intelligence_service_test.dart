@@ -249,6 +249,53 @@ void main() {
   );
 
   test(
+    'NewsIntelligenceService treats angle-bracket placeholder keys as missing config',
+    () async {
+      final service = NewsIntelligenceService(
+        client: MockClient((request) async {
+          fail('placeholder keys should not trigger ${request.url}');
+        }),
+        newsApiOrgKey: '<newsapi-org-key>',
+        newsApiAiKey: '<newsapi-ai-key>',
+        newsDataIoKey: '',
+        worldNewsApiKey: '<worldnewsapi-key>',
+        openWeatherKey: '<openweather-key>',
+      );
+
+      expect(service.configuredProviders, isEmpty);
+
+      final diagnosticsByProvider = {
+        for (final diagnostic in service.diagnostics)
+          diagnostic.provider: diagnostic,
+      };
+      expect(
+        diagnosticsByProvider['newsapi.org']?.status,
+        'missing key (placeholder)',
+      );
+      expect(
+        diagnosticsByProvider['newsapi.ai']?.status,
+        'missing key (placeholder)',
+      );
+      expect(
+        diagnosticsByProvider['worldnewsapi.com']?.status,
+        'missing key (placeholder)',
+      );
+      expect(
+        diagnosticsByProvider['openweather.org']?.status,
+        'missing key (placeholder)',
+      );
+
+      final probe = await service.probeProvider(
+        provider: 'newsapi.org',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-VALLEE',
+      );
+      expect(probe.status, 'missing key (placeholder)');
+    },
+  );
+
+  test(
     'NewsIntelligenceService retries world news with query auth and alternate article key',
     () async {
       final client = MockClient((request) async {

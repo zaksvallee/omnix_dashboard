@@ -119,6 +119,119 @@ void main() {
       expect(review.primaryObjectLabel, 'vehicle');
     });
 
+    test('openai review includes related sequence frames in model request', () async {
+      late Map<String, dynamic> aiBody;
+      final client = MockClient((request) async {
+        if (request.url.host == '192.168.8.105') {
+          return http.Response.bytes(
+            utf8.encode('primary-image'),
+            200,
+            headers: {'content-type': 'image/jpeg'},
+          );
+        }
+        if (request.url.host == '192.168.8.106') {
+          return http.Response.bytes(
+            utf8.encode('related-image-1'),
+            200,
+            headers: {'content-type': 'image/jpeg'},
+          );
+        }
+        if (request.url.host == '192.168.8.107') {
+          return http.Response.bytes(
+            utf8.encode('related-image-2'),
+            200,
+            headers: {'content-type': 'image/jpeg'},
+          );
+        }
+        expect(request.url.toString(), 'https://api.openai.com/v1/responses');
+        aiBody = jsonDecode(request.body) as Map<String, dynamic>;
+        return http.Response(
+          jsonEncode({
+            'output_text': jsonEncode({
+              'primary_object': 'person',
+              'confidence': 'medium',
+              'posture': 'repeat',
+              'risk_delta': 4,
+              'tags': ['person'],
+              'summary': 'Repeated person activity remains visible.',
+            }),
+          }),
+          200,
+        );
+      });
+      final service = OpenAiMonitoringWatchVisionReviewService(
+        client: client,
+        apiKey: 'test-key',
+        model: 'gpt-4.1-mini',
+      );
+
+      await service.review(
+        event: _intel(
+          intelligenceId: 'intel-primary',
+          cameraId: 'channel-13',
+          occurredAt: DateTime.utc(2026, 3, 18, 9, 47),
+          objectLabel: 'person',
+          objectConfidence: 0.91,
+          riskScore: 81,
+          headline: 'Camera 13 person activity',
+          summary: 'Front-yard movement detected.',
+          snapshotUrl:
+              'http://192.168.8.105/ISAPI/Streaming/channels/1301/picture',
+        ),
+        authConfig: const DvrHttpAuthConfig(mode: DvrHttpAuthMode.none),
+        groupedEventCount: 3,
+        relatedEvents: <IntelligenceReceived>[
+          _intel(
+            intelligenceId: 'intel-related-1',
+            cameraId: 'channel-12',
+            occurredAt: DateTime.utc(2026, 3, 18, 9, 46),
+            objectLabel: 'person',
+            objectConfidence: 0.86,
+            riskScore: 78,
+            headline: 'Camera 12 person activity',
+            summary: 'Back-yard movement detected.',
+            snapshotUrl:
+                'http://192.168.8.106/ISAPI/Streaming/channels/1201/picture',
+          ),
+          _intel(
+            intelligenceId: 'intel-related-2',
+            cameraId: 'channel-6',
+            occurredAt: DateTime.utc(2026, 3, 18, 9, 45),
+            objectLabel: 'vehicle',
+            objectConfidence: 0.74,
+            riskScore: 62,
+            headline: 'Camera 6 vehicle activity',
+            summary: 'Vehicle movement near the driveway.',
+            snapshotUrl:
+                'http://192.168.8.107/ISAPI/Streaming/channels/601/picture',
+          ),
+        ],
+      );
+
+      final input = aiBody['input'] as List<dynamic>;
+      final user = input.last as Map<String, dynamic>;
+      final content = user['content'] as List<dynamic>;
+      final images = content
+          .whereType<Map<String, dynamic>>()
+          .where((entry) => entry['type'] == 'input_image')
+          .toList(growable: false);
+      final text = content.first as Map<String, dynamic>;
+
+      expect(images, hasLength(3));
+      expect(
+        text['text'],
+        contains('frame_1: camera=channel-13, object=person'),
+      );
+      expect(
+        text['text'],
+        contains('frame_2: camera=channel-12, object=person'),
+      );
+      expect(
+        text['text'],
+        contains('frame_3: camera=channel-6, object=vehicle'),
+      );
+    });
+
     test('metadata-only review detects burst pipe as water leak hazard', () {
       final review = buildMetadataOnlyMonitoringWatchVisionReview(
         _intel(
@@ -140,6 +253,9 @@ void main() {
 }
 
 IntelligenceReceived _intel({
+  String intelligenceId = 'intel-1',
+  String? cameraId,
+  DateTime? occurredAt,
   required String objectLabel,
   required double objectConfidence,
   required int riskScore,
@@ -151,15 +267,15 @@ IntelligenceReceived _intel({
     eventId: 'evt-1',
     sequence: 1,
     version: 1,
-    occurredAt: DateTime.utc(2026, 3, 14, 21, 14),
-    intelligenceId: 'intel-1',
+    occurredAt: occurredAt ?? DateTime.utc(2026, 3, 14, 21, 14),
+    intelligenceId: intelligenceId,
     provider: 'hikvision_dvr_monitor_only',
     sourceType: 'dvr',
     externalId: 'ext-1',
     clientId: 'CLIENT-MS-VALLEE',
     regionId: 'REGION-GAUTENG',
     siteId: 'SITE-MS-VALLEE-RESIDENCE',
-    cameraId: 'channel-1',
+    cameraId: cameraId ?? 'channel-1',
     objectLabel: objectLabel,
     objectConfidence: objectConfidence,
     headline: headline,

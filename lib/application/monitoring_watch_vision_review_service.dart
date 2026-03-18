@@ -56,6 +56,7 @@ abstract class MonitoringWatchVisionReviewService {
     required DvrHttpAuthConfig authConfig,
     int priorReviewedEvents = 0,
     int groupedEventCount = 1,
+    List<IntelligenceReceived> relatedEvents = const <IntelligenceReceived>[],
   });
 }
 
@@ -72,6 +73,7 @@ class UnconfiguredMonitoringWatchVisionReviewService
     required DvrHttpAuthConfig authConfig,
     int priorReviewedEvents = 0,
     int groupedEventCount = 1,
+    List<IntelligenceReceived> relatedEvents = const <IntelligenceReceived>[],
   }) async {
     return buildMetadataOnlyMonitoringWatchVisionReview(event);
   }
@@ -104,6 +106,7 @@ class OpenAiMonitoringWatchVisionReviewService
     required DvrHttpAuthConfig authConfig,
     int priorReviewedEvents = 0,
     int groupedEventCount = 1,
+    List<IntelligenceReceived> relatedEvents = const <IntelligenceReceived>[],
   }) async {
     final snapshotUrl = (event.snapshotUrl ?? '').trim();
     if (!isConfigured || snapshotUrl.isEmpty) {
@@ -111,11 +114,26 @@ class OpenAiMonitoringWatchVisionReviewService
     }
 
     try {
-      final snapshotDataUrl = await _fetchSnapshotDataUrl(
-        snapshotUrl,
-        authConfig: authConfig,
-      );
-      if (snapshotDataUrl == null) {
+      final sequenceEvents = <IntelligenceReceived>[
+        event,
+        ...relatedEvents.where(
+          (candidate) =>
+              candidate.intelligenceId != event.intelligenceId &&
+              (candidate.snapshotUrl ?? '').trim().isNotEmpty,
+        ),
+      ].take(3).toList(growable: false);
+      final sequenceFrames = <({IntelligenceReceived event, String imageUrl})>[];
+      for (final sequenceEvent in sequenceEvents) {
+        final imageUrl = await _fetchSnapshotDataUrl(
+          (sequenceEvent.snapshotUrl ?? '').trim(),
+          authConfig: authConfig,
+        );
+        if (imageUrl == null) {
+          continue;
+        }
+        sequenceFrames.add((event: sequenceEvent, imageUrl: imageUrl));
+      }
+      if (sequenceFrames.isEmpty) {
         return buildMetadataOnlyMonitoringWatchVisionReview(event);
       }
 
@@ -143,20 +161,12 @@ class OpenAiMonitoringWatchVisionReviewService
                 },
                 {
                   'role': 'user',
-                  'content': [
-                    {
-                      'type': 'input_text',
-                      'text': _userPrompt(
-                        event: event,
-                        priorReviewedEvents: priorReviewedEvents,
-                        groupedEventCount: groupedEventCount,
-                      ),
-                    },
-                    {
-                      'type': 'input_image',
-                      'image_url': snapshotDataUrl,
-                    },
-                  ],
+                  'content': _userContent(
+                    event: event,
+                    priorReviewedEvents: priorReviewedEvents,
+                    groupedEventCount: groupedEventCount,
+                    sequenceFrames: sequenceFrames,
+                  ),
                 },
               ],
             }),
@@ -280,7 +290,7 @@ class OpenAiMonitoringWatchVisionReviewService
 
   String _systemPrompt() {
     return 'You are ONYX CCTV scene review.\n'
-        'Review one CCTV snapshot conservatively.\n'
+        'Review a short CCTV sequence conservatively.\n'
         'Only describe what is visibly supported.\n'
         'Do not infer identity, intent, weapons, or breach status unless directly visible.\n'
         'Return JSON only with keys: '
@@ -294,25 +304,50 @@ class OpenAiMonitoringWatchVisionReviewService
         '- summary: one short sentence.';
   }
 
-  String _userPrompt({
+  List<Map<String, Object?>> _userContent({
     required IntelligenceReceived event,
     required int priorReviewedEvents,
     required int groupedEventCount,
+    required List<({IntelligenceReceived event, String imageUrl})> sequenceFrames,
   }) {
     final metadataLabel = (event.objectLabel ?? '').trim();
     final metadataConfidence = event.objectConfidence == null
         ? 'unset'
         : event.objectConfidence!.toStringAsFixed(2);
-    return 'Event metadata:\n'
-        '- headline: ${event.headline.trim()}\n'
-        '- summary: ${event.summary.trim()}\n'
-        '- object_label: ${metadataLabel.isEmpty ? 'unset' : metadataLabel}\n'
-        '- object_confidence: $metadataConfidence\n'
-        '- prior_reviewed_events: $priorReviewedEvents\n'
-        '- grouped_event_count: $groupedEventCount\n'
-        '- camera_id: ${(event.cameraId ?? '').trim().isEmpty ? 'unknown' : event.cameraId!.trim()}\n'
-        '- risk_score: ${event.riskScore}\n'
-        'Review the attached image and return only the requested JSON.';
+    final eventLines = sequenceFrames
+        .asMap()
+        .entries
+        .map((entry) {
+          final frame = entry.value.event;
+          final cameraId = (frame.cameraId ?? '').trim();
+          final objectLabel = (frame.objectLabel ?? '').trim();
+          return '- frame_${entry.key + 1}: camera=${cameraId.isEmpty ? 'unknown' : cameraId}, object=${objectLabel.isEmpty ? 'unset' : objectLabel}, occurred_at=${frame.occurredAt.toUtc().toIso8601String()}, headline=${frame.headline.trim()}';
+        })
+        .join('\n');
+    return <Map<String, Object?>>[
+      {
+        'type': 'input_text',
+        'text':
+            'Primary event metadata:\n'
+            '- headline: ${event.headline.trim()}\n'
+            '- summary: ${event.summary.trim()}\n'
+            '- object_label: ${metadataLabel.isEmpty ? 'unset' : metadataLabel}\n'
+            '- object_confidence: $metadataConfidence\n'
+            '- prior_reviewed_events: $priorReviewedEvents\n'
+            '- grouped_event_count: $groupedEventCount\n'
+            '- camera_id: ${(event.cameraId ?? '').trim().isEmpty ? 'unknown' : event.cameraId!.trim()}\n'
+            '- risk_score: ${event.riskScore}\n'
+            'Recent sequence context:\n'
+            '$eventLines\n'
+            'Review the attached frames as one short sequence and return only the requested JSON.',
+      },
+      ...sequenceFrames.map(
+        (frame) => <String, Object?>{
+          'type': 'input_image',
+          'image_url': frame.imageUrl,
+        },
+      ),
+    ];
   }
 }
 

@@ -199,7 +199,7 @@ void main() {
     expect(find.text('Push Notifications'), findsOneWidget);
     expect(find.text('Push Delivery Queue'), findsOneWidget);
     expect(find.text('Push Queue Ready'), findsOneWidget);
-    expect(find.text('Push Sync: Push sync idle'), findsOneWidget);
+    expect(find.text('Push Sync: standing by'), findsOneWidget);
     expect(find.text('Last Sync: none • Retries: 0'), findsOneWidget);
     expect(find.text('Backend Probe: idle • Last Run: none'), findsOneWidget);
     expect(find.text('Backend Probe History: no runs yet.'), findsOneWidget);
@@ -242,7 +242,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Client advisory issued'), findsWidgets);
-    expect(find.text('Dispatch created'), findsWidgets);
+    expect(find.text('Security response activated'), findsWidgets);
     expect(find.text('Opened'), findsOneWidget);
     expect(find.text('Advisory'), findsWidgets);
     expect(find.text('DISP-001'), findsOneWidget);
@@ -256,22 +256,20 @@ void main() {
     expect(richDetailLine('Latest Status: Opened'), findsOneWidget);
     expect(richDetailLine('Occurred: 10:20 UTC'), findsOneWidget);
     expect(
-      richDetailLine('Headline: Dispatch opened for SITE-SANDTON'),
+      richDetailLine('Headline: Security response activated'),
       findsOneWidget,
     );
     expect(
-      richDetailLine(
-        'Detail: Response team activated and client updates started.',
-      ),
+      richDetailLine('Detail: A response team is moving to Sandton now.'),
       findsOneWidget,
     );
     expect(richDetailLine('Events: 1 event'), findsOneWidget);
     expect(find.text('Thread Milestones'), findsOneWidget);
     expect(find.text('Opened'), findsWidgets);
     expect(find.text('DISP-001'), findsWidgets);
-    expect(find.text('Dispatch opened for SITE-SANDTON'), findsWidgets);
+    expect(find.text('Security response activated'), findsWidgets);
     expect(
-      find.text('Response team activated and client updates started.'),
+      find.text('A response team is moving to Sandton now.'),
       findsWidgets,
     );
     await tester.tap(find.widgetWithText(TextButton, 'Close'));
@@ -313,31 +311,31 @@ void main() {
     );
     expect(
       find.text(
-        'Dispatch responses for Residents require client review before sending.',
+        'Give this dispatch reply a quick client review before it goes to Residents.',
       ),
       findsOneWidget,
     );
     expect(
-      find.widgetWithText(TextButton, 'Open Client Review for Residents'),
+      find.widgetWithText(TextButton, 'Review client draft for Residents'),
       findsOneWidget,
     );
     expect(find.text('Send secure client update...'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Send'), findsOneWidget);
     final openClientReviewButton = find.widgetWithText(
       TextButton,
-      'Open Client Review for Residents',
+      'Review client draft for Residents',
     );
     await tester.ensureVisible(openClientReviewButton);
     await tester.tap(openClientReviewButton);
     await tester.pump();
     expect(
-      find.text('Client review draft opened for Residents'),
+      find.text('Client review draft is open for Residents'),
       findsOneWidget,
     );
     final clientComposer = tester.widget<TextField>(find.byType(TextField));
     expect(
       clientComposer.controller?.text,
-      'Please share the latest ETA for dispatch created in Residents.',
+      'Please share the latest ETA for security response activated in Residents.',
     );
     expect(clientComposer.decoration?.fillColor, const Color(0xFF11243A));
     expect(
@@ -355,7 +353,7 @@ void main() {
     await tester.pump();
     expect(
       tester.widget<TextField>(find.byType(TextField)).controller?.text,
-      'Client reviewed the advisory and is ready to share it with Residents.',
+      'Advisory reviewed and ready to send to Residents.',
     );
     tester
         .widget<TextButton>(
@@ -373,11 +371,9 @@ void main() {
         .onPressed!
         .call();
     await tester.pump();
-    expect(find.text('Jumped to latest reply'), findsOneWidget);
+    expect(find.text('Latest reply in view'), findsOneWidget);
     expect(
-      find.text(
-        'Client reviewed the advisory and is ready to share it with Residents.',
-      ),
+      find.text('Advisory reviewed and ready to send to Residents.'),
       findsAtLeastNWidgets(2),
     );
     await tester.pump(const Duration(milliseconds: 950));
@@ -836,12 +832,15 @@ void main() {
     expect(find.widgetWithText(TextButton, 'Send Now'), findsNothing);
     expect(
       find.text(
-        'Dispatch responses for Resident Feed must be reviewed before sending.',
+        'Give this dispatch reply a quick review before it goes to Resident Feed.',
       ),
       findsOneWidget,
     );
     expect(
-      find.widgetWithText(TextButton, 'Open Dispatch Draft for Resident Feed'),
+      find.widgetWithText(
+        TextButton,
+        'Review dispatch draft for Resident Feed',
+      ),
       findsOneWidget,
     );
     expect(find.text('Log a resident-lane control update...'), findsOneWidget);
@@ -853,13 +852,13 @@ void main() {
 
     final openDispatchDraftButton = find.widgetWithText(
       TextButton,
-      'Open Dispatch Draft for Resident Feed',
+      'Review dispatch draft for Resident Feed',
     );
     await tester.ensureVisible(openDispatchDraftButton);
     await tester.tap(openDispatchDraftButton);
     await tester.pump();
     expect(
-      find.text('Dispatch draft opened for Resident Feed'),
+      find.text('Dispatch draft is open for Resident Feed'),
       findsOneWidget,
     );
     expect(find.text('Ready: Dispatch review'), findsOneWidget);
@@ -873,7 +872,7 @@ void main() {
     final controlComposer = tester.widget<TextField>(find.byType(TextField));
     expect(
       controlComposer.controller?.text,
-      'Control reviewing dispatch response for Resident Feed.',
+      'Control is checking the dispatch response for Resident Feed now.',
     );
     expect(controlComposer.decoration?.fillColor, const Color(0xFF11243A));
     await tester.pump(const Duration(milliseconds: 950));
@@ -926,7 +925,7 @@ void main() {
         .onPressed!
         .call();
     await tester.pump();
-    expect(find.text('Jumped to latest log entry'), findsOneWidget);
+    expect(find.text('Latest log entry in view'), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 950));
 
     tester
@@ -945,7 +944,7 @@ void main() {
         (message) =>
             message.incidentStatusLabel == 'Advisory' &&
             message.body ==
-                'Control drafting the advisory log entry for Desk Ops.',
+                'Control is shaping the advisory update for Desk Ops.',
       ),
       isTrue,
     );
@@ -982,7 +981,7 @@ void main() {
     expect(find.text('Showing pending: Community'), findsOneWidget);
     expect(find.text('Safety Thread DISP-001 • 1 update'), findsOneWidget);
     expect(find.text('Collapse Safety'), findsOneWidget);
-    expect(find.text('Security responding at SITE-SANDTON'), findsNWidgets(2));
+    expect(find.text('Security responding at Sandton'), findsNWidgets(2));
     expect(find.text('Updated 10:20 UTC'), findsOneWidget);
     expect(
       find.text('Security has been notified and updates are in progress.'),
@@ -1049,7 +1048,7 @@ void main() {
     final residentComposer = tester.widget<TextField>(find.byType(TextField));
     expect(
       residentComposer.controller?.text,
-      'Resident is drafting a community alert for Community now.',
+      'Resident is preparing a community alert for Community.',
     );
     tester
         .widget<TextButton>(
@@ -1070,9 +1069,9 @@ void main() {
         .onPressed!
         .call();
     await tester.pump();
-    expect(find.text('Jumped to latest resident reply'), findsOneWidget);
+    expect(find.text('Latest resident reply in view'), findsOneWidget);
     expect(
-      find.text('Resident is drafting a community alert for Community now.'),
+      find.text('Resident is preparing a community alert for Community.'),
       findsWidgets,
     );
     await tester.pump(const Duration(milliseconds: 950));
@@ -1098,18 +1097,19 @@ void main() {
       find.text('Conversation Sync: Supabase + local fallback'),
       findsOneWidget,
     );
-    expect(find.text('No control alerts in the current lane.'), findsOneWidget);
     expect(
-      find.text('No desk coordination messages in this lane.'),
+      find.text('Control alerts are quiet in this lane right now.'),
       findsOneWidget,
     );
-    final noThreadButton = tester.widget<TextButton>(
-      find.widgetWithText(TextButton, 'No Thread Selected'),
+    expect(
+      find.text('Desk coordination is quiet in this lane right now.'),
+      findsOneWidget,
     );
-    expect(noThreadButton.onPressed, isNotNull);
-    await tester.tap(find.widgetWithText(TextButton, 'No Thread Selected'));
-    await tester.pumpAndSettle();
-    expect(find.text('No incident thread is available yet.'), findsWidgets);
+    expect(find.text('Lane voice: Auto'), findsOneWidget);
+    final noThreadButton = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, 'Choose a Thread'),
+    );
+    expect(noThreadButton.onPressed, isNull);
   });
 
   testWidgets('client app restores show-all room override', (tester) async {
@@ -1164,7 +1164,210 @@ void main() {
     );
     expect(find.text('Target (current lane): Security Desk'), findsWidgets);
     expect(find.text('Show pending'), findsOneWidget);
-    expect(find.text('Dispatch created'), findsWidgets);
+    expect(find.text('Security response activated'), findsWidgets);
+  });
+
+  testWidgets('control lane shows and updates the pinned voice profile', (
+    tester,
+  ) async {
+    String? updatedSignal;
+
+    await tester.binding.setSurfaceSize(const Size(1600, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ClientAppPage(
+          clientId: 'CLIENT-MS-VALLEE',
+          siteId: 'SITE-MS-VALLEE-RESIDENCE',
+          viewerRole: ClientAppViewerRole.control,
+          laneVoiceProfileLabel: 'Reassuring',
+          laneVoiceProfileSignal: 'reassurance-forward',
+          onSetLaneVoiceProfile: (profileSignal) async {
+            updatedSignal = profileSignal;
+          },
+          events: const [],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('client-lane-voice-strip')),
+      findsOneWidget,
+    );
+    expect(find.text('Lane voice: Reassuring'), findsOneWidget);
+    expect(
+      find.text(
+        'Shape ONYX toward the tone this lane needs before you review or send the next reply.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(ChoiceChip, 'Auto'), findsOneWidget);
+    expect(find.widgetWithText(ChoiceChip, 'Concise'), findsOneWidget);
+    expect(find.widgetWithText(ChoiceChip, 'Reassuring'), findsOneWidget);
+    expect(find.widgetWithText(ChoiceChip, 'Validation-heavy'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Concise'));
+    await tester.pumpAndSettle();
+
+    expect(updatedSignal, 'concise-updates');
+  });
+
+  testWidgets('control lane shows learned approval status and can clear it', (
+    tester,
+  ) async {
+    bool cleared = false;
+
+    await tester.binding.setSurfaceSize(const Size(1600, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ClientAppPage(
+          clientId: 'CLIENT-MS-VALLEE',
+          siteId: 'SITE-MS-VALLEE-RESIDENCE',
+          viewerRole: ClientAppViewerRole.control,
+          laneVoiceProfileLabel: 'Reassuring',
+          laneVoiceProfileSignal: 'reassurance-forward',
+          learnedApprovalStyleCount: 2,
+          learnedApprovalStyleExample:
+              'Control is checking the latest position now and will share the next confirmed step shortly.',
+          onClearLearnedLaneStyle: () async {
+            cleared = true;
+          },
+          events: const [],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('ONYX mode: Pinned voice + learned approvals'),
+      findsOneWidget,
+    );
+    expect(find.text('Pinned voice Reassuring'), findsOneWidget);
+    expect(find.text('Learned approvals (2)'), findsOneWidget);
+    expect(find.text('Learned approval style'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Control is checking the latest position now and will share the next confirmed step shortly.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.widgetWithText(OutlinedButton, 'Clear Learned Style'),
+      findsOneWidget,
+    );
+
+    final clearLearnedStyleButton = find.widgetWithText(
+      OutlinedButton,
+      'Clear Learned Style',
+    );
+    await tester.ensureVisible(clearLearnedStyleButton);
+    await tester.tap(clearLearnedStyleButton);
+    await tester.pumpAndSettle();
+
+    expect(cleared, isTrue);
+  });
+
+  testWidgets('control draft actions reflect pinned lane voice immediately', (
+    tester,
+  ) async {
+    String laneVoiceLabel = 'Auto';
+    String laneVoiceSignal = '';
+
+    await tester.binding.setSurfaceSize(const Size(1600, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            return ClientAppPage(
+              clientId: 'CLIENT-001',
+              siteId: 'SITE-SANDTON',
+              viewerRole: ClientAppViewerRole.control,
+              laneVoiceProfileLabel: laneVoiceLabel,
+              laneVoiceProfileSignal: laneVoiceSignal,
+              learnedApprovalStyleCount: 1,
+              learnedApprovalStyleExample:
+                  'Control is checking the latest position now and will share the next confirmed step shortly.',
+              onSetLaneVoiceProfile: (profileSignal) async {
+                setState(() {
+                  laneVoiceSignal = profileSignal ?? '';
+                  laneVoiceLabel = switch (laneVoiceSignal) {
+                    'concise-updates' => 'Concise',
+                    'reassurance-forward' => 'Reassuring',
+                    'validation-heavy' => 'Validation-heavy',
+                    _ => 'Auto',
+                  };
+                });
+              },
+              events: [
+                DecisionCreated(
+                  eventId: 'dispatch-voice-1',
+                  sequence: 1,
+                  version: 1,
+                  occurredAt: DateTime.utc(2026, 3, 4, 10, 20),
+                  dispatchId: 'DISP-VOICE-1',
+                  clientId: 'CLIENT-001',
+                  regionId: 'REGION-GAUTENG',
+                  siteId: 'SITE-SANDTON',
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final validationHeavyChip = find.widgetWithText(
+      ChoiceChip,
+      'Validation-heavy',
+    );
+    await tester.ensureVisible(validationHeavyChip);
+    await tester.tap(validationHeavyChip);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Lane voice: Validation-heavy'), findsOneWidget);
+    expect(
+      find.widgetWithText(
+        TextButton,
+        'Review dispatch draft for Resident Feed • Validation-heavy',
+      ),
+      findsOneWidget,
+    );
+
+    final reviewButton = find.widgetWithText(
+      TextButton,
+      'Review dispatch draft for Resident Feed • Validation-heavy',
+    );
+    await tester.ensureVisible(reviewButton);
+    await tester.tap(reviewButton);
+    await tester.pump();
+
+    expect(
+      find.text('Dispatch draft is open for Resident Feed • Validation-heavy'),
+      findsOneWidget,
+    );
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller?.text,
+      'Control is checking the dispatch response for Resident Feed now and will share the next verified position update.',
+    );
+    expect(find.text('Uses learned approval style'), findsOneWidget);
+    expect(
+      find.textContaining('This prefill is leaning on approved lane wording'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'Latest learned pattern: "Control is checking the latest position now and will share the next confirmed step shortly."',
+      ),
+      findsOneWidget,
+    );
+    await tester.pump(const Duration(milliseconds: 950));
   });
 
   testWidgets('room selection filters to pending items for that audience', (
@@ -1176,8 +1379,8 @@ void main() {
     final occurredAt = DateTime.utc(2026, 3, 4, 10, 20);
     final messageKey =
         'system:${occurredAt.millisecondsSinceEpoch}:'
-        'Dispatch created:'
-        'Response team activated for SITE-SANDTON.';
+        'Security response activated:'
+        'A response team is moving to Sandton now.';
 
     await tester.pumpWidget(
       MaterialApp(
@@ -1212,8 +1415,16 @@ void main() {
     expect(find.text('Room Focus: Security Desk'), findsOneWidget);
     expect(find.text('Showing pending: Security Desk'), findsOneWidget);
     expect(find.text('Show all'), findsOneWidget);
-    expect(find.text('No client notifications yet.'), findsOneWidget);
-    expect(find.text('No direct chat messages yet.'), findsOneWidget);
+    expect(
+      find.text(
+        'Client notifications will appear here when this lane updates.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Direct chat will appear here once this lane starts talking.'),
+      findsOneWidget,
+    );
 
     await tester.tap(find.text('Show all'));
     await tester.pump();
@@ -1224,7 +1435,7 @@ void main() {
     );
     expect(find.text('Target (current lane): Security Desk'), findsWidgets);
     expect(find.text('Show pending'), findsOneWidget);
-    expect(find.text('Dispatch created'), findsWidgets);
+    expect(find.text('Security response activated'), findsWidgets);
     expect(find.text('ONYX • 10:20 UTC'), findsOneWidget);
 
     await tester.tap(find.text('Residents').first);
@@ -1233,7 +1444,7 @@ void main() {
     expect(find.text('Room Focus: Residents'), findsOneWidget);
     expect(find.text('Showing pending: Residents'), findsOneWidget);
     expect(find.text('Show all'), findsOneWidget);
-    expect(find.text('Dispatch created'), findsWidgets);
+    expect(find.text('Security response activated'), findsWidgets);
     expect(find.text('ONYX • 10:20 UTC'), findsOneWidget);
     expect(find.textContaining('Control Ack by Control at'), findsNWidgets(2));
   });
@@ -1288,7 +1499,7 @@ void main() {
     expect(find.text('Incident Detail'), findsOneWidget);
     expect(find.text('2 events'), findsWidgets);
     expect(find.text('Responder on site'), findsWidgets);
-    expect(find.text('Dispatch opened for SITE-SANDTON'), findsWidgets);
+    expect(find.text('Security response activated'), findsWidgets);
 
     await tester.tap(find.widgetWithText(TextButton, 'Close'));
     await tester.pumpAndSettle();
@@ -1332,7 +1543,7 @@ void main() {
       find.widgetWithText(TextButton, 'Active Thread • DISP-001'),
       findsOneWidget,
     );
-    expect(find.widgetWithText(TextButton, 'No Thread Selected'), findsNothing);
+    expect(find.widgetWithText(TextButton, 'Choose a Thread'), findsNothing);
     expect(find.text('Logged 10:20 UTC'), findsOneWidget);
     expect(find.text('Control Incident Thread'), findsOneWidget);
     expect(find.text('Collapse Thread'), findsOneWidget);
@@ -1357,12 +1568,12 @@ void main() {
     expect(richDetailLine('Latest Milestone: Dispatched'), findsOneWidget);
     expect(richDetailLine('Logged: 10:20 UTC'), findsOneWidget);
     expect(
-      richDetailLine('Operational Summary: Dispatch opened for SITE-SANDTON'),
+      richDetailLine('Operational Summary: Security response activated'),
       findsOneWidget,
     );
     expect(
       richDetailLine(
-        'Operational Detail: Response team activated and client updates started.',
+        'Operational Detail: A response team is moving to Sandton now.',
       ),
       findsOneWidget,
     );
@@ -1470,10 +1681,88 @@ void main() {
 
     expect(find.text('Push Sync History'), findsOneWidget);
     expect(
-      find.textContaining('10:30 UTC • failed • queue:2 • timeout'),
+      find.textContaining('10:30 UTC • needs review • queue:2 • timeout'),
       findsOneWidget,
     );
-    expect(find.textContaining('10:31 UTC • ok • queue:0'), findsOneWidget);
+    expect(find.textContaining('10:31 UTC • synced • queue:0'), findsOneWidget);
+  });
+
+  testWidgets('push sync strip renders telegram health when provided', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1600, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ClientAppPage(
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          events: const [],
+          telegramHealthLabel: 'blocked',
+          telegramHealthDetail:
+              'Telegram bridge failed for 1/1 message(s). Reasons: BLOCKED_BY_TEST_STUB',
+          telegramFallbackActive: true,
+          pushSyncStatusLabel: 'failed',
+          pushSyncFailureReason: 'Push sync needs operator review.',
+        ),
+      ),
+    );
+
+    expect(find.text('Telegram: BLOCKED'), findsOneWidget);
+    expect(find.text('Telegram fallback is active.'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Telegram could not deliver 1/1 client update. Bridge reported: BLOCKED_BY_TEST_STUB.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Push Sync: needs review'), findsOneWidget);
+  });
+
+  testWidgets('push sync strip humanizes provider outcomes when provided', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1600, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ClientAppPage(
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          events: const [],
+          pushSyncStatusLabel: 'degraded',
+          pushSyncFailureReason:
+              'voip:asterisk staged call for Waterfall command desk.',
+          pushSyncHistory: [
+            ClientPushSyncAttempt(
+              occurredAt: DateTime.utc(2026, 3, 5, 10, 30),
+              status: 'sms-fallback-ok',
+              failureReason:
+                  'sms:bulksms sent 2/2 after telegram blocked.',
+              queueSize: 2,
+            ),
+          ],
+        ),
+      ),
+    );
+
+    expect(find.text('Push Sync: delivery under watch'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Failure: Asterisk staged a call for Waterfall command desk.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('10:30 UTC • sms fallback sent • queue:2'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('BulkSMS reached 2/2 contacts'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('backend probe button triggers callback when provided', (
@@ -1575,7 +1864,7 @@ void main() {
         const ValueKey('incident-feed-open-first-action'),
       );
       expect(openFirstAction, findsOneWidget);
-      expect(find.text('No Incident Selected'), findsOneWidget);
+      expect(find.text('Choose an Incident'), findsOneWidget);
 
       await tester.tap(openFirstAction);
       await tester.pumpAndSettle();

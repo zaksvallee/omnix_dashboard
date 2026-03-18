@@ -16,6 +16,31 @@ cp config/onyx.local.example.json config/onyx.local.json
 flutter run -d chrome --dart-define-from-file=config/onyx.local.json
 ```
 
+### Live Telegram quick-action smoke
+
+```bash
+./scripts/run_onyx_chrome_local.sh --log-file tmp/telegram_quick_action_live.log -- --web-port 63123
+python3 scripts/watch_onyx_quick_actions.py --log-file tmp/telegram_quick_action_live.log
+```
+
+Or use the one-command wrapper:
+
+```bash
+./scripts/telegram_quick_action_live_smoke.sh
+```
+
+Optional raw Telegram queue watcher:
+
+```bash
+python3 scripts/watch_telegram_updates.py --config config/onyx.local.json
+```
+
+Note:
+- run the raw Telegram watcher only when you specifically need queue visibility; it can conflict with ONYX's live poller and produce `HTTP 409: Conflict`
+
+Runbook:
+- [Telegram quick-action live smoke](/Users/zaks/omnix_dashboard/docs/telegram_quick_action_live_smoke.md)
+
 ### Standard quality gate
 
 ```bash

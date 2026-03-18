@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../application/client_delivery_message_formatter.dart';
 import '../application/morning_sovereign_report_service.dart';
 import '../application/client_messaging_bridge_repository.dart';
 import '../application/monitoring_global_posture_service.dart';
@@ -429,11 +430,16 @@ class TelegramAiPendingDraftView {
   final String audience;
   final String clientId;
   final String siteId;
+  final bool matchesSelectedScope;
   final String chatId;
   final int? messageThreadId;
   final String sourceText;
   final String draftText;
   final String providerLabel;
+  final String clientProfileOverrideSignal;
+  final int learnedRewriteCount;
+  final String learnedRewriteExample;
+  final bool usesLearnedApprovalStyle;
   final DateTime createdAtUtc;
 
   const TelegramAiPendingDraftView({
@@ -441,12 +447,73 @@ class TelegramAiPendingDraftView {
     required this.audience,
     required this.clientId,
     required this.siteId,
+    this.matchesSelectedScope = false,
     required this.chatId,
     this.messageThreadId,
     required this.sourceText,
     required this.draftText,
     required this.providerLabel,
+    this.clientProfileOverrideSignal = '',
+    this.learnedRewriteCount = 0,
+    this.learnedRewriteExample = '',
+    this.usesLearnedApprovalStyle = false,
     required this.createdAtUtc,
+  });
+}
+
+class ClientCommsAuditView {
+  final String clientId;
+  final String siteId;
+  final bool matchesSelectedScope;
+  final int pendingApprovalCount;
+  final int awaitingResponseCount;
+  final int pendingLearnedStyleDraftCount;
+  final int learnedApprovalStyleCount;
+  final String learnedApprovalStyleExample;
+  final String latestClientAskBody;
+  final DateTime? latestClientAskAtUtc;
+  final String latestLaneReplyBody;
+  final DateTime? latestLaneReplyAtUtc;
+  final int queuedPushCount;
+  final String pushSyncStatusLabel;
+  final String? pushSyncFailureReason;
+  final String clientProfileOverrideSignal;
+  final String telegramHealthLabel;
+  final String smsFallbackLabel;
+  final String voiceReadinessLabel;
+  final String? deliveryReadinessDetail;
+  final String? latestSmsFallbackStatus;
+  final DateTime? latestSmsFallbackAtUtc;
+  final String? latestVoipStageStatus;
+  final DateTime? latestVoipStageAtUtc;
+  final List<String> recentDeliveryHistoryLines;
+
+  const ClientCommsAuditView({
+    required this.clientId,
+    required this.siteId,
+    this.matchesSelectedScope = false,
+    this.pendingApprovalCount = 0,
+    this.awaitingResponseCount = 0,
+    this.pendingLearnedStyleDraftCount = 0,
+    this.learnedApprovalStyleCount = 0,
+    this.learnedApprovalStyleExample = '',
+    this.latestClientAskBody = '',
+    this.latestClientAskAtUtc,
+    this.latestLaneReplyBody = '',
+    this.latestLaneReplyAtUtc,
+    this.queuedPushCount = 0,
+    this.pushSyncStatusLabel = 'idle',
+    this.pushSyncFailureReason,
+    this.clientProfileOverrideSignal = '',
+    this.telegramHealthLabel = 'configured',
+    this.smsFallbackLabel = 'SMS standby',
+    this.voiceReadinessLabel = 'VoIP staging',
+    this.deliveryReadinessDetail,
+    this.latestSmsFallbackStatus,
+    this.latestSmsFallbackAtUtc,
+    this.latestVoipStageStatus,
+    this.latestVoipStageAtUtc,
+    this.recentDeliveryHistoryLines = const <String>[],
   });
 }
 
@@ -455,20 +522,25 @@ class AdministrationPage extends StatefulWidget {
   final List<SovereignReport> morningSovereignReportHistory;
   final bool supabaseReady;
   final ValueChanged<String>? onOpenOperationsForIncident;
+  final void Function(String clientId, String siteId)? onOpenOperationsForScope;
   final ValueChanged<String>? onOpenTacticalForIncident;
   final ValueChanged<String>? onOpenEventsForIncident;
   final void Function(List<String> eventIds, String? selectedEventId)?
   onOpenEventsForScope;
   final ValueChanged<String>? onOpenLedgerForIncident;
   final ValueChanged<String>? onOpenDispatchesForIncident;
+  final void Function(String clientId, String siteId)? onOpenDispatchesForScope;
   final ValueChanged<String>? onRunDemoAutopilotForIncident;
   final ValueChanged<String>? onRunFullDemoAutopilotForIncident;
   final VoidCallback? onOpenGovernance;
+  final void Function(String clientId, String siteId)? onOpenGovernanceForScope;
   final void Function(String clientId, String siteId, String partnerLabel)?
   onOpenGovernanceForPartnerScope;
   final VoidCallback? onOpenDispatches;
   final VoidCallback? onOpenClientView;
+  final void Function(String clientId, String siteId)? onOpenClientViewForScope;
   final VoidCallback? onOpenReports;
+  final void Function(String clientId, String siteId)? onOpenReportsForScope;
   final String initialRadioIntentPhrasesJson;
   final String initialDemoRouteCuesJson;
   final Future<void> Function(String rawJson)? onSaveRadioIntentPhrasesJson;
@@ -569,6 +641,7 @@ class AdministrationPage extends StatefulWidget {
   final DateTime? telegramAiLastHandledAtUtc;
   final String? telegramAiLastHandledSummary;
   final List<TelegramAiPendingDraftView> telegramAiPendingDrafts;
+  final List<ClientCommsAuditView> clientCommsAuditViews;
   final String operatorId;
   final Future<void> Function(String operatorId)? onSetOperatorId;
   final Future<String> Function({
@@ -595,7 +668,21 @@ class AdministrationPage extends StatefulWidget {
   onCheckPartnerTelegramEndpoint;
   final Future<void> Function(bool enabled)? onSetTelegramAiAssistantEnabled;
   final Future<void> Function(bool required)? onSetTelegramAiApprovalRequired;
-  final Future<String> Function(int updateId)? onApproveTelegramAiDraft;
+  final Future<void> Function({
+    required String clientId,
+    required String siteId,
+    String? profileSignal,
+  })?
+  onSetTelegramAiClientProfileOverride;
+  final Future<void> Function({
+    required String clientId,
+    required String siteId,
+  })?
+  onClearTelegramAiLearnedStyleForScope;
+  final Future<void> Function(int updateId, String draftText)?
+  onUpdateTelegramAiDraftText;
+  final Future<String> Function(int updateId, {String? approvedText})?
+  onApproveTelegramAiDraft;
   final Future<String> Function(int updateId)? onRejectTelegramAiDraft;
   final Future<String> Function({
     required String clientId,
@@ -612,18 +699,23 @@ class AdministrationPage extends StatefulWidget {
     this.morningSovereignReportHistory = const <SovereignReport>[],
     required this.supabaseReady,
     this.onOpenOperationsForIncident,
+    this.onOpenOperationsForScope,
     this.onOpenTacticalForIncident,
     this.onOpenEventsForIncident,
     this.onOpenEventsForScope,
     this.onOpenLedgerForIncident,
     this.onOpenDispatchesForIncident,
+    this.onOpenDispatchesForScope,
     this.onRunDemoAutopilotForIncident,
     this.onRunFullDemoAutopilotForIncident,
     this.onOpenGovernance,
+    this.onOpenGovernanceForScope,
     this.onOpenGovernanceForPartnerScope,
     this.onOpenDispatches,
     this.onOpenClientView,
+    this.onOpenClientViewForScope,
     this.onOpenReports,
+    this.onOpenReportsForScope,
     this.initialRadioIntentPhrasesJson = '',
     this.initialDemoRouteCuesJson = '',
     this.onSaveRadioIntentPhrasesJson,
@@ -708,6 +800,7 @@ class AdministrationPage extends StatefulWidget {
     this.telegramAiLastHandledAtUtc,
     this.telegramAiLastHandledSummary,
     this.telegramAiPendingDrafts = const <TelegramAiPendingDraftView>[],
+    this.clientCommsAuditViews = const <ClientCommsAuditView>[],
     this.operatorId = 'OPERATOR-01',
     this.onSetOperatorId,
     this.onBindPartnerTelegramEndpoint,
@@ -715,6 +808,9 @@ class AdministrationPage extends StatefulWidget {
     this.onCheckPartnerTelegramEndpoint,
     this.onSetTelegramAiAssistantEnabled,
     this.onSetTelegramAiApprovalRequired,
+    this.onSetTelegramAiClientProfileOverride,
+    this.onClearTelegramAiLearnedStyleForScope,
+    this.onUpdateTelegramAiDraftText,
     this.onApproveTelegramAiDraft,
     this.onRejectTelegramAiDraft,
     this.onRunSiteTelegramChatcheck,
@@ -772,6 +868,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
   String? _partnerRuntimeStatus;
   bool _telegramAiSettingsBusy = false;
   Set<int> _telegramAiDraftActionBusyIds = const <int>{};
+  Set<String> _telegramAiProfileBusyScopeKeys = const <String>{};
+  Set<String> _telegramAiLearnedStyleBusyScopeKeys = const <String>{};
+  Set<int> _telegramAiDraftEditBusyIds = const <int>{};
   VideoFleetWatchActionDrilldown? _activeWatchActionDrilldown;
 
   List<_GuardAdminRow> _guards = const [
@@ -1090,7 +1189,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       'Manage guards, sites, clients, and system configuration',
                   actions: [
                     OutlinedButton.icon(
-                      onPressed: () => _snack('Export started'),
+                      onPressed: null,
                       icon: const Icon(Icons.download_rounded, size: 16),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFF8FD1FF),
@@ -1108,7 +1207,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       ),
                     ),
                     FilledButton.icon(
-                      onPressed: () => _snack('CSV import staged'),
+                      onPressed: null,
                       icon: const Icon(Icons.upload_rounded, size: 16),
                       style: FilledButton.styleFrom(
                         backgroundColor: const Color(0xFF2B5E93),
@@ -2902,7 +3001,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
               onPressed: () async {
                 await Clipboard.setData(ClipboardData(text: runbookText));
                 if (!mounted) return;
-                _snack('Demo runbook copied.');
+                _snack('Demo runbook copied for command review.');
               },
               icon: const Icon(Icons.summarize_rounded, size: 16),
               style: TextButton.styleFrom(
@@ -2926,7 +3025,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     if (incidentRef.trim().isEmpty) return;
                     await Clipboard.setData(ClipboardData(text: incidentRef));
                     if (!mounted) return;
-                    _snack('Incident reference copied: $incidentRef');
+                    _snack(
+                      'Incident reference copied for command review: $incidentRef',
+                    );
                   },
                   icon: const Icon(Icons.content_copy_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
@@ -2985,13 +3086,31 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   ),
                 ),
                 FilledButton.icon(
-                  onPressed: widget.onOpenOperationsForIncident == null
+                  onPressed:
+                      _openOperationsAction(
+                            clientId: _demoStoryClientId ?? '',
+                            siteId: _demoStorySiteId ?? '',
+                            incidentReference: _demoStoryIncidentEventUid ?? '',
+                          ) ==
+                          null
                       ? null
                       : () {
-                          final incidentRef = _demoStoryIncidentEventUid ?? '';
-                          if (incidentRef.trim().isEmpty) return;
-                          widget.onOpenOperationsForIncident!.call(incidentRef);
-                          _snack('Opening Operations with focus: $incidentRef');
+                          final action = _openOperationsAction(
+                            clientId: _demoStoryClientId ?? '',
+                            siteId: _demoStorySiteId ?? '',
+                            incidentReference: _demoStoryIncidentEventUid ?? '',
+                          );
+                          action?.call();
+                          final incidentRef = (_demoStoryIncidentEventUid ?? '')
+                              .trim();
+                          final siteId = (_demoStorySiteId ?? '').trim();
+                          _snack(
+                            incidentRef.isNotEmpty
+                                ? 'Opening Operations with focus: $incidentRef'
+                                : siteId.isNotEmpty
+                                ? 'Opening Operations for scope: $siteId'
+                                : 'Opening Operations',
+                          );
                         },
                   icon: const Icon(Icons.rocket_launch_rounded, size: 16),
                   style: FilledButton.styleFrom(
@@ -3004,13 +3123,31 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   ),
                 ),
                 OutlinedButton.icon(
-                  onPressed: widget.onOpenTacticalForIncident == null
+                  onPressed:
+                      _openTacticalAction(
+                            clientId: _demoStoryClientId ?? '',
+                            siteId: _demoStorySiteId ?? '',
+                            incidentReference: _demoStoryIncidentEventUid ?? '',
+                          ) ==
+                          null
                       ? null
                       : () {
-                          final incidentRef = _demoStoryIncidentEventUid ?? '';
-                          if (incidentRef.trim().isEmpty) return;
-                          widget.onOpenTacticalForIncident!.call(incidentRef);
-                          _snack('Opening Tactical view from: $incidentRef');
+                          final action = _openTacticalAction(
+                            clientId: _demoStoryClientId ?? '',
+                            siteId: _demoStorySiteId ?? '',
+                            incidentReference: _demoStoryIncidentEventUid ?? '',
+                          );
+                          action?.call();
+                          final incidentRef = (_demoStoryIncidentEventUid ?? '')
+                              .trim();
+                          final siteId = (_demoStorySiteId ?? '').trim();
+                          _snack(
+                            incidentRef.isNotEmpty
+                                ? 'Opening Tactical view from: $incidentRef'
+                                : siteId.isNotEmpty
+                                ? 'Opening Tactical for scope: $siteId'
+                                : 'Opening Tactical view',
+                          );
                         },
                   icon: const Icon(Icons.map_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
@@ -3061,11 +3198,24 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   ),
                 ),
                 OutlinedButton.icon(
-                  onPressed: widget.onOpenGovernance == null
+                  onPressed:
+                      _openGovernanceAction(
+                            clientId: _demoStoryClientId ?? '',
+                            siteId: _demoStorySiteId ?? '',
+                          ) ==
+                          null
                       ? null
                       : () {
-                          widget.onOpenGovernance!.call();
-                          _snack('Opening Governance readiness board');
+                          _openGovernanceAction(
+                            clientId: _demoStoryClientId ?? '',
+                            siteId: _demoStorySiteId ?? '',
+                          )?.call();
+                          final siteId = (_demoStorySiteId ?? '').trim();
+                          _snack(
+                            siteId.isNotEmpty
+                                ? 'Opening Governance for scope: $siteId'
+                                : 'Opening Governance readiness board',
+                          );
                         },
                   icon: const Icon(Icons.fact_check_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
@@ -3079,23 +3229,30 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 ),
                 OutlinedButton.icon(
                   onPressed:
-                      widget.onOpenDispatchesForIncident == null &&
-                          widget.onOpenDispatches == null
+                      _openDispatchesAction(
+                            clientId: _demoStoryClientId ?? '',
+                            siteId: _demoStorySiteId ?? '',
+                            incidentReference: _demoStoryIncidentEventUid ?? '',
+                          ) ==
+                          null
                       ? null
                       : () {
-                          final incidentRef = _demoStoryIncidentEventUid ?? '';
-                          if (incidentRef.trim().isNotEmpty &&
-                              widget.onOpenDispatchesForIncident != null) {
-                            widget.onOpenDispatchesForIncident!.call(
-                              incidentRef,
-                            );
-                            _snack(
-                              'Opening Dispatches with focus: $incidentRef',
-                            );
-                            return;
-                          }
-                          widget.onOpenDispatches?.call();
-                          _snack('Opening Dispatches');
+                          final action = _openDispatchesAction(
+                            clientId: _demoStoryClientId ?? '',
+                            siteId: _demoStorySiteId ?? '',
+                            incidentReference: _demoStoryIncidentEventUid ?? '',
+                          );
+                          action?.call();
+                          final incidentRef = (_demoStoryIncidentEventUid ?? '')
+                              .trim();
+                          final siteId = (_demoStorySiteId ?? '').trim();
+                          _snack(
+                            incidentRef.isNotEmpty
+                                ? 'Opening Dispatches with focus: $incidentRef'
+                                : siteId.isNotEmpty
+                                ? 'Opening Dispatches for scope: $siteId'
+                                : 'Opening Dispatches',
+                          );
                         },
                   icon: const Icon(Icons.hub_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
@@ -3108,11 +3265,24 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   ),
                 ),
                 OutlinedButton.icon(
-                  onPressed: widget.onOpenClientView == null
+                  onPressed:
+                      _openClientLaneAction(
+                            clientId: _demoStoryClientId ?? '',
+                            siteId: _demoStorySiteId ?? '',
+                          ) ==
+                          null
                       ? null
                       : () {
-                          widget.onOpenClientView!.call();
-                          _snack('Opening Client view');
+                          _openClientLaneAction(
+                            clientId: _demoStoryClientId ?? '',
+                            siteId: _demoStorySiteId ?? '',
+                          )?.call();
+                          final siteId = (_demoStorySiteId ?? '').trim();
+                          _snack(
+                            siteId.isNotEmpty
+                                ? 'Opening Client lane for scope: $siteId'
+                                : 'Opening Client view',
+                          );
                         },
                   icon: const Icon(Icons.person_outline_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
@@ -3125,11 +3295,24 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   ),
                 ),
                 OutlinedButton.icon(
-                  onPressed: widget.onOpenReports == null
+                  onPressed:
+                      _openReportsAction(
+                            clientId: _demoStoryClientId ?? '',
+                            siteId: _demoStorySiteId ?? '',
+                          ) ==
+                          null
                       ? null
                       : () {
-                          widget.onOpenReports!.call();
-                          _snack('Opening Reports');
+                          _openReportsAction(
+                            clientId: _demoStoryClientId ?? '',
+                            siteId: _demoStorySiteId ?? '',
+                          )?.call();
+                          final siteId = (_demoStorySiteId ?? '').trim();
+                          _snack(
+                            siteId.isNotEmpty
+                                ? 'Opening Reports for scope: $siteId'
+                                : 'Opening Reports',
+                          );
                         },
                   icon: const Icon(Icons.assessment_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
@@ -4431,11 +4614,20 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       ),
                     ),
                   )
-                else if (widget.onOpenDispatches != null)
+                else if (_openDispatchesAction(
+                      clientId: normalizedClientId,
+                      siteId: normalizedSiteId,
+                      incidentReference: '',
+                    ) !=
+                    null)
                   TextButton(
                     onPressed: () {
                       Navigator.of(dialogContext).pop();
-                      widget.onOpenDispatches!.call();
+                      _openDispatchesAction(
+                        clientId: normalizedClientId,
+                        siteId: normalizedSiteId,
+                        incidentReference: '',
+                      )?.call();
                     },
                     child: Text(
                       'Open Dispatches',
@@ -4746,11 +4938,24 @@ class _AdministrationPageState extends State<AdministrationPage> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              if (widget.onOpenGovernance != null)
+              if (_openGovernanceAction(
+                    clientId: rows.length == 1 ? rows.first.clientId : '',
+                    siteId: rows.length == 1 ? rows.first.siteId : '',
+                  ) !=
+                  null)
                 OutlinedButton.icon(
                   onPressed: () {
-                    widget.onOpenGovernance!.call();
-                    _snack('Opening Governance readiness board');
+                    final action = _openGovernanceAction(
+                      clientId: rows.length == 1 ? rows.first.clientId : '',
+                      siteId: rows.length == 1 ? rows.first.siteId : '',
+                    );
+                    action?.call();
+                    final siteId = rows.length == 1 ? rows.first.siteId : '';
+                    _snack(
+                      siteId.trim().isNotEmpty
+                          ? 'Opening Governance for scope: $siteId'
+                          : 'Opening Governance readiness board',
+                    );
                   },
                   icon: const Icon(Icons.verified_user_rounded, size: 16),
                   style: OutlinedButton.styleFrom(
@@ -4949,9 +5154,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
     final summary = snapshot.totalSites <= 0
         ? 'No cross-site posture signals are active yet.'
         : 'Sites ${snapshot.totalSites} • elevated ${snapshot.elevatedSiteCount} • critical ${snapshot.criticalSiteCount} • intents ${intents.length}'
-            '${leadRegion == null ? '' : ' • region ${leadRegion.regionId} ${leadRegion.heatLevel.name.toUpperCase()}'}'
-            '${leadSite == null ? '' : ' • lead ${leadSite.siteId}'}'
-            '${hazardIntentSummary.isEmpty ? '' : ' • $hazardIntentSummary'}';
+              '${leadRegion == null ? '' : ' • region ${leadRegion.regionId} ${leadRegion.heatLevel.name.toUpperCase()}'}'
+              '${leadSite == null ? '' : ' • lead ${leadSite.siteId}'}'
+              '${hazardIntentSummary.isEmpty ? '' : ' • $hazardIntentSummary'}';
     return Container(
       key: const ValueKey('admin-global-readiness-card'),
       width: double.infinity,
@@ -4998,7 +5203,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
               _partnerScorecardChip(
                 label: 'Sim',
                 value: '${warRoomPlans.length}',
-                color: warRoomPlans.any(
+                color:
+                    warRoomPlans.any(
                       (plan) => plan.actionType == 'POLICY RECOMMENDATION',
                     )
                     ? const Color(0xFF8B5CF6)
@@ -5165,13 +5371,13 @@ class _AdministrationPageState extends State<AdministrationPage> {
   Future<void> _copyPartnerScorecardJson() async {
     final text = _partnerScorecardJson();
     await Clipboard.setData(ClipboardData(text: text));
-    _snack('Partner scorecard JSON copied.');
+    _snack('Partner scorecard JSON copied for command review.');
   }
 
   Future<void> _copyPartnerScorecardCsv() async {
     final text = _partnerScorecardCsv();
     await Clipboard.setData(ClipboardData(text: text));
-    _snack('Partner scorecard CSV copied.');
+    _snack('Partner scorecard CSV copied for command review.');
   }
 
   String _partnerScorecardJson() {
@@ -5331,7 +5537,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 ),
               ),
               FilledButton.icon(
-                onPressed: _radioIntentPhrasesSaving
+                onPressed:
+                    (_radioIntentPhrasesSaving ||
+                        widget.onSaveRadioIntentPhrasesJson == null)
                     ? null
                     : _saveRadioIntentJson,
                 icon: const Icon(Icons.save_rounded, size: 16),
@@ -5345,7 +5553,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 ),
               ),
               OutlinedButton.icon(
-                onPressed: _radioIntentPhrasesSaving
+                onPressed:
+                    (_radioIntentPhrasesSaving ||
+                        widget.onResetRadioIntentPhrasesJson == null)
                     ? null
                     : _resetRadioIntentJson,
                 icon: const Icon(Icons.restart_alt_rounded, size: 16),
@@ -5451,7 +5661,11 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 ),
               ),
               FilledButton.icon(
-                onPressed: _demoRouteCuesSaving ? null : _saveDemoRouteCueJson,
+                onPressed:
+                    (_demoRouteCuesSaving ||
+                        widget.onSaveDemoRouteCuesJson == null)
+                    ? null
+                    : _saveDemoRouteCueJson,
                 icon: const Icon(Icons.save_rounded, size: 16),
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFF2563EB),
@@ -5463,7 +5677,11 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 ),
               ),
               OutlinedButton.icon(
-                onPressed: _demoRouteCuesSaving ? null : _resetDemoRouteCueJson,
+                onPressed:
+                    (_demoRouteCuesSaving ||
+                        widget.onResetDemoRouteCuesJson == null)
+                    ? null
+                    : _resetDemoRouteCueJson,
                 icon: const Icon(Icons.restart_alt_rounded, size: 16),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF9AB1CF),
@@ -5694,6 +5912,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
           _partnerDispatchRuntimePanel(),
           const SizedBox(height: 12),
           _telegramAiAssistantPanel(),
+          const SizedBox(height: 12),
+          _clientCommsAuditPanel(),
           if (_hasVideoIntegrityCertificatePreview()) ...[
             const SizedBox(height: 12),
             _videoIntegrityCertificatePanel(),
@@ -6031,7 +6251,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
   String _telegramAiLastHandledLabel() {
     final at = widget.telegramAiLastHandledAtUtc?.toLocal();
     if (at == null) {
-      return 'No AI message handled yet.';
+      return 'AI handoff is standing by for the next message.';
     }
     final hh = at.hour.toString().padLeft(2, '0');
     final mm = at.minute.toString().padLeft(2, '0');
@@ -6042,10 +6262,320 @@ class _AdministrationPageState extends State<AdministrationPage> {
     return 'Last: $summary • $hh:$mm';
   }
 
-  String _compactSingleLine(String text, {int max = 180}) {
-    final normalized = text.replaceAll(RegExp(r'\s+'), ' ').trim();
-    if (normalized.length <= max) return normalized;
-    return '${normalized.substring(0, max - 3)}...';
+  String _humanizeOpsScopeLabel(String raw, {required String fallback}) {
+    final cleaned = raw
+        .trim()
+        .replaceFirst(RegExp(r'^(CLIENT|SITE|REGION)-'), '')
+        .replaceAll(RegExp(r'[_\-]+'), ' ')
+        .replaceAll(RegExp(r'[^A-Za-z0-9 ]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    if (cleaned.isEmpty) {
+      return fallback;
+    }
+    final stopWords = <String>{'and', 'of', 'the'};
+    return cleaned
+        .split(' ')
+        .where((token) => token.trim().isNotEmpty)
+        .toList(growable: false)
+        .asMap()
+        .entries
+        .map((entry) {
+          final lower = entry.value.toLowerCase();
+          if (entry.key > 0 && stopWords.contains(lower)) {
+            return lower;
+          }
+          return '${lower[0].toUpperCase()}${lower.substring(1)}';
+        })
+        .join(' ');
+  }
+
+  String _telegramAiAudienceLabel(TelegramAiPendingDraftView draft) {
+    switch (draft.audience.trim().toLowerCase()) {
+      case 'admin':
+        return 'Admin Lane';
+      case 'client':
+      default:
+        return 'Client Lane';
+    }
+  }
+
+  Color _telegramAiAudienceAccent(TelegramAiPendingDraftView draft) {
+    switch (draft.audience.trim().toLowerCase()) {
+      case 'admin':
+        return const Color(0xFFF59E0B);
+      case 'client':
+      default:
+        return const Color(0xFF22D3EE);
+    }
+  }
+
+  VoidCallback? _openClientLaneAction({
+    required String clientId,
+    required String siteId,
+  }) {
+    final scopedCallback = widget.onOpenClientViewForScope;
+    if (scopedCallback != null) {
+      return () => scopedCallback(clientId, siteId);
+    }
+    return widget.onOpenClientView;
+  }
+
+  VoidCallback? _openOperationsAction({
+    required String clientId,
+    required String siteId,
+    String incidentReference = '',
+  }) {
+    final normalizedIncidentReference = incidentReference.trim();
+    if (normalizedIncidentReference.isNotEmpty &&
+        widget.onOpenOperationsForIncident != null) {
+      return () =>
+          widget.onOpenOperationsForIncident!(normalizedIncidentReference);
+    }
+    final scopedCallback = widget.onOpenOperationsForScope;
+    if (scopedCallback != null && clientId.trim().isNotEmpty) {
+      return () => scopedCallback(clientId, siteId);
+    }
+    return null;
+  }
+
+  VoidCallback? _openTacticalAction({
+    required String clientId,
+    required String siteId,
+    String incidentReference = '',
+  }) {
+    final normalizedIncidentReference = incidentReference.trim();
+    if (normalizedIncidentReference.isNotEmpty &&
+        widget.onOpenTacticalForIncident != null) {
+      return () =>
+          widget.onOpenTacticalForIncident!(normalizedIncidentReference);
+    }
+    final scopedCallback = widget.onOpenFleetTacticalScope;
+    if (scopedCallback != null && clientId.trim().isNotEmpty) {
+      return () => scopedCallback(clientId, siteId, null);
+    }
+    return null;
+  }
+
+  VoidCallback? _openReportsAction({
+    required String clientId,
+    required String siteId,
+  }) {
+    final scopedCallback = widget.onOpenReportsForScope;
+    if (scopedCallback != null) {
+      return () => scopedCallback(clientId, siteId);
+    }
+    return widget.onOpenReports;
+  }
+
+  VoidCallback? _openDispatchesAction({
+    required String clientId,
+    required String siteId,
+    String incidentReference = '',
+  }) {
+    final normalizedIncidentReference = incidentReference.trim();
+    if (normalizedIncidentReference.isNotEmpty &&
+        widget.onOpenDispatchesForIncident != null) {
+      return () =>
+          widget.onOpenDispatchesForIncident!(normalizedIncidentReference);
+    }
+    final scopedCallback = widget.onOpenDispatchesForScope;
+    if (scopedCallback != null && clientId.trim().isNotEmpty) {
+      return () => scopedCallback(clientId, siteId);
+    }
+    return widget.onOpenDispatches;
+  }
+
+  VoidCallback? _openGovernanceAction({
+    required String clientId,
+    required String siteId,
+  }) {
+    final scopedCallback = widget.onOpenGovernanceForScope;
+    if (scopedCallback != null && clientId.trim().isNotEmpty) {
+      return () => scopedCallback(clientId, siteId);
+    }
+    return widget.onOpenGovernance;
+  }
+
+  String _telegramAiProviderLabel(String raw) {
+    final normalized = raw.trim();
+    if (normalized.isEmpty) {
+      return 'Fallback responder';
+    }
+    if (normalized.startsWith('openai:')) {
+      final model = normalized.substring('openai:'.length).trim();
+      return model.isEmpty ? 'OpenAI' : 'OpenAI • $model';
+    }
+    if (normalized == 'fallback') {
+      return 'Fallback responder';
+    }
+    return normalized.replaceAll(':', ' • ');
+  }
+
+  String _telegramAiAgeLabel(DateTime createdAtUtc) {
+    final now = DateTime.now();
+    final local = createdAtUtc.toLocal();
+    final age = now.difference(local);
+    final hh = local.hour.toString().padLeft(2, '0');
+    final mm = local.minute.toString().padLeft(2, '0');
+    if (age.inMinutes < 1) {
+      return 'just now • $hh:$mm';
+    }
+    if (age.inMinutes < 60) {
+      return '${age.inMinutes}m ago • $hh:$mm';
+    }
+    if (age.inHours < 24) {
+      return '${age.inHours}h ago • $hh:$mm';
+    }
+    return '${age.inDays}d ago • $hh:$mm';
+  }
+
+  String _telegramAiScopeHeadline(TelegramAiPendingDraftView draft) {
+    final siteLabel = _humanizeOpsScopeLabel(
+      draft.siteId,
+      fallback: 'Client Site',
+    );
+    final clientLabel = _humanizeOpsScopeLabel(
+      draft.clientId,
+      fallback: 'Client',
+    );
+    return '$siteLabel • $clientLabel';
+  }
+
+  String _telegramAiScopeSubhead(TelegramAiPendingDraftView draft) {
+    final threadLabel = draft.messageThreadId == null
+        ? 'Direct chat'
+        : 'Topic ${draft.messageThreadId}';
+    return '${_telegramAiProviderLabel(draft.providerLabel)} • $threadLabel • ${_telegramAiAgeLabel(draft.createdAtUtc)}';
+  }
+
+  List<String> _telegramAiToneTags(TelegramAiPendingDraftView draft) {
+    final source = draft.sourceText.trim().toLowerCase();
+    final reply = draft.draftText.trim().toLowerCase();
+    final tags = <String>[];
+    if (source.contains('eta') ||
+        source.contains('arrival') ||
+        source.contains('how long')) {
+      tags.add('ETA request');
+    }
+    if (source.contains('status') ||
+        source.contains('update') ||
+        source.contains('progress')) {
+      tags.add('Status check');
+    }
+    if (source.contains('panic') ||
+        source.contains('fire') ||
+        source.contains('armed') ||
+        source.contains('medical') ||
+        source.contains('intruder')) {
+      tags.add('Sensitive');
+    }
+    if (reply.contains('?')) {
+      tags.add('Needs detail');
+    }
+    if (reply.contains('we are') ||
+        reply.contains('we\'re') ||
+        reply.contains('i will') ||
+        reply.contains('we will')) {
+      tags.add('Reassuring');
+    }
+    if (reply.contains('confirmed') || reply.contains('update')) {
+      tags.add('Confidence-led');
+    }
+    if (tags.isEmpty) {
+      tags.add('Client-ready');
+    }
+    return tags.take(3).toList(growable: false);
+  }
+
+  String _telegramAiReviewCue(TelegramAiPendingDraftView draft) {
+    final source = draft.sourceText.trim().toLowerCase();
+    if (source.contains('eta') || source.contains('arrival')) {
+      return 'Check that timing is not over-promised before sending.';
+    }
+    if (source.contains('panic') ||
+        source.contains('armed') ||
+        source.contains('medical') ||
+        source.contains('fire')) {
+      return 'High-sensitivity message. Keep the tone calm and do not imply resolution unless control confirmed it.';
+    }
+    if (draft.draftText.contains('?')) {
+      return 'The reply asks for one missing detail, which is good when the scope is unclear.';
+    }
+    return 'This draft is shaped for reassurance first, then the next confirmed step.';
+  }
+
+  Widget _telegramAiInfoChip({
+    required String label,
+    required Color accent,
+    IconData? icon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.45)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 12, color: const Color(0xFFEAF4FF)),
+            const SizedBox(width: 5),
+          ],
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF4FF),
+              fontSize: 10.2,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _telegramAiReviewTextBlock({
+    required String label,
+    required String text,
+    required Color borderColor,
+    required Color textColor,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(9),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1621),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: borderColor.withValues(alpha: 0.55)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 9.8,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            text.trim(),
+            style: GoogleFonts.inter(
+              color: textColor,
+              fontSize: 10.8,
+              fontWeight: FontWeight.w600,
+              height: 1.32,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _setTelegramAiAssistantEnabled(bool enabled) async {
@@ -6289,6 +6819,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
     try {
       final message = await widget.onApproveTelegramAiDraft!.call(
         draft.updateId,
+        approvedText: draft.draftText,
       );
       _snack(message.trim().isEmpty ? 'Draft approved.' : message);
     } catch (_) {
@@ -6297,6 +6828,116 @@ class _AdministrationPageState extends State<AdministrationPage> {
       if (mounted) {
         setState(() {
           _telegramAiDraftActionBusyIds = _telegramAiDraftActionBusyIds
+              .where((entry) => entry != draft.updateId)
+              .toSet();
+        });
+      }
+    }
+  }
+
+  Future<void> _editTelegramAiDraft(TelegramAiPendingDraftView draft) async {
+    if (widget.onUpdateTelegramAiDraftText == null ||
+        _telegramAiDraftEditBusyIds.contains(draft.updateId)) {
+      return;
+    }
+    final controller = TextEditingController(text: draft.draftText);
+    final nextText = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF0E1620),
+          title: Text(
+            'Refine ONYX Draft',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF4FF),
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          content: SizedBox(
+            width: 520,
+            child: TextField(
+              controller: controller,
+              minLines: 5,
+              maxLines: 9,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFEAF4FF),
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Shape the final client-facing wording here.',
+                hintStyle: GoogleFonts.inter(
+                  color: const Color(0xFF8EA4C2),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+                filled: true,
+                fillColor: const Color(0xFF111D2A),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF35506F)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF35506F)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF4B6B8F)),
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF9AB1CF),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.of(context).pop(controller.text.trim()),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF2E7D5B),
+                foregroundColor: const Color(0xFFEAF4FF),
+              ),
+              child: Text(
+                'Save Draft',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+    final normalizedText = (nextText ?? '').trim();
+    if (normalizedText.isEmpty || normalizedText == draft.draftText.trim()) {
+      return;
+    }
+    setState(() {
+      _telegramAiDraftEditBusyIds = {
+        ..._telegramAiDraftEditBusyIds,
+        draft.updateId,
+      };
+    });
+    try {
+      await widget.onUpdateTelegramAiDraftText!.call(
+        draft.updateId,
+        normalizedText,
+      );
+      _snack('Draft wording updated for approval.');
+    } catch (_) {
+      _snack('Failed to update AI draft ${draft.updateId}.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _telegramAiDraftEditBusyIds = _telegramAiDraftEditBusyIds
               .where((entry) => entry != draft.updateId)
               .toSet();
         });
@@ -6328,6 +6969,113 @@ class _AdministrationPageState extends State<AdministrationPage> {
           _telegramAiDraftActionBusyIds = _telegramAiDraftActionBusyIds
               .where((entry) => entry != draft.updateId)
               .toSet();
+        });
+      }
+    }
+  }
+
+  String _telegramAiProfileScopeKeyForScope(String clientId, String siteId) {
+    return '${clientId.trim()}|${siteId.trim()}';
+  }
+
+  String _telegramAiProfileScopeKey(TelegramAiPendingDraftView draft) {
+    return _telegramAiProfileScopeKeyForScope(draft.clientId, draft.siteId);
+  }
+
+  String _telegramAiProfileLabel(String signal) {
+    switch (signal.trim().toLowerCase()) {
+      case 'concise-updates':
+        return 'Concise';
+      case 'reassurance-forward':
+        return 'Reassuring';
+      case 'validation-heavy':
+        return 'Validation-heavy';
+      default:
+        return 'Auto';
+    }
+  }
+
+  Future<void> _setTelegramAiClientProfileOverride(
+    TelegramAiPendingDraftView draft,
+    String? profileSignal,
+  ) async {
+    await _setTelegramAiClientProfileOverrideForScope(
+      clientId: draft.clientId,
+      siteId: draft.siteId,
+      profileSignal: profileSignal,
+    );
+  }
+
+  Future<void> _setTelegramAiClientProfileOverrideForScope({
+    required String clientId,
+    required String siteId,
+    String? profileSignal,
+  }) async {
+    if (widget.onSetTelegramAiClientProfileOverride == null) {
+      return;
+    }
+    final scopeKey = _telegramAiProfileScopeKeyForScope(clientId, siteId);
+    if (_telegramAiProfileBusyScopeKeys.contains(scopeKey)) {
+      return;
+    }
+    setState(() {
+      _telegramAiProfileBusyScopeKeys = {
+        ..._telegramAiProfileBusyScopeKeys,
+        scopeKey,
+      };
+    });
+    try {
+      await widget.onSetTelegramAiClientProfileOverride!.call(
+        clientId: clientId,
+        siteId: siteId,
+        profileSignal: profileSignal,
+      );
+      final appliedLabel = _telegramAiProfileLabel(profileSignal ?? '');
+      _snack('Lane voice profile set to $appliedLabel.');
+    } catch (_) {
+      _snack('Failed to update lane voice profile.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _telegramAiProfileBusyScopeKeys = _telegramAiProfileBusyScopeKeys
+              .where((entry) => entry != scopeKey)
+              .toSet();
+        });
+      }
+    }
+  }
+
+  Future<void> _clearTelegramAiLearnedStyle(
+    TelegramAiPendingDraftView draft,
+  ) async {
+    if (widget.onClearTelegramAiLearnedStyleForScope == null) {
+      return;
+    }
+    final scopeKey = _telegramAiProfileScopeKey(draft);
+    if (_telegramAiLearnedStyleBusyScopeKeys.contains(scopeKey)) {
+      return;
+    }
+    setState(() {
+      _telegramAiLearnedStyleBusyScopeKeys = {
+        ..._telegramAiLearnedStyleBusyScopeKeys,
+        scopeKey,
+      };
+    });
+    try {
+      await widget.onClearTelegramAiLearnedStyleForScope!.call(
+        clientId: draft.clientId,
+        siteId: draft.siteId,
+      );
+      _snack('Learned approval style cleared for this lane.');
+    } catch (_) {
+      _snack('Failed to clear learned approval style.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _telegramAiLearnedStyleBusyScopeKeys =
+              _telegramAiLearnedStyleBusyScopeKeys
+                  .where((entry) => entry != scopeKey)
+                  .toSet();
         });
       }
     }
@@ -6462,9 +7210,19 @@ class _AdministrationPageState extends State<AdministrationPage> {
             ],
           ),
           const SizedBox(height: 8),
+          Text(
+            'Client voice goal: calm, premium, and operator-backed. Every approved draft should feel like a capable control room, not a chatbot.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFB7CAE3),
+              fontSize: 10.4,
+              fontWeight: FontWeight.w600,
+              height: 1.32,
+            ),
+          ),
+          const SizedBox(height: 8),
           if (drafts.isEmpty)
             Text(
-              'No pending AI drafts.',
+              'No client drafts are waiting for sign-off right now.',
               style: GoogleFonts.inter(
                 color: const Color(0xFF8EA4C2),
                 fontSize: 11,
@@ -6476,54 +7234,253 @@ class _AdministrationPageState extends State<AdministrationPage> {
               final busy = _telegramAiDraftActionBusyIds.contains(
                 draft.updateId,
               );
+              final profileBusy = _telegramAiProfileBusyScopeKeys.contains(
+                _telegramAiProfileScopeKey(draft),
+              );
+              final learnedStyleBusy = _telegramAiLearnedStyleBusyScopeKeys
+                  .contains(_telegramAiProfileScopeKey(draft));
+              final accent = _telegramAiAudienceAccent(draft);
+              final scopeHeadline = _telegramAiScopeHeadline(draft);
+              final scopeSubhead = _telegramAiScopeSubhead(draft);
+              final toneTags = _telegramAiToneTags(draft);
+              final profileSignal = draft.clientProfileOverrideSignal.trim();
               return Container(
                 width: double.infinity,
                 margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: const Color(0xFF121A24),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0x332B425F)),
+                  border: Border.all(color: accent.withValues(alpha: 0.38)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '#${draft.updateId} • ${draft.clientId}/${draft.siteId} • ${draft.chatId}${draft.messageThreadId == null ? '' : '#${draft.messageThreadId}'}',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFFEAF4FF),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                scopeHeadline,
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFFEAF4FF),
+                                  fontSize: 11.6,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                scopeSubhead,
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF8EA4C2),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _telegramAiInfoChip(
+                          label: _telegramAiAudienceLabel(draft),
+                          accent: accent,
+                          icon: draft.audience.trim().toLowerCase() == 'admin'
+                              ? Icons.admin_panel_settings_rounded
+                              : Icons.chat_bubble_outline_rounded,
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 7,
+                      runSpacing: 7,
+                      children: [
+                        _telegramAiInfoChip(
+                          label: 'Awaiting human sign-off',
+                          accent: const Color(0xFFF59E0B),
+                          icon: Icons.verified_user_rounded,
+                        ),
+                        _telegramAiInfoChip(
+                          label: 'Draft #${draft.updateId}',
+                          accent: const Color(0xFF4B6B8F),
+                        ),
+                        _telegramAiInfoChip(
+                          label: draft.matchesSelectedScope
+                              ? 'Selected lane'
+                              : 'Cross-scope',
+                          accent: draft.matchesSelectedScope
+                              ? const Color(0xFF34D399)
+                              : const Color(0xFF60A5FA),
+                          icon: draft.matchesSelectedScope
+                              ? Icons.place_rounded
+                              : Icons.alt_route_rounded,
+                        ),
+                        for (final tag in toneTags)
+                          _telegramAiInfoChip(label: tag, accent: accent),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 7,
+                      runSpacing: 7,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        _telegramAiInfoChip(
+                          label:
+                              'Lane voice: ${_telegramAiProfileLabel(profileSignal)}',
+                          accent: profileSignal.isEmpty
+                              ? const Color(0xFF4B6B8F)
+                              : const Color(0xFF34D399),
+                          icon: Icons.tune_rounded,
+                        ),
+                        if (profileSignal.isNotEmpty)
+                          _telegramAiInfoChip(
+                            label: 'Voice-adjusted',
+                            accent: const Color(0xFF34D399),
+                            icon: Icons.auto_fix_high_rounded,
+                          ),
+                        if (draft.learnedRewriteCount > 0)
+                          _telegramAiInfoChip(
+                            label:
+                                'Learned from approvals (${draft.learnedRewriteCount})',
+                            accent: const Color(0xFF22D3EE),
+                            icon: Icons.school_rounded,
+                          ),
+                        if (draft.usesLearnedApprovalStyle)
+                          _telegramAiInfoChip(
+                            label: 'Uses learned approval style',
+                            accent: const Color(0xFF67E8F9),
+                            icon: Icons.psychology_alt_rounded,
+                          ),
+                        for (final option in const <(String, String?)>[
+                          ('Auto', null),
+                          ('Concise', 'concise-updates'),
+                          ('Reassuring', 'reassurance-forward'),
+                          ('Validation-heavy', 'validation-heavy'),
+                        ])
+                          OutlinedButton(
+                            onPressed:
+                                (widget.onSetTelegramAiClientProfileOverride ==
+                                        null ||
+                                    profileBusy)
+                                ? null
+                                : () => _setTelegramAiClientProfileOverride(
+                                    draft,
+                                    option.$2,
+                                  ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor:
+                                  (option.$2 ?? '') == profileSignal ||
+                                      (option.$2 == null &&
+                                          profileSignal.isEmpty)
+                                  ? const Color(0xFFEAF4FF)
+                                  : const Color(0xFF9AB1CF),
+                              backgroundColor:
+                                  (option.$2 ?? '') == profileSignal ||
+                                      (option.$2 == null &&
+                                          profileSignal.isEmpty)
+                                  ? const Color(0xFF1B3148)
+                                  : Colors.transparent,
+                              side: BorderSide(
+                                color:
+                                    (option.$2 ?? '') == profileSignal ||
+                                        (option.$2 == null &&
+                                            profileSignal.isEmpty)
+                                    ? const Color(0xFF4B6B8F)
+                                    : const Color(0xFF35506F),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                            ),
+                            child: Text(
+                              option.$1,
+                              style: GoogleFonts.inter(
+                                fontSize: 10.6,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    _telegramAiReviewTextBlock(
+                      label: 'CLIENT ASKED',
+                      text: draft.sourceText.trim(),
+                      borderColor: const Color(0xFF31465F),
+                      textColor: const Color(0xFFD4E4F7),
+                    ),
+                    const SizedBox(height: 7),
+                    _telegramAiReviewTextBlock(
+                      label: 'ONYX WILL SAY',
+                      text: draft.draftText.trim(),
+                      borderColor: accent,
+                      textColor: const Color(0xFFEAF4FF),
+                    ),
+                    const SizedBox(height: 7),
                     Text(
-                      'Provider: ${draft.providerLabel} • ${draft.createdAtUtc.toLocal().toIso8601String()}',
+                      _telegramAiReviewCue(draft),
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF8EA4C2),
-                        fontSize: 10,
+                        color: const Color(0xFFB7CAE3),
+                        fontSize: 10.2,
                         fontWeight: FontWeight.w600,
+                        height: 1.32,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Client: ${_compactSingleLine(draft.sourceText, max: 150)}',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF9AB1CF),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
+                    if (draft.learnedRewriteExample.trim().isNotEmpty) ...[
+                      const SizedBox(height: 7),
+                      _telegramAiReviewTextBlock(
+                        label: 'LEARNED APPROVAL STYLE',
+                        text: draft.learnedRewriteExample.trim(),
+                        borderColor: const Color(0xFF245B72),
+                        textColor: const Color(0xFFD9F7FF),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Draft: ${_compactSingleLine(draft.draftText, max: 150)}',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF67E8F9),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
+                      const SizedBox(height: 7),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: OutlinedButton.icon(
+                          onPressed:
+                              widget.onClearTelegramAiLearnedStyleForScope ==
+                                      null ||
+                                  learnedStyleBusy
+                              ? null
+                              : () => _clearTelegramAiLearnedStyle(draft),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF9EDCF0),
+                            side: const BorderSide(color: Color(0xFF245B72)),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                          ),
+                          icon: const Icon(Icons.refresh_rounded, size: 14),
+                          label: Text(
+                            'Clear Learned Style',
+                            style: GoogleFonts.inter(
+                              fontSize: 10.8,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 6),
+                    ],
+                    if (draft.usesLearnedApprovalStyle) ...[
+                      const SizedBox(height: 7),
+                      Text(
+                        'This draft is already leaning on learned approval wording from this lane.',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFB7CAE3),
+                          fontSize: 10.2,
+                          fontWeight: FontWeight.w600,
+                          height: 1.32,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -6543,7 +7500,33 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           ),
                           icon: const Icon(Icons.check_rounded, size: 14),
                           label: Text(
-                            'Approve',
+                            'Approve + Send',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed:
+                              (widget.onUpdateTelegramAiDraftText == null ||
+                                  busy ||
+                                  _telegramAiDraftEditBusyIds.contains(
+                                    draft.updateId,
+                                  ))
+                              ? null
+                              : () => _editTelegramAiDraft(draft),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFB9D9FF),
+                            side: const BorderSide(color: Color(0xFF35506F)),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                          ),
+                          icon: const Icon(Icons.edit_rounded, size: 14),
+                          label: Text(
+                            'Edit Draft',
                             style: GoogleFonts.inter(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
@@ -6572,8 +7555,505 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             ),
                           ),
                         ),
+                        if (_openClientLaneAction(
+                              clientId: draft.clientId,
+                              siteId: draft.siteId,
+                            ) !=
+                            null)
+                          OutlinedButton.icon(
+                            onPressed: busy
+                                ? null
+                                : _openClientLaneAction(
+                                    clientId: draft.clientId,
+                                    siteId: draft.siteId,
+                                  ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF8FD1FF),
+                              side: const BorderSide(color: Color(0xFF2D5D82)),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                            ),
+                            icon: const Icon(Icons.forum_rounded, size: 14),
+                            label: Text(
+                              'Open This Lane',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
+                  ],
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
+  String _clientCommsAuditHeadline(ClientCommsAuditView view) {
+    final siteName = _siteName(view.siteId);
+    final clientName = _clientName(view.clientId);
+    final resolvedSite = siteName == 'Unassigned'
+        ? _humanizeOpsScopeLabel(view.siteId, fallback: 'Client Site')
+        : siteName;
+    final resolvedClient = clientName == 'Unknown Client'
+        ? _humanizeOpsScopeLabel(view.clientId, fallback: 'Client')
+        : clientName;
+    return '$resolvedSite • $resolvedClient';
+  }
+
+  String _clientCommsAuditSubhead(ClientCommsAuditView view) {
+    final cues = <String>[
+      if (view.clientProfileOverrideSignal.trim().isNotEmpty)
+        'Voice ${_telegramAiProfileLabel(view.clientProfileOverrideSignal)}',
+      _telegramAuditSubheadLabel(view.telegramHealthLabel),
+      _pushAuditSubheadLabel(view.pushSyncStatusLabel),
+      view.smsFallbackLabel,
+      view.voiceReadinessLabel,
+    ];
+    final latestMoment =
+        view.latestVoipStageAtUtc ?? view.latestSmsFallbackAtUtc;
+    if (latestMoment != null) {
+      cues.add(_telegramAiAgeLabel(latestMoment));
+    }
+    return cues.join(' • ');
+  }
+
+  String _telegramAuditSubheadLabel(String raw) {
+    final normalized = raw.trim().toLowerCase();
+    return switch (normalized) {
+      'blocked' => 'Telegram blocked',
+      'degraded' => 'Telegram under watch',
+      'ok' || 'configured' => 'Telegram ok',
+      'disabled' => 'Telegram offline',
+      _ => 'Telegram ${raw.trim()}',
+    };
+  }
+
+  String _pushAuditSubheadLabel(String raw) {
+    final normalized = raw.trim().toLowerCase();
+    return switch (normalized) {
+      'failed' => 'Push needs review',
+      'degraded' => 'Push delivery under watch',
+      'syncing' => 'Push sync in flight',
+      'idle' => 'Push standing by',
+      'ok' || 'synced' => 'Push synced',
+      _ => 'Push ${raw.trim()}',
+    };
+  }
+
+  Color _clientCommsAuditAccent(ClientCommsAuditView view) {
+    if ((view.latestSmsFallbackStatus ?? '').trim().isNotEmpty) {
+      return const Color(0xFF34D399);
+    }
+    if ((view.latestVoipStageStatus ?? '').trim().isNotEmpty) {
+      return const Color(0xFF60A5FA);
+    }
+    if (view.pendingApprovalCount > 0) {
+      return const Color(0xFFF59E0B);
+    }
+    return const Color(0xFF22D3EE);
+  }
+
+  Widget _clientCommsAuditPanel() {
+    final audits = widget.clientCommsAuditViews;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C1117),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: const Color(0x332B425F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.history_edu_rounded,
+                size: 16,
+                color: Color(0xFF67E8F9),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Client Comms Audit',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFEAF4FF),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Latest push sync pressure, SMS fallback, and VoIP handoff results across active client lanes, so control can verify what ONYX actually tried.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFB7CAE3),
+              fontSize: 10.4,
+              fontWeight: FontWeight.w600,
+              height: 1.32,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (audits.isEmpty)
+            Text(
+              'Client comms delivery and handoff history will appear here as soon as ONYX stages, queues, or sends one.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            )
+          else
+            ...audits.take(5).map((audit) {
+              final accent = _clientCommsAuditAccent(audit);
+              final profileSignal = audit.clientProfileOverrideSignal.trim();
+              final profileBusy = _telegramAiProfileBusyScopeKeys.contains(
+                _telegramAiProfileScopeKeyForScope(
+                  audit.clientId,
+                  audit.siteId,
+                ),
+              );
+              return Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF121A24),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: accent.withValues(alpha: 0.38)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _clientCommsAuditHeadline(audit),
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFFEAF4FF),
+                                  fontSize: 11.6,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                _clientCommsAuditSubhead(audit),
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF8EA4C2),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _telegramAiInfoChip(
+                          label: audit.matchesSelectedScope
+                              ? 'Selected lane'
+                              : 'Cross-scope',
+                          accent: accent,
+                          icon: audit.matchesSelectedScope
+                              ? Icons.center_focus_strong_rounded
+                              : Icons.layers_rounded,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 7,
+                      runSpacing: 7,
+                      children: [
+                        _telegramAiInfoChip(
+                          label:
+                              'Lane voice: ${_telegramAiProfileLabel(profileSignal)}',
+                          accent: profileSignal.isEmpty
+                              ? const Color(0xFF4B6B8F)
+                              : const Color(0xFF34D399),
+                          icon: Icons.tune_rounded,
+                        ),
+                        _telegramAiInfoChip(
+                          label: audit.pendingApprovalCount > 0
+                              ? '${audit.pendingApprovalCount} pending draft${audit.pendingApprovalCount == 1 ? '' : 's'}'
+                              : 'No pending draft',
+                          accent: audit.pendingApprovalCount > 0
+                              ? const Color(0xFFF59E0B)
+                              : const Color(0xFF34D399),
+                          icon: Icons.verified_user_rounded,
+                        ),
+                        _telegramAiInfoChip(
+                          label: audit.awaitingResponseCount > 0
+                              ? '${audit.awaitingResponseCount} live ask${audit.awaitingResponseCount == 1 ? '' : 's'}'
+                              : 'No live ask',
+                          accent: audit.awaitingResponseCount > 0
+                              ? const Color(0xFF22D3EE)
+                              : const Color(0xFF4B6B8F),
+                          icon: Icons.mark_chat_unread_rounded,
+                        ),
+                        _telegramAiInfoChip(
+                          label:
+                              'Telegram ${audit.telegramHealthLabel.toUpperCase()}',
+                          accent: const Color(0xFF22D3EE),
+                          icon: Icons.telegram_rounded,
+                        ),
+                        _telegramAiInfoChip(
+                          label:
+                              'Push ${audit.pushSyncStatusLabel.toUpperCase()}',
+                          accent:
+                              audit.pushSyncStatusLabel.trim().toLowerCase() ==
+                                  'failed'
+                              ? const Color(0xFFF59E0B)
+                              : const Color(0xFF4B6B8F),
+                          icon: Icons.outbox_rounded,
+                        ),
+                        if (audit.queuedPushCount > 0)
+                          _telegramAiInfoChip(
+                            label: audit.queuedPushCount == 1
+                                ? '1 push item queued'
+                                : '${audit.queuedPushCount} push items queued',
+                            accent: const Color(0xFFF59E0B),
+                            icon: Icons.queue_rounded,
+                          ),
+                        if (profileSignal.isNotEmpty)
+                          _telegramAiInfoChip(
+                            label: 'Voice-adjusted',
+                            accent: const Color(0xFF34D399),
+                            icon: Icons.auto_fix_high_rounded,
+                          ),
+                        if (audit.learnedApprovalStyleCount > 0)
+                          _telegramAiInfoChip(
+                            label:
+                                'Learned style (${audit.learnedApprovalStyleCount})',
+                            accent: const Color(0xFF22D3EE),
+                            icon: Icons.school_rounded,
+                          ),
+                        if (audit.pendingLearnedStyleDraftCount > 0)
+                          _telegramAiInfoChip(
+                            label: audit.pendingLearnedStyleDraftCount == 1
+                                ? 'ONYX using learned style'
+                                : 'ONYX using learned style on ${audit.pendingLearnedStyleDraftCount} drafts',
+                            accent: const Color(0xFF67E8F9),
+                            icon: Icons.psychology_alt_rounded,
+                          ),
+                        for (final option in const <(String, String?)>[
+                          ('Auto', null),
+                          ('Concise', 'concise-updates'),
+                          ('Reassuring', 'reassurance-forward'),
+                          ('Validation-heavy', 'validation-heavy'),
+                        ])
+                          OutlinedButton(
+                            onPressed:
+                                (widget.onSetTelegramAiClientProfileOverride ==
+                                        null ||
+                                    profileBusy)
+                                ? null
+                                : () =>
+                                      _setTelegramAiClientProfileOverrideForScope(
+                                        clientId: audit.clientId,
+                                        siteId: audit.siteId,
+                                        profileSignal: option.$2,
+                                      ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor:
+                                  (option.$2 ?? '') == profileSignal ||
+                                      (option.$2 == null &&
+                                          profileSignal.isEmpty)
+                                  ? const Color(0xFFEAF4FF)
+                                  : const Color(0xFF9AB1CF),
+                              backgroundColor:
+                                  (option.$2 ?? '') == profileSignal ||
+                                      (option.$2 == null &&
+                                          profileSignal.isEmpty)
+                                  ? const Color(0xFF1B3148)
+                                  : Colors.transparent,
+                              side: BorderSide(
+                                color:
+                                    (option.$2 ?? '') == profileSignal ||
+                                        (option.$2 == null &&
+                                            profileSignal.isEmpty)
+                                    ? const Color(0xFF4B6B8F)
+                                    : const Color(0xFF35506F),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                            ),
+                            child: Text(
+                              option.$1,
+                              style: GoogleFonts.inter(
+                                fontSize: 10.6,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    if ((audit.latestSmsFallbackStatus ?? '')
+                        .trim()
+                        .isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      _telegramAiReviewTextBlock(
+                        label: 'LATEST SMS FALLBACK',
+                        text:
+                            ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(
+                              audit.latestSmsFallbackStatus!.trim(),
+                            ),
+                        borderColor: const Color(0xFF2E7D68),
+                        textColor: const Color(0xFFDDFBF3),
+                      ),
+                    ],
+                    if ((audit.latestVoipStageStatus ?? '')
+                        .trim()
+                        .isNotEmpty) ...[
+                      const SizedBox(height: 7),
+                      _telegramAiReviewTextBlock(
+                        label: 'LATEST VOIP STAGE',
+                        text:
+                            ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(
+                              audit.latestVoipStageStatus!.trim(),
+                            ),
+                        borderColor: const Color(0xFF3E6AA6),
+                        textColor: const Color(0xFFDCEBFF),
+                      ),
+                    ],
+                    if ((audit.pushSyncFailureReason ?? '').trim().isNotEmpty) ...[
+                      const SizedBox(height: 7),
+                      _telegramAiReviewTextBlock(
+                        label: 'LATEST PUSH DETAIL',
+                        text:
+                            ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(
+                              audit.pushSyncFailureReason!.trim(),
+                            ),
+                        borderColor: const Color(0xFF8F4B4B),
+                        textColor: const Color(0xFFFFE1E1),
+                      ),
+                    ],
+                    if (audit.recentDeliveryHistoryLines.isNotEmpty) ...[
+                      const SizedBox(height: 7),
+                      _telegramAiReviewTextBlock(
+                        label: 'RECENT DELIVERY HISTORY',
+                        text: audit.recentDeliveryHistoryLines.join('\n'),
+                        borderColor: const Color(0xFF35506F),
+                        textColor: const Color(0xFFDCE8FF),
+                      ),
+                    ],
+                    if (audit.latestClientAskBody.trim().isNotEmpty) ...[
+                      const SizedBox(height: 7),
+                      _telegramAiReviewTextBlock(
+                        label: 'LATEST CLIENT ASK',
+                        text: audit.latestClientAskBody.trim(),
+                        borderColor: const Color(0xFF2D5D82),
+                        textColor: const Color(0xFFD8ECFF),
+                      ),
+                      if (audit.latestClientAskAtUtc != null) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          'Still awaiting reply shaping • ${_telegramAiAgeLabel(audit.latestClientAskAtUtc!)}',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFB7CAE3),
+                            fontSize: 10.2,
+                            fontWeight: FontWeight.w600,
+                            height: 1.32,
+                          ),
+                        ),
+                      ],
+                    ],
+                    if (audit.latestLaneReplyBody.trim().isNotEmpty) ...[
+                      const SizedBox(height: 7),
+                      _telegramAiReviewTextBlock(
+                        label: 'LATEST LANE REPLY',
+                        text: audit.latestLaneReplyBody.trim(),
+                        borderColor: const Color(0xFF345A8F),
+                        textColor: const Color(0xFFDCE8FF),
+                      ),
+                      if (audit.latestLaneReplyAtUtc != null) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          'Latest lane response logged • ${_telegramAiAgeLabel(audit.latestLaneReplyAtUtc!)}',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFB7CAE3),
+                            fontSize: 10.2,
+                            fontWeight: FontWeight.w600,
+                            height: 1.32,
+                          ),
+                        ),
+                      ],
+                    ],
+                    if (audit.learnedApprovalStyleExample
+                        .trim()
+                        .isNotEmpty) ...[
+                      const SizedBox(height: 7),
+                      _telegramAiReviewTextBlock(
+                        label: 'LEARNED APPROVAL STYLE',
+                        text: audit.learnedApprovalStyleExample.trim(),
+                        borderColor: const Color(0xFF245B72),
+                        textColor: const Color(0xFFD9F7FF),
+                      ),
+                    ],
+                    if ((audit.deliveryReadinessDetail ?? '')
+                        .trim()
+                        .isNotEmpty) ...[
+                      const SizedBox(height: 7),
+                      Text(
+                        audit.deliveryReadinessDetail!.trim(),
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFB7CAE3),
+                          fontSize: 10.2,
+                          fontWeight: FontWeight.w600,
+                          height: 1.32,
+                        ),
+                      ),
+                    ],
+                    if (_openClientLaneAction(
+                          clientId: audit.clientId,
+                          siteId: audit.siteId,
+                        ) !=
+                        null) ...[
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: OutlinedButton.icon(
+                          onPressed: _openClientLaneAction(
+                            clientId: audit.clientId,
+                            siteId: audit.siteId,
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF8FD1FF),
+                            side: BorderSide(
+                              color: accent.withValues(alpha: 0.48),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                          ),
+                          icon: const Icon(Icons.forum_rounded, size: 14),
+                          label: Text(
+                            'Open This Lane',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               );
@@ -8473,8 +9953,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
           if (_telegramIdentityIntakes.isEmpty)
             Text(
               widget.supabaseReady
-                  ? 'No pending Telegram visitor proposals.'
-                  : 'Supabase offline. Pending Telegram visitor proposals are unavailable in this session.',
+                  ? 'Telegram visitor proposals are clear right now.'
+                  : 'Supabase is offline, so Telegram visitor proposals are not available in this session.',
               style: GoogleFonts.inter(
                 color: const Color(0xFFD9E7FA),
                 fontSize: 10,
@@ -9571,6 +11051,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
             demoMode: _demoMode,
             onOpenTacticalForIncident: widget.onOpenTacticalForIncident,
             onOpenOperationsForIncident: widget.onOpenOperationsForIncident,
+            onOpenFleetTacticalScope: widget.onOpenFleetTacticalScope,
+            onOpenOperationsForScope: widget.onOpenOperationsForScope,
           ),
         );
         if (draft == null) return;
@@ -9588,6 +11070,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
             demoMode: _demoMode,
             onOpenTacticalForIncident: widget.onOpenTacticalForIncident,
             onOpenOperationsForIncident: widget.onOpenOperationsForIncident,
+            onOpenFleetTacticalScope: widget.onOpenFleetTacticalScope,
+            onOpenOperationsForScope: widget.onOpenOperationsForScope,
           ),
         );
         if (draft == null) return;
@@ -9606,6 +11090,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
             demoMode: _demoMode,
             onOpenTacticalForIncident: widget.onOpenTacticalForIncident,
             onOpenOperationsForIncident: widget.onOpenOperationsForIncident,
+            onOpenFleetTacticalScope: widget.onOpenFleetTacticalScope,
+            onOpenOperationsForScope: widget.onOpenOperationsForScope,
           ),
         );
         if (draft == null) return;
@@ -10051,33 +11537,37 @@ class _AdministrationPageState extends State<AdministrationPage> {
             foregroundColor: const Color(0xFFBFD7F2),
             borderColor: const Color(0xFF35506F),
           ),
-        if (seededIncidentRef != null &&
-            seededIncidentRef.trim().isNotEmpty &&
-            widget.onOpenDispatchesForIncident != null)
+        if (_openDispatchesAction(
+              clientId: clientId,
+              siteId: siteId,
+              incidentReference: seededIncidentRef ?? '',
+            ) !=
+            null)
           _SuccessDialogQuickAction(
             icon: Icons.hub_rounded,
             label: 'Open Dispatches',
-            onTap: () =>
-                widget.onOpenDispatchesForIncident!.call(seededIncidentRef),
-            foregroundColor: const Color(0xFF93C5FD),
-            borderColor: const Color(0xFF35506F),
-          )
-        else if (widget.onOpenDispatches != null)
-          _SuccessDialogQuickAction(
-            icon: Icons.hub_rounded,
-            label: 'Open Dispatches',
-            onTap: widget.onOpenDispatches!,
+            onTap: _openDispatchesAction(
+              clientId: clientId,
+              siteId: siteId,
+              incidentReference: seededIncidentRef ?? '',
+            )!,
             foregroundColor: const Color(0xFF93C5FD),
             borderColor: const Color(0xFF35506F),
           ),
-        if (seededIncidentRef != null &&
-            seededIncidentRef.trim().isNotEmpty &&
-            widget.onOpenTacticalForIncident != null)
+        if (_openTacticalAction(
+              clientId: clientId,
+              siteId: siteId,
+              incidentReference: seededIncidentRef ?? '',
+            ) !=
+            null)
           _SuccessDialogQuickAction(
             icon: Icons.map_rounded,
             label: 'Open Tactical',
-            onTap: () =>
-                widget.onOpenTacticalForIncident!.call(seededIncidentRef),
+            onTap: _openTacticalAction(
+              clientId: clientId,
+              siteId: siteId,
+              incidentReference: seededIncidentRef ?? '',
+            )!,
             foregroundColor: const Color(0xFF67E8F9),
             borderColor: const Color(0xFF2B5E93),
           ),
@@ -10103,39 +11593,41 @@ class _AdministrationPageState extends State<AdministrationPage> {
             foregroundColor: const Color(0xFFFDE68A),
             borderColor: const Color(0xFF5B3A16),
           ),
-        if (widget.onOpenGovernance != null)
+        if (_openGovernanceAction(clientId: clientId, siteId: siteId) != null)
           _SuccessDialogQuickAction(
             icon: Icons.fact_check_rounded,
             label: 'Open Governance',
-            onTap: widget.onOpenGovernance!,
+            onTap: _openGovernanceAction(clientId: clientId, siteId: siteId)!,
             foregroundColor: const Color(0xFF86EFAC),
             borderColor: const Color(0xFF2F5949),
           ),
-        if (widget.onOpenClientView != null)
+        if (_openClientLaneAction(clientId: clientId, siteId: siteId) != null)
           _SuccessDialogQuickAction(
             icon: Icons.person_outline_rounded,
             label: 'Open Client View',
-            onTap: widget.onOpenClientView!,
+            onTap: _openClientLaneAction(clientId: clientId, siteId: siteId)!,
             foregroundColor: const Color(0xFFBFD7F2),
             borderColor: const Color(0xFF35506F),
           ),
-        if (widget.onOpenReports != null)
+        if (_openReportsAction(clientId: clientId, siteId: siteId) != null)
           _SuccessDialogQuickAction(
             icon: Icons.assessment_rounded,
             label: 'Open Reports',
-            onTap: widget.onOpenReports!,
+            onTap: _openReportsAction(clientId: clientId, siteId: siteId)!,
             foregroundColor: const Color(0xFFFFDDAA),
             borderColor: const Color(0xFF5B3A16),
           ),
       ];
-      final continueLaunchesOperations =
-          seededIncidentRef != null &&
-          seededIncidentRef.trim().isNotEmpty &&
-          widget.onOpenOperationsForIncident != null;
+      final continueOperationsAction = _openOperationsAction(
+        clientId: clientId,
+        siteId: siteId,
+        incidentReference: seededIncidentRef ?? '',
+      );
+      final continueLaunchesOperations = continueOperationsAction != null;
       if (autoOpenOperations && continueLaunchesOperations) {
-        widget.onOpenOperationsForIncident!.call(seededIncidentRef);
+        continueOperationsAction();
         _snack(
-          'Demo stack ($profileLabel) ready. Opening Operations: $seededIncidentRef',
+          'Demo stack ($profileLabel) ready. Opening Operations: ${seededIncidentRef ?? siteId}',
         );
         return;
       }
@@ -10155,9 +11647,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           if (opsSeed.warnings.isNotEmpty)
             'Ops seed warnings captured in sync status.',
         ],
-        onContinueDemo: continueLaunchesOperations
-            ? () => widget.onOpenOperationsForIncident!.call(seededIncidentRef)
-            : null,
+        onContinueDemo: continueOperationsAction,
         continueLabel: continueLaunchesOperations
             ? 'Continue to Operations'
             : 'Continue Demo',
@@ -10659,6 +12149,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
       if (showFeedback && _demoMode && mounted) {
         final quickActions = _buildDirectoryCreateQuickActions(
           focusReference: draft.clientId.trim(),
+          clientId: draft.clientId,
+          includeTours: false,
           includeClientView: true,
           includeReports: true,
         );
@@ -10852,6 +12344,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
       if (showFeedback && _demoMode && mounted) {
         final quickActions = _buildDirectoryCreateQuickActions(
           focusReference: draft.siteId.trim(),
+          clientId: draft.clientId,
+          siteId: draft.siteId,
+          includeTours: false,
         );
         await _showCreateSuccessDialog(
           title: 'Site Demo Ready',
@@ -10982,6 +12477,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
             : draft.assignedSiteId.trim();
         final quickActions = _buildDirectoryCreateQuickActions(
           focusReference: focusReference,
+          clientId: draft.clientId,
+          siteId: draft.assignedSiteId,
+          includeTours: false,
         );
         await _showCreateSuccessDialog(
           title: 'Employee Demo Ready',
@@ -11410,24 +12908,29 @@ class _AdministrationPageState extends State<AdministrationPage> {
 
   List<_SuccessDialogQuickAction> _buildDirectoryCreateQuickActions({
     required String focusReference,
+    String incidentReference = '',
+    String clientId = '',
+    String siteId = '',
     bool includeClientView = false,
     bool includeReports = false,
     bool includeTours = true,
     int maxActions = 4,
   }) {
-    final ref = focusReference.trim();
+    final incidentRef = incidentReference.trim();
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
     final actions = <_SuccessDialogQuickAction>[];
 
     _SuccessDialogQuickAction? runAutopilotAction() {
       if (!includeTours ||
-          ref.isEmpty ||
+          incidentRef.isEmpty ||
           widget.onRunDemoAutopilotForIncident == null) {
         return null;
       }
       return _SuccessDialogQuickAction(
         icon: Icons.auto_mode_rounded,
         label: 'Run Autopilot',
-        onTap: () => widget.onRunDemoAutopilotForIncident!.call(ref),
+        onTap: () => widget.onRunDemoAutopilotForIncident!.call(incidentRef),
         foregroundColor: const Color(0xFF93C5FD),
         borderColor: const Color(0xFF2B5E93),
       );
@@ -11435,82 +12938,110 @@ class _AdministrationPageState extends State<AdministrationPage> {
 
     _SuccessDialogQuickAction? runFullTourAction() {
       if (!includeTours ||
-          ref.isEmpty ||
+          incidentRef.isEmpty ||
           widget.onRunFullDemoAutopilotForIncident == null) {
         return null;
       }
       return _SuccessDialogQuickAction(
         icon: Icons.route_rounded,
         label: 'Run Full Tour',
-        onTap: () => widget.onRunFullDemoAutopilotForIncident!.call(ref),
+        onTap: () =>
+            widget.onRunFullDemoAutopilotForIncident!.call(incidentRef),
         foregroundColor: const Color(0xFFBFD7F2),
         borderColor: const Color(0xFF35506F),
       );
     }
 
     _SuccessDialogQuickAction? openOperationsAction() {
-      if (ref.isEmpty || widget.onOpenOperationsForIncident == null) {
-        return null;
-      }
+      final action = _openOperationsAction(
+        clientId: normalizedClientId,
+        siteId: normalizedSiteId,
+        incidentReference: incidentRef,
+      );
+      if (action == null) return null;
       return _SuccessDialogQuickAction(
         icon: Icons.space_dashboard_rounded,
         label: 'Open Operations',
-        onTap: () => widget.onOpenOperationsForIncident!.call(ref),
+        onTap: action,
         foregroundColor: const Color(0xFFBFD7F2),
         borderColor: const Color(0xFF35506F),
       );
     }
 
     _SuccessDialogQuickAction? openTacticalAction() {
-      if (ref.isEmpty || widget.onOpenTacticalForIncident == null) return null;
+      final action = _openTacticalAction(
+        clientId: normalizedClientId,
+        siteId: normalizedSiteId,
+        incidentReference: incidentRef,
+      );
+      if (action == null) return null;
       return _SuccessDialogQuickAction(
         icon: Icons.map_rounded,
         label: 'Open Tactical',
-        onTap: () => widget.onOpenTacticalForIncident!.call(ref),
+        onTap: action,
         foregroundColor: const Color(0xFF9FE8FF),
         borderColor: const Color(0xFF2B5E93),
       );
     }
 
     _SuccessDialogQuickAction? openDispatchesAction() {
-      if (ref.isNotEmpty && widget.onOpenDispatchesForIncident != null) {
-        return _SuccessDialogQuickAction(
-          icon: Icons.hub_rounded,
-          label: 'Open Dispatches',
-          onTap: () => widget.onOpenDispatchesForIncident!.call(ref),
-          foregroundColor: const Color(0xFF93C5FD),
-          borderColor: const Color(0xFF35506F),
-        );
-      }
-      if (widget.onOpenDispatches != null) {
-        return _SuccessDialogQuickAction(
-          icon: Icons.hub_rounded,
-          label: 'Open Dispatches',
-          onTap: widget.onOpenDispatches!,
-          foregroundColor: const Color(0xFF93C5FD),
-          borderColor: const Color(0xFF35506F),
-        );
-      }
-      return null;
+      final action = _openDispatchesAction(
+        clientId: normalizedClientId,
+        siteId: normalizedSiteId,
+        incidentReference: incidentRef,
+      );
+      if (action == null) return null;
+      return _SuccessDialogQuickAction(
+        icon: Icons.hub_rounded,
+        label: 'Open Dispatches',
+        onTap: action,
+        foregroundColor: const Color(0xFF93C5FD),
+        borderColor: const Color(0xFF35506F),
+      );
     }
 
     _SuccessDialogQuickAction? openClientViewAction() {
-      if (!includeClientView || widget.onOpenClientView == null) return null;
+      if (!includeClientView) return null;
+      final action = _openClientLaneAction(
+        clientId: normalizedClientId,
+        siteId: normalizedSiteId,
+      );
+      if (action == null) return null;
       return _SuccessDialogQuickAction(
         icon: Icons.person_outline_rounded,
         label: 'Open Client View',
-        onTap: widget.onOpenClientView!,
+        onTap: action,
         foregroundColor: const Color(0xFFBFD7F2),
         borderColor: const Color(0xFF35506F),
       );
     }
 
+    _SuccessDialogQuickAction? openGovernanceAction() {
+      final action = _openGovernanceAction(
+        clientId: normalizedClientId,
+        siteId: normalizedSiteId,
+      );
+      if (action == null) return null;
+      return _SuccessDialogQuickAction(
+        icon: Icons.fact_check_rounded,
+        label: 'Open Governance',
+        onTap: action,
+        foregroundColor: const Color(0xFF86EFAC),
+        borderColor: const Color(0xFF2F5949),
+      );
+    }
+
     _SuccessDialogQuickAction? openReportsAction() {
-      if (!includeReports || widget.onOpenReports == null) return null;
+      if (!includeReports) return null;
+      final action = _openReportsAction(
+        clientId: normalizedClientId,
+        siteId: normalizedSiteId,
+      );
+      if (action == null) return null;
       return _SuccessDialogQuickAction(
         icon: Icons.assessment_rounded,
         label: 'Open Reports',
-        onTap: widget.onOpenReports!,
+        onTap: action,
         foregroundColor: const Color(0xFFFFDDAA),
         borderColor: const Color(0xFF5B3A16),
       );
@@ -11521,6 +13052,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       final prioritizedClient = <_SuccessDialogQuickAction?>[
         runFullTourAction(),
         openClientViewAction(),
+        openGovernanceAction(),
         openOperationsAction(),
         openReportsAction(),
         runAutopilotAction(),
@@ -11772,7 +13304,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               ClipboardData(text: resolvedFocusReference),
                             );
                             if (!mounted) return;
-                            _snack('Focus reference copied.');
+                            _snack(
+                              'Focus reference copied for command review.',
+                            );
                           },
                           icon: const Icon(Icons.copy_rounded, size: 14),
                           style: TextButton.styleFrom(
@@ -11986,7 +13520,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       _radioIntentPhraseValidation = 'Default phrase dictionary restored.';
       _radioIntentPhraseValidationError = false;
     });
-    _snack('Radio intent dictionary reset.');
+    _snack('Radio intent dictionary reset to defaults.');
   }
 
   Future<void> _validateDemoRouteCueJson() async {
@@ -12074,7 +13608,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       _demoRouteCueValidation = 'Default route cues restored.';
       _demoRouteCueValidationError = false;
     });
-    _snack('Demo route cues reset.');
+    _snack('Demo route cues reset to defaults.');
   }
 }
 
@@ -12082,11 +13616,20 @@ class _ClientOnboardingDialog extends StatefulWidget {
   final bool demoMode;
   final ValueChanged<String>? onOpenTacticalForIncident;
   final ValueChanged<String>? onOpenOperationsForIncident;
+  final void Function(
+    String clientId,
+    String siteId,
+    String? incidentReference,
+  )?
+  onOpenFleetTacticalScope;
+  final void Function(String clientId, String siteId)? onOpenOperationsForScope;
 
   const _ClientOnboardingDialog({
     required this.demoMode,
     this.onOpenTacticalForIncident,
     this.onOpenOperationsForIncident,
+    this.onOpenFleetTacticalScope,
+    this.onOpenOperationsForScope,
   });
 
   @override
@@ -12611,12 +14154,28 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog> {
     return '';
   }
 
+  bool get _canOpenClientOperationsPreview {
+    final focusReference = _resolvedClientPreviewReference();
+    return (widget.onOpenOperationsForScope != null &&
+            _clientIdController.text.trim().isNotEmpty) ||
+        (widget.onOpenOperationsForIncident != null &&
+            focusReference.isNotEmpty);
+  }
+
+  bool get _canOpenClientTacticalPreview {
+    final focusReference = _resolvedClientPreviewReference();
+    return (widget.onOpenFleetTacticalScope != null &&
+            _clientIdController.text.trim().isNotEmpty) ||
+        (widget.onOpenTacticalForIncident != null && focusReference.isNotEmpty);
+  }
+
   void _openClientOperationsPreview() {
+    final scopedOperations = widget.onOpenOperationsForScope;
     final openOperations = widget.onOpenOperationsForIncident;
-    if (openOperations == null) {
+    if (scopedOperations == null && openOperations == null) {
       _showOnboardingSnackBar(
         context,
-        'Operations view navigation unavailable.',
+        'Operations routing is not available in this session.',
       );
       return;
     }
@@ -12629,13 +14188,22 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog> {
       return;
     }
     Navigator.of(context).pop();
-    openOperations.call(focusReference);
+    final scopedClientId = _clientIdController.text.trim().toUpperCase();
+    if (scopedOperations != null && scopedClientId.isNotEmpty) {
+      scopedOperations(scopedClientId, '');
+      return;
+    }
+    openOperations?.call(focusReference);
   }
 
   void _openClientTacticalPreview() {
+    final scopedTactical = widget.onOpenFleetTacticalScope;
     final openTactical = widget.onOpenTacticalForIncident;
-    if (openTactical == null) {
-      _showOnboardingSnackBar(context, 'Tactical view navigation unavailable.');
+    if (scopedTactical == null && openTactical == null) {
+      _showOnboardingSnackBar(
+        context,
+        'Tactical routing is not available in this session.',
+      );
       return;
     }
     final focusReference = _resolvedClientPreviewReference();
@@ -12647,7 +14215,12 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog> {
       return;
     }
     Navigator.of(context).pop();
-    openTactical.call(focusReference);
+    final scopedClientId = _clientIdController.text.trim().toUpperCase();
+    if (scopedTactical != null && scopedClientId.isNotEmpty) {
+      scopedTactical(scopedClientId, '', null);
+      return;
+    }
+    openTactical?.call(focusReference);
   }
 
   String get _demoReadyButtonLabel {
@@ -12833,7 +14406,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog> {
                           if (!context.mounted) return;
                           _showOnboardingSnackBar(
                             context,
-                            '$launchMessage Pitch copied.',
+                            '$launchMessage Pitch copied for command review.',
                           );
                         },
                         icon: const Icon(Icons.rocket_launch_rounded, size: 16),
@@ -12954,9 +14527,9 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog> {
                         ),
                       ),
                       OutlinedButton.icon(
-                        onPressed: widget.onOpenOperationsForIncident == null
-                            ? null
-                            : _openClientOperationsPreview,
+                        onPressed: _canOpenClientOperationsPreview
+                            ? _openClientOperationsPreview
+                            : null,
                         icon: const Icon(
                           Icons.space_dashboard_rounded,
                           size: 16,
@@ -12971,9 +14544,9 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog> {
                         ),
                       ),
                       OutlinedButton.icon(
-                        onPressed: widget.onOpenTacticalForIncident == null
-                            ? null
-                            : _openClientTacticalPreview,
+                        onPressed: _canOpenClientTacticalPreview
+                            ? _openClientTacticalPreview
+                            : null,
                         icon: const Icon(Icons.map_rounded, size: 16),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: const Color(0xFF9FE8FF),
@@ -12992,7 +14565,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog> {
                           if (!context.mounted) return;
                           _showOnboardingSnackBar(
                             context,
-                            'Client pitch copied.',
+                            'Client pitch copied for command review.',
                           );
                         },
                         icon: const Icon(Icons.mic_rounded, size: 16),
@@ -13013,7 +14586,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog> {
                           if (!context.mounted) return;
                           _showOnboardingSnackBar(
                             context,
-                            'Client snapshot copied.',
+                            'Client snapshot copied for command review.',
                           );
                         },
                         icon: const Icon(Icons.receipt_long_rounded, size: 16),
@@ -13219,11 +14792,13 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog> {
                             _textField(
                               _clientIdController,
                               'Client ID (e.g. CLIENT-001)',
+                              onChanged: (_) => setState(() {}),
                             ),
                             const SizedBox(height: 8),
                             _textField(
                               _legalNameController,
                               'Legal Entity Name',
+                              onChanged: (_) => setState(() {}),
                             ),
                             const SizedBox(height: 8),
                             _dropdownField(
@@ -13716,7 +15291,7 @@ class _ClientMessagingBridgeDialogState
                 ),
                 subtitle: Text(
                   _filteredSites.isEmpty
-                      ? 'No sites yet. Setup will be saved as client-wide and reused when sites are added.'
+                      ? 'This client has no sites yet. We will save this setup at client level and reuse it when sites are added.'
                       : 'Provision this lane for all ${_filteredSites.length} site(s) in one action.',
                   style: GoogleFonts.inter(
                     color: const Color(0xFF9AB1CF),
@@ -13922,12 +15497,21 @@ class _SiteOnboardingDialog extends StatefulWidget {
   final bool demoMode;
   final ValueChanged<String>? onOpenTacticalForIncident;
   final ValueChanged<String>? onOpenOperationsForIncident;
+  final void Function(
+    String clientId,
+    String siteId,
+    String? incidentReference,
+  )?
+  onOpenFleetTacticalScope;
+  final void Function(String clientId, String siteId)? onOpenOperationsForScope;
 
   const _SiteOnboardingDialog({
     required this.clients,
     required this.demoMode,
     this.onOpenTacticalForIncident,
     this.onOpenOperationsForIncident,
+    this.onOpenFleetTacticalScope,
+    this.onOpenOperationsForScope,
   });
 
   @override
@@ -14750,10 +16334,34 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog> {
     return '';
   }
 
+  bool get _canOpenTacticalPreviewAction {
+    final focusReference = _resolvedPreviewReference();
+    if (focusReference.isEmpty) {
+      return false;
+    }
+    return (widget.onOpenFleetTacticalScope != null &&
+            _clientId.trim().isNotEmpty) ||
+        widget.onOpenTacticalForIncident != null;
+  }
+
+  bool get _canOpenOperationsPreviewAction {
+    final focusReference = _resolvedPreviewReference();
+    if (focusReference.isEmpty) {
+      return false;
+    }
+    return (widget.onOpenOperationsForScope != null &&
+            _clientId.trim().isNotEmpty) ||
+        widget.onOpenOperationsForIncident != null;
+  }
+
   void _openTacticalPreview() {
+    final scopedTactical = widget.onOpenFleetTacticalScope;
     final openTactical = widget.onOpenTacticalForIncident;
-    if (openTactical == null) {
-      _showOnboardingSnackBar(context, 'Tactical view navigation unavailable.');
+    if (scopedTactical == null && openTactical == null) {
+      _showOnboardingSnackBar(
+        context,
+        'Tactical routing is not available in this session.',
+      );
       return;
     }
     final focusReference = _resolvedPreviewReference();
@@ -14765,15 +16373,20 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog> {
       return;
     }
     Navigator.of(context).pop();
-    openTactical.call(focusReference);
+    if (scopedTactical != null && _clientId.trim().isNotEmpty) {
+      scopedTactical(_clientId.trim(), focusReference, null);
+      return;
+    }
+    openTactical?.call(focusReference);
   }
 
   void _openOperationsPreview() {
+    final scopedOperations = widget.onOpenOperationsForScope;
     final openOperations = widget.onOpenOperationsForIncident;
-    if (openOperations == null) {
+    if (scopedOperations == null && openOperations == null) {
       _showOnboardingSnackBar(
         context,
-        'Operations view navigation unavailable.',
+        'Operations routing is not available in this session.',
       );
       return;
     }
@@ -14786,7 +16399,11 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog> {
       return;
     }
     Navigator.of(context).pop();
-    openOperations.call(focusReference);
+    if (scopedOperations != null && _clientId.trim().isNotEmpty) {
+      scopedOperations(_clientId.trim(), focusReference);
+      return;
+    }
+    openOperations?.call(focusReference);
   }
 
   Widget _siteIdentitySuggestionStrip() {
@@ -15464,9 +17081,9 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog> {
             runSpacing: 7,
             children: [
               OutlinedButton.icon(
-                onPressed: widget.onOpenTacticalForIncident == null
-                    ? null
-                    : _openTacticalPreview,
+                onPressed: _canOpenTacticalPreviewAction
+                    ? _openTacticalPreview
+                    : null,
                 icon: const Icon(Icons.map_rounded, size: 14),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF9FE8FF),
@@ -15490,9 +17107,9 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog> {
                 ),
               ),
               OutlinedButton.icon(
-                onPressed: widget.onOpenOperationsForIncident == null
-                    ? null
-                    : _openOperationsPreview,
+                onPressed: _canOpenOperationsPreviewAction
+                    ? _openOperationsPreview
+                    : null,
                 icon: const Icon(Icons.space_dashboard_rounded, size: 14),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFFBFD7F2),
@@ -15930,7 +17547,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Client demo script copied.',
+          'Client demo script copied for command review.',
           style: GoogleFonts.inter(fontWeight: FontWeight.w700),
         ),
         duration: const Duration(seconds: 2),
@@ -16152,7 +17769,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog> {
                           if (!context.mounted) return;
                           _showOnboardingSnackBar(
                             context,
-                            '$launchMessage Pitch copied.',
+                            '$launchMessage Pitch copied for command review.',
                           );
                         },
                         icon: const Icon(Icons.rocket_launch_rounded, size: 16),
@@ -16280,7 +17897,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog> {
                           if (!context.mounted) return;
                           _showOnboardingSnackBar(
                             context,
-                            'Site pitch copied.',
+                            'Site pitch copied for command review.',
                           );
                         },
                         icon: const Icon(Icons.mic_rounded, size: 16),
@@ -16301,7 +17918,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog> {
                           if (!context.mounted) return;
                           _showOnboardingSnackBar(
                             context,
-                            'Site snapshot copied.',
+                            'Site snapshot copied for command review.',
                           );
                         },
                         icon: const Icon(Icons.receipt_long_rounded, size: 16),
@@ -16514,9 +18131,14 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog> {
                             _textField(
                               _siteIdController,
                               'Site ID (e.g. SITE-SANDTON)',
+                              onChanged: (_) => setState(() {}),
                             ),
                             const SizedBox(height: 8),
-                            _textField(_siteNameController, 'Site Name'),
+                            _textField(
+                              _siteNameController,
+                              'Site Name',
+                              onChanged: (_) => setState(() {}),
+                            ),
                             const SizedBox(height: 8),
                             _textField(_siteCodeController, 'Site Code'),
                             const SizedBox(height: 7),
@@ -16613,13 +18235,18 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog> {
                             Row(
                               children: [
                                 Expanded(
-                                  child: _textField(_latController, 'Latitude'),
+                                  child: _textField(
+                                    _latController,
+                                    'Latitude',
+                                    onChanged: (_) => setState(() {}),
+                                  ),
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: _textField(
                                     _lngController,
                                     'Longitude',
+                                    onChanged: (_) => setState(() {}),
                                   ),
                                 ),
                               ],
@@ -16924,6 +18551,13 @@ class _EmployeeOnboardingDialog extends StatefulWidget {
   final bool demoMode;
   final ValueChanged<String>? onOpenTacticalForIncident;
   final ValueChanged<String>? onOpenOperationsForIncident;
+  final void Function(
+    String clientId,
+    String siteId,
+    String? incidentReference,
+  )?
+  onOpenFleetTacticalScope;
+  final void Function(String clientId, String siteId)? onOpenOperationsForScope;
 
   const _EmployeeOnboardingDialog({
     required this.clients,
@@ -16931,6 +18565,8 @@ class _EmployeeOnboardingDialog extends StatefulWidget {
     required this.demoMode,
     this.onOpenTacticalForIncident,
     this.onOpenOperationsForIncident,
+    this.onOpenFleetTacticalScope,
+    this.onOpenOperationsForScope,
   });
 
   @override
@@ -17532,12 +19168,30 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog> {
     return '';
   }
 
+  bool get _canOpenEmployeeOperationsPreview {
+    final focusReference = _resolvedEmployeePreviewReference();
+    return (widget.onOpenOperationsForScope != null &&
+            _clientId.trim().isNotEmpty &&
+            _assignedSiteId.trim().isNotEmpty) ||
+        (widget.onOpenOperationsForIncident != null &&
+            focusReference.isNotEmpty);
+  }
+
+  bool get _canOpenEmployeeTacticalPreview {
+    final focusReference = _resolvedEmployeePreviewReference();
+    return (widget.onOpenFleetTacticalScope != null &&
+            _clientId.trim().isNotEmpty &&
+            _assignedSiteId.trim().isNotEmpty) ||
+        (widget.onOpenTacticalForIncident != null && focusReference.isNotEmpty);
+  }
+
   void _openEmployeeOperationsPreview() {
+    final scopedOperations = widget.onOpenOperationsForScope;
     final openOperations = widget.onOpenOperationsForIncident;
-    if (openOperations == null) {
+    if (scopedOperations == null && openOperations == null) {
       _showOnboardingSnackBar(
         context,
-        'Operations view navigation unavailable.',
+        'Operations routing is not available in this session.',
       );
       return;
     }
@@ -17550,13 +19204,23 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog> {
       return;
     }
     Navigator.of(context).pop();
-    openOperations.call(focusReference);
+    if (scopedOperations != null &&
+        _clientId.trim().isNotEmpty &&
+        _assignedSiteId.trim().isNotEmpty) {
+      scopedOperations(_clientId.trim(), _assignedSiteId.trim());
+      return;
+    }
+    openOperations?.call(focusReference);
   }
 
   void _openEmployeeTacticalPreview() {
+    final scopedTactical = widget.onOpenFleetTacticalScope;
     final openTactical = widget.onOpenTacticalForIncident;
-    if (openTactical == null) {
-      _showOnboardingSnackBar(context, 'Tactical view navigation unavailable.');
+    if (scopedTactical == null && openTactical == null) {
+      _showOnboardingSnackBar(
+        context,
+        'Tactical routing is not available in this session.',
+      );
       return;
     }
     final focusReference = _resolvedEmployeePreviewReference();
@@ -17568,7 +19232,13 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog> {
       return;
     }
     Navigator.of(context).pop();
-    openTactical.call(focusReference);
+    if (scopedTactical != null &&
+        _clientId.trim().isNotEmpty &&
+        _assignedSiteId.trim().isNotEmpty) {
+      scopedTactical(_clientId.trim(), _assignedSiteId.trim(), null);
+      return;
+    }
+    openTactical?.call(focusReference);
   }
 
   String get _demoReadyButtonLabel {
@@ -17753,7 +19423,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog> {
                           if (!context.mounted) return;
                           _showOnboardingSnackBar(
                             context,
-                            '$launchMessage Pitch copied.',
+                            '$launchMessage Pitch copied for command review.',
                           );
                         },
                         icon: const Icon(Icons.rocket_launch_rounded, size: 16),
@@ -17875,9 +19545,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog> {
                         ),
                       ),
                       OutlinedButton.icon(
-                        onPressed: widget.onOpenOperationsForIncident == null
-                            ? null
-                            : _openEmployeeOperationsPreview,
+                        onPressed: _canOpenEmployeeOperationsPreview
+                            ? _openEmployeeOperationsPreview
+                            : null,
                         icon: const Icon(
                           Icons.space_dashboard_rounded,
                           size: 16,
@@ -17892,9 +19562,9 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog> {
                         ),
                       ),
                       OutlinedButton.icon(
-                        onPressed: widget.onOpenTacticalForIncident == null
-                            ? null
-                            : _openEmployeeTacticalPreview,
+                        onPressed: _canOpenEmployeeTacticalPreview
+                            ? _openEmployeeTacticalPreview
+                            : null,
                         icon: const Icon(Icons.map_rounded, size: 16),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: const Color(0xFF9FE8FF),
@@ -17913,7 +19583,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog> {
                           if (!context.mounted) return;
                           _showOnboardingSnackBar(
                             context,
-                            'Employee pitch copied.',
+                            'Employee pitch copied for command review.',
                           );
                         },
                         icon: const Icon(Icons.mic_rounded, size: 16),
@@ -17934,7 +19604,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog> {
                           if (!context.mounted) return;
                           _showOnboardingSnackBar(
                             context,
-                            'Employee snapshot copied.',
+                            'Employee snapshot copied for command review.',
                           );
                         },
                         icon: const Icon(Icons.receipt_long_rounded, size: 16),
@@ -18148,6 +19818,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog> {
                             _textField(
                               _employeeCodeController,
                               'Employee Code',
+                              onChanged: (_) => setState(() {}),
                             ),
                             const SizedBox(height: 8),
                             _dropdownField(
@@ -18167,9 +19838,17 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog> {
                               },
                             ),
                             const SizedBox(height: 8),
-                            _textField(_fullNameController, 'Full Name'),
+                            _textField(
+                              _fullNameController,
+                              'Full Name',
+                              onChanged: (_) => setState(() {}),
+                            ),
                             const SizedBox(height: 8),
-                            _textField(_surnameController, 'Surname'),
+                            _textField(
+                              _surnameController,
+                              'Surname',
+                              onChanged: (_) => setState(() {}),
+                            ),
                             const SizedBox(height: 8),
                             _textField(
                               _idNumberController,
@@ -19164,7 +20843,7 @@ Widget _demoCoachCard({
                     backgroundColor: const Color(0xFF0F1419),
                     behavior: SnackBarBehavior.floating,
                     content: Text(
-                      'Presenter cue copied.',
+                      'Presenter cue copied for command review.',
                       style: GoogleFonts.inter(
                         color: const Color(0xFFEAF4FF),
                         fontWeight: FontWeight.w700,
@@ -19466,7 +21145,7 @@ Widget _onboardingLivePreview({
                       backgroundColor: const Color(0xFF0F1419),
                       behavior: SnackBarBehavior.floating,
                       content: Text(
-                        'Client update copied.',
+                        'Client update copied for command review.',
                         style: GoogleFonts.inter(
                           color: const Color(0xFFEAF4FF),
                           fontWeight: FontWeight.w700,
@@ -19494,7 +21173,7 @@ Widget _onboardingLivePreview({
                       backgroundColor: const Color(0xFF0F1419),
                       behavior: SnackBarBehavior.floating,
                       content: Text(
-                        'Demo brief copied.',
+                        'Demo brief copied for command review.',
                         style: GoogleFonts.inter(
                           color: const Color(0xFFEAF4FF),
                           fontWeight: FontWeight.w700,
@@ -19523,8 +21202,8 @@ Widget _onboardingLivePreview({
                       behavior: SnackBarBehavior.floating,
                       content: Text(
                         filteredSqlExtras.isEmpty
-                            ? 'SQL upsert copied.'
-                            : 'SQL bundle copied.',
+                            ? 'SQL upsert copied for command review.'
+                            : 'SQL bundle copied for command review.',
                         style: GoogleFonts.inter(
                           color: const Color(0xFFEAF4FF),
                           fontWeight: FontWeight.w700,
@@ -19613,7 +21292,7 @@ Widget _onboardingLivePreview({
                         backgroundColor: const Color(0xFF0F1419),
                         behavior: SnackBarBehavior.floating,
                         content: Text(
-                          'Payload JSON copied.',
+                          'Payload JSON copied for command review.',
                           style: GoogleFonts.inter(
                             color: const Color(0xFFEAF4FF),
                             fontWeight: FontWeight.w700,
@@ -20441,9 +22120,14 @@ class _PartnerActionSummary {
   });
 }
 
-Widget _textField(TextEditingController controller, String label) {
+Widget _textField(
+  TextEditingController controller,
+  String label, {
+  ValueChanged<String>? onChanged,
+}) {
   return TextField(
     controller: controller,
+    onChanged: onChanged,
     style: GoogleFonts.inter(
       color: const Color(0xFFEAF4FF),
       fontSize: 12,

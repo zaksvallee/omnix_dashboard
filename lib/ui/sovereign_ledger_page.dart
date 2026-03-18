@@ -25,21 +25,30 @@ import 'ui_action_logger.dart';
 
 class SovereignLedgerPage extends StatefulWidget {
   final String clientId;
+  final String? initialScopeClientId;
+  final String? initialScopeSiteId;
   final List<DispatchEvent> events;
   final String initialFocusReference;
   final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
+  final void Function(List<String> eventIds, String? selectedEventId)?
+  onOpenEventsForScope;
 
   const SovereignLedgerPage({
     super.key,
     required this.clientId,
+    this.initialScopeClientId,
+    this.initialScopeSiteId,
     required this.events,
     this.initialFocusReference = '',
     this.sceneReviewByIntelligenceId = const {},
+    this.onOpenEventsForScope,
   });
 
   @override
   State<SovereignLedgerPage> createState() => _SovereignLedgerPageState();
 }
+
+enum _LedgerFocusState { none, exact, scopeBacked, seeded }
 
 class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
   String? _selectedEntryId;
@@ -47,22 +56,28 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
 
   @override
   Widget build(BuildContext context) {
+    final scopeClientId = (widget.initialScopeClientId ?? '').trim();
+    final scopeSiteId = (widget.initialScopeSiteId ?? '').trim();
+    final hasScopeFocus =
+        scopeClientId.isNotEmpty && scopeSiteId.isNotEmpty;
     final entries = _buildLedgerEntries(
       widget.events,
+      clientId: scopeClientId,
+      siteId: scopeSiteId,
       sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
     );
     var list = entries.isEmpty ? _fallbackEntries : entries;
     final focusReference = widget.initialFocusReference.trim();
     final hasFocusReference = focusReference.isNotEmpty;
-    var focusLinked = false;
+    var focusState = _LedgerFocusState.none;
     if (hasFocusReference) {
-      final existingFocusId = _resolveFocusEntryId(
+      final focusResolution = _resolveFocusSelection(
         entries: list,
         focusReference: focusReference,
       );
-      if (existingFocusId != null) {
-        _selectedEntryId = existingFocusId;
-        focusLinked = true;
+      if (focusResolution.entryId != null) {
+        _selectedEntryId = focusResolution.entryId;
+        focusState = focusResolution.state;
       } else {
         list = _injectFocusedLedgerEntry(
           entries: list,
@@ -75,6 +90,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
         if (seededFocusId != null) {
           _selectedEntryId = seededFocusId;
         }
+        focusState = _LedgerFocusState.seeded;
       }
     }
 
@@ -163,23 +179,57 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: focusLinked
-                          ? const Color(0x2234D399)
-                          : const Color(0x333C79BB),
+                      color: _focusBannerBackground(focusState),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: focusLinked
-                            ? const Color(0x6634D399)
-                            : const Color(0x665FAAFF),
+                        color: _focusBannerBorder(focusState),
                       ),
                     ),
                     child: Text(
-                      'Focus ${focusLinked ? 'LINKED' : 'SEEDED'} • $focusReference',
+                      'Focus ${_focusBannerLabel(focusState)} • $focusReference',
                       style: GoogleFonts.inter(
                         color: const Color(0xFFEAF1FB),
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                if (hasScopeFocus) ...[
+                  Container(
+                    key: const ValueKey('ledger-scope-banner'),
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0x141C3C57),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0x4435506F)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Scope focus active',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF8FD1FF),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '$scopeClientId/$scopeSiteId',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFEAF1FB),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -231,17 +281,119 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
   }) {
     for (final entry in entries) {
       final payloadEventId = (entry.payload['eventId'] ?? '').toString().trim();
+      final payloadIntelligenceId = (entry.payload['intelligenceId'] ?? '')
+          .toString()
+          .trim();
       final payloadDispatchId = (entry.payload['dispatchId'] ?? '')
           .toString()
           .trim();
       if (entry.id == focusReference ||
           (entry.dispatchId ?? '').trim() == focusReference ||
           payloadEventId == focusReference ||
+          payloadIntelligenceId == focusReference ||
           payloadDispatchId == focusReference) {
         return entry.id;
       }
     }
     return null;
+  }
+
+  ({String? entryId, _LedgerFocusState state}) _resolveFocusSelection({
+    required List<_LedgerEntryView> entries,
+    required String focusReference,
+  }) {
+    final exactEntryId = _resolveFocusEntryId(
+      entries: entries,
+      focusReference: focusReference,
+    );
+    if (exactEntryId != null) {
+      return (entryId: exactEntryId, state: _LedgerFocusState.exact);
+    }
+    final focusScope = _scopeForFocusReference(focusReference);
+    if (focusScope != null) {
+      for (final entry in entries) {
+        if (_entryMatchesScope(
+          entry,
+          clientId: focusScope.$1,
+          siteId: focusScope.$2,
+        )) {
+          return (entryId: entry.id, state: _LedgerFocusState.scopeBacked);
+        }
+      }
+    }
+    return (entryId: null, state: _LedgerFocusState.seeded);
+  }
+
+  (String, String)? _scopeForFocusReference(String focusReference) {
+    final normalizedReference = focusReference.trim();
+    if (normalizedReference.isEmpty) {
+      return null;
+    }
+    DispatchEvent? matchedEvent;
+    for (final event in widget.events) {
+      final dispatchId = (_eventDispatchId(event) ?? '').trim();
+      final matchesDispatch =
+          dispatchId.isNotEmpty &&
+          (dispatchId == normalizedReference ||
+              'INC-$dispatchId' == normalizedReference);
+      final matchesEventId = event.eventId.trim() == normalizedReference;
+      final matchesIntelligenceId =
+          event is IntelligenceReceived &&
+          event.intelligenceId.trim() == normalizedReference;
+      if (!matchesDispatch && !matchesEventId && !matchesIntelligenceId) {
+        continue;
+      }
+      if (matchedEvent == null ||
+          event.occurredAt.isAfter(matchedEvent.occurredAt)) {
+        matchedEvent = event;
+      }
+    }
+    if (matchedEvent == null) {
+      return null;
+    }
+    final clientId = _eventClientId(matchedEvent).trim();
+    final siteId = _eventSiteId(matchedEvent).trim();
+    if (clientId.isEmpty || siteId.isEmpty) {
+      return null;
+    }
+    return (clientId, siteId);
+  }
+
+  bool _entryMatchesScope(
+    _LedgerEntryView entry, {
+    required String clientId,
+    required String siteId,
+  }) {
+    final entryClientId = (entry.payload['clientId'] ?? '').toString().trim();
+    final entrySiteId = (entry.payload['siteId'] ?? '').toString().trim();
+    return entryClientId == clientId && entrySiteId == siteId;
+  }
+
+  String _focusBannerLabel(_LedgerFocusState state) {
+    return switch (state) {
+      _LedgerFocusState.none => 'IDLE',
+      _LedgerFocusState.exact => 'LINKED',
+      _LedgerFocusState.scopeBacked => 'SCOPE-BACKED',
+      _LedgerFocusState.seeded => 'SEEDED',
+    };
+  }
+
+  Color _focusBannerBackground(_LedgerFocusState state) {
+    return switch (state) {
+      _LedgerFocusState.none => const Color(0x22192331),
+      _LedgerFocusState.exact => const Color(0x2234D399),
+      _LedgerFocusState.scopeBacked => const Color(0x223C79BB),
+      _LedgerFocusState.seeded => const Color(0x333C79BB),
+    };
+  }
+
+  Color _focusBannerBorder(_LedgerFocusState state) {
+    return switch (state) {
+      _LedgerFocusState.none => const Color(0x66435A76),
+      _LedgerFocusState.exact => const Color(0x6634D399),
+      _LedgerFocusState.scopeBacked => const Color(0x665FAAFF),
+      _LedgerFocusState.seeded => const Color(0x665FAAFF),
+    };
   }
 
   List<_LedgerEntryView> _injectFocusedLedgerEntry({
@@ -264,11 +416,13 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
       'type': 'SEEDED_LEDGER_FOCUS',
       'clientId': widget.clientId,
       'regionId': 'REGION-GAUTENG',
-      'siteId': 'DEMO-SITE',
+      'siteId': (widget.initialScopeSiteId ?? '').trim().isEmpty
+          ? 'UNSCOPED-LANE'
+          : widget.initialScopeSiteId!.trim(),
       'occurredAt': timestamp.toIso8601String(),
-      'summary': 'Seeded focus reference awaiting live ledger ingest.',
+      'summary': 'Focused lane is waiting for the live ledger feed to arrive.',
       'dispatchId': null,
-      'demoSeed': true,
+      'seededFocus': true,
     };
     final hash = sha256
         .convert(utf8.encode('${jsonEncode(payload)}|$previousHash'))
@@ -277,8 +431,10 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
       id: 'LED-SEED-$focusReference',
       sequence: maxSequence + 1,
       type: 'INCIDENT',
-      title: 'Seeded focus reference awaiting live ledger ingest.',
-      site: 'DEMO-SITE',
+      title: 'Focused lane is waiting for the live ledger feed to arrive.',
+      site: (widget.initialScopeSiteId ?? '').trim().isEmpty
+          ? 'Focused Lane'
+          : widget.initialScopeSiteId!.trim(),
       dispatchId: null,
       timestamp: timestamp,
       hash: hash,
@@ -926,11 +1082,22 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
         _outlineButton(
           'VIEW IN EVENT REVIEW',
           onTap: () {
+            final eventId = (selected.payload['eventId'] ?? '').toString().trim();
+            if (widget.onOpenEventsForScope != null && eventId.isNotEmpty) {
+              widget.onOpenEventsForScope!(<String>[eventId], eventId);
+              logUiAction(
+                'ledger.view_in_event_review',
+                context: {'entry_id': selected.id, 'event_id': eventId},
+              );
+              return;
+            }
             logUiAction(
               'ledger.view_in_event_review',
               context: {'entry_id': selected.id},
             );
-            _showActionMessage('Open Event Review to inspect ${selected.id}.');
+            _showActionMessage(
+              'Open Event Review to inspect ${eventId.isEmpty ? selected.id : eventId}.',
+            );
           },
         ),
         const SizedBox(height: 6),
@@ -1328,6 +1495,8 @@ final List<_LedgerEntryView> _fallbackEntries = [
 
 List<_LedgerEntryView> _buildLedgerEntries(
   List<DispatchEvent> events, {
+  String? clientId,
+  String? siteId,
   Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId =
       const {},
 }) {
@@ -1335,11 +1504,19 @@ List<_LedgerEntryView> _buildLedgerEntries(
     return const [];
   }
 
+  final normalizedClientId = (clientId ?? '').trim();
+  final normalizedSiteId = (siteId ?? '').trim();
   final sorted = [...events]..sort((a, b) => a.sequence.compareTo(b.sequence));
   var previousHash = 'GENESIS';
   final built = <_LedgerEntryView>[];
 
   for (final event in sorted) {
+    if (normalizedClientId.isNotEmpty &&
+        normalizedSiteId.isNotEmpty &&
+        (_eventClientId(event).trim() != normalizedClientId ||
+            _eventSiteId(event).trim() != normalizedSiteId)) {
+      continue;
+    }
     final payload = _ledgerPayloadForEvent(
       event,
       sceneReviewByIntelligenceId: sceneReviewByIntelligenceId,

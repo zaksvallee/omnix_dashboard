@@ -113,4 +113,49 @@ void main() {
     expect(message, contains('Site Activity Truth'));
     expect(message, contains('No visitor or site-activity signals detected.'));
   });
+
+  test('formats quiet site activity telegram summary with field fallback', () {
+    const formatter = SiteActivityTelegramFormatter();
+    const snapshot = SiteActivityIntelligenceSnapshot(
+      totalSignals: 0,
+      personSignals: 0,
+      vehicleSignals: 0,
+      knownIdentitySignals: 0,
+      flaggedIdentitySignals: 0,
+      unknownPersonSignals: 0,
+      unknownVehicleSignals: 0,
+      longPresenceSignals: 0,
+      guardInteractionSignals: 0,
+      topFlaggedIdentitySummary: '',
+      topLongPresenceSummary: '',
+      topGuardInteractionSummary: '',
+      evidenceEventIds: <String>[],
+      summaryLine: 'No visitor or site-activity signals detected.',
+    );
+
+    final message = formatter.formatSummary(
+      snapshot: snapshot,
+      siteLabel: 'MS Vallee Residence',
+      reportDate: '2026-03-18',
+      quietFallbackLine:
+          '3 worker or guard activity signals were observed through ONYX field telemetry.',
+      quietFallbackDetail:
+          'Latest field signal: A worker checkpoint scan landed at Front Yard.',
+    );
+
+    expect(message, contains('Site Activity Truth: MS Vallee Residence'));
+    expect(
+      message,
+      contains(
+        '3 worker or guard activity signals were observed through ONYX field telemetry.',
+      ),
+    );
+    expect(
+      message,
+      contains(
+        'Latest field signal: A worker checkpoint scan landed at Front Yard.',
+      ),
+    );
+    expect(message, isNot(contains('No visitor or site-activity signals detected.')));
+  });
 }

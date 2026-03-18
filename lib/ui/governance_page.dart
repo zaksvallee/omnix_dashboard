@@ -727,6 +727,8 @@ class GovernancePage extends StatefulWidget {
   final String? morningSovereignReportAutoRunKey;
   final String? currentMorningSovereignReportDate;
   final String? initialReportFocusDate;
+  final String? initialScopeClientId;
+  final String? initialScopeSiteId;
   final String? initialPartnerScopeClientId;
   final String? initialPartnerScopeSiteId;
   final String? initialPartnerScopePartnerLabel;
@@ -755,6 +757,8 @@ class GovernancePage extends StatefulWidget {
     this.morningSovereignReportAutoRunKey,
     this.currentMorningSovereignReportDate,
     this.initialReportFocusDate,
+    this.initialScopeClientId,
+    this.initialScopeSiteId,
     this.initialPartnerScopeClientId,
     this.initialPartnerScopeSiteId,
     this.initialPartnerScopePartnerLabel,
@@ -1561,6 +1565,42 @@ class _GovernancePageState extends State<GovernancePage> {
                 ],
               ),
             ),
+          ] else if (_hasScopeFocus) ...[
+            const SizedBox(height: 8),
+            Container(
+              key: const ValueKey('governance-scope-banner'),
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0x141C3C57),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0x4435506F)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Scope focus active',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF8FD1FF),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _scopeSiteId == null
+                        ? '${_scopeClientId!}/all sites'
+                        : '${_scopeClientId!}/${_scopeSiteId!}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFEAF4FF),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
           if (_hasHistoricalReportFocus) ...[
             const SizedBox(height: 8),
@@ -1915,7 +1955,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                 ClipboardData(text: text),
                               );
                               _showSnack(
-                                '${_focusedSceneActionLabel(report)!} detail copied',
+                                '${_focusedSceneActionLabel(report)!} detail copied for command review',
                               );
                             },
                             borderRadius: BorderRadius.circular(6),
@@ -2212,7 +2252,9 @@ class _GovernancePageState extends State<GovernancePage> {
               return;
             }
             await Clipboard.setData(ClipboardData(text: text));
-            _showSnack('${_focusedSceneActionLabel(report)!} detail copied');
+            _showSnack(
+              '${_focusedSceneActionLabel(report)!} detail copied for command review',
+            );
           },
         ),
       _morningReportActionButton(
@@ -2235,67 +2277,59 @@ class _GovernancePageState extends State<GovernancePage> {
       ),
       _morningReportActionButton(
         label: _downloadMorningJsonActionLabel(report),
-        onPressed: () async {
-          if (!_snapshotFiles.supported) {
-            _showSnack('File export is only available on web');
-            return;
-          }
-          await _snapshotFiles.downloadJsonFile(
-            filename: _morningJsonFilename(report),
-            contents: _morningReportJson(report),
-          );
-          _showSnack('Morning report JSON download started');
-        },
+        onPressed: !_snapshotFiles.supported
+            ? null
+            : () async {
+                await _snapshotFiles.downloadJsonFile(
+                  filename: _morningJsonFilename(report),
+                  contents: _morningReportJson(report),
+                );
+                _showSnack('Morning report JSON download started for command review.');
+              },
       ),
       _morningReportActionButton(
         label: _downloadMorningCsvActionLabel(report),
-        onPressed: () async {
-          if (!_snapshotFiles.supported) {
-            _showSnack('File export is only available on web');
-            return;
-          }
-          await _snapshotFiles.downloadTextFile(
-            filename: _morningCsvFilename(report),
-            contents: _morningReportCsv(report),
-          );
-          _showSnack('Morning report CSV download started');
-        },
+        onPressed: !_snapshotFiles.supported
+            ? null
+            : () async {
+                await _snapshotFiles.downloadTextFile(
+                  filename: _morningCsvFilename(report),
+                  contents: _morningReportCsv(report),
+                );
+                _showSnack('Morning report CSV download started for command review.');
+              },
       ),
       _morningReportActionButton(
         label: _shareMorningPackActionLabel(report),
-        onPressed: () async {
-          if (!_textShare.supported) {
-            _showSnack('Share is not available in this environment');
-            return;
-          }
-          final shared = await _textShare.shareText(
-            title: _morningShareTitle(report),
-            text: _morningReportJson(report),
-          );
-          _showSnack(
-            shared
-                ? 'Morning report share started'
-                : 'Morning report share unavailable',
-          );
-        },
+        onPressed: !_textShare.supported
+            ? null
+            : () async {
+                final shared = await _textShare.shareText(
+                  title: _morningShareTitle(report),
+                  text: _morningReportJson(report),
+                );
+                _showSnack(
+                  shared
+                      ? 'Morning report sharing started for command review.'
+                      : 'Morning report sharing is not available in this session.',
+                );
+              },
       ),
       _morningReportActionButton(
         label: _emailMorningReportActionLabel(report),
-        onPressed: () async {
-          if (!_emailBridge.supported) {
-            _showSnack('Email bridge is only available on web');
-            return;
-          }
-          final opened = await _emailBridge.openMailDraft(
-            subject: _morningEmailSubject(report),
-            body: _morningReportJson(report),
-          );
-          _showSnack(
-            opened
-                ? 'Email draft opened for morning report'
-                : 'Email bridge unavailable',
-          );
-        },
+        onPressed: !_emailBridge.supported
+            ? null
+            : () async {
+                final opened = await _emailBridge.openMailDraft(
+                  subject: _morningEmailSubject(report),
+                  body: _morningReportJson(report),
+                );
+                _showSnack(
+                  opened
+                      ? 'Mail draft opened for the morning report.'
+                      : 'Mail draft bridge is not available in this session.',
+                );
+              },
       ),
     ];
   }
@@ -2316,7 +2350,7 @@ class _GovernancePageState extends State<GovernancePage> {
   Widget _morningReportActionButton({
     Key? key,
     required String label,
-    required Future<void> Function() onPressed,
+    required Future<void> Function()? onPressed,
   }) {
     return TextButton(
       key: key,
@@ -2340,15 +2374,15 @@ class _GovernancePageState extends State<GovernancePage> {
   String _copyMorningJsonSnackLabel(_GovernanceReportView report) {
     final focusLabel = _focusedSceneActionLabel(report);
     return focusLabel == null
-        ? 'Morning report JSON copied'
-        : 'Morning report JSON copied with $focusLabel focus';
+        ? 'Morning report JSON copied for command review'
+        : 'Morning report JSON copied for command review with $focusLabel focus';
   }
 
   String _copyMorningCsvSnackLabel(_GovernanceReportView report) {
     final focusLabel = _focusedSceneActionLabel(report);
     return focusLabel == null
-        ? 'Morning report CSV copied'
-        : 'Morning report CSV copied with $focusLabel focus';
+        ? 'Morning report CSV copied for command review'
+        : 'Morning report CSV copied for command review with $focusLabel focus';
   }
 
   GovernanceSceneActionFocus? _effectiveSceneActionFocus(
@@ -2384,6 +2418,16 @@ class _GovernancePageState extends State<GovernancePage> {
 
   String? get _partnerScopeClientId {
     final value = widget.initialPartnerScopeClientId?.trim() ?? '';
+    return value.isEmpty ? null : value;
+  }
+
+  String? get _scopeClientId {
+    final value = widget.initialScopeClientId?.trim() ?? '';
+    return value.isEmpty ? null : value;
+  }
+
+  String? get _scopeSiteId {
+    final value = widget.initialScopeSiteId?.trim() ?? '';
     return value.isEmpty ? null : value;
   }
 
@@ -2446,6 +2490,18 @@ class _GovernancePageState extends State<GovernancePage> {
       _partnerScopeSiteId != null &&
       _partnerScopePartnerLabel != null;
 
+  bool get _hasScopeFocus => _scopeClientId != null;
+
+  bool _scopeBreakdownMatches(SovereignReportPartnerScopeBreakdown scope) {
+    if (scope.clientId.trim() != _scopeClientId) {
+      return false;
+    }
+    if (_scopeSiteId == null) {
+      return true;
+    }
+    return scope.siteId.trim() == _scopeSiteId;
+  }
+
   bool _partnerScopeMatches({
     required String clientId,
     required String siteId,
@@ -2464,30 +2520,52 @@ class _GovernancePageState extends State<GovernancePage> {
         scope.siteId.trim() == _partnerScopeSiteId;
   }
 
-  _GovernanceReportView _applyPartnerScopeFilter(_GovernanceReportView report) {
-    if (!_hasPartnerScopeFocus) {
+  _GovernanceReportView _applyScopeFilter(_GovernanceReportView report) {
+    if (!_hasPartnerScopeFocus && !_hasScopeFocus) {
       return report;
     }
     final filteredScopeBreakdowns = report.partnerScopeBreakdowns
-        .where(_partnerScopeBreakdownMatches)
+        .where(
+          _hasPartnerScopeFocus
+              ? _partnerScopeBreakdownMatches
+              : _scopeBreakdownMatches,
+        )
         .toList(growable: false);
     final filteredScoreboardRows = report.partnerScoreboardRows
-        .where(
-          (row) => _partnerScopeMatches(
-            clientId: row.clientId,
-            siteId: row.siteId,
-            partnerLabel: row.partnerLabel,
-          ),
-        )
+        .where((row) {
+          if (_hasPartnerScopeFocus) {
+            return _partnerScopeMatches(
+              clientId: row.clientId,
+              siteId: row.siteId,
+              partnerLabel: row.partnerLabel,
+            );
+          }
+          if (row.clientId.trim() != _scopeClientId) {
+            return false;
+          }
+          if (_scopeSiteId == null) {
+            return true;
+          }
+          return row.siteId.trim() == _scopeSiteId;
+        })
         .toList(growable: false);
     final filteredDispatchChains = report.partnerDispatchChains
-        .where(
-          (chain) => _partnerScopeMatches(
-            clientId: chain.clientId,
-            siteId: chain.siteId,
-            partnerLabel: chain.partnerLabel,
-          ),
-        )
+        .where((chain) {
+          if (_hasPartnerScopeFocus) {
+            return _partnerScopeMatches(
+              clientId: chain.clientId,
+              siteId: chain.siteId,
+              partnerLabel: chain.partnerLabel,
+            );
+          }
+          if (chain.clientId.trim() != _scopeClientId) {
+            return false;
+          }
+          if (_scopeSiteId == null) {
+            return true;
+          }
+          return chain.siteId.trim() == _scopeSiteId;
+        })
         .toList(growable: false);
     final filteredScoreboardHistory = _partnerScoreboardHistoryRows(
       currentReportDate: report.reportDate,
@@ -3222,7 +3300,7 @@ class _GovernancePageState extends State<GovernancePage> {
         ? 'EASING • ${baseline.length + 1}d'
         : 'STABLE • ${baseline.length + 1}d';
     final summary = baselineAverage == null
-        ? 'Current matches $currentMatchCount • Baseline n/a • No prior shadow-MO history is available yet.'
+        ? 'Current matches $currentMatchCount • Baseline warming up • Shadow-MO history will settle after the next few shifts.'
         : 'Current matches $currentMatchCount • Baseline ${baselineAverage.toStringAsFixed(1)} • ${currentMatchCount > baselineAverage
               ? 'Shadow-MO match pressure is increasing against recent shifts.'
               : currentMatchCount < baselineAverage
@@ -3367,7 +3445,7 @@ class _GovernancePageState extends State<GovernancePage> {
               ' • legacy-only ${latestParity.unmatchedLegacyCount}';
     if (latestCycle == null) {
       return listenerAdvisories.isEmpty
-          ? 'No listener alarm cycles recorded in this shift'
+          ? 'No listener alarm cycles landed in this shift window.'
           : '${listenerAdvisories.length} advisories recorded without a matching feed-cycle summary$paritySegment';
     }
     return 'Latest cycle mapped ${latestCycle.mappedCount}/${latestCycle.acceptedCount} • '
@@ -3381,7 +3459,7 @@ class _GovernancePageState extends State<GovernancePage> {
     required List<MonitoringWatchAutonomyActionPlan> intents,
   }) {
     if (snapshot.totalSites <= 0) {
-      return 'No cross-site posture signals have been reviewed in this shift';
+      return 'Cross-site posture is still quiet for this shift window.';
     }
     final leadRegion = snapshot.regions.isEmpty ? null : snapshot.regions.first;
     final leadSite = snapshot.sites.isEmpty ? null : snapshot.sites.first;
@@ -3443,9 +3521,7 @@ class _GovernancePageState extends State<GovernancePage> {
 
   String _globalReadinessTomorrowPostureSummary(
     List<MonitoringWatchAutonomyActionPlan> intents,
-  ) => buildTomorrowPostureSummaryForDraft(
-    draft: _firstTomorrowDraft(intents),
-  );
+  ) => buildTomorrowPostureSummaryForDraft(draft: _firstTomorrowDraft(intents));
 
   MonitoringWatchAutonomyActionPlan? _firstTomorrowDraft(
     List<MonitoringWatchAutonomyActionPlan> intents,
@@ -3583,7 +3659,7 @@ class _GovernancePageState extends State<GovernancePage> {
       return _GlobalReadinessTrend(
         trendLabel: 'NEW',
         trendReason:
-            'No prior global readiness snapshots are available for comparison.',
+            'Global readiness baseline is still forming for this lane.',
         summaryLine: summaryLine,
         reportDays: 1,
         currentModeLabel: currentModeLabel,
@@ -3663,7 +3739,7 @@ class _GovernancePageState extends State<GovernancePage> {
       return _SyntheticWarRoomTrend(
         trendLabel: 'NEW',
         trendReason:
-            'No prior synthetic war-room shifts are available for comparison.',
+            'Synthetic rehearsal baseline is still forming for this lane.',
         summaryLine: summaryLine,
         reportDays: 1,
         currentModeLabel: currentModeLabel,
@@ -3729,7 +3805,7 @@ class _GovernancePageState extends State<GovernancePage> {
       return _SiteActivityTrend(
         trendLabel: 'NEW',
         trendReason:
-            'No prior site-activity truth snapshots are available for comparison.',
+            'Site-activity truth baseline is still forming for this lane.',
         summaryLine: summaryLine,
         reportDays: 1,
         currentModeLabel: currentModeLabel,
@@ -4124,9 +4200,10 @@ class _GovernancePageState extends State<GovernancePage> {
           currentPlans,
         ),
         shadowMemorySummary: _syntheticWarRoomShadowMemorySummary(currentPlans),
-        shadowPostureBiasSummary: _syntheticWarRoomShadowPostureBiasSummaryForPlan(
-          currentPolicyPlan.id.isEmpty ? null : currentPolicyPlan,
-        ),
+        shadowPostureBiasSummary:
+            _syntheticWarRoomShadowPostureBiasSummaryForPlan(
+              currentPolicyPlan.id.isEmpty ? null : currentPolicyPlan,
+            ),
         promotionPressureSummary: _syntheticWarRoomPromotionPressureSummary(
           plans: currentPlans,
           shadowTomorrowUrgencySummary:
@@ -4136,8 +4213,9 @@ class _GovernancePageState extends State<GovernancePage> {
                 currentPolicyPlan.id.isEmpty ? null : currentPolicyPlan,
               ),
         ),
-        promotionExecutionSummary:
-            _syntheticWarRoomPromotionExecutionSummary(currentPlans),
+        promotionExecutionSummary: _syntheticWarRoomPromotionExecutionSummary(
+          currentPlans,
+        ),
         promotionSummary: _syntheticWarRoomPromotionSummary(
           currentPlans,
           shadowTomorrowUrgencySummary:
@@ -4251,12 +4329,13 @@ class _GovernancePageState extends State<GovernancePage> {
                   ),
                 ),
             shadowPostureBiasSummary:
-                  _syntheticWarRoomShadowPostureBiasSummaryForPlan(
-                    policyPlan.id.isEmpty ? null : policyPlan,
-                  ),
+                _syntheticWarRoomShadowPostureBiasSummaryForPlan(
+                  policyPlan.id.isEmpty ? null : policyPlan,
+                ),
           ),
-          promotionExecutionSummary:
-              _syntheticWarRoomPromotionExecutionSummary(plans),
+          promotionExecutionSummary: _syntheticWarRoomPromotionExecutionSummary(
+            plans,
+          ),
           promotionSummary: _syntheticWarRoomPromotionSummary(
             plans,
             shadowTomorrowUrgencySummary:
@@ -4291,10 +4370,12 @@ class _GovernancePageState extends State<GovernancePage> {
                 ),
           ),
           actionBias: buildSyntheticActionBiasFromPlans(plans: plans),
-          memoryPriorityBoost:
-              buildSyntheticMemoryPriorityBoostFromPlans(plans: plans),
-          memoryCountdownBias:
-              buildSyntheticMemoryCountdownBiasFromPlans(plans: plans),
+          memoryPriorityBoost: buildSyntheticMemoryPriorityBoostFromPlans(
+            plans: plans,
+          ),
+          memoryCountdownBias: buildSyntheticMemoryCountdownBiasFromPlans(
+            plans: plans,
+          ),
         ),
       );
     }
@@ -4571,7 +4652,9 @@ class _GovernancePageState extends State<GovernancePage> {
         .map((point) => point.learningLabel.trim())
         .toList(growable: false);
     final latestMatchingDate = baseline
-        .where((point) => point.learningLabel.trim() == current.learningLabel.trim())
+        .where(
+          (point) => point.learningLabel.trim() == current.learningLabel.trim(),
+        )
         .map((point) => point.reportDate)
         .firstWhere((value) => value.trim().isNotEmpty, orElse: () => '');
     return buildSyntheticLearningMemorySummaryFromHistoryLabels(
@@ -4659,11 +4742,8 @@ class _GovernancePageState extends State<GovernancePage> {
   }) {
     return buildSyntheticPromotionDecisionSummaryFromPlans(
       plans: plans,
-      decisionSummaryLookup: (moId, targetStatus) =>
-          _moPromotionDecisionStore.decisionSummaryFor(
-            moId: moId,
-            targetValidationStatus: targetStatus,
-          ),
+      decisionSummaryLookup: (moId, targetStatus) => _moPromotionDecisionStore
+          .decisionSummaryFor(moId: moId, targetValidationStatus: targetStatus),
       shadowTomorrowUrgencySummary: shadowTomorrowUrgencySummary,
       previousShadowTomorrowUrgencySummary:
           previousShadowTomorrowUrgencySummary,
@@ -4800,7 +4880,7 @@ class _GovernancePageState extends State<GovernancePage> {
                   const SizedBox(height: 12),
                   if (parities.isEmpty)
                     Text(
-                      'No listener parity cycles were recorded in this shift.',
+                      'No listener parity cycles landed in this shift window.',
                       style: GoogleFonts.inter(
                         color: const Color(0xFF8EA4C2),
                         fontSize: 11,
@@ -5348,7 +5428,7 @@ class _GovernancePageState extends State<GovernancePage> {
         report.latestReceiptInvestigationSummary,
     ];
     if (summaryParts.isEmpty && latestParts.isEmpty) {
-      return 'No generated report receipts recorded in this shift window.';
+      return 'No generated report receipts landed in this shift window.';
     }
     if (latestParts.isEmpty) {
       return summaryParts.join(' • ');
@@ -5370,7 +5450,7 @@ class _GovernancePageState extends State<GovernancePage> {
       summaryParts.add(report.siteActivityHeadline);
     }
     return summaryParts.isEmpty
-        ? 'No visitor or site-activity signals detected in this shift window.'
+        ? 'No visitor or site-activity signals landed in this shift window.'
         : summaryParts.join(' • ');
   }
 
@@ -5452,7 +5532,7 @@ class _GovernancePageState extends State<GovernancePage> {
                                         .trim()
                                         .isNotEmpty
                                   ? report.receiptPolicyHeadline
-                                  : 'No receipt-policy summary available.',
+                                  : 'Receipt-policy summary will appear once live report receipts land.',
                               style: GoogleFonts.inter(
                                 color: const Color(0xFF9CB2D1),
                                 fontSize: 11,
@@ -5532,7 +5612,7 @@ class _GovernancePageState extends State<GovernancePage> {
                           const SizedBox(height: 6),
                           if (events.isEmpty)
                             Text(
-                              'No generated receipt events were captured for this shift window.',
+                              'No generated receipt events landed in this shift window.',
                               style: GoogleFonts.inter(
                                 color: const Color(0xFF9CB2D1),
                                 fontSize: 10,
@@ -8519,8 +8599,8 @@ class _GovernancePageState extends State<GovernancePage> {
                                       ),
                                     ),
                                     if (shadowMoPostureStrengthSummary(
-                                          site,
-                                        ).isNotEmpty)
+                                      site,
+                                    ).isNotEmpty)
                                       Padding(
                                         padding: const EdgeInsets.only(top: 3),
                                         child: Text(
@@ -9108,9 +9188,9 @@ class _GovernancePageState extends State<GovernancePage> {
                                           ),
                                         ),
                                       ],
-                                  if (point.shadowValidationSummary
-                                      .trim()
-                                      .isNotEmpty) ...[
+                                      if (point.shadowValidationSummary
+                                          .trim()
+                                          .isNotEmpty) ...[
                                         const SizedBox(height: 4),
                                         Text(
                                           'Shadow validation • ${point.shadowValidationSummary}',
@@ -9762,7 +9842,7 @@ class _GovernancePageState extends State<GovernancePage> {
                           const SizedBox(height: 6),
                           if (chains.isEmpty)
                             Text(
-                              'No current dispatch chains for this partner scope.',
+                              'No active dispatch chains are open for this partner scope right now.',
                               style: GoogleFonts.inter(
                                 color: const Color(0xFF9CB2D1),
                                 fontSize: 10,
@@ -10065,7 +10145,7 @@ class _GovernancePageState extends State<GovernancePage> {
       return _ReceiptBrandingTrend(
         trendLabel: 'NEW',
         trendReason:
-            'No prior receipt-branding snapshots are available for comparison.',
+            'Receipt-branding baseline is still forming for this lane.',
         summaryLine: summaryLine,
         reportDays: 1,
         currentModeLabel: currentModeLabel,
@@ -10195,7 +10275,7 @@ class _GovernancePageState extends State<GovernancePage> {
       return _ReceiptInvestigationTrend(
         trendLabel: 'NEW',
         trendReason:
-            'No prior receipt-investigation provenance snapshots are available for comparison.',
+            'Receipt-investigation baseline is still forming for this lane.',
         summaryLine: summaryLine,
         reportDays: 1,
         currentModeLabel: currentModeLabel,
@@ -10532,7 +10612,8 @@ class _GovernancePageState extends State<GovernancePage> {
     final urgencySegment = point.tomorrowUrgencySummary.trim().isEmpty
         ? ''
         : ' • tomorrow urgency ${point.tomorrowUrgencySummary}';
-    final shadowPostureSegment = point.tomorrowShadowPostureSummary.trim().isEmpty
+    final shadowPostureSegment =
+        point.tomorrowShadowPostureSummary.trim().isEmpty
         ? ''
         : ' • tomorrow shadow posture ${point.tomorrowShadowPostureSummary}';
     final promotionPressureSegment =
@@ -10737,7 +10818,7 @@ class _GovernancePageState extends State<GovernancePage> {
         currentReportDate: canonical.date,
         currentRows: canonical.partnerProgression.scoreboardRows,
       );
-      return _applyPartnerScopeFilter(
+      return _applyScopeFilter(
         _GovernanceReportView(
           reportDate: canonical.date,
           totalEvents: canonical.ledgerIntegrity.totalEvents,
@@ -10893,7 +10974,7 @@ class _GovernancePageState extends State<GovernancePage> {
     final integrityScore = widget.events.isEmpty
         ? 100
         : (99 - (widget.events.length % 3));
-    return _applyPartnerScopeFilter(
+    return _applyScopeFilter(
       _GovernanceReportView(
         reportDate: fallbackReportDate,
         totalEvents: widget.events.length,
@@ -10947,7 +11028,8 @@ class _GovernancePageState extends State<GovernancePage> {
         siteActivityGuardInteractions: 0,
         siteActivityExecutiveSummary: '',
         siteActivityHeadline: '',
-        siteActivitySummary: 'No visitor or site-activity signals detected.',
+        siteActivitySummary:
+            'No visitor or site-activity signals landed in this shift window.',
         vehicleVisits: 0,
         vehicleCompletedVisits: 0,
         vehicleActiveVisits: 0,
@@ -11825,8 +11907,9 @@ class _GovernancePageState extends State<GovernancePage> {
           shadowPostureBiasSummary:
               currentSyntheticWarRoomPoint?.shadowPostureBiasSummary ?? '',
         ),
-        'promotionExecutionSummary':
-            _syntheticWarRoomPromotionExecutionSummary(syntheticWarRoomPlans),
+        'promotionExecutionSummary': _syntheticWarRoomPromotionExecutionSummary(
+          syntheticWarRoomPlans,
+        ),
         'promotionSummary': _syntheticWarRoomPromotionSummary(
           syntheticWarRoomPlans,
           shadowTomorrowUrgencySummary:
@@ -12050,17 +12133,17 @@ class _GovernancePageState extends State<GovernancePage> {
     );
     final syntheticPromotionAnchorPayload =
         buildPromotionShadowAnchorPayloadForSites(
-      promotionMoId: syntheticPromotionMoId,
-      sites: shadowSites,
-      reportDate: report.reportDate,
-    );
+          promotionMoId: syntheticPromotionMoId,
+          sites: shadowSites,
+          reportDate: report.reportDate,
+        );
     final shadowPromotionMoId = syntheticPromotionMoId;
     final shadowPromotionAnchorPayload =
         buildPromotionShadowAnchorPayloadForSites(
-      promotionMoId: shadowPromotionMoId,
-      sites: shadowSites,
-      reportDate: report.reportDate,
-    );
+          promotionMoId: shadowPromotionMoId,
+          sites: shadowSites,
+          reportDate: report.reportDate,
+        );
     final siteActivityTrend = _siteActivityTrendForReport(report);
     final siteActivityBaseline = _siteActivityBaselineStats(report);
     final siteActivityHistory = _siteActivityHistory(report);
@@ -12132,8 +12215,7 @@ class _GovernancePageState extends State<GovernancePage> {
         selectedEventIdMetric:
             'global_readiness_shadow_promotion_selected_event_id',
         reviewRefsMetric: 'global_readiness_shadow_promotion_review_refs',
-        reviewCommandMetric:
-            'global_readiness_shadow_promotion_review_command',
+        reviewCommandMetric: 'global_readiness_shadow_promotion_review_command',
         caseFileCommandMetric:
             'global_readiness_shadow_promotion_case_file_command',
       ),

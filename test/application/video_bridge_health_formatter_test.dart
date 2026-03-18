@@ -87,4 +87,53 @@ void main() {
     expect(value, contains('camera:GEN-CAM-7'));
     expect(value, contains('queue stable'));
   });
+
+  test('ingest detail avoids flat no-events wording during early live ingest', () {
+    final value = VideoBridgeHealthFormatter.ingestDetail(
+      provider: 'generic_dvr',
+      records: const [],
+      attempted: 1,
+      appended: 0,
+      evidence: evidence,
+      compactDetail: (value, {maxLength = 84}) => value.trim(),
+    );
+
+    expect(value, contains('0/1 appended'));
+    expect(value, contains('awaiting first live signal'));
+    expect(value, isNot(contains('no events')));
+  });
+
+  test('ingest detail distinguishes known recent signal from empty feed', () {
+    final value = VideoBridgeHealthFormatter.ingestDetail(
+      provider: 'generic_dvr',
+      records: [
+        NormalizedIntelRecord(
+          provider: 'generic_dvr',
+          sourceType: 'dvr',
+          externalId: 'evt-known-1',
+          clientId: 'CLIENT-001',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-SANDTON',
+          headline: 'GENERIC_DVR MOTION',
+          summary: 'provider:generic_dvr | camera:GEN-CAM-7 | zone:parking_north',
+          riskScore: 72,
+          occurredAtUtc: DateTime.utc(2026, 3, 13, 10, 21),
+        ),
+      ],
+      attempted: 5,
+      appended: 0,
+      skipped: 5,
+      evidence: evidence,
+      compactDetail: (value, {maxLength = 84}) => value.trim(),
+    );
+
+    expect(value, contains('0/5 appended'));
+    expect(value, contains('skipped 5'));
+    expect(
+      value,
+      contains(
+        'known recent signal • provider:generic_dvr | camera:GEN-CAM-7 | zone:parking_north',
+      ),
+    );
+  });
 }

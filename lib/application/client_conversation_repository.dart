@@ -68,6 +68,89 @@ class SharedPrefsClientConversationRepository
   }
 }
 
+class ScopedSharedPrefsClientConversationRepository
+    implements ClientConversationRepository {
+  final DispatchPersistenceService persistence;
+  final String clientId;
+  final String siteId;
+
+  const ScopedSharedPrefsClientConversationRepository({
+    required this.persistence,
+    required this.clientId,
+    required this.siteId,
+  });
+
+  @override
+  Future<List<ClientAppMessage>> readMessages() {
+    return persistence.readScopedClientAppMessages(
+      clientId: clientId,
+      siteId: siteId,
+    );
+  }
+
+  @override
+  Future<void> saveMessages(List<ClientAppMessage> messages) {
+    return persistence.saveScopedClientAppMessages(
+      messages,
+      clientId: clientId,
+      siteId: siteId,
+    );
+  }
+
+  @override
+  Future<List<ClientAppAcknowledgement>> readAcknowledgements() {
+    return persistence.readScopedClientAppAcknowledgements(
+      clientId: clientId,
+      siteId: siteId,
+    );
+  }
+
+  @override
+  Future<void> saveAcknowledgements(
+    List<ClientAppAcknowledgement> acknowledgements,
+  ) {
+    return persistence.saveScopedClientAppAcknowledgements(
+      acknowledgements,
+      clientId: clientId,
+      siteId: siteId,
+    );
+  }
+
+  @override
+  Future<List<ClientAppPushDeliveryItem>> readPushQueue() {
+    return persistence.readScopedClientAppPushQueue(
+      clientId: clientId,
+      siteId: siteId,
+    );
+  }
+
+  @override
+  Future<void> savePushQueue(List<ClientAppPushDeliveryItem> pushQueue) {
+    return persistence.saveScopedClientAppPushQueue(
+      pushQueue,
+      clientId: clientId,
+      siteId: siteId,
+    );
+  }
+
+  @override
+  Future<ClientPushSyncState> readPushSyncState() {
+    return persistence.readScopedClientAppPushSyncState(
+      clientId: clientId,
+      siteId: siteId,
+    );
+  }
+
+  @override
+  Future<void> savePushSyncState(ClientPushSyncState state) {
+    return persistence.saveScopedClientAppPushSyncState(
+      state,
+      clientId: clientId,
+      siteId: siteId,
+    );
+  }
+}
+
 class FallbackClientConversationRepository
     implements ClientConversationRepository {
   final ClientConversationRepository primary;

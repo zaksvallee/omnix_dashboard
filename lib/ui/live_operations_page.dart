@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../application/client_delivery_message_formatter.dart';
 import '../application/hazard_response_directive_service.dart';
 import '../application/morning_sovereign_report_service.dart';
 import '../application/monitoring_global_posture_service.dart';
@@ -16,6 +17,7 @@ import '../domain/events/guard_checked_in.dart';
 import '../domain/events/incident_closed.dart';
 import '../domain/events/intelligence_received.dart';
 import '../domain/events/partner_dispatch_status_declared.dart';
+import '../domain/events/patrol_completed.dart';
 import '../domain/events/response_arrived.dart';
 import '../application/monitoring_scene_review_store.dart';
 import '../application/site_activity_intelligence_service.dart';
@@ -33,6 +35,8 @@ enum _IncidentStatus { triaging, dispatched, investigating, resolved }
 enum _LadderStepStatus { completed, active, thinking, pending, blocked }
 
 enum _ContextTab { details, voip, visual }
+
+enum _FocusLinkState { none, exact, scopeBacked, seeded }
 
 enum _LedgerType { aiAction, humanOverride, systemEvent, escalation }
 
@@ -226,6 +230,148 @@ class _PartnerLiveTrendSummary {
   });
 }
 
+class LiveClientCommsSnapshot {
+  final String clientId;
+  final String siteId;
+  final String clientVoiceProfileLabel;
+  final int learnedApprovalStyleCount;
+  final String learnedApprovalStyleExample;
+  final int pendingLearnedStyleDraftCount;
+  final int totalMessages;
+  final int clientInboundCount;
+  final int pendingApprovalCount;
+  final int queuedPushCount;
+  final String telegramHealthLabel;
+  final String? telegramHealthDetail;
+  final bool telegramFallbackActive;
+  final String pushSyncStatusLabel;
+  final String? pushSyncFailureReason;
+  final String smsFallbackLabel;
+  final bool smsFallbackReady;
+  final bool smsFallbackEligibleNow;
+  final String voiceReadinessLabel;
+  final String? deliveryReadinessDetail;
+  final String? latestSmsFallbackStatus;
+  final DateTime? latestSmsFallbackAtUtc;
+  final String? latestVoipStageStatus;
+  final DateTime? latestVoipStageAtUtc;
+  final List<String> recentDeliveryHistoryLines;
+  final String? latestClientMessage;
+  final DateTime? latestClientMessageAtUtc;
+  final String? latestOnyxReply;
+  final DateTime? latestOnyxReplyAtUtc;
+  final String? latestPendingDraft;
+  final DateTime? latestPendingDraftAtUtc;
+
+  const LiveClientCommsSnapshot({
+    required this.clientId,
+    required this.siteId,
+    this.clientVoiceProfileLabel = 'Auto',
+    this.learnedApprovalStyleCount = 0,
+    this.learnedApprovalStyleExample = '',
+    this.pendingLearnedStyleDraftCount = 0,
+    this.totalMessages = 0,
+    this.clientInboundCount = 0,
+    this.pendingApprovalCount = 0,
+    this.queuedPushCount = 0,
+    this.telegramHealthLabel = 'disabled',
+    this.telegramHealthDetail,
+    this.telegramFallbackActive = false,
+    this.pushSyncStatusLabel = 'idle',
+    this.pushSyncFailureReason,
+    this.smsFallbackLabel = 'SMS not ready',
+    this.smsFallbackReady = false,
+    this.smsFallbackEligibleNow = false,
+    this.voiceReadinessLabel = 'VoIP staging',
+    this.deliveryReadinessDetail,
+    this.latestSmsFallbackStatus,
+    this.latestSmsFallbackAtUtc,
+    this.latestVoipStageStatus,
+    this.latestVoipStageAtUtc,
+    this.recentDeliveryHistoryLines = const <String>[],
+    this.latestClientMessage,
+    this.latestClientMessageAtUtc,
+    this.latestOnyxReply,
+    this.latestOnyxReplyAtUtc,
+    this.latestPendingDraft,
+    this.latestPendingDraftAtUtc,
+  });
+}
+
+class LiveControlInboxDraft {
+  final int updateId;
+  final String clientId;
+  final String siteId;
+  final String clientVoiceProfileLabel;
+  final String sourceText;
+  final String draftText;
+  final String providerLabel;
+  final bool usesLearnedApprovalStyle;
+  final DateTime createdAtUtc;
+  final bool matchesSelectedScope;
+
+  const LiveControlInboxDraft({
+    required this.updateId,
+    required this.clientId,
+    required this.siteId,
+    this.clientVoiceProfileLabel = 'Auto',
+    required this.sourceText,
+    required this.draftText,
+    required this.providerLabel,
+    this.usesLearnedApprovalStyle = false,
+    required this.createdAtUtc,
+    this.matchesSelectedScope = false,
+  });
+}
+
+class LiveControlInboxClientAsk {
+  final String clientId;
+  final String siteId;
+  final String author;
+  final String body;
+  final String messageProvider;
+  final DateTime occurredAtUtc;
+  final bool matchesSelectedScope;
+
+  const LiveControlInboxClientAsk({
+    required this.clientId,
+    required this.siteId,
+    required this.author,
+    required this.body,
+    required this.messageProvider,
+    required this.occurredAtUtc,
+    this.matchesSelectedScope = false,
+  });
+}
+
+class LiveControlInboxSnapshot {
+  final String selectedClientId;
+  final String selectedSiteId;
+  final String selectedScopeClientVoiceProfileLabel;
+  final int pendingApprovalCount;
+  final int selectedScopePendingCount;
+  final int awaitingResponseCount;
+  final String telegramHealthLabel;
+  final String? telegramHealthDetail;
+  final bool telegramFallbackActive;
+  final List<LiveControlInboxDraft> pendingDrafts;
+  final List<LiveControlInboxClientAsk> liveClientAsks;
+
+  const LiveControlInboxSnapshot({
+    required this.selectedClientId,
+    required this.selectedSiteId,
+    this.selectedScopeClientVoiceProfileLabel = 'Auto',
+    this.pendingApprovalCount = 0,
+    this.selectedScopePendingCount = 0,
+    this.awaitingResponseCount = 0,
+    this.telegramHealthLabel = 'disabled',
+    this.telegramHealthDetail,
+    this.telegramFallbackActive = false,
+    this.pendingDrafts = const <LiveControlInboxDraft>[],
+    this.liveClientAsks = const <LiveControlInboxClientAsk>[],
+  });
+}
+
 class LiveOperationsPage extends StatefulWidget {
   final List<DispatchEvent> events;
   final List<SovereignReport> morningSovereignReportHistory;
@@ -234,8 +380,27 @@ class LiveOperationsPage extends StatefulWidget {
   final List<String> historicalShadowStrengthLabels;
   final String previousTomorrowUrgencySummary;
   final String focusIncidentReference;
+  final String? initialScopeClientId;
+  final String? initialScopeSiteId;
   final String videoOpsLabel;
   final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
+  final LiveClientCommsSnapshot? clientCommsSnapshot;
+  final LiveControlInboxSnapshot? controlInboxSnapshot;
+  final VoidCallback? onOpenClientView;
+  final void Function(String clientId, String siteId)? onOpenClientViewForScope;
+  final Future<void> Function(String clientId, String siteId)?
+  onClearLearnedLaneStyleForScope;
+  final Future<void> Function(
+    String clientId,
+    String siteId,
+    String? profileSignal,
+  )?
+  onSetLaneVoiceProfileForScope;
+  final Future<void> Function(int updateId, String draftText)?
+  onUpdateClientReplyDraftText;
+  final Future<String> Function(int updateId, {String? approvedText})?
+  onApproveClientReplyDraft;
+  final Future<String> Function(int updateId)? onRejectClientReplyDraft;
   final void Function(List<String> eventIds, String? selectedEventId)?
   onOpenEventsForScope;
 
@@ -248,8 +413,19 @@ class LiveOperationsPage extends StatefulWidget {
     this.historicalShadowStrengthLabels = const <String>[],
     this.previousTomorrowUrgencySummary = '',
     this.focusIncidentReference = '',
+    this.initialScopeClientId,
+    this.initialScopeSiteId,
     this.videoOpsLabel = 'CCTV',
     this.sceneReviewByIntelligenceId = const {},
+    this.clientCommsSnapshot,
+    this.controlInboxSnapshot,
+    this.onOpenClientView,
+    this.onOpenClientViewForScope,
+    this.onClearLearnedLaneStyleForScope,
+    this.onSetLaneVoiceProfileForScope,
+    this.onUpdateClientReplyDraftText,
+    this.onApproveClientReplyDraft,
+    this.onRejectClientReplyDraft,
     this.onOpenEventsForScope,
   });
 
@@ -273,9 +449,111 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   List<_GuardVigilance> _vigilance = const [];
   final List<_LedgerEntry> _manualLedger = [];
   final Map<String, _IncidentStatus> _statusOverrides = {};
+  Set<int> _controlInboxBusyDraftIds = <int>{};
+  Set<int> _controlInboxDraftEditBusyIds = <int>{};
+  Set<String> _learnedStyleBusyScopeKeys = <String>{};
+  Set<String> _laneVoiceBusyScopeKeys = <String>{};
   String? _activeIncidentId;
-  bool _focusReferenceLinkedToLive = false;
+  String _resolvedFocusReference = '';
+  _FocusLinkState _focusLinkState = _FocusLinkState.none;
   _ContextTab _activeTab = _ContextTab.details;
+
+  VoidCallback? _openClientLaneAction({
+    required String clientId,
+    required String siteId,
+  }) {
+    final scopedCallback = widget.onOpenClientViewForScope;
+    if (scopedCallback != null) {
+      return () => scopedCallback(clientId, siteId);
+    }
+    return widget.onOpenClientView;
+  }
+
+  String _scopeBusyKey(String clientId, String siteId) =>
+      '${clientId.trim()}|${siteId.trim()}';
+
+  Future<void> _clearLearnedLaneStyle(LiveClientCommsSnapshot snapshot) async {
+    final callback = widget.onClearLearnedLaneStyleForScope;
+    if (callback == null) {
+      return;
+    }
+    final clientId = snapshot.clientId.trim();
+    final siteId = snapshot.siteId.trim();
+    if (clientId.isEmpty || siteId.isEmpty) {
+      return;
+    }
+    final key = _scopeBusyKey(clientId, siteId);
+    if (_learnedStyleBusyScopeKeys.contains(key)) {
+      return;
+    }
+    setState(() {
+      _learnedStyleBusyScopeKeys = <String>{..._learnedStyleBusyScopeKeys, key};
+    });
+    try {
+      await callback(clientId, siteId);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _learnedStyleBusyScopeKeys = Set<String>.from(
+            _learnedStyleBusyScopeKeys,
+          )..remove(key);
+        });
+      }
+    }
+  }
+
+  Future<void> _setLaneVoiceProfile(
+    LiveClientCommsSnapshot snapshot,
+    String? profileSignal,
+  ) async {
+    final callback = widget.onSetLaneVoiceProfileForScope;
+    if (callback == null) {
+      return;
+    }
+    final clientId = snapshot.clientId.trim();
+    final siteId = snapshot.siteId.trim();
+    if (clientId.isEmpty || siteId.isEmpty) {
+      return;
+    }
+    final key = _scopeBusyKey(clientId, siteId);
+    if (_laneVoiceBusyScopeKeys.contains(key)) {
+      return;
+    }
+    setState(() {
+      _laneVoiceBusyScopeKeys = <String>{..._laneVoiceBusyScopeKeys, key};
+    });
+    try {
+      await callback(clientId, siteId, profileSignal);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _laneVoiceBusyScopeKeys = Set<String>.from(_laneVoiceBusyScopeKeys)
+            ..remove(key);
+        });
+      }
+    }
+  }
+
+  bool _laneVoiceOptionSelected(
+    LiveClientCommsSnapshot snapshot,
+    String? signal,
+  ) {
+    return _laneVoiceOptionSelectedForLabel(
+      snapshot.clientVoiceProfileLabel,
+      signal,
+    );
+  }
+
+  bool _laneVoiceOptionSelectedForLabel(String profileLabel, String? signal) {
+    final normalizedLabel = profileLabel.trim().toLowerCase();
+    return switch (signal) {
+      null => normalizedLabel == 'auto',
+      'concise-updates' => normalizedLabel == 'concise',
+      'reassurance-forward' => normalizedLabel == 'reassuring',
+      'validation-heavy' => normalizedLabel == 'validation-heavy',
+      _ => false,
+    };
+  }
 
   @override
   void initState() {
@@ -289,6 +567,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     if (oldWidget.events.length != widget.events.length ||
         oldWidget.sceneReviewByIntelligenceId !=
             widget.sceneReviewByIntelligenceId ||
+        oldWidget.initialScopeClientId?.trim() !=
+            widget.initialScopeClientId?.trim() ||
+        oldWidget.initialScopeSiteId?.trim() !=
+            widget.initialScopeSiteId?.trim() ||
         oldWidget.focusIncidentReference.trim() !=
             widget.focusIncidentReference.trim()) {
       _projectFromEvents();
@@ -297,7 +579,12 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final scopeClientId = (widget.initialScopeClientId ?? '').trim();
+    final scopeSiteId = (widget.initialScopeSiteId ?? '').trim();
+    final hasScopeFocus = scopeClientId.isNotEmpty;
     final activeIncident = _activeIncident;
+    final clientCommsSnapshot = widget.clientCommsSnapshot;
+    final controlInboxSnapshot = widget.controlInboxSnapshot;
     final ledger = [..._manualLedger, ..._projectedLedger]
       ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
     final handsetLayout = isHandsetLayout(context);
@@ -319,6 +606,24 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   child: wide
                       ? Column(
                           children: [
+                            if (hasScopeFocus) ...[
+                              _scopeFocusBanner(
+                                clientId: scopeClientId,
+                                siteId: scopeSiteId,
+                              ),
+                              const SizedBox(height: 10),
+                            ],
+                            if (clientCommsSnapshot != null) ...[
+                              _clientLaneWatchPanel(
+                                clientCommsSnapshot,
+                                activeIncident,
+                              ),
+                              const SizedBox(height: 10),
+                            ],
+                            if (controlInboxSnapshot != null) ...[
+                              _controlInboxPanel(controlInboxSnapshot),
+                              const SizedBox(height: 10),
+                            ],
                             Expanded(
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -349,6 +654,24 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       : SingleChildScrollView(
                           child: Column(
                             children: [
+                              if (hasScopeFocus) ...[
+                                _scopeFocusBanner(
+                                  clientId: scopeClientId,
+                                  siteId: scopeSiteId,
+                                ),
+                                const SizedBox(height: 10),
+                              ],
+                              if (clientCommsSnapshot != null) ...[
+                                _clientLaneWatchPanel(
+                                  clientCommsSnapshot,
+                                  activeIncident,
+                                ),
+                                const SizedBox(height: 10),
+                              ],
+                              if (controlInboxSnapshot != null) ...[
+                                _controlInboxPanel(controlInboxSnapshot),
+                                const SizedBox(height: 10),
+                              ],
                               _incidentQueuePanel(),
                               const SizedBox(height: 10),
                               _actionLadderPanel(activeIncident),
@@ -372,9 +695,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final now = DateTime.now();
     final hh = now.hour.toString().padLeft(2, '0');
     final mm = now.minute.toString().padLeft(2, '0');
-    final focusReference = widget.focusIncidentReference.trim();
+    final clientCommsSnapshot = widget.clientCommsSnapshot;
+    final focusReference = _resolvedFocusReference;
     final hasFocusReference = focusReference.isNotEmpty;
-    final focusMatched = hasFocusReference && _focusReferenceLinkedToLive;
+    final focusState = _focusLinkState;
     final activeCount = _incidents
         .where((incident) => incident.status != _IncidentStatus.resolved)
         .length;
@@ -433,10 +757,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   border: const Color(0x66EF4444),
                 ),
                 _chip(
-                  label: '3 AI Actions Pending',
-                  foreground: const Color(0xFF22D3EE),
-                  background: const Color(0x3322D3EE),
-                  border: const Color(0x6622D3EE),
+                  label: _clientLaneTopBarLabel(clientCommsSnapshot),
+                  foreground: _clientLaneTopBarForeground(clientCommsSnapshot),
+                  background: _clientLaneTopBarBackground(clientCommsSnapshot),
+                  border: _clientLaneTopBarBorder(clientCommsSnapshot),
                 ),
                 _chip(
                   label: '${_vigilance.length} Guards Online',
@@ -447,16 +771,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 if (hasFocusReference)
                   _chip(
                     label:
-                        'Focus ${focusMatched ? 'Linked' : 'Seeded'}: $focusReference',
-                    foreground: focusMatched
-                        ? const Color(0xFF34D399)
-                        : const Color(0xFFF59E0B),
-                    background: focusMatched
-                        ? const Color(0x3334D399)
-                        : const Color(0x33F59E0B),
-                    border: focusMatched
-                        ? const Color(0x6634D399)
-                        : const Color(0x66F59E0B),
+                        'Focus ${_focusStateLabel(focusState)}: $focusReference',
+                    foreground: _focusStateForeground(focusState),
+                    background: _focusStateBackground(focusState),
+                    border: _focusStateBorder(focusState),
                   ),
               ],
             ),
@@ -510,10 +828,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           ),
           const SizedBox(width: 8),
           _chip(
-            label: '3 AI Actions Pending',
-            foreground: const Color(0xFF22D3EE),
-            background: const Color(0x3322D3EE),
-            border: const Color(0x6622D3EE),
+            label: _clientLaneTopBarLabel(clientCommsSnapshot),
+            foreground: _clientLaneTopBarForeground(clientCommsSnapshot),
+            background: _clientLaneTopBarBackground(clientCommsSnapshot),
+            border: _clientLaneTopBarBorder(clientCommsSnapshot),
           ),
           const SizedBox(width: 8),
           _chip(
@@ -526,18 +844,1000 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             const SizedBox(width: 8),
             _chip(
               label:
-                  'Focus ${focusMatched ? 'Linked' : 'Seeded'}: $focusReference',
-              foreground: focusMatched
-                  ? const Color(0xFF34D399)
-                  : const Color(0xFFF59E0B),
-              background: focusMatched
-                  ? const Color(0x3334D399)
-                  : const Color(0x33F59E0B),
-              border: focusMatched
-                  ? const Color(0x6634D399)
-                  : const Color(0x66F59E0B),
+                  'Focus ${_focusStateLabel(focusState)}: $focusReference',
+              foreground: _focusStateForeground(focusState),
+              background: _focusStateBackground(focusState),
+              border: _focusStateBorder(focusState),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _clientLaneWatchPanel(
+    LiveClientCommsSnapshot snapshot,
+    _IncidentRecord? activeIncident,
+  ) {
+    final learnedStyleBusy = _learnedStyleBusyScopeKeys.contains(
+      _scopeBusyKey(snapshot.clientId, snapshot.siteId),
+    );
+    final laneVoiceBusy = _laneVoiceBusyScopeKeys.contains(
+      _scopeBusyKey(snapshot.clientId, snapshot.siteId),
+    );
+    final accent = _clientCommsAccent(snapshot);
+    final linkedToActiveIncident =
+        activeIncident != null &&
+        activeIncident.clientId.trim() == snapshot.clientId.trim() &&
+        activeIncident.siteId.trim() == snapshot.siteId.trim();
+    final scopeFallback = activeIncident?.site ?? snapshot.siteId;
+    final scopeLabel = _humanizeOpsScopeLabel(
+      snapshot.siteId,
+      fallback: scopeFallback,
+    );
+    final latestClientMessage = (snapshot.latestClientMessage ?? '').trim();
+    final responseLabel = snapshot.pendingApprovalCount > 0
+        ? 'Next ONYX reply waiting sign-off'
+        : 'Latest lane reply';
+    final responseText = snapshot.pendingApprovalCount > 0
+        ? (snapshot.latestPendingDraft ?? '').trim()
+        : (snapshot.latestOnyxReply ?? '').trim();
+    final responseMoment = _commsMomentLabel(
+      snapshot.pendingApprovalCount > 0
+          ? snapshot.latestPendingDraftAtUtc
+          : snapshot.latestOnyxReplyAtUtc,
+    );
+
+    return Container(
+      key: const ValueKey('client-lane-watch-panel'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [accent.withValues(alpha: 0.16), const Color(0xFF0D1725)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accent.withValues(alpha: 0.52)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: accent.withValues(alpha: 0.34)),
+                ),
+                child: Icon(
+                  Icons.mark_chat_read_rounded,
+                  size: 18,
+                  color: accent,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'CLIENT LANE WATCH',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF8FAFD4),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '$scopeLabel • ${_clientCommsNarrative(snapshot)}',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFEAF4FF),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      linkedToActiveIncident
+                          ? 'Linked to active incident ${activeIncident.id}, so control can feel client pressure without leaving the board.'
+                          : 'Watching the selected client lane so operator approval and delivery health stay visible before the next escalation.',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFB8CCE5),
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_openClientLaneAction(
+                    clientId: snapshot.clientId,
+                    siteId: snapshot.siteId,
+                  ) !=
+                  null) ...[
+                const SizedBox(width: 10),
+                OutlinedButton.icon(
+                  onPressed: _openClientLaneAction(
+                    clientId: snapshot.clientId,
+                    siteId: snapshot.siteId,
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFEAF4FF),
+                    side: BorderSide(color: accent.withValues(alpha: 0.52)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    minimumSize: const Size(0, 34),
+                  ),
+                  icon: const Icon(Icons.open_in_new_rounded, size: 15),
+                  label: Text(
+                    'Open Client Lane',
+                    style: GoogleFonts.inter(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+              if (snapshot.learnedApprovalStyleCount > 0 &&
+                  widget.onClearLearnedLaneStyleForScope != null) ...[
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  key: ValueKey(
+                    'client-lane-watch-clear-learned-style-${snapshot.clientId}-${snapshot.siteId}',
+                  ),
+                  onPressed: learnedStyleBusy
+                      ? null
+                      : () => _clearLearnedLaneStyle(snapshot),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF9EDCF0),
+                    side: const BorderSide(color: Color(0xFF245B72)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    minimumSize: const Size(0, 34),
+                  ),
+                  icon: learnedStyleBusy
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFF9EDCF0),
+                          ),
+                        )
+                      : const Icon(Icons.refresh_rounded, size: 15),
+                  label: Text(
+                    'Clear Learned Style',
+                    style: GoogleFonts.inter(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (linkedToActiveIncident)
+                _commsChip(
+                  icon: Icons.link_rounded,
+                  label: activeIncident.id,
+                  accent: accent,
+                ),
+              _commsChip(
+                icon: Icons.mark_chat_unread_rounded,
+                label: '${snapshot.clientInboundCount} client msg',
+                accent: const Color(0xFF22D3EE),
+              ),
+              _commsChip(
+                icon: Icons.verified_user_rounded,
+                label: '${snapshot.pendingApprovalCount} approval',
+                accent: snapshot.pendingApprovalCount > 0
+                    ? const Color(0xFFF59E0B)
+                    : const Color(0xFF34D399),
+              ),
+              _commsChip(
+                icon: Icons.tune_rounded,
+                label: 'Lane voice ${snapshot.clientVoiceProfileLabel}',
+                accent: const Color(0xFF4B6B8F),
+              ),
+              if (snapshot.learnedApprovalStyleCount > 0)
+                _commsChip(
+                  icon: Icons.school_rounded,
+                  label: 'Learned style ${snapshot.learnedApprovalStyleCount}',
+                  accent: const Color(0xFF22D3EE),
+                ),
+              if (snapshot.pendingLearnedStyleDraftCount > 0)
+                _commsChip(
+                  icon: Icons.psychology_alt_rounded,
+                  label: snapshot.pendingLearnedStyleDraftCount == 1
+                      ? 'ONYX using learned style'
+                      : 'ONYX using learned style on ${snapshot.pendingLearnedStyleDraftCount} drafts',
+                  accent: const Color(0xFF67E8F9),
+                ),
+              _commsChip(
+                icon: Icons.telegram_rounded,
+                label: 'Telegram ${snapshot.telegramHealthLabel.toUpperCase()}',
+                accent: _telegramHealthAccent(snapshot.telegramHealthLabel),
+              ),
+              _commsChip(
+                icon: Icons.sms_rounded,
+                label: snapshot.smsFallbackLabel,
+                accent: _smsFallbackAccent(
+                  snapshot.smsFallbackLabel,
+                  ready: snapshot.smsFallbackReady,
+                  eligibleNow: snapshot.smsFallbackEligibleNow,
+                ),
+              ),
+              _commsChip(
+                icon: Icons.phone_forwarded_rounded,
+                label: snapshot.voiceReadinessLabel,
+                accent: _voiceReadinessAccent(snapshot.voiceReadinessLabel),
+              ),
+              _commsChip(
+                icon: Icons.outbox_rounded,
+                label: 'Push ${snapshot.pushSyncStatusLabel.toUpperCase()}',
+                accent: _pushSyncAccent(snapshot.pushSyncStatusLabel),
+              ),
+            ],
+          ),
+          if (widget.onSetLaneVoiceProfileForScope != null) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (laneVoiceBusy)
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(0xFF8FD1FF),
+                    ),
+                  ),
+                for (final option in const <(String, String?)>[
+                  ('Auto', null),
+                  ('Concise', 'concise-updates'),
+                  ('Reassuring', 'reassurance-forward'),
+                  ('Validation-heavy', 'validation-heavy'),
+                ])
+                  OutlinedButton(
+                    onPressed: laneVoiceBusy
+                        ? null
+                        : () => _setLaneVoiceProfile(snapshot, option.$2),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor:
+                          _laneVoiceOptionSelected(snapshot, option.$2)
+                          ? const Color(0xFFEAF4FF)
+                          : const Color(0xFF9AB1CF),
+                      backgroundColor:
+                          _laneVoiceOptionSelected(snapshot, option.$2)
+                          ? const Color(0xFF1B3148)
+                          : Colors.transparent,
+                      side: BorderSide(
+                        color: _laneVoiceOptionSelected(snapshot, option.$2)
+                            ? const Color(0xFF4B6B8F)
+                            : const Color(0xFF35506F),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                    ),
+                    child: Text(
+                      option.$1,
+                      style: GoogleFonts.inter(
+                        fontSize: 10.6,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+          if (latestClientMessage.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _clientCommsTextBlock(
+              label: 'Latest client ask',
+              text:
+                  '$latestClientMessage${_commsMomentLabel(snapshot.latestClientMessageAtUtc).isEmpty ? '' : ' • ${_commsMomentLabel(snapshot.latestClientMessageAtUtc)}'}',
+              borderColor: const Color(0xFF31506F),
+              textColor: const Color(0xFFD8E8FA),
+            ),
+          ],
+          if (responseText.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _clientCommsTextBlock(
+              label: responseLabel,
+              text:
+                  '$responseText${responseMoment.isEmpty ? '' : ' • $responseMoment'}',
+              borderColor: accent,
+              textColor: const Color(0xFFEAF4FF),
+            ),
+          ],
+          if ((snapshot.latestSmsFallbackStatus ?? '').trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _clientCommsTextBlock(
+              label: 'Latest SMS fallback',
+              text:
+                  '${ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(snapshot.latestSmsFallbackStatus!.trim())}${_commsMomentLabel(snapshot.latestSmsFallbackAtUtc).isEmpty ? '' : ' • ${_commsMomentLabel(snapshot.latestSmsFallbackAtUtc)}'}',
+              borderColor: const Color(0xFF2E7D68),
+              textColor: const Color(0xFFDDFBF3),
+            ),
+          ],
+          if ((snapshot.latestVoipStageStatus ?? '').trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _clientCommsTextBlock(
+              label: 'Latest VoIP stage',
+              text:
+                  '${ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(snapshot.latestVoipStageStatus!.trim())}${_commsMomentLabel(snapshot.latestVoipStageAtUtc).isEmpty ? '' : ' • ${_commsMomentLabel(snapshot.latestVoipStageAtUtc)}'}',
+              borderColor: const Color(0xFF3E6AA6),
+              textColor: const Color(0xFFDCEBFF),
+            ),
+          ],
+          if (snapshot.recentDeliveryHistoryLines.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _clientCommsTextBlock(
+              label: 'Recent delivery history',
+              text: snapshot.recentDeliveryHistoryLines.join('\n'),
+              borderColor: const Color(0xFF35506F),
+              textColor: const Color(0xFFDCE8FF),
+            ),
+          ],
+          if (snapshot.learnedApprovalStyleExample.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _clientCommsTextBlock(
+              label: 'Learned approval style',
+              text: snapshot.learnedApprovalStyleExample.trim(),
+              borderColor: const Color(0xFF245B72),
+              textColor: const Color(0xFFD9F7FF),
+            ),
+          ],
+          if (_clientCommsOpsFootnote(snapshot).isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              _clientCommsOpsFootnote(snapshot),
+              style: GoogleFonts.inter(
+                color: const Color(0xFF9FB7D5),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                height: 1.28,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _controlInboxPanel(LiveControlInboxSnapshot snapshot) {
+    final laneVoiceBusy = _laneVoiceBusyScopeKeys.contains(
+      _scopeBusyKey(snapshot.selectedClientId, snapshot.selectedSiteId),
+    );
+    final accent = _controlInboxAccent(snapshot);
+    final selectedScopeLabel = _humanizeOpsScopeLabel(
+      snapshot.selectedSiteId,
+      fallback: snapshot.selectedSiteId,
+    );
+    final selectedScopeNarrative = snapshot.selectedScopePendingCount > 0
+        ? '${snapshot.selectedScopePendingCount} pending in the selected lane'
+        : snapshot.awaitingResponseCount > 0
+        ? '${snapshot.awaitingResponseCount} fresh client ask${snapshot.awaitingResponseCount == 1 ? '' : 's'} waiting for ONYX shaping'
+        : 'selected lane is clear right now';
+
+    return Container(
+      key: const ValueKey('control-inbox-panel'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [accent.withValues(alpha: 0.15), const Color(0xFF0C1622)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accent.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: accent.withValues(alpha: 0.34)),
+                ),
+                child: Icon(Icons.inbox_rounded, size: 18, color: accent),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'CONTROL INBOX',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF8FAFD4),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      snapshot.pendingApprovalCount > 0
+                          ? '${snapshot.pendingApprovalCount} client repl${snapshot.pendingApprovalCount == 1 ? 'y' : 'ies'} waiting for operator judgement'
+                          : snapshot.awaitingResponseCount > 0
+                          ? '${snapshot.awaitingResponseCount} live client ask${snapshot.awaitingResponseCount == 1 ? '' : 's'} waiting for response shaping'
+                          : 'No client replies are waiting for approval',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFEAF4FF),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '$selectedScopeLabel • $selectedScopeNarrative',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFB8CCE5),
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_openClientLaneAction(
+                    clientId: snapshot.selectedClientId,
+                    siteId: snapshot.selectedSiteId,
+                  ) !=
+                  null) ...[
+                const SizedBox(width: 10),
+                OutlinedButton.icon(
+                  onPressed: _openClientLaneAction(
+                    clientId: snapshot.selectedClientId,
+                    siteId: snapshot.selectedSiteId,
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFEAF4FF),
+                    side: BorderSide(color: accent.withValues(alpha: 0.52)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    minimumSize: const Size(0, 34),
+                  ),
+                  icon: const Icon(Icons.open_in_new_rounded, size: 15),
+                  label: Text(
+                    'Open Client Lane',
+                    style: GoogleFonts.inter(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _commsChip(
+                icon: Icons.verified_user_rounded,
+                label: '${snapshot.pendingApprovalCount} waiting',
+                accent: snapshot.pendingApprovalCount > 0
+                    ? const Color(0xFFF59E0B)
+                    : const Color(0xFF34D399),
+              ),
+              _commsChip(
+                icon: Icons.mark_chat_unread_rounded,
+                label: '${snapshot.awaitingResponseCount} live ask',
+                accent: snapshot.awaitingResponseCount > 0
+                    ? const Color(0xFF22D3EE)
+                    : const Color(0xFF4B6B8F),
+              ),
+              _commsChip(
+                icon: Icons.pin_drop_rounded,
+                label:
+                    '$selectedScopeLabel • ${snapshot.selectedScopePendingCount}',
+                accent: snapshot.selectedScopePendingCount > 0
+                    ? accent
+                    : const Color(0xFF4B6B8F),
+              ),
+              _commsChip(
+                icon: Icons.tune_rounded,
+                label:
+                    'Lane voice ${snapshot.selectedScopeClientVoiceProfileLabel}',
+                accent: const Color(0xFF4B6B8F),
+              ),
+              _commsChip(
+                icon: Icons.telegram_rounded,
+                label: 'Telegram ${snapshot.telegramHealthLabel.toUpperCase()}',
+                accent: _telegramHealthAccent(snapshot.telegramHealthLabel),
+              ),
+              if (snapshot.telegramFallbackActive)
+                _commsChip(
+                  icon: Icons.swap_horiz_rounded,
+                  label: 'Fallback active',
+                  accent: const Color(0xFFF97316),
+                ),
+            ],
+          ),
+          if (widget.onSetLaneVoiceProfileForScope != null) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (laneVoiceBusy)
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(0xFF8FD1FF),
+                    ),
+                  ),
+                for (final option in const <(String, String?)>[
+                  ('Auto', null),
+                  ('Concise', 'concise-updates'),
+                  ('Reassuring', 'reassurance-forward'),
+                  ('Validation-heavy', 'validation-heavy'),
+                ])
+                  OutlinedButton(
+                    onPressed: laneVoiceBusy
+                        ? null
+                        : () => _setLaneVoiceProfile(
+                            LiveClientCommsSnapshot(
+                              clientId: snapshot.selectedClientId,
+                              siteId: snapshot.selectedSiteId,
+                              clientVoiceProfileLabel:
+                                  snapshot.selectedScopeClientVoiceProfileLabel,
+                            ),
+                            option.$2,
+                          ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor:
+                          _laneVoiceOptionSelectedForLabel(
+                            snapshot.selectedScopeClientVoiceProfileLabel,
+                            option.$2,
+                          )
+                          ? const Color(0xFFEAF4FF)
+                          : const Color(0xFF9AB1CF),
+                      backgroundColor:
+                          _laneVoiceOptionSelectedForLabel(
+                            snapshot.selectedScopeClientVoiceProfileLabel,
+                            option.$2,
+                          )
+                          ? const Color(0xFF1B3148)
+                          : Colors.transparent,
+                      side: BorderSide(
+                        color:
+                            _laneVoiceOptionSelectedForLabel(
+                              snapshot.selectedScopeClientVoiceProfileLabel,
+                              option.$2,
+                            )
+                            ? const Color(0xFF4B6B8F)
+                            : const Color(0xFF35506F),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                    ),
+                    child: Text(
+                      option.$1,
+                      style: GoogleFonts.inter(
+                        fontSize: 10.6,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 10),
+          if (snapshot.pendingDrafts.isEmpty)
+            Text(
+              snapshot.liveClientAsks.isEmpty
+                  ? 'The inbox is clear. New client questions and approval drafts will stage here for command.'
+                  : 'Client questions are active even though no reply drafts are waiting yet.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF9FB7D5),
+                fontSize: 10.8,
+                fontWeight: FontWeight.w600,
+                height: 1.3,
+              ),
+            )
+          else
+            Column(
+              children: snapshot.pendingDrafts
+                  .take(3)
+                  .map(_controlInboxDraftCard)
+                  .toList(growable: false),
+            ),
+          if (snapshot.liveClientAsks.isNotEmpty) ...[
+            if (snapshot.pendingDrafts.isNotEmpty) const SizedBox(height: 4),
+            Text(
+              'LIVE CLIENT ASKS',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8FAFD4),
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.0,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Column(
+              children: snapshot.liveClientAsks
+                  .take(2)
+                  .map(_controlInboxClientAskCard)
+                  .toList(growable: false),
+            ),
+          ],
+          if ((snapshot.telegramHealthDetail ?? '').trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(
+                snapshot.telegramHealthDetail!.trim(),
+              ),
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8FA7C8),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                height: 1.28,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _controlInboxClientAskCard(LiveControlInboxClientAsk ask) {
+    final accent = ask.matchesSelectedScope
+        ? const Color(0xFF22D3EE)
+        : const Color(0xFF4B6B8F);
+    final scopeLabel = _humanizeOpsScopeLabel(ask.siteId, fallback: ask.siteId);
+    final providerLabel = ask.messageProvider.trim().isEmpty
+        ? 'client lane'
+        : ask.messageProvider.trim();
+
+    return Container(
+      key: ValueKey(
+        'control-inbox-ask-${ask.clientId}-${ask.siteId}-${ask.occurredAtUtc.toIso8601String()}',
+      ),
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F1825),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: accent.withValues(alpha: 0.32)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$scopeLabel • ${ask.author.trim().isEmpty ? 'Client' : ask.author.trim()}',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFEAF4FF),
+                        fontSize: 11.2,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '$providerLabel • ${_commsMomentLabel(ask.occurredAtUtc)}',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF8EA4C2),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (_openClientLaneAction(
+                    clientId: ask.clientId,
+                    siteId: ask.siteId,
+                  ) !=
+                  null)
+                OutlinedButton.icon(
+                  onPressed: _openClientLaneAction(
+                    clientId: ask.clientId,
+                    siteId: ask.siteId,
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFEAF4FF),
+                    side: BorderSide(color: accent.withValues(alpha: 0.42)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                  ),
+                  icon: const Icon(Icons.open_in_new_rounded, size: 14),
+                  label: Text(
+                    'Shape Reply',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _commsChip(
+                icon: ask.matchesSelectedScope
+                    ? Icons.my_location_rounded
+                    : Icons.travel_explore_rounded,
+                label: ask.matchesSelectedScope
+                    ? 'Selected lane'
+                    : 'Other scope',
+                accent: accent,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _clientCommsTextBlock(
+            label: 'Client asked',
+            text: ask.body.trim(),
+            borderColor: accent,
+            textColor: const Color(0xFFD8E8FA),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _controlInboxDraftCard(LiveControlInboxDraft draft) {
+    final accent = draft.matchesSelectedScope
+        ? const Color(0xFF22D3EE)
+        : const Color(0xFFF59E0B);
+    final scopeLabel = _humanizeOpsScopeLabel(
+      draft.siteId,
+      fallback: draft.siteId,
+    );
+    final busy = _controlInboxBusyDraftIds.contains(draft.updateId);
+
+    return Container(
+      key: ValueKey('control-inbox-draft-${draft.updateId}'),
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF101A27),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: accent.withValues(alpha: 0.36)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$scopeLabel • Draft #${draft.updateId}',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFEAF4FF),
+                  fontSize: 11.2,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                '${draft.providerLabel.trim().isEmpty ? 'AI provider' : draft.providerLabel.trim()} • ${_commsMomentLabel(draft.createdAtUtc)}',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF8EA4C2),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _commsChip(
+                    icon: draft.matchesSelectedScope
+                        ? Icons.my_location_rounded
+                        : Icons.travel_explore_rounded,
+                    label: draft.matchesSelectedScope
+                        ? 'Selected lane'
+                        : 'Other scope',
+                    accent: accent,
+                  ),
+                  _commsChip(
+                    icon: Icons.tune_rounded,
+                    label: 'Voice ${draft.clientVoiceProfileLabel}',
+                    accent: const Color(0xFF4B6B8F),
+                  ),
+                  if (draft.clientVoiceProfileLabel.trim().toLowerCase() !=
+                      'auto')
+                    _commsChip(
+                      icon: Icons.auto_fix_high_rounded,
+                      label: 'Voice-adjusted',
+                      accent: const Color(0xFF34D399),
+                    ),
+                  if (draft.usesLearnedApprovalStyle)
+                    _commsChip(
+                      icon: Icons.psychology_alt_rounded,
+                      label: 'Uses learned approval style',
+                      accent: const Color(0xFF67E8F9),
+                    ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _clientCommsTextBlock(
+            label: 'Client asked',
+            text: draft.sourceText.trim(),
+            borderColor: const Color(0xFF31465F),
+            textColor: const Color(0xFFD4E4F7),
+          ),
+          const SizedBox(height: 7),
+          _clientCommsTextBlock(
+            label: 'ONYX draft',
+            text: draft.draftText.trim(),
+            borderColor: accent,
+            textColor: const Color(0xFFEAF4FF),
+          ),
+          if (draft.usesLearnedApprovalStyle) ...[
+            const SizedBox(height: 7),
+            Text(
+              'This draft is already leaning on learned approval wording from this lane.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFB7CAE3),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                height: 1.32,
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                onPressed: widget.onApproveClientReplyDraft == null || busy
+                    ? null
+                    : () => _approveControlInboxDraft(draft),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF2E7D5B),
+                  foregroundColor: const Color(0xFFEAF4FF),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                ),
+                icon: const Icon(Icons.check_rounded, size: 14),
+                label: Text(
+                  'Approve + Send',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed:
+                    widget.onUpdateClientReplyDraftText == null ||
+                        busy ||
+                        _controlInboxDraftEditBusyIds.contains(draft.updateId)
+                    ? null
+                    : () => _editControlInboxDraft(draft),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFB9D9FF),
+                  side: const BorderSide(color: Color(0xFF35506F)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                ),
+                icon: const Icon(Icons.edit_rounded, size: 14),
+                label: Text(
+                  'Edit Draft',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: widget.onRejectClientReplyDraft == null || busy
+                    ? null
+                    : () => _rejectControlInboxDraft(draft),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFF87171),
+                  side: const BorderSide(color: Color(0xFF5B242C)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                ),
+                icon: const Icon(Icons.close_rounded, size: 14),
+                label: Text(
+                  'Reject',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              if (_openClientLaneAction(
+                    clientId: draft.clientId,
+                    siteId: draft.siteId,
+                  ) !=
+                  null)
+                OutlinedButton.icon(
+                  onPressed: busy
+                      ? null
+                      : _openClientLaneAction(
+                          clientId: draft.clientId,
+                          siteId: draft.siteId,
+                        ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF8FD1FF),
+                    side: BorderSide(color: accent.withValues(alpha: 0.42)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                  ),
+                  icon: const Icon(Icons.open_in_new_rounded, size: 14),
+                  label: Text(
+                    'Open Client Lane',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
     );
@@ -1102,6 +2402,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final moShadowPosture = _moShadowPostureForIncident(incident);
     final nextShiftDrafts = _nextShiftDraftsForIncident(incident);
     final suppressedReviews = _suppressedSceneReviewsForIncident(incident);
+    final clientComms = _clientCommsSnapshotForIncident(incident);
     final rows = <Widget>[
       _metaRow('Incident', incident.id),
       _metaRow('Type', incident.type),
@@ -1114,6 +2415,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       _metaRow('Client', 'Sandton HOA'),
       _metaRow('Contact', 'John Sovereign'),
       _metaRow('Client Safe Word', 'PHOENIX'),
+      if (clientComms != null) ...[
+        const SizedBox(height: 8),
+        _clientCommsPulseCard(incident, clientComms),
+      ],
       if (siteActivity != null && siteActivity.totalSignals > 0) ...[
         const SizedBox(height: 8),
         _siteActivityTruthCard(incident, siteActivity),
@@ -1228,6 +2533,25 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     return ListView(children: rows);
   }
 
+  LiveClientCommsSnapshot? _clientCommsSnapshotForIncident(
+    _IncidentRecord incident,
+  ) {
+    final snapshot = widget.clientCommsSnapshot;
+    if (snapshot == null) {
+      return null;
+    }
+    final incidentClientId = incident.clientId.trim();
+    final incidentSiteId = incident.siteId.trim();
+    if (incidentClientId.isEmpty || incidentSiteId.isEmpty) {
+      return null;
+    }
+    if (incidentClientId != snapshot.clientId.trim() ||
+        incidentSiteId != snapshot.siteId.trim()) {
+      return null;
+    }
+    return snapshot;
+  }
+
   SiteActivityIntelligenceSnapshot? _siteActivitySnapshotForIncident(
     _IncidentRecord incident,
   ) {
@@ -1238,6 +2562,402 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       events: widget.events,
       clientId: incident.clientId,
       siteId: incident.siteId,
+    );
+  }
+
+  Widget _clientCommsPulseCard(
+    _IncidentRecord incident,
+    LiveClientCommsSnapshot snapshot,
+  ) {
+    final learnedStyleBusy = _learnedStyleBusyScopeKeys.contains(
+      _scopeBusyKey(snapshot.clientId, snapshot.siteId),
+    );
+    final laneVoiceBusy = _laneVoiceBusyScopeKeys.contains(
+      _scopeBusyKey(snapshot.clientId, snapshot.siteId),
+    );
+    final accent = _clientCommsAccent(snapshot);
+    final latestClientMessage =
+        (snapshot.latestClientMessage ?? '').trim().isEmpty
+        ? 'Client lane is quiet right now. New messages will appear here.'
+        : snapshot.latestClientMessage!.trim();
+    final pendingDraft = (snapshot.latestPendingDraft ?? '').trim();
+    final latestOnyxReply = (snapshot.latestOnyxReply ?? '').trim();
+    final responseLabel = pendingDraft.isNotEmpty
+        ? 'Pending ONYX Draft'
+        : 'Latest lane reply';
+    final responseText = pendingDraft.isNotEmpty
+        ? pendingDraft
+        : latestOnyxReply.isEmpty
+        ? 'No lane reply has been logged yet.'
+        : latestOnyxReply;
+    final responseMoment = _commsMomentLabel(
+      pendingDraft.isNotEmpty
+          ? snapshot.latestPendingDraftAtUtc
+          : snapshot.latestOnyxReplyAtUtc,
+    );
+    return Container(
+      key: Key('client-comms-pulse-${incident.id}'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [accent.withValues(alpha: 0.18), const Color(0xFF0C1622)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: accent.withValues(alpha: 0.48)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.forum_rounded, size: 16, color: accent),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Client Comms Pulse',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFEAF4FF),
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              if (_openClientLaneAction(
+                    clientId: snapshot.clientId,
+                    siteId: snapshot.siteId,
+                  ) !=
+                  null)
+                OutlinedButton.icon(
+                  onPressed: _openClientLaneAction(
+                    clientId: snapshot.clientId,
+                    siteId: snapshot.siteId,
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFEAF4FF),
+                    side: BorderSide(color: accent.withValues(alpha: 0.58)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 5,
+                    ),
+                    minimumSize: const Size(0, 28),
+                  ),
+                  icon: const Icon(Icons.open_in_new_rounded, size: 14),
+                  label: Text(
+                    'Open Lane',
+                    style: GoogleFonts.inter(
+                      fontSize: 10.2,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              if (snapshot.learnedApprovalStyleCount > 0 &&
+                  widget.onClearLearnedLaneStyleForScope != null) ...[
+                const SizedBox(width: 6),
+                OutlinedButton.icon(
+                  key: ValueKey(
+                    'client-comms-pulse-clear-learned-style-${snapshot.clientId}-${snapshot.siteId}',
+                  ),
+                  onPressed: learnedStyleBusy
+                      ? null
+                      : () => _clearLearnedLaneStyle(snapshot),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF9EDCF0),
+                    side: const BorderSide(color: Color(0xFF245B72)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 5,
+                    ),
+                    minimumSize: const Size(0, 28),
+                  ),
+                  icon: learnedStyleBusy
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFF9EDCF0),
+                          ),
+                        )
+                      : const Icon(Icons.refresh_rounded, size: 14),
+                  label: Text(
+                    'Clear Learned Style',
+                    style: GoogleFonts.inter(
+                      fontSize: 10.2,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${_humanizeOpsScopeLabel(snapshot.siteId, fallback: incident.site)} • ${_clientCommsNarrative(snapshot)}',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFCEE4FA),
+              fontSize: 10.4,
+              fontWeight: FontWeight.w600,
+              height: 1.28,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            children: [
+              _commsChip(
+                icon: Icons.mark_chat_unread_rounded,
+                label: '${snapshot.clientInboundCount} client msg',
+                accent: const Color(0xFF22D3EE),
+              ),
+              _commsChip(
+                icon: Icons.verified_user_rounded,
+                label: '${snapshot.pendingApprovalCount} approval',
+                accent: snapshot.pendingApprovalCount > 0
+                    ? const Color(0xFFF59E0B)
+                    : const Color(0xFF34D399),
+              ),
+              _commsChip(
+                icon: Icons.telegram_rounded,
+                label: 'Telegram ${snapshot.telegramHealthLabel.toUpperCase()}',
+                accent: _telegramHealthAccent(snapshot.telegramHealthLabel),
+              ),
+              _commsChip(
+                icon: Icons.sms_rounded,
+                label: snapshot.smsFallbackLabel,
+                accent: _smsFallbackAccent(
+                  snapshot.smsFallbackLabel,
+                  ready: snapshot.smsFallbackReady,
+                  eligibleNow: snapshot.smsFallbackEligibleNow,
+                ),
+              ),
+              _commsChip(
+                icon: Icons.phone_forwarded_rounded,
+                label: snapshot.voiceReadinessLabel,
+                accent: _voiceReadinessAccent(snapshot.voiceReadinessLabel),
+              ),
+              _commsChip(
+                icon: Icons.outbox_rounded,
+                label: 'Push ${snapshot.pushSyncStatusLabel.toUpperCase()}',
+                accent: _pushSyncAccent(snapshot.pushSyncStatusLabel),
+              ),
+              if (snapshot.learnedApprovalStyleCount > 0)
+                _commsChip(
+                  icon: Icons.school_rounded,
+                  label: 'Learned style ${snapshot.learnedApprovalStyleCount}',
+                  accent: const Color(0xFF22D3EE),
+                ),
+              if (snapshot.pendingLearnedStyleDraftCount > 0)
+                _commsChip(
+                  icon: Icons.psychology_alt_rounded,
+                  label: snapshot.pendingLearnedStyleDraftCount == 1
+                      ? 'ONYX using learned style'
+                      : 'ONYX using learned style on ${snapshot.pendingLearnedStyleDraftCount} drafts',
+                  accent: const Color(0xFF67E8F9),
+                ),
+            ],
+          ),
+          if (widget.onSetLaneVoiceProfileForScope != null) ...[
+            const SizedBox(height: 7),
+            Wrap(
+              spacing: 7,
+              runSpacing: 7,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (laneVoiceBusy)
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(0xFF8FD1FF),
+                    ),
+                  ),
+                for (final option in const <(String, String?)>[
+                  ('Auto', null),
+                  ('Concise', 'concise-updates'),
+                  ('Reassuring', 'reassurance-forward'),
+                  ('Validation-heavy', 'validation-heavy'),
+                ])
+                  OutlinedButton(
+                    onPressed: laneVoiceBusy
+                        ? null
+                        : () => _setLaneVoiceProfile(snapshot, option.$2),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor:
+                          _laneVoiceOptionSelected(snapshot, option.$2)
+                          ? const Color(0xFFEAF4FF)
+                          : const Color(0xFF9AB1CF),
+                      backgroundColor:
+                          _laneVoiceOptionSelected(snapshot, option.$2)
+                          ? const Color(0xFF1B3148)
+                          : Colors.transparent,
+                      side: BorderSide(
+                        color: _laneVoiceOptionSelected(snapshot, option.$2)
+                            ? const Color(0xFF4B6B8F)
+                            : const Color(0xFF35506F),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
+                    ),
+                    child: Text(
+                      option.$1,
+                      style: GoogleFonts.inter(
+                        fontSize: 10.2,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 8),
+          _clientCommsTextBlock(
+            label: 'Latest Client Message',
+            text:
+                '$latestClientMessage${_commsMomentLabel(snapshot.latestClientMessageAtUtc).isEmpty ? '' : ' • ${_commsMomentLabel(snapshot.latestClientMessageAtUtc)}'}',
+            borderColor: const Color(0xFF31506F),
+            textColor: const Color(0xFFD8E8FA),
+          ),
+          const SizedBox(height: 7),
+          _clientCommsTextBlock(
+            label: responseLabel,
+            text:
+                '$responseText${responseMoment.isEmpty ? '' : ' • $responseMoment'}',
+            borderColor: accent,
+            textColor: const Color(0xFFEAF4FF),
+          ),
+          if ((snapshot.latestSmsFallbackStatus ?? '').trim().isNotEmpty) ...[
+            const SizedBox(height: 7),
+            _clientCommsTextBlock(
+              label: 'Latest SMS fallback',
+              text:
+                  '${ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(snapshot.latestSmsFallbackStatus!.trim())}${_commsMomentLabel(snapshot.latestSmsFallbackAtUtc).isEmpty ? '' : ' • ${_commsMomentLabel(snapshot.latestSmsFallbackAtUtc)}'}',
+              borderColor: const Color(0xFF2E7D68),
+              textColor: const Color(0xFFDDFBF3),
+            ),
+          ],
+          if ((snapshot.latestVoipStageStatus ?? '').trim().isNotEmpty) ...[
+            const SizedBox(height: 7),
+            _clientCommsTextBlock(
+              label: 'Latest VoIP stage',
+              text:
+                  '${ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(snapshot.latestVoipStageStatus!.trim())}${_commsMomentLabel(snapshot.latestVoipStageAtUtc).isEmpty ? '' : ' • ${_commsMomentLabel(snapshot.latestVoipStageAtUtc)}'}',
+              borderColor: const Color(0xFF3E6AA6),
+              textColor: const Color(0xFFDCEBFF),
+            ),
+          ],
+          if (snapshot.recentDeliveryHistoryLines.isNotEmpty) ...[
+            const SizedBox(height: 7),
+            _clientCommsTextBlock(
+              label: 'Recent delivery history',
+              text: snapshot.recentDeliveryHistoryLines.join('\n'),
+              borderColor: const Color(0xFF35506F),
+              textColor: const Color(0xFFDCE8FF),
+            ),
+          ],
+          if (snapshot.learnedApprovalStyleExample.trim().isNotEmpty) ...[
+            const SizedBox(height: 7),
+            _clientCommsTextBlock(
+              label: 'Learned approval style',
+              text: snapshot.learnedApprovalStyleExample.trim(),
+              borderColor: const Color(0xFF245B72),
+              textColor: const Color(0xFFD9F7FF),
+            ),
+          ],
+          if ((snapshot.telegramHealthDetail ?? '').trim().isNotEmpty ||
+              (snapshot.pushSyncFailureReason ?? '').trim().isNotEmpty ||
+              snapshot.telegramFallbackActive ||
+              snapshot.queuedPushCount > 0) ...[
+            const SizedBox(height: 7),
+            Text(
+              _clientCommsOpsFootnote(snapshot),
+              style: GoogleFonts.inter(
+                color: const Color(0xFFA9BFD9),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                height: 1.28,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _commsChip({
+    required IconData icon,
+    required String label,
+    required Color accent,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.42)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12.2, color: const Color(0xFFEAF4FF)),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF4FF),
+              fontSize: 10.1,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _clientCommsTextBlock({
+    required String label,
+    required String text,
+    required Color borderColor,
+    required Color textColor,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(9),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1824),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: borderColor.withValues(alpha: 0.52)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 9.8,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.35,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            text,
+            style: GoogleFonts.inter(
+              color: textColor,
+              fontSize: 10.8,
+              fontWeight: FontWeight.w600,
+              height: 1.32,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1361,8 +3081,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     MonitoringWatchAutonomyActionPlan plan,
   ) {
     return buildSyntheticPromotionExecutionBiasSummary(
-      promotionPriorityBias:
-          (plan.metadata['mo_promotion_priority_bias'] ?? '').trim(),
+      promotionPriorityBias: (plan.metadata['mo_promotion_priority_bias'] ?? '')
+          .trim(),
       promotionCountdownBias:
           (plan.metadata['mo_promotion_countdown_bias'] ?? '').trim(),
     );
@@ -1371,16 +3091,16 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   String _shadowPostureBiasSummaryForPlan(
     MonitoringWatchAutonomyActionPlan plan,
   ) {
-    final prebuiltSummary =
-        (plan.metadata['shadow_posture_bias_summary'] ?? '').trim();
+    final prebuiltSummary = (plan.metadata['shadow_posture_bias_summary'] ?? '')
+        .trim();
     if (prebuiltSummary.isNotEmpty) {
       return prebuiltSummary;
     }
     final postureBias = (plan.metadata['shadow_posture_bias'] ?? '').trim();
-    final posturePriority =
-        (plan.metadata['shadow_posture_priority'] ?? '').trim();
-    final postureCountdown =
-        (plan.metadata['shadow_posture_countdown'] ?? '').trim();
+    final posturePriority = (plan.metadata['shadow_posture_priority'] ?? '')
+        .trim();
+    final postureCountdown = (plan.metadata['shadow_posture_countdown'] ?? '')
+        .trim();
     if (postureBias.isEmpty &&
         posturePriority.isEmpty &&
         postureCountdown.isEmpty) {
@@ -2451,7 +4171,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
   Widget _voipTab(_IncidentRecord? incident) {
     final wide = allowEmbeddedPanelScroll(context);
-    if (incident == null) return _muted('No active transcript.');
+    if (incident == null) {
+      return _muted('No live call transcript for this lane yet.');
+    }
     final duress = _duressDetected(incident);
     final transcript = <Map<String, String>>[
       <String, String>{
@@ -2585,7 +4307,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   }
 
   Widget _visualTab(_IncidentRecord? incident) {
-    if (incident == null) return _muted('No visual comparison available.');
+    if (incident == null) {
+      return _muted('No camera comparison is ready for this lane yet.');
+    }
     final snapshotAvailable = (incident.snapshotUrl ?? '').trim().isNotEmpty;
     final clipAvailable = (incident.clipUrl ?? '').trim().isNotEmpty;
     final score = incident.priority == _IncidentPriority.p1Critical
@@ -3206,6 +4930,183 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
   }
 
+  Future<void> _approveControlInboxDraft(LiveControlInboxDraft draft) async {
+    if (widget.onApproveClientReplyDraft == null ||
+        _controlInboxBusyDraftIds.contains(draft.updateId)) {
+      return;
+    }
+    setState(() {
+      _controlInboxBusyDraftIds = {
+        ..._controlInboxBusyDraftIds,
+        draft.updateId,
+      };
+    });
+    try {
+      final message = await widget.onApproveClientReplyDraft!.call(
+        draft.updateId,
+        approvedText: draft.draftText,
+      );
+      _showLiveOpsSnack(message.trim().isEmpty ? 'Draft approved.' : message);
+    } catch (_) {
+      _showLiveOpsSnack('Failed to approve AI draft ${draft.updateId}.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _controlInboxBusyDraftIds = _controlInboxBusyDraftIds
+              .where((entry) => entry != draft.updateId)
+              .toSet();
+        });
+      }
+    }
+  }
+
+  Future<void> _editControlInboxDraft(LiveControlInboxDraft draft) async {
+    if (widget.onUpdateClientReplyDraftText == null ||
+        _controlInboxDraftEditBusyIds.contains(draft.updateId)) {
+      return;
+    }
+    final controller = TextEditingController(text: draft.draftText);
+    final nextText = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF0E1620),
+          title: Text(
+            'Refine ONYX Draft',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF4FF),
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          content: SizedBox(
+            width: 520,
+            child: TextField(
+              controller: controller,
+              minLines: 5,
+              maxLines: 9,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFEAF4FF),
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Shape the final client-facing wording here.',
+                hintStyle: GoogleFonts.inter(
+                  color: const Color(0xFF8EA4C2),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+                filled: true,
+                fillColor: const Color(0xFF111D2A),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF35506F)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF35506F)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF4B6B8F)),
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF9AB1CF),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.of(context).pop(controller.text.trim()),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF2E7D5B),
+                foregroundColor: const Color(0xFFEAF4FF),
+              ),
+              child: Text(
+                'Save Draft',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+    final normalizedText = (nextText ?? '').trim();
+    if (normalizedText.isEmpty || normalizedText == draft.draftText.trim()) {
+      return;
+    }
+    setState(() {
+      _controlInboxDraftEditBusyIds = {
+        ..._controlInboxDraftEditBusyIds,
+        draft.updateId,
+      };
+    });
+    try {
+      await widget.onUpdateClientReplyDraftText!.call(
+        draft.updateId,
+        normalizedText,
+      );
+      _showLiveOpsSnack('Draft wording updated for approval.');
+    } catch (_) {
+      _showLiveOpsSnack('Failed to update AI draft ${draft.updateId}.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _controlInboxDraftEditBusyIds = _controlInboxDraftEditBusyIds
+              .where((entry) => entry != draft.updateId)
+              .toSet();
+        });
+      }
+    }
+  }
+
+  Future<void> _rejectControlInboxDraft(LiveControlInboxDraft draft) async {
+    if (widget.onRejectClientReplyDraft == null ||
+        _controlInboxBusyDraftIds.contains(draft.updateId)) {
+      return;
+    }
+    setState(() {
+      _controlInboxBusyDraftIds = {
+        ..._controlInboxBusyDraftIds,
+        draft.updateId,
+      };
+    });
+    try {
+      final message = await widget.onRejectClientReplyDraft!.call(
+        draft.updateId,
+      );
+      _showLiveOpsSnack(message.trim().isEmpty ? 'Draft rejected.' : message);
+    } catch (_) {
+      _showLiveOpsSnack('Failed to reject AI draft ${draft.updateId}.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _controlInboxBusyDraftIds = _controlInboxBusyDraftIds
+              .where((entry) => entry != draft.updateId)
+              .toSet();
+        });
+      }
+    }
+  }
+
+  void _showLiveOpsSnack(String message) {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    messenger?.hideCurrentSnackBar();
+    messenger?.showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+    );
+  }
+
   void _openOverrideDialog(_IncidentRecord incident) {
     String? selectedReason;
     showDialog<void>(
@@ -3392,8 +5293,53 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   }
 
   void _projectFromEvents() {
-    final focusReference = widget.focusIncidentReference.trim();
-    final liveProjectedIncidents = _deriveIncidents(widget.events);
+    final scopeClientId = (widget.initialScopeClientId ?? '').trim();
+    final scopeSiteId = (widget.initialScopeSiteId ?? '').trim();
+    final hasScopeFocus = scopeClientId.isNotEmpty;
+    final scopedEvents = hasScopeFocus
+        ? widget.events
+              .where((event) {
+                final clientId = switch (event) {
+                  DecisionCreated value => value.clientId.trim(),
+                  ResponseArrived value => value.clientId.trim(),
+                  PartnerDispatchStatusDeclared value => value.clientId.trim(),
+                  GuardCheckedIn value => value.clientId.trim(),
+                  ExecutionCompleted value => value.clientId.trim(),
+                  IntelligenceReceived value => value.clientId.trim(),
+                  PatrolCompleted value => value.clientId.trim(),
+                  IncidentClosed value => value.clientId.trim(),
+                  _ => '',
+                };
+                final siteId = switch (event) {
+                  DecisionCreated value => value.siteId.trim(),
+                  ResponseArrived value => value.siteId.trim(),
+                  PartnerDispatchStatusDeclared value => value.siteId.trim(),
+                  GuardCheckedIn value => value.siteId.trim(),
+                  ExecutionCompleted value => value.siteId.trim(),
+                  IntelligenceReceived value => value.siteId.trim(),
+                  PatrolCompleted value => value.siteId.trim(),
+                  IncidentClosed value => value.siteId.trim(),
+                  _ => '',
+                };
+                if (clientId != scopeClientId) {
+                  return false;
+                }
+                if (scopeSiteId.isEmpty) {
+                  return true;
+                }
+                return siteId == scopeSiteId;
+              })
+              .toList(growable: false)
+        : widget.events;
+    final focusReference = _canonicalFocusReference(
+      widget.focusIncidentReference,
+      scopedEvents,
+    );
+    final normalizedInputFocus = widget.focusIncidentReference.trim();
+    final liveProjectedIncidents = _deriveIncidents(
+      scopedEvents,
+      allowDemoFallback: !hasScopeFocus,
+    );
     final focusMatchedInLiveStream =
         focusReference.isNotEmpty &&
         liveProjectedIncidents.any((incident) => incident.id == focusReference);
@@ -3402,13 +5348,20 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       focusReference: focusReference,
       hasLiveMatch: focusMatchedInLiveStream,
     );
-    final projectedLedger = _deriveLedger(widget.events);
-    final projectedVigilance = _deriveVigilance(widget.events);
+    final projectedLedger = _deriveLedger(scopedEvents);
+    final projectedVigilance = _deriveVigilance(scopedEvents);
     setState(() {
       _incidents = projectedIncidents;
       _projectedLedger = projectedLedger;
       _vigilance = projectedVigilance;
-      _focusReferenceLinkedToLive = focusMatchedInLiveStream;
+      _resolvedFocusReference = focusReference;
+      _focusLinkState = switch ((focusReference.isNotEmpty, focusMatchedInLiveStream)) {
+        (false, _) => _FocusLinkState.none,
+        (true, false) => _FocusLinkState.seeded,
+        (true, true) when normalizedInputFocus == focusReference =>
+          _FocusLinkState.exact,
+        (true, true) => _FocusLinkState.scopeBacked,
+      };
       if (_incidents.isEmpty) {
         _activeIncidentId = null;
       } else if (focusReference.isNotEmpty &&
@@ -3420,6 +5373,134 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         _activeIncidentId = _incidents.first.id;
       }
     });
+  }
+
+  String _canonicalFocusReference(
+    String rawFocusReference,
+    List<DispatchEvent> events,
+  ) {
+    final normalizedReference = rawFocusReference.trim();
+    if (normalizedReference.isEmpty) {
+      return '';
+    }
+
+    DecisionCreated? decisionMatch;
+    IntelligenceReceived? intelligenceMatch;
+    for (final event in events) {
+      final dispatchId = switch (event) {
+        DecisionCreated value => value.dispatchId.trim(),
+        ResponseArrived value => value.dispatchId.trim(),
+        PartnerDispatchStatusDeclared value => value.dispatchId.trim(),
+        ExecutionCompleted value => value.dispatchId.trim(),
+        ExecutionDenied value => value.dispatchId.trim(),
+        IncidentClosed value => value.dispatchId.trim(),
+        _ => '',
+      };
+      final eventMatches = event.eventId.trim() == normalizedReference;
+      final dispatchMatches =
+          dispatchId.isNotEmpty &&
+          (dispatchId == normalizedReference ||
+              _incidentIdForDispatch(dispatchId) == normalizedReference);
+      if (eventMatches || dispatchMatches) {
+        final decision = events
+            .whereType<DecisionCreated>()
+            .where((candidate) => candidate.dispatchId.trim() == dispatchId)
+            .fold<DecisionCreated?>(
+              null,
+              (latest, candidate) =>
+                  latest == null ||
+                      candidate.occurredAt.isAfter(latest.occurredAt)
+                  ? candidate
+                  : latest,
+            );
+        if (decision != null &&
+            (decisionMatch == null ||
+                decision.occurredAt.isAfter(decisionMatch.occurredAt))) {
+          decisionMatch = decision;
+        }
+      }
+      if (event is IntelligenceReceived &&
+          (event.eventId.trim() == normalizedReference ||
+              event.intelligenceId.trim() == normalizedReference) &&
+          (intelligenceMatch == null ||
+              event.occurredAt.isAfter(intelligenceMatch.occurredAt))) {
+        intelligenceMatch = event;
+      }
+    }
+
+    if (decisionMatch != null) {
+      return _incidentIdForDispatch(decisionMatch.dispatchId.trim());
+    }
+
+    if (intelligenceMatch != null) {
+      final decision = events
+          .whereType<DecisionCreated>()
+          .where(
+            (candidate) =>
+                candidate.clientId.trim() ==
+                    intelligenceMatch!.clientId.trim() &&
+                candidate.siteId.trim() == intelligenceMatch.siteId.trim(),
+          )
+          .fold<DecisionCreated?>(
+            null,
+            (latest, candidate) =>
+                latest == null ||
+                    candidate.occurredAt.isAfter(latest.occurredAt)
+                ? candidate
+                : latest,
+          );
+      if (decision != null) {
+        return _incidentIdForDispatch(decision.dispatchId.trim());
+      }
+    }
+
+    return normalizedReference;
+  }
+
+  String _focusStateLabel(_FocusLinkState state) {
+    return switch (state) {
+      _FocusLinkState.none => 'Idle',
+      _FocusLinkState.exact => 'Linked',
+      _FocusLinkState.scopeBacked => 'Scope-backed',
+      _FocusLinkState.seeded => 'Seeded',
+    };
+  }
+
+  Color _focusStateForeground(_FocusLinkState state) {
+    return switch (state) {
+      _FocusLinkState.none => const Color(0xFF9AB1CF),
+      _FocusLinkState.exact => const Color(0xFF34D399),
+      _FocusLinkState.scopeBacked => const Color(0xFF8FD1FF),
+      _FocusLinkState.seeded => const Color(0xFFF59E0B),
+    };
+  }
+
+  Color _focusStateBackground(_FocusLinkState state) {
+    return switch (state) {
+      _FocusLinkState.none => const Color(0x1A9AB1CF),
+      _FocusLinkState.exact => const Color(0x3334D399),
+      _FocusLinkState.scopeBacked => const Color(0x338FD1FF),
+      _FocusLinkState.seeded => const Color(0x33F59E0B),
+    };
+  }
+
+  Color _focusStateBorder(_FocusLinkState state) {
+    return switch (state) {
+      _FocusLinkState.none => const Color(0x669AB1CF),
+      _FocusLinkState.exact => const Color(0x6634D399),
+      _FocusLinkState.scopeBacked => const Color(0x668FD1FF),
+      _FocusLinkState.seeded => const Color(0x66F59E0B),
+    };
+  }
+
+  String _incidentIdForDispatch(String dispatchId) {
+    final normalizedDispatchId = dispatchId.trim();
+    if (normalizedDispatchId.isEmpty) {
+      return '';
+    }
+    return normalizedDispatchId.startsWith('INC-')
+        ? normalizedDispatchId
+        : 'INC-$normalizedDispatchId';
   }
 
   List<_IncidentRecord> _injectFocusedIncidentFallback({
@@ -3437,8 +5518,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         regionId: '',
         siteId: '',
         priority: _IncidentPriority.p2High,
-        type: 'Seeded Breach Playback',
-        site: 'Demo Operations Lane',
+        type: 'Focused lane playback',
+        site: 'Focused Operations Lane',
         timestamp: _hhmm(DateTime.now().toLocal()),
         status: _statusOverrides[focusReference] ?? _IncidentStatus.dispatched,
       ),
@@ -3446,13 +5527,19 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     ];
   }
 
-  List<_IncidentRecord> _deriveIncidents(List<DispatchEvent> events) {
+  List<_IncidentRecord> _deriveIncidents(
+    List<DispatchEvent> events, {
+    required bool allowDemoFallback,
+  }) {
     final decisions = events.whereType<DecisionCreated>().toList(
       growable: false,
     )..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
     if (decisions.isEmpty) {
-      final demo = _demoIncidents();
-      return demo
+      if (!allowDemoFallback) {
+        return const <_IncidentRecord>[];
+      }
+      final fallbackIncidents = _fallbackIncidents();
+      return fallbackIncidents
           .map(
             (incident) => incident.copyWith(
               status: _statusOverrides[incident.id] ?? incident.status,
@@ -3564,7 +5651,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     return incidents;
   }
 
-  List<_IncidentRecord> _demoIncidents() {
+  List<_IncidentRecord> _fallbackIncidents() {
     return const [
       _IncidentRecord(
         id: 'INC-8829-QX',
@@ -3572,8 +5659,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         regionId: '',
         siteId: '',
         priority: _IncidentPriority.p1Critical,
-        type: 'Breach Detection',
-        site: 'Sandton Estate North',
+        type: 'Perimeter breach',
+        site: 'North Residential Cluster',
         timestamp: '22:14',
         status: _IncidentStatus.investigating,
       ),
@@ -3583,8 +5670,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         regionId: '',
         siteId: '',
         priority: _IncidentPriority.p1Critical,
-        type: 'Armed Response Request',
-        site: 'Waterfall Estate Main',
+        type: 'Priority response',
+        site: 'Central Access Gate',
         timestamp: '22:08',
         status: _IncidentStatus.dispatched,
       ),
@@ -3594,8 +5681,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         regionId: '',
         siteId: '',
         priority: _IncidentPriority.p2High,
-        type: 'Perimeter Alarm',
-        site: 'Blue Ridge Security',
+        type: 'Perimeter alarm',
+        site: 'East Patrol Sector',
         timestamp: '21:56',
         status: _IncidentStatus.triaging,
       ),
@@ -3605,8 +5692,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         regionId: '',
         siteId: '',
         priority: _IncidentPriority.p2High,
-        type: 'Gate Malfunction',
-        site: 'Midrand Industrial Park',
+        type: 'Access control failure',
+        site: 'Midrand Operations Park',
         timestamp: '21:45',
         status: _IncidentStatus.investigating,
       ),
@@ -3616,12 +5703,50 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         regionId: '',
         siteId: '',
         priority: _IncidentPriority.p3Medium,
-        type: 'Power Failure',
-        site: 'Centurion Mall',
+        type: 'Power instability',
+        site: 'Centurion Retail Annex',
         timestamp: '21:42',
         status: _IncidentStatus.resolved,
       ),
     ];
+  }
+
+  Widget _scopeFocusBanner({required String clientId, required String siteId}) {
+    final scopeLabel = siteId.trim().isEmpty
+        ? '$clientId/all sites'
+        : '$clientId/$siteId';
+    return Container(
+      key: const ValueKey('live-operations-scope-banner'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0x141C3C57),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0x4435506F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Scope focus active',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8FD1FF),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            scopeLabel,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF1FB),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   List<_LadderStep> _ladderStepsFor(_IncidentRecord? incident) {
@@ -4262,6 +6387,206 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       'NEW' => const Color(0xFFFDE68A),
       _ => const Color(0xFF9CB4D0),
     };
+  }
+
+  Color _clientCommsAccent(LiveClientCommsSnapshot snapshot) {
+    if (snapshot.pendingApprovalCount > 0) {
+      return const Color(0xFFF59E0B);
+    }
+    final bridge = snapshot.telegramHealthLabel.trim().toLowerCase();
+    final push = snapshot.pushSyncStatusLabel.trim().toLowerCase();
+    if (bridge == 'blocked' ||
+        bridge == 'degraded' ||
+        push == 'failed' ||
+        snapshot.telegramFallbackActive) {
+      return const Color(0xFFF97316);
+    }
+    return const Color(0xFF22D3EE);
+  }
+
+  Color _controlInboxAccent(LiveControlInboxSnapshot snapshot) {
+    if (snapshot.pendingApprovalCount > 0) {
+      return const Color(0xFFF59E0B);
+    }
+    if (snapshot.awaitingResponseCount > 0) {
+      return const Color(0xFF22D3EE);
+    }
+    final bridge = snapshot.telegramHealthLabel.trim().toLowerCase();
+    if (snapshot.telegramFallbackActive ||
+        bridge == 'blocked' ||
+        bridge == 'degraded') {
+      return const Color(0xFFF97316);
+    }
+    return const Color(0xFF22D3EE);
+  }
+
+  String _clientLaneTopBarLabel(LiveClientCommsSnapshot? snapshot) {
+    if (snapshot == null) {
+      return 'Client lane idle';
+    }
+    if (snapshot.pendingApprovalCount > 0) {
+      return '${snapshot.pendingApprovalCount} Client Reply${snapshot.pendingApprovalCount == 1 ? '' : 's'} Awaiting';
+    }
+    if (snapshot.smsFallbackEligibleNow) {
+      return 'Client lane SMS fallback ready';
+    }
+    if (snapshot.telegramFallbackActive) {
+      return 'Client lane on fallback';
+    }
+    if (snapshot.clientInboundCount > 0) {
+      return '${snapshot.clientInboundCount} Client Msg${snapshot.clientInboundCount == 1 ? '' : 's'} Live';
+    }
+    return 'Client lane stable';
+  }
+
+  Color _clientLaneTopBarForeground(LiveClientCommsSnapshot? snapshot) {
+    if (snapshot == null) {
+      return const Color(0xFF8FA7C8);
+    }
+    return _clientCommsAccent(snapshot);
+  }
+
+  Color _clientLaneTopBarBackground(LiveClientCommsSnapshot? snapshot) {
+    final foreground = _clientLaneTopBarForeground(snapshot);
+    return foreground.withValues(alpha: 0.18);
+  }
+
+  Color _clientLaneTopBarBorder(LiveClientCommsSnapshot? snapshot) {
+    final foreground = _clientLaneTopBarForeground(snapshot);
+    return foreground.withValues(alpha: 0.42);
+  }
+
+  Color _telegramHealthAccent(String label) {
+    return switch (label.trim().toLowerCase()) {
+      'ok' => const Color(0xFF34D399),
+      'blocked' => const Color(0xFFEF4444),
+      'degraded' => const Color(0xFFF59E0B),
+      'disabled' => const Color(0xFF8EA4C2),
+      _ => const Color(0xFF38BDF8),
+    };
+  }
+
+  Color _pushSyncAccent(String label) {
+    return switch (label.trim().toLowerCase()) {
+      'ok' => const Color(0xFF34D399),
+      'failed' => const Color(0xFFEF4444),
+      'syncing' => const Color(0xFF38BDF8),
+      _ => const Color(0xFF8EA4C2),
+    };
+  }
+
+  Color _smsFallbackAccent(
+    String label, {
+    required bool ready,
+    required bool eligibleNow,
+  }) {
+    if (eligibleNow) {
+      return const Color(0xFFF59E0B);
+    }
+    if (ready) {
+      return const Color(0xFF34D399);
+    }
+    final normalized = label.trim().toLowerCase();
+    if (normalized.contains('pending')) {
+      return const Color(0xFFF97316);
+    }
+    return const Color(0xFF8EA4C2);
+  }
+
+  Color _voiceReadinessAccent(String label) {
+    return switch (label.trim().toLowerCase()) {
+      'voip ready' => const Color(0xFF34D399),
+      'voip contact pending' => const Color(0xFFF59E0B),
+      'voip staged' => const Color(0xFF38BDF8),
+      _ => const Color(0xFF8EA4C2),
+    };
+  }
+
+  String _clientCommsNarrative(LiveClientCommsSnapshot snapshot) {
+    if (snapshot.pendingApprovalCount > 0) {
+      return 'client reply waiting on human approval';
+    }
+    final bridge = snapshot.telegramHealthLabel.trim().toLowerCase();
+    final push = snapshot.pushSyncStatusLabel.trim().toLowerCase();
+    if (bridge == 'blocked' || bridge == 'degraded') {
+      return 'delivery lane needs operator attention';
+    }
+    if (push == 'failed') {
+      return 'push sync is failing and needs recovery';
+    }
+    if (snapshot.smsFallbackEligibleNow) {
+      return 'telegram needs help and sms fallback is standing by';
+    }
+    if ((snapshot.latestClientMessage ?? '').trim().isNotEmpty) {
+      return 'client lane is active and being tracked';
+    }
+    return 'client lane is quiet for now';
+  }
+
+  String _clientCommsOpsFootnote(LiveClientCommsSnapshot snapshot) {
+    final notes = <String>[
+      if (snapshot.telegramFallbackActive) 'Telegram fallback is active',
+      if (snapshot.queuedPushCount > 0)
+        '${snapshot.queuedPushCount} push item${snapshot.queuedPushCount == 1 ? '' : 's'} queued',
+      if ((snapshot.telegramHealthDetail ?? '').trim().isNotEmpty)
+        ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(
+          snapshot.telegramHealthDetail!.trim(),
+        ),
+      if ((snapshot.deliveryReadinessDetail ?? '').trim().isNotEmpty)
+        snapshot.deliveryReadinessDetail!.trim(),
+      if ((snapshot.pushSyncFailureReason ?? '').trim().isNotEmpty)
+        'Push detail: ${ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(snapshot.pushSyncFailureReason!.trim())}',
+    ];
+    return notes.join(' • ');
+  }
+
+  String _commsMomentLabel(DateTime? atUtc) {
+    if (atUtc == null) {
+      return '';
+    }
+    final local = atUtc.toLocal();
+    final now = DateTime.now();
+    final age = now.difference(local);
+    final hh = local.hour.toString().padLeft(2, '0');
+    final mm = local.minute.toString().padLeft(2, '0');
+    if (age.inMinutes < 1) {
+      return 'just now • $hh:$mm';
+    }
+    if (age.inMinutes < 60) {
+      return '${age.inMinutes}m ago • $hh:$mm';
+    }
+    if (age.inHours < 24) {
+      return '${age.inHours}h ago • $hh:$mm';
+    }
+    return '${age.inDays}d ago • $hh:$mm';
+  }
+
+  String _humanizeOpsScopeLabel(String raw, {required String fallback}) {
+    final cleaned = raw
+        .trim()
+        .replaceFirst(RegExp(r'^(CLIENT|SITE|REGION)-'), '')
+        .replaceAll(RegExp(r'[_\-]+'), ' ')
+        .replaceAll(RegExp(r'[^A-Za-z0-9 ]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    if (cleaned.isEmpty) {
+      return fallback;
+    }
+    final stopWords = <String>{'and', 'of', 'the'};
+    return cleaned
+        .split(' ')
+        .where((token) => token.trim().isNotEmpty)
+        .toList(growable: false)
+        .asMap()
+        .entries
+        .map((entry) {
+          final lower = entry.value.toLowerCase();
+          if (entry.key > 0 && stopWords.contains(lower)) {
+            return lower;
+          }
+          return '${lower[0].toUpperCase()}${lower.substring(1)}';
+        })
+        .join(' ');
   }
 
   int _priorityRank(_IncidentPriority priority) {

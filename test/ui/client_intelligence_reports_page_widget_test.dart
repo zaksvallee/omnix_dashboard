@@ -1376,6 +1376,8 @@ void main() {
   ) async {
     String? clipboardText;
     Map<String, Object?>? openedEventsScope;
+    String? openedGovernanceClientId;
+    String? openedGovernanceSiteId;
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       SystemChannels.platform,
       (call) async {
@@ -1462,6 +1464,10 @@ void main() {
           store: store,
           selectedClient: 'CLIENT-001',
           selectedSite: 'SITE-SANDTON',
+          onOpenGovernanceForScope: (clientId, siteId) {
+            openedGovernanceClientId = clientId;
+            openedGovernanceSiteId = siteId;
+          },
           onOpenEventsForScope: (eventIds, selectedEventId) {
             openedEventsScope = <String, Object?>{
               'eventIds': eventIds,
@@ -1498,6 +1504,7 @@ void main() {
     expect(find.text('Current Routine: 0'), findsOneWidget);
     expect(find.text('Baseline Governance: 0.0'), findsOneWidget);
     expect(find.text('Baseline Routine: 1.0'), findsOneWidget);
+    expect(find.text('Open Governance Scope'), findsWidgets);
     expect(find.text('OVERSIGHT HANDOFFS'), findsOneWidget);
     expect(find.text('ROUTINE REVIEW'), findsWidgets);
     expect(find.text('INVESTIGATION DRIFT'), findsOneWidget);
@@ -1662,12 +1669,25 @@ void main() {
       'eventIds': ['RPT-3'],
       'selectedEventId': 'RPT-3',
     });
+
+    final openGovernanceButton = find.byKey(
+      const ValueKey('reports-receipt-policy-open-governance'),
+    );
+    await tester.ensureVisible(openGovernanceButton);
+    await tester.tap(openGovernanceButton);
+    await tester.pumpAndSettle();
+
+    expect(openedGovernanceClientId, 'CLIENT-001');
+    expect(openedGovernanceSiteId, 'SITE-SANDTON');
+    expect(find.text('Opening Governance for SITE-SANDTON.'), findsOneWidget);
   });
 
   testWidgets(
     'client reports shows and clears governance branding drift entry context',
     (tester) async {
       String? clipboardText;
+      String? openedGovernanceClientId;
+      String? openedGovernanceSiteId;
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         SystemChannels.platform,
         (call) async {
@@ -1723,6 +1743,10 @@ void main() {
                 selectedClient: 'CLIENT-001',
                 selectedSite: 'SITE-SANDTON',
                 reportShellState: value,
+                onOpenGovernanceForScope: (clientId, siteId) {
+                  openedGovernanceClientId = clientId;
+                  openedGovernanceSiteId = siteId;
+                },
                 onReportShellStateChanged: (next) => shellState.value = next,
               );
             },
@@ -1773,6 +1797,17 @@ void main() {
       expect(find.text('ROUTINE BASELINE'), findsOneWidget);
       expect(find.text('Receipt • RPT-CTX-1'), findsOneWidget);
       expect(find.text('GOVERNANCE TARGET'), findsOneWidget);
+
+      final openGovernanceButton = find.byKey(
+        const ValueKey('reports-receipt-policy-entry-context-open-governance'),
+      );
+      await tester.ensureVisible(openGovernanceButton);
+      await tester.tap(openGovernanceButton);
+      await tester.pumpAndSettle();
+
+      expect(openedGovernanceClientId, 'CLIENT-001');
+      expect(openedGovernanceSiteId, 'SITE-SANDTON');
+      expect(find.text('Opening Governance for SITE-SANDTON.'), findsOneWidget);
 
       final dismissButton = find.byKey(
         const ValueKey('reports-receipt-policy-entry-context-clear'),
@@ -2370,7 +2405,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.textContaining('Receipt export copied for RPT-COPY-1.'),
+      find.textContaining(
+        'Receipt export copied for command review: RPT-COPY-1.',
+      ),
       findsWidgets,
     );
     expect(clipboardText, isNotNull);
@@ -2427,7 +2464,7 @@ void main() {
 
     expect(
       find.textContaining(
-        'Sample receipt preview unavailable. Generate a live report first.',
+        'Receipt preview will unlock once the first live report lands in this lane.',
       ),
       findsWidgets,
     );
@@ -2441,7 +2478,7 @@ void main() {
 
     expect(
       find.textContaining(
-        'Sample receipt metadata copied for RPT-2024-03-10-001.',
+        'Sample receipt metadata copied for command review: RPT-2024-03-10-001.',
       ),
       findsWidgets,
     );
@@ -2479,7 +2516,10 @@ void main() {
     await tester.tap(find.textContaining('Escalation').last);
     await tester.pumpAndSettle();
 
-    expect(find.text('No receipts match the selected filter.'), findsOneWidget);
+    expect(
+      find.text('No receipts fit the current filter right now.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('client reports escalation KPI applies receipt filter', (
@@ -2506,7 +2546,10 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Viewing Escalation receipts (0/3)'), findsOneWidget);
-    expect(find.text('No receipts match the selected filter.'), findsOneWidget);
+    expect(
+      find.text('No receipts fit the current filter right now.'),
+      findsOneWidget,
+    );
 
     await tester.tap(escalationKpi);
     await tester.pumpAndSettle();
@@ -2516,7 +2559,10 @@ void main() {
       findsNothing,
     );
     expect(find.text('Viewing Escalation receipts (0/3)'), findsNothing);
-    expect(find.text('No receipts match the selected filter.'), findsNothing);
+    expect(
+      find.text('No receipts fit the current filter right now.'),
+      findsNothing,
+    );
   });
 
   testWidgets('client reports suppressed KPI applies receipt filter', (
@@ -2550,7 +2596,10 @@ void main() {
       find.textContaining('Vehicle remained below escalation threshold.'),
       findsOneWidget,
     );
-    expect(find.text('No receipts match the selected filter.'), findsNothing);
+    expect(
+      find.text('No receipts fit the current filter right now.'),
+      findsNothing,
+    );
   });
 
   testWidgets('client reports alerts KPI applies receipt filter', (
@@ -2586,7 +2635,10 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('No receipts match the selected filter.'), findsNothing);
+    expect(
+      find.text('No receipts fit the current filter right now.'),
+      findsNothing,
+    );
   });
 
   testWidgets(
@@ -2618,7 +2670,10 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Viewing Latest Alert receipts (1/2)'), findsOneWidget);
-      expect(find.text('No receipts match the selected filter.'), findsNothing);
+      expect(
+        find.text('No receipts fit the current filter right now.'),
+        findsNothing,
+      );
     },
   );
 
@@ -2760,7 +2815,7 @@ void main() {
 
       expect(
         find.textContaining(
-          'Receipt export copied for ${fixture.reviewedReceiptEventId}.',
+          'Receipt export copied for command review: ${fixture.reviewedReceiptEventId}.',
         ),
         findsWidgets,
       );
@@ -3140,7 +3195,7 @@ void main() {
 
       expect(find.text('Viewing Escalation receipts (0/2)'), findsOneWidget);
       expect(
-        find.text('No receipts match the selected filter.'),
+        find.text('No receipts fit the current filter right now.'),
         findsOneWidget,
       );
       expect(find.text('No Receipt Selected'), findsOneWidget);
@@ -3215,7 +3270,7 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.text('No receipts match the selected filter.'),
+        find.text('No receipts fit the current filter right now.'),
         findsOneWidget,
       );
       expect(find.text('No Receipt Selected'), findsOneWidget);
@@ -3854,6 +3909,12 @@ void main() {
 
     expect(
       find.textContaining('Receipt export copied for RPT-LIVE-DOCK-COPY-1.'),
+      findsNothing,
+    );
+    expect(
+      find.textContaining(
+        'Receipt export copied for command review: RPT-LIVE-DOCK-COPY-1.',
+      ),
       findsWidgets,
     );
     expect(clipboardText, contains('"eventId": "RPT-LIVE-DOCK-COPY-1"'));
@@ -4130,7 +4191,7 @@ void main() {
 
       expect(
         find.textContaining(
-          'Governance receipt export copied for RPT-GOV-COPY-1.',
+          'Governance receipt export copied for command review: RPT-GOV-COPY-1.',
         ),
         findsWidgets,
       );
@@ -4195,7 +4256,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.textContaining('Receipt export copied for RPT-LIVE-TARGET-COPY-1.'),
+      find.textContaining(
+        'Receipt export copied for command review: RPT-LIVE-TARGET-COPY-1.',
+      ),
       findsWidgets,
     );
     expect(clipboardText, contains('"eventId": "RPT-LIVE-TARGET-COPY-1"'));
@@ -4433,7 +4496,7 @@ void main() {
 
     expect(
       find.textContaining(
-        'Governance receipt export copied for RPT-LIVE-LANE-COPY-1.',
+        'Governance receipt export copied for command review: RPT-LIVE-LANE-COPY-1.',
       ),
       findsWidgets,
     );

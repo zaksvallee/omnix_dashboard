@@ -20,6 +20,13 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   const promotionDecisionStore = MoPromotionDecisionStore();
 
+  void expectTextButtonDisabled(WidgetTester tester, String label) {
+    final button = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, label),
+    );
+    expect(button.onPressed, isNull, reason: '$label should be disabled');
+  }
+
   setUp(() {
     promotionDecisionStore.reset();
   });
@@ -1748,6 +1755,10 @@ void main() {
     );
     expect(find.text('Copy Morning JSON'), findsOneWidget);
     expect(find.text('Download Morning CSV'), findsOneWidget);
+    expectTextButtonDisabled(tester, 'Download Morning JSON');
+    expectTextButtonDisabled(tester, 'Download Morning CSV');
+    expectTextButtonDisabled(tester, 'Share Morning Pack');
+    expectTextButtonDisabled(tester, 'Email Morning Report');
     expect(tester.takeException(), isNull);
   });
 
@@ -2842,6 +2853,480 @@ void main() {
       find.textContaining('CLIENT-1/SITE-42 • Partner Alpha'),
       findsWidgets,
     );
+    expect(
+      find.textContaining('CLIENT-2/SITE-77 • Partner Beta'),
+      findsNothing,
+    );
+    expect(find.text('1 strong response'), findsWidgets);
+    expect(find.text('Avg accept 4.0m • Avg on site 12.0m'), findsOneWidget);
+    expect(find.text('IMPROVING'), findsOneWidget);
+    expect(find.textContaining('Partner Alpha • DSP-101'), findsOneWidget);
+    expect(find.textContaining('Partner Beta • DSP-201'), findsNothing);
+  });
+
+  testWidgets('governance page supports client-wide scope focus', (
+    tester,
+  ) async {
+    final report = SovereignReport(
+      date: '2026-03-15',
+      generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
+      shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 12,
+        hashVerified: true,
+        integrityScore: 100,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 3,
+        humanOverrides: 1,
+        overrideReasons: {'PSIRA expired': 1},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 2,
+        driftDetected: 0,
+        avgMatchScore: 97,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 0,
+        pdpExpired: 0,
+        totalBlocked: 0,
+      ),
+      partnerProgression: SovereignReportPartnerProgression(
+        dispatchCount: 3,
+        declarationCount: 6,
+        acceptedCount: 3,
+        onSiteCount: 2,
+        allClearCount: 1,
+        cancelledCount: 0,
+        workflowHeadline: 'Partner Alpha carried both client lanes cleanly.',
+        performanceHeadline: '1 strong response • 1 on track response',
+        slaHeadline: 'Avg accept 5.0m • Avg on site 12.0m',
+        summaryLine: 'Dispatches 3 • Declarations 6',
+        scopeBreakdowns: [
+          SovereignReportPartnerScopeBreakdown(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            dispatchCount: 1,
+            declarationCount: 3,
+            latestStatus: PartnerDispatchStatus.allClear,
+            latestOccurredAtUtc: DateTime.utc(2026, 3, 15, 1, 18),
+            summaryLine:
+                'Dispatches 1 • Declarations 3 • Latest ALL CLEAR @ 2026-03-15T01:18:00.000Z',
+          ),
+          SovereignReportPartnerScopeBreakdown(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-99',
+            dispatchCount: 1,
+            declarationCount: 2,
+            latestStatus: PartnerDispatchStatus.onSite,
+            latestOccurredAtUtc: DateTime.utc(2026, 3, 15, 2, 12),
+            summaryLine:
+                'Dispatches 1 • Declarations 2 • Latest ON SITE @ 2026-03-15T02:12:00.000Z',
+          ),
+          SovereignReportPartnerScopeBreakdown(
+            clientId: 'CLIENT-2',
+            siteId: 'SITE-77',
+            dispatchCount: 1,
+            declarationCount: 1,
+            latestStatus: PartnerDispatchStatus.accepted,
+            latestOccurredAtUtc: DateTime.utc(2026, 3, 15, 4, 5),
+            summaryLine:
+                'Dispatches 1 • Declarations 1 • Latest ACCEPTED @ 2026-03-15T04:05:00.000Z',
+          ),
+        ],
+        scoreboardRows: const [
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            partnerLabel: 'Partner Alpha',
+            dispatchCount: 1,
+            strongCount: 1,
+            onTrackCount: 0,
+            watchCount: 0,
+            criticalCount: 0,
+            averageAcceptedDelayMinutes: 4.0,
+            averageOnSiteDelayMinutes: 12.0,
+            summaryLine: '1 strong response',
+          ),
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-99',
+            partnerLabel: 'Partner Alpha',
+            dispatchCount: 1,
+            strongCount: 0,
+            onTrackCount: 1,
+            watchCount: 0,
+            criticalCount: 0,
+            averageAcceptedDelayMinutes: 6.0,
+            averageOnSiteDelayMinutes: 12.0,
+            summaryLine: '1 on track response',
+          ),
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-2',
+            siteId: 'SITE-77',
+            partnerLabel: 'Partner Beta',
+            dispatchCount: 1,
+            strongCount: 0,
+            onTrackCount: 0,
+            watchCount: 1,
+            criticalCount: 0,
+            averageAcceptedDelayMinutes: 5.0,
+            averageOnSiteDelayMinutes: 0.0,
+            summaryLine: '1 watch response',
+          ),
+        ],
+        dispatchChains: [
+          SovereignReportPartnerDispatchChain(
+            dispatchId: 'DSP-101',
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            partnerLabel: 'Partner Alpha',
+            declarationCount: 3,
+            latestStatus: PartnerDispatchStatus.allClear,
+            latestOccurredAtUtc: DateTime.utc(2026, 3, 15, 1, 18),
+            dispatchCreatedAtUtc: DateTime.utc(2026, 3, 15, 1, 2),
+            acceptedAtUtc: DateTime.utc(2026, 3, 15, 1, 6),
+            onSiteAtUtc: DateTime.utc(2026, 3, 15, 1, 14),
+            allClearAtUtc: DateTime.utc(2026, 3, 15, 1, 18),
+            acceptedDelayMinutes: 4.0,
+            onSiteDelayMinutes: 12.0,
+            scoreLabel: 'STRONG',
+            scoreReason: 'Partner completed response inside targets.',
+            workflowSummary:
+                'ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)',
+          ),
+          SovereignReportPartnerDispatchChain(
+            dispatchId: 'DSP-102',
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-99',
+            partnerLabel: 'Partner Alpha',
+            declarationCount: 2,
+            latestStatus: PartnerDispatchStatus.onSite,
+            latestOccurredAtUtc: DateTime.utc(2026, 3, 15, 2, 12),
+            dispatchCreatedAtUtc: DateTime.utc(2026, 3, 15, 2, 0),
+            acceptedAtUtc: DateTime.utc(2026, 3, 15, 2, 6),
+            onSiteAtUtc: DateTime.utc(2026, 3, 15, 2, 12),
+            acceptedDelayMinutes: 6.0,
+            onSiteDelayMinutes: 12.0,
+            scoreLabel: 'ON TRACK',
+            scoreReason: 'Partner is on site and progressing cleanly.',
+            workflowSummary: 'ACCEPT -> ON SITE (LATEST ON SITE)',
+          ),
+          SovereignReportPartnerDispatchChain(
+            dispatchId: 'DSP-201',
+            clientId: 'CLIENT-2',
+            siteId: 'SITE-77',
+            partnerLabel: 'Partner Beta',
+            declarationCount: 1,
+            latestStatus: PartnerDispatchStatus.accepted,
+            latestOccurredAtUtc: DateTime.utc(2026, 3, 15, 4, 5),
+            dispatchCreatedAtUtc: DateTime.utc(2026, 3, 15, 4, 0),
+            acceptedAtUtc: DateTime.utc(2026, 3, 15, 4, 5),
+            acceptedDelayMinutes: 5.0,
+            scoreLabel: 'WATCH',
+            scoreReason: 'Partner is slower than target.',
+            workflowSummary: 'ACCEPT (LATEST ACCEPT)',
+          ),
+        ],
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GovernancePage(
+          events: const [],
+          morningSovereignReport: report,
+          initialScopeClientId: 'CLIENT-1',
+          initialScopeSiteId: '',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('governance-scope-banner')),
+      findsOneWidget,
+    );
+    expect(find.text('CLIENT-1/all sites'), findsOneWidget);
+    expect(
+      find.textContaining('CLIENT-2/SITE-77 • Partner Beta'),
+      findsNothing,
+    );
+    expect(find.textContaining('Partner Alpha • DSP-101'), findsOneWidget);
+    expect(find.textContaining('Partner Alpha • DSP-102'), findsOneWidget);
+    expect(find.textContaining('Partner Beta • DSP-201'), findsNothing);
+  });
+
+  testWidgets('governance page filters partner insights to client site scope', (
+    tester,
+  ) async {
+    SovereignReport buildReport({
+      required String date,
+      required DateTime generatedAtUtc,
+      required List<SovereignReportPartnerScopeBreakdown> scopeBreakdowns,
+      required List<SovereignReportPartnerScoreboardRow> scoreboardRows,
+      required List<SovereignReportPartnerDispatchChain> dispatchChains,
+    }) {
+      return SovereignReport(
+        date: date,
+        generatedAtUtc: generatedAtUtc,
+        shiftWindowStartUtc: generatedAtUtc.subtract(const Duration(hours: 8)),
+        shiftWindowEndUtc: generatedAtUtc,
+        ledgerIntegrity: const SovereignReportLedgerIntegrity(
+          totalEvents: 184,
+          hashVerified: true,
+          integrityScore: 98,
+        ),
+        aiHumanDelta: const SovereignReportAiHumanDelta(
+          aiDecisions: 24,
+          humanOverrides: 3,
+          overrideReasons: {'PSIRA expired': 2},
+        ),
+        normDrift: const SovereignReportNormDrift(
+          sitesMonitored: 14,
+          driftDetected: 2,
+          avgMatchScore: 84,
+        ),
+        complianceBlockage: const SovereignReportComplianceBlockage(
+          psiraExpired: 2,
+          pdpExpired: 1,
+          totalBlocked: 3,
+        ),
+        partnerProgression: SovereignReportPartnerProgression(
+          dispatchCount: dispatchChains.length,
+          declarationCount: dispatchChains.fold<int>(
+            0,
+            (sum, chain) => sum + chain.declarationCount,
+          ),
+          acceptedCount: dispatchChains
+              .where((chain) => chain.acceptedAtUtc != null)
+              .length,
+          onSiteCount: dispatchChains
+              .where((chain) => chain.onSiteAtUtc != null)
+              .length,
+          allClearCount: dispatchChains
+              .where((chain) => chain.allClearAtUtc != null)
+              .length,
+          cancelledCount: dispatchChains
+              .where((chain) => chain.cancelledAtUtc != null)
+              .length,
+          workflowHeadline: '2 partner dispatches in progress',
+          performanceHeadline: '1 strong response • 1 critical response',
+          slaHeadline: 'Avg accept 7.0m • Avg on site 15.0m',
+          summaryLine:
+              'Dispatches ${dispatchChains.length} • Declarations ${dispatchChains.fold<int>(0, (sum, chain) => sum + chain.declarationCount)}',
+          scopeBreakdowns: scopeBreakdowns,
+          scoreboardRows: scoreboardRows,
+          dispatchChains: dispatchChains,
+        ),
+      );
+    }
+
+    final priorReport = buildReport(
+      date: '2026-03-14',
+      generatedAtUtc: DateTime.utc(2026, 3, 14, 6, 0),
+      scopeBreakdowns: [
+        SovereignReportPartnerScopeBreakdown(
+          clientId: 'CLIENT-1',
+          siteId: 'SITE-42',
+          dispatchCount: 1,
+          declarationCount: 2,
+          latestStatus: PartnerDispatchStatus.cancelled,
+          latestOccurredAtUtc: DateTime.utc(2026, 3, 14, 2, 12),
+          summaryLine:
+              'Dispatches 1 • Declarations 2 • Latest CANCELLED @ 2026-03-14T02:12:00.000Z',
+        ),
+        SovereignReportPartnerScopeBreakdown(
+          clientId: 'CLIENT-2',
+          siteId: 'SITE-77',
+          dispatchCount: 1,
+          declarationCount: 3,
+          latestStatus: PartnerDispatchStatus.allClear,
+          latestOccurredAtUtc: DateTime.utc(2026, 3, 14, 3, 10),
+          summaryLine:
+              'Dispatches 1 • Declarations 3 • Latest ALL CLEAR @ 2026-03-14T03:10:00.000Z',
+        ),
+      ],
+      scoreboardRows: [
+        SovereignReportPartnerScoreboardRow(
+          clientId: 'CLIENT-1',
+          siteId: 'SITE-42',
+          partnerLabel: 'Partner Alpha',
+          dispatchCount: 1,
+          strongCount: 0,
+          onTrackCount: 0,
+          watchCount: 0,
+          criticalCount: 1,
+          averageAcceptedDelayMinutes: 12.0,
+          averageOnSiteDelayMinutes: 0,
+          summaryLine:
+              'Dispatches 1 • Strong 0 • On track 0 • Watch 0 • Critical 1 • Avg accept 12.0m • Avg on site 0.0m',
+        ),
+        SovereignReportPartnerScoreboardRow(
+          clientId: 'CLIENT-2',
+          siteId: 'SITE-77',
+          partnerLabel: 'Partner Beta',
+          dispatchCount: 1,
+          strongCount: 1,
+          onTrackCount: 0,
+          watchCount: 0,
+          criticalCount: 0,
+          averageAcceptedDelayMinutes: 6.0,
+          averageOnSiteDelayMinutes: 14.0,
+          summaryLine:
+              'Dispatches 1 • Strong 1 • On track 0 • Watch 0 • Critical 0 • Avg accept 6.0m • Avg on site 14.0m',
+        ),
+      ],
+      dispatchChains: [
+        SovereignReportPartnerDispatchChain(
+          dispatchId: 'DSP-100',
+          clientId: 'CLIENT-1',
+          siteId: 'SITE-42',
+          partnerLabel: 'Partner Alpha',
+          declarationCount: 2,
+          latestStatus: PartnerDispatchStatus.cancelled,
+          latestOccurredAtUtc: DateTime.utc(2026, 3, 14, 2, 12),
+          dispatchCreatedAtUtc: DateTime.utc(2026, 3, 14, 2, 0),
+          acceptedAtUtc: DateTime.utc(2026, 3, 14, 2, 12),
+          cancelledAtUtc: DateTime.utc(2026, 3, 14, 2, 12),
+          acceptedDelayMinutes: 12.0,
+          scoreLabel: 'CRITICAL',
+          scoreReason: 'Dispatch was cancelled before partner completion.',
+          workflowSummary: 'ACCEPT -> CANCELLED (LATEST CANCELLED)',
+        ),
+        SovereignReportPartnerDispatchChain(
+          dispatchId: 'DSP-200',
+          clientId: 'CLIENT-2',
+          siteId: 'SITE-77',
+          partnerLabel: 'Partner Beta',
+          declarationCount: 3,
+          latestStatus: PartnerDispatchStatus.allClear,
+          latestOccurredAtUtc: DateTime.utc(2026, 3, 14, 3, 10),
+          dispatchCreatedAtUtc: DateTime.utc(2026, 3, 14, 2, 56),
+          acceptedAtUtc: DateTime.utc(2026, 3, 14, 3, 2),
+          onSiteAtUtc: DateTime.utc(2026, 3, 14, 3, 10),
+          allClearAtUtc: DateTime.utc(2026, 3, 14, 3, 12),
+          acceptedDelayMinutes: 6.0,
+          onSiteDelayMinutes: 14.0,
+          scoreLabel: 'STRONG',
+          scoreReason: 'Partner completed response inside targets.',
+          workflowSummary: 'ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)',
+        ),
+      ],
+    );
+    final currentReport = buildReport(
+      date: '2026-03-15',
+      generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      scopeBreakdowns: [
+        SovereignReportPartnerScopeBreakdown(
+          clientId: 'CLIENT-1',
+          siteId: 'SITE-42',
+          dispatchCount: 1,
+          declarationCount: 3,
+          latestStatus: PartnerDispatchStatus.allClear,
+          latestOccurredAtUtc: DateTime.utc(2026, 3, 15, 1, 18),
+          summaryLine:
+              'Dispatches 1 • Declarations 3 • Latest ALL CLEAR @ 2026-03-15T01:18:00.000Z',
+        ),
+        SovereignReportPartnerScopeBreakdown(
+          clientId: 'CLIENT-2',
+          siteId: 'SITE-77',
+          dispatchCount: 1,
+          declarationCount: 2,
+          latestStatus: PartnerDispatchStatus.cancelled,
+          latestOccurredAtUtc: DateTime.utc(2026, 3, 15, 4, 08),
+          summaryLine:
+              'Dispatches 1 • Declarations 2 • Latest CANCELLED @ 2026-03-15T04:08:00.000Z',
+        ),
+      ],
+      scoreboardRows: [
+        SovereignReportPartnerScoreboardRow(
+          clientId: 'CLIENT-1',
+          siteId: 'SITE-42',
+          partnerLabel: 'Partner Alpha',
+          dispatchCount: 1,
+          strongCount: 1,
+          onTrackCount: 0,
+          watchCount: 0,
+          criticalCount: 0,
+          averageAcceptedDelayMinutes: 4.0,
+          averageOnSiteDelayMinutes: 12.0,
+          summaryLine:
+              'Dispatches 1 • Strong 1 • On track 0 • Watch 0 • Critical 0 • Avg accept 4.0m • Avg on site 12.0m',
+        ),
+        SovereignReportPartnerScoreboardRow(
+          clientId: 'CLIENT-2',
+          siteId: 'SITE-77',
+          partnerLabel: 'Partner Beta',
+          dispatchCount: 1,
+          strongCount: 0,
+          onTrackCount: 0,
+          watchCount: 0,
+          criticalCount: 1,
+          averageAcceptedDelayMinutes: 10.0,
+          averageOnSiteDelayMinutes: 0,
+          summaryLine:
+              'Dispatches 1 • Strong 0 • On track 0 • Watch 0 • Critical 1 • Avg accept 10.0m • Avg on site 0.0m',
+        ),
+      ],
+      dispatchChains: [
+        SovereignReportPartnerDispatchChain(
+          dispatchId: 'DSP-101',
+          clientId: 'CLIENT-1',
+          siteId: 'SITE-42',
+          partnerLabel: 'Partner Alpha',
+          declarationCount: 3,
+          latestStatus: PartnerDispatchStatus.allClear,
+          latestOccurredAtUtc: DateTime.utc(2026, 3, 15, 1, 18),
+          dispatchCreatedAtUtc: DateTime.utc(2026, 3, 15, 1, 0),
+          acceptedAtUtc: DateTime.utc(2026, 3, 15, 1, 4),
+          onSiteAtUtc: DateTime.utc(2026, 3, 15, 1, 12),
+          allClearAtUtc: DateTime.utc(2026, 3, 15, 1, 18),
+          acceptedDelayMinutes: 4.0,
+          onSiteDelayMinutes: 12.0,
+          scoreLabel: 'STRONG',
+          scoreReason: 'Partner completed response inside targets.',
+          workflowSummary: 'ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)',
+        ),
+        SovereignReportPartnerDispatchChain(
+          dispatchId: 'DSP-201',
+          clientId: 'CLIENT-2',
+          siteId: 'SITE-77',
+          partnerLabel: 'Partner Beta',
+          declarationCount: 2,
+          latestStatus: PartnerDispatchStatus.cancelled,
+          latestOccurredAtUtc: DateTime.utc(2026, 3, 15, 4, 8),
+          dispatchCreatedAtUtc: DateTime.utc(2026, 3, 15, 4, 0),
+          acceptedAtUtc: DateTime.utc(2026, 3, 15, 4, 5),
+          cancelledAtUtc: DateTime.utc(2026, 3, 15, 4, 8),
+          acceptedDelayMinutes: 10.0,
+          scoreLabel: 'CRITICAL',
+          scoreReason: 'Dispatch was cancelled before partner completion.',
+          workflowSummary: 'ACCEPT -> CANCELLED (LATEST CANCELLED)',
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GovernancePage(
+          events: const [],
+          morningSovereignReport: currentReport,
+          morningSovereignReportHistory: [priorReport],
+          initialScopeClientId: 'CLIENT-1',
+          initialScopeSiteId: 'SITE-42',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('governance-scope-banner')),
+      findsOneWidget,
+    );
+    expect(find.text('Scope focus active'), findsOneWidget);
+    expect(find.textContaining('CLIENT-1/SITE-42'), findsWidgets);
     expect(
       find.textContaining('CLIENT-2/SITE-77 • Partner Beta'),
       findsNothing,
@@ -4633,7 +5118,7 @@ void main() {
 
     expect(copiedPayload, isNotNull);
     expect(
-      find.text('Morning report JSON copied with Recent actions focus'),
+      find.text('Morning report JSON copied for command review with Recent actions focus'),
       findsOneWidget,
     );
     expect(copiedPayload, contains('"focusedLens"'));
@@ -5270,7 +5755,10 @@ void main() {
       copiedPayload,
       'Filtered pattern: 2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
     );
-    expect(find.text('Filtered pattern detail copied'), findsOneWidget);
+    expect(
+      find.text('Filtered pattern detail copied for command review'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('governance page copies focused scene action detail from banner', (
@@ -5369,7 +5857,10 @@ void main() {
       copiedPayload,
       'Recent actions: 2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
     );
-    expect(find.text('Recent actions detail copied'), findsOneWidget);
+    expect(
+      find.text('Recent actions detail copied for command review'),
+      findsOneWidget,
+    );
   });
 
   testWidgets(

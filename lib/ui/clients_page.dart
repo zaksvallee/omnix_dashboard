@@ -13,12 +13,20 @@ class ClientsPage extends StatefulWidget {
   final String clientId;
   final String siteId;
   final List<DispatchEvent> events;
+  final Future<void> Function()? onRetryPushSync;
+  final void Function(String room, String clientId, String siteId)?
+  onOpenClientRoomForScope;
+  final void Function(List<String> eventIds, String? selectedEventId)?
+  onOpenEventsForScope;
 
   const ClientsPage({
     super.key,
     required this.clientId,
     required this.siteId,
     required this.events,
+    this.onRetryPushSync,
+    this.onOpenClientRoomForScope,
+    this.onOpenEventsForScope,
   });
 
   @override
@@ -441,20 +449,25 @@ class _ClientsPageState extends State<ClientsPage> {
 
   Widget _feedRow(_FeedRow row) {
     final rowColor = _feedColor(row.status);
+    final canOpenEvent =
+        row.eventId != null && widget.onOpenEventsForScope != null;
     return InkWell(
       key: ValueKey('clients-incident-row-${row.title}-${row.timestampLabel}'),
       borderRadius: BorderRadius.circular(10),
-      onTap: () {
-        logUiAction(
-          'client_app.reopen_selected_incident',
-          context: {
-            'role': 'client',
-            'reference_label': row.title,
-            'source': 'clients_incident_feed',
-          },
-        );
-        _showActionMessage('Opened incident detail.');
-      },
+      onTap: !canOpenEvent
+          ? null
+          : () {
+              logUiAction(
+                'client_app.reopen_selected_incident',
+                context: {
+                  'role': 'client',
+                  'reference_label': row.title,
+                  'source': 'clients_incident_feed',
+                  'event_id': row.eventId,
+                },
+              );
+              widget.onOpenEventsForScope!.call([row.eventId!], row.eventId);
+            },
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(10),
@@ -516,6 +529,7 @@ class _ClientsPageState extends State<ClientsPage> {
   }
 
   Widget _pushDeliveryQueueCard() {
+    final pushRetryAvailable = widget.onRetryPushSync != null;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(10),
@@ -584,36 +598,47 @@ class _ClientsPageState extends State<ClientsPage> {
           ),
           const SizedBox(height: 8),
           InkWell(
+            key: const ValueKey('clients-retry-push-sync-action'),
             borderRadius: BorderRadius.circular(8),
-            onTap: () {
-              setState(() {
-                _pushRetryCount += 1;
-                _pushSyncStatus = 'retrying';
-                _backendProbeStatus = 'queued';
-              });
-              logUiAction(
-                'clients.retry_push_sync',
-                context: {
-                  'retries': _pushRetryCount,
-                  'client_id': _selectedClientId,
-                  'site_id': _selectedSiteId,
-                },
-              );
-              _showActionMessage('Push sync retry queued.');
-            },
+            onTap: !pushRetryAvailable
+                ? null
+                : () async {
+                    setState(() {
+                      _pushRetryCount += 1;
+                      _pushSyncStatus = 'retry in flight';
+                      _backendProbeStatus = 'queued for delivery check';
+                    });
+                    logUiAction(
+                      'clients.retry_push_sync',
+                      context: {
+                        'retries': _pushRetryCount,
+                        'client_id': _selectedClientId,
+                        'site_id': _selectedSiteId,
+                      },
+                    );
+                    await widget.onRetryPushSync!.call();
+                  },
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
-                color: const Color(0x1A3B82F6),
+                color: pushRetryAvailable
+                    ? const Color(0x1A3B82F6)
+                    : const Color(0x149BB0CE),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0x4D3B82F6)),
+                border: Border.all(
+                  color: pushRetryAvailable
+                      ? const Color(0x4D3B82F6)
+                      : const Color(0x3330363D),
+                ),
               ),
               child: Text(
                 'Retry Push Sync',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF63BDFF),
+                  color: pushRetryAvailable
+                      ? const Color(0xFF63BDFF)
+                      : const Color(0xFF6B7A90),
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                 ),
@@ -626,6 +651,7 @@ class _ClientsPageState extends State<ClientsPage> {
   }
 
   Widget _estateRoomsCard() {
+    final roomRoutingAvailable = widget.onOpenClientRoomForScope != null;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(10),
@@ -673,36 +699,38 @@ class _ClientsPageState extends State<ClientsPage> {
               fontWeight: FontWeight.w600,
             ),
           ),
+          if (!roomRoutingAvailable) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Room routing is view-only in this session.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF6B7A90),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           _roomButton(
             'Residents',
             const Color(0xFF22D3EE),
-            onTap: () {
-              logUiAction('clients.open_room', context: {'room': 'Residents'});
-              _showActionMessage('Opened Residents room.');
-            },
+            enabled: roomRoutingAvailable,
+            onTap: () => _openClientRoom('Residents'),
           ),
           const SizedBox(height: 6),
           _roomButton(
             'Trustees',
             const Color(0xFFC084FC),
-            onTap: () {
-              logUiAction('clients.open_room', context: {'room': 'Trustees'});
-              _showActionMessage('Opened Trustees room.');
-            },
+            enabled: roomRoutingAvailable,
+            onTap: () => _openClientRoom('Trustees'),
           ),
           const SizedBox(height: 6),
           _roomButton(
             'Security Desk',
             const Color(0xFF10B981),
             unreadLabel: '2 unread',
-            onTap: () {
-              logUiAction(
-                'clients.open_room',
-                context: {'room': 'Security Desk'},
-              );
-              _showActionMessage('Opened Security Desk room.');
-            },
+            enabled: roomRoutingAvailable,
+            onTap: () => _openClientRoom('Security Desk'),
           ),
         ],
       ),
@@ -748,11 +776,13 @@ class _ClientsPageState extends State<ClientsPage> {
   Widget _roomButton(
     String label,
     Color iconColor, {
+    required bool enabled,
     String? unreadLabel,
     required VoidCallback onTap,
   }) {
     return InkWell(
-      onTap: onTap,
+      key: ValueKey('clients-room-$label'),
+      onTap: enabled ? onTap : null,
       borderRadius: BorderRadius.circular(8),
       child: Container(
         width: double.infinity,
@@ -770,7 +800,9 @@ class _ClientsPageState extends State<ClientsPage> {
               child: Text(
                 label,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFEAF1FB),
+                  color: enabled
+                      ? const Color(0xFFEAF1FB)
+                      : const Color(0xFF6B7A90),
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
@@ -805,15 +837,18 @@ class _ClientsPageState extends State<ClientsPage> {
     );
   }
 
-  void _showActionMessage(String message) {
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    if (messenger == null) {
-      return;
-    }
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+  void _openClientRoom(String room) {
+    final callback = widget.onOpenClientRoomForScope;
+    if (callback == null) return;
+    logUiAction(
+      'clients.open_room',
+      context: {
+        'room': room,
+        'client_id': _selectedClientId,
+        'site_id': _selectedSiteId,
+      },
     );
+    callback(room, _selectedClientId!, _selectedSiteId!);
   }
 }
 
@@ -827,6 +862,7 @@ class _FeedRow {
   final String title;
   final String description;
   final String timestampLabel;
+  final String? eventId;
 
   const _FeedRow({
     required this.type,
@@ -834,6 +870,7 @@ class _FeedRow {
     required this.title,
     required this.description,
     required this.timestampLabel,
+    this.eventId,
   });
 }
 
@@ -873,37 +910,37 @@ class _ClientSiteModel {
 const List<_ClientOption> _fallbackClients = [
   _ClientOption(
     id: 'CLIENT-001',
-    name: 'Waterfall Estates Group',
-    code: 'WTF-GRP',
+    name: 'Northern Residential Portfolio',
+    code: 'NRP-OPS',
   ),
   _ClientOption(
     id: 'CLIENT-002',
-    name: 'Blue Ridge Properties',
-    code: 'BLR-PROP',
+    name: 'Blue Ridge Operations',
+    code: 'BLR-OPS',
   ),
   _ClientOption(
     id: 'CLIENT-003',
-    name: 'Centurion Business Park',
-    code: 'CNT-BIZ',
+    name: 'Centurion Commerce Campus',
+    code: 'CNT-CAMP',
   ),
 ];
 
 const List<_SiteOption> _fallbackSites = [
   _SiteOption(
     id: 'SITE-SANDTON',
-    name: 'Sandton Estate North',
+    name: 'North Residential Cluster',
     code: 'SITE-SANDTON',
     clientId: 'CLIENT-001',
   ),
   _SiteOption(
     id: 'SITE-WTF-MAIN',
-    name: 'Waterfall Estate Main',
+    name: 'Central Access Gate',
     code: 'SITE-WTF-MAIN',
     clientId: 'CLIENT-001',
   ),
   _SiteOption(
     id: 'SITE-BLR',
-    name: 'Blue Ridge Security',
+    name: 'Blue Ridge Response Hub',
     code: 'SITE-BLR',
     clientId: 'CLIENT-002',
   ),
@@ -913,43 +950,43 @@ const List<_FeedRow> _fallbackFeed = [
   _FeedRow(
     type: _FeedType.arrival,
     status: _FeedStatus.success,
-    title: 'Officer Arrived',
-    description: 'GUARD-1 arrived for DSP-4.',
+    title: 'Responder On Site',
+    description: 'Response unit arrived for DSP-4 and is checking the lane.',
     timestampLabel: '19:47 UTC',
   ),
   _FeedRow(
     type: _FeedType.dispatch,
     status: _FeedStatus.info,
-    title: 'Dispatch Created',
-    description: 'DSP-4 opened for SITE-SANDTON.',
+    title: 'Dispatch Activated',
+    description: 'DSP-4 opened for the North Residential Cluster.',
     timestampLabel: '19:38 UTC',
   ),
   _FeedRow(
     type: _FeedType.arrival,
     status: _FeedStatus.success,
-    title: 'Officer Arrived',
-    description: 'GUARD-1 arrived for DSP-3.',
+    title: 'Responder On Site',
+    description: 'Response unit arrived for DSP-3 and is checking the lane.',
     timestampLabel: '18:53 UTC',
   ),
   _FeedRow(
     type: _FeedType.dispatch,
     status: _FeedStatus.info,
-    title: 'Dispatch Created',
-    description: 'DSP-3 opened for SITE-SANDTON.',
+    title: 'Dispatch Activated',
+    description: 'DSP-3 opened for the North Residential Cluster.',
     timestampLabel: '18:38 UTC',
   ),
   _FeedRow(
     type: _FeedType.arrival,
     status: _FeedStatus.success,
-    title: 'Officer Arrived',
-    description: 'GUARD-1 arrived for DSP-2.',
+    title: 'Responder On Site',
+    description: 'Response unit arrived for DSP-2 and is checking the lane.',
     timestampLabel: '17:47 UTC',
   ),
   _FeedRow(
     type: _FeedType.dispatch,
     status: _FeedStatus.info,
-    title: 'Dispatch Created',
-    description: 'DSP-2 opened for SITE-SANDTON.',
+    title: 'Dispatch Activated',
+    description: 'DSP-2 opened for the North Residential Cluster.',
     timestampLabel: '17:38 UTC',
   ),
 ];
@@ -1010,6 +1047,7 @@ List<_FeedRow> _incidentFeedRows({
           title: 'Officer Arrived',
           description: '${event.guardId} arrived for ${event.dispatchId}.',
           timestampLabel: _utc(event.occurredAt),
+          eventId: event.eventId,
         ),
       );
       continue;
@@ -1022,6 +1060,7 @@ List<_FeedRow> _incidentFeedRows({
           title: 'Dispatch Created',
           description: '${event.dispatchId} opened for ${event.siteId}.',
           timestampLabel: _utc(event.occurredAt),
+          eventId: event.eventId,
         ),
       );
       continue;
@@ -1034,6 +1073,7 @@ List<_FeedRow> _incidentFeedRows({
           title: 'Client Advisory',
           description: event.headline,
           timestampLabel: _utc(event.occurredAt),
+          eventId: event.eventId,
         ),
       );
       continue;
@@ -1046,6 +1086,7 @@ List<_FeedRow> _incidentFeedRows({
           title: 'Incident Resolved',
           description: '${event.dispatchId} closed for ${event.siteId}.',
           timestampLabel: _utc(event.occurredAt),
+          eventId: event.eventId,
         ),
       );
       continue;

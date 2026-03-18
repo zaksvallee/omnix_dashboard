@@ -63,7 +63,15 @@ void main() {
     ];
 
     await tester.pumpWidget(
-      MaterialApp(home: SitesCommandPage(events: events)),
+      MaterialApp(
+        home: SitesCommandPage(
+          events: events,
+          onAddSite: () {},
+          onOpenMapForSite: (siteId, siteName) {},
+          onOpenSiteSettings: (siteId, siteName) {},
+          onOpenGuardRoster: (siteId, siteName) {},
+        ),
+      ),
     );
     await tester.pumpAndSettle();
     final addSite = tester.widget<InkWell>(
@@ -105,6 +113,8 @@ void main() {
           clientId: 'CLIENT-001',
           siteId: 'SITE-SANDTON',
           events: events,
+          onRetryPushSync: () async {},
+          onOpenClientRoomForScope: (room, clientId, siteId) {},
         ),
       ),
     );
@@ -160,6 +170,6 @@ void main() {
     final noIncidentAction = tester.widget<TextButton>(
       find.byKey(const ValueKey('incident-feed-open-first-action')),
     );
-    expect(noIncidentAction.onPressed, isNotNull);
+    expect(noIncidentAction.onPressed, isNull);
   });
 }

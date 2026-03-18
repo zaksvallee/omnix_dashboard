@@ -7,15 +7,17 @@ cd "$ROOT_DIR"
 CONFIG_FILE="${ONYX_DART_DEFINE_FILE:-config/onyx.local.json}"
 DEVICE="${ONYX_FLUTTER_DEVICE:-chrome}"
 REQUIRE_SUPABASE=0
+LOG_FILE=""
 
 usage() {
   cat <<'USAGE'
 Usage:
-  ./scripts/run_onyx_chrome_local.sh [--config <path>] [--device <id>] [--require-supabase] [-- <flutter run args...>]
+  ./scripts/run_onyx_chrome_local.sh [--config <path>] [--device <id>] [--require-supabase] [--log-file <path>] [-- <flutter run args...>]
 
 Examples:
   ./scripts/run_onyx_chrome_local.sh
   ./scripts/run_onyx_chrome_local.sh --require-supabase
+  ./scripts/run_onyx_chrome_local.sh --log-file tmp/telegram_quick_action_live.log
   ./scripts/run_onyx_chrome_local.sh --device edge -- --web-port 63099
 USAGE
 }
@@ -33,6 +35,10 @@ while [[ $# -gt 0 ]]; do
     --require-supabase)
       REQUIRE_SUPABASE=1
       shift
+      ;;
+    --log-file)
+      LOG_FILE="${2:-}"
+      shift 2
       ;;
     -h|--help)
       usage
@@ -101,6 +107,9 @@ echo "  device: $DEVICE"
 echo "  supabase: $supabase_mode"
 echo "  telemetry: $telemetry_mode (${telemetry_provider:-unknown})"
 echo "  live feed: $live_feed_mode"
+if [[ -n "$LOG_FILE" ]]; then
+  echo "  log file: $LOG_FILE"
+fi
 
 if [[ "$supabase_mode" != "LIVE" ]]; then
   if [[ "$REQUIRE_SUPABASE" -eq 1 ]]; then
@@ -111,4 +120,11 @@ if [[ "$supabase_mode" != "LIVE" ]]; then
 fi
 
 echo "Launching ONYX..."
+if [[ -n "$LOG_FILE" ]]; then
+  mkdir -p "$(dirname "$LOG_FILE")"
+  : > "$LOG_FILE"
+  flutter run -d "$DEVICE" --dart-define-from-file="$CONFIG_FILE" "$@" 2>&1 | tee "$LOG_FILE"
+  exit "${PIPESTATUS[0]}"
+fi
+
 exec flutter run -d "$DEVICE" --dart-define-from-file="$CONFIG_FILE" "$@"

@@ -224,25 +224,28 @@ class NewsIntelligenceService {
     final checkedAtUtc = DateTime.now().toUtc().toIso8601String();
     try {
       final records = switch (provider) {
-        'newsapi.org' when newsApiOrgKey.isNotEmpty => await _fetchNewsApiOrg(
+        'newsapi.org' when _hasUsableCredential(newsApiOrgKey) =>
+          await _fetchNewsApiOrg(
             clientId: clientId,
             regionId: regionId,
             siteId: siteId,
             query: _locationQuery(regionId: regionId, siteId: siteId),
           ),
-        'newsdata.io' when newsDataIoKey.isNotEmpty => await _fetchNewsDataIo(
+        'newsdata.io' when _hasUsableCredential(newsDataIoKey) =>
+          await _fetchNewsDataIo(
             clientId: clientId,
             regionId: regionId,
             siteId: siteId,
             query: _locationQuery(regionId: regionId, siteId: siteId),
           ),
-        'newsapi.ai' when newsApiAiKey.isNotEmpty => await _fetchNewsApiAi(
+        'newsapi.ai' when _hasUsableCredential(newsApiAiKey) =>
+          await _fetchNewsApiAi(
             clientId: clientId,
             regionId: regionId,
             siteId: siteId,
             query: _locationQuery(regionId: regionId, siteId: siteId),
           ),
-        'worldnewsapi.com' when worldNewsApiKey.isNotEmpty =>
+        'worldnewsapi.com' when _hasUsableCredential(worldNewsApiKey) =>
           await _fetchWorldNewsApi(
             clientId: clientId,
             regionId: regionId,
@@ -250,7 +253,7 @@ class NewsIntelligenceService {
             query: _locationQuery(regionId: regionId, siteId: siteId),
           ),
         'openweather.org'
-            when openWeatherKey.isNotEmpty &&
+            when _hasUsableCredential(openWeatherKey) &&
                 weatherLat != null &&
                 weatherLon != null =>
           await _fetchOpenWeatherAlerts(
@@ -333,7 +336,7 @@ class NewsIntelligenceService {
       requests.add(Future<List<NormalizedIntelRecord>>.value(records));
     }
 
-    if (newsApiOrgKey.isNotEmpty) {
+    if (_hasUsableCredential(newsApiOrgKey)) {
       await collect(
         'newsapi.org',
         () => _fetchNewsApiOrg(
@@ -344,7 +347,7 @@ class NewsIntelligenceService {
         ),
       );
     }
-    if (newsDataIoKey.isNotEmpty) {
+    if (_hasUsableCredential(newsDataIoKey)) {
       await collect(
         'newsdata.io',
         () => _fetchNewsDataIo(
@@ -355,7 +358,7 @@ class NewsIntelligenceService {
         ),
       );
     }
-    if (newsApiAiKey.isNotEmpty) {
+    if (_hasUsableCredential(newsApiAiKey)) {
       await collect(
         'newsapi.ai',
         () => _fetchNewsApiAi(
@@ -366,7 +369,7 @@ class NewsIntelligenceService {
         ),
       );
     }
-    if (worldNewsApiKey.isNotEmpty) {
+    if (_hasUsableCredential(worldNewsApiKey)) {
       await collect(
         'worldnewsapi.com',
         () => _fetchWorldNewsApi(
@@ -377,7 +380,9 @@ class NewsIntelligenceService {
         ),
       );
     }
-    if (openWeatherKey.isNotEmpty && weatherLat != null && weatherLon != null) {
+    if (_hasUsableCredential(openWeatherKey) &&
+        weatherLat != null &&
+        weatherLon != null) {
       await collect(
         'openweather.org',
         () => _fetchOpenWeatherAlerts(
@@ -954,6 +959,9 @@ class NewsIntelligenceService {
       return false;
     }
     if (normalized == 'replace-me') {
+      return true;
+    }
+    if (normalized.startsWith('<') && normalized.endsWith('>')) {
       return true;
     }
     return normalized.startsWith('your_') && normalized.endsWith('_here');

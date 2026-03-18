@@ -14,8 +14,19 @@ import 'ui_action_logger.dart';
 
 class SitesCommandPage extends StatefulWidget {
   final List<DispatchEvent> events;
+  final VoidCallback? onAddSite;
+  final void Function(String siteId, String siteName)? onOpenMapForSite;
+  final void Function(String siteId, String siteName)? onOpenSiteSettings;
+  final void Function(String siteId, String siteName)? onOpenGuardRoster;
 
-  const SitesCommandPage({super.key, required this.events});
+  const SitesCommandPage({
+    super.key,
+    required this.events,
+    this.onAddSite,
+    this.onOpenMapForSite,
+    this.onOpenSiteSettings,
+    this.onOpenGuardRoster,
+  });
 
   @override
   State<SitesCommandPage> createState() => _SitesCommandPageState();
@@ -225,28 +236,39 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               ),
               const Spacer(),
               InkWell(
+                key: const ValueKey('sites-add-site-button'),
                 borderRadius: BorderRadius.circular(8),
-                onTap: () {
-                  logUiAction(
-                    'sites.add_site',
-                    context: {'selected_site_id': _selectedSiteId},
-                  );
-                  _showActionMessage('Site onboarding request captured.');
-                },
+                onTap: widget.onAddSite == null
+                    ? null
+                    : () {
+                        logUiAction(
+                          'sites.add_site',
+                          context: {'selected_site_id': _selectedSiteId},
+                        );
+                        widget.onAddSite!.call();
+                      },
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
                     vertical: 7,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF3B82F6),
+                    color: widget.onAddSite == null
+                        ? const Color(0xFF1D2937)
+                        : const Color(0xFF3B82F6),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0x80448FFF)),
+                    border: Border.all(
+                      color: widget.onAddSite == null
+                          ? const Color(0xFF314154)
+                          : const Color(0x80448FFF),
+                    ),
                   ),
                   child: Text(
                     'ADD SITE',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFEAF1FB),
+                      color: widget.onAddSite == null
+                          ? const Color(0xFF8EA4C2)
+                          : const Color(0xFFEAF1FB),
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
@@ -391,7 +413,9 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             children: [
               _miniButton(
                 'VIEW ON MAP',
+                key: const ValueKey('sites-view-on-map-button'),
                 primary: true,
+                enabled: widget.onOpenMapForSite != null,
                 onTap: () {
                   logUiAction(
                     'sites.view_on_map',
@@ -400,13 +424,13 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                       'site_name': site.displayName,
                     },
                   );
-                  _showActionMessage(
-                    'Map view opened for ${site.displayName}.',
-                  );
+                  widget.onOpenMapForSite!.call(site.id, site.displayName);
                 },
               ),
               _miniButton(
                 'SITE SETTINGS',
+                key: const ValueKey('sites-site-settings-button'),
+                enabled: widget.onOpenSiteSettings != null,
                 onTap: () {
                   logUiAction(
                     'sites.open_settings',
@@ -415,13 +439,13 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                       'site_name': site.displayName,
                     },
                   );
-                  _showActionMessage(
-                    'Site settings opened for ${site.displayName}.',
-                  );
+                  widget.onOpenSiteSettings!.call(site.id, site.displayName);
                 },
               ),
               _miniButton(
                 'GUARD ROSTER',
+                key: const ValueKey('sites-guard-roster-button'),
+                enabled: widget.onOpenGuardRoster != null,
                 onTap: () {
                   logUiAction(
                     'sites.open_guard_roster',
@@ -430,9 +454,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                       'site_name': site.displayName,
                     },
                   );
-                  _showActionMessage(
-                    'Guard roster opened for ${site.displayName}.',
-                  );
+                  widget.onOpenGuardRoster!.call(site.id, site.displayName);
                 },
               ),
             ],
@@ -574,41 +596,41 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
 
   Widget _miniButton(
     String text, {
+    Key? key,
     bool primary = false,
+    bool enabled = true,
     required VoidCallback onTap,
   }) {
     return InkWell(
-      onTap: onTap,
+      key: key,
+      onTap: enabled ? onTap : null,
       borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
-          color: primary ? const Color(0xFF3B82F6) : const Color(0xFF111822),
+          color: enabled
+              ? (primary ? const Color(0xFF3B82F6) : const Color(0xFF111822))
+              : const Color(0xFF1D2937),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: primary ? const Color(0xFF4E8FFF) : const Color(0xFF2A374A),
+            color: enabled
+                ? (primary
+                      ? const Color(0xFF4E8FFF)
+                      : const Color(0xFF2A374A))
+                : const Color(0xFF314154),
           ),
         ),
         child: Text(
           text,
           style: GoogleFonts.inter(
-            color: const Color(0xFFEAF1FB),
+            color: enabled
+                ? const Color(0xFFEAF1FB)
+                : const Color(0xFF8EA4C2),
             fontSize: 11,
             fontWeight: FontWeight.w700,
           ),
         ),
       ),
-    );
-  }
-
-  void _showActionMessage(String message) {
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    if (messenger == null) {
-      return;
-    }
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
     );
   }
 

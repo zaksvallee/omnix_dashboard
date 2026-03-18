@@ -11,6 +11,13 @@ import 'package:omnix_dashboard/domain/store/in_memory_event_store.dart';
 import 'package:omnix_dashboard/ui/dashboard_page.dart';
 
 void main() {
+  void expectTextButtonDisabled(WidgetTester tester, String label) {
+    final button = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, label),
+    );
+    expect(button.onPressed, isNull, reason: '$label should be disabled');
+  }
+
   testWidgets('dashboard stays stable on phone viewport', (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -473,6 +480,16 @@ void main() {
     expect(find.text('Download Failure Trace'), findsOneWidget);
     expect(find.text('Share Failure Trace'), findsOneWidget);
     expect(find.text('Email Failure Trace'), findsOneWidget);
+    expectTextButtonDisabled(tester, 'Download Failure Trace');
+    expectTextButtonDisabled(tester, 'Download Policy JSON');
+    expectTextButtonDisabled(tester, 'Download Policy CSV');
+    expectTextButtonDisabled(tester, 'Download Coaching JSON');
+    expectTextButtonDisabled(tester, 'Share Policy Pack');
+    expectTextButtonDisabled(tester, 'Share Coaching Pack');
+    expectTextButtonDisabled(tester, 'Share Site Activity Pack');
+    expectTextButtonDisabled(tester, 'Share Site Activity Telegram');
+    expectTextButtonDisabled(tester, 'Share Failure Trace');
+    expectTextButtonDisabled(tester, 'Email Failure Trace');
 
     await tester.ensureVisible(find.text('Open Guard Sync'));
     await tester.tap(find.text('Open Guard Sync'));

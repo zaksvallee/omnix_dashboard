@@ -18,6 +18,9 @@ class MonitoringWatchRuntimeState {
   final String latestClientDecisionLabel;
   final String latestClientDecisionSummary;
   final DateTime? latestClientDecisionAtUtc;
+  final String latestClientNotificationLabel;
+  final String latestClientNotificationSummary;
+  final DateTime? latestClientNotificationAtUtc;
   final List<String> actionHistory;
   final List<String> suppressedHistory;
 
@@ -41,6 +44,9 @@ class MonitoringWatchRuntimeState {
     this.latestClientDecisionLabel = '',
     this.latestClientDecisionSummary = '',
     this.latestClientDecisionAtUtc,
+    this.latestClientNotificationLabel = '',
+    this.latestClientNotificationSummary = '',
+    this.latestClientNotificationAtUtc,
     this.actionHistory = const <String>[],
     this.suppressedHistory = const <String>[],
   });
@@ -65,6 +71,9 @@ class MonitoringWatchRuntimeState {
     String? latestClientDecisionLabel,
     String? latestClientDecisionSummary,
     DateTime? latestClientDecisionAtUtc,
+    String? latestClientNotificationLabel,
+    String? latestClientNotificationSummary,
+    DateTime? latestClientNotificationAtUtc,
     List<String>? actionHistory,
     List<String>? suppressedHistory,
   }) {
@@ -99,6 +108,13 @@ class MonitoringWatchRuntimeState {
           latestClientDecisionSummary ?? this.latestClientDecisionSummary,
       latestClientDecisionAtUtc:
           latestClientDecisionAtUtc ?? this.latestClientDecisionAtUtc,
+      latestClientNotificationLabel:
+          latestClientNotificationLabel ?? this.latestClientNotificationLabel,
+      latestClientNotificationSummary:
+          latestClientNotificationSummary ??
+          this.latestClientNotificationSummary,
+      latestClientNotificationAtUtc:
+          latestClientNotificationAtUtc ?? this.latestClientNotificationAtUtc,
       actionHistory: actionHistory ?? this.actionHistory,
       suppressedHistory: suppressedHistory ?? this.suppressedHistory,
     );
@@ -182,6 +198,15 @@ class MonitoringWatchRuntimeStore {
                 .trim(),
         latestClientDecisionAtUtc: DateTime.tryParse(
           (map['latest_client_decision_at_utc'] ?? '').toString().trim(),
+        )?.toUtc(),
+        latestClientNotificationLabel:
+            (map['latest_client_notification_label'] ?? '').toString().trim(),
+        latestClientNotificationSummary:
+            (map['latest_client_notification_summary'] ?? '')
+                .toString()
+                .trim(),
+        latestClientNotificationAtUtc: DateTime.tryParse(
+          (map['latest_client_notification_at_utc'] ?? '').toString().trim(),
         )?.toUtc(),
         actionHistory: ((map['action_history'] as List?) ?? const [])
             .map((entry) => entry?.toString().trim() ?? '')
@@ -306,6 +331,21 @@ class MonitoringWatchRuntimeStore {
     );
   }
 
+  MonitoringWatchRuntimeState applyClientNotification({
+    required MonitoringWatchRuntimeState runtime,
+    required String notificationLabel,
+    required String notificationSummary,
+    required DateTime notifiedAtUtc,
+  }) {
+    final normalizedLabel = notificationLabel.trim();
+    final normalizedSummary = notificationSummary.trim();
+    return runtime.copyWith(
+      latestClientNotificationLabel: normalizedLabel,
+      latestClientNotificationSummary: normalizedSummary,
+      latestClientNotificationAtUtc: notifiedAtUtc.toUtc(),
+    );
+  }
+
   Map<String, Object?> serializeState(
     Map<String, MonitoringWatchRuntimeState> stateByScope,
   ) {
@@ -335,6 +375,13 @@ class MonitoringWatchRuntimeStore {
         'latest_client_decision_label': runtime.latestClientDecisionLabel,
         'latest_client_decision_summary': runtime.latestClientDecisionSummary,
         'latest_client_decision_at_utc': runtime.latestClientDecisionAtUtc
+            ?.toIso8601String(),
+        'latest_client_notification_label':
+            runtime.latestClientNotificationLabel,
+        'latest_client_notification_summary':
+            runtime.latestClientNotificationSummary,
+        'latest_client_notification_at_utc': runtime
+            .latestClientNotificationAtUtc
             ?.toIso8601String(),
         'action_history': runtime.actionHistory,
         'suppressed_history': runtime.suppressedHistory,

@@ -4,8 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../application/monitoring_scene_review_store.dart';
+import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
+import '../domain/events/execution_completed.dart';
+import '../domain/events/execution_denied.dart';
+import '../domain/events/incident_closed.dart';
 import '../domain/events/intelligence_received.dart';
+import '../domain/events/partner_dispatch_status_declared.dart';
+import '../domain/events/response_arrived.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'video_fleet_scope_health_card.dart';
@@ -18,6 +24,8 @@ enum _MarkerType { guard, vehicle, incident, site }
 enum _MarkerStatus { active, responding, staticMarker, sos }
 
 enum _FenceStatus { safe, breach, stationary }
+
+enum _FocusLinkState { none, exact, scopeBacked, seeded }
 
 class _MapMarker {
   final String id;
@@ -116,6 +124,8 @@ class _SuppressedFleetReviewEntry {
 class TacticalPage extends StatelessWidget {
   final List<DispatchEvent> events;
   final String focusIncidentReference;
+  final String? initialScopeClientId;
+  final String? initialScopeSiteId;
   final String videoOpsLabel;
   final String cctvOpsReadiness;
   final String cctvOpsDetail;
@@ -149,6 +159,8 @@ class TacticalPage extends StatelessWidget {
     super.key,
     required this.events,
     this.focusIncidentReference = '',
+    this.initialScopeClientId,
+    this.initialScopeSiteId,
     this.videoOpsLabel = 'CCTV',
     this.cctvOpsReadiness = 'UNCONFIGURED',
     this.cctvOpsDetail =
@@ -283,16 +295,30 @@ class TacticalPage extends StatelessWidget {
         final isCombatWindow = now.hour >= 22 || now.hour < 6;
         final normMode = isCombatWindow ? 'night' : 'day';
         final focusReference = focusIncidentReference.trim();
-        final focusLinked =
-            focusReference.isNotEmpty &&
-            _markers.any(
-              (marker) =>
-                  marker.type == _MarkerType.incident &&
-                  marker.id == focusReference,
-            );
+        final scopeClientId = (initialScopeClientId ?? '').trim();
+        final scopeSiteId = (initialScopeSiteId ?? '').trim();
+        final hasScopeFocus = scopeClientId.isNotEmpty;
+        final visibleFleetScopeHealth = hasScopeFocus
+            ? fleetScopeHealth
+                  .where((scope) {
+                    if (scope.clientId.trim() != scopeClientId) {
+                      return false;
+                    }
+                    if (scopeSiteId.isEmpty) {
+                      return true;
+                    }
+                    return scope.siteId.trim() == scopeSiteId;
+                  })
+                  .toList(growable: false)
+            : fleetScopeHealth;
+        final focusState = _resolveFocusLinkState(
+          focusReference: focusReference,
+          visibleFleetScopeHealth: visibleFleetScopeHealth,
+          events: events,
+        );
         final markers = _resolvedMarkers(
           focusReference: focusReference,
-          linkedToLive: focusLinked,
+          focusState: focusState,
         );
         final geofenceAlerts = _geofences
             .where(
@@ -310,7 +336,9 @@ class TacticalPage extends StatelessWidget {
             )
             .length;
         final lensTelemetry = _buildCctvLensTelemetry();
-        final suppressedEntries = _suppressedFleetReviewEntries();
+        final suppressedEntries = _suppressedFleetReviewEntries(
+          visibleFleetScopeHealth,
+        );
         final showSuppressedPrimary =
             activeWatchActionDrilldown ==
                 VideoFleetWatchActionDrilldown.filtered &&
@@ -391,11 +419,21 @@ class TacticalPage extends StatelessWidget {
                       sosAlerts: sosAlerts,
                       mode: isCombatWindow ? 'Combat Window' : 'Day Window',
                       focusReference: focusReference,
-                      focusLinked: focusLinked,
+                      focusState: focusState,
+                      scopeClientId: scopeClientId,
+                      scopeSiteId: scopeSiteId,
                       cctvReadiness: cctvOpsReadiness,
                       cctvCapabilitySummary: cctvCapabilitySummary,
                       cctvRecentSignalSummary: cctvRecentSignalSummary,
                     ),
+                    if (hasScopeFocus) ...[
+                      const SizedBox(height: 12),
+                      _scopeFocusBanner(
+                        clientId: scopeClientId,
+                        siteId: scopeSiteId,
+                        hasFleetScope: visibleFleetScopeHealth.isNotEmpty,
+                      ),
+                    ],
                     if (showSuppressedPrimary) ...[
                       const SizedBox(height: 12),
                       KeyedSubtree(
@@ -403,12 +441,13 @@ class TacticalPage extends StatelessWidget {
                         child: _suppressedReviewPanel(suppressedEntries),
                       ),
                     ],
-                    if (fleetScopeHealth.isNotEmpty) ...[
+                    if (visibleFleetScopeHealth.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       KeyedSubtree(
                         key: fleetPanelKey,
                         child: _fleetScopePanel(
                           context: context,
+                          fleetScopeHealth: visibleFleetScopeHealth,
                           activeWatchActionDrilldown:
                               activeWatchActionDrilldown,
                           onOpenWatchActionDrilldown: openWatchActionDrilldown,
@@ -438,7 +477,7 @@ class TacticalPage extends StatelessWidget {
                                 child: _mapPanel(
                                   markers: markers,
                                   focusReference: focusReference,
-                                  focusLinked: focusLinked,
+                                  focusState: focusState,
                                   geofenceAlerts: geofenceAlerts,
                                   sosAlerts: sosAlerts,
                                 ),
@@ -459,7 +498,7 @@ class TacticalPage extends StatelessWidget {
                               _mapPanel(
                                 markers: markers,
                                 focusReference: focusReference,
-                                focusLinked: focusLinked,
+                                focusState: focusState,
                                 geofenceAlerts: geofenceAlerts,
                                 sosAlerts: sosAlerts,
                               ),
@@ -483,6 +522,7 @@ class TacticalPage extends StatelessWidget {
 
   Widget _fleetScopePanel({
     required BuildContext context,
+    required List<VideoFleetScopeHealthView> fleetScopeHealth,
     required VideoFleetWatchActionDrilldown? activeWatchActionDrilldown,
     required void Function(VideoFleetWatchActionDrilldown drilldown)
     onOpenWatchActionDrilldown,
@@ -572,7 +612,9 @@ class TacticalPage extends StatelessWidget {
     );
   }
 
-  List<_SuppressedFleetReviewEntry> _suppressedFleetReviewEntries() {
+  List<_SuppressedFleetReviewEntry> _suppressedFleetReviewEntries(
+    List<VideoFleetScopeHealthView> fleetScopeHealth,
+  ) {
     final output = <_SuppressedFleetReviewEntry>[];
     for (final scope in fleetScopeHealth) {
       if (!scope.hasSuppressedSceneAction) {
@@ -1073,7 +1115,9 @@ class TacticalPage extends StatelessWidget {
     required int sosAlerts,
     required String mode,
     required String focusReference,
-    required bool focusLinked,
+    required _FocusLinkState focusState,
+    required String scopeClientId,
+    required String scopeSiteId,
     required String cctvReadiness,
     required String cctvCapabilitySummary,
     required String cctvRecentSignalSummary,
@@ -1131,10 +1175,14 @@ class TacticalPage extends StatelessWidget {
               if (focusReference.isNotEmpty)
                 _topChip(
                   'Focus',
-                  '${focusLinked ? 'Linked' : 'Seeded'} $focusReference',
-                  focusLinked
-                      ? const Color(0xFF86EFAC)
-                      : const Color(0xFFFACC15),
+                  '${_focusStateLabel(focusState)} $focusReference',
+                  _focusStateColor(focusState),
+                ),
+              if (scopeClientId.isNotEmpty && scopeSiteId.isNotEmpty)
+                _topChip(
+                  'Scope',
+                  '$scopeClientId/$scopeSiteId',
+                  const Color(0xFF8FD1FF),
                 ),
             ],
           ),
@@ -1161,10 +1209,67 @@ class TacticalPage extends StatelessWidget {
     );
   }
 
+  Widget _scopeFocusBanner({
+    required String clientId,
+    required String siteId,
+    required bool hasFleetScope,
+  }) {
+    final scopeLabel = siteId.trim().isEmpty
+        ? '$clientId/all sites'
+        : '$clientId/$siteId';
+    return Container(
+      key: const ValueKey('tactical-scope-banner'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0x141C3C57),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0x4435506F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Scope focus active',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8FD1FF),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            scopeLabel,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF4FF),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            hasFleetScope
+                ? (siteId.trim().isEmpty
+                      ? 'Tactical is focused on this client-wide DVR roll-up.'
+                      : 'Tactical is focused on this exact DVR lane.')
+                : (siteId.trim().isEmpty
+                      ? 'Tactical is locked to this client lane. Fleet DVR roll-up will appear once that client scope is linked.'
+                      : 'Tactical is locked to this exact lane. Fleet DVR roll-up will appear once that scope is linked.'),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB1CF),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _mapPanel({
     required List<_MapMarker> markers,
     required String focusReference,
-    required bool focusLinked,
+    required _FocusLinkState focusState,
     required int geofenceAlerts,
     required int sosAlerts,
   }) {
@@ -1260,22 +1365,20 @@ class TacticalPage extends StatelessWidget {
                               vertical: 8,
                             ),
                             decoration: BoxDecoration(
-                              color: focusLinked
-                                  ? const Color(0x2234D399)
-                                  : const Color(0x33F59E0B),
+                              color: _focusStateColor(
+                                focusState,
+                              ).withValues(alpha: 0.16),
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
-                                color: focusLinked
-                                    ? const Color(0x6634D399)
-                                    : const Color(0x66F59E0B),
+                                color: _focusStateColor(
+                                  focusState,
+                                ).withValues(alpha: 0.66),
                               ),
                             ),
                             child: Text(
-                              'FOCUS ${focusLinked ? 'LINKED' : 'SEEDED'} • $focusReference',
+                              'FOCUS ${_focusStateLabel(focusState).toUpperCase()} • $focusReference',
                               style: GoogleFonts.inter(
-                                color: focusLinked
-                                    ? const Color(0xFFCCFFE8)
-                                    : const Color(0xFFFDE68A),
+                                color: _focusStateTextColor(focusState),
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -1357,11 +1460,138 @@ class TacticalPage extends StatelessWidget {
     );
   }
 
+  _FocusLinkState _resolveFocusLinkState({
+    required String focusReference,
+    required List<VideoFleetScopeHealthView> visibleFleetScopeHealth,
+    required List<DispatchEvent> events,
+  }) {
+    final normalizedFocusReference = focusReference.trim();
+    if (normalizedFocusReference.isEmpty) {
+      return _FocusLinkState.none;
+    }
+    final exactLinked = _markers.any(
+      (marker) =>
+          marker.type == _MarkerType.incident &&
+          marker.id == normalizedFocusReference,
+    );
+    if (exactLinked) {
+      return _FocusLinkState.exact;
+    }
+    final scopeBacked = visibleFleetScopeHealth.any(
+      (scope) =>
+          (scope.latestIncidentReference ?? '').trim() ==
+          normalizedFocusReference,
+    );
+    if (scopeBacked) {
+      return _FocusLinkState.scopeBacked;
+    }
+    final focusScope = _scopeForFocusReference(
+      normalizedFocusReference,
+      events,
+    );
+    if (focusScope != null &&
+        visibleFleetScopeHealth.any(
+          (scope) =>
+              scope.clientId.trim() == focusScope.clientId &&
+              scope.siteId.trim() == focusScope.siteId,
+        )) {
+      return _FocusLinkState.scopeBacked;
+    }
+    return _FocusLinkState.seeded;
+  }
+
+  ({String clientId, String siteId})? _scopeForFocusReference(
+    String focusReference,
+    List<DispatchEvent> events,
+  ) {
+    final normalizedReference = focusReference.trim();
+    if (normalizedReference.isEmpty) {
+      return null;
+    }
+    DispatchEvent? matched;
+    for (final event in events) {
+      final dispatchId = switch (event) {
+        DecisionCreated value => value.dispatchId.trim(),
+        ResponseArrived value => value.dispatchId.trim(),
+        PartnerDispatchStatusDeclared value => value.dispatchId.trim(),
+        ExecutionCompleted value => value.dispatchId.trim(),
+        ExecutionDenied value => value.dispatchId.trim(),
+        IncidentClosed value => value.dispatchId.trim(),
+        _ => '',
+      };
+      final intelligenceId = event is IntelligenceReceived
+          ? event.intelligenceId.trim()
+          : '';
+      if (event.eventId.trim() != normalizedReference &&
+          dispatchId != normalizedReference &&
+          intelligenceId != normalizedReference) {
+        continue;
+      }
+      if (matched == null || event.occurredAt.isAfter(matched.occurredAt)) {
+        matched = event;
+      }
+    }
+    if (matched == null) {
+      return null;
+    }
+    final clientId = switch (matched) {
+      DecisionCreated event => event.clientId.trim(),
+      ResponseArrived event => event.clientId.trim(),
+      PartnerDispatchStatusDeclared event => event.clientId.trim(),
+      ExecutionCompleted event => event.clientId.trim(),
+      ExecutionDenied event => event.clientId.trim(),
+      IncidentClosed event => event.clientId.trim(),
+      IntelligenceReceived event => event.clientId.trim(),
+      _ => '',
+    };
+    final siteId = switch (matched) {
+      DecisionCreated event => event.siteId.trim(),
+      ResponseArrived event => event.siteId.trim(),
+      PartnerDispatchStatusDeclared event => event.siteId.trim(),
+      ExecutionCompleted event => event.siteId.trim(),
+      ExecutionDenied event => event.siteId.trim(),
+      IncidentClosed event => event.siteId.trim(),
+      IntelligenceReceived event => event.siteId.trim(),
+      _ => '',
+    };
+    if (clientId.isEmpty || siteId.isEmpty) {
+      return null;
+    }
+    return (clientId: clientId, siteId: siteId);
+  }
+
+  String _focusStateLabel(_FocusLinkState state) {
+    return switch (state) {
+      _FocusLinkState.exact => 'Linked',
+      _FocusLinkState.scopeBacked => 'Scope-backed',
+      _FocusLinkState.seeded => 'Seeded',
+      _FocusLinkState.none => 'Idle',
+    };
+  }
+
+  Color _focusStateColor(_FocusLinkState state) {
+    return switch (state) {
+      _FocusLinkState.exact => const Color(0xFF86EFAC),
+      _FocusLinkState.scopeBacked => const Color(0xFF8FD1FF),
+      _FocusLinkState.seeded => const Color(0xFFFACC15),
+      _FocusLinkState.none => const Color(0xFF9AB1CF),
+    };
+  }
+
+  Color _focusStateTextColor(_FocusLinkState state) {
+    return switch (state) {
+      _FocusLinkState.exact => const Color(0xFFCCFFE8),
+      _FocusLinkState.scopeBacked => const Color(0xFFE0F2FF),
+      _FocusLinkState.seeded => const Color(0xFFFDE68A),
+      _FocusLinkState.none => const Color(0xFFCAD6E5),
+    };
+  }
+
   List<_MapMarker> _resolvedMarkers({
     required String focusReference,
-    required bool linkedToLive,
+    required _FocusLinkState focusState,
   }) {
-    if (focusReference.isEmpty || linkedToLive) {
+    if (focusReference.isEmpty || focusState != _FocusLinkState.seeded) {
       return _markers;
     }
     return [

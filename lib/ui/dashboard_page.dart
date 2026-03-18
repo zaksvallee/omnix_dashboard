@@ -1743,7 +1743,7 @@ class _RightRail extends StatelessWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Opening Events Review for site activity truth.',
+          'Opening Events Review for site activity truth lane.',
           style: GoogleFonts.inter(
             color: const Color(0xFFE7F0FF),
             fontWeight: FontWeight.w700,
@@ -2311,7 +2311,7 @@ class _RightRail extends StatelessWidget {
                                       ).showSnackBar(
                                         SnackBar(
                                           content: Text(
-                                            'Site activity review JSON copied',
+                                            'Site activity review JSON copied for command review.',
                                             style: GoogleFonts.inter(
                                               color: const Color(0xFFE7F0FF),
                                               fontWeight: FontWeight.w700,
@@ -2377,7 +2377,7 @@ class _RightRail extends StatelessWidget {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                      'Guard failure trace copied',
+                                      'Failure trace copied for command review.',
                                       style: GoogleFonts.inter(
                                         color: const Color(0xFFE7F0FF),
                                         fontWeight: FontWeight.w700,
@@ -2405,46 +2405,38 @@ class _RightRail extends StatelessWidget {
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
                             child: TextButton(
-                              onPressed: () async {
-                                if (!_emailBridge.supported) {
-                                  if (!context.mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Email bridge is only available on web',
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFFE7F0FF),
-                                          fontWeight: FontWeight.w700,
+                              onPressed: !_emailBridge.supported
+                                  ? null
+                                  : () async {
+                                      final opened =
+                                          await _emailBridge.openMailDraft(
+                                            subject:
+                                                'ONYX Guard Sync Failure Trace',
+                                            body: _guardFailureTraceText(
+                                              recentFailureTraces,
+                                              guardLastFailureReason,
+                                            ),
+                                          );
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            opened
+                                                ? 'Mail draft opened for the failure trace.'
+                                                : 'Mail draft bridge is not available in this session.',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFFE7F0FF),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          backgroundColor: const Color(
+                                            0xFF0E203A,
+                                          ),
                                         ),
-                                      ),
-                                      backgroundColor: const Color(0xFF0E203A),
-                                    ),
-                                  );
-                                  return;
-                                }
-                                final opened = await _emailBridge.openMailDraft(
-                                  subject: 'ONYX Guard Sync Failure Trace',
-                                  body: _guardFailureTraceText(
-                                    recentFailureTraces,
-                                    guardLastFailureReason,
-                                  ),
-                                );
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      opened
-                                          ? 'Email draft opened for failure trace'
-                                          : 'Email bridge unavailable',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFE7F0FF),
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    backgroundColor: const Color(0xFF0E203A),
-                                  ),
-                                );
-                              },
+                                      );
+                                    },
                               style: TextButton.styleFrom(
                                 padding: EdgeInsets.zero,
                                 minimumSize: const Size(0, 0),
@@ -2463,44 +2455,35 @@ class _RightRail extends StatelessWidget {
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
                             child: TextButton(
-                              onPressed: () async {
-                                if (!_snapshotFiles.supported) {
-                                  if (!context.mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'File export is only available on web',
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFFE7F0FF),
-                                          fontWeight: FontWeight.w700,
+                              onPressed: !_snapshotFiles.supported
+                                  ? null
+                                  : () async {
+                                      await _snapshotFiles.downloadTextFile(
+                                        filename:
+                                            'guard-sync-failure-trace.txt',
+                                        contents: _guardFailureTraceText(
+                                          recentFailureTraces,
+                                          guardLastFailureReason,
                                         ),
-                                      ),
-                                      backgroundColor: const Color(0xFF0E203A),
-                                    ),
-                                  );
-                                  return;
-                                }
-                                await _snapshotFiles.downloadTextFile(
-                                  filename: 'guard-sync-failure-trace.txt',
-                                  contents: _guardFailureTraceText(
-                                    recentFailureTraces,
-                                    guardLastFailureReason,
-                                  ),
-                                );
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Failure trace download started',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFE7F0FF),
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    backgroundColor: const Color(0xFF0E203A),
-                                  ),
-                                );
-                              },
+                                      );
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Failure trace download started.',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFFE7F0FF),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          backgroundColor: const Color(
+                                            0xFF0E203A,
+                                          ),
+                                        ),
+                                      );
+                                    },
                               style: TextButton.styleFrom(
                                 padding: EdgeInsets.zero,
                                 minimumSize: const Size(0, 0),
@@ -2519,46 +2502,36 @@ class _RightRail extends StatelessWidget {
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
                             child: TextButton(
-                              onPressed: () async {
-                                if (!_textShare.supported) {
-                                  if (!context.mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Share is not available in this environment',
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFFE7F0FF),
-                                          fontWeight: FontWeight.w700,
+                              onPressed: !_textShare.supported
+                                  ? null
+                                  : () async {
+                                      final shared = await _textShare.shareText(
+                                        title: 'ONYX Guard Sync Failure Trace',
+                                        text: _guardFailureTraceText(
+                                          recentFailureTraces,
+                                          guardLastFailureReason,
                                         ),
-                                      ),
-                                      backgroundColor: const Color(0xFF0E203A),
-                                    ),
-                                  );
-                                  return;
-                                }
-                                final shared = await _textShare.shareText(
-                                  title: 'ONYX Guard Sync Failure Trace',
-                                  text: _guardFailureTraceText(
-                                    recentFailureTraces,
-                                    guardLastFailureReason,
-                                  ),
-                                );
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      shared
-                                          ? 'Failure trace share started'
-                                          : 'Failure trace share unavailable',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFE7F0FF),
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    backgroundColor: const Color(0xFF0E203A),
-                                  ),
-                                );
-                              },
+                                      );
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            shared
+                                                ? 'Failure trace share started.'
+                                                : 'Failure trace sharing is not available in this session.',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFFE7F0FF),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          backgroundColor: const Color(
+                                            0xFF0E203A,
+                                          ),
+                                        ),
+                                      );
+                                    },
                               style: TextButton.styleFrom(
                                 padding: EdgeInsets.zero,
                                 minimumSize: const Size(0, 0),
@@ -2653,41 +2626,32 @@ class _RightRail extends StatelessWidget {
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
                             child: TextButton(
-                              onPressed: () async {
-                                if (!_snapshotFiles.supported) {
-                                  if (!context.mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'File export is only available on web',
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFFE7F0FF),
-                                          fontWeight: FontWeight.w700,
+                              onPressed: !_snapshotFiles.supported
+                                  ? null
+                                  : () async {
+                                      await _snapshotFiles.downloadJsonFile(
+                                        filename:
+                                            'guard-policy-telemetry.json',
+                                        contents: _guardPolicyTelemetryJson(),
+                                      );
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Policy telemetry JSON download started',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFFE7F0FF),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          backgroundColor: const Color(
+                                            0xFF0E203A,
+                                          ),
                                         ),
-                                      ),
-                                      backgroundColor: const Color(0xFF0E203A),
-                                    ),
-                                  );
-                                  return;
-                                }
-                                await _snapshotFiles.downloadJsonFile(
-                                  filename: 'guard-policy-telemetry.json',
-                                  contents: _guardPolicyTelemetryJson(),
-                                );
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Policy telemetry JSON download started',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFE7F0FF),
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    backgroundColor: const Color(0xFF0E203A),
-                                  ),
-                                );
-                              },
+                                      );
+                                    },
                               style: TextButton.styleFrom(
                                 padding: EdgeInsets.zero,
                                 minimumSize: const Size(0, 0),
@@ -2706,41 +2670,32 @@ class _RightRail extends StatelessWidget {
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
                             child: TextButton(
-                              onPressed: () async {
-                                if (!_snapshotFiles.supported) {
-                                  if (!context.mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'File export is only available on web',
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFFE7F0FF),
-                                          fontWeight: FontWeight.w700,
+                              onPressed: !_snapshotFiles.supported
+                                  ? null
+                                  : () async {
+                                      await _snapshotFiles.downloadTextFile(
+                                        filename:
+                                            'guard-policy-telemetry.csv',
+                                        contents: _guardPolicyTelemetryCsv(),
+                                      );
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Policy telemetry CSV download started',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFFE7F0FF),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          backgroundColor: const Color(
+                                            0xFF0E203A,
+                                          ),
                                         ),
-                                      ),
-                                      backgroundColor: const Color(0xFF0E203A),
-                                    ),
-                                  );
-                                  return;
-                                }
-                                await _snapshotFiles.downloadTextFile(
-                                  filename: 'guard-policy-telemetry.csv',
-                                  contents: _guardPolicyTelemetryCsv(),
-                                );
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Policy telemetry CSV download started',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFE7F0FF),
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    backgroundColor: const Color(0xFF0E203A),
-                                  ),
-                                );
-                              },
+                                      );
+                                    },
                               style: TextButton.styleFrom(
                                 padding: EdgeInsets.zero,
                                 minimumSize: const Size(0, 0),
@@ -2759,43 +2714,33 @@ class _RightRail extends StatelessWidget {
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
                             child: TextButton(
-                              onPressed: () async {
-                                if (!_textShare.supported) {
-                                  if (!context.mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Share is not available in this environment',
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFFE7F0FF),
-                                          fontWeight: FontWeight.w700,
+                              onPressed: !_textShare.supported
+                                  ? null
+                                  : () async {
+                                      final shared = await _textShare.shareText(
+                                        title: 'ONYX Guard Policy Telemetry',
+                                        text: _guardPolicyTelemetryJson(),
+                                      );
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            shared
+                                                ? 'Policy telemetry share started'
+                                                : 'Policy telemetry share unavailable',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFFE7F0FF),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          backgroundColor: const Color(
+                                            0xFF0E203A,
+                                          ),
                                         ),
-                                      ),
-                                      backgroundColor: const Color(0xFF0E203A),
-                                    ),
-                                  );
-                                  return;
-                                }
-                                final shared = await _textShare.shareText(
-                                  title: 'ONYX Guard Policy Telemetry',
-                                  text: _guardPolicyTelemetryJson(),
-                                );
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      shared
-                                          ? 'Policy telemetry share started'
-                                          : 'Policy telemetry share unavailable',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFE7F0FF),
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    backgroundColor: const Color(0xFF0E203A),
-                                  ),
-                                );
-                              },
+                                      );
+                                    },
                               style: TextButton.styleFrom(
                                 padding: EdgeInsets.zero,
                                 minimumSize: const Size(0, 0),
@@ -2890,41 +2835,33 @@ class _RightRail extends StatelessWidget {
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
                             child: TextButton(
-                              onPressed: () async {
-                                if (!_snapshotFiles.supported) {
-                                  if (!context.mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'File export is only available on web',
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFFE7F0FF),
-                                          fontWeight: FontWeight.w700,
+                              onPressed: !_snapshotFiles.supported
+                                  ? null
+                                  : () async {
+                                      await _snapshotFiles.downloadJsonFile(
+                                        filename:
+                                            'guard-coaching-telemetry.json',
+                                        contents:
+                                            _guardCoachingTelemetryJson(),
+                                      );
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Coaching telemetry JSON download started',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFFE7F0FF),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          backgroundColor: const Color(
+                                            0xFF0E203A,
+                                          ),
                                         ),
-                                      ),
-                                      backgroundColor: const Color(0xFF0E203A),
-                                    ),
-                                  );
-                                  return;
-                                }
-                                await _snapshotFiles.downloadJsonFile(
-                                  filename: 'guard-coaching-telemetry.json',
-                                  contents: _guardCoachingTelemetryJson(),
-                                );
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Coaching telemetry JSON download started',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFE7F0FF),
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    backgroundColor: const Color(0xFF0E203A),
-                                  ),
-                                );
-                              },
+                                      );
+                                    },
                               style: TextButton.styleFrom(
                                 padding: EdgeInsets.zero,
                                 minimumSize: const Size(0, 0),
@@ -2943,43 +2880,33 @@ class _RightRail extends StatelessWidget {
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
                             child: TextButton(
-                              onPressed: () async {
-                                if (!_textShare.supported) {
-                                  if (!context.mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Share is not available in this environment',
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFFE7F0FF),
-                                          fontWeight: FontWeight.w700,
+                              onPressed: !_textShare.supported
+                                  ? null
+                                  : () async {
+                                      final shared = await _textShare.shareText(
+                                        title: 'ONYX Guard Coaching Telemetry',
+                                        text: _guardCoachingTelemetryJson(),
+                                      );
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            shared
+                                                ? 'Coaching telemetry share started'
+                                                : 'Coaching telemetry share unavailable',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFFE7F0FF),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          backgroundColor: const Color(
+                                            0xFF0E203A,
+                                          ),
                                         ),
-                                      ),
-                                      backgroundColor: const Color(0xFF0E203A),
-                                    ),
-                                  );
-                                  return;
-                                }
-                                final shared = await _textShare.shareText(
-                                  title: 'ONYX Guard Coaching Telemetry',
-                                  text: _guardCoachingTelemetryJson(),
-                                );
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      shared
-                                          ? 'Coaching telemetry share started'
-                                          : 'Coaching telemetry share unavailable',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFE7F0FF),
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    backgroundColor: const Color(0xFF0E203A),
-                                  ),
-                                );
-                              },
+                                      );
+                                    },
                               style: TextButton.styleFrom(
                                 padding: EdgeInsets.zero,
                                 minimumSize: const Size(0, 0),
@@ -3006,7 +2933,7 @@ class _RightRail extends StatelessWidget {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                      'Site activity truth JSON copied',
+                                      'Site activity truth JSON copied for command review.',
                                       style: GoogleFonts.inter(
                                         color: const Color(0xFFE7F0FF),
                                         fontWeight: FontWeight.w700,
@@ -3042,7 +2969,7 @@ class _RightRail extends StatelessWidget {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                      'Site activity truth CSV copied',
+                                      'Site activity truth CSV copied for command review.',
                                       style: GoogleFonts.inter(
                                         color: const Color(0xFFE7F0FF),
                                         fontWeight: FontWeight.w700,
@@ -3070,43 +2997,33 @@ class _RightRail extends StatelessWidget {
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
                             child: TextButton(
-                              onPressed: () async {
-                                if (!_textShare.supported) {
-                                  if (!context.mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Share is not available in this environment',
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFFE7F0FF),
-                                          fontWeight: FontWeight.w700,
+                              onPressed: !_textShare.supported
+                                  ? null
+                                  : () async {
+                                      final shared = await _textShare.shareText(
+                                        title: 'ONYX Site Activity Truth',
+                                        text: _siteActivityTruthJson(),
+                                      );
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            shared
+                                                ? 'Site activity truth share started.'
+                                                : 'Site activity truth sharing is not available in this session.',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFFE7F0FF),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          backgroundColor: const Color(
+                                            0xFF0E203A,
+                                          ),
                                         ),
-                                      ),
-                                      backgroundColor: const Color(0xFF0E203A),
-                                    ),
-                                  );
-                                  return;
-                                }
-                                final shared = await _textShare.shareText(
-                                  title: 'ONYX Site Activity Truth',
-                                  text: _siteActivityTruthJson(),
-                                );
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      shared
-                                          ? 'Site activity truth share started'
-                                          : 'Site activity truth share unavailable',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFE7F0FF),
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    backgroundColor: const Color(0xFF0E203A),
-                                  ),
-                                );
-                              },
+                                      );
+                                    },
                               style: TextButton.styleFrom(
                                 padding: EdgeInsets.zero,
                                 minimumSize: const Size(0, 0),
@@ -3135,7 +3052,7 @@ class _RightRail extends StatelessWidget {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                      'Site activity Telegram summary copied',
+                                      'Site activity Telegram summary copied for command review.',
                                       style: GoogleFonts.inter(
                                         color: const Color(0xFFE7F0FF),
                                         fontWeight: FontWeight.w700,
@@ -3163,43 +3080,34 @@ class _RightRail extends StatelessWidget {
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
                             child: TextButton(
-                              onPressed: () async {
-                                if (!_textShare.supported) {
-                                  if (!context.mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Share is not available in this environment',
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFFE7F0FF),
-                                          fontWeight: FontWeight.w700,
+                              onPressed: !_textShare.supported
+                                  ? null
+                                  : () async {
+                                      final shared = await _textShare.shareText(
+                                        title:
+                                            'ONYX Site Activity Telegram Summary',
+                                        text: _siteActivityTelegramSummary(),
+                                      );
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            shared
+                                                ? 'Site activity Telegram share started.'
+                                                : 'Site activity Telegram sharing is not available in this session.',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFFE7F0FF),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          backgroundColor: const Color(
+                                            0xFF0E203A,
+                                          ),
                                         ),
-                                      ),
-                                      backgroundColor: const Color(0xFF0E203A),
-                                    ),
-                                  );
-                                  return;
-                                }
-                                final shared = await _textShare.shareText(
-                                  title: 'ONYX Site Activity Telegram Summary',
-                                  text: _siteActivityTelegramSummary(),
-                                );
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      shared
-                                          ? 'Site activity Telegram share started'
-                                          : 'Site activity Telegram share unavailable',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFE7F0FF),
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    backgroundColor: const Color(0xFF0E203A),
-                                  ),
-                                );
-                              },
+                                      );
+                                    },
                               style: TextButton.styleFrom(
                                 padding: EdgeInsets.zero,
                                 minimumSize: const Size(0, 0),

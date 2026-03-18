@@ -50,6 +50,8 @@ class DispatchPersistenceService {
   static const clientAppAcknowledgementsKey = 'onyx_client_app_acks_v1';
   static const clientAppPushQueueKey = 'onyx_client_app_push_queue_v1';
   static const clientAppPushSyncStateKey = 'onyx_client_app_push_sync_state_v1';
+  static const clientConversationScopeRegistryKey =
+      'onyx_client_conversation_scope_registry_v1';
   static const telegramAdminRuntimeStateKey =
       'onyx_telegram_admin_runtime_state_v1';
   static const monitoringWatchRuntimeStateKey =
@@ -727,6 +729,272 @@ class DispatchPersistenceService {
     await prefs.remove(clientAppPushSyncStateKey);
   }
 
+  Future<List<String>> readClientConversationScopeKeys() async {
+    final raw = prefs.getString(clientConversationScopeRegistryKey);
+    if (raw == null || raw.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return const [];
+      return decoded
+          .map((item) => item?.toString() ?? '')
+          .where((item) => item.trim().isNotEmpty)
+          .map((item) => item.trim())
+          .toList(growable: false);
+    } catch (_) {
+      await clearClientConversationScopeKeys();
+      return const [];
+    }
+  }
+
+  Future<void> saveClientConversationScopeKeys(List<String> scopeKeys) async {
+    await prefs.setString(
+      clientConversationScopeRegistryKey,
+      jsonEncode(
+        scopeKeys
+            .map((item) => item.trim())
+            .where((item) => item.isNotEmpty)
+            .toList(growable: false),
+      ),
+    );
+  }
+
+  Future<void> clearClientConversationScopeKeys() async {
+    await prefs.remove(clientConversationScopeRegistryKey);
+  }
+
+  Future<List<ClientAppMessage>> readScopedClientAppMessages({
+    required String clientId,
+    required String siteId,
+  }) async {
+    final raw = prefs.getString(
+      _scopedClientConversationKey(
+        clientAppMessagesKey,
+        clientId: clientId,
+        siteId: siteId,
+      ),
+    );
+    if (raw == null || raw.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return const [];
+      return decoded
+          .whereType<Map>()
+          .map(
+            (item) => ClientAppMessage.fromJson(
+              item.map((key, value) => MapEntry(key.toString(), value)),
+            ),
+          )
+          .where((item) => item.body.trim().isNotEmpty)
+          .toList(growable: false);
+    } catch (_) {
+      await clearScopedClientAppMessages(clientId: clientId, siteId: siteId);
+      return const [];
+    }
+  }
+
+  Future<void> saveScopedClientAppMessages(
+    List<ClientAppMessage> messages, {
+    required String clientId,
+    required String siteId,
+  }) async {
+    await _registerClientConversationScope(clientId: clientId, siteId: siteId);
+    await prefs.setString(
+      _scopedClientConversationKey(
+        clientAppMessagesKey,
+        clientId: clientId,
+        siteId: siteId,
+      ),
+      jsonEncode(messages.map((item) => item.toJson()).toList()),
+    );
+  }
+
+  Future<void> clearScopedClientAppMessages({
+    required String clientId,
+    required String siteId,
+  }) async {
+    await prefs.remove(
+      _scopedClientConversationKey(
+        clientAppMessagesKey,
+        clientId: clientId,
+        siteId: siteId,
+      ),
+    );
+  }
+
+  Future<List<ClientAppAcknowledgement>> readScopedClientAppAcknowledgements({
+    required String clientId,
+    required String siteId,
+  }) async {
+    final raw = prefs.getString(
+      _scopedClientConversationKey(
+        clientAppAcknowledgementsKey,
+        clientId: clientId,
+        siteId: siteId,
+      ),
+    );
+    if (raw == null || raw.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return const [];
+      return decoded
+          .whereType<Map>()
+          .map(
+            (item) => ClientAppAcknowledgement.fromJson(
+              item.map((key, value) => MapEntry(key.toString(), value)),
+            ),
+          )
+          .where((item) => item.messageKey.trim().isNotEmpty)
+          .toList(growable: false);
+    } catch (_) {
+      await clearScopedClientAppAcknowledgements(
+        clientId: clientId,
+        siteId: siteId,
+      );
+      return const [];
+    }
+  }
+
+  Future<void> saveScopedClientAppAcknowledgements(
+    List<ClientAppAcknowledgement> acknowledgements, {
+    required String clientId,
+    required String siteId,
+  }) async {
+    await _registerClientConversationScope(clientId: clientId, siteId: siteId);
+    await prefs.setString(
+      _scopedClientConversationKey(
+        clientAppAcknowledgementsKey,
+        clientId: clientId,
+        siteId: siteId,
+      ),
+      jsonEncode(acknowledgements.map((item) => item.toJson()).toList()),
+    );
+  }
+
+  Future<void> clearScopedClientAppAcknowledgements({
+    required String clientId,
+    required String siteId,
+  }) async {
+    await prefs.remove(
+      _scopedClientConversationKey(
+        clientAppAcknowledgementsKey,
+        clientId: clientId,
+        siteId: siteId,
+      ),
+    );
+  }
+
+  Future<List<ClientAppPushDeliveryItem>> readScopedClientAppPushQueue({
+    required String clientId,
+    required String siteId,
+  }) async {
+    final raw = prefs.getString(
+      _scopedClientConversationKey(
+        clientAppPushQueueKey,
+        clientId: clientId,
+        siteId: siteId,
+      ),
+    );
+    if (raw == null || raw.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return const [];
+      return decoded
+          .whereType<Map>()
+          .map(
+            (item) => ClientAppPushDeliveryItem.fromJson(
+              item.map((key, value) => MapEntry(key.toString(), value)),
+            ),
+          )
+          .where((item) => item.messageKey.trim().isNotEmpty)
+          .toList(growable: false);
+    } catch (_) {
+      await clearScopedClientAppPushQueue(clientId: clientId, siteId: siteId);
+      return const [];
+    }
+  }
+
+  Future<void> saveScopedClientAppPushQueue(
+    List<ClientAppPushDeliveryItem> pushQueue, {
+    required String clientId,
+    required String siteId,
+  }) async {
+    await _registerClientConversationScope(clientId: clientId, siteId: siteId);
+    await prefs.setString(
+      _scopedClientConversationKey(
+        clientAppPushQueueKey,
+        clientId: clientId,
+        siteId: siteId,
+      ),
+      jsonEncode(pushQueue.map((item) => item.toJson()).toList()),
+    );
+  }
+
+  Future<void> clearScopedClientAppPushQueue({
+    required String clientId,
+    required String siteId,
+  }) async {
+    await prefs.remove(
+      _scopedClientConversationKey(
+        clientAppPushQueueKey,
+        clientId: clientId,
+        siteId: siteId,
+      ),
+    );
+  }
+
+  Future<ClientPushSyncState> readScopedClientAppPushSyncState({
+    required String clientId,
+    required String siteId,
+  }) async {
+    final raw = prefs.getString(
+      _scopedClientConversationKey(
+        clientAppPushSyncStateKey,
+        clientId: clientId,
+        siteId: siteId,
+      ),
+    );
+    if (raw == null || raw.isEmpty) return const ClientPushSyncState.idle();
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return const ClientPushSyncState.idle();
+      return ClientPushSyncState.fromJson(
+        decoded.map((key, value) => MapEntry(key.toString(), value as Object?)),
+      );
+    } catch (_) {
+      await clearScopedClientAppPushSyncState(clientId: clientId, siteId: siteId);
+      return const ClientPushSyncState.idle();
+    }
+  }
+
+  Future<void> saveScopedClientAppPushSyncState(
+    ClientPushSyncState state, {
+    required String clientId,
+    required String siteId,
+  }) async {
+    await _registerClientConversationScope(clientId: clientId, siteId: siteId);
+    await prefs.setString(
+      _scopedClientConversationKey(
+        clientAppPushSyncStateKey,
+        clientId: clientId,
+        siteId: siteId,
+      ),
+      jsonEncode(state.toJson()),
+    );
+  }
+
+  Future<void> clearScopedClientAppPushSyncState({
+    required String clientId,
+    required String siteId,
+  }) async {
+    await prefs.remove(
+      _scopedClientConversationKey(
+        clientAppPushSyncStateKey,
+        clientId: clientId,
+        siteId: siteId,
+      ),
+    );
+  }
+
   Future<Map<String, Object?>> readTelegramAdminRuntimeState() async {
     final raw = prefs.getString(telegramAdminRuntimeStateKey);
     if (raw == null || raw.isEmpty) return const {};
@@ -748,6 +1016,43 @@ class DispatchPersistenceService {
 
   Future<void> clearTelegramAdminRuntimeState() async {
     await prefs.remove(telegramAdminRuntimeStateKey);
+  }
+
+  String _scopedClientConversationKey(
+    String baseKey, {
+    required String clientId,
+    required String siteId,
+  }) {
+    final scopeKey = _clientConversationScopeKey(
+      clientId: clientId,
+      siteId: siteId,
+    );
+    return '$baseKey::$scopeKey';
+  }
+
+  String _clientConversationScopeKey({
+    required String clientId,
+    required String siteId,
+  }) {
+    return '${clientId.trim()}|${siteId.trim()}';
+  }
+
+  Future<void> _registerClientConversationScope({
+    required String clientId,
+    required String siteId,
+  }) async {
+    final scopeKey = _clientConversationScopeKey(
+      clientId: clientId,
+      siteId: siteId,
+    );
+    if (scopeKey == '|') {
+      return;
+    }
+    final existing = await readClientConversationScopeKeys();
+    if (existing.contains(scopeKey)) {
+      return;
+    }
+    await saveClientConversationScopeKeys(<String>[...existing, scopeKey]);
   }
 
   Future<Map<String, Object?>> readMonitoringWatchRuntimeState() async {

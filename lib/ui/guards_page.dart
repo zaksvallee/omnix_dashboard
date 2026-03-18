@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../domain/events/dispatch_event.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
+import 'ui_action_logger.dart';
 
 enum _GuardStatus { onDuty, offDuty, onBreak, offline }
 
 enum _ShiftChangeType { clockIn, clockOut, breakStart, breakEnd }
+
+enum _GuardContactMode { call, message }
 
 class _GuardRecord {
   final String id;
@@ -83,8 +87,27 @@ class _ShiftChangeRecord {
 
 class GuardsPage extends StatefulWidget {
   final List<DispatchEvent> events;
+  final String initialSiteFilter;
+  final VoidCallback? onOpenGuardSchedule;
+  final ValueChanged<String>? onOpenGuardReportsForSite;
+  final ValueChanged<String>? onOpenClientLaneForSite;
+  final Future<String> Function(
+    String guardId,
+    String guardName,
+    String siteId,
+    String phone,
+  )?
+  onStageGuardVoipCall;
 
-  const GuardsPage({super.key, required this.events});
+  const GuardsPage({
+    super.key,
+    required this.events,
+    this.initialSiteFilter = 'ALL',
+    this.onOpenGuardSchedule,
+    this.onOpenGuardReportsForSite,
+    this.onOpenClientLaneForSite,
+    this.onStageGuardVoipCall,
+  });
 
   @override
   State<GuardsPage> createState() => _GuardsPageState();
@@ -322,6 +345,20 @@ class _GuardsPageState extends State<GuardsPage> {
   String _selectedGuardId = 'GRD-441';
 
   @override
+  void initState() {
+    super.initState();
+    _siteFilter = _resolveSiteFilter(widget.initialSiteFilter);
+  }
+
+  @override
+  void didUpdateWidget(covariant GuardsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialSiteFilter != widget.initialSiteFilter) {
+      _siteFilter = _resolveSiteFilter(widget.initialSiteFilter);
+    }
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
@@ -332,6 +369,7 @@ class _GuardsPageState extends State<GuardsPage> {
     final filtered = _filteredGuards();
     final selected = _selectedGuard(filtered);
     final sites = _siteOptions();
+    final headerGuard = selected ?? _guards.first;
 
     final onDutyCount = _guards
         .where((guard) => guard.status == _GuardStatus.onDuty)
@@ -357,7 +395,7 @@ class _GuardsPageState extends State<GuardsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _header(),
+                _header(headerGuard),
                 const SizedBox(height: 10),
                 _kpis(
                   onDutyCount: onDutyCount,
@@ -403,14 +441,32 @@ class _GuardsPageState extends State<GuardsPage> {
     );
   }
 
-  Widget _header() {
+  Widget _header(_GuardRecord selectedGuard) {
+    final reportsAvailable = widget.onOpenGuardReportsForSite != null;
+    final scheduleAvailable = widget.onOpenGuardSchedule != null;
     return OnyxPageHeader(
       title: 'Guards',
       subtitle:
           'Real-time guard monitoring, shift verification, and performance tracking.',
       actions: [
         OutlinedButton.icon(
-          onPressed: () => _showToast('Export report queued'),
+          onPressed: reportsAvailable
+              ? () {
+                  final callback = widget.onOpenGuardReportsForSite;
+                  if (callback == null) {
+                    return;
+                  }
+                  logUiAction(
+                    'guards_export_report_opened',
+                    context: <String, Object?>{
+                      'site_id': selectedGuard.siteId,
+                      'site_name': selectedGuard.site,
+                      'guard_id': selectedGuard.id,
+                    },
+                  );
+                  callback(selectedGuard.siteId);
+                }
+              : null,
           icon: const Icon(Icons.download_rounded, size: 16),
           style: OutlinedButton.styleFrom(
             foregroundColor: const Color(0xFF8FD1FF),
@@ -426,7 +482,16 @@ class _GuardsPageState extends State<GuardsPage> {
           ),
         ),
         FilledButton.icon(
-          onPressed: () => _showToast('Manage schedule opened'),
+          onPressed: scheduleAvailable
+              ? () {
+                  final callback = widget.onOpenGuardSchedule;
+                  if (callback == null) {
+                    return;
+                  }
+                  logUiAction('guards_schedule_opened');
+                  callback();
+                }
+              : null,
           icon: const Icon(Icons.people_rounded, size: 16),
           style: FilledButton.styleFrom(
             backgroundColor: const Color(0xFF2B5E93),
@@ -883,7 +948,10 @@ class _GuardsPageState extends State<GuardsPage> {
                       child: _secondaryButton(
                         'Call',
                         Icons.phone_rounded,
-                        () => _showToast('Calling ${guard.name}...'),
+                        () => _showGuardContactSheet(
+                          guard,
+                          initialMode: _GuardContactMode.call,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -891,7 +959,10 @@ class _GuardsPageState extends State<GuardsPage> {
                       child: _secondaryButton(
                         'Message',
                         Icons.message_rounded,
-                        () => _showToast('Message sent to ${guard.name}'),
+                        () => _showGuardContactSheet(
+                          guard,
+                          initialMode: _GuardContactMode.message,
+                        ),
                       ),
                     ),
                   ],
@@ -1511,6 +1582,41 @@ class _GuardsPageState extends State<GuardsPage> {
     ];
   }
 
+  String _resolveSiteFilter(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty || trimmed.toUpperCase() == 'ALL') {
+      return 'ALL';
+    }
+    final exactId = _guards.cast<_GuardRecord?>().firstWhere(
+      (guard) => guard != null && guard.siteId == trimmed,
+      orElse: () => null,
+    );
+    if (exactId != null) {
+      return exactId.siteId;
+    }
+    final normalized = _normalizedSiteToken(trimmed);
+    final exactSiteName = _guards.cast<_GuardRecord?>().firstWhere(
+      (guard) =>
+          guard != null && _normalizedSiteToken(guard.site) == normalized,
+      orElse: () => null,
+    );
+    if (exactSiteName != null) {
+      return exactSiteName.siteId;
+    }
+    final partialMatch = _guards.cast<_GuardRecord?>().firstWhere(
+      (guard) =>
+          guard != null &&
+          (_normalizedSiteToken(guard.site).contains(normalized) ||
+              normalized.contains(_normalizedSiteToken(guard.site))),
+      orElse: () => null,
+    );
+    return partialMatch?.siteId ?? 'ALL';
+  }
+
+  String _normalizedSiteToken(String value) {
+    return value.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '');
+  }
+
   String _initials(String name) {
     final parts = name.split(' ').where((part) => part.isNotEmpty).toList();
     if (parts.isEmpty) return 'G';
@@ -1530,6 +1636,262 @@ class _GuardsPageState extends State<GuardsPage> {
             fontWeight: FontWeight.w700,
           ),
         ),
+      ),
+    );
+  }
+
+  Future<void> _copyGuardContact(_GuardRecord guard) async {
+    await Clipboard.setData(ClipboardData(text: guard.emergencyContact));
+    if (!mounted) return;
+    logUiAction(
+      'guard_contact_copied',
+      context: <String, Object?>{
+        'guard_id': guard.id,
+        'site_id': guard.siteId,
+        'contact': guard.emergencyContact,
+      },
+    );
+    _showToast('${guard.name} contact copied.');
+  }
+
+  Future<void> _showGuardContactSheet(
+    _GuardRecord guard, {
+    required _GuardContactMode initialMode,
+  }) async {
+    logUiAction(
+      'guard_contact_sheet_opened',
+      context: <String, Object?>{
+        'guard_id': guard.id,
+        'site_id': guard.siteId,
+        'mode': initialMode.name,
+      },
+    );
+    final isMessage = initialMode == _GuardContactMode.message;
+    final clientLaneAvailable = widget.onOpenClientLaneForSite != null;
+    final voipAvailable = widget.onStageGuardVoipCall != null;
+    final primaryActionAvailable = isMessage ? clientLaneAvailable : voipAvailable;
+    final primaryStatusLabel = isMessage
+        ? (clientLaneAvailable ? 'Client lane ready' : 'Client lane offline')
+        : (voipAvailable ? 'VoIP ready' : 'VoIP offline');
+    final readinessNote = isMessage
+        ? (clientLaneAvailable
+              ? 'Open the client lane to keep guard outreach warm, logged, and tied to the site thread.'
+              : 'Client lane routing is not connected in this session yet, so this handoff stays view-only for now.')
+        : (voipAvailable
+              ? 'Stage the voice handoff now so control carries the right guard contact into the call flow.'
+              : 'VoIP staging is not connected in this session yet, so this handoff stays view-only for now.');
+    await showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      backgroundColor: const Color(0xFF0B1117),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isMessage ? 'Message Guard Lane' : 'Voice Call Staging',
+                style: GoogleFonts.rajdhani(
+                  color: const Color(0xFFEAF4FF),
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                isMessage
+                    ? 'Use the command lane for warm, traceable outreach. Telegram stays primary and SMS remains fallback-only once delivery wiring is live.'
+                    : 'Stage the voice handoff now so control has the right contact context ready when VoIP lands.',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF9AB1CF),
+                  fontSize: 13,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _contactLaneChip(
+                    label: isMessage ? 'Telegram primary' : primaryStatusLabel,
+                    accent: const Color(0xFF8FD1FF),
+                  ),
+                  _contactLaneChip(
+                    label: 'SMS fallback standby',
+                    accent: const Color(0xFFF59E0B),
+                  ),
+                  _contactLaneChip(
+                    label: guard.site,
+                    accent: const Color(0xFF10B981),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              _contactDetailRow('Guard', guard.name),
+              _contactDetailRow('Employee', guard.employeeId),
+              _contactDetailRow('Current Site', guard.site),
+              _contactDetailRow('Contact', guard.emergencyContact),
+              const SizedBox(height: 14),
+              Text(
+                readinessNote,
+                style: GoogleFonts.inter(
+                  color: primaryActionAvailable
+                      ? const Color(0xFF9AB1CF)
+                      : const Color(0xFFFACC15),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        Navigator.of(sheetContext).pop();
+                        await _copyGuardContact(guard);
+                      },
+                      icon: const Icon(Icons.copy_rounded, size: 16),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF8FD1FF),
+                        side: const BorderSide(color: Color(0xFF35506F)),
+                        minimumSize: const Size.fromHeight(46),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      label: Text(
+                        'Copy Contact',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: primaryActionAvailable
+                          ? () async {
+                              Navigator.of(sheetContext).pop();
+                              if (isMessage) {
+                                final callback = widget.onOpenClientLaneForSite;
+                                if (callback == null) {
+                                  return;
+                                }
+                                logUiAction(
+                                  'guard_message_lane_opened',
+                                  context: <String, Object?>{
+                                    'guard_id': guard.id,
+                                    'site_id': guard.siteId,
+                                  },
+                                );
+                                callback(guard.siteId);
+                                return;
+                              }
+                              final callback = widget.onStageGuardVoipCall;
+                              if (callback == null) {
+                                return;
+                              }
+                              final message = await callback(
+                                guard.id,
+                                guard.name,
+                                guard.siteId,
+                                guard.emergencyContact,
+                              );
+                              if (!mounted) {
+                                return;
+                              }
+                              _showToast(message);
+                            }
+                          : null,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF2B5E93),
+                        foregroundColor: const Color(0xFFEAF4FF),
+                        minimumSize: const Size.fromHeight(46),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      icon: Icon(
+                        isMessage
+                            ? Icons.forum_rounded
+                            : Icons.phone_forwarded_rounded,
+                        size: 16,
+                      ),
+                      label: Text(
+                        isMessage ? 'Open Client Lane' : 'Stage VoIP Call',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _contactLaneChip({required String label, required Color accent}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.32)),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          color: accent,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Widget _contactDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 92,
+            child: Text(
+              label,
+              style: GoogleFonts.inter(
+                color: const Color(0x998EA4C2),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFEAF4FF),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -26,6 +26,8 @@ enum _DispatchPriority { p1Critical, p2High, p3Medium }
 
 enum _DispatchStatus { pending, enRoute, onSite, cleared }
 
+enum _DispatchFocusState { none, exact, scopeBacked, seeded }
+
 class _DispatchItem {
   final String id;
   final String site;
@@ -246,6 +248,7 @@ class DispatchPage extends StatefulWidget {
   final List<DispatchEvent> events;
   final List<SovereignReport> morningSovereignReportHistory;
   final void Function(String dispatchId) onExecute;
+  final ValueChanged<String>? onOpenReportForDispatch;
   final String focusIncidentReference;
 
   const DispatchPage({
@@ -355,6 +358,7 @@ class DispatchPage extends StatefulWidget {
     required this.events,
     this.morningSovereignReportHistory = const <SovereignReport>[],
     required this.onExecute,
+    this.onOpenReportForDispatch,
     this.focusIncidentReference = '',
   });
 
@@ -365,7 +369,8 @@ class DispatchPage extends StatefulWidget {
 class _DispatchPageState extends State<DispatchPage> {
   late List<_DispatchItem> _dispatches;
   String? _selectedDispatchId;
-  bool _focusReferenceLinkedToLive = false;
+  String _resolvedFocusReference = '';
+  _DispatchFocusState _focusState = _DispatchFocusState.none;
   VideoFleetWatchActionDrilldown? _activeWatchActionDrilldown;
 
   @override
@@ -600,16 +605,16 @@ class _DispatchPageState extends State<DispatchPage> {
           ),
           const SizedBox(height: 4),
           Text(
-            '${widget.clientId} / ${widget.regionId} / ${widget.siteId}',
+            '${widget.clientId} / ${widget.regionId} / ${widget.siteId.trim().isEmpty ? 'all sites' : widget.siteId}',
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA4C2),
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
           ),
-          if (widget.focusIncidentReference.trim().isNotEmpty) ...[
+          if (_resolvedFocusReference.trim().isNotEmpty) ...[
             const SizedBox(height: 8),
-            _focusPill(widget.focusIncidentReference.trim()),
+            _focusPill(_resolvedFocusReference.trim()),
           ],
         ],
       ),
@@ -617,8 +622,12 @@ class _DispatchPageState extends State<DispatchPage> {
   }
 
   Widget _focusPill(String focusReference) {
-    final linked = _focusReferenceLinkedToLive;
-    final color = linked ? const Color(0xFF22D3EE) : const Color(0xFFFACC15);
+    final color = switch (_focusState) {
+      _DispatchFocusState.exact => const Color(0xFF22D3EE),
+      _DispatchFocusState.scopeBacked => const Color(0xFF8FD1FF),
+      _DispatchFocusState.seeded => const Color(0xFFFACC15),
+      _DispatchFocusState.none => const Color(0xFF9AB1CF),
+    };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -627,7 +636,12 @@ class _DispatchPageState extends State<DispatchPage> {
         border: Border.all(color: color.withValues(alpha: 0.45)),
       ),
       child: Text(
-        'Focus ${linked ? 'Linked' : 'Seeded'}: $focusReference',
+        'Focus ${switch (_focusState) {
+          _DispatchFocusState.exact => 'Linked',
+          _DispatchFocusState.scopeBacked => 'Scope-backed',
+          _DispatchFocusState.seeded => 'Seeded',
+          _DispatchFocusState.none => 'Idle',
+        }}: $focusReference',
         style: GoogleFonts.inter(
           color: color,
           fontSize: 11,
@@ -904,7 +918,7 @@ class _DispatchPageState extends State<DispatchPage> {
                 border: Border.all(color: const Color(0xFF2A3D58)),
               ),
               child: Text(
-                'No dispatches available.',
+                'No active dispatches on this lane right now.',
                 style: GoogleFonts.inter(
                   color: const Color(0xFF9AB1CF),
                   fontSize: 12,
@@ -2505,8 +2519,16 @@ class _DispatchPageState extends State<DispatchPage> {
   void _handleDispatchAction(_DispatchItem dispatch) {
     if (dispatch.isSeededPlaceholder) {
       _showSignalSnack(
-        'Seeded focus reference is awaiting live dispatch ingest',
+        'This lane is waiting for the live dispatch feed to catch up.',
       );
+      return;
+    }
+    if (dispatch.status == _DispatchStatus.cleared) {
+      widget.onOpenReportForDispatch?.call(dispatch.id);
+      setState(() {
+        _selectedDispatchId = dispatch.id;
+      });
+      widget.onSelectedDispatchChanged?.call(dispatch.id);
       return;
     }
     widget.onExecute(dispatch.id);
@@ -2540,11 +2562,16 @@ class _DispatchPageState extends State<DispatchPage> {
   }
 
   void _projectDispatches({bool fromInit = false}) {
-    final focusReference = widget.focusIncidentReference.trim();
     final liveDispatches = _seedDispatches(widget.events);
+    final focusResolution = _resolveFocusReference(
+      widget.focusIncidentReference,
+      widget.events,
+      liveDispatches,
+    );
+    final focusReference = focusResolution.reference;
     final focusMatchedInLive =
-        focusReference.isNotEmpty &&
-        liveDispatches.any((dispatch) => dispatch.id == focusReference);
+        focusResolution.state != _DispatchFocusState.seeded &&
+        focusResolution.state != _DispatchFocusState.none;
     final projected = _injectFocusedDispatchFallback(
       dispatches: liveDispatches,
       focusReference: focusReference,
@@ -2554,7 +2581,8 @@ class _DispatchPageState extends State<DispatchPage> {
 
     void apply() {
       _dispatches = projected;
-      _focusReferenceLinkedToLive = focusMatchedInLive;
+      _resolvedFocusReference = focusReference;
+      _focusState = focusResolution.state;
       if (_dispatches.isEmpty) {
         _selectedDispatchId = null;
       } else if (focusReference.isNotEmpty &&
@@ -2584,6 +2612,87 @@ class _DispatchPageState extends State<DispatchPage> {
     }
   }
 
+  ({String reference, _DispatchFocusState state}) _resolveFocusReference(
+    String rawFocusReference,
+    List<DispatchEvent> events,
+    List<_DispatchItem> liveDispatches,
+  ) {
+    final normalizedReference = rawFocusReference.trim();
+    if (normalizedReference.isEmpty) {
+      return (reference: '', state: _DispatchFocusState.none);
+    }
+    if (liveDispatches.any((dispatch) => dispatch.id == normalizedReference)) {
+      return (reference: normalizedReference, state: _DispatchFocusState.exact);
+    }
+
+    String? matchedDispatchId;
+    IntelligenceReceived? matchedIntel;
+    for (final event in events) {
+      final dispatchId = switch (event) {
+        DecisionCreated value => value.dispatchId.trim(),
+        ResponseArrived value => value.dispatchId.trim(),
+        PartnerDispatchStatusDeclared value => value.dispatchId.trim(),
+        ExecutionCompleted value => value.dispatchId.trim(),
+        ExecutionDenied value => value.dispatchId.trim(),
+        IncidentClosed value => value.dispatchId.trim(),
+        _ => '',
+      };
+      if (event.eventId.trim() == normalizedReference &&
+          dispatchId.isNotEmpty &&
+          liveDispatches.any((dispatch) => dispatch.id == dispatchId)) {
+        matchedDispatchId = dispatchId;
+      }
+      if (dispatchId == normalizedReference &&
+          liveDispatches.any((dispatch) => dispatch.id == dispatchId)) {
+        matchedDispatchId = dispatchId;
+      }
+      if (event is IntelligenceReceived &&
+          (event.eventId.trim() == normalizedReference ||
+              event.intelligenceId.trim() == normalizedReference)) {
+        if (matchedIntel == null ||
+            event.occurredAt.isAfter(matchedIntel.occurredAt)) {
+          matchedIntel = event;
+        }
+      }
+    }
+
+    if (matchedDispatchId != null) {
+      return (
+        reference: matchedDispatchId,
+        state: _DispatchFocusState.scopeBacked,
+      );
+    }
+
+    if (matchedIntel != null) {
+      final decision = events
+          .whereType<DecisionCreated>()
+          .where(
+            (candidate) =>
+                candidate.clientId.trim() == matchedIntel!.clientId.trim() &&
+                candidate.siteId.trim() == matchedIntel.siteId.trim(),
+          )
+          .fold<DecisionCreated?>(
+            null,
+            (latest, candidate) =>
+                latest == null ||
+                    candidate.occurredAt.isAfter(latest.occurredAt)
+                ? candidate
+                : latest,
+          );
+      if (decision != null &&
+          liveDispatches.any(
+            (dispatch) => dispatch.id == decision.dispatchId,
+          )) {
+        return (
+          reference: decision.dispatchId,
+          state: _DispatchFocusState.scopeBacked,
+        );
+      }
+    }
+
+    return (reference: normalizedReference, state: _DispatchFocusState.seeded);
+  }
+
   List<_DispatchItem> _injectFocusedDispatchFallback({
     required List<_DispatchItem> dispatches,
     required String focusReference,
@@ -2595,8 +2704,8 @@ class _DispatchPageState extends State<DispatchPage> {
     return [
       _DispatchItem(
         id: focusReference,
-        site: 'Seeded Demo Incident',
-        type: 'Awaiting dispatch ingest',
+        site: 'Focused Dispatch Lane',
+        type: 'Live dispatch feed pending',
         priority: _DispatchPriority.p2High,
         status: _DispatchStatus.pending,
         officer: 'Awaiting assignment',
@@ -2678,16 +2787,33 @@ class _DispatchPageState extends State<DispatchPage> {
   }
 
   List<_DispatchItem> _seedDispatches(List<DispatchEvent> events) {
-    final decisions = events.whereType<DecisionCreated>().toList(
-      growable: false,
-    )..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    final normalizedClientId = widget.clientId.trim();
+    final normalizedSiteId = widget.siteId.trim();
+    final hasClientScope = normalizedClientId.isNotEmpty;
+    final decisions =
+        events
+            .whereType<DecisionCreated>()
+            .where((decision) {
+              if (!hasClientScope) {
+                return true;
+              }
+              if (decision.clientId.trim() != normalizedClientId) {
+                return false;
+              }
+              if (normalizedSiteId.isEmpty) {
+                return true;
+              }
+              return decision.siteId.trim() == normalizedSiteId;
+            })
+            .toList(growable: false)
+          ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
 
     if (decisions.isEmpty) {
       return const [
         _DispatchItem(
           id: 'DSP-2441',
-          site: 'Blue Ridge Security',
-          type: 'Armed Response',
+          site: 'North Residential Cluster',
+          type: 'Priority response',
           priority: _DispatchPriority.p1Critical,
           status: _DispatchStatus.enRoute,
           officer: 'RO-441 (K. Dlamini)',
@@ -2697,8 +2823,8 @@ class _DispatchPageState extends State<DispatchPage> {
         ),
         _DispatchItem(
           id: 'DSP-2442',
-          site: 'Waterfall Estate Main',
-          type: 'Panic Button',
+          site: 'Central Access Gate',
+          type: 'Emergency assist',
           priority: _DispatchPriority.p1Critical,
           status: _DispatchStatus.onSite,
           officer: 'RO-442 (J. van Wyk)',
@@ -2707,8 +2833,8 @@ class _DispatchPageState extends State<DispatchPage> {
         ),
         _DispatchItem(
           id: 'DSP-2439',
-          site: 'Sandton Estate North',
-          type: 'Alarm Activation',
+          site: 'East Patrol Sector',
+          type: 'Alarm review',
           priority: _DispatchPriority.p2High,
           status: _DispatchStatus.cleared,
           officer: 'RO-443 (T. Nkosi)',
@@ -2716,8 +2842,8 @@ class _DispatchPageState extends State<DispatchPage> {
         ),
         _DispatchItem(
           id: 'DSP-2438',
-          site: 'Midrand Industrial',
-          type: 'Perimeter Breach',
+          site: 'Midrand Operations Park',
+          type: 'Perimeter check',
           priority: _DispatchPriority.p2High,
           status: _DispatchStatus.pending,
           officer: 'Unassigned',

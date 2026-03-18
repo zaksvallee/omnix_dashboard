@@ -1,0 +1,23 @@
+
+== Action Coverage Report ==
+Captured ONYX_UI_ACTION lines: 0
+MISS  sites.add_site
+MISS  sites.view_on_map
+MISS  sites.open_settings
+MISS  sites.open_guard_roster
+MISS  events.view_in_ledger
+MISS  events.export_event_data
+MISS  ledger.verify_chain
+MISS  ledger.export_all
+MISS  ledger.export_entry
+MISS  ledger.view_in_event_review
+MISS  clients.retry_push_sync
+MISS  clients.open_room
+MISS  reports.export_all
+MISS  live_operations.pause_automation
+MISS  live_operations.manual_override
+MISS  reports.preview_receipt (expected one of: reports.preview_sample_receipt,reports.preview_live_receipt)
+MISS  reports.download_receipt (expected one of: reports.download_sample_receipt,reports.download_live_receipt)
+MISS  client_app.incident_open_action (expected one of: client_app.open_first_incident,client_app.open_first_incident_missing,client_app.reopen_selected_incident,client_app.reopen_selected_incident_missing)
+
+FAIL: Missing 18 required UI action(s).

@@ -62,6 +62,157 @@ void main() {
     expect(find.byKey(const Key('incident-card-INC-8830-RZ')), findsOneWidget);
   });
 
+  testWidgets('live operations narrows incidents to the scoped lane', (
+    tester,
+  ) async {
+    final now = DateTime.now().toUtc();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LiveOperationsPage(
+          initialScopeClientId: 'CLIENT-001',
+          initialScopeSiteId: 'SITE-VALLEE',
+          events: [
+            DecisionCreated(
+              eventId: 'decision-sandton',
+              sequence: 1,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 4)),
+              dispatchId: 'D-1001',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-SANDTON',
+            ),
+            DecisionCreated(
+              eventId: 'decision-vallee',
+              sequence: 2,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 2)),
+              dispatchId: 'D-2001',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-VALLEE',
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('live-operations-scope-banner')),
+      findsOneWidget,
+    );
+    expect(find.text('Scope focus active'), findsOneWidget);
+    expect(find.text('CLIENT-001/SITE-VALLEE'), findsOneWidget);
+    expect(find.byKey(const Key('incident-card-INC-D-2001')), findsOneWidget);
+    expect(find.byKey(const Key('incident-card-INC-D-1001')), findsNothing);
+  });
+
+  testWidgets('live operations supports client-wide scope focus', (
+    tester,
+  ) async {
+    final now = DateTime.now().toUtc();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LiveOperationsPage(
+          initialScopeClientId: 'CLIENT-001',
+          initialScopeSiteId: '',
+          events: [
+            DecisionCreated(
+              eventId: 'decision-sandton',
+              sequence: 1,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 4)),
+              dispatchId: 'D-1001',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-SANDTON',
+            ),
+            DecisionCreated(
+              eventId: 'decision-vallee',
+              sequence: 2,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 2)),
+              dispatchId: 'D-2001',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-VALLEE',
+            ),
+            DecisionCreated(
+              eventId: 'decision-other-client',
+              sequence: 3,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 1)),
+              dispatchId: 'D-3001',
+              clientId: 'CLIENT-999',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-OTHER',
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('live-operations-scope-banner')),
+      findsOneWidget,
+    );
+    expect(find.text('CLIENT-001/all sites'), findsOneWidget);
+    expect(find.byKey(const Key('incident-card-INC-D-2001')), findsOneWidget);
+    expect(find.byKey(const Key('incident-card-INC-D-1001')), findsOneWidget);
+    expect(find.byKey(const Key('incident-card-INC-D-3001')), findsNothing);
+  });
+
+  testWidgets(
+    'live operations links intelligence focus to live dispatch lane',
+    (tester) async {
+      final now = DateTime.now().toUtc();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            focusIncidentReference: 'INTEL-VALLEE-1',
+            events: [
+              DecisionCreated(
+                eventId: 'decision-vallee',
+                sequence: 1,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 3)),
+                dispatchId: 'DSP-4',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-VALLEE',
+              ),
+              IntelligenceReceived(
+                eventId: 'intel-event-1',
+                sequence: 2,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 1)),
+                intelligenceId: 'INTEL-VALLEE-1',
+                sourceType: 'hardware',
+                provider: 'dahua',
+                externalId: 'evt-vallee-1',
+                riskScore: 81,
+                headline: 'Perimeter motion detected',
+                summary: 'Motion flagged near the Vallee perimeter fence.',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-VALLEE',
+                faceConfidence: 0.94,
+                canonicalHash: 'canon-vallee-1',
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('incident-card-INC-DSP-4')), findsOneWidget);
+      expect(find.text('Focus Scope-backed: INC-DSP-4'), findsOneWidget);
+      expect(find.text('Focused Operations Lane'), findsNothing);
+    },
+  );
+
   testWidgets('manual override requires selecting a reason code', (
     tester,
   ) async {
@@ -627,10 +778,7 @@ void main() {
       expect(find.text('Promotion pressure'), findsOneWidget);
       expect(find.text('Promotion execution'), findsOneWidget);
       expect(find.textContaining('high • 40s'), findsWidgets);
-      expect(
-        find.textContaining('toward validated review'),
-        findsWidgets,
-      );
+      expect(find.textContaining('toward validated review'), findsWidgets);
       expect(find.textContaining('posture POSTURE'), findsOneWidget);
     },
   );
@@ -1284,5 +1432,565 @@ void main() {
 
     expect(openedEventIds, equals(const ['ACTIVITY-7', 'ACTIVITY-11']));
     expect(openedSelectedEventId, 'ACTIVITY-11');
+  });
+
+  testWidgets('live operations shows client comms pulse for active incident', (
+    tester,
+  ) async {
+    final now = DateTime.now().toUtc();
+    String? openedClientId;
+    String? openedSiteId;
+    String? clearedClientId;
+    String? clearedSiteId;
+    String? profiledClientId;
+    String? profiledSiteId;
+    String? profiledSignal;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LiveOperationsPage(
+          events: [
+            DecisionCreated(
+              eventId: 'decision-comms-1',
+              sequence: 1,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 5)),
+              dispatchId: 'D-4001',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-SANDTON',
+            ),
+            IntelligenceReceived(
+              eventId: 'intel-comms-1',
+              sequence: 2,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 4)),
+              intelligenceId: 'INT-COMMS-1',
+              provider: 'hikvision-dvr',
+              sourceType: 'dvr',
+              externalId: 'evt-comms-1',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-SANDTON',
+              headline: 'Boundary concern raised',
+              summary:
+                  'Client lane has become active after suspicious movement.',
+              riskScore: 77,
+              canonicalHash: 'hash-comms-1',
+            ),
+          ],
+          clientCommsSnapshot: LiveClientCommsSnapshot(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            clientVoiceProfileLabel: 'Reassuring',
+            learnedApprovalStyleCount: 2,
+            learnedApprovalStyleExample:
+                'Control is checking the latest position now and will share the next confirmed step shortly.',
+            pendingLearnedStyleDraftCount: 1,
+            totalMessages: 4,
+            clientInboundCount: 2,
+            pendingApprovalCount: 1,
+            queuedPushCount: 1,
+            telegramHealthLabel: 'ok',
+            telegramHealthDetail:
+                'Telegram delivery confirmed for the current lane.',
+            pushSyncStatusLabel: 'syncing',
+            smsFallbackLabel: 'SMS standby',
+            smsFallbackReady: true,
+            voiceReadinessLabel: 'VoIP staged',
+            deliveryReadinessDetail:
+                'Telegram remains primary for this scope; SMS only steps in after confirmed Telegram trouble.',
+            latestSmsFallbackStatus:
+                'sms:bulksms sent 2/2 after telegram blocked.',
+            latestSmsFallbackAtUtc: now.subtract(const Duration(seconds: 45)),
+            latestVoipStageStatus:
+                'voip:asterisk staged call for Sandton Alpha.',
+            latestVoipStageAtUtc: now.subtract(const Duration(seconds: 20)),
+            recentDeliveryHistoryLines: const <String>[
+              '12:36 UTC • voip staged • queue:1 • Asterisk staged a call for Sandton Alpha.',
+              '12:35 UTC • sms fallback sent • queue:1 • BulkSMS reached 2/2 contacts after Telegram was blocked.',
+            ],
+            latestClientMessage:
+                'Hi ONYX, just checking if the team is still on this please.',
+            latestClientMessageAtUtc: now.subtract(const Duration(minutes: 2)),
+            latestPendingDraft:
+                'We are on it and command is checking the latest site position now.',
+            latestPendingDraftAtUtc: now.subtract(const Duration(minutes: 1)),
+            latestOnyxReply:
+                'Control is still tracking the incident and will share the next verified update shortly.',
+            latestOnyxReplyAtUtc: now.subtract(const Duration(minutes: 3)),
+          ),
+          onOpenClientViewForScope: (clientId, siteId) {
+            openedClientId = clientId;
+            openedSiteId = siteId;
+          },
+          onClearLearnedLaneStyleForScope: (clientId, siteId) async {
+            clearedClientId = clientId;
+            clearedSiteId = siteId;
+          },
+          onSetLaneVoiceProfileForScope:
+              (clientId, siteId, profileSignal) async {
+                profiledClientId = clientId;
+                profiledSiteId = siteId;
+                profiledSignal = profileSignal;
+              },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('client-lane-watch-panel')),
+      findsOneWidget,
+    );
+    expect(find.text('CLIENT LANE WATCH'), findsOneWidget);
+    expect(find.text('Open Client Lane'), findsOneWidget);
+    expect(find.text('Client Comms Pulse'), findsOneWidget);
+    expect(find.text('Open Lane'), findsOneWidget);
+    expect(find.text('Latest Client Message'), findsOneWidget);
+    expect(find.text('Pending ONYX Draft'), findsOneWidget);
+    expect(find.text('Latest SMS fallback'), findsWidgets);
+    expect(find.text('Latest VoIP stage'), findsWidgets);
+    expect(find.text('Recent delivery history'), findsWidgets);
+    expect(
+      find.textContaining(
+        'Hi ONYX, just checking if the team is still on this please.',
+      ),
+      findsWidgets,
+    );
+    expect(
+      find.textContaining(
+        'We are on it and command is checking the latest site position now.',
+      ),
+      findsWidgets,
+    );
+    expect(find.text('Telegram OK'), findsWidgets);
+    expect(find.text('SMS standby'), findsWidgets);
+    expect(find.text('VoIP staged'), findsWidgets);
+    expect(find.text('Lane voice Reassuring'), findsOneWidget);
+    expect(find.text('Learned style 2'), findsWidgets);
+    expect(find.text('ONYX using learned style'), findsWidgets);
+    expect(find.text('Learned approval style'), findsWidgets);
+    expect(
+      find.textContaining(
+        'BulkSMS reached 2/2 contacts after Telegram was blocked.',
+      ),
+      findsWidgets,
+    );
+    expect(
+      find.textContaining('Asterisk staged a call for Sandton Alpha.'),
+      findsWidgets,
+    );
+    expect(
+      find.textContaining('12:36 UTC • voip staged • queue:1'),
+      findsWidgets,
+    );
+    expect(
+      find.textContaining(
+        'Control is checking the latest position now and will share the next confirmed step shortly.',
+      ),
+      findsWidgets,
+    );
+    expect(find.widgetWithText(OutlinedButton, 'Concise'), findsWidgets);
+    expect(find.text('Clear Learned Style'), findsWidgets);
+
+    final conciseButton = find.widgetWithText(OutlinedButton, 'Concise').first;
+    await tester.ensureVisible(conciseButton);
+    await tester.tap(conciseButton);
+    await tester.pumpAndSettle();
+
+    expect(profiledClientId, 'CLIENT-001');
+    expect(profiledSiteId, 'SITE-SANDTON');
+    expect(profiledSignal, 'concise-updates');
+
+    final clearLearnedStyleButton = find.byKey(
+      const ValueKey(
+        'client-lane-watch-clear-learned-style-CLIENT-001-SITE-SANDTON',
+      ),
+    );
+    await tester.ensureVisible(clearLearnedStyleButton);
+    await tester.tap(clearLearnedStyleButton);
+    await tester.pumpAndSettle();
+
+    expect(clearedClientId, 'CLIENT-001');
+    expect(clearedSiteId, 'SITE-SANDTON');
+
+    final openLaneButton = find.text('Open Lane');
+    await tester.ensureVisible(openLaneButton);
+    await tester.tap(openLaneButton);
+    await tester.pumpAndSettle();
+
+    expect(openedClientId, 'CLIENT-001');
+    expect(openedSiteId, 'SITE-SANDTON');
+  });
+
+  testWidgets('live operations shows control inbox drafts with quick actions', (
+    tester,
+  ) async {
+    int? approvedUpdateId;
+    int? rejectedUpdateId;
+    String? openedClientId;
+    String? openedSiteId;
+    String? profiledClientId;
+    String? profiledSiteId;
+    String? profiledSignal;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LiveOperationsPage(
+          events: const [],
+          controlInboxSnapshot: LiveControlInboxSnapshot(
+            selectedClientId: 'CLIENT-001',
+            selectedSiteId: 'SITE-SANDTON',
+            selectedScopeClientVoiceProfileLabel: 'Validation-heavy',
+            pendingApprovalCount: 2,
+            selectedScopePendingCount: 1,
+            telegramHealthLabel: 'degraded',
+            telegramHealthDetail:
+                'Telegram bridge is delayed, so approvals need close operator attention.',
+            pendingDrafts: [
+              LiveControlInboxDraft(
+                updateId: 501,
+                clientId: 'CLIENT-001',
+                siteId: 'SITE-SANDTON',
+                sourceText:
+                    'Hi ONYX, are we still waiting on the patrol update?',
+                draftText:
+                    'We are checking the latest patrol position now and will send the next verified update shortly.',
+                providerLabel: 'OpenAI',
+                usesLearnedApprovalStyle: true,
+                createdAtUtc: DateTime.utc(2026, 3, 18, 6, 0),
+                clientVoiceProfileLabel: 'Validation-heavy',
+                matchesSelectedScope: true,
+              ),
+              LiveControlInboxDraft(
+                updateId: 502,
+                clientId: 'CLIENT-VALLEE',
+                siteId: 'SITE-RESIDENCE',
+                sourceText:
+                    'Please confirm if the response team has already arrived.',
+                draftText:
+                    'Command is confirming arrival now and will share the verified position as soon as it is locked.',
+                providerLabel: 'OpenAI',
+                createdAtUtc: DateTime.utc(2026, 3, 18, 5, 56),
+                clientVoiceProfileLabel: 'Concise',
+              ),
+            ],
+          ),
+          onApproveClientReplyDraft: (updateId, {approvedText}) async {
+            approvedUpdateId = updateId;
+            return 'approved=$updateId';
+          },
+          onRejectClientReplyDraft: (updateId) async {
+            rejectedUpdateId = updateId;
+            return 'rejected=$updateId';
+          },
+          onSetLaneVoiceProfileForScope:
+              (clientId, siteId, profileSignal) async {
+                profiledClientId = clientId;
+                profiledSiteId = siteId;
+                profiledSignal = profileSignal;
+              },
+          onOpenClientViewForScope: (clientId, siteId) {
+            openedClientId = clientId;
+            openedSiteId = siteId;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('control-inbox-panel')), findsOneWidget);
+    expect(find.text('CONTROL INBOX'), findsOneWidget);
+    expect(find.textContaining('2 client replies waiting'), findsOneWidget);
+    expect(find.text('Selected lane'), findsOneWidget);
+    expect(find.text('Other scope'), findsOneWidget);
+    expect(find.text('Lane voice Validation-heavy'), findsOneWidget);
+    expect(find.text('Voice Validation-heavy'), findsOneWidget);
+    expect(find.text('Voice Concise'), findsOneWidget);
+    expect(find.text('Voice-adjusted'), findsNWidgets(2));
+    expect(find.text('Uses learned approval style'), findsOneWidget);
+    expect(
+      find.text(
+        'This draft is already leaning on learned approval wording from this lane.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(OutlinedButton, 'Reassuring'), findsWidgets);
+
+    final reassuringButton = find
+        .widgetWithText(OutlinedButton, 'Reassuring')
+        .first;
+    await tester.ensureVisible(reassuringButton);
+    await tester.tap(reassuringButton);
+    await tester.pumpAndSettle();
+
+    expect(profiledClientId, 'CLIENT-001');
+    expect(profiledSiteId, 'SITE-SANDTON');
+    expect(profiledSignal, 'reassurance-forward');
+
+    final selectedDraft = find.byKey(const ValueKey('control-inbox-draft-501'));
+    await tester.ensureVisible(selectedDraft);
+    await tester.tap(
+      find.descendant(
+        of: selectedDraft,
+        matching: find.widgetWithText(FilledButton, 'Approve + Send'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(approvedUpdateId, 501);
+    expect(find.text('approved=501'), findsOneWidget);
+
+    final otherDraft = find.byKey(const ValueKey('control-inbox-draft-502'));
+    await tester.ensureVisible(otherDraft);
+    await tester.tap(
+      find.descendant(
+        of: otherDraft,
+        matching: find.widgetWithText(OutlinedButton, 'Reject'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(rejectedUpdateId, 502);
+    expect(find.text('rejected=502'), findsOneWidget);
+
+    await tester.tap(
+      find.descendant(
+        of: otherDraft,
+        matching: find.widgetWithText(OutlinedButton, 'Open Client Lane'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(openedClientId, 'CLIENT-VALLEE');
+    expect(openedSiteId, 'SITE-RESIDENCE');
+  });
+
+  testWidgets('live operations humanizes telegram bridge detail in comms view', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LiveOperationsPage(
+          events: const [],
+          clientCommsSnapshot: LiveClientCommsSnapshot(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            telegramHealthLabel: 'blocked',
+            telegramHealthDetail:
+                'Telegram bridge failed for 1/1 message(s). Reasons: BLOCKED_BY_TEST_STUB',
+            telegramFallbackActive: true,
+            pushSyncStatusLabel: 'failed',
+            latestClientMessage: 'Is Telegram still failing there?',
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Telegram BLOCKED'), findsWidgets);
+    expect(find.textContaining('Telegram fallback is active'), findsWidgets);
+    expect(
+      find.textContaining(
+        'Telegram could not deliver 1/1 client update. Bridge reported: BLOCKED_BY_TEST_STUB.',
+      ),
+      findsWidgets,
+    );
+  });
+
+  testWidgets('live operations shows live client asks before draft staging', (
+    tester,
+  ) async {
+    String? openedClientId;
+    String? openedSiteId;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LiveOperationsPage(
+          events: const [],
+          controlInboxSnapshot: LiveControlInboxSnapshot(
+            selectedClientId: 'CLIENT-001',
+            selectedSiteId: 'SITE-SANDTON',
+            awaitingResponseCount: 1,
+            telegramHealthLabel: 'ok',
+            liveClientAsks: [
+              LiveControlInboxClientAsk(
+                clientId: 'CLIENT-001',
+                siteId: 'SITE-SANDTON',
+                author: '@resident_12',
+                body:
+                    'Hi ONYX, can you please tell me if the patrol has arrived yet?',
+                messageProvider: 'telegram',
+                occurredAtUtc: DateTime.now().toUtc().subtract(
+                  const Duration(minutes: 2),
+                ),
+                matchesSelectedScope: true,
+              ),
+            ],
+          ),
+          onOpenClientViewForScope: (clientId, siteId) {
+            openedClientId = clientId;
+            openedSiteId = siteId;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('LIVE CLIENT ASKS'), findsOneWidget);
+    expect(
+      find.textContaining('1 live client ask waiting for response shaping'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'Hi ONYX, can you please tell me if the patrol has arrived yet?',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Selected lane'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Shape Reply'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Shape Reply'));
+    await tester.pumpAndSettle();
+
+    expect(openedClientId, 'CLIENT-001');
+    expect(openedSiteId, 'SITE-SANDTON');
+  });
+
+  testWidgets('live operations shows other-scope client asks with lane handoff', (
+    tester,
+  ) async {
+    String? openedClientId;
+    String? openedSiteId;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LiveOperationsPage(
+          events: const [],
+          controlInboxSnapshot: LiveControlInboxSnapshot(
+            selectedClientId: 'CLIENT-001',
+            selectedSiteId: 'SITE-SANDTON',
+            awaitingResponseCount: 1,
+            telegramHealthLabel: 'ok',
+            liveClientAsks: [
+              LiveControlInboxClientAsk(
+                clientId: 'CLIENT-VALLEE',
+                siteId: 'WTF-MAIN',
+                author: '@waterfall_resident',
+                body:
+                    'Please confirm whether the Waterfall response team has already arrived.',
+                messageProvider: 'telegram',
+                occurredAtUtc: DateTime.now().toUtc().subtract(
+                  const Duration(minutes: 1),
+                ),
+                matchesSelectedScope: false,
+              ),
+            ],
+          ),
+          onOpenClientViewForScope: (clientId, siteId) {
+            openedClientId = clientId;
+            openedSiteId = siteId;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('LIVE CLIENT ASKS'), findsOneWidget);
+    expect(find.text('Other scope'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Please confirm whether the Waterfall response team has already arrived.',
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Shape Reply'));
+    await tester.pumpAndSettle();
+
+    expect(openedClientId, 'CLIENT-VALLEE');
+    expect(openedSiteId, 'WTF-MAIN');
+  });
+
+  testWidgets('live operations can refine client draft before approval', (
+    tester,
+  ) async {
+    String draftText =
+        'We are checking the latest patrol position now and will send the next verified update shortly.';
+    String? approvedDraftText;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            return LiveOperationsPage(
+              events: const [],
+              controlInboxSnapshot: LiveControlInboxSnapshot(
+                selectedClientId: 'CLIENT-001',
+                selectedSiteId: 'SITE-SANDTON',
+                pendingApprovalCount: 1,
+                selectedScopePendingCount: 1,
+                telegramHealthLabel: 'ok',
+                pendingDrafts: [
+                  LiveControlInboxDraft(
+                    updateId: 501,
+                    clientId: 'CLIENT-001',
+                    siteId: 'SITE-SANDTON',
+                    sourceText:
+                        'Hi ONYX, are we still waiting on the patrol update?',
+                    draftText: draftText,
+                    providerLabel: 'OpenAI',
+                    usesLearnedApprovalStyle: true,
+                    createdAtUtc: DateTime.utc(2026, 3, 18, 6, 0),
+                    clientVoiceProfileLabel: 'Reassuring',
+                    matchesSelectedScope: true,
+                  ),
+                ],
+              ),
+              onUpdateClientReplyDraftText: (updateId, nextText) async {
+                setState(() {
+                  draftText = nextText;
+                });
+              },
+              onApproveClientReplyDraft:
+                  (updateId, {String? approvedText}) async {
+                    approvedDraftText = approvedText;
+                    return 'approved=$updateId';
+                  },
+            );
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final editDraftButton = find.widgetWithText(OutlinedButton, 'Edit Draft');
+    await tester.ensureVisible(editDraftButton);
+    await tester.tap(editDraftButton);
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byType(TextField).last,
+      'Control is on it for Sandton and is checking the latest patrol position now.',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Save Draft'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining(
+        'Control is on it for Sandton and is checking the latest patrol position now.',
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Approve + Send'));
+    await tester.pumpAndSettle();
+
+    expect(
+      approvedDraftText,
+      'Control is on it for Sandton and is checking the latest patrol position now.',
+    );
   });
 }

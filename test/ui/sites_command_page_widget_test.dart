@@ -7,12 +7,37 @@ import 'package:omnix_dashboard/ui/sites_command_page.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  void expectInkWellDisabled(WidgetTester tester, Finder finder) {
+    final button = tester.widget<InkWell>(finder);
+    expect(button.onTap, isNull);
+  }
+
   testWidgets('sites command action chips are interactive', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1440, 980));
     addTearDown(() => tester.binding.setSurfaceSize(null));
+    var addSiteTapped = 0;
+    String? mappedSiteId;
+    String? settingsSiteId;
+    String? rosterSiteName;
 
     await tester.pumpWidget(
-      const MaterialApp(home: SitesCommandPage(events: <DispatchEvent>[])),
+      MaterialApp(
+        home: SitesCommandPage(
+          events: const <DispatchEvent>[],
+          onAddSite: () {
+            addSiteTapped += 1;
+          },
+          onOpenMapForSite: (siteId, siteName) {
+            mappedSiteId = siteId;
+          },
+          onOpenSiteSettings: (siteId, siteName) {
+            settingsSiteId = siteId;
+          },
+          onOpenGuardRoster: (siteId, siteName) {
+            rosterSiteName = siteName;
+          },
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -20,12 +45,55 @@ void main() {
     await tester.ensureVisible(addSite);
     await tester.tap(addSite, warnIfMissed: false);
     await tester.pump();
-    expect(find.text('Site onboarding request captured.'), findsOneWidget);
+    expect(addSiteTapped, 1);
+
+    final viewOnMap = find.text('VIEW ON MAP').first;
+    await tester.ensureVisible(viewOnMap);
+    await tester.tap(viewOnMap, warnIfMissed: false);
+    await tester.pump();
+    expect(mappedSiteId, isNotNull);
 
     final siteSettings = find.text('SITE SETTINGS').first;
     await tester.ensureVisible(siteSettings);
     await tester.tap(siteSettings, warnIfMissed: false);
     await tester.pump();
-    expect(find.textContaining('Site settings opened for'), findsOneWidget);
+    expect(settingsSiteId, isNotNull);
+
+    final guardRoster = find.text('GUARD ROSTER').first;
+    await tester.ensureVisible(guardRoster);
+    await tester.tap(guardRoster, warnIfMissed: false);
+    await tester.pump();
+    expect(rosterSiteName, isNotNull);
+  });
+
+  testWidgets('sites command action chips disable when callbacks are absent', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: SitesCommandPage(events: <DispatchEvent>[]),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expectInkWellDisabled(
+      tester,
+      find.byKey(const ValueKey('sites-add-site-button')),
+    );
+    expectInkWellDisabled(
+      tester,
+      find.byKey(const ValueKey('sites-view-on-map-button')).first,
+    );
+    expectInkWellDisabled(
+      tester,
+      find.byKey(const ValueKey('sites-site-settings-button')).first,
+    );
+    expectInkWellDisabled(
+      tester,
+      find.byKey(const ValueKey('sites-guard-roster-button')).first,
+    );
   });
 }

@@ -5,6 +5,7 @@ import 'package:omnix_dashboard/application/morning_sovereign_report_service.dar
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 import 'package:omnix_dashboard/domain/events/decision_created.dart';
 import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
+import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/domain/events/partner_dispatch_status_declared.dart';
 import 'package:omnix_dashboard/infrastructure/intelligence/news_intelligence_service.dart';
 import 'package:omnix_dashboard/ui/dispatch_page.dart';
@@ -13,6 +14,8 @@ import 'package:omnix_dashboard/ui/video_fleet_scope_health_view.dart';
 
 void main() {
   Widget buildPage({
+    String clientId = 'CLIENT-001',
+    String siteId = 'SITE-SANDTON',
     required VoidCallback onGenerate,
     required VoidCallback onIngestFeeds,
     VoidCallback? onIngestRadioOps,
@@ -52,12 +55,13 @@ void main() {
     List<SovereignReport> morningSovereignReportHistory = const [],
     List<DispatchEvent> events = const [],
     required ValueChanged<String> onExecute,
+    ValueChanged<String>? onOpenReportForDispatch,
   }) {
     return MaterialApp(
       home: DispatchPage(
-        clientId: 'CLIENT-001',
+        clientId: clientId,
         regionId: 'REGION-GAUTENG',
-        siteId: 'SITE-SANDTON',
+        siteId: siteId,
         focusIncidentReference: focusIncidentReference,
         onGenerate: onGenerate,
         onIngestFeeds: onIngestFeeds,
@@ -125,6 +129,7 @@ void main() {
         intakeTelemetry: IntakeTelemetry.zero,
         events: events,
         onExecute: onExecute,
+        onOpenReportForDispatch: onOpenReportForDispatch,
       ),
     );
   }
@@ -192,6 +197,142 @@ void main() {
       expect(find.text('Focus Linked: DSP-2442'), findsOneWidget);
     },
   );
+
+  testWidgets('dispatch page marks intelligence focus as scope-backed', (
+    tester,
+  ) async {
+    final now = DateTime.now().toUtc();
+    String? selectedDispatchId;
+
+    await tester.pumpWidget(
+      buildPage(
+        onGenerate: () {},
+        onIngestFeeds: () {},
+        onExecute: (_) {},
+        focusIncidentReference: 'INT-VALLEE-1',
+        onSelectedDispatchChanged: (value) {
+          selectedDispatchId = value;
+        },
+        events: [
+          DecisionCreated(
+            eventId: 'decision-vallee',
+            sequence: 1,
+            version: 1,
+            occurredAt: now.subtract(const Duration(minutes: 3)),
+            dispatchId: 'DSP-2442',
+            clientId: 'CLIENT-001',
+            regionId: 'REGION-GAUTENG',
+            siteId: 'SITE-SANDTON',
+          ),
+          IntelligenceReceived(
+            eventId: 'intel-event-1',
+            sequence: 2,
+            version: 1,
+            occurredAt: now.subtract(const Duration(minutes: 1)),
+            intelligenceId: 'INT-VALLEE-1',
+            provider: 'dahua',
+            sourceType: 'hardware',
+            externalId: 'evt-vallee-1',
+            clientId: 'CLIENT-001',
+            regionId: 'REGION-GAUTENG',
+            siteId: 'SITE-SANDTON',
+            headline: 'Perimeter motion detected',
+            summary: 'Motion flagged near the Vallee perimeter fence.',
+            riskScore: 81,
+            canonicalHash: 'canon-vallee-1',
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(selectedDispatchId, 'DSP-2442');
+    expect(find.text('Focus Scope-backed: DSP-2442'), findsOneWidget);
+    expect(find.text('Focused Dispatch Lane'), findsNothing);
+  });
+
+  testWidgets('dispatch page opens report flow for cleared dispatches', (
+    tester,
+  ) async {
+    String? openedReportDispatchId;
+
+    await tester.pumpWidget(
+      buildPage(
+        onGenerate: () {},
+        onIngestFeeds: () {},
+        onExecute: (_) {},
+        initialSelectedDispatchId: 'DSP-2439',
+        onOpenReportForDispatch: (dispatchId) {
+          openedReportDispatchId = dispatchId;
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final viewReportButton = find.widgetWithText(OutlinedButton, 'VIEW REPORT');
+    expect(viewReportButton, findsOneWidget);
+
+    await tester.ensureVisible(viewReportButton);
+    await tester.tap(viewReportButton);
+    await tester.pumpAndSettle();
+
+    expect(openedReportDispatchId, 'DSP-2439');
+  });
+
+  testWidgets('dispatch page supports client-wide scope focus', (tester) async {
+    final now = DateTime.now().toUtc();
+
+    await tester.pumpWidget(
+      buildPage(
+        clientId: 'CLIENT-001',
+        siteId: '',
+        onGenerate: () {},
+        onIngestFeeds: () {},
+        onExecute: (_) {},
+        events: [
+          DecisionCreated(
+            eventId: 'decision-sandton',
+            sequence: 1,
+            version: 1,
+            occurredAt: now.subtract(const Duration(minutes: 4)),
+            dispatchId: 'DSP-1001',
+            clientId: 'CLIENT-001',
+            regionId: 'REGION-GAUTENG',
+            siteId: 'SITE-SANDTON',
+          ),
+          DecisionCreated(
+            eventId: 'decision-vallee',
+            sequence: 2,
+            version: 1,
+            occurredAt: now.subtract(const Duration(minutes: 2)),
+            dispatchId: 'DSP-2001',
+            clientId: 'CLIENT-001',
+            regionId: 'REGION-GAUTENG',
+            siteId: 'SITE-VALLEE',
+          ),
+          DecisionCreated(
+            eventId: 'decision-other',
+            sequence: 3,
+            version: 1,
+            occurredAt: now.subtract(const Duration(minutes: 1)),
+            dispatchId: 'DSP-3001',
+            clientId: 'CLIENT-999',
+            regionId: 'REGION-GAUTENG',
+            siteId: 'SITE-OTHER',
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('CLIENT-001 / REGION-GAUTENG / all sites'),
+      findsOneWidget,
+    );
+    expect(find.text('DSP-1001'), findsOneWidget);
+    expect(find.text('DSP-2001'), findsOneWidget);
+    expect(find.text('DSP-3001'), findsNothing);
+  });
 
   testWidgets('dispatch page restores watch action focus from parent state', (
     tester,
@@ -574,9 +715,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.byKey(
-        const ValueKey('dispatch-partner-trend-reason-DSP-8821'),
-      ),
+      find.byKey(const ValueKey('dispatch-partner-trend-reason-DSP-8821')),
       findsOneWidget,
     );
     expect(
@@ -1206,7 +1345,7 @@ void main() {
     );
     expect(
       find.textContaining(
-        'Showing fleet scopes where ONYX matched a one-time approved face or plate. Each scope shows the approval expiry when available. Soonest expiry: MS Vallee Residence Temporary approval expires in',
+        'Showing fleet scopes where ONYX matched a one-time approved face or plate. Each scope shows the approval expiry when available.',
       ),
       findsOneWidget,
     );

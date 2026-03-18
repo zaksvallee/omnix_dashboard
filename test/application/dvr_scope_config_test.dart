@@ -15,7 +15,11 @@ void main() {
             "events_url": "http://192.168.8.105/ISAPI/Event/notification/alertStream",
             "auth_mode": "digest",
             "username": "onyx",
-            "password": "secret"
+            "password": "secret",
+            "camera_labels": {
+              "channel-13": "Front Yard",
+              "channel-12": "Back Yard"
+            }
           },
           {
             "client_id": "CLIENT-BETA",
@@ -42,9 +46,12 @@ void main() {
       expect(configs.first.eventsUri?.host, '192.168.8.105');
       expect(configs.first.authMode, 'digest');
       expect(configs.first.username, 'onyx');
+      expect(configs.first.cameraLabels['channel-13'], 'Front Yard');
+      expect(configs.first.cameraLabels['channel-12'], 'Back Yard');
       expect(configs[1].siteId, 'SITE-BETA');
       expect(configs[1].eventsUri?.host, '192.168.8.106');
       expect(configs[1].authMode, 'digest');
+      expect(configs[1].cameraLabels, isEmpty);
     });
 
     test('returns empty when config is blank', () {

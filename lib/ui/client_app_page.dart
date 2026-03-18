@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../application/client_delivery_message_formatter.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/incident_closed.dart';
@@ -62,6 +63,9 @@ class ClientAppPage extends StatefulWidget {
   final List<ClientAppAcknowledgement> initialAcknowledgements;
   final List<ClientAppPushDeliveryItem> initialPushQueue;
   final ClientPushDeliveryProvider pushDeliveryProvider;
+  final String telegramHealthLabel;
+  final String? telegramHealthDetail;
+  final bool telegramFallbackActive;
   final String pushSyncStatusLabel;
   final DateTime? pushSyncLastSyncedAtUtc;
   final String? pushSyncFailureReason;
@@ -74,6 +78,14 @@ class ClientAppPage extends StatefulWidget {
   final List<ClientBackendProbeAttempt> backendProbeHistory;
   final Future<void> Function()? onRunBackendProbe;
   final Future<void> Function()? onClearBackendProbeHistory;
+  final String laneVoiceProfileLabel;
+  final String laneVoiceProfileSignal;
+  final Future<void> Function(String? profileSignal)? onSetLaneVoiceProfile;
+  final int learnedApprovalStyleCount;
+  final String learnedApprovalStyleExample;
+  final Future<void> Function()? onClearLearnedLaneStyle;
+  final Future<void> Function(String originalDraftText, String approvedText)?
+  onRecordApprovedDraftLearning;
   final void Function(
     ClientAppViewerRole viewerRole,
     Map<String, String> selectedRoomByRole,
@@ -111,6 +123,9 @@ class ClientAppPage extends StatefulWidget {
     this.initialAcknowledgements = const [],
     this.initialPushQueue = const [],
     this.pushDeliveryProvider = ClientPushDeliveryProvider.inApp,
+    this.telegramHealthLabel = 'disabled',
+    this.telegramHealthDetail,
+    this.telegramFallbackActive = false,
     this.pushSyncStatusLabel = 'Push sync idle',
     this.pushSyncLastSyncedAtUtc,
     this.pushSyncFailureReason,
@@ -123,6 +138,13 @@ class ClientAppPage extends StatefulWidget {
     this.backendProbeHistory = const [],
     this.onRunBackendProbe,
     this.onClearBackendProbeHistory,
+    this.laneVoiceProfileLabel = 'Auto',
+    this.laneVoiceProfileSignal = '',
+    this.onSetLaneVoiceProfile,
+    this.learnedApprovalStyleCount = 0,
+    this.learnedApprovalStyleExample = '',
+    this.onClearLearnedLaneStyle,
+    this.onRecordApprovedDraftLearning,
     this.onClientStateChanged,
     this.onPushQueueChanged,
   });
@@ -147,15 +169,18 @@ class _ClientAppPageState extends State<ClientAppPage> {
   final GlobalKey _chatComposerKey = GlobalKey();
   final GlobalKey _chatThreadKey = GlobalKey();
   bool _showComposerLandingHighlight = false;
+  bool _laneVoiceProfileBusy = false;
+  bool _laneLearnedStyleBusy = false;
   String? _draftOpenedMessageKey;
+  String? _reviewedDraftOriginalText;
   String? _sentNotificationMessageKey;
   String? _sentThreadMessageKey;
   String? _threadLandingMessageKey;
   _ClientSystemMessageType? _composedSystemType;
   String? _focusedIncidentReference;
   String? _selectedIncidentReference;
-  late final List<ClientAppMessage> _manualMessages;
-  late final List<ClientAppAcknowledgement> _acknowledgements;
+  late List<ClientAppMessage> _manualMessages;
+  late List<ClientAppAcknowledgement> _acknowledgements;
   late ClientAppViewerRole _viewerRole;
   late Map<String, String> _selectedRoomByRole;
   late Map<String, bool> _showAllRoomItemsByRole;
@@ -219,6 +244,78 @@ class _ClientAppPageState extends State<ClientAppPage> {
   }
 
   @override
+  void didUpdateWidget(covariant ClientAppPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final scopeChanged =
+        oldWidget.clientId != widget.clientId || oldWidget.siteId != widget.siteId;
+    if (scopeChanged) {
+      _manualMessages = List<ClientAppMessage>.from(widget.initialManualMessages);
+      _acknowledgements = List<ClientAppAcknowledgement>.from(
+        widget.initialAcknowledgements,
+      );
+      _viewerRole = widget.viewerRole;
+      _selectedRoomByRole = {...widget.initialSelectedRoomByRole};
+      _showAllRoomItemsByRole = {...widget.initialShowAllRoomItemsByRole};
+      _selectedRoomByRole.putIfAbsent(
+        _viewerRole.name,
+        () => widget.initialSelectedRoom,
+      );
+      _showAllRoomItemsByRole.putIfAbsent(
+        _viewerRole.name,
+        () => widget.initialShowAllRoomItems,
+      );
+      _selectedIncidentReferenceByRole = {
+        ...widget.initialSelectedIncidentReferenceByRole,
+      };
+      _expandedIncidentReferenceByRole = {
+        ...widget.initialExpandedIncidentReferenceByRole,
+      };
+      _hasTouchedIncidentExpansionByRole = {
+        ...widget.initialHasTouchedIncidentExpansionByRole,
+      };
+      _focusedIncidentReferenceByRole = {
+        ...widget.initialFocusedIncidentReferenceByRole,
+      };
+      if (widget.initialExpandedIncidentReference != null) {
+        _expandedIncidentReferenceByRole.putIfAbsent(
+          ClientAppViewerRole.client.name,
+          () => widget.initialExpandedIncidentReference!,
+        );
+      }
+      _hasTouchedIncidentExpansionByRole.putIfAbsent(
+        ClientAppViewerRole.client.name,
+        () => widget.initialHasTouchedIncidentExpansion,
+      );
+      _restoreSelectedIncidentForRole(_viewerRole);
+      _restoreFocusedIncidentForRole(_viewerRole);
+      return;
+    }
+
+    if (_sameClientAppMessages(
+          _manualMessages,
+          oldWidget.initialManualMessages,
+        ) &&
+        !_sameClientAppMessages(
+          oldWidget.initialManualMessages,
+          widget.initialManualMessages,
+        )) {
+      _manualMessages = List<ClientAppMessage>.from(widget.initialManualMessages);
+    }
+    if (_sameClientAppAcknowledgements(
+          _acknowledgements,
+          oldWidget.initialAcknowledgements,
+        ) &&
+        !_sameClientAppAcknowledgements(
+          oldWidget.initialAcknowledgements,
+          widget.initialAcknowledgements,
+        )) {
+      _acknowledgements = List<ClientAppAcknowledgement>.from(
+        widget.initialAcknowledgements,
+      );
+    }
+  }
+
+  @override
   void dispose() {
     _chatController.dispose();
     _chatFocusNode.dispose();
@@ -233,9 +330,10 @@ class _ClientAppPageState extends State<ClientAppPage> {
     final notifications = _buildNotifications(clientEvents);
     final incidentFeed = _buildIncidentFeed(clientEvents);
     final computedPushQueue = _buildPushQueue(notifications);
-    final pushQueue = computedPushQueue.isNotEmpty
-        ? computedPushQueue
-        : _mergeStoredPushQueueWithAcknowledgements(widget.initialPushQueue);
+    final pushQueue = _mergeComputedAndStoredPushQueue(
+      computedPushQueue,
+      _mergeStoredPushQueueWithAcknowledgements(widget.initialPushQueue),
+    );
     final selectedIncidentGroup = _selectedIncidentGroup(incidentFeed);
     final rooms = _buildRooms(notifications);
     final selectedRoom = _selectedRoomFor(_viewerRole);
@@ -508,8 +606,11 @@ class _ClientAppPageState extends State<ClientAppPage> {
                           key: const ValueKey(
                             'incident-feed-open-first-action',
                           ),
-                          onPressed: () =>
-                              _openFirstAvailableIncidentThread(incidentFeed),
+                          onPressed: incidentFeed.isEmpty
+                              ? null
+                              : () => _openFirstAvailableIncidentThread(
+                                  incidentFeed,
+                                ),
                           style: _inlineHandoffButtonStyle(
                             const Color(0xFF8FD1FF),
                             disabledForegroundColor: const Color(0xFF5B7294),
@@ -1172,7 +1273,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
     final lastSyncedLabel = widget.pushSyncLastSyncedAtUtc == null
         ? 'none'
         : _timeLabel(widget.pushSyncLastSyncedAtUtc!.toUtc());
+    final telegramDetail = (widget.telegramHealthDetail ?? '').trim();
     final failureReason = (widget.pushSyncFailureReason ?? '').trim();
+    final humanizedFailureReason = _humanizedScopedCommsSummary(failureReason);
     final probeFailureReason = (widget.backendProbeFailureReason ?? '').trim();
     final probeLastRunLabel = widget.backendProbeLastRunAtUtc == null
         ? 'none'
@@ -1189,7 +1292,40 @@ class _ClientAppPageState extends State<ClientAppPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            _localizedPushSyncStatusLine(widget.pushSyncStatusLabel),
+            _localizedTelegramStatusLine(widget.telegramHealthLabel.toUpperCase()),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8FD1FF),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (widget.telegramFallbackActive) ...[
+            const SizedBox(height: 4),
+            Text(
+              _localizedTelegramFallbackActive,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFF7D58D),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+          if (telegramDetail.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              _humanizedScopedCommsSummary(telegramDetail),
+              style: GoogleFonts.inter(
+                color: const Color(0xFF9DB3CF),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          const SizedBox(height: 4),
+          Text(
+            _localizedPushSyncStatusLine(
+              _humanizedPushSyncStatusLabel(widget.pushSyncStatusLabel),
+            ),
             style: GoogleFonts.inter(
               color: const Color(0xFF8FD1FF),
               fontSize: 11,
@@ -1223,7 +1359,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           if (failureReason.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
-              _localizedFailureLine(failureReason),
+              _localizedFailureLine(humanizedFailureReason),
               style: GoogleFonts.inter(
                 color: const Color(0xFFFFB5C6),
                 fontSize: 11,
@@ -1390,7 +1526,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           (attempt) => Padding(
             padding: const EdgeInsets.only(bottom: 3),
             child: Text(
-              attempt.summaryLine,
+              _pushSyncHistorySummaryLine(attempt),
               style: GoogleFonts.inter(
                 color: const Color(0xFF9DB3CF),
                 fontSize: 11,
@@ -1408,6 +1544,38 @@ class _ClientAppPageState extends State<ClientAppPage> {
           ),
       ],
     );
+  }
+
+  String _pushSyncHistorySummaryLine(ClientPushSyncAttempt attempt) {
+    final reason = (attempt.failureReason ?? '').trim();
+    final prefix =
+        '${_timeLabel(attempt.occurredAt)} • ${_humanizedPushSyncHistoryStatus(attempt.status)} • queue:${attempt.queueSize}';
+    if (reason.isEmpty) {
+      return prefix;
+    }
+    return '$prefix • ${_humanizedScopedCommsSummary(reason)}';
+  }
+
+  String _humanizedScopedCommsSummary(String raw) {
+    return ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(raw);
+  }
+
+  String _humanizedPushSyncHistoryStatus(String status) {
+    final normalized = status.trim().toLowerCase();
+    return switch (normalized) {
+      '' => 'standing by',
+      'idle' => 'standing by',
+      'ok' => 'synced',
+      'failed' => 'needs review',
+      'syncing' => 'sync in flight',
+      'degraded' => 'delivery under watch',
+      'sms-fallback-ok' => 'sms fallback sent',
+      'telegram-blocked' => 'telegram blocked',
+      'telegram-failed' => 'telegram failed',
+      'voip-staged' => 'voip staged',
+      'voip-failed' => 'voip needs review',
+      _ => status,
+    };
   }
 
   Widget _backendProbeHistoryList(List<ClientBackendProbeAttempt> history) {
@@ -1889,6 +2057,10 @@ class _ClientAppPageState extends State<ClientAppPage> {
           );
     return Column(
       children: [
+        if (_viewerRole == ClientAppViewerRole.control) ...[
+          _laneVoiceControlStrip(),
+          const SizedBox(height: 8),
+        ],
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(10),
@@ -2071,6 +2243,10 @@ class _ClientAppPageState extends State<ClientAppPage> {
                   : CrossAxisAlignment.end,
               children: [
                 _composerStatusBadge(),
+                if (_showComposerLearnedStyleCue) ...[
+                  const SizedBox(height: 8),
+                  _composerLearnedStyleCue(),
+                ],
                 const SizedBox(height: 8),
                 FilledButton(
                   onPressed: _sendClientMessage,
@@ -2128,6 +2304,306 @@ class _ClientAppPageState extends State<ClientAppPage> {
           },
         ),
       ],
+    );
+  }
+
+  Widget _laneVoiceControlStrip() {
+    final activeSignal = widget.laneVoiceProfileSignal.trim().toLowerCase();
+    final canAdjust = widget.onSetLaneVoiceProfile != null;
+    final hasPinnedVoice = activeSignal.isNotEmpty;
+    final hasLearnedStyle = widget.learnedApprovalStyleCount > 0;
+    final options = <({String label, String? signal})>[
+      (label: 'Auto', signal: null),
+      (label: 'Concise', signal: 'concise-updates'),
+      (label: 'Reassuring', signal: 'reassurance-forward'),
+      (label: 'Validation-heavy', signal: 'validation-heavy'),
+    ];
+
+    return Container(
+      key: const ValueKey('client-lane-voice-strip'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF101E30),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF2C4766)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.tune_rounded,
+                size: 15,
+                color: Color(0xFF8FD1FF),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Lane voice: ${widget.laneVoiceProfileLabel}',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFE5F1FF),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              if (_laneVoiceProfileBusy)
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Color(0xFF8FD1FF),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Shape ONYX toward the tone this lane needs before you review or send the next reply.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA7C8),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'ONYX mode: ${_laneOnyxModeLabel(hasPinnedVoice: hasPinnedVoice, hasLearnedStyle: hasLearnedStyle)}',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFD9ECFF),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (hasPinnedVoice)
+                _laneVoiceStatusChip(
+                  icon: Icons.tune_rounded,
+                  label: 'Pinned voice ${widget.laneVoiceProfileLabel}',
+                  accent: const Color(0xFF8FD1FF),
+                ),
+              if (hasLearnedStyle)
+                _laneVoiceStatusChip(
+                  icon: Icons.school_rounded,
+                  label:
+                      'Learned approvals (${widget.learnedApprovalStyleCount})',
+                  accent: const Color(0xFF67E8F9),
+                ),
+              if (!hasPinnedVoice && !hasLearnedStyle)
+                _laneVoiceStatusChip(
+                  icon: Icons.auto_mode_rounded,
+                  label: 'No pinned or learned override active',
+                  accent: const Color(0xFF8EA7C8),
+                ),
+            ],
+          ),
+          if (widget.learnedApprovalStyleExample.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0E1A2B),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF245B72)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Learned approval style',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFB9F4FF),
+                      fontSize: 10.8,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    widget.learnedApprovalStyleExample.trim(),
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFE5F1FF),
+                      fontSize: 11.2,
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (hasLearnedStyle) ...[
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed:
+                  widget.onClearLearnedLaneStyle == null ||
+                      _laneLearnedStyleBusy
+                  ? null
+                  : _clearLearnedLaneStyle,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF9EDCF0),
+                side: const BorderSide(color: Color(0xFF245B72)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+              ),
+              icon: _laneLearnedStyleBusy
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Color(0xFF9EDCF0),
+                      ),
+                    )
+                  : const Icon(Icons.refresh_rounded, size: 14),
+              label: Text(
+                'Clear Learned Style',
+                style: GoogleFonts.inter(
+                  fontSize: 10.8,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: options
+                .map((option) {
+                  final optionSignal = (option.signal ?? '')
+                      .trim()
+                      .toLowerCase();
+                  final selected = optionSignal == activeSignal;
+                  return ChoiceChip(
+                    label: Text(
+                      option.label,
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    selected: selected,
+                    onSelected: !canAdjust || _laneVoiceProfileBusy
+                        ? null
+                        : (_) => _setLaneVoiceProfile(option.signal),
+                    selectedColor: const Color(0xFF11243A),
+                    side: BorderSide(
+                      color: selected
+                          ? const Color(0xFF5D91C6)
+                          : const Color(0xFF223244),
+                    ),
+                    labelStyle: GoogleFonts.inter(
+                      color: selected
+                          ? const Color(0xFFB9E2FF)
+                          : const Color(0xFF9AB4D8),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    backgroundColor: const Color(0xFF0E1A2B),
+                  );
+                })
+                .toList(growable: false),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _setLaneVoiceProfile(String? profileSignal) async {
+    if (widget.onSetLaneVoiceProfile == null || _laneVoiceProfileBusy) {
+      return;
+    }
+    final currentSignal = widget.laneVoiceProfileSignal.trim().toLowerCase();
+    final nextSignal = (profileSignal ?? '').trim().toLowerCase();
+    if (currentSignal == nextSignal) {
+      return;
+    }
+    setState(() {
+      _laneVoiceProfileBusy = true;
+    });
+    try {
+      await widget.onSetLaneVoiceProfile!(profileSignal);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _laneVoiceProfileBusy = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _clearLearnedLaneStyle() async {
+    if (widget.onClearLearnedLaneStyle == null || _laneLearnedStyleBusy) {
+      return;
+    }
+    setState(() {
+      _laneLearnedStyleBusy = true;
+    });
+    try {
+      await widget.onClearLearnedLaneStyle!.call();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _laneLearnedStyleBusy = false;
+        });
+      }
+    }
+  }
+
+  String _laneOnyxModeLabel({
+    required bool hasPinnedVoice,
+    required bool hasLearnedStyle,
+  }) {
+    if (hasPinnedVoice && hasLearnedStyle) {
+      return 'Pinned voice + learned approvals';
+    }
+    if (hasPinnedVoice) {
+      return 'Pinned voice';
+    }
+    if (hasLearnedStyle) {
+      return 'Learned approvals';
+    }
+    return 'Auto';
+  }
+
+  Widget _laneVoiceStatusChip({
+    required IconData icon,
+    required String label,
+    required Color accent,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.55)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: accent),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: accent,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -2229,6 +2705,93 @@ class _ClientAppPageState extends State<ClientAppPage> {
         ],
       ),
     );
+  }
+
+  Widget _composerLearnedStyleCue() {
+    final example = widget.learnedApprovalStyleExample.trim();
+    return Container(
+      key: const ValueKey('client-composer-learned-style-cue'),
+      constraints: const BoxConstraints(maxWidth: 320),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0A2230),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF24546E)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.school_rounded,
+                size: 14,
+                color: Color(0xFF67E8F9),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Uses learned approval style',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFD7F7FF),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'This prefill is leaning on approved lane wording from earlier operator edits.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9CC8D8),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+          if (example.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Latest learned pattern: "$example"',
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFCFEFFF),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                fontStyle: FontStyle.italic,
+                height: 1.3,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String get _laneVoiceProfileSignalNormalized =>
+      widget.laneVoiceProfileSignal.trim().toLowerCase();
+
+  bool get _hasPinnedLaneVoiceProfile =>
+      _laneVoiceProfileSignalNormalized.isNotEmpty;
+
+  bool get _showComposerLearnedStyleCue {
+    if (_viewerRole != ClientAppViewerRole.control ||
+        widget.learnedApprovalStyleCount <= 0) {
+      return false;
+    }
+    return _composedSystemType != null ||
+        _draftOpenedMessageKey != null ||
+        _chatController.text.trim().isNotEmpty;
+  }
+
+  String _withLaneVoiceLabel(String baseLabel) {
+    if (_viewerRole != ClientAppViewerRole.control ||
+        !_hasPinnedLaneVoiceProfile) {
+      return baseLabel;
+    }
+    return '$baseLabel • ${widget.laneVoiceProfileLabel}';
   }
 
   String _chatSendButtonLabel() {
@@ -2360,6 +2923,50 @@ class _ClientAppPageState extends State<ClientAppPage> {
         fontWeight: FontWeight.w700,
       ),
     );
+  }
+
+  bool _sameClientAppMessages(
+    List<ClientAppMessage> left,
+    List<ClientAppMessage> right,
+  ) {
+    if (left.length != right.length) {
+      return false;
+    }
+    for (var index = 0; index < left.length; index += 1) {
+      final a = left[index];
+      final b = right[index];
+      if (a.author != b.author ||
+          a.body != b.body ||
+          a.occurredAt != b.occurredAt ||
+          a.roomKey != b.roomKey ||
+          a.viewerRole != b.viewerRole ||
+          a.incidentStatusLabel != b.incidentStatusLabel ||
+          a.messageSource != b.messageSource ||
+          a.messageProvider != b.messageProvider) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool _sameClientAppAcknowledgements(
+    List<ClientAppAcknowledgement> left,
+    List<ClientAppAcknowledgement> right,
+  ) {
+    if (left.length != right.length) {
+      return false;
+    }
+    for (var index = 0; index < left.length; index += 1) {
+      final a = left[index];
+      final b = right[index];
+      if (a.messageKey != b.messageKey ||
+          a.channel != b.channel ||
+          a.acknowledgedBy != b.acknowledgedBy ||
+          a.acknowledgedAt != b.acknowledgedAt) {
+        return false;
+      }
+    }
+    return true;
   }
 
   Widget _acknowledgementControls(
@@ -2502,21 +3109,35 @@ class _ClientAppPageState extends State<ClientAppPage> {
     );
   }
 
-  void _sendClientMessage() {
+  Future<void> _sendClientMessage() async {
     final text = _chatController.text.trim();
+    final systemType = _composedSystemType;
+    final originalDraftText = _reviewedDraftOriginalText?.trim() ?? '';
     _sendManualMessageText(
       text,
-      systemType: _composedSystemType,
+      systemType: systemType,
       clearComposer: true,
     );
+    if (_viewerRole == ClientAppViewerRole.control &&
+        systemType == _ClientSystemMessageType.dispatch &&
+        originalDraftText.isNotEmpty &&
+        text.isNotEmpty &&
+        widget.onRecordApprovedDraftLearning != null) {
+      await widget.onRecordApprovedDraftLearning!(
+        originalDraftText,
+        text,
+      );
+    }
   }
 
   void _applyQuickAction(
     String template, {
     _ClientSystemMessageType? systemType,
+    String? reviewedDraftOriginalText,
   }) {
     setState(() {
       _composedSystemType = systemType ?? _composedSystemType;
+      _reviewedDraftOriginalText = reviewedDraftOriginalText;
       _chatController.text = template;
       _chatController.selection = TextSelection.collapsed(
         offset: _chatController.text.length,
@@ -2525,15 +3146,18 @@ class _ClientAppPageState extends State<ClientAppPage> {
   }
 
   void _draftNotificationAction(_ClientNotification item) {
+    final draftText = _notificationActionDraftFor(item);
     _applyQuickAction(
-      _notificationActionDraftFor(item),
+      draftText,
       systemType: item.systemType,
+      reviewedDraftOriginalText: draftText,
     );
   }
 
   void _setComposedSystemType(_ClientSystemMessageType type) {
     setState(() {
       _composedSystemType = type;
+      _reviewedDraftOriginalText = null;
     });
   }
 
@@ -3014,15 +3638,15 @@ class _ClientAppPageState extends State<ClientAppPage> {
     return switch (_viewerRole) {
       ClientAppViewerRole.client => _localizedTemplate(
         key: 'threadJumpedClient',
-        fallback: 'Jumped to latest reply',
+        fallback: 'Latest reply in view',
       ),
       ClientAppViewerRole.control => _localizedTemplate(
         key: 'threadJumpedControl',
-        fallback: 'Jumped to latest log entry',
+        fallback: 'Latest log entry in view',
       ),
       ClientAppViewerRole.resident => _localizedTemplate(
         key: 'threadJumpedResident',
-        fallback: 'Jumped to latest resident reply',
+        fallback: 'Latest resident reply in view',
       ),
     };
   }
@@ -3055,84 +3679,86 @@ class _ClientAppPageState extends State<ClientAppPage> {
         _localizedTemplate(
           key: 'draftRequiredClientDispatch',
           fallback:
-              'Dispatch responses for {room} require client review before sending.',
+              'Give this dispatch reply a quick client review before it goes to {room}.',
           tokens: {'room': roomLabel},
         ),
       (ClientAppViewerRole.control, _ClientSystemMessageType.dispatch) =>
         _localizedTemplate(
           key: 'draftRequiredControlDispatch',
           fallback:
-              'Dispatch responses for {room} must be reviewed before sending.',
+              'Give this dispatch reply a quick review before it goes to {room}.',
           tokens: {'room': roomLabel},
         ),
       (ClientAppViewerRole.resident, _ClientSystemMessageType.dispatch) =>
         _localizedTemplate(
           key: 'draftRequiredResidentDispatch',
           fallback:
-              'Dispatch updates for {room} require review before sending.',
+              'Give this dispatch update a quick review before it goes to {room}.',
           tokens: {'room': roomLabel},
         ),
       (_, _) => _localizedTemplate(
         key: 'draftRequiredDefault',
-        fallback: 'Draft review required before sending.',
+        fallback: 'Give this draft a quick review before sending.',
       ),
     };
   }
 
   String _draftReadyLabelFor(_ClientSystemMessageType type) {
     final roomLabel = _activeRoomDisplayName();
-    return switch ((_viewerRole, type)) {
+    final baseLabel = switch ((_viewerRole, type)) {
       (ClientAppViewerRole.client, _ClientSystemMessageType.dispatch) =>
         _localizedTemplate(
           key: 'draftReadyClientDispatch',
-          fallback: 'Open Client Review for {room}',
+          fallback: 'Review client draft for {room}',
           tokens: {'room': roomLabel},
         ),
       (ClientAppViewerRole.control, _ClientSystemMessageType.dispatch) =>
         _localizedTemplate(
           key: 'draftReadyControlDispatch',
-          fallback: 'Open Dispatch Draft for {room}',
+          fallback: 'Review dispatch draft for {room}',
           tokens: {'room': roomLabel},
         ),
       (ClientAppViewerRole.resident, _ClientSystemMessageType.dispatch) =>
         _localizedTemplate(
           key: 'draftReadyResidentDispatch',
-          fallback: 'Open Update Draft for {room}',
+          fallback: 'Review update draft for {room}',
           tokens: {'room': roomLabel},
         ),
       (_, _) => _localizedTemplate(
         key: 'draftReadyDefault',
-        fallback: 'Draft Ready',
+        fallback: 'Draft ready for review',
       ),
     };
+    return _withLaneVoiceLabel(baseLabel);
   }
 
   String _draftOpenedLabelFor(_ClientSystemMessageType type) {
     final roomLabel = _activeRoomDisplayName();
-    return switch ((_viewerRole, type)) {
+    final baseLabel = switch ((_viewerRole, type)) {
       (ClientAppViewerRole.client, _ClientSystemMessageType.dispatch) =>
         _localizedTemplate(
           key: 'draftOpenedClientDispatch',
-          fallback: 'Client review draft opened for {room}',
+          fallback: 'Client review draft is open for {room}',
           tokens: {'room': roomLabel},
         ),
       (ClientAppViewerRole.control, _ClientSystemMessageType.dispatch) =>
         _localizedTemplate(
           key: 'draftOpenedControlDispatch',
-          fallback: 'Dispatch draft opened for {room}',
+          fallback: 'Dispatch draft is open for {room}',
           tokens: {'room': roomLabel},
         ),
       (ClientAppViewerRole.resident, _ClientSystemMessageType.dispatch) =>
         _localizedTemplate(
           key: 'draftOpenedResidentDispatch',
-          fallback: 'Dispatch update draft opened for {room}',
+          fallback: 'Update draft is open for {room}',
           tokens: {'room': roomLabel},
         ),
       (_, _) => _localizedTemplate(
         key: 'draftOpenedDefault',
-        fallback: 'Draft opened',
+        fallback: 'Draft is open',
       ),
     };
+    return _withLaneVoiceLabel(baseLabel);
   }
 
   String _activeRoomDisplayName() {
@@ -3278,6 +3904,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
       messageKey = _manualMessageKey(message);
       _manualMessages.insert(0, message);
       _composedSystemType = null;
+      _reviewedDraftOriginalText = null;
       if (clearComposer) {
         _chatController.clear();
       }
@@ -3430,70 +4057,116 @@ class _ClientAppPageState extends State<ClientAppPage> {
       (ClientAppViewerRole.client, _ClientSystemMessageType.advisory) =>
         _localizedTemplate(
           key: 'notificationDraftClientAdvisory',
-          fallback:
-              'Client reviewed the advisory and is ready to share it with {room}.',
+          fallback: 'Advisory reviewed and ready to send to {room}.',
           tokens: {'room': roomLabel},
         ),
       (ClientAppViewerRole.client, _ClientSystemMessageType.closure) =>
         _localizedTemplate(
           key: 'notificationDraftClientClosure',
-          fallback:
-              'Client reviewed the closure update for {room} and confirms receipt.',
+          fallback: 'Closure update reviewed and ready to send to {room}.',
           tokens: {'room': roomLabel},
         ),
       (ClientAppViewerRole.client, _) => _localizedTemplate(
         key: 'notificationDraftClientDefault',
-        fallback:
-            'Client reviewed this update for {room} and is awaiting the next step.',
+        fallback: 'Update reviewed for {room}. Ready for the next step.',
         tokens: {'room': roomLabel},
       ),
       (ClientAppViewerRole.control, _ClientSystemMessageType.dispatch) =>
-        _localizedTemplate(
-          key: 'notificationDraftControlDispatch',
-          fallback: 'Control reviewing dispatch response for {room}.',
-          tokens: {'room': roomLabel},
+        _controlLaneVoiceDraft(
+          roomLabel: roomLabel,
+          autoText: _localizedTemplate(
+            key: 'notificationDraftControlDispatch',
+            fallback:
+                'Control is checking the dispatch response for {room} now.',
+            tokens: {'room': roomLabel},
+          ),
+          conciseText: 'Checking dispatch response for $roomLabel now.',
+          reassuringText:
+              'Control is on it for $roomLabel and is checking the dispatch response now.',
+          validationHeavyText:
+              'Control is checking the dispatch response for $roomLabel now and will share the next verified position update.',
         ),
       (ClientAppViewerRole.control, _ClientSystemMessageType.advisory) =>
-        _localizedTemplate(
-          key: 'notificationDraftControlAdvisory',
-          fallback: 'Control drafting the advisory log entry for {room}.',
-          tokens: {'room': roomLabel},
+        _controlLaneVoiceDraft(
+          roomLabel: roomLabel,
+          autoText: _localizedTemplate(
+            key: 'notificationDraftControlAdvisory',
+            fallback: 'Control is shaping the advisory update for {room}.',
+            tokens: {'room': roomLabel},
+          ),
+          conciseText: 'Advisory update being shaped for $roomLabel.',
+          reassuringText:
+              'Control is shaping a calm advisory update for $roomLabel now.',
+          validationHeavyText:
+              'Control is shaping the advisory update for $roomLabel with the key verified details.',
         ),
       (ClientAppViewerRole.control, _ClientSystemMessageType.closure) =>
-        _localizedTemplate(
-          key: 'notificationDraftControlClosure',
-          fallback: 'Control drafting the closure log for {room}.',
-          tokens: {'room': roomLabel},
+        _controlLaneVoiceDraft(
+          roomLabel: roomLabel,
+          autoText: _localizedTemplate(
+            key: 'notificationDraftControlClosure',
+            fallback: 'Control is shaping the closure update for {room}.',
+            tokens: {'room': roomLabel},
+          ),
+          conciseText: 'Closure update being shaped for $roomLabel.',
+          reassuringText:
+              'Control is shaping a steady closure update for $roomLabel now.',
+          validationHeavyText:
+              'Control is shaping the closure update for $roomLabel with the confirmed close-out details.',
         ),
       (ClientAppViewerRole.control, _) => _localizedTemplate(
         key: 'notificationDraftControlDefault',
-        fallback: 'Control drafting the operational update log for {room}.',
+        fallback: _controlLaneVoiceDraft(
+          roomLabel: roomLabel,
+          autoText:
+              'Control is shaping the next operational update for {room}.',
+          conciseText: 'Shaping the next operational update for $roomLabel.',
+          reassuringText:
+              'Control is shaping the next steady operational update for $roomLabel.',
+          validationHeavyText:
+              'Control is shaping the next operational update for $roomLabel with the verified details first.',
+        ),
         tokens: {'room': roomLabel},
       ),
       (ClientAppViewerRole.resident, _ClientSystemMessageType.dispatch) =>
         _localizedTemplate(
           key: 'notificationDraftResidentDispatch',
           fallback:
-              'Resident has viewed the alert in {room} and is awaiting guidance.',
+              'Resident has seen the alert in {room} and is waiting for guidance.',
           tokens: {'room': roomLabel},
         ),
       (ClientAppViewerRole.resident, _ClientSystemMessageType.advisory) =>
         _localizedTemplate(
           key: 'notificationDraftResidentAdvisory',
-          fallback: 'Resident is drafting a community alert for {room} now.',
+          fallback: 'Resident is preparing a community alert for {room}.',
           tokens: {'room': roomLabel},
         ),
       (ClientAppViewerRole.resident, _ClientSystemMessageType.closure) =>
         _localizedTemplate(
           key: 'notificationDraftResidentClosure',
-          fallback: 'Resident is drafting a closure reply for {room}.',
+          fallback: 'Resident is preparing a closure reply for {room}.',
           tokens: {'room': roomLabel},
         ),
       (ClientAppViewerRole.resident, _) => _localizedTemplate(
         key: 'notificationDraftResidentDefault',
-        fallback: 'Resident is drafting an update request for {room}.',
+        fallback: 'Resident is preparing an update request for {room}.',
         tokens: {'room': roomLabel},
       ),
+    };
+  }
+
+  String _controlLaneVoiceDraft({
+    required String roomLabel,
+    required String autoText,
+    required String conciseText,
+    required String reassuringText,
+    required String validationHeavyText,
+  }) {
+    return switch (_laneVoiceProfileSignalNormalized) {
+      'concise-updates' => conciseText,
+      'reassurance-forward' => reassuringText,
+      'validation-heavy' => validationHeavyText,
+      _ => autoText.replaceAll('{room}', roomLabel),
     };
   }
 
@@ -3502,16 +4175,17 @@ class _ClientAppPageState extends State<ClientAppPage> {
     for (final event in events.take(10)) {
       switch (event) {
         case DecisionCreated():
+          final notification = _dispatchCreatedNotificationCopy(event);
           final messageKey = _notificationMessageKeyForValues(
             occurredAt: event.occurredAt,
-            title: 'Dispatch created',
-            body: 'Response team activated for ${event.siteId}.',
+            title: notification.title,
+            body: notification.body,
           );
           items.add(
             _ClientNotification(
               messageKey: messageKey,
-              title: 'Dispatch created',
-              body: 'Response team activated for ${event.siteId}.',
+              title: notification.title,
+              body: notification.body,
               occurredAt: event.occurredAt,
               systemType: _ClientSystemMessageType.dispatch,
               priority: true,
@@ -3519,34 +4193,34 @@ class _ClientAppPageState extends State<ClientAppPage> {
             ),
           );
         case ResponseArrived():
+          final notification = _responseArrivedNotificationCopy(event);
           final messageKey = _notificationMessageKeyForValues(
             occurredAt: event.occurredAt,
-            title: 'Officer arrived',
-            body: 'Guard ${event.guardId} reached ${event.siteId}.',
+            title: notification.title,
+            body: notification.body,
           );
           items.add(
             _ClientNotification(
               messageKey: messageKey,
-              title: 'Officer arrived',
-              body: 'Guard ${event.guardId} reached ${event.siteId}.',
+              title: notification.title,
+              body: notification.body,
               occurredAt: event.occurredAt,
               systemType: _ClientSystemMessageType.update,
               acknowledgements: _acknowledgementsForMessage(messageKey),
             ),
           );
         case IncidentClosed():
+          final notification = _incidentClosedNotificationCopy(event);
           final messageKey = _notificationMessageKeyForValues(
             occurredAt: event.occurredAt,
-            title: 'Incident closed',
-            body:
-                'Dispatch ${event.dispatchId} closed as ${event.resolutionType}.',
+            title: notification.title,
+            body: notification.body,
           );
           items.add(
             _ClientNotification(
               messageKey: messageKey,
-              title: 'Incident closed',
-              body:
-                  'Dispatch ${event.dispatchId} closed as ${event.resolutionType}.',
+              title: notification.title,
+              body: notification.body,
               occurredAt: event.occurredAt,
               systemType: _ClientSystemMessageType.closure,
               acknowledgements: _acknowledgementsForMessage(messageKey),
@@ -3633,6 +4307,25 @@ class _ClientAppPageState extends State<ClientAppPage> {
     return merged;
   }
 
+  List<ClientAppPushDeliveryItem> _mergeComputedAndStoredPushQueue(
+    List<ClientAppPushDeliveryItem> computedQueue,
+    List<ClientAppPushDeliveryItem> storedQueue,
+  ) {
+    if (computedQueue.isEmpty) {
+      return storedQueue;
+    }
+    if (storedQueue.isEmpty) {
+      return computedQueue;
+    }
+    final byMessageKey = <String, ClientAppPushDeliveryItem>{
+      for (final item in storedQueue) item.messageKey: item,
+      for (final item in computedQueue) item.messageKey: item,
+    };
+    final merged = byMessageKey.values.toList(growable: false)
+      ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    return merged;
+  }
+
   ClientAppAcknowledgementChannel _pushTargetChannelForNotification(
     _ClientNotification notification,
   ) {
@@ -3655,11 +4348,12 @@ class _ClientAppPageState extends State<ClientAppPage> {
     for (final event in events.take(8)) {
       switch (event) {
         case DecisionCreated():
+          final notification = _dispatchCreatedNotificationCopy(event);
           items.add(
             _ClientIncidentFeedEntry(
               referenceLabel: event.dispatchId,
-              headline: 'Dispatch opened for ${event.siteId}',
-              detail: 'Response team activated and client updates started.',
+              headline: notification.title,
+              detail: notification.body,
               occurredAt: event.occurredAt,
               statusLabel: 'Opened',
               accent: const Color(0xFFB9D9FF),
@@ -3667,11 +4361,12 @@ class _ClientAppPageState extends State<ClientAppPage> {
             ),
           );
         case ResponseArrived():
+          final notification = _responseArrivedNotificationCopy(event);
           items.add(
             _ClientIncidentFeedEntry(
               referenceLabel: event.dispatchId,
-              headline: 'Responder on site',
-              detail: 'Guard ${event.guardId} reached ${event.siteId}.',
+              headline: notification.title,
+              detail: notification.body,
               occurredAt: event.occurredAt,
               statusLabel: 'On Site',
               accent: const Color(0xFF9FD8AC),
@@ -3679,11 +4374,12 @@ class _ClientAppPageState extends State<ClientAppPage> {
             ),
           );
         case IncidentClosed():
+          final notification = _incidentClosedNotificationCopy(event);
           items.add(
             _ClientIncidentFeedEntry(
               referenceLabel: event.dispatchId,
-              headline: 'Incident closed',
-              detail: 'Resolved as ${event.resolutionType}.',
+              headline: notification.title,
+              detail: notification.body,
               occurredAt: event.occurredAt,
               statusLabel: 'Closed',
               accent: const Color(0xFFFFD6A5),
@@ -3732,6 +4428,67 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 b.latestEntry.occurredAt.compareTo(a.latestEntry.occurredAt),
           );
     return groups;
+  }
+
+  ({String title, String body}) _dispatchCreatedNotificationCopy(
+    DecisionCreated event,
+  ) {
+    final siteLabel = _clientSiteLabel(event.siteId);
+    return (
+      title: 'Security response activated',
+      body: 'A response team is moving to $siteLabel now.',
+    );
+  }
+
+  ({String title, String body}) _responseArrivedNotificationCopy(
+    ResponseArrived event,
+  ) {
+    final siteLabel = _clientSiteLabel(event.siteId);
+    return (
+      title: 'Responder on site',
+      body: 'Our officer has arrived at $siteLabel and is assessing now.',
+    );
+  }
+
+  ({String title, String body}) _incidentClosedNotificationCopy(
+    IncidentClosed event,
+  ) {
+    final siteLabel = _clientSiteLabel(event.siteId);
+    final resolution = _clientResolutionLabel(event.resolutionType);
+    return (
+      title: 'Incident resolved',
+      body: 'The incident at $siteLabel has been resolved as $resolution.',
+    );
+  }
+
+  String _clientSiteLabel(String raw) {
+    final cleaned = raw
+        .trim()
+        .replaceFirst(RegExp(r'^(CLIENT|SITE|REGION)-'), '')
+        .replaceAll(RegExp(r'[_\-]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    if (cleaned.isEmpty) {
+      return 'your site';
+    }
+    return cleaned
+        .split(' ')
+        .where((token) => token.trim().isNotEmpty)
+        .map((token) {
+          final lower = token.toLowerCase();
+          return '${lower[0].toUpperCase()}${lower.substring(1)}';
+        })
+        .join(' ');
+  }
+
+  String _clientResolutionLabel(String raw) {
+    final cleaned = raw
+        .trim()
+        .replaceAll(RegExp(r'[_\-]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim()
+        .toLowerCase();
+    return cleaned.isEmpty ? 'resolved' : cleaned;
   }
 
   List<_ClientIncidentFeedEntry> _buildManualIncidentFeedEntries() {
@@ -4001,7 +4758,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
       messenger?.hideCurrentSnackBar();
       messenger?.showSnackBar(
         const SnackBar(
-          content: Text('No incident thread is available yet.'),
+          content: Text('No incident thread is ready for this lane yet.'),
           duration: Duration(seconds: 2),
         ),
       );
@@ -4311,6 +5068,35 @@ class _ClientAppPageState extends State<ClientAppPage> {
     ).replaceAll('{status}', status);
   }
 
+  String _humanizedPushSyncStatusLabel(String status) {
+    final normalized = status.trim().toLowerCase();
+    return switch (normalized) {
+      '' => 'standing by',
+      'idle' || 'push sync idle' => 'standing by',
+      'syncing' => 'sync in flight',
+      'failed' => 'needs review',
+      'degraded' => 'delivery under watch',
+      'ok' || 'synced' || 'ready' => 'synced',
+      _ => status,
+    };
+  }
+
+  String _localizedTelegramStatusLine(String status) {
+    return ClientAppLocaleText.generalText(
+      locale: widget.locale,
+      key: 'telegramStatusLine',
+      fallback: 'Telegram: {status}',
+    ).replaceAll('{status}', status);
+  }
+
+  String get _localizedTelegramFallbackActive {
+    return ClientAppLocaleText.generalText(
+      locale: widget.locale,
+      key: 'telegramFallbackActive',
+      fallback: 'Telegram fallback is active.',
+    );
+  }
+
   String _localizedLastSyncRetriesLine(String lastSync, int retries) {
     return ClientAppLocaleText.generalText(
       locale: widget.locale,
@@ -4456,9 +5242,10 @@ class _ClientAppPageState extends State<ClientAppPage> {
       acknowledgements,
     );
     final notifications = _buildNotifications(_currentClientEvents());
-    final pushQueue = notifications.isNotEmpty
-        ? _buildPushQueue(notifications)
-        : _mergeStoredPushQueueWithAcknowledgements(widget.initialPushQueue);
+    final pushQueue = _mergeComputedAndStoredPushQueue(
+      _buildPushQueue(notifications),
+      _mergeStoredPushQueueWithAcknowledgements(widget.initialPushQueue),
+    );
     widget.onPushQueueChanged?.call(pushQueue);
   }
 
@@ -5274,9 +6061,12 @@ enum ClientAppViewerRole {
 
   String get incidentFeedEmptyLabel {
     return switch (this) {
-      ClientAppViewerRole.client => 'No incident milestones yet.',
-      ClientAppViewerRole.control => 'No active incident milestones yet.',
-      ClientAppViewerRole.resident => 'No safety timeline updates yet.',
+      ClientAppViewerRole.client =>
+        'Incident milestones will appear here as this lane updates.',
+      ClientAppViewerRole.control =>
+        'Active incident milestones will appear here as control updates the lane.',
+      ClientAppViewerRole.resident =>
+        'Safety timeline updates will appear here as this lane progresses.',
     };
   }
 
@@ -5357,9 +6147,9 @@ enum ClientAppViewerRole {
 
   String get noSelectedIncidentLabel {
     return switch (this) {
-      ClientAppViewerRole.client => 'No Incident Selected',
-      ClientAppViewerRole.control => 'No Thread Selected',
-      ClientAppViewerRole.resident => 'No Safety Selected',
+      ClientAppViewerRole.client => 'Choose an Incident',
+      ClientAppViewerRole.control => 'Choose a Thread',
+      ClientAppViewerRole.resident => 'Choose a Safety Lane',
     };
   }
 
@@ -5552,6 +6342,20 @@ enum ClientAppViewerRole {
     if (headline.startsWith('Dispatch opened for ')) {
       return headline.replaceFirst('Dispatch opened for ', '');
     }
+    final movingToMatch = RegExp(
+      r'moving to (.+?) now[.]?$',
+      caseSensitive: false,
+    ).firstMatch(detail.trim());
+    if (movingToMatch != null) {
+      return movingToMatch.group(1)!.trim();
+    }
+    final arrivedAtMatch = RegExp(
+      r'arrived at (.+?) and',
+      caseSensitive: false,
+    ).firstMatch(detail.trim());
+    if (arrivedAtMatch != null) {
+      return arrivedAtMatch.group(1)!.trim();
+    }
     final reachedIndex = detail.lastIndexOf(' reached ');
     if (reachedIndex >= 0) {
       return detail.substring(reachedIndex + ' reached '.length);
@@ -5652,18 +6456,23 @@ enum ClientAppViewerRole {
 
   String get notificationsEmptyLabel {
     return switch (this) {
-      ClientAppViewerRole.client => 'No client notifications yet.',
-      ClientAppViewerRole.control => 'No control alerts in the current lane.',
-      ClientAppViewerRole.resident => 'No safety updates in the current lane.',
+      ClientAppViewerRole.client =>
+        'Client notifications will appear here when this lane updates.',
+      ClientAppViewerRole.control =>
+        'Control alerts are quiet in this lane right now.',
+      ClientAppViewerRole.resident =>
+        'Safety updates are quiet in this lane right now.',
     };
   }
 
   String get chatEmptyLabel {
     return switch (this) {
-      ClientAppViewerRole.client => 'No direct chat messages yet.',
+      ClientAppViewerRole.client =>
+        'Direct chat will appear here once this lane starts talking.',
       ClientAppViewerRole.control =>
-        'No desk coordination messages in this lane.',
-      ClientAppViewerRole.resident => 'No resident messages in this lane.',
+        'Desk coordination is quiet in this lane right now.',
+      ClientAppViewerRole.resident =>
+        'Resident messages will appear here once this lane becomes active.',
     };
   }
 
@@ -5873,6 +6682,8 @@ class ClientAppLocaleText {
           'Azikho izaziso ze-push ezikulayini okwamanje.',
       'queuedStatus': 'Kulindile',
       'deliveredStatus': 'Kulethiwe',
+      'telegramStatusLine': 'Telegram: {status}',
+      'telegramFallbackActive': 'I-telegram fallback iyasebenza.',
       'pushSyncStatusLine': 'Ukuvumelanisa i-Push: {status}',
       'lastSyncRetriesLine':
           'Ukuvumelanisa kokugcina: {lastSync} • Ukuzama futhi: {retries}',
@@ -6039,6 +6850,8 @@ class ClientAppLocaleText {
       'noPushNotificationsQueuedYet': 'Geen stootkennisgewings tans in ry nie.',
       'queuedStatus': 'In ry',
       'deliveredStatus': 'Afgelewer',
+      'telegramStatusLine': 'Telegram: {status}',
+      'telegramFallbackActive': 'Telegram-rugsteun is aktief.',
       'pushSyncStatusLine': 'Stoot-sinkronisering: {status}',
       'lastSyncRetriesLine':
           'Laaste sinkronisering: {lastSync} • Herprobeer: {retries}',

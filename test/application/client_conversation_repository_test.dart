@@ -67,6 +67,51 @@ void main() {
         pushQueue.map((entry) => entry.toJson()).toList(),
       );
     });
+
+    test(
+      'scoped repository persists push sync state and registers the scope',
+      () async {
+        final persistence = await DispatchPersistenceService.create();
+        final repository = ScopedSharedPrefsClientConversationRepository(
+          persistence: persistence,
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-ALPHA',
+        );
+        final state = ClientPushSyncState(
+          statusLabel: 'degraded',
+          lastSyncedAtUtc: DateTime.utc(2026, 3, 6, 10, 0),
+          failureReason: 'telegram blocked',
+          retryCount: 1,
+          history: [
+            ClientPushSyncAttempt(
+              occurredAt: DateTime.utc(2026, 3, 6, 10, 0),
+              status: 'voip-failed',
+              failureReason:
+                  'VoIP staging is not configured for Thabo Mokoena yet.',
+              queueSize: 0,
+            ),
+          ],
+          backendProbeStatusLabel: 'ok',
+          backendProbeLastRunAtUtc: DateTime.utc(2026, 3, 6, 10, 0),
+          backendProbeHistory: [
+            ClientBackendProbeAttempt(
+              occurredAt: DateTime.utc(2026, 3, 6, 10, 0),
+              status: 'ok',
+            ),
+          ],
+        );
+
+        await repository.savePushSyncState(state);
+
+        final restored = await repository.readPushSyncState();
+        final scopeKeys = await persistence.readClientConversationScopeKeys();
+
+        expect(restored.statusLabel, 'degraded');
+        expect(restored.history, hasLength(1));
+        expect(restored.history.single.status, 'voip-failed');
+        expect(scopeKeys, contains('CLIENT-001|SITE-ALPHA'));
+      },
+    );
   });
 
   group('FallbackClientConversationRepository', () {

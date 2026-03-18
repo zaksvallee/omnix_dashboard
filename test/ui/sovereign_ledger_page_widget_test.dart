@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
+import 'package:omnix_dashboard/domain/events/decision_created.dart';
 import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/ui/sovereign_ledger_page.dart';
@@ -18,6 +19,8 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1440, 1100));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     String? copiedClipboardPayload;
+    List<String>? openedEventIds;
+    String? openedSelectedEventId;
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       SystemChannels.platform,
       (call) async {
@@ -64,6 +67,10 @@ void main() {
         home: SovereignLedgerPage(
           clientId: 'CLIENT-001',
           events: events,
+          onOpenEventsForScope: (eventIds, selectedEventId) {
+            openedEventIds = eventIds;
+            openedSelectedEventId = selectedEventId;
+          },
           sceneReviewByIntelligenceId: {
             'INTEL-LEDGER-1': MonitoringSceneReviewRecord(
               intelligenceId: 'INTEL-LEDGER-1',
@@ -107,7 +114,8 @@ void main() {
     await tester.ensureVisible(viewInEventReview);
     await tester.tap(viewInEventReview, warnIfMissed: false);
     await tester.pump();
-    expect(find.textContaining('Open Event Review to inspect'), findsOneWidget);
+    expect(openedEventIds, <String>['INT-LEDGER-1']);
+    expect(openedSelectedEventId, 'INT-LEDGER-1');
     expect(find.text('SCENE REVIEW'), findsOneWidget);
     expect(find.text('openai:gpt-4.1-mini'), findsOneWidget);
     expect(find.text('Escalation Candidate'), findsOneWidget);
@@ -214,4 +222,126 @@ void main() {
     expect(find.text('Legacy receipt'), findsOneWidget);
     expect(find.text('Not captured'), findsOneWidget);
   });
+
+  testWidgets('sovereign ledger narrows entries to the scoped lane', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1100));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final events = <DispatchEvent>[
+      IntelligenceReceived(
+        eventId: 'INT-LEDGER-SCOPE-1',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 16, 8, 0),
+        intelligenceId: 'INTEL-LEDGER-SCOPE-1',
+        provider: 'hikvision_dvr_monitor_only',
+        sourceType: 'dvr',
+        externalId: 'ext-scope-1',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        headline: 'Sandton boundary alert',
+        summary: 'Person detected near Sandton line crossing.',
+        riskScore: 88,
+        canonicalHash: 'hash-scope-1',
+      ),
+      IntelligenceReceived(
+        eventId: 'INT-LEDGER-SCOPE-2',
+        sequence: 2,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 16, 8, 5),
+        intelligenceId: 'INTEL-LEDGER-SCOPE-2',
+        provider: 'hikvision_dvr_monitor_only',
+        sourceType: 'dvr',
+        externalId: 'ext-scope-2',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-VALLEE',
+        headline: 'Vallee gate alert',
+        summary: 'Vehicle detected near Vallee gate.',
+        riskScore: 77,
+        canonicalHash: 'hash-scope-2',
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SovereignLedgerPage(
+          clientId: 'CLIENT-001',
+          initialScopeClientId: 'CLIENT-001',
+          initialScopeSiteId: 'SITE-VALLEE',
+          events: events,
+          initialFocusReference: 'INTEL-LEDGER-SCOPE-2',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('ledger-scope-banner')), findsOneWidget);
+    expect(find.text('Scope focus active'), findsOneWidget);
+    expect(find.text('CLIENT-001/SITE-VALLEE'), findsOneWidget);
+    expect(find.text('Vallee gate alert'), findsWidgets);
+    expect(find.text('Sandton boundary alert'), findsNothing);
+    expect(find.textContaining('Focus LINKED • INTEL-LEDGER-SCOPE-2'), findsOneWidget);
+  });
+
+  testWidgets(
+    'sovereign ledger marks incident focus as scope-backed when lane matches',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 1100));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final events = <DispatchEvent>[
+        DecisionCreated(
+          eventId: 'DEC-LEDGER-SCOPE-1',
+          sequence: 1,
+          version: 1,
+          occurredAt: DateTime.utc(2026, 3, 16, 8, 0),
+          dispatchId: 'DSP-4401',
+          clientId: 'CLIENT-001',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-VALLEE',
+        ),
+        IntelligenceReceived(
+          eventId: 'INT-LEDGER-SCOPE-3',
+          sequence: 2,
+          version: 1,
+          occurredAt: DateTime.utc(2026, 3, 16, 8, 5),
+          intelligenceId: 'INTEL-LEDGER-SCOPE-3',
+          provider: 'hikvision_dvr_monitor_only',
+          sourceType: 'dvr',
+          externalId: 'ext-scope-3',
+          clientId: 'CLIENT-001',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-VALLEE',
+          headline: 'Vallee patrol movement',
+          summary: 'Tracked movement near the Vallee patrol corridor.',
+          riskScore: 73,
+          canonicalHash: 'hash-scope-3',
+        ),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SovereignLedgerPage(
+            clientId: 'CLIENT-001',
+            initialScopeClientId: 'CLIENT-001',
+            initialScopeSiteId: 'SITE-VALLEE',
+            events: events,
+            initialFocusReference: 'INC-DSP-4401',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining('Focus SCOPE-BACKED • INC-DSP-4401'),
+        findsOneWidget,
+      );
+      expect(find.text('Vallee patrol movement'), findsWidgets);
+      expect(find.textContaining('Focused lane is waiting'), findsNothing);
+    },
+  );
 }

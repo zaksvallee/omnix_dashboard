@@ -22,6 +22,7 @@ class TelegramBridgeMessage {
 
 class TelegramBridgeInboundMessage {
   final int updateId;
+  final String? callbackQueryId;
   final int? messageId;
   final String chatId;
   final String chatType;
@@ -37,6 +38,7 @@ class TelegramBridgeInboundMessage {
 
   const TelegramBridgeInboundMessage({
     required this.updateId,
+    this.callbackQueryId,
     this.messageId,
     required this.chatId,
     required this.chatType,
@@ -81,6 +83,11 @@ abstract class TelegramBridgeService {
     int limit = 30,
     int timeoutSeconds = 0,
   });
+
+  Future<bool> answerCallbackQuery({
+    required String callbackQueryId,
+    String? text,
+  });
 }
 
 class UnconfiguredTelegramBridgeService implements TelegramBridgeService {
@@ -110,6 +117,14 @@ class UnconfiguredTelegramBridgeService implements TelegramBridgeService {
     int timeoutSeconds = 0,
   }) async {
     return const <TelegramBridgeInboundMessage>[];
+  }
+
+  @override
+  Future<bool> answerCallbackQuery({
+    required String callbackQueryId,
+    String? text,
+  }) async {
+    return false;
   }
 }
 
@@ -223,7 +238,7 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
     final query = <String, String>{
       'limit': '${limit.clamp(1, 100)}',
       'timeout': '${timeoutSeconds.clamp(0, 30)}',
-      'allowed_updates': jsonEncode(const ['message']),
+      'allowed_updates': jsonEncode(const ['message', 'callback_query']),
     };
     if (offset != null) {
       query['offset'] = '$offset';
@@ -254,19 +269,38 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
       final updateId = _asInt(row['update_id']);
       if (updateId == null) continue;
       final messageRaw = row['message'];
-      if (messageRaw is! Map) continue;
-      final message = messageRaw.cast<Object?, Object?>();
-      final text = (message['text'] ?? '').toString().trim();
+      Map<Object?, Object?>? message;
+      String? callbackQueryId;
+      String text = '';
+      Map<Object?, Object?> from = const <Object?, Object?>{};
+      if (messageRaw is Map) {
+        message = messageRaw.cast<Object?, Object?>();
+        text = (message['text'] ?? '').toString().trim();
+        final fromRaw = message['from'];
+        from = fromRaw is Map
+            ? fromRaw.cast<Object?, Object?>()
+            : const <Object?, Object?>{};
+      } else {
+        final callbackRaw = row['callback_query'];
+        if (callbackRaw is! Map) continue;
+        final callback = callbackRaw.cast<Object?, Object?>();
+        callbackQueryId = (callback['id'] ?? '').toString().trim();
+        if (callbackQueryId.isEmpty) continue;
+        text = (callback['data'] ?? '').toString().trim();
+        final callbackFromRaw = callback['from'];
+        from = callbackFromRaw is Map
+            ? callbackFromRaw.cast<Object?, Object?>()
+            : const <Object?, Object?>{};
+        final callbackMessageRaw = callback['message'];
+        if (callbackMessageRaw is! Map) continue;
+        message = callbackMessageRaw.cast<Object?, Object?>();
+      }
       if (text.isEmpty) continue;
       final chatRaw = message['chat'];
       if (chatRaw is! Map) continue;
       final chat = chatRaw.cast<Object?, Object?>();
       final chatId = (chat['id'] ?? '').toString().trim();
       if (chatId.isEmpty) continue;
-      final fromRaw = message['from'];
-      final from = fromRaw is Map
-          ? fromRaw.cast<Object?, Object?>()
-          : const <Object?, Object?>{};
       final replyToRaw = message['reply_to_message'];
       final replyTo = replyToRaw is Map
           ? replyToRaw.cast<Object?, Object?>()
@@ -275,6 +309,7 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
       updates.add(
         TelegramBridgeInboundMessage(
           updateId: updateId,
+          callbackQueryId: callbackQueryId,
           messageId: _asInt(message['message_id']),
           chatId: chatId,
           chatType: (chat['type'] ?? '').toString().trim(),
@@ -303,6 +338,42 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
     }
     updates.sort((a, b) => a.updateId.compareTo(b.updateId));
     return updates;
+  }
+
+  @override
+  Future<bool> answerCallbackQuery({
+    required String callbackQueryId,
+    String? text,
+  }) async {
+    if (!isConfigured || callbackQueryId.trim().isEmpty) {
+      return false;
+    }
+    final endpoint = Uri.https(
+      'api.telegram.org',
+      '/bot${botToken.trim()}/answerCallbackQuery',
+    );
+    try {
+      final response = await client
+          .post(
+            endpoint,
+            headers: const {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({
+              'callback_query_id': callbackQueryId.trim(),
+              if ((text ?? '').trim().isNotEmpty) 'text': text!.trim(),
+            }),
+          )
+          .timeout(requestTimeout);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return false;
+      }
+      final decoded = jsonDecode(response.body);
+      return decoded is Map && decoded['ok'] == true;
+    } catch (_) {
+      return false;
+    }
   }
 
   int? _asInt(Object? value) {

@@ -79,4 +79,194 @@ void main() {
     expect(find.text('EMP-442'), findsNothing);
     expect(find.text('No guards match current filters.'), findsNothing);
   });
+
+  testWidgets('guards page applies initial site filter from routing', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: GuardsPage(
+          events: <DispatchEvent>[],
+          initialSiteFilter: 'Blue Ridge Security',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sipho Ndlovu'), findsWidgets);
+    expect(find.text('EMP-442'), findsWidgets);
+    expect(find.text('EMP-441'), findsNothing);
+  });
+
+  testWidgets('guards page routes schedule and report actions', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    String? openedReportSiteId;
+    var openedSchedule = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GuardsPage(
+          events: const <DispatchEvent>[],
+          onOpenGuardSchedule: () {
+            openedSchedule = true;
+          },
+          onOpenGuardReportsForSite: (siteId) {
+            openedReportSiteId = siteId;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Manage Schedule'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Export Report'));
+    await tester.pumpAndSettle();
+
+    expect(openedSchedule, isTrue);
+    expect(openedReportSiteId, 'WTF-MAIN');
+  });
+
+  testWidgets('guards page opens message handoff and jumps to client lane', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    String? openedClientLaneSiteId;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GuardsPage(
+          events: const <DispatchEvent>[],
+          initialSiteFilter: 'Blue Ridge Security',
+          onOpenClientLaneForSite: (siteId) {
+            openedClientLaneSiteId = siteId;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final messageButton = find.widgetWithText(OutlinedButton, 'Message').first;
+    await tester.ensureVisible(messageButton);
+    await tester.tap(messageButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Message Guard Lane'), findsOneWidget);
+    expect(find.text('SMS fallback standby'), findsOneWidget);
+
+    await tester.tap(find.text('Open Client Lane'));
+    await tester.pumpAndSettle();
+
+    expect(openedClientLaneSiteId, 'BLR-MAIN');
+  });
+
+  testWidgets('guards page stages voip call through callback', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    String? stagedGuardId;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GuardsPage(
+          events: const <DispatchEvent>[],
+          onStageGuardVoipCall: (guardId, guardName, siteId, phone) async {
+            stagedGuardId = guardId;
+            return 'staged $guardName';
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final callButton = find.widgetWithText(OutlinedButton, 'Call').first;
+    await tester.ensureVisible(callButton);
+    await tester.tap(callButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Voice Call Staging'), findsOneWidget);
+
+    await tester.tap(find.text('Stage VoIP Call'));
+    await tester.pumpAndSettle();
+
+    expect(stagedGuardId, 'GRD-441');
+    expect(find.text('staged Thabo Mokoena'), findsOneWidget);
+  });
+
+  testWidgets('guards page shows disabled readiness for unavailable actions', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      const MaterialApp(home: GuardsPage(events: <DispatchEvent>[])),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.widgetWithText(OutlinedButton, 'Export Report'),
+          )
+          .onPressed,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, 'Manage Schedule'),
+          )
+          .onPressed,
+      isNull,
+    );
+
+    final messageButton = find.widgetWithText(OutlinedButton, 'Message').first;
+    await tester.ensureVisible(messageButton);
+    await tester.tap(messageButton);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('Client lane routing is not connected in this session'),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, 'Open Client Lane'),
+          )
+          .onPressed,
+      isNull,
+    );
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Copy Contact'));
+    await tester.pumpAndSettle();
+
+    final callButton = find.widgetWithText(OutlinedButton, 'Call').first;
+    await tester.ensureVisible(callButton);
+    await tester.tap(callButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('VoIP offline'), findsOneWidget);
+    expect(
+      find.textContaining('VoIP staging is not connected in this session'),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, 'Stage VoIP Call'),
+          )
+          .onPressed,
+      isNull,
+    );
+  });
 }

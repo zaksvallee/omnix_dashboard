@@ -218,7 +218,10 @@ void main() {
     expect(requestUri.queryParameters['offset'], '123');
     expect(requestUri.queryParameters['limit'], '40');
     expect(requestUri.queryParameters['timeout'], '0');
-    expect(requestUri.queryParameters['allowed_updates'], '["message"]');
+    expect(
+      requestUri.queryParameters['allowed_updates'],
+      '["message","callback_query"]',
+    );
     expect(updates, hasLength(2));
     expect(updates[0].updateId, 2001);
     expect(updates[0].fromIsBot, isTrue);

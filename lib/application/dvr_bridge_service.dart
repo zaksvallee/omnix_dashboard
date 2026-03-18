@@ -30,6 +30,8 @@ class UnconfiguredDvrBridgeService implements DvrBridgeService {
 }
 
 class HttpDvrBridgeService implements DvrBridgeService {
+  static const Duration _alertStreamIdleWindow = Duration(seconds: 8);
+
   final DvrProviderProfile profile;
   final Uri eventsUri;
   final DvrHttpAuthMode authMode;
@@ -151,7 +153,7 @@ class HttpDvrBridgeService implements DvrBridgeService {
 
     void armIdleTimer() {
       idleTimer?.cancel();
-      idleTimer = Timer(const Duration(seconds: 2), () => finish());
+      idleTimer = Timer(_alertStreamIdleWindow, () => finish());
     }
 
     subscription = stream.listen(

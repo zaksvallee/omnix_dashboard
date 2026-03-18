@@ -53,6 +53,7 @@ class ClientIntelligenceReportsPage extends StatefulWidget {
   final ReportShellState reportShellState;
   final ValueChanged<ReportShellState>? onReportShellStateChanged;
   final ValueChanged<ReportPreviewRequest>? onRequestPreview;
+  final void Function(String clientId, String siteId)? onOpenGovernanceForScope;
   final void Function(String clientId, String siteId, String partnerLabel)?
   onOpenGovernanceForPartnerScope;
   final void Function(List<String> eventIds, String selectedEventId)?
@@ -71,6 +72,7 @@ class ClientIntelligenceReportsPage extends StatefulWidget {
     this.reportShellState = const ReportShellState(),
     this.onReportShellStateChanged,
     this.onRequestPreview,
+    this.onOpenGovernanceForScope,
     this.onOpenGovernanceForPartnerScope,
     this.onOpenEventsForScope,
   });
@@ -96,6 +98,21 @@ class _ClientIntelligenceReportsPageState
     store: widget.store,
     sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
   );
+
+  VoidCallback? _openGovernanceScopeAction({
+    String clientId = '',
+    String siteId = '',
+  }) {
+    final scopedCallback = widget.onOpenGovernanceForScope;
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    if (scopedCallback != null &&
+        normalizedClientId.isNotEmpty &&
+        normalizedSiteId.isNotEmpty) {
+      return () => scopedCallback(normalizedClientId, normalizedSiteId);
+    }
+    return null;
+  }
 
   @override
   void initState() {
@@ -792,7 +809,7 @@ class _ClientIntelligenceReportsPageState
                 const SizedBox(height: 6),
                 Text(
                   latestPoint?.row.summaryLine ??
-                      'No morning partner scorecard data has been recorded yet for this scope.',
+                      'Morning partner scorecard data has not landed for this scope yet.',
                   style: GoogleFonts.inter(
                     color: const Color(0xFF9CB2D1),
                     fontSize: 10,
@@ -1668,7 +1685,7 @@ class _ClientIntelligenceReportsPageState
                   ] else ...[
                     const SizedBox(height: 8),
                     Text(
-                      'No visitor or site-activity signals have been recorded for this scope yet.',
+                      'This scope is quiet so far. Visitor and site-activity signals will appear here once they land.',
                       style: GoogleFonts.inter(
                         color: const Color(0xFF8EA4C2),
                         fontSize: 10,
@@ -2058,7 +2075,7 @@ class _ClientIntelligenceReportsPageState
                   const SizedBox(height: 6),
                   if (receiptRows.isEmpty)
                     Text(
-                      'No generated receipts were recorded for this shift.',
+                      'No generated receipts landed in this shift window.',
                       style: GoogleFonts.inter(
                         color: const Color(0xFF8EA4C2),
                         fontSize: 10,
@@ -2090,7 +2107,7 @@ class _ClientIntelligenceReportsPageState
                   const SizedBox(height: 6),
                   if (chains.isEmpty)
                     Text(
-                      'No partner dispatch chains were recorded for this shift.',
+                      'No partner dispatch chains formed during this shift window.',
                       style: GoogleFonts.inter(
                         color: const Color(0xFF8EA4C2),
                         fontSize: 10,
@@ -2229,6 +2246,27 @@ class _ClientIntelligenceReportsPageState
               fontWeight: FontWeight.w600,
             ),
           ),
+          if (_openGovernanceScopeAction(
+                clientId: widget.selectedClient,
+                siteId: widget.selectedSite,
+              ) !=
+              null) ...[
+            const SizedBox(height: 10),
+            _actionButton(
+              key: const ValueKey('reports-receipt-policy-open-governance'),
+              label: 'Open Governance Scope',
+              icon: Icons.verified_user_rounded,
+              onTap: () {
+                _openGovernanceScopeAction(
+                  clientId: widget.selectedClient,
+                  siteId: widget.selectedSite,
+                )?.call();
+                _showReceiptActionFeedback(
+                  'Opening Governance for ${widget.selectedSite}.',
+                );
+              },
+            ),
+          ],
         ],
       ),
     );
@@ -2281,16 +2319,45 @@ class _ClientIntelligenceReportsPageState
               ),
             ),
           const SizedBox(height: 10),
-          _actionButton(
-            key: const ValueKey('reports-receipt-policy-entry-context-clear'),
-            label: 'Dismiss Context',
-            icon: Icons.subdirectory_arrow_left_rounded,
-            onTap: () {
-              clearReportEntryContext();
-              _showReceiptActionFeedback(
-                'Governance branding-drift context cleared.',
-              );
-            },
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (_openGovernanceScopeAction(
+                    clientId: widget.selectedClient,
+                    siteId: widget.selectedSite,
+                  ) !=
+                  null)
+                _actionButton(
+                  key: const ValueKey(
+                    'reports-receipt-policy-entry-context-open-governance',
+                  ),
+                  label: 'Open Governance Scope',
+                  icon: Icons.verified_user_rounded,
+                  onTap: () {
+                    _openGovernanceScopeAction(
+                      clientId: widget.selectedClient,
+                      siteId: widget.selectedSite,
+                    )?.call();
+                    _showReceiptActionFeedback(
+                      'Opening Governance for ${widget.selectedSite}.',
+                    );
+                  },
+                ),
+              _actionButton(
+                key: const ValueKey(
+                  'reports-receipt-policy-entry-context-clear',
+                ),
+                label: 'Dismiss Context',
+                icon: Icons.subdirectory_arrow_left_rounded,
+                onTap: () {
+                  clearReportEntryContext();
+                  _showReceiptActionFeedback(
+                    'Governance branding-drift context cleared.',
+                  );
+                },
+              ),
+            ],
           ),
         ],
       ),
@@ -3864,7 +3931,7 @@ class _ClientIntelligenceReportsPageState
 
   String _receiptPolicyTrendReason(List<_ReceiptRow> rows) {
     if (rows.isEmpty) {
-      return 'No generated receipts are available for this client and site.';
+      return 'Receipt history is still forming for this client and site.';
     }
     if (rows.length == 1) {
       return 'This is the first recorded receipt policy snapshot for this client and site.';
@@ -3994,7 +4061,7 @@ class _ClientIntelligenceReportsPageState
 
   String _receiptInvestigationTrendReason(List<_ReceiptRow> rows) {
     if (rows.isEmpty) {
-      return 'No receipt investigation provenance is available for this client and site.';
+      return 'Receipt investigation provenance has not been captured for this client and site yet.';
     }
     if (rows.length == 1) {
       return 'This is the first recorded receipt investigation snapshot for this client and site.';
@@ -4503,9 +4570,13 @@ class _ClientIntelligenceReportsPageState
         ],
         const SizedBox(height: 8),
         if (rows.isEmpty)
-          const OnyxEmptyState(label: 'No ReportGenerated receipts yet.')
+          const OnyxEmptyState(
+            label: 'Live report receipts will appear here once this lane starts publishing them.',
+          )
         else if (filteredRows.isEmpty)
-          const OnyxEmptyState(label: 'No receipts match the selected filter.')
+          const OnyxEmptyState(
+            label: 'No receipts fit the current filter right now.',
+          )
         else
           for (var i = 0; i < filteredRows.length; i++) ...[
             _receiptCard(filteredRows[i], hasLiveReceipts: hasLiveReceipts),
@@ -6441,7 +6512,7 @@ class _ClientIntelligenceReportsPageState
         unknownVehicleSignals: 0,
         longPresenceSignals: 0,
         guardInteractionSignals: 0,
-        summaryLine: 'No visitor or site-activity signals detected.',
+        summaryLine: 'No visitor or site-activity signals landed in this window.',
       );
     }
     DateTime? startUtc;
@@ -6549,11 +6620,12 @@ class _ClientIntelligenceReportsPageState
               'eventIds': currentPoint.eventIds,
               ...buildReviewCommandPair(
                 reportDate: currentPoint.reportDate,
-                reviewCommandBuilder: (reportDate) => _siteActivityReviewCommand(
-                  clientId: clientId,
-                  siteId: siteId,
-                  reportDate: reportDate,
-                ),
+                reviewCommandBuilder: (reportDate) =>
+                    _siteActivityReviewCommand(
+                      clientId: clientId,
+                      siteId: siteId,
+                      reportDate: reportDate,
+                    ),
                 caseFileCommandBuilder: (reportDate) =>
                     _siteActivityCaseFileCommand(
                       clientId: clientId,
@@ -6571,11 +6643,12 @@ class _ClientIntelligenceReportsPageState
               'eventIds': point.eventIds,
               ...buildReviewCommandPair(
                 reportDate: point.reportDate,
-                reviewCommandBuilder: (reportDate) => _siteActivityReviewCommand(
-                  clientId: clientId,
-                  siteId: siteId,
-                  reportDate: reportDate,
-                ),
+                reviewCommandBuilder: (reportDate) =>
+                    _siteActivityReviewCommand(
+                      clientId: clientId,
+                      siteId: siteId,
+                      reportDate: reportDate,
+                    ),
                 caseFileCommandBuilder: (reportDate) =>
                     _siteActivityCaseFileCommand(
                       clientId: clientId,
@@ -7075,8 +7148,8 @@ class _ClientIntelligenceReportsPageState
   String _receiptExportFeedbackPrefix(ReportGenerated event) {
     return _effectiveEntryContextForReceipt(event) ==
             ReportEntryContext.governanceBrandingDrift
-        ? 'Governance receipt'
-        : 'Receipt';
+        ? 'Governance receipt export'
+        : 'Receipt export';
   }
 
   String _receiptMetadataFeedbackPrefix(ReportGenerated event) {
@@ -7106,7 +7179,7 @@ class _ClientIntelligenceReportsPageState
       context: {'event_id': row.event.eventId},
     );
     _showReceiptActionFeedback(
-      '${_receiptExportFeedbackPrefix(row.event)} export copied for ${row.event.eventId}.',
+      '${_receiptExportFeedbackPrefix(row.event)} copied for command review: ${row.event.eventId}.',
     );
   }
 
@@ -7117,7 +7190,7 @@ class _ClientIntelligenceReportsPageState
         context: {'event_id': row.event.eventId},
       );
       _showReceiptActionFeedback(
-        'Sample receipt preview unavailable. Generate a live report first.',
+        'Receipt preview will unlock once the first live report lands in this lane.',
       );
       return;
     }
@@ -7148,7 +7221,7 @@ class _ClientIntelligenceReportsPageState
         context: {'event_id': row.event.eventId},
       );
       _showReceiptActionFeedback(
-        '${_receiptMetadataFeedbackPrefix(row.event)} copied for ${row.event.eventId}.',
+        '${_receiptMetadataFeedbackPrefix(row.event)} copied for command review: ${row.event.eventId}.',
       );
       return;
     }

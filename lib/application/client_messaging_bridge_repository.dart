@@ -195,6 +195,38 @@ class SupabaseClientMessagingBridgeRepository {
     return scopes;
   }
 
+  Future<List<String>> readActiveContactPhones({
+    required String clientId,
+    String? siteId,
+  }) async {
+    final normalizedClientId = clientId.trim();
+    if (normalizedClientId.isEmpty) {
+      return const <String>[];
+    }
+    final normalizedSiteId = siteId?.trim() ?? '';
+    final rowsRaw = await client
+        .from('client_contacts')
+        .select('site_id, phone')
+        .eq('client_id', normalizedClientId)
+        .eq('is_active', true)
+        .order('created_at');
+    final rows = List<Map<String, dynamic>>.from(rowsRaw);
+    final phones = <String>{};
+    for (final row in rows) {
+      final rowSiteId = (row['site_id'] ?? '').toString().trim();
+      if (normalizedSiteId.isNotEmpty &&
+          rowSiteId.isNotEmpty &&
+          rowSiteId != normalizedSiteId) {
+        continue;
+      }
+      final phone = (row['phone'] ?? '').toString().trim();
+      if (phone.isNotEmpty) {
+        phones.add(phone);
+      }
+    }
+    return phones.toList(growable: false);
+  }
+
   Future<int> deactivateTelegramEndpointsByChat({
     required String clientId,
     required String siteId,
@@ -222,7 +254,8 @@ class SupabaseClientMessagingBridgeRepository {
     final endpointIds = rows
         .where((row) {
           final rowSiteId = (row['site_id'] ?? '').toString().trim();
-          final inScope = rowSiteId == normalizedSiteId ||
+          final inScope =
+              rowSiteId == normalizedSiteId ||
               (includeGlobalScope && rowSiteId.isEmpty);
           if (!inScope) return false;
           final rowThreadRaw = (row['telegram_thread_id'] ?? '')
@@ -242,10 +275,7 @@ class SupabaseClientMessagingBridgeRepository {
     for (final endpointId in endpointIds) {
       await client
           .from('client_messaging_endpoints')
-          .update({
-            'is_active': false,
-            'last_delivery_status': 'disabled',
-          })
+          .update({'is_active': false, 'last_delivery_status': 'disabled'})
           .eq('id', endpointId)
           .eq('client_id', normalizedClientId);
     }
@@ -285,10 +315,7 @@ class SupabaseClientMessagingBridgeRepository {
     for (final endpointId in endpointIds) {
       await client
           .from('client_messaging_endpoints')
-          .update({
-            'is_active': false,
-            'last_delivery_status': 'disabled',
-          })
+          .update({'is_active': false, 'last_delivery_status': 'disabled'})
           .eq('id', endpointId)
           .eq('client_id', normalizedClientId);
     }

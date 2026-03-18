@@ -58,9 +58,17 @@ void main() {
         canonicalHash: 'hash-int-1',
       ),
     ];
+    String? openedLedgerFocus;
 
     await tester.pumpWidget(
-      MaterialApp(home: EventsReviewPage(events: events)),
+      MaterialApp(
+        home: EventsReviewPage(
+          events: events,
+          onOpenLedger: (focusReference) {
+            openedLedgerFocus = focusReference;
+          },
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -88,7 +96,7 @@ void main() {
     expect(ledgerAction.onTap, isNotNull);
     ledgerAction.onTap!();
     await tester.pump();
-    expect(find.text('Open Sovereign Ledger to inspect INT-1.'), findsWidgets);
+    expect(openedLedgerFocus, 'INT-1');
   });
 
   testWidgets('events review exposes DVR source filter and applies it', (
@@ -1751,6 +1759,117 @@ void main() {
     expect(governanceOpened, isTrue);
   });
 
+  testWidgets(
+    'events review opens scoped governance for single-site readiness focus',
+    (tester) async {
+      String? openedClientId;
+      String? openedSiteId;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: EventsReviewPage(
+            events: <DispatchEvent>[
+              IntelligenceReceived(
+                eventId: 'READY-SCOPE-1',
+                sequence: 1,
+                version: 1,
+                occurredAt: DateTime.utc(2026, 3, 17, 1, 0),
+                intelligenceId: 'READY-SCOPE-INTEL-1',
+                provider: 'frigate',
+                sourceType: 'cctv',
+                externalId: 'ready-scope-1',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-ALPHA',
+                headline: 'Perimeter pressure building',
+                summary: 'Repeated movement detected near the east wall.',
+                riskScore: 93,
+                canonicalHash: 'hash-ready-scope-1',
+              ),
+            ],
+            sceneReviewByIntelligenceId: {
+              'READY-SCOPE-INTEL-1': MonitoringSceneReviewRecord(
+                intelligenceId: 'READY-SCOPE-INTEL-1',
+                sourceLabel: 'openai:gpt-5.4-mini',
+                postureLabel: 'boundary escalation',
+                decisionLabel: 'Escalation Candidate',
+                decisionSummary: 'Escalated due to repeat boundary pressure.',
+                summary: 'Repeated movement near the east wall.',
+                reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 2),
+              ),
+            },
+            initialScopedEventIds: ['READY-SCOPE-1'],
+            initialSelectedEventId: 'READY-SCOPE-1',
+            initialScopedMode: 'readiness',
+            onOpenGovernanceForScope: (clientId, siteId) {
+              openedClientId = clientId;
+              openedSiteId = siteId;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final openGovernanceAction = tester.widget<InkWell>(
+        find.byKey(
+          const ValueKey('events-readiness-open-governance-action'),
+          skipOffstage: false,
+        ),
+      );
+      openGovernanceAction.onTap!();
+      await tester.pump();
+
+      expect(openedClientId, 'CLIENT-001');
+      expect(openedSiteId, 'SITE-ALPHA');
+    },
+  );
+
+  testWidgets(
+    'events review focused fallback keeps scoped lane identity',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 1100));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final events = <DispatchEvent>[
+        IntelligenceReceived(
+          eventId: 'READY-SCOPE-1',
+          sequence: 1,
+          version: 1,
+          occurredAt: DateTime.utc(2026, 3, 18, 7, 0),
+          intelligenceId: 'INTEL-READY-SCOPE-1',
+          provider: 'hikvision_dvr_monitor_only',
+          sourceType: 'dvr',
+          externalId: 'ext-ready-scope-1',
+          clientId: 'CLIENT-001',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-ALPHA',
+          headline: 'Alpha readiness motion',
+          summary: 'Movement was detected near the Alpha perimeter.',
+          riskScore: 78,
+          canonicalHash: 'hash-ready-scope-1',
+        ),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: EventsReviewPage(
+            events: events,
+            initialScopedEventIds: const ['READY-SCOPE-1'],
+            initialSelectedEventId: 'READY-SCOPE-MISSING',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'Scoped placeholder loaded for READY-SCOPE-MISSING on CLIENT-001/SITE-ALPHA. This row will auto-link when live ingest publishes the same event ID.',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
   testWidgets('events review shows dedicated synthetic investigation banner', (
     tester,
   ) async {
@@ -2058,10 +2177,7 @@ void main() {
       copiedClipboardPayload,
       contains('previous_shadow_tomorrow_urgency_summary,"'),
     );
-    expect(
-      copiedClipboardPayload,
-      contains('promotion_pressure_summary,""'),
-    );
+    expect(copiedClipboardPayload, contains('promotion_pressure_summary,""'));
     expect(copiedClipboardPayload, contains('shadow_validation_summary,""'));
     expect(copiedClipboardPayload, contains('learning_summary,"'));
     expect(copiedClipboardPayload, contains('learning_memory_summary,"'));
@@ -2362,14 +2478,8 @@ void main() {
       copiedClipboardPayload,
       contains('"promotionDecisionSummary": "Accepted toward '),
     );
-    expect(
-      copiedClipboardPayload,
-      contains('"promotionPressureSummary": "'),
-    );
-    expect(
-      copiedClipboardPayload,
-      contains('"promotionExecutionSummary": "'),
-    );
+    expect(copiedClipboardPayload, contains('"promotionPressureSummary": "'));
+    expect(copiedClipboardPayload, contains('"promotionExecutionSummary": "'));
     expect(
       copiedClipboardPayload,
       contains('"promotionCurrentValidationStatus": "'),

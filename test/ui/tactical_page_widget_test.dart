@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
+import 'package:omnix_dashboard/domain/events/decision_created.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/ui/tactical_page.dart';
 import 'package:omnix_dashboard/ui/video_fleet_scope_health_sections.dart';
@@ -743,6 +744,65 @@ void main() {
     },
   );
 
+  testWidgets('tactical page narrows fleet health to the scoped lane', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TacticalPage(
+          events: const [],
+          initialScopeClientId: 'CLIENT-B',
+          initialScopeSiteId: 'SITE-B',
+          fleetScopeHealth: const [
+            VideoFleetScopeHealthView(
+              clientId: 'CLIENT-A',
+              siteId: 'SITE-A',
+              siteName: 'MS Vallee Residence',
+              endpointLabel: '192.168.8.105',
+              statusLabel: 'LIVE',
+              watchLabel: 'ACTIVE',
+              recentEvents: 2,
+              lastSeenLabel: '21:14 UTC',
+              freshnessLabel: 'Fresh',
+              isStale: false,
+              alertCount: 1,
+              latestIncidentReference: 'INT-VALLEE-1',
+            ),
+            VideoFleetScopeHealthView(
+              clientId: 'CLIENT-B',
+              siteId: 'SITE-B',
+              siteName: 'Beta Watch',
+              endpointLabel: '192.168.8.106',
+              statusLabel: 'WATCH READY',
+              watchLabel: 'SCHEDULED',
+              recentEvents: 0,
+              lastSeenLabel: 'idle',
+              freshnessLabel: 'Idle',
+              isStale: false,
+              watchWindowLabel: '18:00-06:00',
+              watchWindowStateLabel: 'IN WINDOW',
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('tactical-scope-banner')), findsOneWidget);
+    expect(find.text('Scope focus active'), findsOneWidget);
+    expect(find.text('CLIENT-B/SITE-B'), findsWidgets);
+    expect(find.text('Beta Watch'), findsOneWidget);
+    expect(find.text('MS Vallee Residence'), findsNothing);
+    expect(
+      find.text('ACTIONABLE (0) • No incident-backed fleet scopes right now'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('WATCH-ONLY (1) • Watch scopes awaiting incident context'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('temporary identity summary opens incident-backed scope detail', (
     tester,
   ) async {
@@ -815,7 +875,7 @@ void main() {
     );
     expect(
       find.textContaining(
-        'Showing fleet scopes where ONYX matched a one-time approved face or plate. Each scope shows the approval expiry when available. Soonest expiry: MS Vallee Residence Temporary approval expires in',
+        'Showing fleet scopes where ONYX matched a one-time approved face or plate. Each scope shows the approval expiry when available.',
       ),
       findsOneWidget,
     );
@@ -857,6 +917,113 @@ void main() {
     expect(tappedTacticalSiteId, 'SITE-A');
     expect(tappedTacticalReference, 'INT-VALLEE-1');
   });
+
+  testWidgets('tactical supports client-wide scope focus', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TacticalPage(
+          events: const [],
+          initialScopeClientId: 'CLIENT-A',
+          initialScopeSiteId: '',
+          fleetScopeHealth: const [
+            VideoFleetScopeHealthView(
+              clientId: 'CLIENT-A',
+              siteId: 'SITE-A',
+              siteName: 'MS Vallee Residence',
+              endpointLabel: '192.168.8.105',
+              statusLabel: 'LIVE',
+              watchLabel: 'ACTIVE',
+              recentEvents: 2,
+              lastSeenLabel: '21:14 UTC',
+              freshnessLabel: 'Fresh',
+              isStale: false,
+            ),
+            VideoFleetScopeHealthView(
+              clientId: 'CLIENT-A',
+              siteId: 'SITE-B',
+              siteName: 'MS Sandton Heights',
+              endpointLabel: '192.168.8.106',
+              statusLabel: 'WATCH READY',
+              watchLabel: 'SCHEDULED',
+              recentEvents: 0,
+              lastSeenLabel: 'idle',
+              freshnessLabel: 'Idle',
+              isStale: false,
+            ),
+            VideoFleetScopeHealthView(
+              clientId: 'CLIENT-B',
+              siteId: 'SITE-C',
+              siteName: 'Beta Watch',
+              endpointLabel: '192.168.8.107',
+              statusLabel: 'LIVE',
+              watchLabel: 'ACTIVE',
+              recentEvents: 1,
+              lastSeenLabel: '21:18 UTC',
+              freshnessLabel: 'Fresh',
+              isStale: false,
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('tactical-scope-banner')), findsOneWidget);
+    expect(find.text('CLIENT-A/all sites'), findsOneWidget);
+    expect(
+      find.text('Tactical is focused on this client-wide DVR roll-up.'),
+      findsOneWidget,
+    );
+    expect(find.text('MS Vallee Residence'), findsOneWidget);
+    expect(find.text('MS Sandton Heights'), findsOneWidget);
+    expect(find.text('Beta Watch'), findsNothing);
+  });
+
+  testWidgets(
+    'tactical marks dispatch focus as scope-backed when lane matches',
+    (tester) async {
+      final now = DateTime.now().toUtc();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TacticalPage(
+            focusIncidentReference: 'DSP-4',
+            events: [
+              DecisionCreated(
+                eventId: 'decision-vallee',
+                sequence: 1,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 3)),
+                dispatchId: 'DSP-4',
+                clientId: 'CLIENT-A',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-A',
+              ),
+            ],
+            fleetScopeHealth: const [
+              VideoFleetScopeHealthView(
+                clientId: 'CLIENT-A',
+                siteId: 'SITE-A',
+                siteName: 'MS Vallee Residence',
+                endpointLabel: '192.168.8.105',
+                statusLabel: 'LIVE',
+                watchLabel: 'ACTIVE',
+                recentEvents: 2,
+                lastSeenLabel: '21:14 UTC',
+                freshnessLabel: 'Fresh',
+                isStale: false,
+                latestIncidentReference: 'INT-VALLEE-1',
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Focus • Scope-backed DSP-4'), findsOneWidget);
+      expect(find.text('FOCUS SCOPE-BACKED • DSP-4'), findsOneWidget);
+      expect(find.text('FOCUS SEEDED • DSP-4'), findsNothing);
+    },
+  );
 
   testWidgets('allowlisted identity summary opens incident-backed scope detail', (
     tester,

@@ -45,6 +45,7 @@ class VideoBridgeHealthFormatter {
     required List<NormalizedIntelRecord> records,
     required int attempted,
     required int appended,
+    int skipped = 0,
     required VideoEvidenceProbeSnapshot evidence,
     required VideoBridgeCompactDetail compactDetail,
   }) {
@@ -57,12 +58,17 @@ class VideoBridgeHealthFormatter {
                 : current,
           );
     final latestSummary = latest == null
-        ? 'no events'
-        : compactDetail(latest.summary);
+        ? attempted > 0
+            ? 'awaiting first live signal'
+            : 'no events yet'
+        : appended <= 0 && skipped > 0
+            ? 'known recent signal • ${compactDetail(latest.summary)}'
+            : compactDetail(latest.summary);
     final evidenceLabel = evidence.lastAlert.trim().isEmpty
         ? 'evidence ok ${evidence.verifiedCount}'
         : compactDetail(evidence.lastAlert.trim(), maxLength: 32);
-    return '$appended/$attempted appended • $providerLabel • $latestSummary • $evidenceLabel';
+    final skipLabel = skipped > 0 ? ' • skipped $skipped' : '';
+    return '$appended/$attempted appended$skipLabel • $providerLabel • $latestSummary • $evidenceLabel';
   }
 
   static String evidenceSummary(VideoEvidenceProbeSnapshot evidence) {
