@@ -44,8 +44,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('VIGILANCE MONITOR'), findsOneWidget);
-    expect(find.text('COMPLIANCE ALERTS'), findsOneWidget);
+    expect(find.text('READINESS BLOCKERS'), findsOneWidget);
+    expect(find.text('COMPLIANCE SUMMARY'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -64,8 +64,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('VIGILANCE MONITOR'), findsOneWidget);
-    expect(find.text('COMPLIANCE ALERTS'), findsOneWidget);
+    expect(find.text('READINESS BLOCKERS'), findsOneWidget);
+    expect(find.text('COMPLIANCE SUMMARY'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -140,6 +140,131 @@ void main() {
     expect(openedSelectedEventId, 'evt-scope-1');
   });
 
+  testWidgets('governance quick actions open ledger for the scoped view', (
+    tester,
+  ) async {
+    String? openedClientId;
+    String? openedSiteId;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GovernancePage(
+          events: <DispatchEvent>[
+            IntelligenceReceived(
+              eventId: 'evt-ledger-1',
+              sequence: 1,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 16, 22, 0),
+              intelligenceId: 'intel-ledger-1',
+              provider: 'hikvision_dvr_monitor_only',
+              sourceType: 'dvr',
+              externalId: 'ext-ledger-1',
+              clientId: 'CLIENT-VALLEE',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-VALLEE',
+              cameraId: 'gate-cam',
+              objectLabel: 'person',
+              objectConfidence: 0.95,
+              headline: 'Scoped ledger event',
+              summary: 'Scoped site event',
+              riskScore: 92,
+              snapshotUrl: 'https://edge.example.com/intel-ledger-1.jpg',
+              canonicalHash: 'hash-ledger-1',
+            ),
+          ],
+          initialScopeClientId: 'CLIENT-VALLEE',
+          initialScopeSiteId: 'SITE-VALLEE',
+          onOpenLedgerForScope: (clientId, siteId) {
+            openedClientId = clientId;
+            openedSiteId = siteId;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('governance-quick-view-ledger-button')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('governance-quick-view-ledger-button')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(openedClientId, 'CLIENT-VALLEE');
+    expect(openedSiteId, 'SITE-VALLEE');
+  });
+
+  testWidgets('governance readiness blockers resolve in place', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: GovernancePage(events: <DispatchEvent>[])),
+    );
+    await tester.pumpAndSettle();
+
+    final resolveButtons = find.widgetWithText(TextButton, 'Resolve');
+    expect(resolveButtons, findsNWidgets(2));
+
+    await tester.ensureVisible(resolveButtons.first);
+    final resolveButton = tester.widget<TextButton>(resolveButtons.first);
+    resolveButton.onPressed!.call();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Resolve'), findsOneWidget);
+  });
+
+  testWidgets('governance readiness detail opens scoped events review', (
+    tester,
+  ) async {
+    List<String>? openedEventIds;
+    String? openedSelectedEventId;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GovernancePage(
+          events: <DispatchEvent>[
+            IntelligenceReceived(
+              eventId: 'evt-readiness-1',
+              sequence: 1,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 16, 22, 0),
+              intelligenceId: 'intel-readiness-1',
+              provider: 'hikvision_dvr_monitor_only',
+              sourceType: 'dvr',
+              externalId: 'ext-readiness-1',
+              clientId: 'CLIENT-VALLEE',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-VALLEE',
+              cameraId: 'gate-cam',
+              objectLabel: 'person',
+              objectConfidence: 0.95,
+              headline: 'Scoped readiness event',
+              summary: 'Scoped site event',
+              riskScore: 92,
+              snapshotUrl: 'https://edge.example.com/intel-readiness-1.jpg',
+              canonicalHash: 'hash-readiness-1',
+            ),
+          ],
+          initialScopeClientId: 'CLIENT-VALLEE',
+          initialScopeSiteId: 'SITE-VALLEE',
+          onOpenEventsForScope: (eventIds, selectedEventId) {
+            openedEventIds = eventIds;
+            openedSelectedEventId = selectedEventId;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('View Readiness Detail'));
+    await tester.tap(find.text('View Readiness Detail'));
+    await tester.pumpAndSettle();
+
+    expect(openedEventIds, <String>['evt-readiness-1']);
+    expect(openedSelectedEventId, 'evt-readiness-1');
+  });
+
   testWidgets(
     'governance page shows global readiness metric from scene reviews',
     (tester) async {
@@ -188,14 +313,14 @@ void main() {
 
       expect(
         find.byKey(const ValueKey('governance-metric-global-readiness')),
-        findsOneWidget,
+        findsWidgets,
       );
-      expect(find.text('Global Readiness'), findsOneWidget);
+      expect(find.text('Global Readiness'), findsWidgets);
       expect(
         find.byKey(const ValueKey('governance-metric-synthetic-war-room')),
-        findsOneWidget,
+        findsWidgets,
       );
-      expect(find.text('Synthetic War-Room'), findsOneWidget);
+      expect(find.text('Synthetic War-Room'), findsWidgets);
     },
   );
 
@@ -381,19 +506,19 @@ void main() {
       find.textContaining(
         'shadow Contractors moved floor to floor in office park',
       ),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(
       find.textContaining(
         'shadow bias HARDEN ACCESS • SITE-OFFICE • Contractors moved floor to floor in office park • x1',
       ),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(
       find.textContaining(
         'tomorrow shadow HARDEN ACCESS • SITE-OFFICE • Contractors moved floor to floor in office park • x1',
       ),
-      findsOneWidget,
+      findsWidgets,
     );
 
     final readinessTrendCard = find.byKey(
@@ -472,8 +597,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('fire playbook active'), findsOneWidget);
-    expect(find.textContaining('fire rehearsal recommended'), findsOneWidget);
+    expect(find.textContaining('fire playbook active'), findsWidgets);
+    expect(find.textContaining('fire rehearsal recommended'), findsWidgets);
   });
 
   testWidgets('governance page highlights historical readiness focus mode', (
@@ -1610,17 +1735,17 @@ void main() {
       find.textContaining('Override Reasons: PSIRA expired (2)'),
       findsOneWidget,
     );
-    expect(find.text('Receipt Policy'), findsOneWidget);
-    expect(find.text('2 reports'), findsOneWidget);
+    expect(find.text('Receipt Policy'), findsWidgets);
+    expect(find.text('2 reports'), findsWidgets);
     expect(
       find.textContaining(
         '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
       ),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(
       find.textContaining('1 receipt used custom branding override'),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(find.text('Receipt branding drift (7 days)'), findsOneWidget);
     expect(
@@ -1736,19 +1861,19 @@ void main() {
       find.textContaining(
         'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
       ),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(
       find.textContaining(
         'Model 5 • Alerts 2 • Repeat 2 • Escalations 2 • Top escalation candidate',
       ),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(
       find.textContaining(
         'Action mix: 2 alerts • 2 repeat updates • 2 escalations • 1 suppressed review',
       ),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(
       find.textContaining(
@@ -1769,7 +1894,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Vehicle Throughput'), findsOneWidget);
-    expect(find.text('Partner Progression'), findsOneWidget);
+    expect(find.text('Partner Progression'), findsWidgets);
     expect(
       find.text(
         '15 completed visits reached EXIT • 1 incomplete visit stalled at SERVICE',
@@ -1802,27 +1927,27 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.textContaining('Partner Alpha • DSP-42'), findsOneWidget);
+    expect(find.textContaining('Partner Alpha • DSP-42'), findsWidgets);
     expect(
       find.text('Workflow: ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)'),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(
       find.text('SLA: accepted in 5.0m • on site in 13.0m'),
-      findsOneWidget,
+      findsWidgets,
     );
-    expect(find.text('STRONG'), findsOneWidget);
+    expect(find.text('STRONG'), findsWidgets);
     expect(
       find.text(
         'Scorecard: Partner reached ALL CLEAR inside target acceptance and on-site windows.',
       ),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(find.textContaining('CLIENT-1/SITE-42'), findsWidgets);
     expect(find.textContaining('Incomplete visit • CA123456'), findsOneWidget);
     expect(
       find.text('Workflow: ENTRY -> SERVICE (INCOMPLETE)'),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(find.text('Copy Morning JSON'), findsOneWidget);
     expect(find.text('Download Morning CSV'), findsOneWidget);
@@ -2931,7 +3056,7 @@ void main() {
     expect(find.text('1 strong response'), findsWidgets);
     expect(find.text('Avg accept 4.0m • Avg on site 12.0m'), findsOneWidget);
     expect(find.text('IMPROVING'), findsOneWidget);
-    expect(find.textContaining('Partner Alpha • DSP-101'), findsOneWidget);
+    expect(find.textContaining('Partner Alpha • DSP-101'), findsWidgets);
     expect(find.textContaining('Partner Beta • DSP-201'), findsNothing);
   });
 
@@ -3124,8 +3249,8 @@ void main() {
       find.textContaining('CLIENT-2/SITE-77 • Partner Beta'),
       findsNothing,
     );
-    expect(find.textContaining('Partner Alpha • DSP-101'), findsOneWidget);
-    expect(find.textContaining('Partner Alpha • DSP-102'), findsOneWidget);
+    expect(find.textContaining('Partner Alpha • DSP-101'), findsWidgets);
+    expect(find.textContaining('Partner Alpha • DSP-102'), findsWidgets);
     expect(find.textContaining('Partner Beta • DSP-201'), findsNothing);
   });
 
@@ -3405,7 +3530,7 @@ void main() {
     expect(find.text('1 strong response'), findsWidgets);
     expect(find.text('Avg accept 4.0m • Avg on site 12.0m'), findsOneWidget);
     expect(find.text('IMPROVING'), findsOneWidget);
-    expect(find.textContaining('Partner Alpha • DSP-101'), findsOneWidget);
+    expect(find.textContaining('Partner Alpha • DSP-101'), findsWidgets);
     expect(find.textContaining('Partner Beta • DSP-201'), findsNothing);
   });
 

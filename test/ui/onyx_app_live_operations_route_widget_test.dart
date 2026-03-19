@@ -296,6 +296,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('clients-retry-push-sync-action')),
+      );
+      await tester.pumpAndSettle();
+
       await tester.tap(
         find.byKey(const ValueKey('clients-retry-push-sync-action')),
       );
@@ -311,6 +316,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('CLIENT LANE WATCH'), findsOneWidget);
+      await tester.ensureVisible(find.text('Latest SMS fallback').first);
+      await tester.pumpAndSettle();
       expect(find.text('Latest SMS fallback'), findsWidgets);
       expect(
         find.textContaining(

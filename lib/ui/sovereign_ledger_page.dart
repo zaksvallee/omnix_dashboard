@@ -101,6 +101,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
     );
 
     final verifiedEntries = list.where((entry) => entry.verified).length;
+    final pendingEntries = list.length - verifiedEntries;
 
     return OnyxPageScaffold(
       child: Padding(
@@ -117,65 +118,9 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                   verifiedEntries: verifiedEntries,
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  'SOVEREIGN LEDGER',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFFEAF1FB),
-                    fontSize: 49,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.8,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final maxWidth = constraints.maxWidth;
-                    final cardWidth = maxWidth < 760
-                        ? maxWidth
-                        : maxWidth < 1160
-                        ? (maxWidth - 8) / 2
-                        : (maxWidth - 24) / 4;
-                    return Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _summaryCard(
-                          width: cardWidth,
-                          label: 'CHAIN INTEGRITY',
-                          value: _integrity.label,
-                          valueColor: _integrity.color,
-                          icon: _integrity == _ChainIntegrity.intact
-                              ? Icons.verified_rounded
-                              : Icons.warning_amber_rounded,
-                          iconColor: _integrity.color,
-                        ),
-                        _summaryCard(
-                          width: cardWidth,
-                          label: 'VISIBLE ENTRIES',
-                          value: '${list.length}',
-                          valueColor: const Color(0xFFEAF1FB),
-                          icon: Icons.menu_book_rounded,
-                          iconColor: const Color(0xFF22D3EE),
-                        ),
-                        _summaryCard(
-                          width: cardWidth,
-                          label: 'LATEST SEQUENCE',
-                          value: '#${list.first.sequence}',
-                          valueColor: const Color(0xFFEAF1FB),
-                          icon: Icons.tag_rounded,
-                          iconColor: const Color(0xFF22D3EE),
-                        ),
-                        _summaryCard(
-                          width: cardWidth,
-                          label: 'VERIFIED ENTRIES',
-                          value: '$verifiedEntries',
-                          valueColor: const Color(0xFF10B981),
-                          icon: Icons.shield_outlined,
-                          iconColor: const Color(0xFF22D3EE),
-                        ),
-                      ],
-                    );
-                  },
+                _integritySummaryBar(
+                  verifiedEntries: verifiedEntries,
+                  pendingEntries: pendingEntries,
                 ),
                 const SizedBox(height: 8),
                 if (hasFocusReference) ...[
@@ -681,59 +626,76 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
     return [seeded, ...entries];
   }
 
-  Widget _summaryCard({
-    required double width,
-    required String label,
-    required String value,
-    required Color valueColor,
-    required IconData icon,
-    required Color iconColor,
+  Widget _integritySummaryBar({
+    required int verifiedEntries,
+    required int pendingEntries,
   }) {
     return Container(
-      width: width,
-      padding: const EdgeInsets.all(10),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E141C),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF1F2B3A)),
+        color: const Color(0xFF101820),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF223244)),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 10,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF6F839C),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.7,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: GoogleFonts.inter(
-                    color: valueColor,
-                    fontSize: 54,
-                    height: 0.95,
-                    fontWeight: FontWeight.w300,
-                  ),
-                ),
-              ],
+          Text(
+            'CHAIN INTEGRITY:',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF7F91A8),
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.0,
             ),
           ),
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: const Color(0xFF142132),
-              borderRadius: BorderRadius.circular(8),
+          _statusPill(
+            icon: Icons.verified_rounded,
+            label: '$verifiedEntries Verified',
+            accent: _ChainIntegrity.intact.color,
+          ),
+          _statusPill(
+            icon: Icons.schedule_rounded,
+            label: '$pendingEntries Pending',
+            accent: _ChainIntegrity.pending.color,
+          ),
+          _statusPill(
+            icon: Icons.filter_alt_outlined,
+            label: 'Incident: ${widget.initialFocusReference.trim().isEmpty ? "Global" : widget.initialFocusReference.trim()}',
+            accent: const Color(0xFF9CA3AF),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusPill({
+    required IconData icon,
+    required String label,
+    required Color accent,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: accent),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: accent,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
             ),
-            child: Icon(icon, color: iconColor, size: 18),
           ),
         ],
       ),

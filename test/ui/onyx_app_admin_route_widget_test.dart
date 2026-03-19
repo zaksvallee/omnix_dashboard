@@ -1043,10 +1043,7 @@ void main() {
         findsOneWidget,
       );
 
-      await tester.ensureVisible(
-        find.widgetWithText(OutlinedButton, 'Demote Top Style'),
-      );
-      await tester.tap(find.widgetWithText(OutlinedButton, 'Demote Top Style'));
+      await tapVisibleText(tester, 'Demote Top Style', first: false);
       await tester.pumpAndSettle();
 
       expect(
@@ -1066,14 +1063,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('Client Comms Audit'),
-        500,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
+      await openAdminClientCommsAudit(tester);
 
       expect(
         find.textContaining(
@@ -1119,14 +1109,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('Client Comms Audit'),
-        500,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
+      await openAdminClientCommsAudit(tester);
 
       expect(
         find.textContaining(
@@ -1142,10 +1125,7 @@ void main() {
         findsOneWidget,
       );
 
-      await tester.ensureVisible(
-        find.widgetWithText(OutlinedButton, 'Promote #2'),
-      );
-      await tester.tap(find.widgetWithText(OutlinedButton, 'Promote #2'));
+      await tapVisibleText(tester, 'Promote #2', first: false);
       await tester.pumpAndSettle();
 
       expect(
@@ -1165,14 +1145,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('Client Comms Audit'),
-        500,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
+      await openAdminClientCommsAudit(tester);
 
       expect(
         find.textContaining(

@@ -353,51 +353,6 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   openGovernanceAction: openGovernanceAction,
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  'EVENT REVIEW',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFFEAF1FB),
-                    fontSize: 49,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.8,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final maxWidth = constraints.maxWidth;
-                    final cardWidth = maxWidth < 760
-                        ? maxWidth
-                        : maxWidth < 1160
-                        ? (maxWidth - 8) / 2
-                        : (maxWidth - 16) / 3;
-                    return Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _metricCard(
-                          width: cardWidth,
-                          label: 'VISIBLE EVENTS',
-                          value: '$visibleEvents',
-                          icon: Icons.monitor_heart_outlined,
-                        ),
-                        _metricCard(
-                          width: cardWidth,
-                          label: 'TOTAL EVENTS',
-                          value: _withCommas(totalEvents),
-                          icon: Icons.tag_rounded,
-                        ),
-                        _metricCard(
-                          width: cardWidth,
-                          label: 'LATEST SEQUENCE',
-                          value: latestSequence,
-                          icon: Icons.chevron_right_rounded,
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 8),
                 _filterStrip(identityPolicyOptions),
                 if (hasFocusedFallback) ...[
                   const SizedBox(height: 8),
@@ -4086,63 +4041,6 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return false;
   }
 
-  Widget _metricCard({
-    required double width,
-    required String label,
-    required String value,
-    required IconData icon,
-  }) {
-    return Container(
-      width: width,
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0E141C),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF1F2B3A)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF6F839C),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.7,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFFEAF1FB),
-                    fontSize: 54,
-                    height: 0.95,
-                    fontWeight: FontWeight.w300,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: const Color(0xFF142132),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: const Color(0xFF22D3EE), size: 18),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _filterStrip(List<String> identityPolicyOptions) {
     final sourceOptions = _sourceFilterOptions();
     final providerOptions = _providerFilterOptions();
@@ -7125,19 +7023,4 @@ String _fullTimestamp(DateTime value) {
   final day = local.day;
   final year = local.year;
   return '$month/$day/$year, ${_clock12(local)}';
-}
-
-String _withCommas(int value) {
-  final s = value.toString();
-  if (s.length <= 3) return s;
-  final chars = s.split('');
-  final buffer = StringBuffer();
-  for (var i = 0; i < chars.length; i++) {
-    buffer.write(chars[i]);
-    final remaining = chars.length - i - 1;
-    if (remaining > 0 && remaining % 3 == 0) {
-      buffer.write(',');
-    }
-  }
-  return buffer.toString();
 }

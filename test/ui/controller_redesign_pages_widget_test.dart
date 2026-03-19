@@ -98,7 +98,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('EVENT REVIEW'), findsOneWidget);
+    expect(find.text('Events & Forensic Timeline'), findsOneWidget);
     expect(find.text('Selected Event'), findsOneWidget);
   });
 
@@ -218,7 +218,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('CLIENT INTELLIGENCE REPORTS'), findsOneWidget);
     expect(find.text('Reports & Documentation'), findsOneWidget);
     expect(find.text('Deterministic Generation'), findsOneWidget);
   });

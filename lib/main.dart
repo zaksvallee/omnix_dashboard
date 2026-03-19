@@ -23269,6 +23269,20 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     });
   }
 
+  void _openLedgerForScope(String clientId, String? siteId) {
+    final normalizedClientId = clientId.trim();
+    if (normalizedClientId.isEmpty) {
+      return;
+    }
+    _cancelDemoAutopilot();
+    setState(() {
+      _ledgerRouteClientId = normalizedClientId;
+      _ledgerRouteSiteId = (siteId ?? '').trim();
+      _operationsFocusIncidentReference = '';
+      _route = OnyxRoute.ledger;
+    });
+  }
+
   void _openGovernanceFromAdmin() {
     _cancelDemoAutopilot();
     setState(() {
@@ -26455,6 +26469,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               scopeMode: 'shadow',
             );
           },
+          onOpenLedgerForScope: _openLedgerForScope,
           initialSceneActionFocus: _governanceSceneActionFocus,
           onSceneActionFocusChanged: (value) {
             setState(() {

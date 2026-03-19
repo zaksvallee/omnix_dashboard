@@ -1300,15 +1300,20 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                   ),
                                   const SizedBox(height: 10),
                                 ],
+                                if (controlInboxSnapshot != null ||
+                                    ledger.isNotEmpty) ...[
+                                  _operationsDecisionDeck(
+                                    controlInboxSnapshot: controlInboxSnapshot,
+                                    activeIncident: activeIncident,
+                                    ledger: ledger,
+                                  ),
+                                  const SizedBox(height: 10),
+                                ],
                                 if (clientCommsSnapshot != null) ...[
                                   _clientLaneWatchPanel(
                                     clientCommsSnapshot,
                                     activeIncident,
                                   ),
-                                  const SizedBox(height: 10),
-                                ],
-                                if (controlInboxSnapshot != null) ...[
-                                  _controlInboxPanel(controlInboxSnapshot),
                                   const SizedBox(height: 10),
                                 ],
                                 Expanded(
@@ -1341,11 +1346,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                     ],
                                   ),
                                 ),
-                                const SizedBox(height: 10),
-                                SizedBox(
-                                  height: 208,
-                                  child: _ledgerPanel(ledger),
-                                ),
                               ],
                             )
                           : SingleChildScrollView(
@@ -1369,15 +1369,21 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                     ),
                                     const SizedBox(height: 10),
                                   ],
+                                  if (controlInboxSnapshot != null ||
+                                      ledger.isNotEmpty) ...[
+                                    _operationsDecisionDeck(
+                                      controlInboxSnapshot:
+                                          controlInboxSnapshot,
+                                      activeIncident: activeIncident,
+                                      ledger: ledger,
+                                    ),
+                                    const SizedBox(height: 10),
+                                  ],
                                   if (clientCommsSnapshot != null) ...[
                                     _clientLaneWatchPanel(
                                       clientCommsSnapshot,
                                       activeIncident,
                                     ),
-                                    const SizedBox(height: 10),
-                                  ],
-                                  if (controlInboxSnapshot != null) ...[
-                                    _controlInboxPanel(controlInboxSnapshot),
                                     const SizedBox(height: 10),
                                   ],
                                   _incidentQueuePanel(
@@ -1393,8 +1399,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                     activeIncident,
                                     embeddedScroll: false,
                                   ),
-                                  const SizedBox(height: 10),
-                                  _ledgerPanel(ledger, embeddedScroll: false),
                                 ],
                               ),
                             ),
@@ -1406,6 +1410,55 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             ),
         ],
       ),
+    );
+  }
+
+  Widget _operationsDecisionDeck({
+    required LiveControlInboxSnapshot? controlInboxSnapshot,
+    required _IncidentRecord? activeIncident,
+    required List<_LedgerEntry> ledger,
+  }) {
+    final hasInbox = controlInboxSnapshot != null;
+    final hasLedger = ledger.isNotEmpty;
+    if (!hasInbox && !hasLedger) {
+      return const SizedBox.shrink();
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stack = constraints.maxWidth < 1180;
+        final inboxPanel = hasInbox
+            ? _controlInboxPanel(
+                controlInboxSnapshot,
+                compactPreview: !stack,
+              )
+            : const SizedBox.shrink();
+        final ledgerPanel = hasLedger
+            ? _ledgerPanel(ledger, embeddedScroll: false)
+            : const SizedBox.shrink();
+        if (!hasInbox) {
+          return ledgerPanel;
+        }
+        if (!hasLedger) {
+          return inboxPanel;
+        }
+        if (stack) {
+          return Column(
+            children: [
+              inboxPanel,
+              const SizedBox(height: 10),
+              ledgerPanel,
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(flex: 8, child: inboxPanel),
+            const SizedBox(width: 10),
+            Expanded(flex: 4, child: ledgerPanel),
+          ],
+        );
+      },
     );
   }
 
@@ -2531,7 +2584,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
   }
 
-  Widget _controlInboxPanel(LiveControlInboxSnapshot snapshot) {
+  Widget _controlInboxPanel(
+    LiveControlInboxSnapshot snapshot, {
+    bool compactPreview = false,
+  }) {
     final laneVoiceBusy = _laneVoiceBusyScopeKeys.contains(
       _scopeBusyKey(snapshot.selectedClientId, snapshot.selectedSiteId),
     );
@@ -2566,6 +2622,12 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final cueSummaryItems = _controlInboxCueSummaryItems(displayedPendingDrafts);
     final cueSummaryText = _controlInboxCueSummaryText(displayedPendingDrafts);
     final accent = _controlInboxAccent(snapshot);
+    final visiblePendingDrafts = compactPreview
+        ? displayedPendingDrafts.take(1).toList(growable: false)
+        : displayedPendingDrafts.take(3).toList(growable: false);
+    final visibleClientAsks = compactPreview
+        ? snapshot.liveClientAsks.take(1).toList(growable: false)
+        : snapshot.liveClientAsks.take(2).toList(growable: false);
     final selectedScopeLabel = _humanizeOpsScopeLabel(
       snapshot.selectedSiteId,
       fallback: snapshot.selectedSiteId,
@@ -3043,7 +3105,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               ),
             ],
           ],
-          if (widget.onSetLaneVoiceProfileForScope != null) ...[
+          if (widget.onSetLaneVoiceProfileForScope != null &&
+              !compactPreview) ...[
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -3120,7 +3183,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           const SizedBox(height: 10),
           if (snapshot.pendingDrafts.isEmpty)
             Text(
-              snapshot.liveClientAsks.isEmpty
+              visibleClientAsks.isEmpty
                   ? 'The inbox is clear. New client questions and approval drafts will stage here for command.'
                   : 'Client questions are active even though no reply drafts are waiting yet.',
               style: GoogleFonts.inter(
@@ -3132,13 +3195,12 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             )
           else
             Column(
-              children: displayedPendingDrafts
-                  .take(3)
+              children: visiblePendingDrafts
                   .map(_controlInboxDraftCard)
                   .toList(growable: false),
             ),
-          if (snapshot.liveClientAsks.isNotEmpty) ...[
-            if (displayedPendingDrafts.isNotEmpty) const SizedBox(height: 4),
+          if (visibleClientAsks.isNotEmpty) ...[
+            if (visiblePendingDrafts.isNotEmpty) const SizedBox(height: 4),
             Text(
               'LIVE CLIENT ASKS',
               style: GoogleFonts.inter(
@@ -3150,13 +3212,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             ),
             const SizedBox(height: 8),
             Column(
-              children: snapshot.liveClientAsks
-                  .take(2)
+              children: visibleClientAsks
                   .map(_controlInboxClientAskCard)
                   .toList(growable: false),
             ),
           ],
-          if ((snapshot.telegramHealthDetail ?? '').trim().isNotEmpty) ...[
+          if ((snapshot.telegramHealthDetail ?? '').trim().isNotEmpty &&
+              !compactPreview) ...[
             const SizedBox(height: 8),
             Text(
               ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(
@@ -6255,8 +6317,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   }
 
   Widget _ledgerPanel(List<_LedgerEntry> ledger, {bool embeddedScroll = true}) {
-    final rows = List<Widget>.generate(ledger.length.clamp(0, 20), (index) {
-      final entry = ledger[index];
+    final visibleEntries = ledger.take(embeddedScroll ? 4 : 3).toList();
+    final rows = List<Widget>.generate(visibleEntries.length, (index) {
+      final entry = visibleEntries[index];
       final style = _ledgerStyle(entry.type);
       final hh = entry.timestamp.toLocal().hour.toString().padLeft(2, '0');
       final mm = entry.timestamp.toLocal().minute.toString().padLeft(2, '0');
@@ -6363,17 +6426,82 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         ),
       );
     });
-    return _panel(
-      title: 'Sovereign Ledger Feed',
-      subtitle: 'Immutable event chain across all incidents',
+    return Container(
+      key: const ValueKey('live-operations-ledger-preview'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D1117),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF21262D)),
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (embeddedScroll)
-            Expanded(
-              child: ListView.separated(
-                itemCount: rows.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 6),
-                itemBuilder: (context, index) => rows[index],
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6D28D9).withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.36),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.shield_outlined,
+                  size: 18,
+                  color: Color(0xFFA78BFA),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'SOVEREIGN LEDGER',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFF8FBFF),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Immutable event chain',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF8FAFD4),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (rows.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: const Color(0xFF10151C),
+                border: Border.all(color: const Color(0xFF223244)),
+              ),
+              child: Text(
+                'No ledger events recorded yet for the current command window.',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF9AB2D2),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             )
           else
@@ -6381,36 +6509,24 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               children: [
                 for (int i = 0; i < rows.length; i++) ...[
                   rows[i],
-                  if (i < rows.length - 1) const SizedBox(height: 6),
+                  if (i < rows.length - 1) const SizedBox(height: 8),
                 ],
               ],
             ),
-          const SizedBox(height: 8),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final compact = constraints.maxWidth < 560;
-              final summary = Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.shield_rounded,
-                    color: Color(0xFF22D3EE),
-                    size: 16,
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${ledger.length} events recorded',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF9AB2D2),
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
                   ),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      '${ledger.length} events recorded • Chain intact',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF9AB2D2),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              );
-              final verifyButton = OutlinedButton(
+                ),
+              ),
+              OutlinedButton(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -6418,32 +6534,23 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     ),
                   );
                 },
-                child: Text(
-                  'Verify',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF22D3EE),
-                    fontWeight: FontWeight.w700,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFA78BFA),
+                  side: const BorderSide(color: Color(0x665B3FD1)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 9,
                   ),
                 ),
-              );
-              if (compact) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    summary,
-                    const SizedBox(height: 8),
-                    SizedBox(width: double.infinity, child: verifyButton),
-                  ],
-                );
-              }
-              return Row(
-                children: [
-                  Expanded(child: summary),
-                  const SizedBox(width: 8),
-                  verifyButton,
-                ],
-              );
-            },
+                child: Text(
+                  'Verify Chain',
+                  style: GoogleFonts.inter(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

@@ -750,6 +750,7 @@ class GovernancePage extends StatefulWidget {
   onOpenReportsForPartnerScope;
   final void Function(List<String> eventIds, String? selectedEventId)?
   onOpenEventsForScope;
+  final void Function(String clientId, String? siteId)? onOpenLedgerForScope;
   final GovernanceSceneActionFocus? initialSceneActionFocus;
   final ValueChanged<GovernanceSceneActionFocus?>? onSceneActionFocusChanged;
 
@@ -776,6 +777,7 @@ class GovernancePage extends StatefulWidget {
     this.onOpenVehicleExceptionVisit,
     this.onOpenReportsForPartnerScope,
     this.onOpenEventsForScope,
+    this.onOpenLedgerForScope,
     this.initialSceneActionFocus,
     this.onSceneActionFocusChanged,
   });
@@ -796,6 +798,7 @@ class _GovernancePageState extends State<GovernancePage> {
   bool _generatingMorningReport = false;
   GovernanceSceneActionFocus? _activeSceneActionFocus;
   String? _activeVehicleExceptionEventId;
+  final Set<String> _resolvedComplianceIssueKeys = <String>{};
   Map<String, _VehicleExceptionReviewOverride>
   _vehicleExceptionReviewOverrides =
       const <String, _VehicleExceptionReviewOverride>{};
@@ -861,7 +864,13 @@ class _GovernancePageState extends State<GovernancePage> {
     final now = DateTime.now();
     final wide = allowEmbeddedPanelScroll(context);
     final vigilance = _buildVigilance(now);
-    final compliance = _buildCompliance(now);
+    final compliance = _buildCompliance(now)
+        .where(
+          (issue) => !_resolvedComplianceIssueKeys.contains(
+            _complianceIssueKey(issue),
+          ),
+        )
+        .toList(growable: false);
     final fleet = const _FleetStatus(
       vehiclesReady: 12,
       vehiclesMaintenance: 2,
@@ -895,23 +904,51 @@ class _GovernancePageState extends State<GovernancePage> {
                   readiness: readiness,
                 ),
                 const SizedBox(height: 12),
-                _overviewGrid(
-                  report: report,
-                  complianceCritical: complianceCritical,
-                  complianceTotal: compliance.length,
+                _reportViewStrip(report: report),
+                const SizedBox(height: 12),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final stacked = constraints.maxWidth < 1180;
+                    final primary = Column(
+                      children: [
+                        _readinessBlockersSurface(
+                          report: report,
+                          compliance: compliance,
+                        ),
+                        const SizedBox(height: 12),
+                        _nonBlockersSurface(compliance: compliance),
+                        const SizedBox(height: 12),
+                        _partnerDispatchChainSurface(report: report),
+                      ],
+                    );
+                    final secondary = Column(
+                      children: [
+                        _complianceSummarySurface(report: report),
+                        const SizedBox(height: 12),
+                        _quickActionsSurface(report: report),
+                      ],
+                    );
+                    if (stacked) {
+                      return Column(
+                        children: [
+                          primary,
+                          const SizedBox(height: 12),
+                          secondary,
+                        ],
+                      );
+                    }
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(flex: 7, child: primary),
+                        const SizedBox(width: 12),
+                        Expanded(flex: 4, child: secondary),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 12),
-                _topBar(
-                  complianceCritical: complianceCritical,
-                  readiness: readiness,
-                  activeGuards: vigilance.length,
-                  reportSource: report.fromCanonicalReport
-                      ? 'PERSISTED'
-                      : 'LIVE PROJECTION',
-                  reportFocusLabel: _hasHistoricalReportFocus
-                      ? _focusedReportDate
-                      : null,
-                ),
+                _readinessSignalsSurface(report: report),
                 const SizedBox(height: 12),
                 wide
                     ? Row(
@@ -927,7 +964,7 @@ class _GovernancePageState extends State<GovernancePage> {
                           const SizedBox(width: 12),
                           Expanded(
                             flex: 6,
-                            child: _complianceCard(compliance: compliance),
+                            child: _fleetCard(fleet: fleet),
                           ),
                         ],
                       )
@@ -935,11 +972,9 @@ class _GovernancePageState extends State<GovernancePage> {
                         children: [
                           _vigilanceCard(vigilance: vigilance, now: now),
                           const SizedBox(height: 12),
-                          _complianceCard(compliance: compliance),
+                          _fleetCard(fleet: fleet),
                         ],
                       ),
-                const SizedBox(height: 12),
-                _fleetCard(fleet: fleet),
                 const SizedBox(height: 12),
                 _morningReportCard(report: report),
               ],
@@ -1327,138 +1362,619 @@ class _GovernancePageState extends State<GovernancePage> {
     );
   }
 
-  Widget _overviewGrid({
-    required _GovernanceReportView report,
-    required int complianceCritical,
-    required int complianceTotal,
-  }) {
-    final cards = <Widget>[
-      _overviewCard(
-        title: 'Readiness Blockers',
-        value: '$complianceCritical',
-        detail: complianceCritical == 1
-            ? '1 blocker needs resolution'
-            : '$complianceCritical blockers need resolution',
-        accent: complianceCritical > 0
-            ? const Color(0xFFF97316)
-            : const Color(0xFF34D399),
-        icon: Icons.warning_amber_rounded,
+
+  Widget _reportViewStrip({required _GovernanceReportView report}) {
+    final reportViewLabel = _hasHistoricalReportFocus
+        ? 'Historical'
+        : 'Morning Sovereign';
+    final scopeLabel = _hasPartnerScopeFocus
+        ? 'Partner-Scope'
+        : _hasScopeFocus
+        ? 'Internal'
+        : 'All';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1726),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF243548)),
       ),
-      _overviewCard(
-        title: 'Partner Chains',
-        value: '${report.partnerDispatchChains.length}',
-        detail: report.partnerWorkflowHeadline.trim().isNotEmpty
-            ? report.partnerWorkflowHeadline
-            : 'Partner dispatch progression is ready for review',
-        accent: const Color(0xFF60A5FA),
-        icon: Icons.hub_outlined,
+      child: Wrap(
+        spacing: 14,
+        runSpacing: 12,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        alignment: WrapAlignment.spaceBetween,
+        children: [
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                'REPORT VIEW:',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF7F93AE),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              _reportViewPill(
+                icon: Icons.calendar_today_rounded,
+                label: reportViewLabel,
+                active: !_hasHistoricalReportFocus,
+              ),
+              _reportViewPill(
+                icon: Icons.history_rounded,
+                label: 'Historical',
+                active: _hasHistoricalReportFocus,
+              ),
+            ],
+          ),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                'SCOPE:',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF7F93AE),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              _reportScopePill(label: 'All', active: scopeLabel == 'All'),
+              _reportScopePill(
+                label: 'Internal',
+                active: scopeLabel == 'Internal',
+              ),
+              _reportScopePill(
+                label: 'Partner-Scope',
+                active: scopeLabel == 'Partner-Scope',
+              ),
+            ],
+          ),
+        ],
       ),
-      _overviewCard(
-        title: 'Generated Reports',
-        value: '${report.generatedReports}',
-        detail: report.receiptPolicySummary.trim().isNotEmpty
-            ? report.receiptPolicySummary
-            : 'Morning sovereign receipts are ready for verification',
-        accent: const Color(0xFF2DD4BF),
-        icon: Icons.description_outlined,
-      ),
-      _overviewCard(
-        title: 'Compliance Scope',
-        value: '$complianceTotal',
-        detail: report.hashVerified
-            ? 'Ledger verified with ${report.totalEvents} tracked events'
-            : 'Evidence verification requires manual follow-up',
-        accent: report.hashVerified
-            ? const Color(0xFFA78BFA)
-            : const Color(0xFFF97316),
-        icon: Icons.fact_check_outlined,
-      ),
-    ];
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 1200
-            ? 4
-            : constraints.maxWidth >= 760
-            ? 2
-            : 1;
-        final aspectRatio = columns == 4
-            ? 1.9
-            : columns == 2
-            ? 2.45
-            : 2.45;
-        return GridView.count(
-          key: const ValueKey('governance-overview-grid'),
-          crossAxisCount: columns,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: aspectRatio,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          children: cards,
-        );
-      },
     );
   }
 
-  Widget _overviewCard({
-    required String title,
-    required String value,
-    required String detail,
-    required Color accent,
+  Widget _reportViewPill({
     required IconData icon,
+    required String label,
+    required bool active,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(16),
+        color: active ? const Color(0xFF112A22) : const Color(0xFF0D1522),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: active ? const Color(0xFF22C55E) : const Color(0xFF2B3B4C),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 16,
+            color: active ? const Color(0xFF22E39E) : const Color(0xFFD2DCEC),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: active ? const Color(0xFF22E39E) : const Color(0xFFDCE6F5),
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _reportScopePill({required String label, required bool active}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      decoration: BoxDecoration(
+        color: active ? const Color(0xFF241A41) : const Color(0xFF0D1522),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: active ? const Color(0xFF8B5CF6) : const Color(0xFF2B3B4C),
+        ),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          color: active ? const Color(0xFFD9B8FF) : const Color(0xFFDCE6F5),
+          fontSize: 13,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+
+  Widget _readinessBlockersSurface({
+    required _GovernanceReportView report,
+    required List<_ComplianceIssue> compliance,
+  }) {
+    final blockers = compliance
+        .where((issue) => issue.blockingDispatch)
+        .toList(growable: false);
+    return _governanceSurface(
+      title: 'READINESS BLOCKERS',
+      subtitle: blockers.isEmpty
+          ? 'No active blockers requiring resolution'
+          : '${blockers.length} active blockers requiring resolution',
+      trailing: _statusBadge(
+        blockers.isEmpty ? 'CLEAR' : 'ACTION REQUIRED',
+        color: blockers.isEmpty
+            ? const Color(0xFF22C55E)
+            : const Color(0xFFEF4444),
+      ),
+      child: Column(
+        children: [
+          if (blockers.isEmpty)
+            _governanceInfoCallout(
+              title: 'No active readiness blockers',
+              detail:
+                  'Dispatch readiness, evidence posture, and partner compliance are currently stable.',
+              accent: const Color(0xFF22C55E),
+            )
+          else
+            for (final issue in blockers.take(2)) ...[
+              _governanceIssueRow(
+                label: issue.daysRemaining <= 0 ? 'CRITICAL' : 'WARNING',
+                title:
+                    '${issue.type} follow-up required for ${issue.employeeId}',
+                detail:
+                    '${issue.employeeName} expires ${_dateLabel(issue.expiryDate)} and is blocking dispatch readiness.',
+                footer: 'Watch & Identity',
+                accent: issue.daysRemaining <= 0
+                    ? const Color(0xFFEF4444)
+                    : const Color(0xFFF59E0B),
+                actionLabel: 'Resolve',
+                onTap: () => _resolveComplianceIssue(issue),
+              ),
+              if (issue != blockers.take(2).last) const SizedBox(height: 10),
+            ],
+          if (report.latestActionTaken.trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _governanceInfoCallout(
+              title: 'Latest action focus',
+              detail: report.latestActionTaken,
+              accent: const Color(0xFF67E8F9),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _nonBlockersSurface({required List<_ComplianceIssue> compliance}) {
+    final nonBlockers = compliance
+        .where((issue) => !issue.blockingDispatch)
+        .toList(growable: false);
+    return _governanceSurface(
+      title: 'NON-BLOCKERS',
+      subtitle: nonBlockers.isEmpty
+          ? '0 items for awareness'
+          : '${nonBlockers.length} item${nonBlockers.length == 1 ? '' : 's'} for awareness',
+      child: Column(
+        children: [
+          if (nonBlockers.isEmpty)
+            _governanceInfoCallout(
+              title: 'No non-blocking governance drift',
+              detail: 'No advisory-only compliance drift is currently active.',
+              accent: const Color(0xFF22C55E),
+            )
+          else
+            for (final issue in nonBlockers.take(2)) ...[
+              _governanceIssueRow(
+                label: 'INFO',
+                title:
+                    '${issue.employeeId} requires review within ${issue.daysRemaining} day${issue.daysRemaining == 1 ? '' : 's'}',
+                detail:
+                    '${issue.employeeName} remains operational, but ${issue.type.toLowerCase()} should be refreshed before the next readiness window.',
+                footer: 'Guards',
+                accent: const Color(0xFFF59E0B),
+              ),
+              if (issue != nonBlockers.take(2).last) const SizedBox(height: 10),
+            ],
+        ],
+      ),
+    );
+  }
+
+  Widget _partnerDispatchChainSurface({required _GovernanceReportView report}) {
+    return _governanceSurface(
+      title: 'PARTNER DISPATCH CHAIN',
+      subtitle: report.partnerDispatchChains.isEmpty
+          ? 'No partner dispatch chains active'
+          : '${report.partnerDispatchChains.length} off-scope incidents routed to partners',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (report.partnerDispatchChains.isEmpty)
+            _governanceInfoCallout(
+              title: 'No active partner handoffs',
+              detail:
+                  'Partner dispatch escalation is available, but no active chains are currently staged.',
+              accent: const Color(0xFF8EA4C2),
+            )
+          else ...[
+            for (final chain in report.partnerDispatchChains.take(3)) ...[
+              _partnerDispatchChainRow(chain),
+              if (chain != report.partnerDispatchChains.take(3).last)
+                const SizedBox(height: 10),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _complianceSummarySurface({required _GovernanceReportView report}) {
+    return _governanceSurface(
+      title: 'COMPLIANCE SUMMARY',
+      child: Column(
+        children: [
+          _governanceSummaryCard(
+            label: report.hashVerified ? 'VERIFIED' : 'FAILED',
+            category: 'Evidence',
+            detail: report.hashVerified
+                ? 'CCTV footage archived for ${report.generatedReports > 0 ? report.generatedReports : report.totalEvents} incidents'
+                : 'Evidence chain requires manual ledger verification',
+            accent: report.hashVerified
+                ? const Color(0xFF22C55E)
+                : const Color(0xFFEF4444),
+            buttonLabel: 'View Event ${report.partnerDispatchChains.isNotEmpty ? report.partnerDispatchChains.first.dispatchId : ''}'.trim(),
+            onTap: _visibleGovernanceEvents().isNotEmpty
+                ? _openGovernanceEventsReview
+                : null,
+          ),
+          const SizedBox(height: 12),
+          _governanceSummaryCard(
+            label: report.generatedReports > 0 ? 'PENDING' : 'READY',
+            category: 'Reporting',
+            detail: report.receiptPolicySummary.trim().isNotEmpty
+                ? report.receiptPolicySummary
+                : 'Morning sovereign report awaiting final verification',
+            accent: report.generatedReports > 0
+                ? const Color(0xFFF59E0B)
+                : const Color(0xFF22C55E),
+            buttonLabel: 'View Report ${report.reportDate}',
+            onTap: _openPrimaryGovernanceReports(report),
+          ),
+          const SizedBox(height: 12),
+          _governanceSummaryCard(
+            label: report.totalBlocked == 0 ? 'VERIFIED' : 'FAILED',
+            category: 'Response-Time',
+            detail: report.totalBlocked == 0
+                ? 'All P1 incidents responded within 240s SLA'
+                : '${report.totalBlocked} sites need manual readiness verification',
+            accent: report.totalBlocked == 0
+                ? const Color(0xFF22C55E)
+                : const Color(0xFFEF4444),
+            buttonLabel: 'View Readiness Detail',
+            onTap: _visibleGovernanceEvents().isNotEmpty
+                ? _openGovernanceEventsReview
+                : null,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _quickActionsSurface({required _GovernanceReportView report}) {
+    return _governanceSurface(
+      title: 'QUICK ACTIONS',
+      child: Column(
+        children: [
+          _governanceActionButton(
+            key: const ValueKey('governance-quick-view-events-button'),
+            label: 'View All Events',
+            onTap: _visibleGovernanceEvents().isNotEmpty
+                ? _openGovernanceEventsReview
+                : () => _showSnack(
+                    'No scoped governance events are available right now.',
+                  ),
+          ),
+          const SizedBox(height: 10),
+          _governanceActionButton(
+            key: const ValueKey('governance-quick-view-reports-button'),
+            label: 'View All Reports',
+            onTap: _openPrimaryGovernanceReports(report),
+          ),
+          const SizedBox(height: 10),
+          _governanceActionButton(
+            key: const ValueKey('governance-quick-view-ledger-button'),
+            label: 'View Ledger',
+            onTap: _openGovernanceLedgerAction(report),
+          ),
+        ],
+      ),
+    );
+  }
+
+  VoidCallback _openGovernanceLedgerAction(_GovernanceReportView report) {
+    final callback = widget.onOpenLedgerForScope;
+    final scope = _currentGovernanceLedgerScope(report);
+    if (callback == null || scope == null) {
+      return () => _showSnack(
+        'No scoped ledger handoff is available for the current governance view.',
+      );
+    }
+    return () => callback(scope.clientId, scope.siteId);
+  }
+
+  ({String clientId, String? siteId})? _currentGovernanceLedgerScope(
+    _GovernanceReportView report,
+  ) {
+    if (_hasPartnerScopeFocus) {
+      return (
+        clientId: _partnerScopeClientId!,
+        siteId: _partnerScopeSiteId,
+      );
+    }
+    if (_scopeClientId != null) {
+      return (
+        clientId: _scopeClientId!,
+        siteId: _scopeSiteId,
+      );
+    }
+    final visibleEvents = _visibleGovernanceEvents();
+    if (visibleEvents.isNotEmpty) {
+      final scope = _eventScope(visibleEvents.first);
+      if (scope != null && scope.clientId.trim().isNotEmpty) {
+        return (
+          clientId: scope.clientId,
+          siteId: scope.siteId.trim().isEmpty ? null : scope.siteId,
+        );
+      }
+    }
+    if (report.partnerDispatchChains.isNotEmpty) {
+      final chain = report.partnerDispatchChains.first;
+      return (
+        clientId: chain.clientId.trim(),
+        siteId: chain.siteId.trim().isEmpty ? null : chain.siteId.trim(),
+      );
+    }
+    return null;
+  }
+
+  String _complianceIssueKey(_ComplianceIssue issue) {
+    return '${issue.employeeId}|${issue.type}|${issue.blockingDispatch}';
+  }
+
+  void _resolveComplianceIssue(_ComplianceIssue issue) {
+    setState(() {
+      _resolvedComplianceIssueKeys.add(_complianceIssueKey(issue));
+    });
+  }
+
+  Widget _readinessSignalsSurface({required _GovernanceReportView report}) {
+    final globalPosture = _globalReadinessSnapshotForReport(report);
+    final globalIntents = _globalReadinessIntentsForReport(report);
+    final warRoomPlans = _syntheticWarRoomPlansForReport(report);
+    return _governanceSurface(
+      title: 'READINESS INTELLIGENCE',
+      subtitle: 'Global posture, synthetic escalation pressure, and report policy signals',
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        children: [
+          _reportMetric(
+            key: const ValueKey('governance-metric-global-readiness'),
+            label: 'Global Readiness',
+            value:
+                '${globalPosture.criticalSiteCount} critical • ${globalIntents.length} intents',
+            detail: _globalReadinessMetricDetail(
+              report: report,
+              snapshot: globalPosture,
+              intents: globalIntents,
+            ),
+            color: globalPosture.criticalSiteCount > 0
+                ? const Color(0xFFEF4444)
+                : globalPosture.elevatedSiteCount > 0
+                ? const Color(0xFFF59E0B)
+                : globalIntents.isEmpty
+                ? const Color(0xFF10B981)
+                : const Color(0xFF22D3EE),
+          ),
+          _reportMetric(
+            key: const ValueKey('governance-metric-synthetic-war-room'),
+            label: 'Synthetic War-Room',
+            value: '${warRoomPlans.length} plans',
+            detail: _syntheticWarRoomMetricDetail(warRoomPlans),
+            color: warRoomPlans.any(
+              (plan) => plan.actionType == 'POLICY RECOMMENDATION',
+            )
+                ? const Color(0xFF8B5CF6)
+                : warRoomPlans.isNotEmpty
+                ? const Color(0xFF22D3EE)
+                : const Color(0xFF10B981),
+          ),
+          _reportMetric(
+            label: 'Receipt Policy',
+            value: '${report.generatedReports} reports',
+            detail: _receiptPolicyMetricDetail(report),
+            color: report.reportsWithOmittedSections > 0 ||
+                    report.legacyConfigurationReports > 0
+                ? const Color(0xFFF59E0B)
+                : report.generatedReports > 0
+                ? const Color(0xFF10B981)
+                : const Color(0xFF22D3EE),
+          ),
+          _reportMetric(
+            label: 'Partner Progression',
+            value: '${report.partnerDispatches} dispatches',
+            detail: report.partnerWorkflowHeadline.trim().isNotEmpty
+                ? report.partnerWorkflowHeadline
+                : report.partnerSummary.trim().isNotEmpty
+                ? report.partnerSummary
+                : 'Accept ${report.partnerAccepted} • On site ${report.partnerOnSite} • All clear ${report.partnerAllClear}',
+            color: report.partnerCancelled > 0
+                ? const Color(0xFFF59E0B)
+                : report.partnerDispatches > 0
+                ? const Color(0xFF22D3EE)
+                : const Color(0xFF10B981),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _governanceSurface({
+    required String title,
+    String? subtitle,
+    Widget? trailing,
+    required Widget child,
+  }) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C1522),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFF223244)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFF4F8FF),
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      if (subtitle != null && subtitle.trim().isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          subtitle,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF8EA4C2),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (trailing != null) ...[
+                  const SizedBox(width: 12),
+                  trailing,
+                ],
+              ],
+            ),
+          ),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: Color(0xFF1B2A3D))),
+            ),
+            child: child,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusBadge(String label, {required Color color}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.45)),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.6,
+        ),
+      ),
+    );
+  }
+
+  Widget _governanceIssueRow({
+    required String label,
+    required String title,
+    required String detail,
+    required String footer,
+    required Color accent,
+    String? actionLabel,
+    VoidCallback? onTap,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: accent.withValues(alpha: 0.45)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: accent, size: 20),
-              ),
+              _statusBadge(label, color: accent),
               const Spacer(),
-              Text(
-                value,
-                style: GoogleFonts.robotoMono(
-                  color: const Color(0xFFF4F8FF),
-                  fontSize: 26,
-                  fontWeight: FontWeight.w700,
+              if (actionLabel != null)
+                _governanceMiniAction(
+                  label: actionLabel,
+                  accent: accent,
+                  onTap: onTap,
                 ),
-              ),
             ],
           ),
-          const Spacer(),
+          const SizedBox(height: 14),
           Text(
-            title.toUpperCase(),
+            title,
             style: GoogleFonts.inter(
-              color: const Color(0xFF93A5BF),
-              fontSize: 10,
+              color: const Color(0xFFF5F8FF),
+              fontSize: 16,
               fontWeight: FontWeight.w800,
-              letterSpacing: 1.2,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 10),
+          Text(
+            footer,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF94A8C4),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
           Text(
             detail,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
             style: GoogleFonts.inter(
-              color: const Color(0xFFD5E1F2),
-              fontSize: 12,
+              color: const Color(0xFFD3DDED),
+              fontSize: 13,
               fontWeight: FontWeight.w600,
-              height: 1.35,
+              height: 1.45,
             ),
           ),
         ],
@@ -1466,82 +1982,188 @@ class _GovernancePageState extends State<GovernancePage> {
     );
   }
 
-  Widget _topBar({
-    required int complianceCritical,
-    required int readiness,
-    required int activeGuards,
-    required String reportSource,
-    String? reportFocusLabel,
+  Widget _governanceInfoCallout({
+    required String title,
+    required String detail,
+    required Color accent,
   }) {
-    final normalizedReportFocusLabel = reportFocusLabel?.trim() ?? '';
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF223244)),
+        color: accent.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: accent.withValues(alpha: 0.35)),
       ),
-      child: Wrap(
-        spacing: 10,
-        runSpacing: 8,
-        crossAxisAlignment: WrapCrossAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'GOVERNANCE OVERVIEW',
+            title,
             style: GoogleFonts.inter(
-              color: const Color(0x66FFFFFF),
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.2,
+              color: accent,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
             ),
           ),
-          _topChip(
-            'Compliance Status',
-            complianceCritical == 0 ? 'STABLE' : 'AT RISK',
+          const SizedBox(height: 8),
+          Text(
+            detail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFD8E2F0),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              height: 1.45,
+            ),
           ),
-          _topChip('Critical Alerts', complianceCritical.toString()),
-          _topChip('Readiness Posture', '$readiness%'),
-          _topChip('Guards Monitored', activeGuards.toString()),
-          _topChip('Report Source', reportSource),
-          if (normalizedReportFocusLabel.isNotEmpty)
-            _topChip('Shift Focus', '$normalizedReportFocusLabel HISTORY'),
         ],
       ),
     );
   }
 
-  Widget _topChip(String label, String value) {
+  Widget _governanceSummaryCard({
+    required String label,
+    required String category,
+    required String detail,
+    required Color accent,
+    required String buttonLabel,
+    VoidCallback? onTap,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0x11000000),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0x33000000)),
+        color: accent.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: accent.withValues(alpha: 0.32)),
       ),
-      child: RichText(
-        text: TextSpan(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _statusBadge(label, color: accent),
+          const SizedBox(height: 12),
+          Text(
+            detail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF2FF),
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            category.toUpperCase(),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF7E91AC),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.0,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _governanceActionButton(label: buttonLabel, onTap: onTap),
+        ],
+      ),
+    );
+  }
+
+  Widget _governanceActionButton({
+    Key? key,
+    required String label,
+    required VoidCallback? onTap,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton(
+        key: key,
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFFEAF2FF),
+          side: const BorderSide(color: Color(0xFF304256)),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        child: Row(
           children: [
-            TextSpan(
-              text: '$label: ',
-              style: GoogleFonts.inter(
-                color: const Color(0xFF8EA4C2),
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+            Expanded(
+              child: Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
-            TextSpan(
-              text: value,
-              style: GoogleFonts.inter(
-                color: const Color(0xFFE8F1FF),
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
+            const Icon(Icons.chevron_right_rounded, size: 20),
           ],
         ),
       ),
     );
+  }
+
+  Widget _governanceMiniAction({
+    required String label,
+    required Color accent,
+    VoidCallback? onTap,
+  }) {
+    return TextButton(
+      onPressed: onTap,
+      style: TextButton.styleFrom(
+        foregroundColor: accent,
+        backgroundColor: accent.withValues(alpha: 0.12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w800),
+      ),
+    );
+  }
+
+  VoidCallback _openPrimaryGovernanceReports(_GovernanceReportView report) {
+    return () {
+      final partnerScope = _reportPartnerScopeForQuickAction(report);
+      if (partnerScope == null) {
+        _showSnack('Report workspace requires an active scoped report lane.');
+        return;
+      }
+      final callback = widget.onOpenReportsForPartnerScope;
+      if (callback == null) {
+        _showSnack('Scoped reports route is not wired in this surface.');
+        return;
+      }
+      callback(
+        partnerScope.clientId,
+        partnerScope.siteId,
+        partnerScope.partnerLabel,
+      );
+    };
+  }
+
+  ({String clientId, String siteId, String partnerLabel})?
+  _reportPartnerScopeForQuickAction(_GovernanceReportView report) {
+    final firstChain = report.partnerDispatchChains.isEmpty
+        ? null
+        : report.partnerDispatchChains.first;
+    if (firstChain != null) {
+      return (
+        clientId: firstChain.clientId,
+        siteId: firstChain.siteId,
+        partnerLabel: firstChain.partnerLabel,
+      );
+    }
+    if (_scopeClientId != null && _scopeSiteId != null) {
+      return (
+        clientId: _scopeClientId!,
+        siteId: _scopeSiteId!,
+        partnerLabel: 'ONYX',
+      );
+    }
+    return null;
   }
 
   Widget _vigilanceCard({
@@ -1750,93 +2372,6 @@ class _GovernancePageState extends State<GovernancePage> {
           fontWeight: FontWeight.w800,
           letterSpacing: 0.25,
         ),
-      ),
-    );
-  }
-
-  Widget _complianceCard({required List<_ComplianceIssue> compliance}) {
-    return _card(
-      title: 'COMPLIANCE ALERTS',
-      subtitle: 'PSIRA, PDP, license, roadworthy, firearm competency',
-      child: Column(
-        children: [
-          for (int i = 0; i < compliance.length; i++) ...[
-            _complianceRow(compliance[i]),
-            if (i < compliance.length - 1) const SizedBox(height: 8),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _complianceRow(_ComplianceIssue issue) {
-    final severity = _severityFor(issue.daysRemaining);
-    final color = _severityColor(severity);
-    final expiryLabel = issue.daysRemaining <= 0
-        ? 'Expired ${issue.daysRemaining.abs()}d'
-        : '${issue.daysRemaining}d remaining';
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: const Color(0x14000000),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0x22FFFFFF)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '${issue.type} • ${issue.employeeName}',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFFE8F1FF),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              Text(
-                expiryLabel,
-                style: GoogleFonts.inter(
-                  color: color,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${issue.employeeId} • Expires ${_dateLabel(issue.expiryDate)}',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          if (issue.blockingDispatch) ...[
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0x22EF4444),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: const Color(0x55EF4444)),
-              ),
-              child: Text(
-                'DISPATCH BLOCKED',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFFEF4444),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ],
-        ],
       ),
     );
   }
@@ -12941,14 +13476,6 @@ class _GovernancePageState extends State<GovernancePage> {
       return _ComplianceSeverity.warning;
     }
     return _ComplianceSeverity.info;
-  }
-
-  Color _severityColor(_ComplianceSeverity severity) {
-    return switch (severity) {
-      _ComplianceSeverity.critical => const Color(0xFFEF4444),
-      _ComplianceSeverity.warning => const Color(0xFFF59E0B),
-      _ComplianceSeverity.info => const Color(0xFF3B82F6),
-    };
   }
 
   _VigilanceStatus _vigilanceStatus(int decayPercent) {

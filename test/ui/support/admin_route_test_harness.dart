@@ -15,6 +15,17 @@ Future<void> prepareAdminRouteTest(WidgetTester tester) async {
   addTearDown(() => tester.binding.setSurfaceSize(null));
 }
 
+Future<void> tapVisibleText(
+  WidgetTester tester,
+  String text, {
+  bool first = true,
+}) async {
+  final finder = first ? find.text(text).first : find.text(text).last;
+  await tester.ensureVisible(finder);
+  await tester.tap(finder);
+  await tester.pumpAndSettle();
+}
+
 Future<void> pumpAdminRouteApp(
   WidgetTester tester, {
   Key? key,
@@ -41,7 +52,7 @@ Future<void> openAdminSystemAnchor(
   WidgetTester tester,
   String anchorText,
 ) async {
-  final systemTab = find.text('System').first;
+  final systemTab = find.text('SYSTEM CONTROLS').first;
   await tester.ensureVisible(systemTab);
   await tester.tap(systemTab);
   await tester.pumpAndSettle();
@@ -54,11 +65,29 @@ Future<void> openAdminSystemAnchor(
 }
 
 Future<void> openAdminClientCommsAudit(WidgetTester tester) async {
-  await openAdminSystemAnchor(tester, 'Client Comms Audit');
+  final aiTab = find.text('AI COMMUNICATIONS').first;
+  await tester.ensureVisible(aiTab);
+  await tester.tap(aiTab);
+  await tester.pumpAndSettle();
+  await tester.scrollUntilVisible(
+    find.text('Client Comms Audit'),
+    500,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.pumpAndSettle();
 }
 
 Future<void> openAdminPendingDraftReview(WidgetTester tester) async {
-  await openAdminSystemAnchor(tester, 'CLIENT ASKED');
+  final aiTab = find.text('AI COMMUNICATIONS').first;
+  await tester.ensureVisible(aiTab);
+  await tester.tap(aiTab);
+  await tester.pumpAndSettle();
+  await tester.scrollUntilVisible(
+    find.text('CLIENT ASKED'),
+    500,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.pumpAndSettle();
 }
 
 Future<void> pumpAndOpenAdminClientCommsAudit(

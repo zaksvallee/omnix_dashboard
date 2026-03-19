@@ -34,6 +34,8 @@ enum AdministrationPageTab { guards, sites, clients, system }
 
 enum _AdminTab { guards, sites, clients, system }
 
+enum _AdminSystemSection { aiCommunications, systemControls, watchIdentity }
+
 enum _IdentityRuleBucket {
   flaggedFaces,
   flaggedPlates,
@@ -935,6 +937,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
   late final TextEditingController _partnerThreadIdController;
 
   _AdminTab _activeTab = _AdminTab.guards;
+  _AdminTab _lastEntityTab = _AdminTab.guards;
+  _AdminSystemSection _activeSystemSection = _AdminSystemSection.systemControls;
   String _query = '';
   bool _directoryLoading = false;
   bool _directorySaving = false;
@@ -1193,6 +1197,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
     if (oldWidget.initialTab != widget.initialTab &&
         _activeTab != _adminTabFromPublic(widget.initialTab)) {
       _activeTab = _adminTabFromPublic(widget.initialTab);
+      if (_activeTab != _AdminTab.system) {
+        _lastEntityTab = _activeTab;
+      }
     }
     if (oldWidget.initialWatchActionDrilldown !=
             widget.initialWatchActionDrilldown &&
@@ -1282,38 +1289,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
               children: [
                 _adminHeroHeader(),
                 const SizedBox(height: 12),
-                _adminOverviewGrid(),
-                const SizedBox(height: 12),
                 _tabBar(),
                 const SizedBox(height: 12),
-                OnyxSectionCard(
-                  title: 'Administration Console',
-                  subtitle:
-                      'Search, inspect, and maintain operational configuration records.',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _toolbar(),
-                      if (_demoMode) ...[
-                        const SizedBox(height: 10),
-                        _demoStoryboardPanel(),
-                      ],
-                      if ((_directorySyncMessage ?? '').trim().isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          _directorySyncMessage!.trim(),
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF8EA4C2),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 12),
-                      _activeTabBody(),
-                    ],
-                  ),
-                ),
+                _activeTabBody(),
               ],
             ),
           ),
@@ -1533,205 +1511,6 @@ class _AdministrationPageState extends State<AdministrationPage> {
     );
   }
 
-  Widget _adminOverviewGrid() {
-    final cards = <({
-      IconData icon,
-      Color accent,
-      String status,
-      Color statusAccent,
-      String value,
-      String title,
-      String footnote,
-      IconData footnoteIcon,
-      Color footnoteAccent,
-    })>[
-      (
-        icon: Icons.shield_rounded,
-        accent: const Color(0xFFEF4444),
-        status: 'Active',
-        statusAccent: const Color(0xFFEF4444),
-        value: '${_guards.length}',
-        title: 'Employees',
-        footnote: 'Directory roster loaded',
-        footnoteIcon: Icons.verified_user_rounded,
-        footnoteAccent: const Color(0xFF34D399),
-      ),
-      (
-        icon: Icons.apartment_rounded,
-        accent: const Color(0xFFF59E0B),
-        status: 'Mapped',
-        statusAccent: const Color(0xFFF59E0B),
-        value: '${_sites.length}',
-        title: 'Sites',
-        footnote: 'Geofence coverage ready',
-        footnoteIcon: Icons.location_on_outlined,
-        footnoteAccent: const Color(0xFF8FD1FF),
-      ),
-      (
-        icon: Icons.business_center_rounded,
-        accent: const Color(0xFF22D3EE),
-        status: 'Clients',
-        statusAccent: const Color(0xFF22D3EE),
-        value: '${_clients.length}',
-        title: 'Client Accounts',
-        footnote: '${widget.clientCommsAuditViews.length} comms audits in view',
-        footnoteIcon: Icons.chat_bubble_outline_rounded,
-        footnoteAccent: const Color(0xFF22D3EE),
-      ),
-      (
-        icon: Icons.psychology_alt_rounded,
-        accent: const Color(0xFF34D399),
-        status: widget.telegramAiPendingDrafts.isNotEmpty ? 'Review' : 'Ready',
-        statusAccent: widget.telegramAiPendingDrafts.isNotEmpty
-            ? const Color(0xFFF59E0B)
-            : const Color(0xFF34D399),
-        value: '${widget.telegramAiPendingDrafts.length}',
-        title: 'Pending AI Drafts',
-        footnote: widget.clientCommsAuditViews.isNotEmpty
-            ? '${widget.clientCommsAuditViews.length} client comms lanes monitored'
-            : 'Client comms audit ready',
-        footnoteIcon: widget.telegramAiPendingDrafts.isNotEmpty
-            ? Icons.schedule_rounded
-            : Icons.check_circle_rounded,
-        footnoteAccent: widget.telegramAiPendingDrafts.isNotEmpty
-            ? const Color(0xFFF59E0B)
-            : const Color(0xFF34D399),
-      ),
-    ];
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columnCount = constraints.maxWidth < 920 ? 2 : 4;
-        final childAspectRatio = constraints.maxWidth < 520
-            ? 0.76
-            : constraints.maxWidth < 920
-            ? 1.18
-            : 1.4;
-        return GridView.count(
-          key: const ValueKey('admin-overview-grid'),
-          crossAxisCount: columnCount,
-          childAspectRatio: childAspectRatio,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          children: cards
-              .map(
-                (card) => _adminOverviewCard(
-                  icon: card.icon,
-                  iconAccent: card.accent,
-                  statusLabel: card.status,
-                  statusAccent: card.statusAccent,
-                  value: card.value,
-                  title: card.title,
-                  footnote: card.footnote,
-                  footnoteIcon: card.footnoteIcon,
-                  footnoteAccent: card.footnoteAccent,
-                ),
-              )
-              .toList(growable: false),
-        );
-      },
-    );
-  }
-
-  Widget _adminOverviewCard({
-    required IconData icon,
-    required Color iconAccent,
-    required String statusLabel,
-    required Color statusAccent,
-    required String value,
-    required String title,
-    required String footnote,
-    required IconData footnoteIcon,
-    required Color footnoteAccent,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0D1117),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF21262D)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  color: iconAccent.withValues(alpha: 0.14),
-                  border: Border.all(color: iconAccent.withValues(alpha: 0.32)),
-                ),
-                child: Icon(icon, size: 20, color: iconAccent),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusAccent.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  statusLabel.toUpperCase(),
-                  style: GoogleFonts.inter(
-                    color: statusAccent,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const Spacer(),
-          Text(
-            value,
-            style: GoogleFonts.inter(
-              color: const Color(0xFFF8FBFF),
-              fontSize: 26,
-              fontWeight: FontWeight.w900,
-              height: 0.95,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            title.toUpperCase(),
-            style: GoogleFonts.inter(
-              color: const Color(0xFFB4BDC9),
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.9,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Container(height: 1, color: const Color(0x14FFFFFF)),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Icon(footnoteIcon, size: 14, color: footnoteAccent),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  footnote,
-                  style: GoogleFonts.inter(
-                    color: footnoteAccent,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   void initState() {
     super.initState();
@@ -1742,6 +1521,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
     _partnerChatIdController = TextEditingController();
     _partnerThreadIdController = TextEditingController();
     _activeTab = _adminTabFromPublic(widget.initialTab);
+    if (_activeTab != _AdminTab.system) {
+      _lastEntityTab = _activeTab;
+    }
     _activeWatchActionDrilldown = widget.initialWatchActionDrilldown;
     _monitoringIdentityPolicyService = widget.monitoringIdentityPolicyService;
     _identityPolicyAuditHistory =
@@ -1793,6 +1575,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
     }
     setState(() {
       _activeTab = value;
+      if (value != _AdminTab.system) {
+        _lastEntityTab = value;
+      }
     });
     if (notify) {
       widget.onTabChanged?.call(_adminTabToPublic(value));
@@ -2716,15 +2501,48 @@ class _AdministrationPageState extends State<AdministrationPage> {
 
   Widget _tabBar() {
     final tabs = [
-      (_AdminTab.guards, 'Employees', Icons.shield_rounded, _guards.length),
-      (_AdminTab.sites, 'Sites', Icons.apartment_rounded, _sites.length),
       (
-        _AdminTab.clients,
-        'Clients',
-        Icons.business_center_rounded,
-        _clients.length,
+        active: _activeTab != _AdminTab.system,
+        label: 'ENTITY MANAGEMENT',
+        icon: Icons.business_rounded,
+        onTap: () => _setActiveTab(_lastEntityTab),
       ),
-      (_AdminTab.system, 'System', Icons.settings_rounded, null),
+      (
+        active: _activeTab == _AdminTab.system &&
+            _activeSystemSection == _AdminSystemSection.aiCommunications,
+        label: 'AI COMMUNICATIONS',
+        icon: Icons.psychology_alt_rounded,
+        onTap: () {
+          _setActiveTab(_AdminTab.system);
+          setState(
+            () => _activeSystemSection = _AdminSystemSection.aiCommunications,
+          );
+        },
+      ),
+      (
+        active: _activeTab == _AdminTab.system &&
+            _activeSystemSection == _AdminSystemSection.systemControls,
+        label: 'SYSTEM CONTROLS',
+        icon: Icons.settings_rounded,
+        onTap: () {
+          _setActiveTab(_AdminTab.system);
+          setState(
+            () => _activeSystemSection = _AdminSystemSection.systemControls,
+          );
+        },
+      ),
+      (
+        active: _activeTab == _AdminTab.system &&
+            _activeSystemSection == _AdminSystemSection.watchIdentity,
+        label: 'WATCH & IDENTITY',
+        icon: Icons.shield_outlined,
+        onTap: () {
+          _setActiveTab(_AdminTab.system);
+          setState(
+            () => _activeSystemSection = _AdminSystemSection.watchIdentity,
+          );
+        },
+      ),
     ];
 
     return Container(
@@ -2738,69 +2556,49 @@ class _AdministrationPageState extends State<AdministrationPage> {
         runSpacing: 8,
         children: tabs
             .map((tab) {
-              final active = _activeTab == tab.$1;
+              final active = tab.active;
               return InkWell(
-                onTap: () => _setActiveTab(tab.$1),
+                onTap: tab.onTap,
                 borderRadius: BorderRadius.circular(10),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
+                    horizontal: 18,
+                    vertical: 10,
                   ),
                   decoration: BoxDecoration(
-                    color: active
-                        ? const Color(0x1A22D3EE)
-                        : const Color(0xFF0E1A2B),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: active
-                          ? const Color(0x6622D3EE)
-                          : const Color(0x332B425F),
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: active
+                            ? const Color(0xFF00D4FF)
+                            : Colors.transparent,
+                        width: 2,
+                      ),
                     ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        tab.$3,
+                        tab.icon,
                         size: 16,
                         color: active
                             ? const Color(0xFF22D3EE)
-                            : const Color(0xFF9AB1CF),
+                            : const Color(0xFF9AA6B2),
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       Text(
-                        tab.$2,
+                        tab.label,
                         style: GoogleFonts.inter(
                           color: active
-                              ? const Color(0xFFEAF4FF)
-                              : const Color(0xB3FFFFFF),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                              ? const Color(0xFF00D4FF)
+                              : const Color(0xFFB6C3D6),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.45,
                         ),
                       ),
-                      if (tab.$4 != null) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0x22000000),
-                            borderRadius: BorderRadius.circular(7),
-                            border: Border.all(color: const Color(0x332B425F)),
-                          ),
-                          child: Text(
-                            '${tab.$4}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFF8EA4C2),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ),
@@ -3242,11 +3040,551 @@ class _AdministrationPageState extends State<AdministrationPage> {
 
   Widget _activeTabBody() {
     return switch (_activeTab) {
+      _AdminTab.guards => _entityManagementView(),
+      _AdminTab.sites => _entityManagementView(),
+      _AdminTab.clients => _entityManagementView(),
+      _AdminTab.system => _systemExperience(),
+    };
+  }
+
+  Widget _entityManagementView() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _systemCategoryFrame(
+          title: 'ENTITY MANAGEMENT',
+          subtitle: 'Guards, Sites, Clients CRUD operations',
+          icon: Icons.business_rounded,
+          accent: const Color(0xFF00D4FF),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _entityManagementCards(),
+              const SizedBox(height: 18),
+              _toolbar(),
+              if (_demoMode) ...[
+                const SizedBox(height: 10),
+                _demoStoryboardPanel(),
+              ],
+              if ((_directorySyncMessage ?? '').trim().isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  _directorySyncMessage!.trim(),
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF8EA4C2),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 18),
+              Text(
+                'DIRECTORY WORKSPACE',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF93A5BF),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              const SizedBox(height: 10),
+              _activeEntityWorkspace(),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _entityManagementCards() {
+    final cards = [
+      (
+        tab: _AdminTab.guards,
+        title: 'Guards',
+        subtitle: 'Manage guard roster',
+        icon: Icons.groups_2_outlined,
+        count: _guards.length,
+      ),
+      (
+        tab: _AdminTab.sites,
+        title: 'Sites',
+        subtitle: 'Manage site database',
+        icon: Icons.apartment_rounded,
+        count: _sites.length,
+      ),
+      (
+        tab: _AdminTab.clients,
+        title: 'Clients',
+        subtitle: 'Manage client accounts',
+        icon: Icons.business_center_rounded,
+        count: _clients.length,
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 1180
+            ? 3
+            : constraints.maxWidth >= 760
+            ? 2
+            : 1;
+        return GridView.count(
+          crossAxisCount: columns,
+          mainAxisSpacing: 16,
+          crossAxisSpacing: 16,
+          childAspectRatio: columns == 1 ? 2.8 : 2.15,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            for (final card in cards)
+              _entityManagementCard(
+                title: card.title,
+                subtitle: card.subtitle,
+                icon: card.icon,
+                count: card.count,
+                active: _activeTab == card.tab,
+                onTap: () => _setActiveTab(card.tab),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _entityManagementCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required int count,
+    required bool active,
+    required VoidCallback onTap,
+  }) {
+    final foreground = active
+        ? const Color(0xFFEAF7FF)
+        : const Color(0xFFF5F7FA);
+    final muted = active
+        ? const Color(0xFFA9D7FF)
+        : const Color(0xFF8D99A8);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: active ? const Color(0xFF132946) : const Color(0xFF0E141B),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: active
+                ? const Color(0xFF1C7FB6)
+                : const Color(0xFF212C39),
+          ),
+          boxShadow: active
+              ? const [
+                  BoxShadow(
+                    color: Color(0x2600BFFF),
+                    blurRadius: 22,
+                    offset: Offset(0, 8),
+                  ),
+                ]
+              : const [],
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxHeight < 108;
+            if (compact) {
+              return Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: active
+                          ? const Color(0x1A00D4FF)
+                          : const Color(0x1400D4FF),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(icon, color: const Color(0xFF00D4FF), size: 20),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            color: foreground,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            color: muted,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    '$count',
+                    style: GoogleFonts.inter(
+                      color: active
+                          ? const Color(0xFF00D4FF)
+                          : const Color(0xFF8EA4C2),
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              );
+            }
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: active
+                            ? const Color(0x1A00D4FF)
+                            : const Color(0x1400D4FF),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Icon(
+                        icon,
+                        color: const Color(0xFF00D4FF),
+                        size: 22,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '$count',
+                      style: GoogleFonts.inter(
+                        color: active
+                            ? const Color(0xFF00D4FF)
+                            : const Color(0xFF8EA4C2),
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    color: foreground,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.inter(
+                    color: muted,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _activeEntityWorkspace() {
+    return switch (_activeTab) {
       _AdminTab.guards => _guardsTable(),
       _AdminTab.sites => _sitesTable(),
       _AdminTab.clients => _clientsTable(),
-      _AdminTab.system => _systemTab(),
+      _AdminTab.system => const SizedBox.shrink(),
     };
+  }
+
+  Widget _systemExperience() {
+    return switch (_activeSystemSection) {
+      _AdminSystemSection.aiCommunications => _systemAiCommunicationsView(),
+      _AdminSystemSection.systemControls => _systemControlsView(),
+      _AdminSystemSection.watchIdentity => _systemWatchIdentityView(),
+    };
+  }
+
+  Widget _systemAiCommunicationsView() {
+    final activePatterns = widget.clientCommsAuditViews
+        .where((audit) => audit.learnedApprovalStyleCount > 0)
+        .length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _systemCategoryFrame(
+          title: 'LEARNED APPROVAL STYLES',
+          subtitle: 'AI-detected patterns from your review decisions',
+          icon: Icons.psychology_alt_rounded,
+          accent: const Color(0xFF8B5CF6),
+          badge: '$activePatterns ACTIVE PATTERNS',
+          child: _telegramAiAssistantPanel(),
+        ),
+        const SizedBox(height: 14),
+        _systemCategoryFrame(
+          title: 'PENDING AI DRAFT REVIEW',
+          subtitle: 'Client communications awaiting approval',
+          icon: Icons.chat_bubble_outline_rounded,
+          accent: const Color(0xFF00D4FF),
+          trailing: OutlinedButton(
+            onPressed: widget.telegramAiPendingDrafts.isEmpty ? null : () {},
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF00D4FF),
+              side: const BorderSide(color: Color(0xFF245B72)),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            ),
+            child: Text(
+              'JUMP TO QUEUE',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w800),
+            ),
+          ),
+          child: _clientCommsAuditPanel(),
+        ),
+      ],
+    );
+  }
+
+  Widget _systemControlsView() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _systemCategoryFrame(
+          title: 'SYSTEM RUNTIME CONTROLS',
+          subtitle: 'Live operations and queue management',
+          icon: Icons.settings_rounded,
+          accent: const Color(0xFFF59E0B),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _systemQueueHintPanel(),
+              const SizedBox(height: 14),
+              _systemTab(),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _systemWatchIdentityView() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _systemCategoryFrame(
+          title: 'WATCH & IDENTITY CONTROLS',
+          subtitle: 'Fleet watch health and temporary identity approvals',
+          icon: Icons.shield_outlined,
+          accent: const Color(0xFFA855F7),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _fleetScopeHealthPanel(
+                onOpenWatchActionDrilldown: _setActiveWatchActionDrilldown,
+                onOpenLatestWatchActionDetail: (scope) {
+                  final primaryOpenFleetScope = scope.hasIncidentContext
+                      ? (widget.onOpenFleetTacticalScope ??
+                          widget.onOpenFleetDispatchScope)
+                      : null;
+                  primaryOpenFleetScope?.call(
+                    scope.clientId,
+                    scope.siteId,
+                    scope.latestIncidentReference,
+                  );
+                },
+              ),
+              if (widget.monitoringWatchAuditHistory.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _monitoringWatchAuditTrailPanel(),
+              ],
+              if (_monitoringIdentityPolicyService.entries.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _identityPolicyPanel(),
+              ],
+              if (widget.supabaseReady || _telegramIdentityIntakes.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _telegramIdentityIntakePanel(),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _systemCategoryFrame({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color accent,
+    required Widget child,
+    String? badge,
+    Widget? trailing,
+  }) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E141B),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFF212C39)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: accent.withValues(alpha: 0.4)),
+                  ),
+                  child: Icon(icon, color: accent, size: 24),
+                ),
+                const SizedBox(width: 18),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFF5F7FA),
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF7F90A4),
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (badge != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF12381F),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF215433)),
+                    ),
+                    child: Text(
+                      badge,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF34D399),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  )
+                else if (trailing != null) ...<Widget>[trailing],
+              ],
+            ),
+          ),
+          const Divider(color: Color(0xFF1C2632), height: 1),
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: child,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _systemQueueHintPanel() {
+    final resetAvailable = widget.onResetLiveOperationsQueueHint != null;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFF10161E),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF273241)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'LIVE OPERATIONS QUEUE HINT',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFF5F7FA),
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Reset the first-run queue filtering tutorial for all operators',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF7F90A4),
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: resetAvailable && !_liveOperationsQueueHintResetBusy
+                  ? _resetLiveOperationsQueueHint
+                  : null,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFFE6ECF5),
+                side: const BorderSide(color: Color(0xFF273241)),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+              icon: const Icon(Icons.restart_alt_rounded, size: 20),
+              label: Text(
+                'RESET QUEUE HINT',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.4,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _demoStoryboardPanel() {

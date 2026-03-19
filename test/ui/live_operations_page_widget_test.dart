@@ -23,7 +23,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('INCIDENT QUEUE'), findsOneWidget);
-    expect(find.text('SOVEREIGN LEDGER FEED'), findsOneWidget);
+    expect(find.text('SOVEREIGN LEDGER'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -43,7 +43,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('INCIDENT QUEUE'), findsOneWidget);
-    expect(find.text('SOVEREIGN LEDGER FEED'), findsOneWidget);
+    expect(find.text('SOVEREIGN LEDGER'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -57,7 +57,7 @@ void main() {
     expect(find.text('INCIDENT QUEUE'), findsOneWidget);
     expect(find.text('ACTION LADDER'), findsOneWidget);
     expect(find.text('INCIDENT CONTEXT'), findsOneWidget);
-    expect(find.text('SOVEREIGN LEDGER FEED'), findsOneWidget);
+    expect(find.text('SOVEREIGN LEDGER'), findsOneWidget);
     expect(find.byKey(const Key('incident-card-INC-8829-QX')), findsOneWidget);
     expect(find.byKey(const Key('incident-card-INC-8830-RZ')), findsOneWidget);
   });

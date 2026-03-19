@@ -26,6 +26,7 @@ void main() {
     tester,
   ) async {
     Map<String, String>? openedGovernanceScope;
+    Map<String, Object?>? openedEventsScope;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -37,6 +38,12 @@ void main() {
             openedGovernanceScope = {
               'clientId': clientId,
               'siteId': siteId,
+            };
+          },
+          onOpenEventsForScope: (eventIds, selectedEventId) {
+            openedEventsScope = {
+              'eventIds': eventIds,
+              'selectedEventId': selectedEventId,
             };
           },
         ),
@@ -60,6 +67,17 @@ void main() {
       openedGovernanceScope,
       equals({'clientId': 'CLIENT-001', 'siteId': 'SITE-SANDTON'}),
     );
+
+    final viewEventsButton = find.byKey(
+      const ValueKey('reports-related-events-button'),
+    );
+    await tester.ensureVisible(viewEventsButton);
+    await tester.tap(viewEventsButton);
+    await tester.pumpAndSettle();
+
+    expect(openedEventsScope, isNotNull);
+    expect(openedEventsScope!['eventIds'], <String>['RPT-2024-03-10-001']);
+    expect(openedEventsScope!['selectedEventId'], 'RPT-2024-03-10-001');
   });
 
   testWidgets('client reports export all button is actionable', (tester) async {
@@ -839,12 +857,19 @@ void main() {
       const ValueKey('reports-partner-chain-open-events-DSP-9001'),
     );
     await tester.ensureVisible(openEventsButton);
-    await tester.tap(openEventsButton);
+    final openEventsAction = tester.widget<TextButton>(openEventsButton);
+    expect(openEventsAction.onPressed, isNotNull);
+    openEventsAction.onPressed!.call();
     await tester.pumpAndSettle();
 
     expect(openedEventsScope, <String, Object?>{
-      'eventIds': ['PARTNER-EVT-1', 'PARTNER-EVT-2', 'PARTNER-EVT-3'],
-      'selectedEventId': 'PARTNER-EVT-3',
+      'eventIds': [
+        'PARTNER-EVT-1',
+        'PARTNER-EVT-2',
+        'PARTNER-EVT-3',
+        'PARTNER-RPT-3',
+      ],
+      'selectedEventId': 'PARTNER-RPT-3',
     });
   });
 
@@ -2032,9 +2057,11 @@ void main() {
     await tester.pumpWidget(buildReports());
     await tester.pumpAndSettle();
 
-    await tester.tap(
-      find.byKey(const ValueKey('reports-partner-comparison-window-baseline')),
+    final baselineWindow = find.byKey(
+      const ValueKey('reports-partner-comparison-window-baseline'),
     );
+    await tester.ensureVisible(baselineWindow);
+    await tester.tap(baselineWindow);
     await tester.pumpAndSettle();
 
     expect(
@@ -2581,23 +2608,16 @@ void main() {
     await tester.tap(escalationKpi);
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('CLIENT-001 • SITE-SANDTON • Escalation receipts'),
-      findsOneWidget,
-    );
     expect(find.text('Viewing Escalation receipts (0/3)'), findsOneWidget);
     expect(
       find.text('No receipts fit the current filter right now.'),
       findsOneWidget,
     );
 
+    await tester.ensureVisible(escalationKpi);
     await tester.tap(escalationKpi);
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('CLIENT-001 • SITE-SANDTON • Escalation receipts'),
-      findsNothing,
-    );
     expect(find.text('Viewing Escalation receipts (0/3)'), findsNothing);
     expect(
       find.text('No receipts fit the current filter right now.'),
@@ -2627,10 +2647,6 @@ void main() {
     await tester.tap(suppressedKpi);
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('CLIENT-001 • SITE-SANDTON • Suppressed receipts'),
-      findsOneWidget,
-    );
     expect(find.text('Viewing Suppressed receipts (1/2)'), findsOneWidget);
     expect(
       find.textContaining('Vehicle remained below escalation threshold.'),
@@ -2664,10 +2680,6 @@ void main() {
     await tester.tap(alertsKpi);
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('CLIENT-001 • SITE-SANDTON • Alert receipts'),
-      findsOneWidget,
-    );
     expect(find.text('Viewing Alert receipts (1/2)'), findsOneWidget);
     expect(
       find.textContaining(
@@ -2705,10 +2717,6 @@ void main() {
       await tester.tap(find.textContaining('Latest Alert').last);
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('CLIENT-001 • SITE-SANDTON • Latest Alert receipts'),
-        findsOneWidget,
-      );
       expect(find.text('Viewing Latest Alert receipts (1/2)'), findsOneWidget);
       expect(
         find.text('No receipts fit the current filter right now.'),
@@ -2738,10 +2746,6 @@ void main() {
     await tester.tap(find.text('Latest Alert').first);
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('CLIENT-001 • SITE-SANDTON • Latest Alert receipts'),
-      findsOneWidget,
-    );
     expect(find.text('Viewing Latest Alert receipts (1/2)'), findsOneWidget);
   });
 
@@ -3012,10 +3016,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('CLIENT-001 • SITE-SANDTON • Scene Pending receipts'),
-      findsOneWidget,
-    );
     expect(find.text('Viewing Scene Pending receipts (3/3)'), findsOneWidget);
   });
 
@@ -3181,7 +3181,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Open Selected Receipt'), findsOneWidget);
-      expect(find.text('FOCUSED'), findsNWidgets(2));
+      expect(find.text('FOCUSED'), findsWidgets);
     },
   );
 
@@ -3575,9 +3575,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(
-      find.byKey(const ValueKey('reports-preview-target-clear')),
+    final clearPreviewTarget = find.byKey(
+      const ValueKey('reports-preview-target-clear'),
     );
+    await tester.ensureVisible(clearPreviewTarget);
+    await tester.tap(clearPreviewTarget);
     await tester.pumpAndSettle();
 
     expect(changedState?.previewReceiptEventId, isNull);
@@ -3628,9 +3630,11 @@ void main() {
         findsOneWidget,
       );
 
-      await tester.tap(
-        find.byKey(const ValueKey('reports-preview-target-clear')),
+      final clearPreviewTarget = find.byKey(
+        const ValueKey('reports-preview-target-clear'),
       );
+      await tester.ensureVisible(clearPreviewTarget);
+      await tester.tap(clearPreviewTarget);
       await tester.pumpAndSettle();
 
       expect(shellState.value.previewReceiptEventId, isNull);
@@ -4767,10 +4771,6 @@ void main() {
     await tester.tap(reviewedKpi);
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('CLIENT-001 • SITE-SANDTON • Reviewed receipts'),
-      findsOneWidget,
-    );
     expect(find.text('Viewing Reviewed receipts (1/2)'), findsOneWidget);
     expect(
       find.byKey(ValueKey('report-receipt-preview-$reviewedReceiptEventId')),

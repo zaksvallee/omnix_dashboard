@@ -3,12 +3,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/domain/events/response_arrived.dart';
 import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
+import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/ui/clients_page.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('clients page renders communications overview hero', (
+  testWidgets('clients page renders figma-style communications body', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1440, 1100));
@@ -26,11 +27,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Client Communications'), findsOneWidget);
-    expect(find.byKey(const ValueKey('clients-comms-overview-grid')), findsOneWidget);
-    expect(find.text('TELEGRAM'), findsOneWidget);
-    expect(find.text('SMS'), findsOneWidget);
-    expect(find.text('VOIP'), findsOneWidget);
-    expect(find.text('PENDING DRAFTS'), findsOneWidget);
+    expect(find.text('ACTIVE LANES'), findsOneWidget);
+    expect(find.text('ROOM & THREAD CONTEXT'), findsOneWidget);
+    expect(find.text('COMMUNICATION CHANNELS'), findsOneWidget);
+    expect(find.text('MESSAGE HISTORY'), findsOneWidget);
+    expect(find.text('PENDING AI DRAFTS'), findsOneWidget);
+    expect(find.text('LEARNED STYLE'), findsOneWidget);
+    expect(find.text('PINNED VOICE'), findsOneWidget);
   });
 
   testWidgets('clients page incident feed opens events review when wired', (
@@ -72,6 +75,7 @@ void main() {
       const ValueKey('clients-incident-row-Officer Arrived-19:47 UTC'),
     );
     await tester.ensureVisible(incidentRow);
+    await tester.pumpAndSettle();
     await tester.tap(incidentRow, warnIfMissed: false);
     await tester.pump();
     expect(openedEventIds, <String>['evt-arrival-1']);
@@ -133,8 +137,14 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    final retryAction = find.byKey(
+      const ValueKey('clients-retry-push-sync-action'),
+    );
+    await tester.ensureVisible(retryAction);
+    await tester.pumpAndSettle();
     await tester.tap(
-      find.byKey(const ValueKey('clients-retry-push-sync-action')),
+      retryAction,
+      warnIfMissed: false,
     );
     await tester.pump();
     expect(pushRetryCount, 1);
@@ -144,6 +154,105 @@ void main() {
     expect(openedRoom, 'Residents');
     expect(openedClientId, 'CLIENT-001');
     expect(openedSiteId, 'SITE-SANDTON');
+  });
+
+  testWidgets('clients page review drafts opens scoped events when available', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1100));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    List<String>? openedEventIds;
+    String? openedSelectedEventId;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ClientsPage(
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          events: <DispatchEvent>[
+            IntelligenceReceived(
+              eventId: 'evt-draft-1',
+              sequence: 4,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 18, 19, 38),
+              intelligenceId: 'intel-1',
+              provider: 'ai',
+              sourceType: 'telegram',
+              externalId: 'ext-1',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-1',
+              siteId: 'SITE-SANDTON',
+              headline: 'Review unusual camera movement',
+              summary: 'Draft message is awaiting control approval.',
+              riskScore: 71,
+              canonicalHash: 'hash-1',
+            ),
+          ],
+          onOpenEventsForScope: (eventIds, selectedEventId) {
+            openedEventIds = eventIds;
+            openedSelectedEventId = selectedEventId;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final reviewDrafts = find.byKey(
+      const ValueKey('clients-review-drafts-action'),
+    );
+    await tester.ensureVisible(reviewDrafts);
+    await tester.tap(reviewDrafts, warnIfMissed: false);
+    await tester.pump();
+
+    expect(openedEventIds, <String>['evt-draft-1']);
+    expect(openedSelectedEventId, 'evt-draft-1');
+  });
+
+  testWidgets('clients page channel controls update stage and pinned voice', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1100));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: ClientsPage(
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          events: <DispatchEvent>[],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final placeCall = find.byKey(
+      const ValueKey('clients-place-call-now-action'),
+    );
+    await tester.ensureVisible(placeCall);
+    final placeCallInkWell = tester.widget<InkWell>(placeCall);
+    placeCallInkWell.onTap!.call();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Call In Progress'), findsOneWidget);
+    expect(find.text('VoIP Ready'), findsOneWidget);
+
+    await tester.tap(find.text('Formal'));
+    await tester.pumpAndSettle();
+
+    final formalText = tester.widget<Text>(find.text('Formal'));
+    expect(formalText.style?.color, const Color(0xFF5DE1FF));
+
+    final cancelStage = find.byKey(
+      const ValueKey('clients-cancel-stage-action'),
+    );
+    await tester.ensureVisible(cancelStage);
+    final cancelStageInkWell = tester.widget<InkWell>(cancelStage);
+    cancelStageInkWell.onTap!.call();
+    await tester.pumpAndSettle();
+
+    expect(find.text('VoIP Call Active'), findsNothing);
+    expect(find.text('VoIP Idle'), findsOneWidget);
   });
 
   testWidgets(

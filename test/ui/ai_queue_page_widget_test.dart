@@ -44,11 +44,13 @@ void main() {
   testWidgets('ai queue shows active automation controls', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: AIQueuePage(events: [])));
 
-    expect(find.text('AI Automation Queue'), findsWidgets);
-    expect(find.byKey(const ValueKey('ai-queue-overview-grid')), findsOneWidget);
+    expect(find.text('AI Automation Queue'), findsOneWidget);
     expect(find.text('View Events'), findsOneWidget);
-    expect(find.text('QUEUE STATUS'), findsOneWidget);
-    expect(find.text('Active Automation'), findsOneWidget);
+    expect(find.text('AI ENGINE ACTIVE'), findsOneWidget);
+    expect(find.text('TOTAL QUEUE'), findsOneWidget);
+    expect(find.text('ACTIVE AUTOMATION'), findsOneWidget);
+    expect(find.text('PROPOSED ACTION'), findsOneWidget);
+    expect(find.text('INTERVENTION WINDOW'), findsOneWidget);
     expect(find.text('CANCEL ACTION'), findsOneWidget);
     expect(find.text('PAUSE'), findsOneWidget);
     expect(find.text('APPROVE NOW'), findsOneWidget);
@@ -222,7 +224,6 @@ void main() {
       find.textContaining('Replay the next-shift posture'),
       findsOneWidget,
     );
-    expect(find.text('AUTO'), findsWidgets);
   });
 
   testWidgets('ai queue surfaces fire escalation plans from hazard posture', (

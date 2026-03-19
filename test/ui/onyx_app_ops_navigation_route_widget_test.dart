@@ -7,6 +7,7 @@ import 'package:omnix_dashboard/main.dart';
 import 'package:omnix_dashboard/ui/app_shell.dart';
 import 'package:omnix_dashboard/ui/dispatch_page.dart';
 import 'package:omnix_dashboard/ui/events_review_page.dart';
+import 'package:omnix_dashboard/ui/sovereign_ledger_page.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -76,6 +77,31 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(EventsReviewPage), findsOneWidget);
+  });
+
+  testWidgets('onyx app opens ledger from governance quick actions', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      OnyxApp(
+        supabaseReady: false,
+        initialRouteOverride: OnyxRoute.governance,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('governance-quick-view-ledger-button')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('governance-quick-view-ledger-button')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SovereignLedgerPage), findsOneWidget);
   });
 
   testWidgets('onyx app opens dispatches from tactical hero action', (

@@ -184,27 +184,22 @@ class _AIQueuePageState extends State<AIQueuePage> {
                   queuedCount: queuedActions.length,
                 ),
                 const SizedBox(height: 16),
-                _queueSummaryBar(
-                  totalQueueCount: _actions.length,
-                  queuedCount: queuedActions.length,
-                  paused: _queuePaused,
-                ),
-                const SizedBox(height: 16),
-                _overviewGrid(
-                  activeAction: activeAction,
-                  queuedCount: queuedActions.length,
-                  nextShiftCount: nextShiftDrafts.length,
-                ),
-                const SizedBox(height: 16),
-                _header(compact: compact),
-                const SizedBox(height: 16),
-                if (moShadowSites.isNotEmpty) ...[
-                  _moShadowCard(moShadowSites),
-                  const SizedBox(height: 16),
-                ],
-                if (activeAction != null) _activeAutomationCard(activeAction),
+                if (activeAction != null)
+                  _activeAutomationCard(
+                    activeAction,
+                    compact: compact,
+                  )
+                else
+                  _automationStandbyCard(
+                    totalQueueCount: _actions.length,
+                    queuedCount: queuedActions.length,
+                  ),
                 const SizedBox(height: 16),
                 _queuedActionsCard(queuedActions),
+                if (moShadowSites.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  _moShadowCard(moShadowSites),
+                ],
                 if (nextShiftDrafts.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   _nextShiftDraftsCard(nextShiftDrafts),
@@ -257,136 +252,6 @@ class _AIQueuePageState extends State<AIQueuePage> {
     callback(eventIds, eventIds.first);
   }
 
-  Widget _header({required bool compact}) {
-    if (compact) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0x3322D3EE),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.psychology_alt_rounded,
-                  size: 30,
-                  color: Color(0xFF22D3EE),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'AI Automation Queue',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFFEAF4FF),
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text(
-                      'Human-parallel execution supervision',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF8EA4C2),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF22D3EE),
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                'AI Engine Active',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF9AB5D7),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ],
-      );
-    }
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: const Color(0x3322D3EE),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: const Icon(
-            Icons.psychology_alt_rounded,
-            size: 30,
-            color: Color(0xFF22D3EE),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'AI Automation Queue',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFFEAF4FF),
-                  fontSize: compact ? 24 : 28,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              Text(
-                'Human-parallel execution supervision',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF8EA4C2),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Container(
-          width: 8,
-          height: 8,
-          decoration: const BoxDecoration(
-            color: Color(0xFF22D3EE),
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          'AI Engine Active',
-          style: GoogleFonts.inter(
-            color: const Color(0xFF9AB5D7),
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _heroHeader(
     BuildContext context, {
     required bool compact,
@@ -399,69 +264,50 @@ class _AIQueuePageState extends State<AIQueuePage> {
         widget.onOpenEventsForScope != null &&
         _eventIdsForAction(activeAction).isNotEmpty;
     final openEventsAction = canOpenEvents ? activeAction : null;
-    final titleBlock = Column(
+    final titleBlock = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF8B5CF6), Color(0xFF4F46E5)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+        Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            gradient: const LinearGradient(
+              colors: [Color(0xFF9333EA), Color(0xFF4F46E5)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: const Icon(
+            Icons.psychology_alt_rounded,
+            color: Colors.white,
+            size: 28,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'AI Automation Queue',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFF6FBFF),
+                  fontSize: compact ? 24 : 28,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
-              child: const Icon(
-                Icons.psychology_alt_rounded,
-                color: Colors.white,
-                size: 28,
+              const SizedBox(height: 4),
+              Text(
+                'Human-parallel execution supervision with 30s intervention windows.',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF95A9C7),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'AI Automation Queue',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFFF6FBFF),
-                      fontSize: compact ? 22 : 26,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Human-parallel execution supervision with live intervention windows.',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF95A9C7),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _heroChip('Engine', _queuePaused ? 'Paused' : 'Active'),
-            _heroChip('Total Queue', '$totalQueueCount'),
-            _heroChip('Queued', '$queuedCount'),
-            _heroChip(
-              'Active Site',
-              activeAction?.site ?? 'Awaiting Automation',
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );
@@ -479,86 +325,108 @@ class _AIQueuePageState extends State<AIQueuePage> {
               ? null
               : () => _openEventsForAction(openEventsAction),
         ),
+        _heroStatusChip(
+          label: _queuePaused ? 'AI Engine Paused' : 'AI Engine Active',
+          accent: _queuePaused
+              ? const Color(0xFFF6C067)
+              : const Color(0xFF10B981),
+        ),
+        _heroCountCard(
+          label: 'Total Queue',
+          value: '$totalQueueCount',
+          accent: const Color(0xFFEEF2FF),
+        ),
       ],
     );
     if (compact) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF1A1433), Color(0xFF10172A)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFF2A3150)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            titleBlock,
-            const SizedBox(height: 16),
-            actions,
-          ],
-        ),
-      );
-    }
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1A1433), Color(0xFF10172A)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF2A3150)),
-      ),
-      child: Row(
+      return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(child: titleBlock),
-          const SizedBox(width: 16),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 220),
-            child: actions,
+          titleBlock,
+          const SizedBox(height: 14),
+          actions,
+        ],
+      );
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: titleBlock),
+        const SizedBox(width: 18),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 380),
+          child: actions,
+        ),
+      ],
+    );
+  }
+
+  Widget _heroStatusChip({required String label, required Color accent}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            label.toUpperCase(),
+            style: GoogleFonts.inter(
+              color: accent,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.4,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _heroChip(String label, String value) {
+  Widget _heroCountCard({
+    required String label,
+    required String value,
+    required Color accent,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
       decoration: BoxDecoration(
-        color: const Color(0x14000000),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0x33000000)),
+        color: const Color(0xFF10141F),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF293245)),
       ),
-      child: RichText(
-        text: TextSpan(
-          children: [
-            TextSpan(
-              text: '$label: ',
-              style: GoogleFonts.inter(
-                color: const Color(0xFF8EA4C2),
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF7D8DA8),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1,
             ),
-            TextSpan(
-              text: value,
-              style: GoogleFonts.inter(
-                color: const Color(0xFFE8F1FF),
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-              ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              color: accent,
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              height: 0.95,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -591,222 +459,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
     );
   }
 
-  Widget _queueSummaryBar({
-    required int totalQueueCount,
-    required int queuedCount,
-    required bool paused,
+  Widget _activeAutomationCard(
+    _AiQueueAction action, {
+    required bool compact,
   }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF131726),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF2A3150)),
-      ),
-      child: Wrap(
-        spacing: 10,
-        runSpacing: 10,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          Text(
-            'QUEUE STATUS',
-            style: GoogleFonts.inter(
-              color: const Color(0x669BB0CE),
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.2,
-            ),
-          ),
-          _statusPill(
-            icon: Icons.bolt_rounded,
-            label: paused ? 'Engine Paused' : 'AI Engine Active',
-            accent: paused
-                ? const Color(0xFFF6C067)
-                : const Color(0xFF34D399),
-          ),
-          _statusPill(
-            icon: Icons.schedule_rounded,
-            label: '$queuedCount Queued',
-            accent: const Color(0xFF63BDFF),
-          ),
-          _statusPill(
-            icon: Icons.list_alt_rounded,
-            label: '$totalQueueCount Total',
-            accent: const Color(0xFFA78BFA),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statusPill({
-    required IconData icon,
-    required String label,
-    required Color accent,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: accent.withValues(alpha: 0.28)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: accent),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              color: accent,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _overviewGrid({
-    required _AiQueueAction? activeAction,
-    required int queuedCount,
-    required int nextShiftCount,
-  }) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 1200
-            ? 4
-            : constraints.maxWidth >= 760
-            ? 2
-            : 1;
-        final aspectRatio = columns == 4
-            ? 1.95
-            : columns == 2
-            ? 2.35
-            : 2.55;
-        return GridView.count(
-          key: const ValueKey('ai-queue-overview-grid'),
-          crossAxisCount: columns,
-          mainAxisSpacing: 8,
-          crossAxisSpacing: 8,
-          childAspectRatio: aspectRatio,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          children: [
-            _overviewCard(
-              title: 'Active Automation',
-              value: activeAction == null ? 'None' : '1',
-              detail: activeAction == null
-                  ? 'No active automation is executing right now.'
-                  : '${activeAction.actionType} is currently inside the intervention window.',
-              icon: Icons.bolt_rounded,
-              accent: const Color(0xFF22D3EE),
-            ),
-            _overviewCard(
-              title: 'Queued Actions',
-              value: '$queuedCount',
-              detail: 'Automation items waiting behind the active action.',
-              icon: Icons.schedule_rounded,
-              accent: const Color(0xFF63BDFF),
-            ),
-            _overviewCard(
-              title: 'Next Shift Drafts',
-              value: '$nextShiftCount',
-              detail: 'Carry-forward posture and draft actions prepared for the next shift.',
-              icon: Icons.history_toggle_off_rounded,
-              accent: const Color(0xFFA78BFA),
-            ),
-            _overviewCard(
-              title: 'Active Site',
-              value: activeAction?.site ?? 'Standby',
-              detail: activeAction == null
-                  ? 'Awaiting live automation plans from the event stream.'
-                  : 'Current automation focus for human-parallel supervision.',
-              icon: Icons.place_outlined,
-              accent: const Color(0xFF34D399),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _overviewCard({
-    required String title,
-    required String value,
-    required String detail,
-    required IconData icon,
-    required Color accent,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF223244)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: accent, size: 20),
-              ),
-              const Spacer(),
-              Flexible(
-                child: Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.end,
-                  style: GoogleFonts.robotoMono(
-                    color: const Color(0xFFF4F8FF),
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const Spacer(),
-          Text(
-            title.toUpperCase(),
-            style: GoogleFonts.inter(
-              color: const Color(0xFF93A5BF),
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.2,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            detail,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.inter(
-              color: const Color(0xFFD5E1F2),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              height: 1.35,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _activeAutomationCard(_AiQueueAction action) {
-    final priority = _priorityStyle(action.incidentPriority);
     final countdownColor = action.timeUntilExecutionSeconds <= 10
         ? const Color(0xFFEF4444)
         : action.timeUntilExecutionSeconds <= 20
@@ -818,103 +474,173 @@ class _AIQueuePageState extends State<AIQueuePage> {
     final promotionExecutionSummary = _promotionExecutionSummary(
       action.metadata,
     );
+    final officer = action.metadata['officer'] ?? 'Echo-3';
+    final distance = action.metadata['distance'] ?? '2.4km';
+    final eta =
+        action.metadata['eta'] ??
+        '${(action.timeUntilExecutionSeconds / 60).ceil().clamp(1, 9)}m ${(action.timeUntilExecutionSeconds % 60).toString().padLeft(2, '0')}s';
+    final confidence = _confidenceLabel(action);
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: _panelDecoration(border: const Color(0x6640A5D8), glow: true),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stackHeader = constraints.maxWidth < 720;
+              final headerCopy = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    paused ? 'ACTIVE AUTOMATION (PAUSED)' : 'ACTIVE AUTOMATION',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFE8F3FF),
+                      fontSize: compact ? 15 : 16,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    paused
+                        ? 'Execution hold is active'
+                        : 'AI preparing to execute • intervention window active',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF9AB5D7),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              );
+              final leadingIcon = Container(
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: const Color(0x3322D3EE),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: const Icon(
                   Icons.bolt_rounded,
                   color: Color(0xFF22D3EE),
-                  size: 20,
+                  size: 24,
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
+              );
+              if (stackHeader) {
+                return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      paused
-                          ? 'Active Automation (Paused)'
-                          : 'Active Automation',
-                      style: GoogleFonts.rajdhani(
-                        color: const Color(0xFFE8F3FF),
-                        fontSize: 21,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        leadingIcon,
+                        const SizedBox(width: 12),
+                        Expanded(child: headerCopy),
+                      ],
                     ),
-                    Text(
-                      paused
-                          ? 'Execution hold is active'
-                          : 'AI is preparing to execute',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF9AB5D7),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    const SizedBox(height: 12),
+                    _actionTypePill(action.actionType),
                   ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: priority.background,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: priority.border),
-                ),
-                child: Text(
-                  priority.label,
-                  style: GoogleFonts.inter(
-                    color: priority.foreground,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  leadingIcon,
+                  const SizedBox(width: 12),
+                  Expanded(child: headerCopy),
+                  const SizedBox(width: 12),
+                  _actionTypePill(action.actionType),
+                ],
+              );
+            },
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
+          _activeAutomationMetrics(
+            incidentId: action.incidentId,
+            site: action.site,
+            officer: officer,
+            eta: eta,
+          ),
+          const SizedBox(height: 16),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0x55000000),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFF283A53)),
+              color: const Color(0x1A0B2234),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFF21445E)),
             ),
-            child: Wrap(
-              spacing: 18,
-              runSpacing: 8,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _detailCell('Incident', action.incidentId, mono: true),
-                _detailCell('Site', action.site),
-                _detailCell('Action', action.actionType),
+                Text(
+                  'PROPOSED ACTION',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF22D3EE),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.6,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  action.description,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFF3F8FF),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final columns = constraints.maxWidth >= 760 ? 3 : 1;
+                    final cards = [
+                      _activeSignalCard(
+                        label: 'Officer Status',
+                        value: paused ? 'On Hold' : 'Available',
+                        accent: const Color(0xFF7DD3FC),
+                        icon: Icons.shield_outlined,
+                      ),
+                      _activeSignalCard(
+                        label: 'Distance',
+                        value: distance,
+                        accent: const Color(0xFF22D3EE),
+                        icon: Icons.map_outlined,
+                      ),
+                      _activeSignalCard(
+                        label: 'Confidence',
+                        value: confidence,
+                        accent: const Color(0xFF34D399),
+                        icon: Icons.bolt_rounded,
+                      ),
+                    ];
+                    if (columns == 1) {
+                      return Column(
+                        children: [
+                          for (int i = 0; i < cards.length; i++) ...[
+                            cards[i],
+                            if (i != cards.length - 1)
+                              const SizedBox(height: 10),
+                          ],
+                        ],
+                      );
+                    }
+                    return Row(
+                      children: [
+                        for (int i = 0; i < cards.length; i++) ...[
+                          Expanded(child: cards[i]),
+                          if (i != cards.length - 1) const SizedBox(width: 10),
+                        ],
+                      ],
+                    );
+                  },
+                ),
               ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            action.description,
-            style: GoogleFonts.inter(
-              color: const Color(0xFFE6F0FF),
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
             ),
           ),
           if (promotionPressureSummary.isNotEmpty) ...[
@@ -939,33 +665,35 @@ class _AIQueuePageState extends State<AIQueuePage> {
               ),
             ),
           ],
-          if (action.metadata.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 16,
-              runSpacing: 8,
-              children: action.metadata.entries
-                  .map((entry) => _detailCell(entry.key, entry.value))
-                  .toList(growable: false),
-            ),
-          ],
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           LayoutBuilder(
             builder: (context, constraints) {
-              final compact = constraints.maxWidth < 520;
-              if (compact) {
+              final timerStack = constraints.maxWidth < 520;
+              if (timerStack) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      paused ? 'Paused at' : 'Auto-executes in',
+                      'INTERVENTION WINDOW',
                       style: GoogleFonts.inter(
                         color: const Color(0xFFA1B7D5),
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
+                        letterSpacing: 0.4,
                       ),
                     ),
                     const SizedBox(height: 4),
+                    Text(
+                      paused
+                          ? 'Execution hold remains active until resumed'
+                          : 'Auto-executes when timer reaches zero',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF7F95B6),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
                     Text(
                       _formatTime(action.timeUntilExecutionSeconds),
                       style: GoogleFonts.rajdhani(
@@ -979,16 +707,35 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 );
               }
               return Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    paused ? 'Paused at' : 'Auto-executes in',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFFA1B7D5),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'INTERVENTION WINDOW',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFA1B7D5),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          paused
+                              ? 'Execution hold remains active until resumed'
+                              : 'Auto-executes when timer reaches zero',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF7F95B6),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const Spacer(),
                   Text(
                     _formatTime(action.timeUntilExecutionSeconds),
                     style: GoogleFonts.rajdhani(
@@ -1076,6 +823,63 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 ],
               );
             },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _automationStandbyCard({
+    required int totalQueueCount,
+    required int queuedCount,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: _panelDecoration(border: const Color(0xFF2A3D58)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'ACTIVE AUTOMATION',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFE8F3FF),
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'No automation is currently executing. The queue is standing by for the next live incident.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB5D7),
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _activeSignalCard(
+                  label: 'Queued',
+                  value: '$queuedCount',
+                  accent: const Color(0xFF22D3EE),
+                  icon: Icons.schedule_rounded,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _activeSignalCard(
+                  label: 'Total Queue',
+                  value: '$totalQueueCount',
+                  accent: const Color(0xFFA78BFA),
+                  icon: Icons.list_alt_rounded,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -1170,6 +974,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
   }
 
   Widget _queuedRow({required int index, required _AiQueueAction action}) {
+    final priority = _priorityStyle(action.incidentPriority);
     final promotionPressureSummary = _promotionPressureSummary(action.metadata);
     final promotionExecutionSummary = _promotionExecutionSummary(
       action.metadata,
@@ -1232,6 +1037,25 @@ class _AIQueuePageState extends State<AIQueuePage> {
                                 color: const Color(0xFF22D3EE),
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: priority.background,
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(color: priority.border),
+                              ),
+                              child: Text(
+                                priority.label,
+                                style: GoogleFonts.inter(
+                                  color: priority.foreground,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
                             ),
                           ],
@@ -1801,6 +1625,174 @@ class _AIQueuePageState extends State<AIQueuePage> {
     );
   }
 
+  Widget _actionTypePill(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+      decoration: BoxDecoration(
+        color: const Color(0x332C1144),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0x664C1D95)),
+      ),
+      child: Text(
+        label.toUpperCase(),
+        style: GoogleFonts.inter(
+          color: const Color(0xFFD8B4FE),
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _activeAutomationMetrics({
+    required String incidentId,
+    required String site,
+    required String officer,
+    required String eta,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 920
+            ? 4
+            : constraints.maxWidth >= 560
+            ? 2
+            : 1;
+        final cards = [
+          _activeMetricCard(label: 'Incident ID', value: incidentId, mono: true),
+          _activeMetricCard(label: 'Target Site', value: site),
+          _activeMetricCard(label: 'Assigned Officer', value: officer),
+          _activeMetricCard(label: 'Estimated ETA', value: eta, accent: true),
+        ];
+        if (columns == 1) {
+          return Column(
+            children: [
+              for (int i = 0; i < cards.length; i++) ...[
+                cards[i],
+                if (i != cards.length - 1) const SizedBox(height: 10),
+              ],
+            ],
+          );
+        }
+        return GridView.count(
+          crossAxisCount: columns,
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
+          childAspectRatio: columns == 4 ? 2.25 : 2.9,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: cards,
+        );
+      },
+    );
+  }
+
+  Widget _activeMetricCard({
+    required String label,
+    required String value,
+    bool mono = false,
+    bool accent = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C1421),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF24364D)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF7387A7),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.9,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: mono
+                ? GoogleFonts.robotoMono(
+                    color: accent
+                        ? const Color(0xFF22D3EE)
+                        : const Color(0xFFF5FAFF),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  )
+                : GoogleFonts.inter(
+                    color: accent
+                        ? const Color(0xFF22D3EE)
+                        : const Color(0xFFF5FAFF),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _activeSignalCard({
+    required String label,
+    required String value,
+    required Color accent,
+    required IconData icon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C1421),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF24364D)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: accent, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF7F95B6),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: GoogleFonts.inter(
+                    color: accent,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _detailCell(String label, String value, {bool mono = false}) {
     final normalizedLabel = label.replaceAll('_', ' ').toUpperCase();
     return Column(
@@ -1873,6 +1865,18 @@ class _AIQueuePageState extends State<AIQueuePage> {
             ]
           : const [],
     );
+  }
+
+  String _confidenceLabel(_AiQueueAction action) {
+    final directConfidence = action.metadata['confidence'];
+    if (directConfidence != null && directConfidence.trim().isNotEmpty) {
+      return directConfidence;
+    }
+    return switch (action.incidentPriority) {
+      _AiIncidentPriority.p1Critical => '98%',
+      _AiIncidentPriority.p2High => '94%',
+      _AiIncidentPriority.p3Medium => '89%',
+    };
   }
 
   _AiQueueAction? get _activeAction {

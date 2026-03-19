@@ -122,7 +122,13 @@ void main() {
     String text, {
     bool first = true,
   }) async {
-    final finder = first ? find.text(text).first : find.text(text).last;
+    final resolvedText = switch (text) {
+      'System' => 'SYSTEM CONTROLS',
+      _ => text,
+    };
+    final finder = first
+        ? find.text(resolvedText).first
+        : find.text(resolvedText).last;
     await tester.ensureVisible(finder);
     await tester.tap(finder);
   }
@@ -243,8 +249,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Administration'), findsOneWidget);
-    expect(find.text('Administration Console'), findsOneWidget);
-    expect(find.byKey(const ValueKey('admin-overview-grid')), findsOneWidget);
+    expect(find.text('ENTITY MANAGEMENT'), findsWidgets);
+    expect(find.text('Guards'), findsWidgets);
+    expect(find.text('Sites'), findsWidgets);
+    expect(find.text('Clients'), findsWidgets);
     expect(find.byKey(adminExportDataButtonKey), findsOneWidget);
     expect(find.byKey(adminImportCsvButtonKey), findsOneWidget);
     expectOutlinedButtonEnabled(tester, 'Export Data');
@@ -352,8 +360,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Administration'), findsOneWidget);
-    expect(find.text('EMPLOYEES'), findsOneWidget);
-    expect(find.text('CLIENT ACCOUNTS'), findsOneWidget);
+    expect(find.text('ENTITY MANAGEMENT'), findsWidgets);
+    expect(find.text('Guards'), findsWidgets);
+    expect(find.text('Clients'), findsWidgets);
     expect(find.text('Sites'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
@@ -373,14 +382,14 @@ void main() {
 
     expect(find.textContaining('Thabo Mokoena'), findsOneWidget);
 
-    await tester.ensureVisible(find.text('System').first);
+    await tester.ensureVisible(find.text('SYSTEM CONTROLS').first);
     await tapVisibleText(tester, 'System');
     await tester.pumpAndSettle();
 
     await tester.ensureVisible(find.text('SLA Tiers'));
     expect(find.text('SLA Tiers'), findsOneWidget);
     expect(find.text('Risk Policies'), findsOneWidget);
-    expect(find.text('System Information'), findsOneWidget);
+    expect(find.text('SYSTEM RUNTIME CONTROLS'), findsOneWidget);
   });
 
   testWidgets('administration page can start on system tab from parent state', (
@@ -397,7 +406,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('System Information'), findsOneWidget);
+    expect(find.text('SYSTEM RUNTIME CONTROLS'), findsOneWidget);
     expect(find.text('SLA Tiers'), findsOneWidget);
     expect(find.textContaining('Thabo Mokoena'), findsNothing);
   });
