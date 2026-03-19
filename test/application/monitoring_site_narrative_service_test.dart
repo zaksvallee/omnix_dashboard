@@ -47,7 +47,7 @@ void main() {
         fieldActivity: const MonitoringSiteNarrativeFieldActivity(
           count: 2,
           latestSource: 'Front Yard',
-          latestSummary: 'A worker checkpoint scan landed at Front Yard.',
+          latestSummary: 'A guard checkpoint scan landed at Front Yard.',
           activeSources: <String>['Front Yard', 'Back Yard'],
         ),
         sceneReviewsByIntelligenceId: <String, MonitoringSceneReviewRecord>{
@@ -66,40 +66,18 @@ void main() {
       expect(snapshot, isNotNull);
       expect(
         snapshot!.assessment,
-        'likely routine field work across front and back yard',
+        'likely routine on-site team activity across front and back yard',
       );
       expect(
         snapshot.narrative,
         contains(
-          'Recent ONYX review saw 3 person signals across Camera 12, Camera 13, and Camera 6, plus 1 vehicle signal across Camera 5.',
+          'Recent camera review saw 3 person signals across Camera 12, Camera 13, and Camera 6, plus 1 vehicle signal across Camera 5.',
         ),
       );
       expect(
         snapshot.narrative,
         contains(
-          'more consistent with routine field activity than a single fixed intrusion point.',
-        ),
-      );
-      expect(
-        snapshot.narrative,
-        contains(
-          'Field telemetry is also active at Front Yard and Back Yard, which matches distributed worker movement across the site rather than one fixed point.',
-        ),
-      );
-      expect(
-        snapshot.narrative,
-        contains(
-          'Taken together, the current pattern is consistent with routine field work moving between Front Yard and Back Yard.',
-        ),
-      );
-      expect(
-        snapshot.narrative,
-        contains('Latest AI posture: multi-camera activity under review.'),
-      );
-      expect(
-        snapshot.narrative,
-        contains(
-          'Latest control decision: escalation candidate remains under verification.',
+          'This overlaps with on-site team activity across Front Yard and Back Yard, so it looks routine.',
         ),
       );
       expect(snapshot.narrative, contains('Latest signal landed at 11:47.'));
@@ -134,91 +112,95 @@ void main() {
     expect(snapshot!.assessment, 'broad mixed site activity under review');
     expect(
       snapshot.narrative,
-      contains(
-        'The current pattern mixes people and vehicle movement across the site, so ONYX is treating it as broad site activity under review.',
-      ),
+      contains('People and vehicle movement are both active across the site.'),
     );
   });
 
-  test('falls back to latest field summary when only one telemetry source is known', () {
-    final snapshot = service.buildSnapshot(
-      recentEvents: <IntelligenceReceived>[
-        _intel(
-          intelligenceId: 'intel-13',
-          cameraId: 'channel-13',
-          occurredAt: DateTime.utc(2026, 3, 18, 9, 47),
-          objectLabel: 'person',
-          summary: 'Front-yard movement detected.',
+  test(
+    'falls back to latest field summary when only one telemetry source is known',
+    () {
+      final snapshot = service.buildSnapshot(
+        recentEvents: <IntelligenceReceived>[
+          _intel(
+            intelligenceId: 'intel-13',
+            cameraId: 'channel-13',
+            occurredAt: DateTime.utc(2026, 3, 18, 9, 47),
+            objectLabel: 'person',
+            summary: 'Front-yard movement detected.',
+          ),
+          _intel(
+            intelligenceId: 'intel-12',
+            cameraId: 'channel-12',
+            occurredAt: DateTime.utc(2026, 3, 18, 9, 46),
+            objectLabel: 'person',
+            summary: 'Back-yard movement detected.',
+          ),
+        ],
+        cameraLabelForId: (cameraId) {
+          final match = RegExp(r'(\d+)$').firstMatch(cameraId ?? '');
+          return match == null ? 'Camera 1' : 'Camera ${match.group(1)}';
+        },
+        fieldActivity: const MonitoringSiteNarrativeFieldActivity(
+          count: 1,
+          latestSource: 'Front Yard',
+          latestSummary: 'A guard checkpoint scan landed at Front Yard.',
+          activeSources: <String>['Front Yard'],
         ),
-        _intel(
-          intelligenceId: 'intel-12',
-          cameraId: 'channel-12',
-          occurredAt: DateTime.utc(2026, 3, 18, 9, 46),
-          objectLabel: 'person',
-          summary: 'Back-yard movement detected.',
-        ),
-      ],
-      cameraLabelForId: (cameraId) {
-        final match = RegExp(r'(\d+)$').firstMatch(cameraId ?? '');
-        return match == null ? 'Camera 1' : 'Camera ${match.group(1)}';
-      },
-      fieldActivity: const MonitoringSiteNarrativeFieldActivity(
-        count: 1,
-        latestSource: 'Front Yard',
-        latestSummary: 'A worker checkpoint scan landed at Front Yard.',
-        activeSources: <String>['Front Yard'],
-      ),
-    );
+      );
 
-    expect(snapshot, isNotNull);
-    expect(
-      snapshot!.narrative,
-      contains(
-        'Field telemetry also reports a worker checkpoint scan landed at Front Yard.',
-      ),
-    );
-  });
-
-  test('keeps generic routine assessment when telemetry does not identify yard zones', () {
-    final snapshot = service.buildSnapshot(
-      recentEvents: <IntelligenceReceived>[
-        _intel(
-          intelligenceId: 'intel-13',
-          cameraId: 'channel-13',
-          occurredAt: DateTime.utc(2026, 3, 18, 9, 47),
-          objectLabel: 'person',
-          summary: 'Front-yard movement detected.',
+      expect(snapshot, isNotNull);
+      expect(
+        snapshot!.narrative,
+        contains(
+          'This overlaps with on-site team activity, so it looks routine.',
         ),
-        _intel(
-          intelligenceId: 'intel-12',
-          cameraId: 'channel-12',
-          occurredAt: DateTime.utc(2026, 3, 18, 9, 46),
-          objectLabel: 'person',
-          summary: 'Back-yard movement detected.',
-        ),
-      ],
-      cameraLabelForId: (cameraId) {
-        final match = RegExp(r'(\d+)$').firstMatch(cameraId ?? '');
-        return match == null ? 'Camera 1' : 'Camera ${match.group(1)}';
-      },
-      fieldActivity: const MonitoringSiteNarrativeFieldActivity(
-        count: 2,
-        latestSource: 'North Patrol Route',
-        latestSummary: 'Patrol activity completed on North Patrol Route.',
-        activeSources: <String>['North Patrol Route', 'South Patrol Route'],
-      ),
-    );
+      );
+    },
+  );
 
-    expect(snapshot, isNotNull);
-    expect(snapshot!.assessment, 'likely routine distributed field activity');
-    expect(snapshot.narrative, isNot(contains('Front Yard and Back Yard')));
-    expect(
-      snapshot.narrative,
-      contains(
-        'Field telemetry is also active at North Patrol Route and South Patrol Route, which matches distributed worker movement across the site rather than one fixed point.',
-      ),
-    );
-  });
+  test(
+    'keeps generic routine assessment when telemetry does not identify yard zones',
+    () {
+      final snapshot = service.buildSnapshot(
+        recentEvents: <IntelligenceReceived>[
+          _intel(
+            intelligenceId: 'intel-13',
+            cameraId: 'channel-13',
+            occurredAt: DateTime.utc(2026, 3, 18, 9, 47),
+            objectLabel: 'person',
+            summary: 'Front-yard movement detected.',
+          ),
+          _intel(
+            intelligenceId: 'intel-12',
+            cameraId: 'channel-12',
+            occurredAt: DateTime.utc(2026, 3, 18, 9, 46),
+            objectLabel: 'person',
+            summary: 'Back-yard movement detected.',
+          ),
+        ],
+        cameraLabelForId: (cameraId) {
+          final match = RegExp(r'(\d+)$').firstMatch(cameraId ?? '');
+          return match == null ? 'Camera 1' : 'Camera ${match.group(1)}';
+        },
+        fieldActivity: const MonitoringSiteNarrativeFieldActivity(
+          count: 2,
+          latestSource: 'North Patrol Route',
+          latestSummary: 'Patrol activity completed on North Patrol Route.',
+          activeSources: <String>['North Patrol Route', 'South Patrol Route'],
+        ),
+      );
+
+      expect(snapshot, isNotNull);
+      expect(snapshot!.assessment, 'likely routine on-site team activity');
+      expect(snapshot.narrative, isNot(contains('Front Yard and Back Yard')));
+      expect(
+        snapshot.narrative,
+        contains(
+          'This overlaps with on-site team activity at North Patrol Route and South Patrol Route, so it looks routine.',
+        ),
+      );
+    },
+  );
 }
 
 IntelligenceReceived _intel({

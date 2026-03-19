@@ -69,14 +69,12 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             constraints: const BoxConstraints(maxWidth: 1540),
             child: ListView(
               children: [
-                Text(
-                  'SITE COMMAND GRID',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFFE8EEF7),
-                    fontSize: 49,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.9,
-                  ),
+                _heroHeader(
+                  selected: selected,
+                  totalSites: sites.length,
+                  strongCount: strongCount,
+                  atRiskCount: atRiskCount,
+                  totalGuards: totalGuards,
                 ),
                 const SizedBox(height: 14),
                 LayoutBuilder(
@@ -151,6 +149,238 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _heroHeader({
+    required _SiteViewModel selected,
+    required int totalSites,
+    required int strongCount,
+    required int atRiskCount,
+    required int totalGuards,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF102338), Color(0xFF0B151F)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF22405F)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 920;
+          final titleBlock = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF38BDF8), Color(0xFF2563EB)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.apartment_rounded,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Sites & Deployment',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFF6FBFF),
+                            fontSize: compact ? 22 : 26,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Deployment posture, tactical entry points, and site-level operational command.',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF95A9C7),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _heroChip('Total Sites', '$totalSites'),
+                  _heroChip('Strong', '$strongCount'),
+                  _heroChip('At Risk', '$atRiskCount'),
+                  _heroChip('Focus', selected.displayName),
+                  _heroChip('Active Guards', '$totalGuards'),
+                ],
+              ),
+            ],
+          );
+          final actions = Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            alignment: WrapAlignment.end,
+            children: [
+              _heroActionButton(
+                key: const ValueKey('sites-view-tactical-button'),
+                icon: Icons.open_in_new,
+                label: 'View Tactical',
+                accent: const Color(0xFF93C5FD),
+                onPressed: () => _openTacticalForSite(context, selected),
+              ),
+            ],
+          );
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                titleBlock,
+                const SizedBox(height: 16),
+                actions,
+              ],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: titleBlock),
+              const SizedBox(width: 16),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 220),
+                child: actions,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _heroChip(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0x14000000),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0x33000000)),
+      ),
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '$label: ',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            TextSpan(
+              text: value,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFE8F1FF),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _heroActionButton({
+    required Key key,
+    required IconData icon,
+    required String label,
+    required Color accent,
+    required VoidCallback onPressed,
+  }) {
+    return FilledButton.tonalIcon(
+      key: key,
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: FilledButton.styleFrom(
+        backgroundColor: accent.withValues(alpha: 0.12),
+        foregroundColor: accent,
+        side: BorderSide(color: accent.withValues(alpha: 0.28)),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        textStyle: GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+    );
+  }
+
+  void _openTacticalForSite(BuildContext context, _SiteViewModel site) {
+    final callback = widget.onOpenMapForSite;
+    if (callback == null) {
+      _showTacticalLinkDialog(context);
+      return;
+    }
+    logUiAction(
+      'sites.hero_view_tactical',
+      context: <String, Object?>{
+        'site_id': site.id,
+        'site_name': site.displayName,
+      },
+    );
+    callback(site.id, site.displayName);
+  }
+
+  void _showTacticalLinkDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF111827),
+          title: Text(
+            'Tactical Link Ready',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFF6FBFF),
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          content: Text(
+            'Use Tactical to inspect watch posture, limited coverage, and deployment context for the selected site.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFD6E2F2),
+              height: 1.45,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
     );
   }
 

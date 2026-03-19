@@ -67,7 +67,7 @@ void main() {
         cameraLabelForId: (cameraId) => cameraId == null
             ? 'Camera 1'
             : 'Camera ${cameraId.split('-').last}',
-        runtimeStateByScope: const {
+        runtimeStateByScope: {
           'CLIENT-B|SITE-B': VideoFleetScopeRuntimeState(
             operatorOutcomeLabel: 'Resynced',
             lastRecoveryLabel: 'Already aligned • 21:40 UTC',
@@ -155,7 +155,7 @@ void main() {
       );
       expect(
         clientB.noteText,
-        'Suppressed in watch: 2 reviews filtered.\nAction mix in watch: Alert 1 • Repeat 2 • Escalated 1 • Suppressed 2.\nLatest filtered: 21:42 UTC • Camera 2 • Suppressed because the activity remained below the client notification threshold. (+1 more)\nScene action: Monitoring Alert • Client alert sent because vehicle activity was detected and confidence remained medium.\nScene review: openai:gpt-4.1-mini • monitored movement alert • 21:44 UTC • Vehicle remains visible in the perimeter approach lane.',
+        'Suppressed in watch: 2 reviews filtered.\nAction mix in watch: Alert 1 • Repeat 2 • Escalated 1 • Suppressed 2.\nLatest filtered: 21:42 UTC • Camera 2 • Suppressed because the activity remained below the client notification threshold. (+1 more)\nClient decision: 21:46 UTC • Client Approved • Client confirmed the unidentified person was expected.\nScene action: Monitoring Alert • Client alert sent because vehicle activity was detected and confidence remained medium.\nScene review: openai:gpt-4.1-mini • monitored movement alert • 21:44 UTC • Vehicle remains visible in the perimeter approach lane.',
       );
     });
 
@@ -239,61 +239,119 @@ void main() {
       expect(output.single.watchActivationGapLabel, isNull);
     });
 
-    test('projects same-day daytime watch window for ms vallee style scope', () {
-      const daytimeSchedule = MonitoringShiftSchedule(
-        enabled: true,
-        startHour: 6,
-        startMinute: 0,
-        endHour: 18,
-        endMinute: 0,
-      );
-
-      final inWindow = projector.project(
-        scopes: [
-          _scope(
-            clientId: 'CLIENT-MS-VALLEE',
-            siteId: 'SITE-MS-VALLEE-RESIDENCE',
-            host: '192.168.8.105',
+    test(
+      'projects limited watch when remote monitoring is available but weak',
+      () {
+        final output = projector.project(
+          scopes: [
+            _scope(
+              clientId: 'CLIENT-MS-VALLEE',
+              siteId: 'SITE-MS-VALLEE-RESIDENCE',
+              host: '192.168.8.105',
+            ),
+          ],
+          events: [
+            _intel(
+              clientId: 'CLIENT-MS-VALLEE',
+              siteId: 'SITE-MS-VALLEE-RESIDENCE',
+              occurredAt: DateTime.utc(2026, 3, 13, 9, 55),
+              headline: 'Front gate motion',
+              riskScore: 22,
+            ),
+          ],
+          nowUtc: DateTime.utc(2026, 3, 13, 10, 0),
+          activeWatchScopeKeys: {'CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE'},
+          scheduleForScope: (clientId, siteId) => const MonitoringShiftSchedule(
+            enabled: true,
+            startHour: 6,
+            startMinute: 0,
+            endHour: 18,
+            endMinute: 0,
           ),
-        ],
-        events: const [],
-        nowUtc: DateTime.utc(2026, 3, 13, 10, 0),
-        activeWatchScopeKeys: const {},
-        scheduleForScope: (clientId, siteId) => daytimeSchedule,
-        siteNameForScope: (clientId, siteId) => 'MS Vallee Residence',
-        endpointLabelForScope: (uri) => uri?.host ?? '',
-        cameraLabelForId: (cameraId) => 'Camera 1',
-        runtimeStateByScope: const {},
-      );
+          siteNameForScope: (clientId, siteId) => 'MS Vallee Residence',
+          endpointLabelForScope: (uri) => uri?.host ?? '',
+          cameraLabelForId: (cameraId) => 'Camera 1',
+          runtimeStateByScope: const {
+            'CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE':
+                VideoFleetScopeRuntimeState(
+                  monitoringAvailable: false,
+                  monitoringAvailabilityDetail:
+                      'One remote camera feed is stale.',
+                  latestSceneReviewSummary:
+                      'Remote visibility is intermittent because the line is unstable.',
+                ),
+          },
+        );
 
-      expect(inWindow.single.watchLabel, 'SCHEDULED');
-      expect(inWindow.single.watchWindowLabel, '06:00-18:00');
-      expect(inWindow.single.watchWindowStateLabel, 'IN WINDOW');
-      expect(inWindow.single.watchActivationGapLabel, 'MISSED START');
+        expect(output.single.statusLabel, 'LIMITED WATCH');
+        expect(output.single.watchLabel, 'LIMITED');
+        expect(output.single.watchWindowLabel, '06:00-18:00');
+        expect(output.single.watchWindowStateLabel, 'IN WINDOW • LIMITED');
+        expect(
+          output.single.noteText,
+          contains('Remote watch is limited: One remote camera feed is stale.'),
+        );
+      },
+    );
 
-      final afterHours = projector.project(
-        scopes: [
-          _scope(
-            clientId: 'CLIENT-MS-VALLEE',
-            siteId: 'SITE-MS-VALLEE-RESIDENCE',
-            host: '192.168.8.105',
-          ),
-        ],
-        events: const [],
-        nowUtc: DateTime.utc(2026, 3, 13, 20, 0),
-        activeWatchScopeKeys: const {},
-        scheduleForScope: (clientId, siteId) => daytimeSchedule,
-        siteNameForScope: (clientId, siteId) => 'MS Vallee Residence',
-        endpointLabelForScope: (uri) => uri?.host ?? '',
-        cameraLabelForId: (cameraId) => 'Camera 1',
-        runtimeStateByScope: const {},
-      );
+    test(
+      'projects same-day daytime watch window for ms vallee style scope',
+      () {
+        const daytimeSchedule = MonitoringShiftSchedule(
+          enabled: true,
+          startHour: 6,
+          startMinute: 0,
+          endHour: 18,
+          endMinute: 0,
+        );
 
-      expect(afterHours.single.watchLabel, 'SCHEDULED');
-      expect(afterHours.single.watchWindowLabel, '06:00-18:00');
-      expect(afterHours.single.watchWindowStateLabel, 'NEXT 06:00');
-      expect(afterHours.single.watchActivationGapLabel, isNull);
-    });
+        final inWindow = projector.project(
+          scopes: [
+            _scope(
+              clientId: 'CLIENT-MS-VALLEE',
+              siteId: 'SITE-MS-VALLEE-RESIDENCE',
+              host: '192.168.8.105',
+            ),
+          ],
+          events: const [],
+          nowUtc: DateTime.utc(2026, 3, 13, 10, 0),
+          activeWatchScopeKeys: const {},
+          scheduleForScope: (clientId, siteId) => daytimeSchedule,
+          siteNameForScope: (clientId, siteId) => 'MS Vallee Residence',
+          endpointLabelForScope: (uri) => uri?.host ?? '',
+          cameraLabelForId: (cameraId) => 'Camera 1',
+          runtimeStateByScope: const {},
+        );
+
+        expect(inWindow.single.watchLabel, 'SCHEDULED');
+        expect(inWindow.single.watchWindowLabel, '06:00-18:00');
+        expect(inWindow.single.watchWindowStateLabel, 'IN WINDOW');
+        expect(inWindow.single.watchActivationGapLabel, 'MISSED START');
+
+        final afterHours = projector.project(
+          scopes: [
+            _scope(
+              clientId: 'CLIENT-MS-VALLEE',
+              siteId: 'SITE-MS-VALLEE-RESIDENCE',
+              host: '192.168.8.105',
+            ),
+          ],
+          events: const [],
+          nowUtc: DateTime.utc(2026, 3, 13, 20, 0),
+          activeWatchScopeKeys: const {},
+          scheduleForScope: (clientId, siteId) => daytimeSchedule,
+          siteNameForScope: (clientId, siteId) => 'MS Vallee Residence',
+          endpointLabelForScope: (uri) => uri?.host ?? '',
+          cameraLabelForId: (cameraId) => 'Camera 1',
+          runtimeStateByScope: const {},
+        );
+
+        expect(afterHours.single.watchLabel, 'SCHEDULED');
+        expect(afterHours.single.watchWindowLabel, '06:00-18:00');
+        expect(afterHours.single.watchWindowStateLabel, 'NEXT 06:00');
+        expect(afterHours.single.watchActivationGapLabel, isNull);
+      },
+    );
 
     test(
       'sorts recent recovery scopes ahead of quieter non-recovered scopes',

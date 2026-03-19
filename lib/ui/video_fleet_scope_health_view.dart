@@ -14,6 +14,7 @@ class VideoFleetScopeHealthView {
   final String? watchWindowLabel;
   final String? watchWindowStateLabel;
   final String? watchActivationGapLabel;
+  final String? monitoringAvailabilityDetail;
   final String? operatorOutcomeLabel;
   final String? lastRecoveryLabel;
   final String? latestSceneReviewLabel;
@@ -53,6 +54,7 @@ class VideoFleetScopeHealthView {
     this.watchWindowLabel,
     this.watchWindowStateLabel,
     this.watchActivationGapLabel,
+    this.monitoringAvailabilityDetail,
     this.operatorOutcomeLabel,
     this.lastRecoveryLabel,
     this.latestSceneReviewLabel,
@@ -93,12 +95,31 @@ class VideoFleetScopeHealthView {
     return label.contains('suppress') || summary.contains('suppress');
   }
 
+  String? get limitedWatchStatusDetailText {
+    if (watchLabel != 'LIMITED') {
+      return null;
+    }
+    final detail = (monitoringAvailabilityDetail ?? '').trim();
+    if (detail.isNotEmpty) {
+      return detail;
+    }
+    return 'Manual verification may be needed.';
+  }
+
   String? get noteText {
     final suppressedSummary = suppressedActivityText;
     final actionMix = watchActionMixText;
     final sceneAction = sceneDecisionText;
     final sceneReview = sceneReviewText;
     final parts = <String>[];
+    if (watchLabel == 'LIMITED') {
+      final detail = limitedWatchStatusDetailText;
+      parts.add(
+        detail == null || detail.isEmpty
+            ? 'Remote watch is limited. Manual verification may be needed.'
+            : 'Remote watch is limited: $detail',
+      );
+    }
     if (suppressedSummary != null) {
       parts.add(suppressedSummary);
     }

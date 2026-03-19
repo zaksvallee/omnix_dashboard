@@ -9,11 +9,13 @@ class VideoFleetScopeHealthCard extends StatelessWidget {
   final TextStyle lastSeenStyle;
   final TextStyle noteStyle;
   final TextStyle latestStyle;
+  final TextStyle? statusDetailStyle;
   final List<Widget> primaryChips;
   final List<Widget> secondaryChips;
   final List<Widget> actionChildren;
   final String? noteText;
   final String? latestText;
+  final String? statusDetailText;
   final VoidCallback? onTap;
   final VoidCallback? onLatestTap;
   final BoxDecoration decoration;
@@ -31,6 +33,7 @@ class VideoFleetScopeHealthCard extends StatelessWidget {
     required this.lastSeenStyle,
     required this.noteStyle,
     required this.latestStyle,
+    this.statusDetailStyle,
     required this.primaryChips,
     required this.secondaryChips,
     required this.actionChildren,
@@ -40,6 +43,7 @@ class VideoFleetScopeHealthCard extends StatelessWidget {
     this.borderRadius = 10,
     this.noteText,
     this.latestText,
+    this.statusDetailText,
     this.onTap,
     this.onLatestTap,
   });
@@ -71,6 +75,13 @@ class VideoFleetScopeHealthCard extends StatelessWidget {
                       : 'Last seen $lastSeenLabel',
                   style: lastSeenStyle,
                 ),
+                if ((statusDetailText ?? '').trim().isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    statusDetailText!,
+                    style: statusDetailStyle ?? noteStyle,
+                  ),
+                ],
                 if ((noteText ?? '').trim().isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Text(noteText!, style: noteStyle),

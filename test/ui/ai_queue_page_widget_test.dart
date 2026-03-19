@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
+import 'package:omnix_dashboard/domain/events/decision_created.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/ui/ai_queue_page.dart';
 
@@ -17,7 +18,7 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: AIQueuePage(events: [])));
     await tester.pumpAndSettle();
 
-    expect(find.text('AI Automation Queue'), findsOneWidget);
+    expect(find.text('AI Automation Queue'), findsWidgets);
     expect(find.text('Queued Actions'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -35,7 +36,7 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: AIQueuePage(events: [])));
     await tester.pumpAndSettle();
 
-    expect(find.text('AI Automation Queue'), findsOneWidget);
+    expect(find.text('AI Automation Queue'), findsWidgets);
     expect(find.text('Queued Actions'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -43,12 +44,52 @@ void main() {
   testWidgets('ai queue shows active automation controls', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: AIQueuePage(events: [])));
 
-    expect(find.text('AI Automation Queue'), findsOneWidget);
+    expect(find.text('AI Automation Queue'), findsWidgets);
+    expect(find.byKey(const ValueKey('ai-queue-overview-grid')), findsOneWidget);
+    expect(find.text('View Events'), findsOneWidget);
+    expect(find.text('QUEUE STATUS'), findsOneWidget);
     expect(find.text('Active Automation'), findsOneWidget);
     expect(find.text('CANCEL ACTION'), findsOneWidget);
     expect(find.text('PAUSE'), findsOneWidget);
     expect(find.text('APPROVE NOW'), findsOneWidget);
     expect(find.text('Queued Actions'), findsOneWidget);
+  });
+
+  testWidgets('ai queue header view events opens scoped event review', (
+    tester,
+  ) async {
+    List<String>? openedEventIds;
+    String? openedSelectedEventId;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AIQueuePage(
+          events: [
+            DecisionCreated(
+              eventId: 'evt-dispatch-1',
+              sequence: 1,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 19, 7, 30),
+              dispatchId: 'DISP-100',
+              clientId: 'CLIENT-VALLEE',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-VALLEE',
+            ),
+          ],
+          onOpenEventsForScope: (eventIds, selectedEventId) {
+            openedEventIds = eventIds;
+            openedSelectedEventId = selectedEventId;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('ai-queue-view-events-button')));
+    await tester.pumpAndSettle();
+
+    expect(openedEventIds, equals(const ['evt-dispatch-1']));
+    expect(openedSelectedEventId, 'evt-dispatch-1');
   });
 
   testWidgets('ai queue countdown decrements every second', (tester) async {
@@ -64,10 +105,12 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: AIQueuePage(events: [])));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('CANCEL ACTION').first);
+    final cancelActionButton = find.text('CANCEL ACTION').first;
+    await tester.ensureVisible(cancelActionButton);
+    await tester.tap(cancelActionButton);
     await tester.pumpAndSettle();
 
-    expect(find.text('AI Automation Queue'), findsOneWidget);
+    expect(find.text('AI Automation Queue'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 
@@ -649,9 +692,11 @@ void main() {
     expect(find.text('POSTURE WEIGHT'), findsOneWidget);
     expect(find.textContaining('weight '), findsWidgets);
 
-    await tester.tap(
-      find.byKey(const ValueKey('ai-queue-mo-shadow-open-dossier')),
+    final openDossierButton = find.byKey(
+      const ValueKey('ai-queue-mo-shadow-open-dossier'),
     );
+    await tester.ensureVisible(openDossierButton);
+    await tester.tap(openDossierButton);
     await tester.pumpAndSettle();
 
     expect(

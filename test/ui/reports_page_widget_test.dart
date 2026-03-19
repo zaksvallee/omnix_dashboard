@@ -13,7 +13,7 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: ReportsPage()));
     await tester.pumpAndSettle();
 
-    expect(find.text('Reports Command Hub'), findsOneWidget);
+    expect(find.text('Reports & Documentation'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -26,7 +26,7 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: ReportsPage()));
     await tester.pumpAndSettle();
 
-    expect(find.text('Reports Command Hub'), findsOneWidget);
+    expect(find.text('Reports & Documentation'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -37,11 +37,34 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: ReportsPage()));
     await tester.pumpAndSettle();
 
-    expect(find.text('Reports Command Hub'), findsOneWidget);
+    expect(find.text('Reports & Documentation'), findsOneWidget);
+    expect(find.byKey(const ValueKey('reports-overview-grid')), findsOneWidget);
     expect(find.text('Report Generation Flow'), findsOneWidget);
+    await tester.ensureVisible(find.text('Output Modules'));
     expect(find.text('Output Modules'), findsOneWidget);
+    await tester.ensureVisible(find.text('Readiness Board'));
     expect(find.text('Readiness Board'), findsOneWidget);
     expect(find.text('Generate Deterministic PDF'), findsOneWidget);
     expect(find.text('Replay Verification'), findsOneWidget);
+  });
+
+  testWidgets('reports page generate action opens dialog and stages report', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: ReportsPage()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('reports-generate-report-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Start Generation'), findsOneWidget);
+    expect(find.text('Morning Sovereign'), findsWidgets);
+    await tester.tap(find.text('Start Generation'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Report generation staged for command review.'),
+      findsOneWidget,
+    );
   });
 }

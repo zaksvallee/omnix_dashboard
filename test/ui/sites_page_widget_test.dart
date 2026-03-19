@@ -135,11 +135,39 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: SitesPage(events: events)));
     await tester.pumpAndSettle();
 
-    expect(find.text('Site Command Grid'), findsOneWidget);
+    expect(find.text('Sites & Deployment'), findsOneWidget);
+    expect(find.byKey(const ValueKey('sites-overview-grid')), findsOneWidget);
     expect(find.text('Site Operations Workspace'), findsOneWidget);
     expect(find.text('SITE-SANDTON'), findsWidgets);
     expect(find.text('SITE-BRYANSTON'), findsWidgets);
     expect(find.text('Dispatch Outcome Mix'), findsOneWidget);
     expect(find.text('Recent Site Event Trace'), findsOneWidget);
+  });
+
+  testWidgets('sites page tactical action opens helper dialog', (tester) async {
+    final events = <DispatchEvent>[
+      DecisionCreated(
+        eventId: 'DEC-1',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 6, 10, 0),
+        dispatchId: 'DSP-1',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+      ),
+    ];
+
+    await tester.pumpWidget(MaterialApp(home: SitesPage(events: events)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('sites-view-tactical-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tactical Link Ready'), findsOneWidget);
+    expect(
+      find.textContaining('watch posture, limited coverage'),
+      findsOneWidget,
+    );
   });
 }

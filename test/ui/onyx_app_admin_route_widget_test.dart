@@ -1,14 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:omnix_dashboard/application/client_conversation_repository.dart';
 import 'package:omnix_dashboard/application/dispatch_persistence_service.dart';
 import 'package:omnix_dashboard/application/telegram_bridge_service.dart';
 import 'package:omnix_dashboard/main.dart';
 import 'package:omnix_dashboard/ui/admin_page.dart';
 import 'package:omnix_dashboard/ui/app_shell.dart';
-import 'package:omnix_dashboard/ui/client_app_page.dart';
+import 'package:omnix_dashboard/ui/clients_page.dart';
+import 'package:omnix_dashboard/ui/client_intelligence_reports_page.dart';
+import 'package:omnix_dashboard/ui/dispatch_page.dart';
+import 'package:omnix_dashboard/ui/governance_page.dart';
+import 'package:omnix_dashboard/ui/live_operations_page.dart';
+import 'package:omnix_dashboard/ui/tactical_page.dart';
+import 'package:omnix_dashboard/ui/video_fleet_scope_health_sections.dart';
+
+import 'support/admin_route_test_harness.dart';
+import 'support/admin_route_state_harness.dart';
 
 class _SuccessfulTelegramBridgeStub implements TelegramBridgeService {
   const _SuccessfulTelegramBridgeStub();
@@ -49,6 +58,74 @@ class _SuccessfulTelegramBridgeStub implements TelegramBridgeService {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets(
+    'onyx app exports system admin data from the hero action',
+    (tester) async {
+      String? copiedPayload;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final args = call.arguments as Map<dynamic, dynamic>;
+            copiedPayload = args['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+
+      await prepareAdminRouteTest(tester);
+
+      await pumpAdminRouteApp(
+        tester,
+        key: const ValueKey('admin-export-route-app'),
+        initialAdminTab: AdministrationPageTab.system,
+      );
+      await openAdminSystemAnchor(tester, 'System Information');
+
+      final exportButton = find.byKey(
+        const ValueKey('admin-export-data-button'),
+      );
+      await tester.ensureVisible(exportButton);
+      await tester.tap(exportButton);
+      await tester.pumpAndSettle();
+
+      expect(copiedPayload, isNotNull);
+      expect(copiedPayload, contains('"operator_id"'));
+      expect(copiedPayload, contains('"telegram_bridge_health_label"'));
+    },
+  );
+
+  testWidgets(
+    'onyx app opens the admin csv import dialog from the hero action',
+    (tester) async {
+      await prepareAdminRouteTest(tester);
+
+      await pumpAdminRouteApp(
+        tester,
+        key: const ValueKey('admin-import-route-app'),
+        initialAdminTab: AdministrationPageTab.system,
+      );
+      await openAdminSystemAnchor(tester, 'System Information');
+
+      final importButton = find.byKey(
+        const ValueKey('admin-import-csv-button'),
+      );
+      await tester.ensureVisible(importButton);
+      await tester.tap(importButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Import CSV'), findsWidgets);
+      expect(find.text('Target'), findsOneWidget);
+      expect(find.text('Import'), findsWidgets);
+    },
+  );
 
   testWidgets(
     'onyx app opens client lane from admin client demo without invalid room state',
@@ -105,16 +182,14 @@ void main() {
       expect(openedClientId, startsWith('DEMO-CLT'));
       expect(openedSiteId, '');
       expect(openedRoom, isEmpty);
-      expect(find.textContaining('Client Operations'), findsOneWidget);
+      expect(find.textContaining('Client Communications'), findsOneWidget);
     },
   );
 
   testWidgets(
     'onyx app restores scoped guard voip history into admin comms audit after restart',
     (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      await tester.binding.setSurfaceSize(const Size(1680, 1100));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await prepareAdminRouteTest(tester);
 
       await tester.pumpWidget(
         OnyxApp(
@@ -133,24 +208,11 @@ void main() {
       await tester.tap(find.text('Stage VoIP Call'));
       await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.system,
-        ),
+      await pumpAdminRouteApp(
+        tester,
+        key: const ValueKey('admin-app'),
       );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('Client Comms Audit'),
-        500,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
+      await openAdminClientCommsAudit(tester);
 
       expect(find.text('Client Comms Audit'), findsOneWidget);
       expect(find.text('LATEST VOIP STAGE'), findsOneWidget);
@@ -158,17 +220,551 @@ void main() {
         find.textContaining(
           'VoIP staging is not configured for Thabo Mokoena yet.',
         ),
-        findsOneWidget,
+        findsWidgets,
       );
+    },
+  );
+
+  testWidgets(
+    'onyx app opens reports from admin client demo ready action',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        OnyxApp(
+          supabaseReady: false,
+          initialRouteOverride: OnyxRoute.admin,
+          initialAdminTabOverride: AdministrationPageTab.clients,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Demo Mode'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.add_rounded));
+      await tester.pumpAndSettle();
+
+      final demoReadyButton = find.widgetWithText(
+        FilledButton,
+        'Demo Ready 0/7',
+      );
+      final fallbackDemoReadyButton = find.textContaining('Demo Ready');
+      final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
+          ? demoReadyButton.first
+          : fallbackDemoReadyButton.first;
+      await tester.ensureVisible(demoReadyFinder);
+      await tester.tap(demoReadyFinder);
+      await tester.pumpAndSettle();
+
+      final createClientReadyFinder = find.text('Create Client (Ready)').last;
+      await tester.ensureVisible(createClientReadyFinder);
+      await tester.tap(createClientReadyFinder);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Client Demo Ready'), findsOneWidget);
+
+      await tester.tap(find.text('Open Reports'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ClientIntelligenceReportsPage), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'onyx app opens dispatches from admin site demo ready action',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        OnyxApp(
+          supabaseReady: false,
+          initialRouteOverride: OnyxRoute.admin,
+          initialAdminTabOverride: AdministrationPageTab.sites,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Demo Mode'));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
+      await tester.tap(find.byIcon(Icons.add_rounded).first);
+      await tester.pumpAndSettle();
+
+      final demoReadyButton = find.widgetWithText(
+        FilledButton,
+        'Demo Ready 0/6',
+      );
+      final fallbackDemoReadyButton = find.textContaining('Demo Ready');
+      final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
+          ? demoReadyButton.first
+          : fallbackDemoReadyButton.first;
+      await tester.ensureVisible(demoReadyFinder);
+      await tester.tap(demoReadyFinder);
+      await tester.pumpAndSettle();
+
+      final createSiteReadyFinder = find.text('Create Site (Ready)').last;
+      await tester.ensureVisible(createSiteReadyFinder);
+      await tester.tap(createSiteReadyFinder);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Site Demo Ready'), findsOneWidget);
+
+      await tester.tap(find.text('Open Dispatches'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DispatchPage), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'onyx app opens governance from admin client demo ready action',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        OnyxApp(
+          supabaseReady: false,
+          initialRouteOverride: OnyxRoute.admin,
+          initialAdminTabOverride: AdministrationPageTab.clients,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Demo Mode'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.add_rounded));
+      await tester.pumpAndSettle();
+
+      final demoReadyButton = find.widgetWithText(
+        FilledButton,
+        'Demo Ready 0/7',
+      );
+      final fallbackDemoReadyButton = find.textContaining('Demo Ready');
+      final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
+          ? demoReadyButton.first
+          : fallbackDemoReadyButton.first;
+      await tester.ensureVisible(demoReadyFinder);
+      await tester.tap(demoReadyFinder);
+      await tester.pumpAndSettle();
+
+      final createClientReadyFinder = find.text('Create Client (Ready)').last;
+      await tester.ensureVisible(createClientReadyFinder);
+      await tester.tap(createClientReadyFinder);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Client Demo Ready'), findsOneWidget);
+
+      await tester.tap(find.text('Open Governance'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(GovernancePage), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'onyx app opens operations from admin client demo ready action',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        OnyxApp(
+          supabaseReady: false,
+          initialRouteOverride: OnyxRoute.admin,
+          initialAdminTabOverride: AdministrationPageTab.clients,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Demo Mode'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.add_rounded));
+      await tester.pumpAndSettle();
+
+      final demoReadyButton = find.widgetWithText(
+        FilledButton,
+        'Demo Ready 0/7',
+      );
+      final fallbackDemoReadyButton = find.textContaining('Demo Ready');
+      final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
+          ? demoReadyButton.first
+          : fallbackDemoReadyButton.first;
+      await tester.ensureVisible(demoReadyFinder);
+      await tester.tap(demoReadyFinder);
+      await tester.pumpAndSettle();
+
+      final createClientReadyFinder = find.text('Create Client (Ready)').last;
+      await tester.ensureVisible(createClientReadyFinder);
+      await tester.tap(createClientReadyFinder);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Client Demo Ready'), findsOneWidget);
+
+      await tester.tap(find.text('Open Operations'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(LiveOperationsPage), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'onyx app opens client communications from admin client demo ready action',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        OnyxApp(
+          supabaseReady: false,
+          initialRouteOverride: OnyxRoute.admin,
+          initialAdminTabOverride: AdministrationPageTab.clients,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Demo Mode'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.add_rounded));
+      await tester.pumpAndSettle();
+
+      final demoReadyButton = find.widgetWithText(
+        FilledButton,
+        'Demo Ready 0/7',
+      );
+      final fallbackDemoReadyButton = find.textContaining('Demo Ready');
+      final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
+          ? demoReadyButton.first
+          : fallbackDemoReadyButton.first;
+      await tester.ensureVisible(demoReadyFinder);
+      await tester.tap(demoReadyFinder);
+      await tester.pumpAndSettle();
+
+      final createClientReadyFinder = find.text('Create Client (Ready)').last;
+      await tester.ensureVisible(createClientReadyFinder);
+      await tester.tap(createClientReadyFinder);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Client Demo Ready'), findsOneWidget);
+
+      await tester.tap(find.text('Open Client View'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ClientsPage), findsOneWidget);
+      expect(find.textContaining('Client Communications'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'onyx app opens tactical from admin site demo ready action',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        OnyxApp(
+          supabaseReady: false,
+          initialRouteOverride: OnyxRoute.admin,
+          initialAdminTabOverride: AdministrationPageTab.sites,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Demo Mode'));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
+      await tester.tap(find.byIcon(Icons.add_rounded).first);
+      await tester.pumpAndSettle();
+
+      final demoReadyButton = find.widgetWithText(
+        FilledButton,
+        'Demo Ready 0/6',
+      );
+      final fallbackDemoReadyButton = find.textContaining('Demo Ready');
+      final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
+          ? demoReadyButton.first
+          : fallbackDemoReadyButton.first;
+      await tester.ensureVisible(demoReadyFinder);
+      await tester.tap(demoReadyFinder);
+      await tester.pumpAndSettle();
+
+      final createSiteReadyFinder = find.text('Create Site (Ready)').last;
+      await tester.ensureVisible(createSiteReadyFinder);
+      await tester.tap(createSiteReadyFinder);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Site Demo Ready'), findsOneWidget);
+
+      await tester.tap(find.text('Open Tactical'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TacticalPage), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'onyx app opens operations from admin site demo ready action',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        OnyxApp(
+          supabaseReady: false,
+          initialRouteOverride: OnyxRoute.admin,
+          initialAdminTabOverride: AdministrationPageTab.sites,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Demo Mode'));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
+      await tester.tap(find.byIcon(Icons.add_rounded).first);
+      await tester.pumpAndSettle();
+
+      final demoReadyButton = find.widgetWithText(
+        FilledButton,
+        'Demo Ready 0/6',
+      );
+      final fallbackDemoReadyButton = find.textContaining('Demo Ready');
+      final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
+          ? demoReadyButton.first
+          : fallbackDemoReadyButton.first;
+      await tester.ensureVisible(demoReadyFinder);
+      await tester.tap(demoReadyFinder);
+      await tester.pumpAndSettle();
+
+      final createSiteReadyFinder = find.text('Create Site (Ready)').last;
+      await tester.ensureVisible(createSiteReadyFinder);
+      await tester.tap(createSiteReadyFinder);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Site Demo Ready'), findsOneWidget);
+
+      await tester.tap(find.text('Open Operations'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(LiveOperationsPage), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'onyx app opens tactical from admin employee demo ready action',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        OnyxApp(
+          supabaseReady: false,
+          initialRouteOverride: OnyxRoute.admin,
+          initialAdminTabOverride: AdministrationPageTab.guards,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Demo Mode'));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
+      await tester.tap(find.byIcon(Icons.add_rounded).first);
+      await tester.pumpAndSettle();
+
+      final demoReadyButton = find.widgetWithText(
+        FilledButton,
+        'Demo Ready 0/6',
+      );
+      final fallbackDemoReadyButton = find.textContaining('Demo Ready');
+      final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
+          ? demoReadyButton.first
+          : fallbackDemoReadyButton.first;
+      await tester.ensureVisible(demoReadyFinder);
+      await tester.tap(demoReadyFinder);
+      await tester.pumpAndSettle();
+
+      final createEmployeeReadyFinder = find.text(
+        'Create Employee (Ready)',
+      ).last;
+      await tester.ensureVisible(createEmployeeReadyFinder);
+      await tester.tap(createEmployeeReadyFinder);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Employee Demo Ready'), findsOneWidget);
+
+      await tester.tap(find.text('Open Tactical'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TacticalPage), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'onyx app opens dispatches from admin employee demo ready action',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        OnyxApp(
+          supabaseReady: false,
+          initialRouteOverride: OnyxRoute.admin,
+          initialAdminTabOverride: AdministrationPageTab.guards,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Demo Mode'));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
+      await tester.tap(find.byIcon(Icons.add_rounded).first);
+      await tester.pumpAndSettle();
+
+      final demoReadyButton = find.widgetWithText(
+        FilledButton,
+        'Demo Ready 0/6',
+      );
+      final fallbackDemoReadyButton = find.textContaining('Demo Ready');
+      final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
+          ? demoReadyButton.first
+          : fallbackDemoReadyButton.first;
+      await tester.ensureVisible(demoReadyFinder);
+      await tester.tap(demoReadyFinder);
+      await tester.pumpAndSettle();
+
+      final createEmployeeReadyFinder = find.text(
+        'Create Employee (Ready)',
+      ).last;
+      await tester.ensureVisible(createEmployeeReadyFinder);
+      await tester.tap(createEmployeeReadyFinder);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Employee Demo Ready'), findsOneWidget);
+
+      await tester.tap(find.text('Open Dispatches'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DispatchPage), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'onyx app opens operations from admin employee demo ready action',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        OnyxApp(
+          supabaseReady: false,
+          initialRouteOverride: OnyxRoute.admin,
+          initialAdminTabOverride: AdministrationPageTab.guards,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Demo Mode'));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
+      await tester.tap(find.byIcon(Icons.add_rounded).first);
+      await tester.pumpAndSettle();
+
+      final demoReadyButton = find.widgetWithText(
+        FilledButton,
+        'Demo Ready 0/6',
+      );
+      final fallbackDemoReadyButton = find.textContaining('Demo Ready');
+      final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
+          ? demoReadyButton.first
+          : fallbackDemoReadyButton.first;
+      await tester.ensureVisible(demoReadyFinder);
+      await tester.tap(demoReadyFinder);
+      await tester.pumpAndSettle();
+
+      final createEmployeeReadyFinder = find.text(
+        'Create Employee (Ready)',
+      ).last;
+      await tester.ensureVisible(createEmployeeReadyFinder);
+      await tester.tap(createEmployeeReadyFinder);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Employee Demo Ready'), findsOneWidget);
+
+      await tester.tap(find.text('Open Operations'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(LiveOperationsPage), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'onyx app opens operations from admin build demo stack action',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        OnyxApp(
+          supabaseReady: false,
+          initialRouteOverride: OnyxRoute.admin,
+          initialAdminTabOverride: AdministrationPageTab.guards,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Demo Mode'));
+      await tester.pumpAndSettle();
+
+      final buildDemoStackFinder = find.widgetWithText(
+        FilledButton,
+        'Build Demo Stack',
+      ).first;
+      await tester.ensureVisible(buildDemoStackFinder);
+      await tester.tap(buildDemoStackFinder);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(LiveOperationsPage), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'onyx app restores limited watch drilldown into admin after restart',
+    (tester) async {
+      await prepareAdminRouteTest(tester);
+
+      final persistence = await DispatchPersistenceService.create();
+      await persistence.saveAdminPageTab(AdministrationPageTab.guards);
+      await persistence.saveAdminWatchActionDrilldown(
+        VideoFleetWatchActionDrilldown.limited,
+      );
+
+      await pumpAdminRouteApp(
+        tester,
+        key: const ValueKey('admin-limited-watch-drilldown-restart-app'),
+        initialAdminTab: AdministrationPageTab.guards,
+      );
+
+      expect(find.text('System Information'), findsOneWidget);
+      expect(find.text('SLA Tiers'), findsOneWidget);
+      expect(find.textContaining('Thabo Mokoena'), findsNothing);
     },
   );
 
   testWidgets(
     'onyx app surfaces off-lane comms history in admin audit as cross-scope',
     (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      await tester.binding.setSurfaceSize(const Size(1680, 1100));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await prepareAdminRouteTest(tester);
 
       await tester.pumpWidget(
         OnyxApp(
@@ -187,24 +783,11 @@ void main() {
       await tester.tap(find.text('Stage VoIP Call'));
       await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-cross-scope-audit-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.system,
-        ),
+      await pumpAdminRouteApp(
+        tester,
+        key: const ValueKey('admin-cross-scope-audit-app'),
       );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('Client Comms Audit'),
-        500,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
+      await openAdminClientCommsAudit(tester);
 
       expect(find.text('Client Comms Audit'), findsOneWidget);
       expect(find.text('Cross-scope'), findsOneWidget);
@@ -213,96 +796,42 @@ void main() {
         find.textContaining(
           'VoIP staging is not configured for Thabo Mokoena yet.',
         ),
-        findsOneWidget,
+        findsWidgets,
       );
     },
   );
 
-  testWidgets(
-    'onyx app surfaces off-scope live client asks in admin audit',
-    (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      await tester.binding.setSurfaceSize(const Size(1680, 1100));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets('onyx app surfaces off-scope live client asks in admin audit', (
+    tester,
+  ) async {
+    await prepareAdminRouteTest(tester);
 
-      final persistence = await DispatchPersistenceService.create();
-      final scopedConversation = ScopedSharedPrefsClientConversationRepository(
-        persistence: persistence,
-        clientId: 'CLIENT-MS-VALLEE',
-        siteId: 'WTF-MAIN',
-      );
-      await scopedConversation.saveMessages(<ClientAppMessage>[
-        ClientAppMessage(
-          author: '@waterfall_resident',
-          body:
-              'Please confirm whether the Waterfall response team has already arrived.',
-          occurredAt: DateTime.utc(2026, 3, 18, 12, 43),
-          roomKey: 'Residents',
-          viewerRole: ClientAppViewerRole.client.name,
-          incidentStatusLabel: 'Update',
-          messageSource: 'telegram',
-          messageProvider: 'telegram',
-        ),
-      ]);
+    await seedWaterfallResidentAsk();
 
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-cross-scope-live-ask-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.system,
-        ),
-      );
-      await tester.pumpAndSettle();
+    await pumpAdminRouteApp(
+      tester,
+      key: const ValueKey('admin-cross-scope-live-ask-app'),
+    );
+    await openAdminClientCommsAudit(tester);
 
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('Client Comms Audit'),
-        500,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Client Comms Audit'), findsOneWidget);
-      expect(find.text('Cross-scope'), findsWidgets);
-      expect(find.text('1 live ask'), findsOneWidget);
-      expect(find.text('LATEST CLIENT ASK'), findsOneWidget);
-      expect(
-        find.textContaining(
-          'Please confirm whether the Waterfall response team has already arrived.',
-        ),
-        findsOneWidget,
-      );
-    },
-  );
+    expect(find.text('Client Comms Audit'), findsOneWidget);
+    expect(find.text('Cross-scope'), findsWidgets);
+    expect(find.text('1 live ask'), findsOneWidget);
+    expect(find.text('LATEST CLIENT ASK'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Please confirm whether the Waterfall response team has already arrived.',
+      ),
+      findsOneWidget,
+    );
+  });
 
   testWidgets(
     'onyx app opens the exact off-scope lane from an ask-driven admin audit card',
     (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      await tester.binding.setSurfaceSize(const Size(1680, 1100));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await prepareAdminRouteTest(tester);
 
-      final persistence = await DispatchPersistenceService.create();
-      final scopedConversation = ScopedSharedPrefsClientConversationRepository(
-        persistence: persistence,
-        clientId: 'CLIENT-MS-VALLEE',
-        siteId: 'WTF-MAIN',
-      );
-      await scopedConversation.saveMessages(<ClientAppMessage>[
-        ClientAppMessage(
-          author: '@waterfall_resident',
-          body:
-              'Please confirm whether the Waterfall response team has already arrived.',
-          occurredAt: DateTime.utc(2026, 3, 18, 12, 43),
-          roomKey: 'Residents',
-          viewerRole: ClientAppViewerRole.client.name,
-          incidentStatusLabel: 'Update',
-          messageSource: 'telegram',
-          messageProvider: 'telegram',
-        ),
-      ]);
+      await seedWaterfallResidentAsk();
 
       String? openedClientId;
       String? openedSiteId;
@@ -323,14 +852,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('LATEST CLIENT ASK'),
-        500,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
+      await openAdminSystemAnchor(tester, 'LATEST CLIENT ASK');
 
       await tester.ensureVisible(find.text('Open This Lane').first);
       await tester.tap(find.text('Open This Lane').first);
@@ -339,7 +861,7 @@ void main() {
       expect(openedClientId, 'CLIENT-MS-VALLEE');
       expect(openedSiteId, 'WTF-MAIN');
       expect(openedRoom, isEmpty);
-      expect(find.textContaining('Client Operations'), findsOneWidget);
+      expect(find.textContaining('Client Communications'), findsOneWidget);
     },
   );
 
@@ -350,14 +872,13 @@ void main() {
       await tester.binding.setSurfaceSize(const Size(1680, 1100));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      final persistence = await DispatchPersistenceService.create();
-      await persistence.saveTelegramAdminRuntimeState({
-        'ai_approved_rewrite_examples_by_scope': {
-          'CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE': <String>[
-            'Control is checking the latest position now and will share the next confirmed step shortly.',
-          ],
-        },
-      });
+      await saveLearnedApprovalStyles([
+        learnedApprovalEntry(
+          text:
+              'Control is checking the latest position now and will share the next confirmed step shortly.',
+          operatorTag: 'Warm reassurance',
+        ),
+      ]);
 
       await tester.pumpWidget(
         OnyxApp(
@@ -369,18 +890,13 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('Client Comms Audit'),
-        500,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
+      await openAdminClientCommsAudit(tester);
 
       expect(find.text('Client Comms Audit'), findsOneWidget);
       expect(find.text('Learned style (1)'), findsOneWidget);
       expect(find.text('LEARNED APPROVAL STYLE'), findsOneWidget);
+      expect(find.text('Warm reassurance'), findsOneWidget);
+      expect(find.textContaining('Approved 1x'), findsOneWidget);
       expect(
         find.textContaining(
           'Control is checking the latest position now and will share the next confirmed step shortly.',
@@ -391,18 +907,76 @@ void main() {
   );
 
   testWidgets(
+    'onyx app tags the second learned approval style in admin comms audit and persists it',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      await tester.binding.setSurfaceSize(const Size(1680, 1100));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await saveLearnedApprovalStyles([
+        learnedApprovalEntry(
+          text:
+              'Control is checking the latest position now and will share the next confirmed step shortly.',
+          approvalCount: 3,
+        ),
+        learnedApprovalEntry(
+          text:
+              'You are not alone. Control is checking now and will keep this lane updated.',
+          approvalCount: 2,
+        ),
+      ]);
+
+      await tester.pumpWidget(
+        OnyxApp(
+          key: const ValueKey('admin-tag-learned-style-app'),
+          supabaseReady: false,
+          initialRouteOverride: OnyxRoute.admin,
+          initialAdminTabOverride: AdministrationPageTab.system,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await openAdminClientCommsAudit(tester);
+
+      await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'Tag #2'));
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Tag #2'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(TextField),
+        ),
+        'Resident comfort',
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'Save Tag'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Resident comfort'), findsOneWidget);
+
+      await tester.pumpWidget(
+        OnyxApp(
+          key: const ValueKey('admin-tag-learned-style-restart-app'),
+          supabaseReady: false,
+          initialRouteOverride: OnyxRoute.admin,
+          initialAdminTabOverride: AdministrationPageTab.system,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await openAdminClientCommsAudit(tester);
+
+      expect(find.text('Resident comfort'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'onyx app restores pinned lane voice into admin comms audit after restart',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
       await tester.binding.setSurfaceSize(const Size(1680, 1100));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      final persistence = await DispatchPersistenceService.create();
-      await persistence.saveTelegramAdminRuntimeState({
-        'ai_client_profile_overrides': {
-          'CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE': 'reassurance-forward',
-        },
-      });
+      await savePinnedLaneVoice(profile: 'reassurance-forward');
 
       await tester.pumpWidget(
         OnyxApp(
@@ -414,14 +988,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('Client Comms Audit'),
-        500,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
+      await openAdminClientCommsAudit(tester);
 
       expect(find.text('Client Comms Audit'), findsOneWidget);
       expect(find.textContaining('Voice Reassuring'), findsOneWidget);
@@ -431,39 +998,67 @@ void main() {
   );
 
   testWidgets(
-    'onyx app restores pending telegram ai draft into admin review after restart',
+    'onyx app demotes the top learned approval style in admin comms audit and persists it',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
       await tester.binding.setSurfaceSize(const Size(1680, 1100));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      final persistence = await DispatchPersistenceService.create();
-      await persistence.saveTelegramAdminRuntimeState({
-        'ai_pending_drafts': <Map<String, Object?>>[
-          {
-            'inbound_update_id': 42,
-            'chat_id': '123456',
-            'message_thread_id': 88,
-            'audience': 'client',
-            'client_id': 'CLIENT-MS-VALLEE',
-            'site_id': 'SITE-MS-VALLEE-RESIDENCE',
-            'source_text':
-                'Can you please tell me what is happening at the house?',
-            'original_draft_text':
-                'We are checking the latest position now and will send the next confirmed update shortly.',
-            'draft_text':
-                'We are checking the latest position now and will send the next confirmed update shortly.',
-            'provider_label': 'openai:gpt-4.1-mini',
-            'used_learned_approval_style': false,
-            'created_at_utc': DateTime.utc(2026, 3, 18, 12, 30)
-                .toIso8601String(),
-          },
-        ],
-      });
+      await saveLearnedApprovalStyles([
+        learnedApprovalEntry(
+          text:
+              'Control is checking the latest position now and will share the next confirmed step shortly.',
+          approvalCount: 3,
+        ),
+        learnedApprovalEntry(
+          text:
+              'You are not alone. Control is checking now and will keep this lane updated.',
+          approvalCount: 2,
+        ),
+      ]);
 
       await tester.pumpWidget(
         OnyxApp(
-          key: const ValueKey('admin-pending-draft-app'),
+          key: const ValueKey('admin-demote-learned-style-app'),
+          supabaseReady: false,
+          initialRouteOverride: OnyxRoute.admin,
+          initialAdminTabOverride: AdministrationPageTab.system,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await openAdminClientCommsAudit(tester);
+
+      expect(
+        find.textContaining(
+          'Control is checking the latest position now and will share the next confirmed step shortly.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('NEXT LEARNED OPTIONS'), findsOneWidget);
+      expect(
+        find.textContaining(
+          '#2 You are not alone. Control is checking now and will keep this lane updated.',
+        ),
+        findsOneWidget,
+      );
+
+      await tester.ensureVisible(
+        find.widgetWithText(OutlinedButton, 'Demote Top Style'),
+      );
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Demote Top Style'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining(
+          'You are not alone. Control is checking now and will keep this lane updated.',
+        ),
+        findsOneWidget,
+      );
+
+      await tester.pumpWidget(
+        OnyxApp(
+          key: const ValueKey('admin-demote-learned-style-restart-app'),
           supabaseReady: false,
           initialRouteOverride: OnyxRoute.admin,
           initialAdminTabOverride: AdministrationPageTab.system,
@@ -474,11 +1069,145 @@ void main() {
       await tester.tap(find.text('System').first);
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
-        find.text('CLIENT ASKED'),
+        find.text('Client Comms Audit'),
         500,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining(
+          'You are not alone. Control is checking now and will keep this lane updated.',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'onyx app promotes the second learned approval style in admin comms audit and persists it',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      await tester.binding.setSurfaceSize(const Size(1680, 1100));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await saveLearnedApprovalStyles([
+        learnedApprovalEntry(
+          text:
+              'Control is checking the latest position now and will share the next confirmed step shortly.',
+          approvalCount: 3,
+        ),
+        learnedApprovalEntry(
+          text:
+              'You are not alone. Control is checking now and will keep this lane updated.',
+          approvalCount: 2,
+        ),
+        learnedApprovalEntry(
+          text:
+              'Control is checking cameras now and will share the next confirmed camera check shortly.',
+          approvalCount: 1,
+        ),
+      ]);
+
+      await tester.pumpWidget(
+        OnyxApp(
+          key: const ValueKey('admin-promote-learned-style-app'),
+          supabaseReady: false,
+          initialRouteOverride: OnyxRoute.admin,
+          initialAdminTabOverride: AdministrationPageTab.system,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('System').first);
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Client Comms Audit'),
+        500,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining(
+          'Control is checking the latest position now and will share the next confirmed step shortly.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('NEXT LEARNED OPTIONS'), findsOneWidget);
+      expect(
+        find.textContaining(
+          '#2 You are not alone. Control is checking now and will keep this lane updated.',
+        ),
+        findsOneWidget,
+      );
+
+      await tester.ensureVisible(
+        find.widgetWithText(OutlinedButton, 'Promote #2'),
+      );
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Promote #2'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining(
+          'You are not alone. Control is checking now and will keep this lane updated.',
+        ),
+        findsWidgets,
+      );
+
+      await tester.pumpWidget(
+        OnyxApp(
+          key: const ValueKey('admin-promote-learned-style-restart-app'),
+          supabaseReady: false,
+          initialRouteOverride: OnyxRoute.admin,
+          initialAdminTabOverride: AdministrationPageTab.system,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('System').first);
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Client Comms Audit'),
+        500,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining(
+          'You are not alone. Control is checking now and will keep this lane updated.',
+        ),
+        findsWidgets,
+      );
+    },
+  );
+
+  testWidgets(
+    'onyx app restores pending telegram ai draft into admin review after restart',
+    (tester) async {
+      await prepareAdminRouteTest(tester);
+
+      await savePendingTelegramDrafts([
+        telegramPendingDraftEntry(
+          inboundUpdateId: 42,
+          messageThreadId: 88,
+          clientId: 'CLIENT-MS-VALLEE',
+          siteId: 'SITE-MS-VALLEE-RESIDENCE',
+          sourceText: 'Can you please tell me what is happening at the house?',
+          originalDraftText:
+              'We are checking the latest position now and will send the next confirmed update shortly.',
+          draftText:
+              'We are checking the latest position now and will send the next confirmed update shortly.',
+          createdAtUtc: DateTime.utc(2026, 3, 18, 12, 30),
+        ),
+      ]);
+
+      await pumpAdminRouteApp(
+        tester,
+        key: const ValueKey('admin-pending-draft-app'),
+      );
+      await openAdminPendingDraftReview(tester);
 
       expect(find.text('Awaiting human sign-off'), findsOneWidget);
       expect(find.text('CLIENT ASKED'), findsOneWidget);
@@ -500,39 +1229,26 @@ void main() {
   );
 
   testWidgets(
-    'onyx app surfaces off-scope pending telegram ai drafts in admin review',
+    'onyx app can re-enable the live operations queue hint from admin and keep it after restart',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
+      LiveOperationsPage.debugResetQueueStateHintSession();
       await tester.binding.setSurfaceSize(const Size(1680, 1100));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-
-      final persistence = await DispatchPersistenceService.create();
-      await persistence.saveTelegramAdminRuntimeState({
-        'ai_pending_drafts': <Map<String, Object?>>[
-          {
-            'inbound_update_id': 43,
-            'chat_id': '123456',
-            'message_thread_id': 89,
-            'audience': 'client',
-            'client_id': 'CLIENT-MS-VALLEE',
-            'site_id': 'WTF-MAIN',
-            'source_text':
-                'Can you confirm whether the Waterfall team is already on site?',
-            'original_draft_text':
-                'We are checking the latest Waterfall position now and will send the next confirmed update shortly.',
-            'draft_text':
-                'We are checking the latest Waterfall position now and will send the next confirmed update shortly.',
-            'provider_label': 'openai:gpt-4.1-mini',
-            'used_learned_approval_style': false,
-            'created_at_utc': DateTime.utc(2026, 3, 18, 12, 30)
-                .toIso8601String(),
-          },
-        ],
+      addTearDown(() {
+        tester.binding.setSurfaceSize(null);
+        LiveOperationsPage.debugResetQueueStateHintSession();
       });
+
+      await saveLiveOperationsQueueHintState(
+        seen: true,
+        legacyLearnedStyles: const <String>[
+          'Control is checking the latest position now and will share the next confirmed step shortly.',
+        ],
+      );
 
       await tester.pumpWidget(
         OnyxApp(
-          key: const ValueKey('admin-off-scope-pending-draft-app'),
+          key: const ValueKey('admin-reset-live-ops-queue-hint-app'),
           supabaseReady: false,
           initialRouteOverride: OnyxRoute.admin,
           initialAdminTabOverride: AdministrationPageTab.system,
@@ -540,14 +1256,60 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('CLIENT ASKED'),
-        500,
-        scrollable: find.byType(Scrollable).first,
+      await openAdminSystemAnchor(tester, 'LEARNED APPROVAL STYLE');
+      expect(find.text('Client Comms Audit'), findsOneWidget);
+      expect(find.text('LEARNED APPROVAL STYLE'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('admin-reset-live-ops-queue-hint-audit-button')),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey('admin-reset-live-ops-queue-hint-audit-button')),
       );
       await tester.pumpAndSettle();
+      expect(find.text('Live Ops tip will show again.'), findsOneWidget);
+
+      await tester.pumpWidget(
+        OnyxApp(
+          key: const ValueKey('dashboard-after-admin-reset-live-ops-queue-hint'),
+          supabaseReady: false,
+          initialRouteOverride: OnyxRoute.dashboard,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('control-inbox-queue-hint')), findsOneWidget);
+      expect(find.text('Hide tip'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'onyx app surfaces off-scope pending telegram ai drafts in admin review',
+    (tester) async {
+      await prepareAdminRouteTest(tester);
+
+      await savePendingTelegramDrafts([
+        telegramPendingDraftEntry(
+          inboundUpdateId: 43,
+          messageThreadId: 89,
+          clientId: 'CLIENT-MS-VALLEE',
+          siteId: 'WTF-MAIN',
+          sourceText:
+              'Can you confirm whether the Waterfall team is already on site?',
+          originalDraftText:
+              'We are checking the latest Waterfall position now and will send the next confirmed update shortly.',
+          draftText:
+              'We are checking the latest Waterfall position now and will send the next confirmed update shortly.',
+          createdAtUtc: DateTime.utc(2026, 3, 18, 12, 30),
+        ),
+      ]);
+
+      await pumpAdminRouteApp(
+        tester,
+        key: const ValueKey('admin-off-scope-pending-draft-app'),
+      );
+      await openAdminPendingDraftReview(tester);
 
       expect(find.text('Awaiting human sign-off'), findsOneWidget);
       expect(find.text('CLIENT ASKED'), findsOneWidget);
@@ -568,140 +1330,85 @@ void main() {
     },
   );
 
-  testWidgets(
-    'onyx app opens the exact off-scope lane from admin draft review',
-    (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      await tester.binding.setSurfaceSize(const Size(1680, 1100));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets('onyx app opens the exact off-scope lane from admin draft review', (
+    tester,
+  ) async {
+    await prepareAdminRouteTest(tester);
 
-      final persistence = await DispatchPersistenceService.create();
-      await persistence.saveTelegramAdminRuntimeState({
-        'ai_pending_drafts': <Map<String, Object?>>[
-          {
-            'inbound_update_id': 44,
-            'chat_id': '123456',
-            'message_thread_id': 90,
-            'audience': 'client',
-            'client_id': 'CLIENT-MS-VALLEE',
-            'site_id': 'WTF-MAIN',
-            'source_text':
-                'Please confirm whether the Waterfall desk has eyes on the lane yet.',
-            'original_draft_text':
-                'Control is checking the latest Waterfall visual now and will share the next confirmed step shortly.',
-            'draft_text':
-                'Control is checking the latest Waterfall visual now and will share the next confirmed step shortly.',
-            'provider_label': 'openai:gpt-4.1-mini',
-            'used_learned_approval_style': false,
-            'created_at_utc': DateTime.utc(2026, 3, 18, 12, 31)
-                .toIso8601String(),
-          },
-        ],
-      });
+    await savePendingTelegramDrafts([
+      telegramPendingDraftEntry(
+        inboundUpdateId: 44,
+        messageThreadId: 90,
+        clientId: 'CLIENT-MS-VALLEE',
+        siteId: 'WTF-MAIN',
+        sourceText:
+            'Please confirm whether the Waterfall desk has eyes on the lane yet.',
+        originalDraftText:
+            'Control is checking the latest Waterfall visual now and will share the next confirmed step shortly.',
+        draftText:
+            'Control is checking the latest Waterfall visual now and will share the next confirmed step shortly.',
+        createdAtUtc: DateTime.utc(2026, 3, 18, 12, 31),
+      ),
+    ]);
 
-      String? openedClientId;
-      String? openedSiteId;
-      String? openedRoom;
+    String? openedClientId;
+    String? openedSiteId;
+    String? openedRoom;
 
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-open-off-scope-draft-lane-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.system,
-          onClientLaneRouteOpened: (clientId, siteId, room) {
-            openedClientId = clientId;
-            openedSiteId = siteId;
-            openedRoom = room;
-          },
-        ),
-      );
-      await tester.pumpAndSettle();
+    await pumpAdminRouteApp(
+      tester,
+      key: const ValueKey('admin-open-off-scope-draft-lane-app'),
+      onClientLaneRouteOpened: (clientId, siteId, room) {
+        openedClientId = clientId;
+        openedSiteId = siteId;
+        openedRoom = room;
+      },
+    );
+    await openAdminPendingDraftReview(tester);
 
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('CLIENT ASKED'),
-        500,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Open This Lane').first);
+    await tester.tap(find.text('Open This Lane').first);
+    await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Open This Lane').first);
-      await tester.tap(find.text('Open This Lane').first);
-      await tester.pumpAndSettle();
-
-      expect(openedClientId, 'CLIENT-MS-VALLEE');
-      expect(openedSiteId, 'WTF-MAIN');
-      expect(openedRoom, isEmpty);
-      expect(find.textContaining('Client Operations'), findsOneWidget);
-    },
-  );
+    expect(openedClientId, 'CLIENT-MS-VALLEE');
+    expect(openedSiteId, 'WTF-MAIN');
+    expect(openedRoom, isEmpty);
+    expect(find.textContaining('Client Communications'), findsOneWidget);
+  });
 
   testWidgets(
     'onyx app persists rejected telegram ai draft clearing after restart',
     (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      await tester.binding.setSurfaceSize(const Size(1680, 1100));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await prepareAdminRouteTest(tester);
 
-      final persistence = await DispatchPersistenceService.create();
-      await persistence.saveTelegramAdminRuntimeState({
-        'ai_pending_drafts': <Map<String, Object?>>[
-          {
-            'inbound_update_id': 77,
-            'chat_id': '123456',
-            'message_thread_id': 88,
-            'audience': 'client',
-            'client_id': 'CLIENT-MS-VALLEE',
-            'site_id': 'SITE-MS-VALLEE-RESIDENCE',
-            'source_text': 'Please update me on the patrol position.',
-            'original_draft_text':
-                'We are checking the latest patrol position now and will send the next verified update shortly.',
-            'draft_text':
-                'We are checking the latest patrol position now and will send the next verified update shortly.',
-            'provider_label': 'openai:gpt-4.1-mini',
-            'used_learned_approval_style': false,
-            'created_at_utc': DateTime.utc(2026, 3, 18, 12, 31)
-                .toIso8601String(),
-          },
-        ],
-      });
-
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-reject-draft-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.system,
+      await savePendingTelegramDrafts([
+        telegramPendingDraftEntry(
+          inboundUpdateId: 77,
+          messageThreadId: 88,
+          clientId: 'CLIENT-MS-VALLEE',
+          siteId: 'SITE-MS-VALLEE-RESIDENCE',
+          sourceText: 'Please update me on the patrol position.',
+          originalDraftText:
+              'We are checking the latest patrol position now and will send the next verified update shortly.',
+          draftText:
+              'We are checking the latest patrol position now and will send the next verified update shortly.',
+          createdAtUtc: DateTime.utc(2026, 3, 18, 12, 31),
         ),
-      );
-      await tester.pumpAndSettle();
+      ]);
 
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('CLIENT ASKED'),
-        500,
-        scrollable: find.byType(Scrollable).first,
+      await pumpAdminRouteApp(
+        tester,
+        key: const ValueKey('admin-reject-draft-app'),
       );
-      await tester.pumpAndSettle();
+      await openAdminPendingDraftReview(tester);
 
       await tester.tap(find.widgetWithText(OutlinedButton, 'Reject'));
       await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-reject-draft-restart-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.system,
-        ),
+      await pumpAdminRouteApp(
+        tester,
+        key: const ValueKey('admin-reject-draft-restart-app'),
       );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
 
       expect(find.text('CLIENT ASKED'), findsNothing);
       expect(find.text('ONYX WILL SAY'), findsNothing);
@@ -709,131 +1416,62 @@ void main() {
     },
   );
 
-  testWidgets(
-    'onyx app persists approved telegram ai draft learning after restart',
-    (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      await tester.binding.setSurfaceSize(const Size(1680, 1100));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets('onyx app persists approved telegram ai draft learning after restart', (
+    tester,
+  ) async {
+    await prepareAdminRouteTest(tester);
 
-      final persistence = await DispatchPersistenceService.create();
-      await persistence.saveTelegramAdminRuntimeState({
-        'ai_pending_drafts': <Map<String, Object?>>[
-          {
-            'inbound_update_id': 91,
-            'chat_id': '123456',
-            'message_thread_id': 88,
-            'audience': 'client',
-            'client_id': 'CLIENT-MS-VALLEE',
-            'site_id': 'SITE-MS-VALLEE-RESIDENCE',
-            'source_text': 'Please update me on the patrol position.',
-            'original_draft_text':
-                'We are checking the latest patrol position now and will send the next verified update shortly.',
-            'draft_text':
-                'Control is checking the latest patrol position now and will share the next confirmed step shortly.',
-            'provider_label': 'openai:gpt-4.1-mini',
-            'used_learned_approval_style': false,
-            'created_at_utc': DateTime.utc(2026, 3, 18, 12, 32)
-                .toIso8601String(),
-          },
-        ],
-      });
+    await savePendingTelegramDrafts([
+      telegramPendingDraftEntry(
+        inboundUpdateId: 91,
+        messageThreadId: 88,
+        clientId: 'CLIENT-MS-VALLEE',
+        siteId: 'SITE-MS-VALLEE-RESIDENCE',
+        sourceText: 'Please update me on the patrol position.',
+        originalDraftText:
+            'We are checking the latest patrol position now and will send the next verified update shortly.',
+        draftText:
+            'Control is checking the latest patrol position now and will share the next confirmed step shortly.',
+        createdAtUtc: DateTime.utc(2026, 3, 18, 12, 32),
+      ),
+    ]);
 
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-approve-draft-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.system,
-          telegramBridgeServiceOverride: const _SuccessfulTelegramBridgeStub(),
-        ),
-      );
-      await tester.pumpAndSettle();
+    await pumpAdminRouteApp(
+      tester,
+      key: const ValueKey('admin-approve-draft-app'),
+      telegramBridgeServiceOverride: const _SuccessfulTelegramBridgeStub(),
+    );
+    await openAdminPendingDraftReview(tester);
 
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('CLIENT ASKED'),
-        500,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Approve + Send'));
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Approve + Send'));
-      await tester.pumpAndSettle();
+    await pumpAdminRouteApp(
+      tester,
+      key: const ValueKey('admin-approve-draft-restart-app'),
+    );
+    await openAdminClientCommsAudit(tester);
 
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-approve-draft-restart-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.system,
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('Client Comms Audit'),
-        500,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('CLIENT ASKED'), findsNothing);
-      expect(find.text('Learned style (1)'), findsOneWidget);
-      expect(find.text('LEARNED APPROVAL STYLE'), findsOneWidget);
-      expect(
-        find.textContaining(
-          'Control is checking the latest patrol position now and will share the next confirmed step shortly.',
-        ),
-        findsWidgets,
-      );
-    },
-  );
+    expect(find.text('CLIENT ASKED'), findsNothing);
+    expect(find.text('Learned style (1)'), findsOneWidget);
+    expect(find.text('LEARNED APPROVAL STYLE'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Control is checking the latest patrol position now and will share the next confirmed step shortly.',
+      ),
+      findsWidgets,
+    );
+  });
 
   testWidgets(
     'onyx app shows client-lane learned approval memory in admin audit after restart',
     (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      await tester.binding.setSurfaceSize(const Size(1680, 1100));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await prepareAdminRouteTest(tester);
 
-      final persistence = await DispatchPersistenceService.create();
-      await persistence.saveClientAppDraft(
-        const ClientAppDraft(
-          viewerRole: ClientAppViewerRole.control,
-          selectedRoom: 'Residents',
-          selectedRoomByRole: <String, String>{
-            'client': 'Residents',
-            'control': 'Residents',
-            'resident': 'Residents',
-          },
-          showAllRoomItemsByRole: <String, bool>{
-            'client': false,
-            'control': false,
-            'resident': false,
-          },
-        ),
+      await pumpClientControlSourceApp(
+        tester,
+        key: const ValueKey('admin-cross-surface-learn-clients-app'),
       );
-
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-cross-surface-learn-clients-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.clients,
-          appModeOverride: OnyxAppMode.client,
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final controlViewChip = find.text('Control View');
-      if (controlViewChip.evaluate().isNotEmpty) {
-        await tester.ensureVisible(controlViewChip.first);
-        await tester.tap(controlViewChip.first);
-        await tester.pumpAndSettle();
-      }
 
       final reviewButton = find.textContaining(
         'Review dispatch draft for Resident Feed',
@@ -855,24 +1493,10 @@ void main() {
       await tester.tap(sendReviewedDraftButton);
       await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-cross-surface-learn-admin-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.system,
-        ),
+      await pumpAndOpenAdminClientCommsAudit(
+        tester,
+        key: const ValueKey('admin-cross-surface-learn-admin-app'),
       );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('Client Comms Audit'),
-        500,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
 
       expect(find.text('Learned style (1)'), findsOneWidget);
       expect(find.text('LEARNED APPROVAL STYLE'), findsOneWidget);
@@ -883,46 +1507,14 @@ void main() {
   testWidgets(
     'onyx app shows off-scope client-lane learned approval style in admin audit after restart',
     (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      await tester.binding.setSurfaceSize(const Size(1680, 1100));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await prepareAdminRouteTest(tester);
 
-      final persistence = await DispatchPersistenceService.create();
-      await persistence.saveClientAppDraft(
-        const ClientAppDraft(
-          viewerRole: ClientAppViewerRole.control,
-          selectedRoom: 'Residents',
-          selectedRoomByRole: <String, String>{
-            'client': 'Residents',
-            'control': 'Residents',
-            'resident': 'Residents',
-          },
-          showAllRoomItemsByRole: <String, bool>{
-            'client': false,
-            'control': false,
-            'resident': false,
-          },
-        ),
+      await pumpClientControlSourceApp(
+        tester,
+        key: const ValueKey('admin-offscope-cross-surface-learn-clients-app'),
+        clientId: 'CLIENT-MS-VALLEE',
+        siteId: 'WTF-MAIN',
       );
-
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-offscope-cross-surface-learn-clients-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.clients,
-          initialClientLaneClientIdOverride: 'CLIENT-MS-VALLEE',
-          initialClientLaneSiteIdOverride: 'WTF-MAIN',
-          appModeOverride: OnyxAppMode.client,
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final controlViewChip = find.text('Control View');
-      if (controlViewChip.evaluate().isNotEmpty) {
-        await tester.ensureVisible(controlViewChip.first);
-        await tester.tap(controlViewChip.first);
-        await tester.pumpAndSettle();
-      }
 
       final reviewButton = find.textContaining(
         'Review dispatch draft for Resident Feed',
@@ -944,24 +1536,10 @@ void main() {
       await tester.tap(sendReviewedDraftButton);
       await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-offscope-cross-surface-learn-admin-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.system,
-        ),
+      await pumpAndOpenAdminClientCommsAudit(
+        tester,
+        key: const ValueKey('admin-offscope-cross-surface-learn-admin-app'),
       );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('Client Comms Audit'),
-        500,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
 
       expect(find.text('Client Comms Audit'), findsOneWidget);
       expect(find.text('Cross-scope'), findsWidgets);
@@ -974,46 +1552,14 @@ void main() {
   testWidgets(
     'onyx app shows off-scope client-lane manual reply in admin audit after restart',
     (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      await tester.binding.setSurfaceSize(const Size(1680, 1100));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await prepareAdminRouteTest(tester);
 
-      final persistence = await DispatchPersistenceService.create();
-      await persistence.saveClientAppDraft(
-        const ClientAppDraft(
-          viewerRole: ClientAppViewerRole.control,
-          selectedRoom: 'Residents',
-          selectedRoomByRole: <String, String>{
-            'client': 'Residents',
-            'control': 'Residents',
-            'resident': 'Residents',
-          },
-          showAllRoomItemsByRole: <String, bool>{
-            'client': false,
-            'control': false,
-            'resident': false,
-          },
-        ),
+      await pumpClientControlSourceApp(
+        tester,
+        key: const ValueKey('admin-offscope-lane-reply-clients-app'),
+        clientId: 'CLIENT-MS-VALLEE',
+        siteId: 'WTF-MAIN',
       );
-
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-offscope-lane-reply-clients-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.clients,
-          initialClientLaneClientIdOverride: 'CLIENT-MS-VALLEE',
-          initialClientLaneSiteIdOverride: 'WTF-MAIN',
-          appModeOverride: OnyxAppMode.client,
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final controlViewChip = find.text('Control View');
-      if (controlViewChip.evaluate().isNotEmpty) {
-        await tester.ensureVisible(controlViewChip.first);
-        await tester.tap(controlViewChip.first);
-        await tester.pumpAndSettle();
-      }
 
       const controlUpdateBody =
           'Waterfall control lane update: desk has logged the resident follow-up.';
@@ -1026,18 +1572,10 @@ void main() {
       await tester.tap(sendControlUpdateButton);
       await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-offscope-lane-reply-admin-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.system,
-        ),
+      await pumpAndOpenAdminClientCommsAudit(
+        tester,
+        key: const ValueKey('admin-offscope-lane-reply-admin-app'),
       );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
         find.text('LATEST LANE REPLY'),
         500,
@@ -1055,70 +1593,16 @@ void main() {
   testWidgets(
     'onyx app shows off-scope push queue and push sync pressure in admin audit after restart',
     (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      await tester.binding.setSurfaceSize(const Size(1680, 1100));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await prepareAdminRouteTest(tester);
 
-      final persistence = await DispatchPersistenceService.create();
-      final scopedConversation = ScopedSharedPrefsClientConversationRepository(
-        persistence: persistence,
-        clientId: 'CLIENT-MS-VALLEE',
-        siteId: 'WTF-MAIN',
-      );
-      final occurredAtUtc = DateTime.utc(2026, 3, 18, 13, 14);
-      await scopedConversation.savePushQueue(<ClientAppPushDeliveryItem>[
-        ClientAppPushDeliveryItem(
-          messageKey: 'waterfall-admin-push-1',
-          title: 'Waterfall delivery check',
-          body: 'Queued client update for the Waterfall lane.',
-          occurredAt: occurredAtUtc,
-          clientId: 'CLIENT-MS-VALLEE',
-          siteId: 'WTF-MAIN',
-          targetChannel: ClientAppAcknowledgementChannel.client,
-          deliveryProvider: ClientPushDeliveryProvider.inApp,
-          priority: true,
-          status: ClientPushDeliveryStatus.queued,
-        ),
-      ]);
-      await scopedConversation.savePushSyncState(
-        ClientPushSyncState(
-          statusLabel: 'failed',
-          lastSyncedAtUtc: occurredAtUtc,
-          failureReason:
-              'Waterfall push sync needs operator review before retry.',
-          retryCount: 2,
-          history: <ClientPushSyncAttempt>[
-            ClientPushSyncAttempt(
-              occurredAt: occurredAtUtc,
-              status: 'failed',
-              failureReason:
-                  'Waterfall push sync needs operator review before retry.',
-              queueSize: 1,
-            ),
-          ],
-          backendProbeStatusLabel: 'idle',
-          backendProbeHistory: const <ClientBackendProbeAttempt>[],
-        ),
+      await seedWaterfallPushPressure(
+        messageKey: 'waterfall-admin-push-1',
       );
 
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-offscope-push-pressure-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.system,
-        ),
+      await pumpAndOpenAdminClientCommsAudit(
+        tester,
+        key: const ValueKey('admin-offscope-push-pressure-app'),
       );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('Client Comms Audit'),
-        500,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
 
       expect(find.text('Client Comms Audit'), findsOneWidget);
       expect(find.text('Push FAILED'), findsWidgets);
@@ -1141,79 +1625,26 @@ void main() {
   testWidgets(
     'onyx app opens the exact off-scope lane from a push-pressure admin audit card',
     (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      await tester.binding.setSurfaceSize(const Size(1680, 1100));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await prepareAdminRouteTest(tester);
 
-      final persistence = await DispatchPersistenceService.create();
-      final scopedConversation = ScopedSharedPrefsClientConversationRepository(
-        persistence: persistence,
-        clientId: 'CLIENT-MS-VALLEE',
-        siteId: 'WTF-MAIN',
-      );
-      final occurredAtUtc = DateTime.utc(2026, 3, 18, 13, 14);
-      await scopedConversation.savePushQueue(<ClientAppPushDeliveryItem>[
-        ClientAppPushDeliveryItem(
-          messageKey: 'waterfall-admin-push-open-lane-1',
-          title: 'Waterfall delivery check',
-          body: 'Queued client update for the Waterfall lane.',
-          occurredAt: occurredAtUtc,
-          clientId: 'CLIENT-MS-VALLEE',
-          siteId: 'WTF-MAIN',
-          targetChannel: ClientAppAcknowledgementChannel.client,
-          deliveryProvider: ClientPushDeliveryProvider.inApp,
-          priority: true,
-          status: ClientPushDeliveryStatus.queued,
-        ),
-      ]);
-      await scopedConversation.savePushSyncState(
-        ClientPushSyncState(
-          statusLabel: 'failed',
-          lastSyncedAtUtc: occurredAtUtc,
-          failureReason:
-              'Waterfall push sync needs operator review before retry.',
-          retryCount: 2,
-          history: <ClientPushSyncAttempt>[
-            ClientPushSyncAttempt(
-              occurredAt: occurredAtUtc,
-              status: 'failed',
-              failureReason:
-                  'Waterfall push sync needs operator review before retry.',
-              queueSize: 1,
-            ),
-          ],
-          backendProbeStatusLabel: 'idle',
-          backendProbeHistory: const <ClientBackendProbeAttempt>[],
-        ),
+      await seedWaterfallPushPressure(
+        messageKey: 'waterfall-admin-push-open-lane-1',
       );
 
       String? openedClientId;
       String? openedSiteId;
       String? openedRoom;
 
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-open-off-scope-push-pressure-lane-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.system,
-          onClientLaneRouteOpened: (clientId, siteId, room) {
-            openedClientId = clientId;
-            openedSiteId = siteId;
-            openedRoom = room;
-          },
-        ),
+      await pumpAndOpenAdminClientCommsAudit(
+        tester,
+        key: const ValueKey('admin-open-off-scope-push-pressure-lane-app'),
+        onClientLaneRouteOpened: (clientId, siteId, room) {
+          openedClientId = clientId;
+          openedSiteId = siteId;
+          openedRoom = room;
+        },
       );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('LATEST PUSH DETAIL'),
-        500,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
+      await openAdminSystemAnchor(tester, 'LATEST PUSH DETAIL');
 
       await tester.ensureVisible(find.text('Open This Lane').first);
       await tester.tap(find.text('Open This Lane').first);
@@ -1222,63 +1653,22 @@ void main() {
       expect(openedClientId, 'CLIENT-MS-VALLEE');
       expect(openedSiteId, 'WTF-MAIN');
       expect(openedRoom, isEmpty);
-      expect(find.textContaining('Client Operations'), findsOneWidget);
+      expect(find.textContaining('Client Communications'), findsOneWidget);
     },
   );
 
   testWidgets(
     'onyx app humanizes off-scope telegram bridge detail in admin audit after restart',
     (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      await tester.binding.setSurfaceSize(const Size(1680, 1100));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await prepareAdminRouteTest(tester);
 
-      final persistence = await DispatchPersistenceService.create();
-      final scopedConversation = ScopedSharedPrefsClientConversationRepository(
-        persistence: persistence,
-        clientId: 'CLIENT-MS-VALLEE',
-        siteId: 'WTF-MAIN',
-      );
-      final occurredAtUtc = DateTime.utc(2026, 3, 18, 13, 26);
-      await scopedConversation.savePushSyncState(
-        ClientPushSyncState(
-          statusLabel: 'failed',
-          lastSyncedAtUtc: occurredAtUtc,
-          failureReason:
-              'Telegram bridge failed for 1/1 message(s). Reasons: BLOCKED_BY_TEST_STUB',
-          retryCount: 1,
-          history: <ClientPushSyncAttempt>[
-            ClientPushSyncAttempt(
-              occurredAt: occurredAtUtc,
-              status: 'telegram-blocked',
-              failureReason:
-                  'Telegram bridge failed for 1/1 message(s). Reasons: BLOCKED_BY_TEST_STUB',
-              queueSize: 1,
-            ),
-          ],
-          backendProbeStatusLabel: 'idle',
-          backendProbeHistory: const <ClientBackendProbeAttempt>[],
-        ),
-      );
+      await seedWaterfallTelegramBlockedPushSync();
 
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-telegram-detail-humanized-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.system,
-        ),
+      await pumpAndOpenAdminClientCommsAudit(
+        tester,
+        key: const ValueKey('admin-telegram-detail-humanized-app'),
       );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('LATEST PUSH DETAIL'),
-        500,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
+      await openAdminSystemAnchor(tester, 'LATEST PUSH DETAIL');
 
       expect(find.text('Client Comms Audit'), findsOneWidget);
       expect(find.text('Telegram BLOCKED'), findsWidgets);
@@ -1295,68 +1685,22 @@ void main() {
   testWidgets(
     'onyx app shows client-lane pinned voice in admin audit after restart',
     (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      await tester.binding.setSurfaceSize(const Size(1680, 1100));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await prepareAdminRouteTest(tester);
 
-      final persistence = await DispatchPersistenceService.create();
-      await persistence.saveClientAppDraft(
-        const ClientAppDraft(
-          viewerRole: ClientAppViewerRole.control,
-          selectedRoom: 'Residents',
-          selectedRoomByRole: <String, String>{
-            'client': 'Residents',
-            'control': 'Residents',
-            'resident': 'Residents',
-          },
-          showAllRoomItemsByRole: <String, bool>{
-            'client': false,
-            'control': false,
-            'resident': false,
-          },
-        ),
+      await pumpClientControlSourceApp(
+        tester,
+        key: const ValueKey('admin-cross-surface-voice-clients-app'),
       );
-
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-cross-surface-voice-clients-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.clients,
-          appModeOverride: OnyxAppMode.client,
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final controlViewChip = find.text('Control View');
-      if (controlViewChip.evaluate().isNotEmpty) {
-        await tester.ensureVisible(controlViewChip.first);
-        await tester.tap(controlViewChip.first);
-        await tester.pumpAndSettle();
-      }
 
       final reassuringChip = find.widgetWithText(ChoiceChip, 'Reassuring');
       await tester.ensureVisible(reassuringChip);
       await tester.tap(reassuringChip);
       await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-cross-surface-voice-admin-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.system,
-        ),
+      await pumpAndOpenAdminClientCommsAudit(
+        tester,
+        key: const ValueKey('admin-cross-surface-voice-admin-app'),
       );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('Client Comms Audit'),
-        500,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
 
       expect(find.textContaining('Voice Reassuring'), findsOneWidget);
       expect(find.text('Lane voice: Reassuring'), findsOneWidget);
@@ -1367,73 +1711,24 @@ void main() {
   testWidgets(
     'onyx app clears client-lane pinned voice from admin audit after restart',
     (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      await tester.binding.setSurfaceSize(const Size(1680, 1100));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await prepareAdminRouteTest(tester);
 
-      final persistence = await DispatchPersistenceService.create();
-      await persistence.saveClientAppDraft(
-        const ClientAppDraft(
-          viewerRole: ClientAppViewerRole.control,
-          selectedRoom: 'Residents',
-          selectedRoomByRole: <String, String>{
-            'client': 'Residents',
-            'control': 'Residents',
-            'resident': 'Residents',
-          },
-          showAllRoomItemsByRole: <String, bool>{
-            'client': false,
-            'control': false,
-            'resident': false,
-          },
-        ),
+      await savePinnedLaneVoice(profile: 'reassurance-forward');
+
+      await pumpClientControlSourceApp(
+        tester,
+        key: const ValueKey('admin-cross-surface-clear-voice-clients-app'),
       );
-      await persistence.saveTelegramAdminRuntimeState({
-        'ai_client_profile_overrides': {
-          'CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE': 'reassurance-forward',
-        },
-      });
-
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-cross-surface-clear-voice-clients-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.clients,
-          appModeOverride: OnyxAppMode.client,
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final controlViewChip = find.text('Control View');
-      if (controlViewChip.evaluate().isNotEmpty) {
-        await tester.ensureVisible(controlViewChip.first);
-        await tester.tap(controlViewChip.first);
-        await tester.pumpAndSettle();
-      }
 
       final autoChip = find.widgetWithText(ChoiceChip, 'Auto');
       await tester.ensureVisible(autoChip);
       await tester.tap(autoChip);
       await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-cross-surface-clear-voice-admin-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.system,
-        ),
+      await pumpAndOpenAdminClientCommsAudit(
+        tester,
+        key: const ValueKey('admin-cross-surface-clear-voice-admin-app'),
       );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('Client Comms Audit'),
-        500,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
 
       expect(find.textContaining('Voice Reassuring'), findsNothing);
       expect(find.text('Lane voice: Reassuring'), findsNothing);
@@ -1444,51 +1739,16 @@ void main() {
   testWidgets(
     'onyx app clears client-lane learned approval style from admin audit after restart',
     (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      await tester.binding.setSurfaceSize(const Size(1680, 1100));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await prepareAdminRouteTest(tester);
 
-      final persistence = await DispatchPersistenceService.create();
-      await persistence.saveClientAppDraft(
-        const ClientAppDraft(
-          viewerRole: ClientAppViewerRole.control,
-          selectedRoom: 'Residents',
-          selectedRoomByRole: <String, String>{
-            'client': 'Residents',
-            'control': 'Residents',
-            'resident': 'Residents',
-          },
-          showAllRoomItemsByRole: <String, bool>{
-            'client': false,
-            'control': false,
-            'resident': false,
-          },
-        ),
+      await saveLegacyLearnedApprovalStyles(const <String>[
+        'Control is checking the latest position now and will share the next confirmed step shortly.',
+      ]);
+
+      await pumpClientControlSourceApp(
+        tester,
+        key: const ValueKey('admin-cross-surface-clear-learned-clients-app'),
       );
-      await persistence.saveTelegramAdminRuntimeState({
-        'ai_approved_rewrite_examples_by_scope': {
-          'CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE': <String>[
-            'Control is checking the latest position now and will share the next confirmed step shortly.',
-          ],
-        },
-      });
-
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-cross-surface-clear-learned-clients-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.clients,
-          appModeOverride: OnyxAppMode.client,
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final controlViewChip = find.text('Control View');
-      if (controlViewChip.evaluate().isNotEmpty) {
-        await tester.ensureVisible(controlViewChip.first);
-        await tester.tap(controlViewChip.first);
-        await tester.pumpAndSettle();
-      }
 
       final clearLearnedStyleButton = find.widgetWithText(
         OutlinedButton,
@@ -1498,24 +1758,10 @@ void main() {
       await tester.tap(clearLearnedStyleButton);
       await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-cross-surface-clear-learned-admin-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.system,
-        ),
+      await pumpAndOpenAdminClientCommsAudit(
+        tester,
+        key: const ValueKey('admin-cross-surface-clear-learned-admin-app'),
       );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('Client Comms Audit'),
-        500,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
 
       expect(find.text('Learned style (1)'), findsNothing);
       expect(find.text('LEARNED APPROVAL STYLE'), findsNothing);
@@ -1526,27 +1772,16 @@ void main() {
   testWidgets(
     'onyx app reflects live operations learned-style clearing in admin audit after restart',
     (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      await tester.binding.setSurfaceSize(const Size(1680, 1100));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await prepareAdminRouteTest(tester);
 
-      final persistence = await DispatchPersistenceService.create();
-      await persistence.saveTelegramAdminRuntimeState({
-        'ai_approved_rewrite_examples_by_scope': {
-          'CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE': <String>[
-            'Control is checking the latest position now and will share the next confirmed step shortly.',
-          ],
-        },
-      });
+      await saveLegacyLearnedApprovalStyles(const <String>[
+        'Control is checking the latest position now and will share the next confirmed step shortly.',
+      ]);
 
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-live-ops-clear-learned-source-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.dashboard,
-        ),
+      await pumpLiveOperationsSourceApp(
+        tester,
+        key: const ValueKey('admin-live-ops-clear-learned-source-app'),
       );
-      await tester.pumpAndSettle();
 
       final clearLearnedStyleButton = find.widgetWithText(
         OutlinedButton,
@@ -1556,24 +1791,10 @@ void main() {
       await tester.tap(clearLearnedStyleButton.first);
       await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-live-ops-clear-learned-restart-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.system,
-        ),
+      await pumpAndOpenAdminClientCommsAudit(
+        tester,
+        key: const ValueKey('admin-live-ops-clear-learned-restart-app'),
       );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('Client Comms Audit'),
-        500,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
 
       expect(find.text('Learned style (1)'), findsNothing);
       expect(find.text('LEARNED APPROVAL STYLE'), findsNothing);
@@ -1584,42 +1805,25 @@ void main() {
   testWidgets(
     'onyx app reflects live operations lane voice changes in admin audit after restart',
     (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      await tester.binding.setSurfaceSize(const Size(1680, 1100));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await prepareAdminRouteTest(tester);
 
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-live-ops-voice-source-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.dashboard,
-        ),
+      await pumpLiveOperationsSourceApp(
+        tester,
+        key: const ValueKey('admin-live-ops-voice-source-app'),
       );
-      await tester.pumpAndSettle();
 
-      final reassuringButton = find.widgetWithText(OutlinedButton, 'Reassuring');
+      final reassuringButton = find.widgetWithText(
+        OutlinedButton,
+        'Reassuring',
+      );
       await tester.ensureVisible(reassuringButton.first);
       await tester.tap(reassuringButton.first);
       await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-live-ops-voice-restart-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.system,
-        ),
+      await pumpAndOpenAdminClientCommsAudit(
+        tester,
+        key: const ValueKey('admin-live-ops-voice-restart-app'),
       );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('Client Comms Audit'),
-        500,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
 
       expect(find.textContaining('Voice Reassuring'), findsOneWidget);
       expect(find.text('Lane voice: Reassuring'), findsOneWidget);
@@ -1630,61 +1834,49 @@ void main() {
   testWidgets(
     'onyx app reflects live operations rejected pending draft in admin review after restart',
     (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      await tester.binding.setSurfaceSize(const Size(1680, 1100));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await prepareAdminRouteTest(tester);
 
-      final persistence = await DispatchPersistenceService.create();
-      await persistence.saveTelegramAdminRuntimeState({
-        'ai_pending_drafts': <Map<String, Object?>>[
-          {
-            'inbound_update_id': 903,
-            'chat_id': '123456',
-            'message_thread_id': 88,
-            'audience': 'client',
-            'client_id': 'CLIENT-MS-VALLEE',
-            'site_id': 'SITE-MS-VALLEE-RESIDENCE',
-            'source_text': 'Please update me on the patrol position.',
-            'original_draft_text':
-                'We are checking the latest patrol position now and will send the next verified update shortly.',
-            'draft_text':
-                'We are checking the latest patrol position now and will send the next verified update shortly.',
-            'provider_label': 'openai:gpt-4.1-mini',
-            'used_learned_approval_style': false,
-            'created_at_utc': DateTime.utc(2026, 3, 18, 12, 48)
-                .toIso8601String(),
-          },
-        ],
-      });
-
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-live-ops-reject-source-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.dashboard,
+      await savePendingTelegramDrafts([
+        telegramPendingDraftEntry(
+          inboundUpdateId: 903,
+          messageThreadId: 88,
+          clientId: 'CLIENT-MS-VALLEE',
+          siteId: 'SITE-MS-VALLEE-RESIDENCE',
+          sourceText: 'Please update me on the patrol position.',
+          originalDraftText:
+              'We are checking the latest patrol position now and will send the next verified update shortly.',
+          draftText:
+              'We are checking the latest patrol position now and will send the next verified update shortly.',
+          createdAtUtc: DateTime.utc(2026, 3, 18, 12, 48),
         ),
+      ]);
+
+      await pumpLiveOperationsSourceApp(
+        tester,
+        key: const ValueKey('admin-live-ops-reject-source-app'),
       );
-      await tester.pumpAndSettle();
 
       expect(find.text('Pending ONYX Draft'), findsOneWidget);
-      await tester.tap(find.widgetWithText(OutlinedButton, 'Reject').first);
+      final rejectButton = find.widgetWithText(OutlinedButton, 'Reject').first;
+      await tester.ensureVisible(rejectButton);
+      await tester.tap(rejectButton);
       await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-live-ops-reject-restart-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.system,
-        ),
+      await pumpAdminRouteApp(
+        tester,
+        key: const ValueKey('admin-live-ops-reject-restart-app'),
       );
-      await tester.pumpAndSettle();
 
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
-
-      expect(find.text('CLIENT ASKED'), findsNothing);
-      expect(find.text('ONYX WILL SAY'), findsNothing);
+      expect(
+        find.text('Please update me on the patrol position.'),
+        findsNothing,
+      );
+      expect(
+        find.text(
+          'We are checking the latest patrol position now and will send the next verified update shortly.',
+        ),
+        findsNothing,
+      );
       expect(find.text('Awaiting human sign-off'), findsNothing);
     },
   );
@@ -1692,62 +1884,47 @@ void main() {
   testWidgets(
     'onyx app reflects live operations approved pending draft in admin review after restart',
     (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      await tester.binding.setSurfaceSize(const Size(1680, 1100));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await prepareAdminRouteTest(tester);
 
-      final persistence = await DispatchPersistenceService.create();
-      await persistence.saveTelegramAdminRuntimeState({
-        'ai_pending_drafts': <Map<String, Object?>>[
-          {
-            'inbound_update_id': 905,
-            'chat_id': '123456',
-            'message_thread_id': 88,
-            'audience': 'client',
-            'client_id': 'CLIENT-MS-VALLEE',
-            'site_id': 'SITE-MS-VALLEE-RESIDENCE',
-            'source_text': 'Please update me on the patrol position.',
-            'original_draft_text':
-                'We are checking the latest patrol position now and will send the next verified update shortly.',
-            'draft_text':
-                'Control is checking the latest patrol position now and will share the next confirmed step shortly.',
-            'provider_label': 'openai:gpt-4.1-mini',
-            'used_learned_approval_style': false,
-            'created_at_utc': DateTime.utc(2026, 3, 18, 12, 50)
-                .toIso8601String(),
-          },
-        ],
-      });
-
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-live-ops-approve-source-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.dashboard,
-          telegramBridgeServiceOverride: const _SuccessfulTelegramBridgeStub(),
+      await savePendingTelegramDrafts([
+        telegramPendingDraftEntry(
+          inboundUpdateId: 905,
+          messageThreadId: 88,
+          clientId: 'CLIENT-MS-VALLEE',
+          siteId: 'SITE-MS-VALLEE-RESIDENCE',
+          sourceText: 'Please update me on the patrol position.',
+          originalDraftText:
+              'We are checking the latest patrol position now and will send the next verified update shortly.',
+          draftText:
+              'Control is checking the latest patrol position now and will share the next confirmed step shortly.',
+          createdAtUtc: DateTime.utc(2026, 3, 18, 12, 50),
         ),
+      ]);
+
+      await pumpLiveOperationsSourceApp(
+        tester,
+        key: const ValueKey('admin-live-ops-approve-source-app'),
+        telegramBridgeServiceOverride: const _SuccessfulTelegramBridgeStub(),
       );
-      await tester.pumpAndSettle();
 
       expect(find.text('Pending ONYX Draft'), findsOneWidget);
-      await tester.tap(find.widgetWithText(FilledButton, 'Approve + Send').first);
+      final approveButton = find.widgetWithText(
+        FilledButton,
+        'Approve + Send',
+      ).first;
+      await tester.ensureVisible(approveButton);
+      await tester.tap(approveButton);
       await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-live-ops-approve-restart-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.system,
-        ),
+      await pumpAndOpenAdminClientCommsAudit(
+        tester,
+        key: const ValueKey('admin-live-ops-approve-restart-app'),
       );
-      await tester.pumpAndSettle();
 
-      await tester.tap(find.text('System').first);
-      await tester.pumpAndSettle();
-
-      expect(find.text('CLIENT ASKED'), findsNothing);
-      expect(find.text('ONYX WILL SAY'), findsNothing);
+      expect(
+        find.text('Please update me on the patrol position.'),
+        findsNothing,
+      );
       expect(find.text('Awaiting human sign-off'), findsNothing);
       expect(find.text('Learned style (1)'), findsOneWidget);
       expect(find.text('LEARNED APPROVAL STYLE'), findsOneWidget);

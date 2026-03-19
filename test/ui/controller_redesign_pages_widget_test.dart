@@ -68,7 +68,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Client Operations'), findsOneWidget);
+    expect(find.textContaining('Client Communications'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('Push Delivery Queue'),
       200,
@@ -83,13 +83,16 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('SITE COMMAND GRID'), findsOneWidget);
+    expect(find.text('Sites & Deployment'), findsOneWidget);
     expect(find.textContaining('SITE OPERATIONS WORKSPACE'), findsOneWidget);
   });
 
   testWidgets('events controller page renders timeline and selected detail', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     await tester.pumpWidget(
       MaterialApp(home: EventsReviewPage(events: sampleEvents)),
     );
@@ -102,6 +105,9 @@ void main() {
   testWidgets('events controller page applies initial intel source filter', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     await tester.pumpWidget(
       MaterialApp(
         home: EventsReviewPage(
@@ -112,16 +118,19 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Advisory issued'), findsWidgets);
-    expect(
-      find.text('CLIENT-001/SITE-SANDTON dispatch DSP-4 created'),
-      findsNothing,
+    final selectedIdText = tester.widget<Text>(
+      find.byKey(const ValueKey('events-selected-event-id')),
     );
+    expect(selectedIdText.data, 'INT-1');
+    expect(find.byKey(const ValueKey('events-detail-DEC-1')), findsNothing);
   });
 
   testWidgets(
     'events controller page applies initial intel source and provider filters',
     (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 1200));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
       final providerFocusedEvents = <DispatchEvent>[
         ...sampleEvents,
         IntelligenceReceived(
@@ -154,12 +163,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Advisory issued'), findsWidgets);
-      expect(find.text('Community update posted'), findsNothing);
-      expect(
-        find.text('CLIENT-001/SITE-SANDTON dispatch DSP-4 created'),
-        findsNothing,
+      final selectedIdText = tester.widget<Text>(
+        find.byKey(const ValueKey('events-selected-event-id')),
       );
+      expect(selectedIdText.data, 'INT-1');
+      expect(find.text('Community update posted'), findsNothing);
+      expect(find.byKey(const ValueKey('events-detail-DEC-1')), findsNothing);
     },
   );
 
@@ -190,7 +199,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('SOVEREIGN LEDGER'), findsOneWidget);
+    expect(find.text('Sovereign Ledger'), findsOneWidget);
     expect(find.text('Chain Controls'), findsOneWidget);
   });
 
@@ -210,6 +219,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('CLIENT INTELLIGENCE REPORTS'), findsOneWidget);
+    expect(find.text('Reports & Documentation'), findsOneWidget);
     expect(find.text('Deterministic Generation'), findsOneWidget);
   });
 }

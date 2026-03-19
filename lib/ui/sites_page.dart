@@ -65,6 +65,16 @@ class _SitesPageState extends State<SitesPage> {
             constraints: const BoxConstraints(maxWidth: 1540),
             child: ListView(
               children: [
+                _heroHeader(context, sites: sites),
+                const SizedBox(height: _spaceSm),
+                _postureSummaryBar(sites),
+                const SizedBox(height: _spaceSm),
+                _overviewGrid(
+                  sites: sites,
+                  activeDispatches: activeDispatches,
+                  averageHealth: averageHealth,
+                ),
+                const SizedBox(height: _spaceSm),
                 const OnyxPageHeader(
                   title: 'Site Command Grid',
                   subtitle:
@@ -207,6 +217,430 @@ class _SitesPageState extends State<SitesPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _heroHeader(
+    BuildContext context, {
+    required List<_SiteDrillSnapshot> sites,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF10263C), Color(0xFF0E1728)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF274563)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 920;
+          final titleBlock = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF06B6D4), Color(0xFF2563EB)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.business_outlined,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Sites & Deployment',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFF6FBFF),
+                            fontSize: compact ? 22 : 26,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Site management, watch posture, and operational readiness.',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF95A9C7),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _heroChip('Sites', '${sites.length}'),
+                  _heroChip('Roster', 'Deployment Ready'),
+                  _heroChip(
+                    'Focus',
+                    sites[_selectedIndex.clamp(0, sites.length - 1)].siteId,
+                  ),
+                  _heroChip('Watch', 'Posture Summary'),
+                ],
+              ),
+            ],
+          );
+          final actions = Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            alignment: WrapAlignment.end,
+            children: [
+              _heroActionButton(
+                key: const ValueKey('sites-view-tactical-button'),
+                icon: Icons.open_in_new,
+                label: 'View Tactical',
+                accent: const Color(0xFF93C5FD),
+                onPressed: () => _showTacticalLinkDialog(context),
+              ),
+            ],
+          );
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                titleBlock,
+                const SizedBox(height: 16),
+                actions,
+              ],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: titleBlock),
+              const SizedBox(width: 16),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 220),
+                child: actions,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _heroChip(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0x14000000),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0x33000000)),
+      ),
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '$label: ',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            TextSpan(
+              text: value,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFE8F1FF),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _heroActionButton({
+    required Key key,
+    required IconData icon,
+    required String label,
+    required Color accent,
+    required VoidCallback onPressed,
+  }) {
+    return FilledButton.tonalIcon(
+      key: key,
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: FilledButton.styleFrom(
+        backgroundColor: accent.withValues(alpha: 0.12),
+        foregroundColor: accent,
+        side: BorderSide(color: accent.withValues(alpha: 0.28)),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        textStyle: GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+    );
+  }
+
+  Widget _postureSummaryBar(List<_SiteDrillSnapshot> sites) {
+    final strongCount = sites.where((site) => site.healthStatus == 'STRONG').length;
+    final atRiskCount = sites.where((site) => site.healthStatus == 'AT RISK').length;
+    final criticalCount = sites.where((site) => site.healthStatus == 'CRITICAL').length;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F1728),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF253A55)),
+      ),
+      child: Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text(
+            'SITE POSTURE',
+            style: GoogleFonts.inter(
+              color: const Color(0x669BB0CE),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+            ),
+          ),
+          _statusPill(
+            icon: Icons.check_circle_outline,
+            label: '$strongCount Strong',
+            accent: const Color(0xFF34D399),
+          ),
+          _statusPill(
+            icon: Icons.warning_amber_rounded,
+            label: '$atRiskCount At-Risk',
+            accent: const Color(0xFFF6C067),
+          ),
+          if (criticalCount > 0)
+            _statusPill(
+              icon: Icons.error_outline,
+              label: '$criticalCount Critical',
+              accent: const Color(0xFFF87171),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusPill({
+    required IconData icon,
+    required String label,
+    required Color accent,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: accent),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: accent,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _overviewGrid({
+    required List<_SiteDrillSnapshot> sites,
+    required int activeDispatches,
+    required double averageHealth,
+  }) {
+    final selected = sites[_selectedIndex.clamp(0, sites.length - 1)];
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 1200
+            ? 4
+            : constraints.maxWidth >= 760
+            ? 2
+            : 1;
+        final aspectRatio = columns == 4
+            ? 1.95
+            : columns == 2
+            ? 2.35
+            : 2.55;
+        return GridView.count(
+          key: const ValueKey('sites-overview-grid'),
+          crossAxisCount: columns,
+          mainAxisSpacing: 8,
+          crossAxisSpacing: 8,
+          childAspectRatio: aspectRatio,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            _overviewCard(
+              title: 'Visible Sites',
+              value: '${sites.length}',
+              detail: 'Deployment footprint currently surfaced in the roster.',
+              icon: Icons.apartment_rounded,
+              accent: const Color(0xFF63BDFF),
+            ),
+            _overviewCard(
+              title: 'Active Dispatches',
+              value: '$activeDispatches',
+              detail: 'Open response activity attached to the visible site set.',
+              icon: Icons.local_shipping_outlined,
+              accent: const Color(0xFF59D79B),
+            ),
+            _overviewCard(
+              title: 'Average Health',
+              value: averageHealth.toStringAsFixed(1),
+              detail: 'Composite posture score across the current site footprint.',
+              icon: Icons.health_and_safety_outlined,
+              accent: const Color(0xFFF6C067),
+            ),
+            _overviewCard(
+              title: 'Selected Site',
+              value: selected.siteId,
+              detail: '${selected.clientId} / ${selected.regionId} is active in the workspace.',
+              icon: Icons.visibility_outlined,
+              accent: const Color(0xFFA78BFA),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _overviewCard({
+    required String title,
+    required String value,
+    required String detail,
+    required IconData icon,
+    required Color accent,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1A2B),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF223244)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: accent, size: 20),
+              ),
+              const Spacer(),
+              Flexible(
+                child: Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                  style: GoogleFonts.robotoMono(
+                    color: const Color(0xFFF4F8FF),
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          Text(
+            title.toUpperCase(),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF93A5BF),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            detail,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFD5E1F2),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTacticalLinkDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF111827),
+          title: Text(
+            'Tactical Link Ready',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFF6FBFF),
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          content: Text(
+            'Use Tactical to inspect watch posture, limited coverage, responder context, and map-driven site actions for the selected deployment.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFD6E2F2),
+              height: 1.45,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
     );
   }
 

@@ -53,6 +53,7 @@ void main() {
       expect(sections.actionableScopes, hasLength(1));
       expect(sections.watchOnlyScopes, hasLength(1));
       expect(sections.activeCount, 2);
+      expect(sections.limitedCount, 0);
       expect(sections.gapCount, 1);
       expect(sections.highRiskCount, 1);
       expect(sections.recoveredCount, 1);
@@ -100,6 +101,38 @@ void main() {
       expect(sections.watchOnlyLabel, 'Watch scopes awaiting incident context');
     });
 
+    test('counts limited watch scopes as active coverage', () {
+      final sections = VideoFleetScopeHealthSections.fromScopes(const [
+        VideoFleetScopeHealthView(
+          clientId: 'CLIENT-A',
+          siteId: 'SITE-A',
+          siteName: 'MS Vallee Residence',
+          endpointLabel: '192.168.8.105',
+          statusLabel: 'LIMITED WATCH',
+          watchLabel: 'LIMITED',
+          recentEvents: 0,
+          lastSeenLabel: 'idle',
+          freshnessLabel: 'Idle',
+          isStale: false,
+        ),
+        VideoFleetScopeHealthView(
+          clientId: 'CLIENT-B',
+          siteId: 'SITE-B',
+          siteName: 'Sandton Tower',
+          endpointLabel: '192.168.8.106',
+          statusLabel: 'ACTIVE WATCH',
+          watchLabel: 'ACTIVE',
+          recentEvents: 0,
+          lastSeenLabel: 'idle',
+          freshnessLabel: 'Idle',
+          isStale: false,
+        ),
+      ]);
+
+      expect(sections.activeCount, 2);
+      expect(sections.limitedCount, 1);
+    });
+
     test('filters scopes by active watch action drilldown', () {
       const scopes = [
         VideoFleetScopeHealthView(
@@ -107,12 +140,13 @@ void main() {
           siteId: 'SITE-A',
           siteName: 'Alpha',
           endpointLabel: '10.0.0.1',
-          statusLabel: 'LIVE',
-          watchLabel: 'ACTIVE',
+          statusLabel: 'LIMITED WATCH',
+          watchLabel: 'LIMITED',
           recentEvents: 1,
           lastSeenLabel: '21:14 UTC',
           freshnessLabel: 'Fresh',
           isStale: false,
+          monitoringAvailabilityDetail: 'One remote camera feed is stale.',
           alertCount: 1,
           latestIncidentReference: 'INC-1',
           latestSceneReviewLabel: 'identity match concern',
@@ -135,6 +169,13 @@ void main() {
         ),
       ];
 
+      expect(
+        filterFleetScopesForWatchAction(
+          scopes,
+          VideoFleetWatchActionDrilldown.limited,
+        ).map((scope) => scope.siteName),
+        ['Alpha'],
+      );
       expect(
         filterFleetScopesForWatchAction(
           scopes,
@@ -205,12 +246,20 @@ void main() {
       ]);
 
       expect(
+        sections.actionableLabelFor(VideoFleetWatchActionDrilldown.limited),
+        'No incident-backed limited-watch scopes right now',
+      );
+      expect(
         sections.actionableLabelFor(VideoFleetWatchActionDrilldown.alerts),
         'Incident-backed alert scopes',
       );
       expect(
         sections.watchOnlyLabelFor(VideoFleetWatchActionDrilldown.repeat),
         'Watch scopes with repeat-update actions',
+      );
+      expect(
+        sections.watchOnlyLabelFor(VideoFleetWatchActionDrilldown.limited),
+        'No watch-only limited-watch scopes awaiting incident context',
       );
       expect(
         sections.watchOnlyLabelFor(VideoFleetWatchActionDrilldown.alerts),
@@ -295,6 +344,25 @@ void main() {
             'Suppressed because the matched identity has a one-time approval until 2026-03-15 18:00 UTC and the activity remained below the client notification threshold.',
       );
 
+      expect(
+        prominentLatestTextForWatchAction(
+          const VideoFleetScopeHealthView(
+            clientId: 'CLIENT-L',
+            siteId: 'SITE-L',
+            siteName: 'Limited Lane',
+            endpointLabel: '10.0.0.9',
+            statusLabel: 'LIMITED WATCH',
+            watchLabel: 'LIMITED',
+            recentEvents: 0,
+            lastSeenLabel: 'idle',
+            freshnessLabel: 'Idle',
+            isStale: false,
+            monitoringAvailabilityDetail: 'One remote camera feed is stale.',
+          ),
+          VideoFleetWatchActionDrilldown.limited,
+        ),
+        'Limited watch: One remote camera feed is stale.',
+      );
       expect(
         prominentLatestTextForWatchAction(
           scope,

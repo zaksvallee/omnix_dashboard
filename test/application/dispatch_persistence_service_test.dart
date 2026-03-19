@@ -657,6 +657,35 @@ void main() {
       expect(cleared, isEmpty);
     });
 
+    test(
+      'saves, restores, and clears tactical and dispatch watch drilldowns',
+      () async {
+        final service = await DispatchPersistenceService.create();
+
+        await service.saveTacticalWatchActionDrilldown(
+          VideoFleetWatchActionDrilldown.limited,
+        );
+        await service.saveDispatchWatchActionDrilldown(
+          VideoFleetWatchActionDrilldown.alerts,
+        );
+
+        expect(
+          await service.readTacticalWatchActionDrilldown(),
+          VideoFleetWatchActionDrilldown.limited,
+        );
+        expect(
+          await service.readDispatchWatchActionDrilldown(),
+          VideoFleetWatchActionDrilldown.alerts,
+        );
+
+        await service.clearTacticalWatchActionDrilldown();
+        await service.clearDispatchWatchActionDrilldown();
+
+        expect(await service.readTacticalWatchActionDrilldown(), isNull);
+        expect(await service.readDispatchWatchActionDrilldown(), isNull);
+      },
+    );
+
     test('saves and restores guard assignments and sync operations', () async {
       final service = await DispatchPersistenceService.create();
       final assignments = [

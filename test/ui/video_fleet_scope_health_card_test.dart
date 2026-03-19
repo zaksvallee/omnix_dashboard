@@ -20,6 +20,7 @@ void main() {
             lastSeenStyle: const TextStyle(fontSize: 11),
             noteStyle: const TextStyle(fontSize: 11),
             latestStyle: const TextStyle(fontSize: 11),
+            statusDetailStyle: const TextStyle(fontSize: 10),
             primaryChips: const [
               Chip(label: Text('Status LIVE')),
               Chip(label: Text('Watch ACTIVE')),
@@ -39,6 +40,7 @@ void main() {
             noteText:
                 'Recent site activity is present, but no scope-linked incident reference is available yet.',
             latestText: 'Latest: 21:14 UTC • Vehicle motion',
+            statusDetailText: 'One remote camera feed is stale.',
             onTap: () {
               tapped = true;
             },
@@ -53,6 +55,7 @@ void main() {
     expect(find.text('MS Vallee Residence'), findsOneWidget);
     expect(find.text('192.168.8.105'), findsOneWidget);
     expect(find.text('Last seen: 21:14 UTC'), findsOneWidget);
+    expect(find.text('One remote camera feed is stale.'), findsOneWidget);
     expect(
       find.text(
         'Recent site activity is present, but no scope-linked incident reference is available yet.',
@@ -86,6 +89,7 @@ void main() {
             lastSeenStyle: const TextStyle(fontSize: 11),
             noteStyle: const TextStyle(fontSize: 11),
             latestStyle: const TextStyle(fontSize: 11),
+            statusDetailStyle: const TextStyle(fontSize: 10),
             primaryChips: const [],
             secondaryChips: const [],
             actionChildren: const [],

@@ -11,6 +11,10 @@ void main() {
     siteName: 'MS Vallee Residence',
     clientName: 'Muhammed Vallee',
   );
+  const enterpriseSite = MonitoringSiteProfile(
+    siteName: 'Sandton Tower',
+    clientName: 'Sandton Corporate',
+  );
   const schedule = MonitoringShiftSchedule(
     enabled: true,
     startHour: 18,
@@ -51,11 +55,14 @@ void main() {
     );
 
     expect(response, contains('🛡️ ONYX STATUS'));
-    expect(response, contains('Monitoring: ACTIVE'));
-    expect(response, contains('Window: 24h watch (started 18:00)'));
-    expect(response, contains('Reviewed activity: 6'));
-    expect(response, contains('Latest activity: INNER PEDESTRIAN GATE'));
-    expect(response, contains('Latest posture: monitored movement alert'));
+    expect(response, contains('Current status'));
+    expect(response, contains('Monitoring is active.'));
+    expect(response, contains('Watch window: 24h watch (started 18:00)'));
+    expect(response, contains('What we see now'));
+    expect(response, contains('Items reviewed: 6'));
+    expect(response, contains('Latest signal: INNER PEDESTRIAN GATE'));
+    expect(response, contains('Current posture: monitored movement alert'));
+    expect(response, contains('Next'));
   });
 
   test('concise status includes current assessment when available', () {
@@ -66,15 +73,13 @@ void main() {
       nowLocal: DateTime(2026, 3, 18, 11, 4),
       fallbackReviewedEvents: 8,
       fallbackActivitySource: 'Camera 13',
-      fallbackAssessmentLabel: 'likely routine distributed field activity',
+      fallbackAssessmentLabel: 'likely routine on-site team activity',
       fallbackPostureLabel: 'multi-camera activity under review',
     );
 
     expect(
       response,
-      contains(
-        'Current assessment: likely routine distributed field activity',
-      ),
+      contains('Assessment: likely routine on-site team activity'),
     );
   });
 
@@ -98,42 +103,45 @@ void main() {
       ),
     );
 
-    expect(response, contains('Monitoring: STANDBY'));
-    expect(response, contains('Window: next watch starts 18:00'));
+    expect(response, contains('Monitoring is on standby.'));
+    expect(response, contains('Watch window: next watch starts 18:00'));
   });
 
-  test('falls back to field activity when no watch review has been recorded', () {
-    const overnightSchedule = MonitoringShiftSchedule(
-      enabled: true,
-      startHour: 18,
-      startMinute: 0,
-      endHour: 6,
-      endMinute: 0,
-    );
+  test(
+    'falls back to field activity when no watch review has been recorded',
+    () {
+      const overnightSchedule = MonitoringShiftSchedule(
+        enabled: true,
+        startHour: 18,
+        startMinute: 0,
+        endHour: 6,
+        endMinute: 0,
+      );
 
-    final response = service.buildResponse(
-      action: TelegramClientQuickAction.statusFull,
-      site: site,
-      schedule: overnightSchedule,
-      nowLocal: DateTime(2026, 3, 18, 11, 4),
-      fallbackReviewedEvents: 3,
-      fallbackActivitySource: 'Front Yard',
-      fallbackActivitySummary:
-          'A worker checkpoint scan landed at Front Yard.',
-      fallbackPostureLabel: 'field activity observed',
-      fallbackReviewedAtLocal: DateTime(2026, 3, 18, 11, 2),
-    );
+      final response = service.buildResponse(
+        action: TelegramClientQuickAction.statusFull,
+        site: site,
+        schedule: overnightSchedule,
+        nowLocal: DateTime(2026, 3, 18, 11, 4),
+        fallbackReviewedEvents: 3,
+        fallbackActivitySource: 'Front Yard',
+        fallbackActivitySummary:
+            'A guard checkpoint scan landed at Front Yard.',
+        fallbackPostureLabel: 'field activity observed',
+        fallbackReviewedAtLocal: DateTime(2026, 3, 18, 11, 2),
+      );
 
-    expect(response, contains('Reviewed activity: 3'));
-    expect(response, contains('Latest activity source: Front Yard'));
-    expect(response, contains('Latest posture: field activity observed'));
-    expect(response, isNot(contains('Current assessment:')));
-    expect(
-      response,
-      contains('Latest review summary: A worker checkpoint scan landed at Front Yard.'),
-    );
-    expect(response, contains('Last reviewed at: 18/03/2026 11:02'));
-  });
+      expect(response, contains('Items reviewed: 3'));
+      expect(response, contains('Latest signal: Front Yard'));
+      expect(response, contains('Current posture: field activity observed'));
+      expect(response, isNot(contains('Assessment:')));
+      expect(
+        response,
+        contains('Review note: A guard checkpoint scan landed at Front Yard.'),
+      );
+      expect(response, contains('Last check: 18/03/2026 11:02'));
+    },
+  );
 
   test('renders current site narrative when provided', () {
     final response = service.buildResponse(
@@ -144,26 +152,27 @@ void main() {
       fallbackReviewedEvents: 8,
       fallbackActivitySource: 'Camera 13',
       fallbackActivitySummary: 'AI-assisted review remains active.',
-      fallbackAssessmentLabel: 'likely routine distributed field activity',
+      fallbackAssessmentLabel: 'likely routine on-site team activity',
       fallbackNarrativeSummary:
-          'Recent ONYX review saw person activity on Camera 13, Camera 12, and Camera 6, plus vehicle activity on Camera 5. Latest signal landed at 11:03.',
+          'Recent camera review saw person activity on Camera 13, Camera 12, and Camera 6, plus vehicle activity on Camera 5. Latest signal landed at 11:03.',
       fallbackPostureLabel: 'multi-camera activity under review',
       fallbackReviewedAtLocal: DateTime(2026, 3, 18, 11, 3),
     );
 
     expect(
       response,
-      contains(
-        'Current assessment: likely routine distributed field activity',
-      ),
+      contains('Assessment: likely routine on-site team activity'),
     );
     expect(
       response,
       contains(
-        'Current site narrative: Recent ONYX review saw person activity on Camera 13, Camera 12, and Camera 6, plus vehicle activity on Camera 5. Latest signal landed at 11:03.',
+        'Summary: Recent camera review saw person activity on Camera 13, Camera 12, and Camera 6, plus vehicle activity on Camera 5. Latest signal landed at 11:03.',
       ),
     );
-    expect(response, contains('Latest review summary: AI-assisted review remains active.'));
+    expect(
+      response,
+      contains('Review note: AI-assisted review remains active.'),
+    );
   });
 
   test(
@@ -185,19 +194,16 @@ void main() {
         fallbackActivitySource: 'Front Yard',
         fallbackActivitySummary: 'Front-yard movement detected.',
         fallbackNarrativeSummary:
-            'Recent ONYX review saw 2 person signals across Back Yard and Front Yard, plus 1 vehicle signal across Driveway.',
-        fallbackAssessmentLabel: 'likely routine distributed field activity',
+            'Recent camera review saw 2 person signals across Back Yard and Front Yard, plus 1 vehicle signal across Driveway.',
+        fallbackAssessmentLabel: 'likely routine on-site team activity',
         fallbackReviewedAtLocal: DateTime(2026, 3, 18, 15, 0),
       );
 
-      expect(response, contains('Latest activity source: Front Yard'));
-      expect(
-        response,
-        contains('Latest review summary: Front-yard movement detected.'),
-      );
-      expect(response, contains('Last reviewed at: 18/03/2026 15:18'));
-      expect(response, isNot(contains('Latest activity source: Camera 15')));
-      expect(response, isNot(contains('Latest review summary: Metadata-only review.')));
+      expect(response, contains('Latest signal: Front Yard'));
+      expect(response, contains('Review note: Front-yard movement detected.'));
+      expect(response, contains('Last check: 18/03/2026 15:18'));
+      expect(response, isNot(contains('Latest signal: Camera 15')));
+      expect(response, isNot(contains('Review note: Metadata-only review.')));
     },
   );
 
@@ -209,11 +215,14 @@ void main() {
       nowLocal: DateTime(2026, 3, 18, 11, 4),
       fallbackReviewedEvents: 3,
       fallbackActivitySource: 'Front Yard',
-      fallbackAssessmentLabel: 'field activity active on site',
+      fallbackAssessmentLabel: 'routine on-site team activity is visible',
       fallbackPostureLabel: 'field activity observed',
     );
 
-    expect(response, contains('Current assessment: field activity active on site'));
+    expect(
+      response,
+      contains('Assessment: routine on-site team activity is visible'),
+    );
   });
 
   test('builds reassuring sleep-check response when no follow-up is open', () {
@@ -232,9 +241,138 @@ void main() {
     );
 
     expect(response, contains('🌙 ONYX SLEEP CHECK'));
-    expect(response, contains('Monitoring: ACTIVE'));
-    expect(response, contains('Latest activity: MAIN GATE DRIVEWAY'));
-    expect(response, contains('Open follow-up actions: 0'));
-    expect(response, contains('All in order right now. Sleep well.'));
+    expect(response, contains('Monitoring is active.'));
+    expect(response, contains('Latest signal: MAIN GATE DRIVEWAY'));
+    expect(response, contains('Open follow-ups: 0'));
+    expect(
+      response,
+      contains(
+        'All looks steady right now. Rest easy and we will message you only if the picture changes.',
+      ),
+    );
+  });
+
+  test('uses more formal enterprise wording for quiet active status', () {
+    final response = service.buildResponse(
+      action: TelegramClientQuickAction.status,
+      site: enterpriseSite,
+      schedule: schedule,
+      nowLocal: DateTime(2026, 3, 17, 22, 15),
+      runtime: MonitoringWatchRuntimeState(
+        startedAtUtc: DateTime.utc(2026, 3, 17, 16, 0),
+        reviewedEvents: 4,
+        primaryActivitySource: 'LOBBY',
+        latestSceneReviewPostureLabel: 'calm',
+        unresolvedActionCount: 0,
+      ),
+    );
+
+    expect(
+      response,
+      contains(
+        'ONYX remains on watch and will send an update only if something important changes.',
+      ),
+    );
+    expect(
+      response,
+      isNot(
+        contains(
+          'ONYX stays close on watch and will message you only if something important changes.',
+        ),
+      ),
+    );
+  });
+
+  test('uses warmer residential next-step wording for open follow-ups', () {
+    final response = service.buildResponse(
+      action: TelegramClientQuickAction.statusFull,
+      site: site,
+      schedule: schedule,
+      nowLocal: DateTime(2026, 3, 17, 22, 15),
+      runtime: MonitoringWatchRuntimeState(
+        startedAtUtc: DateTime.utc(2026, 3, 17, 16, 0),
+        reviewedEvents: 4,
+        primaryActivitySource: 'FRONT YARD',
+        latestSceneReviewPostureLabel: 'under review',
+        unresolvedActionCount: 2,
+      ),
+    );
+
+    expect(
+      response,
+      contains(
+        'Next step: ONYX is tracking the open follow-ups and will share the next confirmed change here.',
+      ),
+    );
+  });
+
+  test('marks monitoring as unavailable when the site is offline', () {
+    const offlineSchedule = MonitoringShiftSchedule(
+      enabled: false,
+      startHour: 18,
+      startMinute: 0,
+      endHour: 6,
+      endMinute: 0,
+    );
+
+    final response = service.buildResponse(
+      action: TelegramClientQuickAction.statusFull,
+      site: site,
+      schedule: offlineSchedule,
+      nowLocal: DateTime(2026, 3, 18, 15, 20),
+    );
+
+    expect(response, contains('Remote monitoring is currently unavailable.'));
+    expect(
+      response,
+      contains(
+        'Watch window: remote monitoring is currently unavailable for this site',
+      ),
+    );
+    expect(
+      response,
+      contains('Latest signal: Remote monitoring is offline for this site'),
+    );
+    expect(response, contains('Remote watch: unavailable'));
+    expect(
+      response,
+      contains(
+        'Next step: use this chat for any manual follow-up while the site is offline.',
+      ),
+    );
+  });
+
+  test('marks monitoring as limited when remote visibility is unstable', () {
+    final response = service.buildResponse(
+      action: TelegramClientQuickAction.statusFull,
+      site: site,
+      schedule: schedule,
+      nowLocal: DateTime(2026, 3, 18, 15, 20),
+      runtime: MonitoringWatchRuntimeState(
+        startedAtUtc: DateTime.utc(2026, 3, 18, 13, 0),
+        monitoringAvailable: false,
+        monitoringAvailabilityDetail: 'One remote camera feed is stale.',
+        unresolvedActionCount: 0,
+      ),
+    );
+
+    expect(response, contains('Remote monitoring is active but limited.'));
+    expect(
+      response,
+      contains('Watch window: 15:00-18:00 with limited remote visibility'),
+    );
+    expect(
+      response,
+      contains('Latest signal: Remote monitoring is limited for this site'),
+    );
+    expect(response, contains('Current posture: remote monitoring limited'));
+    expect(response, contains('Remote watch: limited'));
+    expect(response, contains('Review note: One remote camera feed is stale.'));
+    expect(
+      response,
+      contains(
+        'Next step: ONYX will keep watching, and we will use this chat if a manual follow-up or welfare check is needed.',
+      ),
+    );
   });
 }

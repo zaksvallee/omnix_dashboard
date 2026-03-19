@@ -47,12 +47,14 @@ class VideoFleetScopeRuntimeStateResolver {
       final repeatCount = watchRuntime?.repeatCount ?? 0;
       final escalationCount = watchRuntime?.escalationCount ?? 0;
       final suppressedCount = watchRuntime?.suppressedCount ?? 0;
-      final actionHistory = watchRuntime?.actionHistory
+      final actionHistory =
+          watchRuntime?.actionHistory
               .map((entry) => entry.trim())
               .where((entry) => entry.isNotEmpty)
               .toList(growable: false) ??
           const <String>[];
-      final suppressedHistory = watchRuntime?.suppressedHistory
+      final suppressedHistory =
+          watchRuntime?.suppressedHistory
               .map((entry) => entry.trim())
               .where((entry) => entry.isNotEmpty)
               .toList(growable: false) ??
@@ -75,6 +77,11 @@ class VideoFleetScopeRuntimeStateResolver {
         continue;
       }
       output[scope.scopeKey] = VideoFleetScopeRuntimeState(
+        monitoringAvailable: watchRuntime?.monitoringAvailable ?? true,
+        monitoringAvailabilityDetail:
+            (watchRuntime?.monitoringAvailabilityDetail.trim().isEmpty ?? true)
+            ? null
+            : watchRuntime!.monitoringAvailabilityDetail.trim(),
         operatorOutcomeLabel: operatorOutcomeLabel,
         lastRecoveryLabel: lastRecoveryLabel,
         latestSceneReviewLabel: latestSceneReviewLabel,

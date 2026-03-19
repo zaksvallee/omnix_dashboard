@@ -16,6 +16,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(find.text('Guards & Workforce'), findsOneWidget);
     expect(find.text('Active Guards'), findsOneWidget);
     expect(find.text('Guard Profile'), findsOneWidget);
     expect(find.text('Recent Activity'), findsOneWidget);
@@ -33,6 +34,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(find.text('Guards & Workforce'), findsOneWidget);
     expect(find.text('Active Guards'), findsOneWidget);
     expect(find.text('System Alerts'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -46,6 +48,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(find.text('Guards & Workforce'), findsOneWidget);
+    expect(find.byKey(const ValueKey('guards-overview-grid')), findsOneWidget);
     expect(
       find.text(
         'Real-time guard monitoring, shift verification, and performance tracking.',
@@ -57,6 +61,45 @@ void main() {
     expect(find.text('Thabo Mokoena'), findsWidgets);
     expect(find.text('Recent Activity'), findsOneWidget);
     expect(find.text('System Alerts'), findsOneWidget);
+  });
+
+  testWidgets('guards page reports action opens helper dialog', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: GuardsPage(events: <DispatchEvent>[])),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('guards-view-reports-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Reports Link Ready'), findsOneWidget);
+    expect(
+      find.textContaining('workforce documentation, schedule exports'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('guards page hero reports action opens selected site reports', (
+    tester,
+  ) async {
+    String? openedReportSiteId;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GuardsPage(
+          events: const <DispatchEvent>[],
+          onOpenGuardReportsForSite: (siteId) {
+            openedReportSiteId = siteId;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('guards-view-reports-button')));
+    await tester.pumpAndSettle();
+
+    expect(openedReportSiteId, 'WTF-MAIN');
   });
 
   testWidgets('guards page filters by search query', (tester) async {

@@ -1,21 +1,104 @@
+# LEGEND
+focus=what the grouped section is meant to cover during review
+expectedShift=the wording change we hope the tag or memory will cause
+observedDifference=the wording difference the transcript actually shows
+
+# VALLEE RESIDENTIAL PAIRS
+focus=reassurance warmth, camera validation, ETA tightening
+## VALLEE_REASSURANCE_PAIR
+expectedShift=baseline vs warmer reassurance under worry
+observedDifference=tagged reply sounds more protective and urgent
+
 === VALLEE_WORRIED ===
-You are not alone. We are treating this as live at MS Vallee Residence and checking it now. I will send the next confirmed update as soon as control has it.
+You are not alone. We are checking MS Vallee Residence now. I will update you here with the next confirmed step.
 usedLearnedApprovalStyle=false
+=== VALLEE_WORRIED_TAGGED_REASSURANCE ===
+learnedStyleTags=Warm reassurance
+You are not alone. We are treating this as live at MS Vallee Residence and checking it now. I will update you here with the next confirmed step.
+usedLearnedApprovalStyle=false
+## VALLEE_VISUAL_PAIR
+expectedShift=baseline vs stronger camera-validation wording
+observedDifference=tagged reply leans harder into camera validation
+
+=== VALLEE_VISUAL_BASELINE ===
+We are checking cameras around MS Vallee Residence now. I will update you here with the latest confirmed camera check.
+usedLearnedApprovalStyle=false
+=== VALLEE_VISUAL_TAGGED_CAMERA ===
+preferredStyleTags=Camera validation
+We are checking cameras and daylight around MS Vallee Residence now. I will update you here with the next confirmed camera check.
+usedLearnedApprovalStyle=false
+## VALLEE_ETA_PAIR
+expectedShift=baseline vs tighter ETA-focused wording
+observedDifference=tagged reply uses tighter ETA shorthand
+
+=== VALLEE_ETA_BASELINE ===
+We are checking the ETA for MS Vallee Residence now. I will update you here when the ETA is confirmed.
+usedLearnedApprovalStyle=false
+=== VALLEE_ETA_TAGGED_CRISP ===
+preferredStyleTags=ETA crisp
+We are checking the ETA for MS Vallee Residence now. I will update you here when it is confirmed.
+usedLearnedApprovalStyle=false
+# TOWER ENTERPRISE PAIRS
+focus=ETA tightening, plain-to-formal status shift, formal-to-protective worry shift
+## TOWER_STATUS_PAIR
+expectedShift=baseline vs more formal enterprise status wording
+observedDifference=tagged reply shifts toward more formal enterprise wording
+
+=== TOWER_STATUS_BASELINE ===
+We are checking Sandton Tower now. I will update you here with the next confirmed step.
+usedLearnedApprovalStyle=false
+=== TOWER_STATUS_TAGGED_FORMAL ===
+preferredStyleTags=Operations formal
+We are actively checking Sandton Tower now. I will update you here with the next confirmed step.
+usedLearnedApprovalStyle=false
+## TOWER_ETA_PAIR
+expectedShift=baseline vs tighter ETA-focused enterprise wording
+observedDifference=tagged reply uses tighter ETA shorthand
+
+=== TOWER_ETA_BASELINE ===
+We are checking the ETA for Sandton Tower now. I will update you here when the ETA is confirmed.
+usedLearnedApprovalStyle=false
+=== TOWER_ETA_TAGGED_CRISP ===
+preferredStyleTags=ETA crisp
+We are checking the ETA for Sandton Tower now. I will update you here when it is confirmed.
+usedLearnedApprovalStyle=false
+## TOWER_WORRIED_PAIR
+expectedShift=baseline vs more protective enterprise reassurance wording
+observedDifference=tagged reply shifts from formal enterprise wording to more protective plain language
+
+=== TOWER_WORRIED_BASELINE ===
+We are checking Sandton Tower now and taking this seriously. I will update you here with the next confirmed step.
+usedLearnedApprovalStyle=false
+=== TOWER_WORRIED_TAGGED_REASSURANCE ===
+learnedStyleTags=Warm reassurance
+You are not alone. We are treating this as live at Sandton Tower and checking it now. I will update you here with the next confirmed step.
+usedLearnedApprovalStyle=false
+# JOURNEY CASES
+
+## VALLEE RESIDENTIAL JOURNEYS
+focus=pressure, validation, on-site, closure
+
 === VALLEE_PRESSURED_LEARNED ===
-We are on it at MS Vallee Residence now. I will update you here the moment control confirms the next step.
+We are checking MS Vallee Residence now. I will share the next confirmed step here when it is confirmed.
 usedLearnedApprovalStyle=true
+=== VALLEE_VISUAL_MEMORY ===
+We are checking cameras and daylight around MS Vallee Residence now. I will update you here with the next confirmed camera check.
+usedLearnedApprovalStyle=false
 === VALLEE_ONSITE ===
-Security is already on site at MS Vallee Residence. We are checking the latest on-site position there now. I will send the next confirmed on-site step as soon as control has it.
+Security is already on site at MS Vallee Residence. I will update you here with the next on-site step.
 usedLearnedApprovalStyle=false
 === VALLEE_CLOSURE ===
-You are welcome. The latest confirmed position is that MS Vallee Residence is secure. If anything changes, message here immediately.
+You are welcome. MS Vallee Residence is secure right now. If anything changes or feels off again, message here immediately.
 usedLearnedApprovalStyle=false
+## TOWER ENTERPRISE JOURNEYS
+focus=access, status, closure
+
 === TOWER_ACCESS ===
-We are checking access-control status for Sandton Tower now. I will send the next confirmed step as soon as control has it.
+We are checking access at Sandton Tower now. I will update you here with the next confirmed step.
 usedLearnedApprovalStyle=false
 === TOWER_STATUS ===
-We are actively checking the latest position for Sandton Tower now. I will send the next confirmed update as soon as control has it.
+We are checking Sandton Tower now. I will update you here with the next confirmed step.
 usedLearnedApprovalStyle=false
 === TOWER_CLOSURE ===
-You are welcome. The latest confirmed position is that Sandton Tower is secure. If anything changes, message here immediately.
+You are welcome. Sandton Tower is secure right now. If anything changes again, message here immediately.
 usedLearnedApprovalStyle=false

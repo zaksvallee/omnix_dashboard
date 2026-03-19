@@ -120,7 +120,7 @@ void main() {
       );
       expect(
         activeScope.noteText,
-        'Suppressed in watch: 3 reviews filtered.\nAction mix in watch: Alert 1 • Repeat 1 • Suppressed 3.\nRecent action: 11:55 UTC • Camera 2 • Monitoring Alert • Client alert sent because vehicle activity was detected and confidence remained medium. (+1 more)\nLatest filtered: 11:54 UTC • Camera 2 • Suppressed because the activity remained below the client notification threshold. (+1 more)\nScene action: Monitoring Alert • Client alert sent because vehicle activity was detected and confidence remained medium.\nScene review: openai:gpt-4.1-mini • monitored movement alert • 11:55 UTC • Vehicle remains visible in the monitored approach lane.',
+        'Suppressed in watch: 3 reviews filtered.\nAction mix in watch: Alert 1 • Repeat 1 • Suppressed 3.\nLatest filtered: 11:54 UTC • Camera 2 • Suppressed because the activity remained below the client notification threshold. (+1 more)\nScene action: Monitoring Alert • Client alert sent because vehicle activity was detected and confidence remained medium.\nScene review: openai:gpt-4.1-mini • monitored movement alert • 11:55 UTC • Vehicle remains visible in the monitored approach lane.',
       );
     });
   });

@@ -22,6 +22,46 @@ import '../fixtures/report_test_reviewed_workspace.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  testWidgets('client reports renders routed hero and opens governance scope', (
+    tester,
+  ) async {
+    Map<String, String>? openedGovernanceScope;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ClientIntelligenceReportsPage(
+          store: InMemoryEventStore(),
+          selectedClient: 'CLIENT-001',
+          selectedSite: 'SITE-SANDTON',
+          onOpenGovernanceForScope: (clientId, siteId) {
+            openedGovernanceScope = {
+              'clientId': clientId,
+              'siteId': siteId,
+            };
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Reports & Documentation'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('reports-routed-view-governance-button')),
+      findsOneWidget,
+    );
+    expect(find.text('Generate New Report'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('reports-routed-view-governance-button')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      openedGovernanceScope,
+      equals({'clientId': 'CLIENT-001', 'siteId': 'SITE-SANDTON'}),
+    );
+  });
+
   testWidgets('client reports export all button is actionable', (tester) async {
     String? clipboardText;
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(

@@ -47,7 +47,9 @@ abstract class TelegramAiAssistantService {
     TelegramAiDeliveryMode deliveryMode = TelegramAiDeliveryMode.telegramLive,
     List<String> clientProfileSignals = const <String>[],
     List<String> preferredReplyExamples = const <String>[],
+    List<String> preferredReplyStyleTags = const <String>[],
     List<String> learnedReplyExamples = const <String>[],
+    List<String> learnedReplyStyleTags = const <String>[],
     List<String> recentConversationTurns = const <String>[],
   });
 }
@@ -68,7 +70,9 @@ class UnconfiguredTelegramAiAssistantService
     TelegramAiDeliveryMode deliveryMode = TelegramAiDeliveryMode.telegramLive,
     List<String> clientProfileSignals = const <String>[],
     List<String> preferredReplyExamples = const <String>[],
+    List<String> preferredReplyStyleTags = const <String>[],
     List<String> learnedReplyExamples = const <String>[],
+    List<String> learnedReplyStyleTags = const <String>[],
     List<String> recentConversationTurns = const <String>[],
   }) async {
     final scope = _scopeProfileFor(clientId: clientId, siteId: siteId);
@@ -80,6 +84,8 @@ class UnconfiguredTelegramAiAssistantService
         deliveryMode: deliveryMode,
         clientProfileSignals: clientProfileSignals,
         preferredReplyExamples: preferredReplyExamples,
+        preferredReplyStyleTags: preferredReplyStyleTags,
+        learnedReplyStyleTags: learnedReplyStyleTags,
         recentConversationTurns: recentConversationTurns,
       ),
       usedFallback: true,
@@ -116,7 +122,9 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
     TelegramAiDeliveryMode deliveryMode = TelegramAiDeliveryMode.telegramLive,
     List<String> clientProfileSignals = const <String>[],
     List<String> preferredReplyExamples = const <String>[],
+    List<String> preferredReplyStyleTags = const <String>[],
     List<String> learnedReplyExamples = const <String>[],
+    List<String> learnedReplyStyleTags = const <String>[],
     List<String> recentConversationTurns = const <String>[],
   }) async {
     final cleaned = messageText.trim();
@@ -136,6 +144,8 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
           scope: scope,
           deliveryMode: deliveryMode,
           clientProfileSignals: clientProfileSignals,
+          preferredReplyStyleTags: preferredReplyStyleTags,
+          learnedReplyStyleTags: learnedReplyStyleTags,
           recentConversationTurns: recentConversationTurns,
         ),
         usedFallback: true,
@@ -168,6 +178,9 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
                         deliveryMode: deliveryMode,
                         clientProfileSignals: clientProfileSignals,
                         preferredReplyExamples: preferredReplyExamples,
+                        preferredReplyStyleTags: preferredReplyStyleTags,
+                        learnedReplyExamples: learnedReplyExamples,
+                        learnedReplyStyleTags: learnedReplyStyleTags,
                         recentConversationTurns: recentConversationTurns,
                       ),
                     },
@@ -192,6 +205,8 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
             deliveryMode: deliveryMode,
             clientProfileSignals: clientProfileSignals,
             preferredReplyExamples: preferredReplyExamples,
+            preferredReplyStyleTags: preferredReplyStyleTags,
+            learnedReplyStyleTags: learnedReplyStyleTags,
             recentConversationTurns: recentConversationTurns,
           ),
           usedFallback: true,
@@ -209,6 +224,8 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
             deliveryMode: deliveryMode,
             clientProfileSignals: clientProfileSignals,
             preferredReplyExamples: preferredReplyExamples,
+            preferredReplyStyleTags: preferredReplyStyleTags,
+            learnedReplyStyleTags: learnedReplyStyleTags,
             recentConversationTurns: recentConversationTurns,
           ),
           usedFallback: true,
@@ -223,6 +240,9 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
         deliveryMode: deliveryMode,
         clientProfileSignals: clientProfileSignals,
         preferredReplyExamples: preferredReplyExamples,
+        preferredReplyStyleTags: preferredReplyStyleTags,
+        learnedReplyExamples: learnedReplyExamples,
+        learnedReplyStyleTags: learnedReplyStyleTags,
         recentConversationTurns: recentConversationTurns,
       );
       if (polished.trim().isEmpty) {
@@ -234,6 +254,8 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
             deliveryMode: deliveryMode,
             clientProfileSignals: clientProfileSignals,
             preferredReplyExamples: preferredReplyExamples,
+            preferredReplyStyleTags: preferredReplyStyleTags,
+            learnedReplyStyleTags: learnedReplyStyleTags,
             recentConversationTurns: recentConversationTurns,
           ),
           usedFallback: true,
@@ -254,6 +276,8 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
           deliveryMode: deliveryMode,
           clientProfileSignals: clientProfileSignals,
           preferredReplyExamples: preferredReplyExamples,
+          preferredReplyStyleTags: preferredReplyStyleTags,
+          learnedReplyStyleTags: learnedReplyStyleTags,
           recentConversationTurns: recentConversationTurns,
         ),
         usedFallback: true,
@@ -269,6 +293,9 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
     required TelegramAiDeliveryMode deliveryMode,
     List<String> clientProfileSignals = const <String>[],
     List<String> preferredReplyExamples = const <String>[],
+    List<String> preferredReplyStyleTags = const <String>[],
+    List<String> learnedReplyExamples = const <String>[],
+    List<String> learnedReplyStyleTags = const <String>[],
     List<String> recentConversationTurns = const <String>[],
   }) {
     final normalizedMessage = messageText.trim().toLowerCase();
@@ -295,6 +322,15 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
     final preferredExamplesSnippet = _preferredReplyExamplesSnippet(
       preferredReplyExamples,
     );
+    final preferredStyleTagsSnippet = _replyStyleTagsSnippet(
+      preferredReplyStyleTags,
+    );
+    final learnedExamplesSnippet = _learnedReplyExamplesSnippet(
+      learnedReplyExamples,
+    );
+    final learnedStyleTagsSnippet = _replyStyleTagsSnippet(
+      learnedReplyStyleTags,
+    );
     switch (audience) {
       case TelegramAiAudience.admin:
         return 'You are ONYX operations admin assistant.\n'
@@ -316,22 +352,30 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
             'Site label: ${scope.siteLabel}.\n'
             'Voice and style:\n'
             '1) Sound like a calm, capable control-room operator, not a bot.\n'
-            '2) Reassure first, then explain the next confirmed step.\n'
-            '3) Keep most replies to 2 short sentences; use a third only if it truly helps.\n'
-            '4) Do not mention internal IDs, scope strings, system tokens, pipelines, or model limitations.\n'
-            '5) Never say "ONYX received your message", "command is reviewing", "verified update shortly", or similar canned system language.\n'
-            '6) Never invent ETAs, dispatches, calls, or completed actions.\n'
-            '7) If the client sounds worried, answer with calm reassurance. If details are missing, ask one simple follow-up.\n'
-            '8) Avoid repeating the same reassurance line or closing sentence if recent lane context already used it.\n'
-            '9) Plain text only.\n'
-            '${escalatedLane ? '10) Recent lane context shows this thread is already escalated/high-priority. Keep the tone calm but tighter, more urgent, and centered on the next confirmed step.\n' : ''}'
-            '${pressuredLane ? '11) Recent lane context shows repeated anxious follow-ups. Keep replies extra steady, brief, and avoid adding filler.\n' : ''}'
+            '2) Start by answering the client\'s actual concern in plain language.\n'
+            '3) Use simple words a client can understand on first read.\n'
+            '4) Then give the next confirmed step or update path.\n'
+            '5) Keep most replies to 2 short sentences; use a third only if it truly helps.\n'
+            '6) Prefer direct words like "checking", "access", "camera", "security on site", "ETA", and "next step" over control-room jargon.\n'
+            '7) When possible, mirror the shared Telegram wording: "checking", "camera check", "security is on site", and "next step". Avoid phrases like "latest position", "operational position", or "response movement" unless the client used them first.\n'
+            '8) Every reply must be complete and send-ready. No fragments, clipped endings, placeholders, or half-sentences.\n'
+            '9) Do not mention internal IDs, scope strings, system tokens, pipelines, or model limitations.\n'
+            '10) Never say "ONYX received your message", "we have your message", "command is reviewing", "verified update shortly", or similar canned system language.\n'
+            '11) Never invent ETAs, dispatches, calls, arrivals, restored service, or completed actions.\n'
+            '12) If the client sounds worried, answer with calm reassurance. If details are missing, ask one simple follow-up after giving the current position.\n'
+            '13) Avoid repeating the same reassurance line or closing sentence if recent lane context already used it.\n'
+            '14) Plain text only.\n'
+            '${escalatedLane ? '15) Recent lane context shows this thread is already escalated/high-priority. Keep the tone calm but tighter, more urgent, and centered on the next confirmed step.\n' : ''}'
+            '${pressuredLane ? '16) Recent lane context shows repeated anxious follow-ups. Keep replies extra steady, brief, and avoid adding filler.\n' : ''}'
             '${_laneStagePromptNote(laneStage)}'
             '${_deliveryModePromptNote(deliveryMode)}'
             '${_clientTonePackPromptNote(tonePack)}'
             '${_clientProfilePromptNote(clientProfileSignals)}'
             '${_messageTypePromptNote(intent: intent, laneStage: laneStage, tonePack: tonePack)}'
-            '${preferredExamplesSnippet == null ? '' : '14) Follow the wording pattern of the approved examples below when it fits the situation, especially for the closing line.\nPreferred approved reply examples:\n$preferredExamplesSnippet\n'}'
+            '${preferredStyleTagsSnippet == null ? '' : '17) Preferred style cues for this lane right now: $preferredStyleTagsSnippet. Use them as light tone guidance when they fit the situation.\n'}'
+            '${preferredExamplesSnippet == null ? '' : '18) Follow the wording pattern of the approved examples below when it fits the situation, especially for the closing line.\nPreferred approved reply examples:\n$preferredExamplesSnippet\n'}'
+            '${learnedStyleTagsSnippet == null ? '' : '19) Learned lane style tags: $learnedStyleTagsSnippet. Let these tags nudge the tone even when you are not reusing a specific learned reply.\n'}'
+            '${learnedExamplesSnippet == null ? '' : '20) These approved replies have worked well in this lane before. Reuse their cadence and closing style when it fits.\nLearned strong reply examples:\n$learnedExamplesSnippet\n'}'
             'Recent lane context:\n'
             '$recentContext';
     }
@@ -345,17 +389,25 @@ String _fallbackReply({
   required TelegramAiDeliveryMode deliveryMode,
   List<String> clientProfileSignals = const <String>[],
   List<String> preferredReplyExamples = const <String>[],
+  List<String> preferredReplyStyleTags = const <String>[],
+  List<String> learnedReplyStyleTags = const <String>[],
   List<String> recentConversationTurns = const <String>[],
 }) {
   final normalized = messageText.trim().toLowerCase();
   final tonePack = _clientTonePackFor(scope);
-  final clientProfile = _clientProfileFromSignals(clientProfileSignals);
+  final clientProfile = _clientProfileFromSignalsAndTags(
+    clientProfileSignals: clientProfileSignals,
+    preferredReplyStyleTags: preferredReplyStyleTags,
+    learnedReplyStyleTags: learnedReplyStyleTags,
+  );
   final laneStage = _resolveClientLaneStage(
     normalizedMessage: normalized,
     recentConversationTurns: recentConversationTurns,
   );
-  final preferredReplyStyle = _preferredReplyStyleFromExamples(
-    preferredReplyExamples,
+  final preferredReplyStyle = _preferredReplyStyleFromExamplesAndTags(
+    preferredReplyExamples: preferredReplyExamples,
+    preferredReplyStyleTags: preferredReplyStyleTags,
+    learnedReplyStyleTags: learnedReplyStyleTags,
   );
   final escalatedLane = _isEscalatedLaneContext(
     normalizedMessage: normalized,
@@ -365,10 +417,7 @@ String _fallbackReply({
     normalizedMessage: normalized,
     recentConversationTurns: recentConversationTurns,
   );
-  final intent = _resolveClientReplyIntent(
-    normalized,
-    recentConversationTurns,
-  );
+  final intent = _resolveClientReplyIntent(normalized, recentConversationTurns);
   final closing = _clientFollowUpClosing(
     recentConversationTurns,
     deliveryMode: deliveryMode,
@@ -395,17 +444,15 @@ String _fallbackReply({
     );
   }
   if (laneStage == _ClientLaneStage.closure) {
-    if (_containsAny(
-      normalized,
-      const ['thank you', 'thanks', 'appreciate it'],
-    )) {
-      return 'You are welcome. The latest confirmed position is that ${scope.siteReference} is secure. If anything changes, message here immediately.';
+    if (_containsAny(normalized, const [
+      'thank you',
+      'thanks',
+      'appreciate it',
+    ])) {
+      return _closureThanksReplyForTonePack(scope: scope, tonePack: tonePack);
     }
     if (intent == _ClientReplyIntent.access) {
-      return _closureAccessReplyForTonePack(
-        scope: scope,
-        tonePack: tonePack,
-      );
+      return _closureAccessReplyForTonePack(scope: scope, tonePack: tonePack);
     }
     return _closureReplyForTonePack(scope: scope, tonePack: tonePack);
   }
@@ -438,15 +485,15 @@ String _fallbackReply({
   }
   if (intent == _ClientReplyIntent.eta) {
     if (escalatedLane) {
-      return 'This is already escalated with control for ${scope.siteReference}. We are checking live movement now. ${_clientFollowUpClosing(recentConversationTurns, mode: _FollowUpMode.eta, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, escalated: true, compressed: pressuredLane)}';
+      return 'This is already escalated for ${scope.siteReference}. ${_clientFollowUpClosing(recentConversationTurns, mode: _FollowUpMode.eta, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, escalated: true, compressed: pressuredLane)}';
     }
-    return 'We are checking live movement for ${scope.siteReference} now. ${_clientFollowUpClosing(recentConversationTurns, mode: _FollowUpMode.eta, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, escalated: escalatedLane, compressed: pressuredLane)}';
+    return 'We are checking the ETA for ${scope.siteReference} now. ${_clientFollowUpClosing(recentConversationTurns, mode: _FollowUpMode.eta, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, clientProfile: clientProfile, escalated: escalatedLane, compressed: pressuredLane)}';
   }
   if (intent == _ClientReplyIntent.movement) {
     if (escalatedLane) {
-      return 'This is already escalated with control for ${scope.siteReference}. We are checking responder status now. ${_clientFollowUpClosing(recentConversationTurns, mode: _FollowUpMode.movement, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, escalated: true, compressed: pressuredLane)}';
+      return 'This is already escalated for ${scope.siteReference}. ${_clientFollowUpClosing(recentConversationTurns, mode: _FollowUpMode.movement, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, escalated: true, compressed: pressuredLane)}';
     }
-    return 'We are checking responder status for ${scope.siteReference} now. ${_clientFollowUpClosing(recentConversationTurns, mode: _FollowUpMode.movement, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, escalated: escalatedLane, compressed: pressuredLane)}';
+    return 'We are checking who is moving to ${scope.siteReference} now. ${_clientFollowUpClosing(recentConversationTurns, mode: _FollowUpMode.movement, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, escalated: escalatedLane, compressed: pressuredLane)}';
   }
   if (intent == _ClientReplyIntent.visual) {
     if (escalatedLane) {
@@ -463,16 +510,20 @@ String _fallbackReply({
     }
     return '${_statusLeadForTonePack(scope: scope, tonePack: tonePack, clientProfile: clientProfile)} $closing';
   }
-  if (_containsAny(
-    normalized,
-    const ['safe', 'okay', 'ok', 'all right', 'alright'],
-  )) {
+  if (_containsAny(normalized, const [
+    'safe',
+    'okay',
+    'ok',
+    'all right',
+    'alright',
+  ])) {
     return 'We are treating this seriously and checking ${scope.siteReference} now. If anything urgent changes, we will alert you immediately.';
   }
-  if (_containsAny(
-    normalized,
-    const ['thank you', 'thanks', 'appreciate it'],
-  )) {
+  if (_containsAny(normalized, const [
+    'thank you',
+    'thanks',
+    'appreciate it',
+  ])) {
     if (deliveryMode == TelegramAiDeliveryMode.approvalDraft) {
       return 'You are welcome. We are still tracking ${scope.siteReference}, and I will keep this lane updated if anything changes.';
     }
@@ -482,16 +533,18 @@ String _fallbackReply({
       clientProfile: clientProfile,
     );
   }
-  if (_containsAny(
-    normalized,
-    const ['who are you', 'are you ai', 'are you a bot', 'robot'],
-  )) {
+  if (_containsAny(normalized, const [
+    'who are you',
+    'are you ai',
+    'are you a bot',
+    'robot',
+  ])) {
     return 'I am ONYX support for ${scope.siteReference}. I can help with updates, response status, and getting control involved quickly.';
   }
   if (escalatedLane) {
-    return 'We have your message and this is already escalated with control for ${scope.siteReference}. $closing';
+    return 'This is already escalated for ${scope.siteReference}. $closing';
   }
-  return 'We have your message and we are checking ${scope.siteReference} now. $closing';
+  return 'We are checking ${scope.siteReference} now. $closing';
 }
 
 String _emptyPromptReply({
@@ -512,6 +565,9 @@ String _polishReply({
   required TelegramAiDeliveryMode deliveryMode,
   List<String> clientProfileSignals = const <String>[],
   List<String> preferredReplyExamples = const <String>[],
+  List<String> preferredReplyStyleTags = const <String>[],
+  List<String> learnedReplyExamples = const <String>[],
+  List<String> learnedReplyStyleTags = const <String>[],
   List<String> recentConversationTurns = const <String>[],
 }) {
   final normalized = text
@@ -540,20 +596,33 @@ String _polishReply({
       deliveryMode: deliveryMode,
       clientProfileSignals: clientProfileSignals,
       preferredReplyExamples: preferredReplyExamples,
+      preferredReplyStyleTags: preferredReplyStyleTags,
+      learnedReplyStyleTags: learnedReplyStyleTags,
       recentConversationTurns: recentConversationTurns,
     );
   }
-  return _normalizeClientReplyDrift(
-    text: cleaned,
+  final normalizedDrift = _normalizeClientReplyDrift(
+    text: _simplifyClientReplyLanguage(cleaned),
     deliveryMode: deliveryMode,
     laneStage: _resolveClientLaneStage(
       normalizedMessage: messageText.trim().toLowerCase(),
       recentConversationTurns: recentConversationTurns,
     ),
-    preferredReplyStyle: _preferredReplyStyleFromExamples(
-      preferredReplyExamples,
+    preferredReplyStyle: _preferredReplyStyleFromExamplesAndTags(
+      preferredReplyExamples: _combinedReplyExamples(
+        preferredReplyExamples: preferredReplyExamples,
+        learnedReplyExamples: learnedReplyExamples,
+      ),
+      preferredReplyStyleTags: preferredReplyStyleTags,
+      learnedReplyStyleTags: learnedReplyStyleTags,
+    ),
+    clientProfile: _clientProfileFromSignalsAndTags(
+      clientProfileSignals: clientProfileSignals,
+      preferredReplyStyleTags: preferredReplyStyleTags,
+      learnedReplyStyleTags: learnedReplyStyleTags,
     ),
   );
+  return _ensureClientReplyCompleteness(normalizedDrift);
 }
 
 bool _looksMechanicalClientReply(String text) {
@@ -563,6 +632,8 @@ bool _looksMechanicalClientReply(String text) {
   }
   if (_containsAny(normalized, const [
     'received your message',
+    'we have your message',
+    'we have received your message',
     'command is reviewing',
     'verified update shortly',
     'internal scope',
@@ -577,10 +648,7 @@ bool _looksMechanicalClientReply(String text) {
   return RegExp(r'\b(?:client|site|region)-[a-z0-9-]+\b').hasMatch(normalized);
 }
 
-_TelegramAiScopeProfile _scopeProfileFor({
-  String? clientId,
-  String? siteId,
-}) {
+_TelegramAiScopeProfile _scopeProfileFor({String? clientId, String? siteId}) {
   final normalizedClientId = _normalizeScopeId(clientId, fallback: 'CLIENT');
   final normalizedSiteId = _normalizeScopeId(siteId, fallback: 'SITE');
   final clientLabel = _humanizeScopeLabel(
@@ -626,8 +694,7 @@ String _humanizeScopeLabel(String raw, {required String fallback}) {
       .map((entry) {
         final original = entry.value.trim();
         final lower = entry.value.toLowerCase();
-        if (original.length <= 2 &&
-            RegExp(r'^[A-Z0-9]+$').hasMatch(original)) {
+        if (original.length <= 2 && RegExp(r'^[A-Z0-9]+$').hasMatch(original)) {
           return original;
         }
         if (entry.key > 0 && stopWords.contains(lower)) {
@@ -649,7 +716,15 @@ bool _containsAny(String text, List<String> needles) {
 
 enum _FollowUpMode { general, eta, step, movement, visual, onsite }
 
-enum _ClientReplyIntent { general, worried, access, eta, movement, visual, status }
+enum _ClientReplyIntent {
+  general,
+  worried,
+  access,
+  eta,
+  movement,
+  visual,
+  status,
+}
 
 enum _ClientLaneStage { reassurance, escalated, responderOnSite, closure }
 
@@ -660,6 +735,7 @@ enum _ClientTonePack { standard, residential, enterprise }
 enum _ClientProfile {
   standard,
   conciseUpdates,
+  formalOperations,
   reassuranceForward,
   validationHeavy,
 }
@@ -705,6 +781,8 @@ String _clientProfilePromptNote(List<String> clientProfileSignals) {
       return '';
     case _ClientProfile.conciseUpdates:
       return '13) Recent lane memory shows this client prefers short operational updates. Keep replies tighter than usual.\n';
+    case _ClientProfile.formalOperations:
+      return '13) Recent lane memory shows this client prefers more formal operations wording. Keep replies composed and enterprise-grade.\n';
     case _ClientProfile.reassuranceForward:
       return '13) Recent lane memory shows this client responds better to calm reassurance before the next step. Keep that shape.\n';
     case _ClientProfile.validationHeavy:
@@ -749,19 +827,17 @@ String _clientFollowUpClosing(
   if (deliveryMode == TelegramAiDeliveryMode.smsFallback) {
     switch (mode) {
       case _FollowUpMode.general:
-        return escalated
-            ? 'Control will update you on the next confirmed step.'
-            : 'Control will send the next confirmed step.';
+        return 'I will send the next confirmed step.';
       case _FollowUpMode.eta:
-        return 'Control will send the ETA when confirmed.';
+        return 'I will send the ETA when it is confirmed.';
       case _FollowUpMode.step:
-        return 'Control will send the next confirmed step.';
+        return 'I will send the next confirmed step.';
       case _FollowUpMode.movement:
-        return 'Control will send the next movement once confirmed.';
+        return 'I will send the next movement update when it is confirmed.';
       case _FollowUpMode.visual:
-        return 'Control will send the latest confirmed visual.';
+        return 'I will send the next camera update when it is confirmed.';
       case _FollowUpMode.onsite:
-        return 'Control will send the next confirmed on-site step.';
+        return 'I will send the next on-site step when it is confirmed.';
     }
   }
   final normalized = recentConversationTurns
@@ -774,146 +850,93 @@ String _clientFollowUpClosing(
   final preferConcise = clientProfile == _ClientProfile.conciseUpdates;
   switch (mode) {
     case _FollowUpMode.onsite:
-      if (preferConcise) {
-        return 'I will share the next on-site step when confirmed.';
-      }
-      if (compressed) {
-        return escalated
-            ? 'I will update you here the moment the next on-site step is confirmed.'
-            : 'I will update you here the moment control confirms the next on-site step.';
-      }
       if (preferredReplyStyle == _PreferredReplyStyle.shareStyle) {
-        return 'I will share the next confirmed on-site step the moment control has it.';
+        return 'I will share the next on-site step here when it is confirmed.';
       }
-      if (deliveryMode == TelegramAiDeliveryMode.approvalDraft) {
-        return 'I will share the next confirmed on-site step the moment control has it.';
+      if (preferConcise ||
+          compressed ||
+          deliveryMode == TelegramAiDeliveryMode.approvalDraft ||
+          escalated ||
+          repeatedConfirmed ||
+          repeatedKeepPosted ||
+          repeatedMoment) {
+        return 'I will update you here with the next on-site step.';
       }
-      if (escalated) {
-        return 'I will update you here the moment control confirms the next on-site step.';
-      }
-      if (repeatedConfirmed || repeatedKeepPosted || repeatedMoment) {
-        return 'As soon as control confirms the next on-site step, I will update you here.';
-      }
-      return 'I will send the next confirmed on-site step as soon as control has it.';
+      return 'I will update you here with the next on-site step.';
     case _FollowUpMode.eta:
-      if (preferConcise) {
-        return 'I will share the ETA when confirmed.';
-      }
-      if (compressed) {
-        return escalated
-            ? 'I will update you here the moment the ETA is confirmed.'
-            : 'I will update you here the moment control confirms the ETA.';
-      }
       if (preferredReplyStyle == _PreferredReplyStyle.shareStyle) {
-        return 'I will share the ETA the moment control confirms it.';
+        return 'I will share the ETA here when it is confirmed.';
       }
-      if (deliveryMode == TelegramAiDeliveryMode.approvalDraft) {
-        return 'I will share the ETA the moment control confirms it.';
+      if (preferConcise) {
+        return 'I will update you here when it is confirmed.';
       }
-      if (escalated) {
-        return 'I will update you here the moment control confirms the ETA.';
+      if (preferConcise ||
+          compressed ||
+          deliveryMode == TelegramAiDeliveryMode.approvalDraft ||
+          escalated ||
+          repeatedConfirmed ||
+          repeatedKeepPosted) {
+        return 'I will update you here when the ETA is confirmed.';
       }
-      if (repeatedConfirmed || repeatedKeepPosted) {
-        return 'The moment control confirms the ETA, I will update you here.';
-      }
-      return 'I will send the ETA as soon as control confirms it.';
+      return 'I will update you here when the ETA is confirmed.';
     case _FollowUpMode.step:
-      if (preferConcise) {
-        return 'I will share the next step when confirmed.';
-      }
-      if (compressed) {
-        return escalated
-            ? 'I will update you here the moment the next step is confirmed.'
-            : 'I will update you here the moment control confirms the next step.';
-      }
       if (preferredReplyStyle == _PreferredReplyStyle.shareStyle) {
-        return 'I will share the next confirmed step the moment control has it.';
+        return 'I will share the next confirmed step here when it is confirmed.';
       }
-      if (deliveryMode == TelegramAiDeliveryMode.approvalDraft) {
-        return 'I will share the next confirmed step the moment control has it.';
+      if (preferConcise ||
+          compressed ||
+          deliveryMode == TelegramAiDeliveryMode.approvalDraft ||
+          escalated ||
+          repeatedConfirmed ||
+          repeatedKeepPosted) {
+        return 'I will update you here with the next confirmed step.';
       }
-      if (escalated) {
-        return 'I will update you here the moment control confirms the next step.';
-      }
-      if (repeatedConfirmed || repeatedKeepPosted) {
-        return 'As soon as control confirms the next step, I will update you here.';
-      }
-      return 'I will send the next confirmed step as soon as control has it.';
+      return 'I will update you here with the next confirmed step.';
     case _FollowUpMode.movement:
-      if (preferConcise) {
-        return 'I will share the next movement when confirmed.';
-      }
-      if (compressed) {
-        return escalated
-            ? 'I will update you here the moment movement is confirmed.'
-            : 'I will update you here the moment control confirms movement.';
-      }
       if (preferredReplyStyle == _PreferredReplyStyle.shareStyle) {
-        return 'I will share the next confirmed movement the moment control has it.';
+        return 'I will share the next movement here when it is confirmed.';
       }
-      if (deliveryMode == TelegramAiDeliveryMode.approvalDraft) {
-        return 'I will share the next confirmed movement the moment control has it.';
+      if (preferConcise ||
+          compressed ||
+          deliveryMode == TelegramAiDeliveryMode.approvalDraft ||
+          escalated ||
+          repeatedConfirmed ||
+          repeatedKeepPosted ||
+          repeatedMoment) {
+        return 'I will update you here with the next movement update.';
       }
-      if (escalated) {
-        return 'I will update you here the moment control confirms the next movement.';
-      }
-      if (repeatedConfirmed || repeatedKeepPosted || repeatedMoment) {
-        return 'As soon as control confirms the next movement, I will update you here.';
-      }
-      return 'I will share the next confirmed movement update as soon as control has it.';
+      return 'I will update you here with the next movement update.';
     case _FollowUpMode.visual:
       if (clientProfile == _ClientProfile.validationHeavy) {
-        return 'I will share the next confirmed visual check the moment control verifies it.';
-      }
-      if (preferConcise) {
-        return 'I will share the next visual check when confirmed.';
-      }
-      if (compressed) {
-        return escalated
-            ? 'I will update you here the moment the latest visual is confirmed.'
-            : 'I will update you here the moment control verifies the latest visual.';
+        return 'I will update you here with the next confirmed camera check.';
       }
       if (preferredReplyStyle == _PreferredReplyStyle.shareStyle) {
-        return 'I will share the next confirmed visual the moment control verifies it.';
+        return 'I will share the next camera check here when it is confirmed.';
       }
-      if (deliveryMode == TelegramAiDeliveryMode.approvalDraft) {
-        return 'I will share the next confirmed visual the moment control verifies it.';
+      if (preferConcise ||
+          compressed ||
+          deliveryMode == TelegramAiDeliveryMode.approvalDraft ||
+          escalated ||
+          repeatedConfirmed ||
+          repeatedKeepPosted ||
+          repeatedMoment) {
+        return 'I will update you here with the latest confirmed camera check.';
       }
-      if (escalated) {
-        return 'I will update you here the moment control verifies the latest visual.';
-      }
-      if (repeatedConfirmed || repeatedKeepPosted || repeatedMoment) {
-        return 'As soon as control verifies the latest visual, I will update you here.';
-      }
-      return 'I will send the next confirmed visual update as soon as control verifies it.';
+      return 'I will update you here with the latest confirmed camera check.';
     case _FollowUpMode.general:
-      if (preferConcise) {
-        return 'I will share the next step when confirmed.';
-      }
-      if (compressed) {
-        return escalated
-            ? 'I will update you here the moment the next step is confirmed.'
-            : 'I will update you here the moment control confirms the next step.';
-      }
       if (preferredReplyStyle == _PreferredReplyStyle.shareStyle) {
-        return 'I will share the next confirmed step the moment control has it.';
+        return 'I will share the next confirmed step here when it is confirmed.';
       }
-      if (deliveryMode == TelegramAiDeliveryMode.approvalDraft) {
-        return 'I will keep this lane updated with the next confirmed step.';
+      if (preferConcise ||
+          compressed ||
+          deliveryMode == TelegramAiDeliveryMode.approvalDraft ||
+          escalated ||
+          repeatedConfirmed ||
+          repeatedKeepPosted ||
+          repeatedMoment) {
+        return 'I will update you here with the next confirmed step.';
       }
-      if (escalated) {
-        return 'I will update you here the moment control confirms the next step.';
-      }
-      if (repeatedConfirmed) {
-        return 'I will keep this lane updated the moment control confirms the next step.';
-      }
-      if (repeatedKeepPosted) {
-        return 'The moment control has the next confirmed detail, I will update you here.';
-      }
-      if (repeatedMoment) {
-        return 'I will keep you posted with the next confirmed update.';
-      }
-      return 'I will send the next confirmed update as soon as control has it.';
+      return 'I will update you here with the next confirmed step.';
   }
 }
 
@@ -933,81 +956,76 @@ String _smsFallbackReply({
   }
   if (laneStage == _ClientLaneStage.responderOnSite) {
     if (intent == _ClientReplyIntent.visual) {
-      return 'Security is on site at ${scope.siteReference}. Control will send the latest confirmed visual.';
+      return 'Security is on site at ${scope.siteReference}. I will send the next camera update when it is confirmed.';
     }
-    return 'Security is on site at ${scope.siteReference}. Control will send the next confirmed on-site step.';
+    return 'Security is on site at ${scope.siteReference}. I will send the next on-site step when it is confirmed.';
   }
   if (intent == _ClientReplyIntent.worried) {
     if (escalatedLane) {
-      return 'High-priority alert escalated for ${scope.siteReference}. Control is on it now. Control will update you on the next confirmed step.';
+      return 'High-priority alert escalated for ${scope.siteReference}. I will send the next confirmed step.';
     }
-    return 'We are treating ${scope.siteReference} as live. Control is checking now. Control will send the next confirmed step.';
+    return 'We are treating ${scope.siteReference} as live. I will send the next confirmed step.';
   }
   if (intent == _ClientReplyIntent.access) {
     return escalatedLane
-        ? 'Access issue escalated for ${scope.siteReference}. Control will send the next confirmed step.'
-        : 'We are checking access for ${scope.siteReference}. Control will send the next confirmed step.';
+        ? 'Access issue escalated for ${scope.siteReference}. I will send the next confirmed step.'
+        : 'We are checking access for ${scope.siteReference}. I will send the next confirmed step.';
   }
   if (intent == _ClientReplyIntent.eta) {
     return escalatedLane
-        ? 'Movement is escalated for ${scope.siteReference}. Control will send the ETA when confirmed.'
-        : 'We are checking movement for ${scope.siteReference}. Control will send the ETA when confirmed.';
+        ? 'Movement is escalated for ${scope.siteReference}. I will send the ETA when it is confirmed.'
+        : 'We are checking the ETA for ${scope.siteReference}. I will send the ETA when it is confirmed.';
   }
   if (intent == _ClientReplyIntent.visual) {
     return escalatedLane
-        ? 'Visual check escalated for ${scope.siteReference}. Control will send the latest confirmed visual.'
+        ? 'Visual check escalated for ${scope.siteReference}. I will send the next camera update when it is confirmed.'
         : clientProfile == _ClientProfile.validationHeavy
-            ? 'We are checking the latest camera and daylight view for ${scope.siteReference}. Control will send the latest confirmed visual.'
-            : 'We are checking the latest camera view for ${scope.siteReference}. Control will send the latest confirmed visual.';
+        ? 'We are checking cameras and daylight at ${scope.siteReference}. I will send the next camera update when it is confirmed.'
+        : 'We are checking cameras at ${scope.siteReference}. I will send the next camera update when it is confirmed.';
   }
-  if (_containsAny(
-    normalizedMessage,
-    const ['thank you', 'thanks', 'appreciate it'],
-  )) {
-    return 'You are welcome. Control will update you if anything changes.';
+  if (_containsAny(normalizedMessage, const [
+    'thank you',
+    'thanks',
+    'appreciate it',
+  ])) {
+    return 'You are welcome. I will update you if anything changes.';
   }
   if (escalatedLane) {
-    return 'This is escalated for ${scope.siteReference}. Control will update you on the next confirmed step.';
+    return 'This is escalated for ${scope.siteReference}. I will send the next confirmed step.';
   }
   if (pressuredLane) {
-    return 'We are on it at ${scope.siteReference}. Control will send the next confirmed step.';
+    return 'We are checking ${scope.siteReference}. I will send the next confirmed step.';
   }
-  return 'We are checking ${scope.siteReference}. Control will send the next confirmed step.';
+  return 'We are checking ${scope.siteReference}. I will send the next confirmed step.';
 }
 
 _ClientTonePack _clientTonePackFor(_TelegramAiScopeProfile scope) {
   final joined =
       '${scope.clientId} ${scope.siteId} ${scope.clientLabel} ${scope.siteLabel}'
           .toLowerCase();
-  if (_containsAny(
-    joined,
-    const [
-      'residence',
-      'residential',
-      'estate',
-      'villa',
-      'home',
-      'community',
-      'vallee',
-    ],
-  )) {
+  if (_containsAny(joined, const [
+    'residence',
+    'residential',
+    'estate',
+    'villa',
+    'home',
+    'community',
+    'vallee',
+  ])) {
     return _ClientTonePack.residential;
   }
-  if (_containsAny(
-    joined,
-    const [
-      'tower',
-      'campus',
-      'office',
-      'industrial',
-      'business',
-      'corporate',
-      'enterprise',
-      'park',
-      'centre',
-      'center',
-    ],
-  )) {
+  if (_containsAny(joined, const [
+    'tower',
+    'campus',
+    'office',
+    'industrial',
+    'business',
+    'corporate',
+    'enterprise',
+    'park',
+    'centre',
+    'center',
+  ])) {
     return _ClientTonePack.enterprise;
   }
   return _ClientTonePack.standard;
@@ -1019,6 +1037,12 @@ String _worriedLeadForTonePack({
   _ClientProfile clientProfile = _ClientProfile.standard,
   bool pressured = false,
 }) {
+  if (clientProfile == _ClientProfile.formalOperations &&
+      tonePack == _ClientTonePack.enterprise) {
+    return pressured
+        ? 'We are actively checking ${scope.siteReference} now and maintaining close review.'
+        : 'We are actively checking ${scope.siteReference} now and maintaining close review.';
+  }
   if (clientProfile == _ClientProfile.reassuranceForward) {
     return pressured
         ? 'You are not alone. We are treating this as live at ${scope.siteReference} now and staying close on this lane.'
@@ -1027,16 +1051,16 @@ String _worriedLeadForTonePack({
   switch (tonePack) {
     case _ClientTonePack.residential:
       return pressured
-          ? 'You are not alone. We are treating this as live at ${scope.siteReference} now and keeping this lane steady for you.'
-          : 'You are not alone. We are treating this as live at ${scope.siteReference} and checking it now.';
+          ? 'You are not alone. We are checking ${scope.siteReference} now.'
+          : 'You are not alone. We are checking ${scope.siteReference} now.';
     case _ClientTonePack.enterprise:
       return pressured
-          ? 'We are treating this as an active operations matter at ${scope.siteReference} now.'
-          : 'We are treating this as an active operations matter at ${scope.siteReference} and checking it now.';
+          ? 'We are checking ${scope.siteReference} now and taking this seriously.'
+          : 'We are checking ${scope.siteReference} now and taking this seriously.';
     case _ClientTonePack.standard:
       return pressured
-          ? 'You are not alone. We are treating this as live at ${scope.siteReference} now.'
-          : 'You are not alone. We are treating this as live at ${scope.siteReference} and checking it now.';
+          ? 'You are not alone. We are checking ${scope.siteReference} now.'
+          : 'You are not alone. We are checking ${scope.siteReference} now.';
   }
 }
 
@@ -1046,24 +1070,24 @@ String _statusLeadForTonePack({
   _ClientProfile clientProfile = _ClientProfile.standard,
   bool pressured = false,
 }) {
+  if (clientProfile == _ClientProfile.formalOperations &&
+      tonePack == _ClientTonePack.enterprise) {
+    return pressured
+        ? 'We are actively checking ${scope.siteReference} now.'
+        : 'We are actively checking ${scope.siteReference} now.';
+  }
   if (clientProfile == _ClientProfile.conciseUpdates) {
     return pressured
-        ? 'We are on it at ${scope.siteReference} now.'
+        ? 'We are checking ${scope.siteReference} now.'
         : 'We are checking ${scope.siteReference} now.';
   }
   switch (tonePack) {
     case _ClientTonePack.residential:
-      return pressured
-          ? 'We are on it at ${scope.siteReference} now.'
-          : 'We are on it at ${scope.siteReference} and control is checking the latest position now.';
+      return 'We are checking ${scope.siteReference} now.';
     case _ClientTonePack.enterprise:
-      return pressured
-          ? 'We are actively checking the latest position for ${scope.siteReference} now.'
-          : 'We are actively checking the latest position for ${scope.siteReference} now.';
+      return 'We are checking ${scope.siteReference} now.';
     case _ClientTonePack.standard:
-      return pressured
-          ? 'We are on it at ${scope.siteReference} now.'
-          : 'We are on it at ${scope.siteReference} and control is checking the latest position now.';
+      return 'We are checking ${scope.siteReference} now.';
   }
 }
 
@@ -1073,11 +1097,11 @@ String _escalatedLeadForTonePack({
 }) {
   switch (tonePack) {
     case _ClientTonePack.residential:
-      return 'This is already escalated with control for ${scope.siteReference}. We are actively on it now.';
+      return 'This is already escalated for ${scope.siteReference}.';
     case _ClientTonePack.enterprise:
-      return 'This is already escalated with control for ${scope.siteReference}. We are actively coordinating the next step now.';
+      return 'This is already escalated for ${scope.siteReference}.';
     case _ClientTonePack.standard:
-      return 'This is already escalated with control for ${scope.siteReference}. We are actively on it now.';
+      return 'This is already escalated for ${scope.siteReference}.';
   }
 }
 
@@ -1087,11 +1111,11 @@ String _escalatedStatusLeadForTonePack({
 }) {
   switch (tonePack) {
     case _ClientTonePack.residential:
-      return 'This is already escalated with control for ${scope.siteReference}. We are actively checking the latest position now.';
+      return 'This is already escalated for ${scope.siteReference}.';
     case _ClientTonePack.enterprise:
-      return 'This is already escalated with control for ${scope.siteReference}. We are actively checking the latest operational position now.';
+      return 'This is already escalated for ${scope.siteReference}.';
     case _ClientTonePack.standard:
-      return 'This is already escalated with control for ${scope.siteReference}. We are actively checking the latest position now.';
+      return 'This is already escalated for ${scope.siteReference}.';
   }
 }
 
@@ -1100,14 +1124,18 @@ String _thanksReplyForTonePack({
   required _ClientTonePack tonePack,
   _ClientProfile clientProfile = _ClientProfile.standard,
 }) {
+  if (clientProfile == _ClientProfile.formalOperations &&
+      tonePack == _ClientTonePack.enterprise) {
+    return 'You are welcome. We remain on watch at ${scope.siteReference} and will update this lane if anything changes.';
+  }
   if (clientProfile == _ClientProfile.reassuranceForward) {
     return 'You are welcome. We are still tracking ${scope.siteReference} and will keep this lane close if anything changes.';
   }
   switch (tonePack) {
     case _ClientTonePack.residential:
-      return 'You are welcome. We are still tracking ${scope.siteReference} and will keep this lane updated if anything changes.';
+      return 'You are welcome. We are staying close on ${scope.siteReference} and will update you if anything changes.';
     case _ClientTonePack.enterprise:
-      return 'You are welcome. We are still tracking ${scope.siteReference} and will continue to update this lane if anything changes.';
+      return 'You are welcome. We are still monitoring ${scope.siteReference} and will update you if anything changes.';
     case _ClientTonePack.standard:
       return 'You are welcome. We are still tracking ${scope.siteReference} and will update you if anything changes.';
   }
@@ -1127,6 +1155,64 @@ _ClientProfile _clientProfileFromSignals(List<String> clientProfileSignals) {
   if (joined.contains('concise-updates')) {
     return _ClientProfile.conciseUpdates;
   }
+  if (joined.contains('formal-operations')) {
+    return _ClientProfile.formalOperations;
+  }
+  return _ClientProfile.standard;
+}
+
+_ClientProfile _clientProfileFromSignalsAndTags({
+  required List<String> clientProfileSignals,
+  required List<String> preferredReplyStyleTags,
+  required List<String> learnedReplyStyleTags,
+}) {
+  final explicit = _clientProfileFromSignals(clientProfileSignals);
+  if (explicit != _ClientProfile.standard) {
+    return explicit;
+  }
+  final joined = <String>[...preferredReplyStyleTags, ...learnedReplyStyleTags]
+      .map((value) => value.trim().toLowerCase())
+      .where((value) => value.isNotEmpty)
+      .join('\n');
+  if (joined.isEmpty) {
+    return _ClientProfile.standard;
+  }
+  if (_containsAny(joined, const [
+    'formal',
+    'operations',
+    'operations-grade',
+    'composed',
+    'enterprise formal',
+  ])) {
+    return _ClientProfile.formalOperations;
+  }
+  if (_containsAny(joined, const [
+    'validation',
+    'camera',
+    'visual',
+    'daylight',
+  ])) {
+    return _ClientProfile.validationHeavy;
+  }
+  if (_containsAny(joined, const [
+    'reassurance',
+    'warm',
+    'protective',
+    'comfort',
+    'calm',
+  ])) {
+    return _ClientProfile.reassuranceForward;
+  }
+  if (_containsAny(joined, const [
+    'crisp',
+    'concise',
+    'tight',
+    'brief',
+    'short',
+    'eta',
+  ])) {
+    return _ClientProfile.conciseUpdates;
+  }
   return _ClientProfile.standard;
 }
 
@@ -1135,18 +1221,22 @@ String _accessLeadForTonePack({
   required _ClientTonePack tonePack,
   _ClientProfile clientProfile = _ClientProfile.standard,
 }) {
+  if (clientProfile == _ClientProfile.formalOperations &&
+      tonePack == _ClientTonePack.enterprise) {
+    return 'We are actively checking access at ${scope.siteReference} now.';
+  }
   if (clientProfile == _ClientProfile.conciseUpdates) {
     return tonePack == _ClientTonePack.enterprise
-        ? 'We are checking access control for ${scope.siteReference} now.'
-        : 'We are checking access for ${scope.siteReference} now.';
+        ? 'We are checking access at ${scope.siteReference} now.'
+        : 'We are checking access at ${scope.siteReference} now.';
   }
   switch (tonePack) {
     case _ClientTonePack.residential:
-      return 'We are checking access status for ${scope.siteReference} now.';
+      return 'We are checking access at ${scope.siteReference} now.';
     case _ClientTonePack.enterprise:
-      return 'We are checking access-control status for ${scope.siteReference} now.';
+      return 'We are checking access at ${scope.siteReference} now.';
     case _ClientTonePack.standard:
-      return 'We are checking access status for ${scope.siteReference} now.';
+      return 'We are checking access at ${scope.siteReference} now.';
   }
 }
 
@@ -1156,11 +1246,11 @@ String _escalatedAccessLeadForTonePack({
 }) {
   switch (tonePack) {
     case _ClientTonePack.residential:
-      return 'This is already escalated with control for ${scope.siteReference}. We are checking access status now.';
+      return 'This is already escalated for ${scope.siteReference}.';
     case _ClientTonePack.enterprise:
-      return 'This is already escalated with control for ${scope.siteReference}. We are checking access-control status now.';
+      return 'This is already escalated for ${scope.siteReference}.';
     case _ClientTonePack.standard:
-      return 'This is already escalated with control for ${scope.siteReference}. We are checking access status now.';
+      return 'This is already escalated for ${scope.siteReference}.';
   }
 }
 
@@ -1171,16 +1261,16 @@ String _visualLeadForTonePack({
 }) {
   if (clientProfile == _ClientProfile.validationHeavy) {
     return tonePack == _ClientTonePack.residential
-        ? 'We are checking the latest camera and daylight view around ${scope.siteReference} now.'
-        : 'We are checking the latest camera and daylight view for ${scope.siteReference} now.';
+        ? 'We are checking cameras and daylight around ${scope.siteReference} now.'
+        : 'We are checking cameras and daylight at ${scope.siteReference} now.';
   }
   switch (tonePack) {
     case _ClientTonePack.residential:
-      return 'We are checking the latest camera view around ${scope.siteReference} now.';
+      return 'We are checking cameras around ${scope.siteReference} now.';
     case _ClientTonePack.enterprise:
-      return 'We are checking the latest camera view for ${scope.siteReference} now.';
+      return 'We are checking cameras at ${scope.siteReference} now.';
     case _ClientTonePack.standard:
-      return 'We are checking the latest camera view for ${scope.siteReference} now.';
+      return 'We are checking cameras at ${scope.siteReference} now.';
   }
 }
 
@@ -1190,11 +1280,11 @@ String _escalatedVisualLeadForTonePack({
 }) {
   switch (tonePack) {
     case _ClientTonePack.residential:
-      return 'This is already escalated with control for ${scope.siteReference}. We are checking the latest camera view around the site now.';
+      return 'This is already escalated for ${scope.siteReference}.';
     case _ClientTonePack.enterprise:
-      return 'This is already escalated with control for ${scope.siteReference}. We are checking the latest camera view now.';
+      return 'This is already escalated for ${scope.siteReference}.';
     case _ClientTonePack.standard:
-      return 'This is already escalated with control for ${scope.siteReference}. We are checking the latest camera view now.';
+      return 'This is already escalated for ${scope.siteReference}.';
   }
 }
 
@@ -1204,11 +1294,11 @@ String _onSiteAccessLeadForTonePack({
 }) {
   switch (tonePack) {
     case _ClientTonePack.residential:
-      return 'Security is already on site at ${scope.siteReference}. We are checking access status there now.';
+      return 'Security is already on site at ${scope.siteReference}.';
     case _ClientTonePack.enterprise:
-      return 'Security is already on site at ${scope.siteReference}. We are checking access-control status now.';
+      return 'Security is already on site at ${scope.siteReference}.';
     case _ClientTonePack.standard:
-      return 'Security is already on site at ${scope.siteReference}. We are checking access status now.';
+      return 'Security is already on site at ${scope.siteReference}.';
   }
 }
 
@@ -1218,11 +1308,11 @@ String _onSiteVisualLeadForTonePack({
 }) {
   switch (tonePack) {
     case _ClientTonePack.residential:
-      return 'Security is already on site at ${scope.siteReference}. We are checking the latest camera and perimeter view now.';
+      return 'Security is already on site at ${scope.siteReference}.';
     case _ClientTonePack.enterprise:
-      return 'Security is already on site at ${scope.siteReference}. We are checking the latest camera and on-site view now.';
+      return 'Security is already on site at ${scope.siteReference}.';
     case _ClientTonePack.standard:
-      return 'Security is already on site at ${scope.siteReference}. We are checking the latest camera and on-site view now.';
+      return 'Security is already on site at ${scope.siteReference}.';
   }
 }
 
@@ -1232,11 +1322,11 @@ String _onSiteWorriedLeadForTonePack({
 }) {
   switch (tonePack) {
     case _ClientTonePack.residential:
-      return 'Security is already on site at ${scope.siteReference}. We are actively checking the position there now.';
+      return 'Security is already on site at ${scope.siteReference}.';
     case _ClientTonePack.enterprise:
-      return 'Security is already on site at ${scope.siteReference}. We are actively checking the operational position there now.';
+      return 'Security is already on site at ${scope.siteReference}.';
     case _ClientTonePack.standard:
-      return 'Security is already on site at ${scope.siteReference}. We are actively checking the position there now.';
+      return 'Security is already on site at ${scope.siteReference}.';
   }
 }
 
@@ -1246,11 +1336,11 @@ String _onSiteStatusLeadForTonePack({
 }) {
   switch (tonePack) {
     case _ClientTonePack.residential:
-      return 'Security is already on site at ${scope.siteReference}. We are checking the latest on-site position there now.';
+      return 'Security is already on site at ${scope.siteReference}.';
     case _ClientTonePack.enterprise:
-      return 'Security is already on site at ${scope.siteReference}. We are confirming the latest on-site position now.';
+      return 'Security is already on site at ${scope.siteReference}.';
     case _ClientTonePack.standard:
-      return 'Security is already on site at ${scope.siteReference}. We are checking the latest on-site position now.';
+      return 'Security is already on site at ${scope.siteReference}.';
   }
 }
 
@@ -1260,11 +1350,11 @@ String _closureReplyForTonePack({
 }) {
   switch (tonePack) {
     case _ClientTonePack.residential:
-      return 'The latest confirmed position is that ${scope.siteReference} is secure. If anything changes or feels off again, message here immediately and we will reopen this at once.';
+      return '${scope.siteReference} is secure right now. If anything changes or feels off again, message here immediately and we will reopen this straight away.';
     case _ClientTonePack.enterprise:
-      return 'The latest confirmed position is that ${scope.siteReference} is secure. If anything changes again, message here immediately and we will reopen the incident at once.';
+      return '${scope.siteReference} is secure right now. If anything changes again, message here immediately and we will reopen the incident straight away.';
     case _ClientTonePack.standard:
-      return 'The latest confirmed position is that ${scope.siteReference} is secure. If anything changes or feels off again, message here immediately and we will reopen this at once.';
+      return '${scope.siteReference} is secure right now. If anything changes or feels off again, message here immediately and we will reopen this straight away.';
   }
 }
 
@@ -1274,11 +1364,25 @@ String _closureAccessReplyForTonePack({
 }) {
   switch (tonePack) {
     case _ClientTonePack.residential:
-      return 'The latest confirmed position is that ${scope.siteReference} is secure. If access is still affected, tell me what is blocked and we will reopen this now.';
+      return '${scope.siteReference} is secure right now. If access is still affected, tell me what is blocked and we will reopen this straight away.';
     case _ClientTonePack.enterprise:
-      return 'The latest confirmed position is that ${scope.siteReference} is secure. If access control is still affected, tell me what is blocked and we will reopen this now.';
+      return '${scope.siteReference} is secure right now. If access is still affected, tell me what is blocked and we will reopen the incident straight away.';
     case _ClientTonePack.standard:
-      return 'The latest confirmed position is that ${scope.siteReference} is secure. If access is still affected, tell me what is blocked and we will reopen this now.';
+      return '${scope.siteReference} is secure right now. If access is still affected, tell me what is blocked and we will reopen this straight away.';
+  }
+}
+
+String _closureThanksReplyForTonePack({
+  required _TelegramAiScopeProfile scope,
+  required _ClientTonePack tonePack,
+}) {
+  switch (tonePack) {
+    case _ClientTonePack.residential:
+      return 'You are welcome. ${scope.siteReference} is secure right now. If anything changes or feels off again, message here immediately.';
+    case _ClientTonePack.enterprise:
+      return 'You are welcome. ${scope.siteReference} is secure right now. If anything changes again, message here immediately.';
+    case _ClientTonePack.standard:
+      return 'You are welcome. ${scope.siteReference} is secure right now. If anything changes, message here immediately.';
   }
 }
 
@@ -1287,6 +1391,7 @@ String _normalizeClientReplyDrift({
   required TelegramAiDeliveryMode deliveryMode,
   required _ClientLaneStage laneStage,
   required _PreferredReplyStyle preferredReplyStyle,
+  required _ClientProfile clientProfile,
 }) {
   var normalized = text.trim();
   if (normalized.isEmpty) {
@@ -1296,38 +1401,146 @@ String _normalizeClientReplyDrift({
     normalized,
     laneStage: laneStage,
   );
-  if (deliveryMode == TelegramAiDeliveryMode.smsFallback &&
-      normalized.toLowerCase().contains('i will')) {
+  final needsClosingNormalization =
+      _containsAny(normalized.toLowerCase(), const [
+        'i will send',
+        'i will share',
+        'i will update you',
+        'we will update you',
+        'control will',
+        'keep this lane updated',
+        'keep you posted',
+      ]);
+  if (needsClosingNormalization) {
     final preferredClosing = _clientFollowUpClosing(
       const <String>[],
       mode: followUpMode,
       deliveryMode: deliveryMode,
-    );
-    return _replaceClosingSentence(normalized, preferredClosing);
-  }
-  if (preferredReplyStyle == _PreferredReplyStyle.shareStyle &&
-      !_containsAny(
-        normalized.toLowerCase(),
-        const ['i will share', 'control will send'],
-      ) &&
-      _containsAny(
-        normalized.toLowerCase(),
-        const [
-          'i will send',
-          'i will update you here',
-          'keep this lane updated',
-          'keep you posted',
-        ],
-      )) {
-    final preferredClosing = _clientFollowUpClosing(
-      const <String>[],
-      mode: followUpMode,
-      deliveryMode: TelegramAiDeliveryMode.approvalDraft,
       preferredReplyStyle: preferredReplyStyle,
+      clientProfile: clientProfile,
     );
     normalized = _replaceClosingSentence(normalized, preferredClosing);
   }
   return normalized;
+}
+
+String _simplifyClientReplyLanguage(String text) {
+  var normalized = text.trim();
+  if (normalized.isEmpty) {
+    return normalized;
+  }
+  normalized = normalized.replaceAll('access-control', 'access control');
+  normalized = normalized.replaceAll('access control', 'access');
+  normalized = normalized.replaceAll('actively checking', 'checking');
+  normalized = normalized.replaceAll(
+    'the latest operational position',
+    'the site',
+  );
+  normalized = normalized.replaceAll('the latest position', 'the site');
+  normalized = normalized.replaceAll('latest position', 'site');
+  normalized = normalized.replaceAll('response movement', 'who is moving');
+  normalized = normalized.replaceAll('Control will', 'I will');
+  normalized = normalized.replaceAll('control will', 'I will');
+  normalized = normalized.replaceAll(
+    'as soon as control confirms it',
+    'when it is confirmed',
+  );
+  normalized = normalized.replaceAll(
+    'as soon as control has it',
+    'when it is confirmed',
+  );
+  normalized = normalized.replaceAll('the moment control confirms', 'when');
+  normalized = normalized.replaceAll(
+    'the moment control has it',
+    'when it is confirmed',
+  );
+  normalized = normalized.replaceAll('verified visual', 'camera check');
+  normalized = normalized.replaceAll('visual update', 'camera update');
+  normalized = normalized.replaceAll('latest camera view', 'cameras');
+  normalized = normalized.replaceAll(
+    'latest camera and daylight view',
+    'cameras and daylight',
+  );
+  normalized = normalized.replaceAllMapped(
+    RegExp(
+      r'We are on it at (.+?) and control is checking the latest position now\.',
+    ),
+    (match) => 'We are checking ${match.group(1)} now.',
+  );
+  normalized = normalized.replaceAllMapped(
+    RegExp(r'We are checking access status for (.+?) now\.'),
+    (match) => 'We are checking access at ${match.group(1)} now.',
+  );
+  normalized = normalized.replaceAllMapped(
+    RegExp(r'We are checking access control status for (.+?) now\.'),
+    (match) => 'We are checking access at ${match.group(1)} now.',
+  );
+  normalized = normalized.replaceAllMapped(
+    RegExp(r'We are checking access-control status for (.+?) now\.'),
+    (match) => 'We are checking access at ${match.group(1)} now.',
+  );
+  normalized = normalized.replaceAllMapped(
+    RegExp(r'We are actively checking the latest position for (.+?) now\.'),
+    (match) => 'We are checking ${match.group(1)} now.',
+  );
+  normalized = normalized.replaceAllMapped(
+    RegExp(r'We are checking the latest position at (.+?) now\.'),
+    (match) => 'We are checking ${match.group(1)} now.',
+  );
+  normalized = normalized.replaceAllMapped(
+    RegExp(r'We are checking the latest camera view around (.+?) now\.'),
+    (match) => 'We are checking cameras around ${match.group(1)} now.',
+  );
+  normalized = normalized.replaceAllMapped(
+    RegExp(r'We are checking the latest camera view at (.+?) now\.'),
+    (match) => 'We are checking cameras at ${match.group(1)} now.',
+  );
+  normalized = normalized.replaceAllMapped(
+    RegExp(
+      r'We are checking the latest camera and daylight view around (.+?) now\.',
+    ),
+    (match) =>
+        'We are checking cameras and daylight around ${match.group(1)} now.',
+  );
+  normalized = normalized.replaceAllMapped(
+    RegExp(
+      r'We are checking the latest camera and daylight view for (.+?) now\.',
+    ),
+    (match) => 'We are checking cameras and daylight at ${match.group(1)} now.',
+  );
+  normalized = normalized.replaceAllMapped(
+    RegExp(
+      r'Security is already on site at (.+?)\. We are checking the latest on-site position there now\.',
+    ),
+    (match) => 'Security is already on site at ${match.group(1)}.',
+  );
+  normalized = normalized.replaceAllMapped(
+    RegExp(
+      r'Security is already on site at (.+?)\. We are checking the latest on-site position now\.',
+    ),
+    (match) => 'Security is already on site at ${match.group(1)}.',
+  );
+  normalized = normalized.replaceAllMapped(
+    RegExp(
+      r'Security is already on site at (.+?)\. We are checking the position there now\.',
+    ),
+    (match) => 'Security is already on site at ${match.group(1)}.',
+  );
+  normalized = normalized.replaceAllMapped(
+    RegExp(
+      r'Security is already on site at (.+?)\. We are checking the operational position there now\.',
+    ),
+    (match) => 'Security is already on site at ${match.group(1)}.',
+  );
+  normalized = normalized.replaceAllMapped(
+    RegExp(r'This is already escalated with control for (.+?)\.'),
+    (match) => 'This is already escalated for ${match.group(1)}.',
+  );
+  normalized = normalized.replaceAllMapped(
+    RegExp(r'The latest confirmed position is that (.+?) is secure\.'),
+    (match) => '${match.group(1)} is secure right now.',
+  );
+  return normalized.replaceAll(RegExp(r'\s{2,}'), ' ').trim();
 }
 
 _FollowUpMode _followUpModeFromReplyText(
@@ -1345,16 +1558,21 @@ _FollowUpMode _followUpModeFromReplyText(
   if (_containsAny(normalized, const ['access status', 'gate', 'access'])) {
     return _FollowUpMode.step;
   }
-  if (_containsAny(
-    normalized,
-    const ['responder status', 'movement', 'armed response', 'officer'],
-  )) {
+  if (_containsAny(normalized, const [
+    'responder status',
+    'movement',
+    'armed response',
+    'officer',
+  ])) {
     return _FollowUpMode.movement;
   }
-  if (_containsAny(
-    normalized,
-    const ['camera', 'visual', 'cctv', 'footage', 'latest view'],
-  )) {
+  if (_containsAny(normalized, const [
+    'camera',
+    'visual',
+    'cctv',
+    'footage',
+    'latest view',
+  ])) {
     return _FollowUpMode.visual;
   }
   if (laneStage == _ClientLaneStage.responderOnSite) {
@@ -1372,6 +1590,17 @@ String _replaceClosingSentence(String text, String replacement) {
   return replacement;
 }
 
+String _ensureClientReplyCompleteness(String text) {
+  final trimmed = text.trim();
+  if (trimmed.isEmpty) {
+    return trimmed;
+  }
+  if (RegExp(r"""[.!?]["']?$""").hasMatch(trimmed)) {
+    return trimmed;
+  }
+  return '$trimmed.';
+}
+
 String? _preferredReplyExamplesSnippet(List<String> preferredReplyExamples) {
   final cleaned = preferredReplyExamples
       .map((value) => value.trim())
@@ -1382,6 +1611,43 @@ String? _preferredReplyExamplesSnippet(List<String> preferredReplyExamples) {
     return null;
   }
   return cleaned.join('\n');
+}
+
+String? _learnedReplyExamplesSnippet(List<String> learnedReplyExamples) {
+  final cleaned = learnedReplyExamples
+      .map((value) => value.trim())
+      .where((value) => value.isNotEmpty)
+      .take(3)
+      .toList(growable: false);
+  if (cleaned.isEmpty) {
+    return null;
+  }
+  return cleaned.join('\n');
+}
+
+String? _replyStyleTagsSnippet(List<String> replyStyleTags) {
+  final cleaned = <String>{};
+  for (final value in replyStyleTags) {
+    final normalized = value.trim();
+    if (normalized.isEmpty) {
+      continue;
+    }
+    cleaned.add(normalized);
+    if (cleaned.length >= 3) {
+      break;
+    }
+  }
+  if (cleaned.isEmpty) {
+    return null;
+  }
+  return cleaned.join(' • ');
+}
+
+List<String> _combinedReplyExamples({
+  required List<String> preferredReplyExamples,
+  required List<String> learnedReplyExamples,
+}) {
+  return <String>[...preferredReplyExamples, ...learnedReplyExamples];
 }
 
 _PreferredReplyStyle _preferredReplyStyleFromExamples(
@@ -1397,27 +1663,43 @@ _PreferredReplyStyle _preferredReplyStyleFromExamples(
   return _PreferredReplyStyle.defaultStyle;
 }
 
+_PreferredReplyStyle _preferredReplyStyleFromExamplesAndTags({
+  required List<String> preferredReplyExamples,
+  required List<String> preferredReplyStyleTags,
+  required List<String> learnedReplyStyleTags,
+}) {
+  final explicit = _preferredReplyStyleFromExamples(preferredReplyExamples);
+  if (explicit != _PreferredReplyStyle.defaultStyle) {
+    return explicit;
+  }
+  final joined = <String>[...preferredReplyStyleTags, ...learnedReplyStyleTags]
+      .map((value) => value.trim().toLowerCase())
+      .where((value) => value.isNotEmpty)
+      .join('\n');
+  if (_containsAny(joined, const ['share', 'shared closing', 'share style'])) {
+    return _PreferredReplyStyle.shareStyle;
+  }
+  return _PreferredReplyStyle.defaultStyle;
+}
+
 bool _isEscalatedLaneContext({
   required String normalizedMessage,
   required List<String> recentConversationTurns,
 }) {
-  if (_containsAny(
-    normalizedMessage,
-    const [
-      'help me',
-      'please help',
-      'panic',
-      'unsafe',
-      'emergency',
-      'intruder',
-      'break in',
-      'break-in',
-      'attack',
-      'gun',
-      'weapon',
-      'threat',
-    ],
-  )) {
+  if (_containsAny(normalizedMessage, const [
+    'help me',
+    'please help',
+    'panic',
+    'unsafe',
+    'emergency',
+    'intruder',
+    'break in',
+    'break-in',
+    'attack',
+    'gun',
+    'weapon',
+    'threat',
+  ])) {
     return true;
   }
   final joined = recentConversationTurns
@@ -1427,19 +1709,16 @@ bool _isEscalatedLaneContext({
   if (joined.isEmpty) {
     return false;
   }
-  return _containsAny(
-    joined,
-    const [
-      'escalated',
-      'client escalated',
-      'high-priority',
-      'high priority',
-      'alert received',
-      'verification requested',
-      'control room',
-      'policy:high-risk',
-    ],
-  );
+  return _containsAny(joined, const [
+    'escalated',
+    'client escalated',
+    'high-priority',
+    'high priority',
+    'alert received',
+    'verification requested',
+    'control room',
+    'policy:high-risk',
+  ]);
 }
 
 bool _isPressuredLaneContext({
@@ -1447,22 +1726,19 @@ bool _isPressuredLaneContext({
   required List<String> recentConversationTurns,
 }) {
   var pressureSignals = 0;
-  if (_containsAny(
-    normalizedMessage,
-    const [
-      'worried',
-      'scared',
-      'afraid',
-      'panic',
-      'unsafe',
-      'help',
-      'any update',
-      'still waiting',
-      'still no',
-      'anything yet',
-      'what now',
-    ],
-  )) {
+  if (_containsAny(normalizedMessage, const [
+    'worried',
+    'scared',
+    'afraid',
+    'panic',
+    'unsafe',
+    'help',
+    'any update',
+    'still waiting',
+    'still no',
+    'anything yet',
+    'what now',
+  ])) {
     pressureSignals += 1;
   }
   for (final turn in recentConversationTurns.take(6)) {
@@ -1470,25 +1746,22 @@ bool _isPressuredLaneContext({
     if (normalizedTurn.isEmpty) {
       continue;
     }
-    if (_containsAny(
-      normalizedTurn,
-      const [
-        'worried',
-        'scared',
-        'afraid',
-        'panic',
-        'unsafe',
-        'please help',
-        'help me',
-        'any update',
-        'still waiting',
-        'still no',
-        'anything yet',
-        'what now',
-        'update?',
-        'yet?',
-      ],
-    )) {
+    if (_containsAny(normalizedTurn, const [
+      'worried',
+      'scared',
+      'afraid',
+      'panic',
+      'unsafe',
+      'please help',
+      'help me',
+      'any update',
+      'still waiting',
+      'still no',
+      'anything yet',
+      'what now',
+      'update?',
+      'yet?',
+    ])) {
       pressureSignals += 1;
     }
   }
@@ -1503,30 +1776,24 @@ _ClientLaneStage _resolveClientLaneStage({
       .map((value) => value.trim().toLowerCase())
       .where((value) => value.isNotEmpty)
       .join('\n');
-  if (_containsAny(
-    joined,
-    const [
-      'incident resolved',
-      'site secured',
-      'resolved',
-      'all clear',
-      'closed out',
-      'closure',
-    ],
-  )) {
+  if (_containsAny(joined, const [
+    'incident resolved',
+    'site secured',
+    'resolved',
+    'all clear',
+    'closed out',
+    'closure',
+  ])) {
     return _ClientLaneStage.closure;
   }
-  if (_containsAny(
-    joined,
-    const [
-      'responder on site',
-      'security response activated',
-      'partner dispatch sent',
-      'response activated',
-      'on site',
-      'on-site',
-    ],
-  )) {
+  if (_containsAny(joined, const [
+    'responder on site',
+    'security response activated',
+    'partner dispatch sent',
+    'response activated',
+    'on site',
+    'on-site',
+  ])) {
     return _ClientLaneStage.responderOnSite;
   }
   if (_isEscalatedLaneContext(
@@ -1554,75 +1821,69 @@ _ClientReplyIntent _resolveClientReplyIntent(
   String normalizedMessage,
   List<String> recentConversationTurns,
 ) {
-  if (_containsAny(
-    normalizedMessage,
-    const [
-      'worried',
-      'scared',
-      'afraid',
-      'panic',
-      'panicking',
-      'nervous',
-      'unsafe',
-      'help me',
-      'please help',
-    ],
-  )) {
+  if (_containsAny(normalizedMessage, const [
+    'worried',
+    'scared',
+    'afraid',
+    'panic',
+    'panicking',
+    'nervous',
+    'unsafe',
+    'help me',
+    'please help',
+  ])) {
     return _ClientReplyIntent.worried;
   }
-  if (_containsAny(
-    normalizedMessage,
-    const [
-      'gate',
-      'access',
-      'cant get in',
-      'can\'t get in',
-      'cant get out',
-      'can\'t get out',
-      'stuck outside',
-      'stuck inside',
-    ],
-  )) {
+  if (_containsAny(normalizedMessage, const [
+    'gate',
+    'access',
+    'cant get in',
+    'can\'t get in',
+    'cant get out',
+    'can\'t get out',
+    'stuck outside',
+    'stuck inside',
+  ])) {
     return _ClientReplyIntent.access;
   }
-  if (_containsAny(
-    normalizedMessage,
-    const ['eta', 'arrival', 'arrive', 'how far', 'how long'],
-  )) {
+  if (_containsAny(normalizedMessage, const [
+    'eta',
+    'arrival',
+    'arrive',
+    'how far',
+    'how long',
+  ])) {
     return _ClientReplyIntent.eta;
   }
-  if (_containsAny(
-    normalizedMessage,
-    const [
-      'guard',
-      'officer',
-      'response unit',
-      'responder',
-      'armed response',
-      'police',
-      'who is coming',
-    ],
-  )) {
+  if (_containsAny(normalizedMessage, const [
+    'guard',
+    'officer',
+    'response unit',
+    'responder',
+    'armed response',
+    'police',
+    'who is coming',
+  ])) {
     return _ClientReplyIntent.movement;
   }
-  if (_containsAny(
-    normalizedMessage,
-    const [
-      'camera',
-      'cctv',
-      'video',
-      'footage',
-      'see on camera',
-      'what do you see',
-      'daylight',
-    ],
-  )) {
+  if (_containsAny(normalizedMessage, const [
+    'camera',
+    'cctv',
+    'video',
+    'footage',
+    'see on camera',
+    'what do you see',
+    'daylight',
+  ])) {
     return _ClientReplyIntent.visual;
   }
-  if (_containsAny(
-    normalizedMessage,
-    const ['status', 'update', 'progress', 'news', 'happening'],
-  )) {
+  if (_containsAny(normalizedMessage, const [
+    'status',
+    'update',
+    'progress',
+    'news',
+    'happening',
+  ])) {
     return _ClientReplyIntent.status;
   }
   if (_looksLikeShortFollowUp(normalizedMessage)) {
@@ -1638,21 +1899,18 @@ bool _looksLikeShortFollowUp(String normalizedMessage) {
   if (normalizedMessage.split(RegExp(r'\s+')).length > 6) {
     return false;
   }
-  return _containsAny(
-    normalizedMessage,
-    const [
-      'still waiting',
-      'anything yet',
-      'any update',
-      'and now',
-      'what now',
-      'still',
-      'yet',
-      'now?',
-      'update?',
-      'still no',
-    ],
-  );
+  return _containsAny(normalizedMessage, const [
+    'still waiting',
+    'anything yet',
+    'any update',
+    'and now',
+    'what now',
+    'still',
+    'yet',
+    'now?',
+    'update?',
+    'still no',
+  ]);
 }
 
 _ClientReplyIntent _intentFromRecentConversation(
@@ -1665,7 +1923,10 @@ _ClientReplyIntent _intentFromRecentConversation(
   if (joined.isEmpty) {
     return _ClientReplyIntent.status;
   }
-  if (_containsAny(joined, const ['latest camera view', 'confirmed visual update'])) {
+  if (_containsAny(joined, const [
+    'latest camera view',
+    'confirmed visual update',
+  ])) {
     return _ClientReplyIntent.visual;
   }
   if (_containsAny(joined, const ['live movement', 'eta'])) {
@@ -1677,7 +1938,10 @@ _ClientReplyIntent _intentFromRecentConversation(
   if (_containsAny(joined, const ['responder status', 'movement update'])) {
     return _ClientReplyIntent.movement;
   }
-  if (_containsAny(joined, const ['treating this as live', 'you are not alone'])) {
+  if (_containsAny(joined, const [
+    'treating this as live',
+    'you are not alone',
+  ])) {
     return _ClientReplyIntent.worried;
   }
   return _ClientReplyIntent.status;

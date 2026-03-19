@@ -25,6 +25,54 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    'tactical page header dispatch button opens the scoped dispatch lane',
+    (tester) async {
+      String? tappedClientId;
+      String? tappedSiteId;
+      String? tappedReference;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TacticalPage(
+            events: const [],
+            initialScopeClientId: 'CLIENT-A',
+            initialScopeSiteId: 'SITE-A',
+            onOpenFleetDispatchScope: (clientId, siteId, incidentReference) {
+              tappedClientId = clientId;
+              tappedSiteId = siteId;
+              tappedReference = incidentReference;
+            },
+            fleetScopeHealth: const [
+              VideoFleetScopeHealthView(
+                clientId: 'CLIENT-A',
+                siteId: 'SITE-A',
+                siteName: 'MS Vallee Residence',
+                endpointLabel: '192.168.8.105',
+                statusLabel: 'LIMITED WATCH',
+                watchLabel: 'LIMITED',
+                recentEvents: 0,
+                lastSeenLabel: '21:14 UTC',
+                freshnessLabel: 'Fresh',
+                isStale: false,
+                latestIncidentReference: 'INT-VALLEE-1',
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Tactical Command'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('tactical-open-dispatches-button')));
+      await tester.pumpAndSettle();
+
+      expect(tappedClientId, 'CLIENT-A');
+      expect(tappedSiteId, 'SITE-A');
+      expect(tappedReference, 'INT-VALLEE-1');
+    },
+  );
+
   testWidgets('tactical page stays stable on landscape phone viewport', (
     tester,
   ) async {
@@ -72,13 +120,14 @@ void main() {
                   siteId: 'SITE-A',
                   siteName: 'MS Vallee Residence',
                   endpointLabel: '192.168.8.105',
-                  statusLabel: 'LIVE',
-                  watchLabel: 'ACTIVE',
-                  recentEvents: 2,
+                  statusLabel: 'LIMITED WATCH',
+                  watchLabel: 'LIMITED',
+                  recentEvents: 0,
                   lastSeenLabel: '21:14 UTC',
                   freshnessLabel: 'Fresh',
                   isStale: false,
-                  alertCount: 1,
+                  monitoringAvailabilityDetail:
+                      'One remote camera feed is stale.',
                   latestIncidentReference: 'INT-VALLEE-1',
                 ),
               ],
@@ -89,10 +138,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Alerts • 1'));
+    await tester.tap(find.text('Limited • 1'));
     await tester.pumpAndSettle();
-    expect(persistedDrilldown, VideoFleetWatchActionDrilldown.alerts);
-    expect(find.text('Focused watch action: Alert actions'), findsOneWidget);
+    expect(persistedDrilldown, VideoFleetWatchActionDrilldown.limited);
+    expect(
+      find.text('Focused watch action: Limited watch coverage'),
+      findsOneWidget,
+    );
 
     hostSetState(() {
       showPage = false;
@@ -105,10 +157,13 @@ void main() {
     });
     await tester.pumpAndSettle();
 
-    expect(persistedDrilldown, VideoFleetWatchActionDrilldown.alerts);
-    expect(find.text('Focused watch action: Alert actions'), findsOneWidget);
+    expect(persistedDrilldown, VideoFleetWatchActionDrilldown.limited);
     expect(
-      find.text('ACTIONABLE (1) • Incident-backed alert scopes'),
+      find.text('Focused watch action: Limited watch coverage'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('ACTIONABLE (1) • Incident-backed limited-watch scopes'),
       findsOneWidget,
     );
   });
@@ -498,7 +553,9 @@ void main() {
       find.byType(Scrollable).first,
     );
     expect(scrollable.position.pixels, 0);
-    await tester.tap(find.text('Filtered • 1'));
+    final filteredChip = find.text('Filtered • 1');
+    await tester.ensureVisible(filteredChip);
+    await tester.tap(filteredChip);
     await tester.pumpAndSettle();
 
     expect(scrollable.position.pixels, greaterThan(0));

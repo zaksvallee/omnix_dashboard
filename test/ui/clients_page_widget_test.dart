@@ -8,6 +8,31 @@ import 'package:omnix_dashboard/ui/clients_page.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  testWidgets('clients page renders communications overview hero', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1100));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: ClientsPage(
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          events: <DispatchEvent>[],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Client Communications'), findsOneWidget);
+    expect(find.byKey(const ValueKey('clients-comms-overview-grid')), findsOneWidget);
+    expect(find.text('TELEGRAM'), findsOneWidget);
+    expect(find.text('SMS'), findsOneWidget);
+    expect(find.text('VOIP'), findsOneWidget);
+    expect(find.text('PENDING DRAFTS'), findsOneWidget);
+  });
+
   testWidgets('clients page incident feed opens events review when wired', (
     tester,
   ) async {

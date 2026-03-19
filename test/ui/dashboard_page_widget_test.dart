@@ -825,12 +825,12 @@ void main() {
     await tester.pump();
 
     expect(copiedPayload, isNotNull);
-    expect(copiedPayload, contains('Site Activity Truth: Dashboard scope'));
+    expect(copiedPayload, contains('Site activity summary: Dashboard scope'));
     expect(copiedPayload, contains('Window: 2026-03-09'));
-    expect(copiedPayload, contains('2 site-activity signals observed.'));
-    expect(copiedPayload, contains('1 vehicles • 1 people'));
-    expect(copiedPayload, contains('1 known IDs • 1 unknown'));
-    expect(copiedPayload, contains('1 guard interactions'));
+    expect(copiedPayload, contains('Signals seen: 2.'));
+    expect(copiedPayload, contains('Seen: 1 vehicles • 1 people'));
+    expect(copiedPayload, contains('Identity mix: 1 known IDs • 1 unknown'));
+    expect(copiedPayload, contains('Patterns: 1 guard interactions'));
     expect(copiedPayload, contains('Trend: ACTIVITY RISING -'));
   });
 

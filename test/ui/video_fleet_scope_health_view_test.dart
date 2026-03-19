@@ -36,6 +36,34 @@ void main() {
       );
     });
 
+    test(
+      'formats limited watch note with availability detail when present',
+      () {
+        const view = VideoFleetScopeHealthView(
+          clientId: 'CLIENT-A',
+          siteId: 'SITE-A',
+          siteName: 'MS Vallee Residence',
+          endpointLabel: '192.168.8.105',
+          statusLabel: 'LIMITED WATCH',
+          watchLabel: 'LIMITED',
+          recentEvents: 0,
+          lastSeenLabel: 'idle',
+          freshnessLabel: 'Idle',
+          isStale: false,
+          monitoringAvailabilityDetail: 'One remote camera feed is stale.',
+        );
+
+        expect(
+          view.limitedWatchStatusDetailText,
+          'One remote camera feed is stale.',
+        );
+        expect(
+          view.noteText,
+          'Remote watch is limited: One remote camera feed is stale.',
+        );
+      },
+    );
+
     test('formats latest summary text only when event label exists', () {
       const withTime = VideoFleetScopeHealthView(
         clientId: 'CLIENT-A',

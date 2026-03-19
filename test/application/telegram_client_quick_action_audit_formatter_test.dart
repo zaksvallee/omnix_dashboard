@@ -11,18 +11,23 @@ void main() {
       responseText:
           '🧾 ONYX STATUS (FULL)\n'
           'MS Vallee Residence | 12:30\n\n'
-          'Monitoring: ACTIVE\n'
-          'Window: 24h watch (started 18:00)\n'
-          'Reviewed activity: 19\n'
-          'Latest activity source: Camera 13\n'
-          'Latest posture: multi-camera activity under review\n'
-          'Current assessment: likely routine distributed field activity\n'
-          'Current site narrative: Recent ONYX review saw 3 person signals across Camera 12, Camera 13, and Camera 6. The movement is spread across the property and overlaps with active worker or guard telemetry.\n'
-          'Latest review summary: Distributed person movement remains visible.\n'
-          'Latest decision: Escalation candidate remains under verification.\n'
-          'Open follow-up actions: 1\n'
-          'Monitoring availability: available\n'
-          'Last reviewed at: 18/03/2026 12:29\n'
+          'Current status\n'
+          'Monitoring is active.\n'
+          'Watch window: 24h watch (started 18:00)\n'
+          'Remote watch: available\n\n'
+          'What we see now\n'
+          'Items reviewed: 19\n'
+          'Latest signal: Camera 13\n'
+          'Current posture: multi-camera activity under review\n'
+          'Assessment: likely routine on-site team activity\n'
+          'Summary: Recent camera review saw 3 person signals across Camera 12, Camera 13, and Camera 6. This overlaps with on-site team activity across Front Yard and Back Yard, so it looks routine.\n'
+          'Review note: Distributed person movement remains visible.\n'
+          'Last check: 18/03/2026 12:29\n'
+          '\n'
+          'Next\n'
+          'Open follow-ups: 1\n'
+          'Current decision: Escalation candidate remains under verification.\n'
+          'Next step: ONYX is tracking the open follow-up actions and will send the next confirmed change.\n'
           'Local time: 18/03/2026 12:30',
     );
 
@@ -30,20 +35,18 @@ void main() {
     expect(preview, contains('MS Vallee Residence | 12:30'));
     expect(
       preview,
+      contains('Assessment: likely routine on-site team activity'),
+    );
+    expect(
+      preview,
       contains(
-        'Current assessment: likely routine distributed field activity',
+        'Summary: Recent camera review saw 3 person signals across Camera 12, Camera 13, and Camera 6.',
       ),
     );
     expect(
       preview,
       contains(
-        'Current site narrative: Recent ONYX review saw 3 person signals across Camera 12, Camera 13, and Camera 6.',
-      ),
-    );
-    expect(
-      preview,
-      contains(
-        'Latest decision: Escalation candidate remains under verification.',
+        'Current decision: Escalation candidate remains under verification.',
       ),
     );
     expect(preview, isNot(contains('Local time: 18/03/2026 12:30')));
@@ -55,20 +58,25 @@ void main() {
       responseText:
           '🛡️ ONYX STATUS\n'
           'MS Vallee Residence | 12:30\n\n'
-          'Monitoring: ACTIVE\n'
-          'Window: 24h watch (started 18:00)\n'
-          'Reviewed activity: 5\n'
-          'Latest activity: Camera 13\n'
-          'Latest posture: calm\n'
-          'Current assessment: likely routine distributed field activity\n'
-          'ONYX is on active observation and will message only if the posture changes materially.',
+          'Current status\n'
+          'Monitoring is active.\n'
+          'Watch window: 24h watch (started 18:00)\n'
+          '\n'
+          'What we see now\n'
+          'Items reviewed: 5\n'
+          'Latest signal: Camera 13\n'
+          'Current posture: calm\n'
+          'Assessment: likely routine on-site team activity\n'
+          '\n'
+          'Next\n'
+          'ONYX stays on watch and will message only if the position changes materially.',
     );
 
     expect(preview, contains('🛡️ ONYX STATUS'));
-    expect(preview, contains('Latest posture: calm'));
+    expect(preview, contains('Current posture: calm'));
     expect(
       preview,
-      contains('Current assessment: likely routine distributed field activity'),
+      contains('Assessment: likely routine on-site team activity'),
     );
   });
 }

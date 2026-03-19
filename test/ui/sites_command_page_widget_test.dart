@@ -96,4 +96,53 @@ void main() {
       find.byKey(const ValueKey('sites-guard-roster-button')).first,
     );
   });
+
+  testWidgets('sites command hero tactical action opens selected site map', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    String? mappedSiteId;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SitesCommandPage(
+          events: const <DispatchEvent>[],
+          onOpenMapForSite: (siteId, siteName) {
+            mappedSiteId = siteId;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('sites-view-tactical-button')));
+    await tester.pumpAndSettle();
+
+    expect(mappedSiteId, isNotNull);
+  });
+
+  testWidgets('sites command hero tactical action shows helper dialog fallback', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: SitesCommandPage(events: <DispatchEvent>[]),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('sites-view-tactical-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tactical Link Ready'), findsOneWidget);
+    expect(
+      find.textContaining('watch posture, limited coverage'),
+      findsOneWidget,
+    );
+  });
 }

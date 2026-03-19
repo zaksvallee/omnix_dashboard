@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'video_fleet_scope_health_view.dart';
 
 enum VideoFleetWatchActionDrilldown {
+  limited,
   alerts,
   repeat,
   escalated,
@@ -19,6 +20,7 @@ extension VideoFleetWatchActionDrilldownCopy on VideoFleetWatchActionDrilldown {
       this == VideoFleetWatchActionDrilldown.allowlistedIdentity;
 
   String get focusLabel => switch (this) {
+    VideoFleetWatchActionDrilldown.limited => 'Limited watch coverage',
     VideoFleetWatchActionDrilldown.alerts => 'Alert actions',
     VideoFleetWatchActionDrilldown.repeat => 'Repeat updates',
     VideoFleetWatchActionDrilldown.escalated => 'Escalated reviews',
@@ -32,6 +34,8 @@ extension VideoFleetWatchActionDrilldownCopy on VideoFleetWatchActionDrilldown {
   };
 
   String get focusDetail => switch (this) {
+    VideoFleetWatchActionDrilldown.limited =>
+      'Showing fleet scopes where remote monitoring is active but limited.',
     VideoFleetWatchActionDrilldown.alerts =>
       'Showing fleet scopes where ONYX sent a client alert.',
     VideoFleetWatchActionDrilldown.repeat =>
@@ -53,6 +57,7 @@ extension VideoFleetWatchActionDrilldownCopy on VideoFleetWatchActionDrilldown {
       : 'Focused watch action: $focusLabel';
 
   Color get accentColor => switch (this) {
+    VideoFleetWatchActionDrilldown.limited => const Color(0xFFF59E0B),
     VideoFleetWatchActionDrilldown.alerts => const Color(0xFF67E8F9),
     VideoFleetWatchActionDrilldown.repeat => const Color(0xFFFDE68A),
     VideoFleetWatchActionDrilldown.escalated => const Color(0xFFF87171),
@@ -93,6 +98,7 @@ extension VideoFleetScopeHealthViewWatchActionMatch
     on VideoFleetScopeHealthView {
   bool matchesWatchActionDrilldown(VideoFleetWatchActionDrilldown drilldown) {
     return switch (drilldown) {
+      VideoFleetWatchActionDrilldown.limited => watchLabel == 'LIMITED',
       VideoFleetWatchActionDrilldown.alerts => alertCount > 0,
       VideoFleetWatchActionDrilldown.repeat => repeatCount > 0,
       VideoFleetWatchActionDrilldown.escalated => escalationCount > 0,
@@ -261,6 +267,13 @@ String? _focusedRecentWatchActionSummary(
   VideoFleetScopeHealthView scope,
   VideoFleetWatchActionDrilldown drilldown,
 ) {
+  if (drilldown == VideoFleetWatchActionDrilldown.limited) {
+    final detail = scope.limitedWatchStatusDetailText;
+    if (detail == null || detail.trim().isEmpty) {
+      return null;
+    }
+    return 'Limited watch: ${detail.trim()}';
+  }
   if (drilldown == VideoFleetWatchActionDrilldown.flaggedIdentity ||
       drilldown == VideoFleetWatchActionDrilldown.temporaryIdentity ||
       drilldown == VideoFleetWatchActionDrilldown.allowlistedIdentity) {
@@ -301,6 +314,7 @@ String? _focusedRecentWatchActionSummary(
   final latest = entries.first;
   final remaining = entries.length - 1;
   final prefix = switch (drilldown) {
+    VideoFleetWatchActionDrilldown.limited => 'Limited watch',
     VideoFleetWatchActionDrilldown.alerts => 'Recent alert actions',
     VideoFleetWatchActionDrilldown.repeat => 'Recent repeat updates',
     VideoFleetWatchActionDrilldown.escalated => 'Recent escalations',
@@ -322,6 +336,7 @@ bool _matchesActionHistoryDrilldown(
     return false;
   }
   return switch (drilldown) {
+    VideoFleetWatchActionDrilldown.limited => normalized.contains('limited'),
     VideoFleetWatchActionDrilldown.alerts =>
       normalized.contains('alert') || normalized.contains('incident'),
     VideoFleetWatchActionDrilldown.repeat => normalized.contains('repeat'),
@@ -343,6 +358,7 @@ class VideoFleetScopeHealthSections {
   final List<VideoFleetScopeHealthView> actionableScopes;
   final List<VideoFleetScopeHealthView> watchOnlyScopes;
   final int activeCount;
+  final int limitedCount;
   final int gapCount;
   final int highRiskCount;
   final int recoveredCount;
@@ -361,6 +377,7 @@ class VideoFleetScopeHealthSections {
     required this.actionableScopes,
     required this.watchOnlyScopes,
     required this.activeCount,
+    required this.limitedCount,
     required this.gapCount,
     required this.highRiskCount,
     required this.recoveredCount,
@@ -388,7 +405,15 @@ class VideoFleetScopeHealthSections {
     return VideoFleetScopeHealthSections(
       actionableScopes: actionableScopes,
       watchOnlyScopes: watchOnlyScopes,
-      activeCount: scopes.where((scope) => scope.watchLabel == 'ACTIVE').length,
+      activeCount: scopes
+          .where(
+            (scope) =>
+                scope.watchLabel == 'ACTIVE' || scope.watchLabel == 'LIMITED',
+          )
+          .length,
+      limitedCount: scopes
+          .where((scope) => scope.watchLabel == 'LIMITED')
+          .length,
       gapCount: scopes.where((scope) => scope.hasWatchActivationGap).length,
       highRiskCount: scopes
           .where((scope) => (scope.latestRiskScore ?? 0) >= 70)
@@ -443,6 +468,10 @@ class VideoFleetScopeHealthSections {
       (scope) => scope.matchesWatchActionDrilldown(drilldown),
     );
     return switch (drilldown) {
+      VideoFleetWatchActionDrilldown.limited =>
+        hasMatchingActionable
+            ? 'Incident-backed limited-watch scopes'
+            : 'No incident-backed limited-watch scopes right now',
       VideoFleetWatchActionDrilldown.alerts =>
         hasMatchingActionable
             ? 'Incident-backed alert scopes'
@@ -482,6 +511,10 @@ class VideoFleetScopeHealthSections {
       (scope) => scope.matchesWatchActionDrilldown(drilldown),
     );
     return switch (drilldown) {
+      VideoFleetWatchActionDrilldown.limited =>
+        hasMatchingWatchOnly
+            ? 'Watch scopes with limited remote coverage'
+            : 'No watch-only limited-watch scopes awaiting incident context',
       VideoFleetWatchActionDrilldown.alerts =>
         hasMatchingWatchOnly
             ? 'Watch scopes with client alert actions'

@@ -18,9 +18,9 @@ class SiteActivityTelegramFormatter {
   }) {
     final lines = <String>[
       if ((siteLabel ?? '').trim().isNotEmpty)
-        'Site Activity Truth: ${siteLabel!.trim()}'
+        'Site activity summary: ${siteLabel!.trim()}'
       else
-        'Site Activity Truth',
+        'Site activity summary',
       if ((reportDate ?? '').trim().isNotEmpty) 'Window: ${reportDate!.trim()}',
     ];
 
@@ -33,7 +33,7 @@ class SiteActivityTelegramFormatter {
           lines.add(fallbackDetail);
         }
       } else {
-        lines.add('No visitor or site-activity signals detected.');
+        lines.add('No visitor or site activity signals were detected.');
       }
       if ((trendLabel ?? '').trim().isNotEmpty &&
           (trendSummary ?? '').trim().isNotEmpty) {
@@ -45,14 +45,14 @@ class SiteActivityTelegramFormatter {
     final unknownSignals =
         snapshot.unknownPersonSignals + snapshot.unknownVehicleSignals;
 
-    lines.add('${snapshot.totalSignals} site-activity signals observed.');
+    lines.add('Signals seen: ${snapshot.totalSignals}.');
 
     final movementParts = <String>[
       if (snapshot.vehicleSignals > 0) '${snapshot.vehicleSignals} vehicles',
       if (snapshot.personSignals > 0) '${snapshot.personSignals} people',
     ];
     if (movementParts.isNotEmpty) {
-      lines.add(movementParts.join(' • '));
+      lines.add('Seen: ${movementParts.join(' • ')}');
     }
 
     final identityParts = <String>[
@@ -63,17 +63,17 @@ class SiteActivityTelegramFormatter {
         '${snapshot.flaggedIdentitySignals} flagged IDs',
     ];
     if (identityParts.isNotEmpty) {
-      lines.add(identityParts.join(' • '));
+      lines.add('Identity mix: ${identityParts.join(' • ')}');
     }
 
     final patternParts = <String>[
       if (snapshot.longPresenceSignals > 0)
-        '${snapshot.longPresenceSignals} long-presence patterns',
+        '${snapshot.longPresenceSignals} long stays',
       if (snapshot.guardInteractionSignals > 0)
         '${snapshot.guardInteractionSignals} guard interactions',
     ];
     if (patternParts.isNotEmpty) {
-      lines.add(patternParts.join(' • '));
+      lines.add('Patterns: ${patternParts.join(' • ')}');
     }
 
     if (snapshot.topFlaggedIdentitySummary.trim().isNotEmpty) {

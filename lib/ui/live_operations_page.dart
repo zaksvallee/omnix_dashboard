@@ -40,6 +40,17 @@ enum _FocusLinkState { none, exact, scopeBacked, seeded }
 
 enum _LedgerType { aiAction, humanOverride, systemEvent, escalation }
 
+enum _ControlInboxDraftCueKind {
+  timing,
+  sensitive,
+  detail,
+  validation,
+  reassurance,
+  formal,
+  concise,
+  defaultReassurance,
+}
+
 class _IncidentRecord {
   final String id;
   final String clientId;
@@ -403,6 +414,9 @@ class LiveOperationsPage extends StatefulWidget {
   final Future<String> Function(int updateId)? onRejectClientReplyDraft;
   final void Function(List<String> eventIds, String? selectedEventId)?
   onOpenEventsForScope;
+  final bool queueStateHintSeen;
+  final VoidCallback? onQueueStateHintSeen;
+  final VoidCallback? onQueueStateHintReset;
 
   const LiveOperationsPage({
     super.key,
@@ -427,10 +441,17 @@ class LiveOperationsPage extends StatefulWidget {
     this.onApproveClientReplyDraft,
     this.onRejectClientReplyDraft,
     this.onOpenEventsForScope,
+    this.queueStateHintSeen = false,
+    this.onQueueStateHintSeen,
+    this.onQueueStateHintReset,
   });
 
   @override
   State<LiveOperationsPage> createState() => _LiveOperationsPageState();
+
+  static void debugResetQueueStateHintSession() {
+    _LiveOperationsPageState.debugResetQueueStateHintSession();
+  }
 }
 
 class _LiveOperationsPageState extends State<LiveOperationsPage> {
@@ -443,6 +464,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     'CLIENT_VERIFIED_SAFE',
     'HARDWARE_FAULT',
   ];
+  static bool _queueStateHintSeenThisSession = false;
 
   List<_IncidentRecord> _incidents = const [];
   List<_LedgerEntry> _projectedLedger = const [];
@@ -453,6 +475,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   Set<int> _controlInboxDraftEditBusyIds = <int>{};
   Set<String> _learnedStyleBusyScopeKeys = <String>{};
   Set<String> _laneVoiceBusyScopeKeys = <String>{};
+  final GlobalKey _controlInboxPanelGlobalKey = GlobalKey();
+  bool _controlInboxPriorityOnly = false;
+  _ControlInboxDraftCueKind? _controlInboxCueOnlyKind;
+  late bool _showQueueStateHint;
   String? _activeIncidentId;
   String _resolvedFocusReference = '';
   _FocusLinkState _focusLinkState = _FocusLinkState.none;
@@ -471,6 +497,22 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
   String _scopeBusyKey(String clientId, String siteId) =>
       '${clientId.trim()}|${siteId.trim()}';
+
+  static void debugResetQueueStateHintSession() {
+    _queueStateHintSeenThisSession = false;
+  }
+
+  void _markQueueStateHintSeen() {
+    _queueStateHintSeenThisSession = true;
+    _showQueueStateHint = false;
+    widget.onQueueStateHintSeen?.call();
+  }
+
+  void _restoreQueueStateHint() {
+    _queueStateHintSeenThisSession = false;
+    _showQueueStateHint = true;
+    widget.onQueueStateHintReset?.call();
+  }
 
   Future<void> _clearLearnedLaneStyle(LiveClientCommsSnapshot snapshot) async {
     final callback = widget.onClearLearnedLaneStyleForScope;
@@ -534,6 +576,128 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     }
   }
 
+  Future<void> _jumpToControlInboxPanel() async {
+    final controlInboxSnapshot = widget.controlInboxSnapshot;
+    final priorityDraftCount = controlInboxSnapshot == null
+        ? 0
+        : _controlInboxPriorityDraftCount(
+            _sortedControlInboxDrafts(controlInboxSnapshot.pendingDrafts),
+          );
+    if (priorityDraftCount > 0 &&
+        (!_controlInboxPriorityOnly || _controlInboxCueOnlyKind != null) &&
+        mounted) {
+      setState(() {
+        _controlInboxPriorityOnly = true;
+        _controlInboxCueOnlyKind = null;
+      });
+      await Future<void>.delayed(Duration.zero);
+    }
+    await _ensureControlInboxPanelVisible();
+  }
+
+  Future<void> _cycleControlInboxTopBarCueFilter() async {
+    final filteredCueKind = _controlInboxCueOnlyKind;
+    if (filteredCueKind != null &&
+        _isControlInboxPriorityCueKind(filteredCueKind) &&
+        mounted) {
+      setState(() {
+        _controlInboxPriorityOnly = true;
+        _controlInboxCueOnlyKind = null;
+      });
+      await Future<void>.delayed(Duration.zero);
+    }
+    await _ensureControlInboxPanelVisible();
+  }
+
+  Future<void> _toggleTopBarPriorityFilter() async {
+    if (_controlInboxPriorityOnly && _controlInboxCueOnlyKind == null && mounted) {
+      setState(() {
+        _controlInboxPriorityOnly = false;
+      });
+      await Future<void>.delayed(Duration.zero);
+      await _ensureControlInboxPanelVisible();
+      return;
+    }
+    await _jumpToControlInboxPanel();
+  }
+
+  Future<void> _cycleControlInboxQueueStateChip() async {
+    if (_controlInboxCueOnlyKind != null) {
+      if (mounted) {
+        setState(() {
+          _markQueueStateHintSeen();
+        });
+      }
+      await _cycleControlInboxTopBarCueFilter();
+      return;
+    }
+    if (_controlInboxPriorityOnly && mounted) {
+      setState(() {
+        _controlInboxPriorityOnly = false;
+        _markQueueStateHintSeen();
+      });
+      await Future<void>.delayed(Duration.zero);
+      await _ensureControlInboxPanelVisible();
+      return;
+    }
+    if (mounted) {
+      setState(() {
+        _markQueueStateHintSeen();
+      });
+    }
+    await _jumpToControlInboxPanel();
+  }
+
+  void _dismissQueueStateHint() {
+    if (!_showQueueStateHint) {
+      return;
+    }
+    setState(() {
+      _markQueueStateHintSeen();
+    });
+  }
+
+  Future<void> _ensureControlInboxPanelVisible() async {
+    final panelContext = _controlInboxPanelGlobalKey.currentContext;
+    if (panelContext == null) {
+      return;
+    }
+    await Scrollable.ensureVisible(
+      panelContext,
+      alignment: 0.04,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  void _toggleControlInboxPriorityOnly() {
+    setState(() {
+      _controlInboxPriorityOnly = !_controlInboxPriorityOnly;
+      _controlInboxCueOnlyKind = null;
+    });
+  }
+
+  void _clearControlInboxPriorityOnly() {
+    if (!_controlInboxPriorityOnly && _controlInboxCueOnlyKind == null) {
+      return;
+    }
+    setState(() {
+      _controlInboxPriorityOnly = false;
+      _controlInboxCueOnlyKind = null;
+    });
+  }
+
+  void _toggleControlInboxCueOnlyKind(_ControlInboxDraftCueKind kind) {
+    setState(() {
+      if (_controlInboxCueOnlyKind == kind) {
+        _controlInboxCueOnlyKind = null;
+      } else {
+        _controlInboxCueOnlyKind = kind;
+        _controlInboxPriorityOnly = false;
+      }
+    });
+  }
+
   bool _laneVoiceOptionSelected(
     LiveClientCommsSnapshot snapshot,
     String? signal,
@@ -555,15 +719,525 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     };
   }
 
+  bool _liveClientLaneCueContainsAny(String text, List<String> needles) {
+    for (final needle in needles) {
+      if (text.contains(needle)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  _ControlInboxDraftCueKind _liveClientLaneCueKind(
+    LiveClientCommsSnapshot snapshot,
+  ) {
+    final source = (snapshot.latestClientMessage ?? '').trim().toLowerCase();
+    final reply = ((snapshot.latestPendingDraft ?? '').trim().isNotEmpty
+            ? snapshot.latestPendingDraft
+            : snapshot.latestOnyxReply)
+        .toString()
+        .trim()
+        .toLowerCase();
+    final learnedSignals =
+        '${snapshot.clientVoiceProfileLabel.trim().toLowerCase()}\n${snapshot.learnedApprovalStyleExample.trim().toLowerCase()}';
+    if (source.contains('eta') || source.contains('arrival')) {
+      return _ControlInboxDraftCueKind.timing;
+    }
+    if (source.contains('panic') ||
+        source.contains('armed') ||
+        source.contains('medical') ||
+        source.contains('fire')) {
+      return _ControlInboxDraftCueKind.sensitive;
+    }
+    if (reply.contains('?')) {
+      return _ControlInboxDraftCueKind.detail;
+    }
+    if (_liveClientLaneCueContainsAny(learnedSignals, const [
+      'camera',
+      'daylight',
+      'visual',
+      'camera check',
+      'validation',
+    ])) {
+      return _ControlInboxDraftCueKind.validation;
+    }
+    if (_liveClientLaneCueContainsAny(learnedSignals, const [
+      'reassuring',
+      'reassurance',
+      'comfort',
+      'you are not alone',
+      'treating this as live',
+      'stay close',
+      'protective',
+    ])) {
+      return _ControlInboxDraftCueKind.reassurance;
+    }
+    if (_liveClientLaneCueContainsAny(learnedSignals, const [
+      'operations formal',
+      'actively checking',
+      'operations',
+      'formal',
+      'close review',
+      'monitoring',
+    ])) {
+      return _ControlInboxDraftCueKind.formal;
+    }
+    return _ControlInboxDraftCueKind.defaultReassurance;
+  }
+
+  String _liveClientLaneCueMessage(_ControlInboxDraftCueKind kind) {
+    return switch (kind) {
+      _ControlInboxDraftCueKind.timing =>
+        'Check that timing is not over-promised before sending.',
+      _ControlInboxDraftCueKind.sensitive =>
+        'High-sensitivity message. Keep the tone calm and do not imply resolution unless control confirmed it.',
+      _ControlInboxDraftCueKind.detail =>
+        'The reply asks for one missing detail, which is good when the scope is unclear.',
+      _ControlInboxDraftCueKind.validation =>
+        'Keep the camera wording concrete and make sure the exact check is clear before sending.',
+      _ControlInboxDraftCueKind.reassurance =>
+        'Lead with calm reassurance first, then the next confirmed step.',
+      _ControlInboxDraftCueKind.formal =>
+        'Keep the wording composed and operations-grade without slipping into robotic language.',
+      _ControlInboxDraftCueKind.concise =>
+        'Keep the reply short and make the next confirmed step clear.',
+      _ControlInboxDraftCueKind.defaultReassurance =>
+        'This draft is shaped for reassurance first, then the next confirmed step.',
+    };
+  }
+
+  String _liveClientLaneCue(LiveClientCommsSnapshot snapshot) {
+    return _liveClientLaneCueMessage(_liveClientLaneCueKind(snapshot));
+  }
+
+  _ControlInboxDraftCueKind _controlInboxDraftCueKindForSignals({
+    required String sourceText,
+    required String replyText,
+    required String clientVoiceProfileLabel,
+    required bool usesLearnedApprovalStyle,
+  }) {
+    final source = sourceText.trim().toLowerCase();
+    final reply = replyText.trim().toLowerCase();
+    final signals =
+        '${clientVoiceProfileLabel.trim().toLowerCase()}\n$reply${usesLearnedApprovalStyle ? '\nlearned approval style' : ''}';
+    if (source.contains('eta') ||
+        source.contains('arrival') ||
+        source.contains('arrived') ||
+        source.contains('how long') ||
+        reply.contains('eta') ||
+        reply.contains('arrival') ||
+        reply.contains('arrived')) {
+      return _ControlInboxDraftCueKind.timing;
+    }
+    if (source.contains('panic') ||
+        source.contains('armed') ||
+        source.contains('medical') ||
+        source.contains('fire')) {
+      return _ControlInboxDraftCueKind.sensitive;
+    }
+    if (reply.contains('?')) {
+      return _ControlInboxDraftCueKind.detail;
+    }
+    if (_liveClientLaneCueContainsAny(signals, const [
+      'validation-heavy',
+      'camera',
+      'daylight',
+      'visual',
+      'validation',
+      'verified position',
+      'confirmed position',
+    ])) {
+      return _ControlInboxDraftCueKind.validation;
+    }
+    if (_liveClientLaneCueContainsAny(signals, const [
+      'reassuring',
+      'reassurance',
+      'comfort',
+      'you are not alone',
+      'treating this as live',
+      'stay close',
+      'protective',
+    ])) {
+      return _ControlInboxDraftCueKind.reassurance;
+    }
+    if (_liveClientLaneCueContainsAny(signals, const [
+      'operations formal',
+      'actively checking',
+      'operations',
+      'formal',
+      'close review',
+      'monitoring',
+    ])) {
+      return _ControlInboxDraftCueKind.formal;
+    }
+    if (_liveClientLaneCueContainsAny(signals, const [
+      'concise',
+      'concise-updates',
+      'short',
+      'brief',
+    ])) {
+      return _ControlInboxDraftCueKind.concise;
+    }
+    return _ControlInboxDraftCueKind.defaultReassurance;
+  }
+
+  String _controlInboxDraftCueMessage(_ControlInboxDraftCueKind kind) {
+    return switch (kind) {
+      _ControlInboxDraftCueKind.timing =>
+        'Check that timing is not over-promised before sending.',
+      _ControlInboxDraftCueKind.sensitive =>
+        'High-sensitivity message. Keep the tone calm and do not imply resolution unless control confirmed it.',
+      _ControlInboxDraftCueKind.detail =>
+        'The reply asks for one missing detail, which is good when the scope is unclear.',
+      _ControlInboxDraftCueKind.validation =>
+        'Keep the exact check concrete and make sure the next confirmed step is clear before sending.',
+      _ControlInboxDraftCueKind.reassurance =>
+        'Lead with calm reassurance first, then the next confirmed step.',
+      _ControlInboxDraftCueKind.formal =>
+        'Keep the wording composed and operations-grade without slipping into robotic language.',
+      _ControlInboxDraftCueKind.concise =>
+        'Keep the reply short and make the next confirmed step clear.',
+      _ControlInboxDraftCueKind.defaultReassurance =>
+        'This draft is shaped for reassurance first, then the next confirmed step.',
+    };
+  }
+
+  String _controlInboxDraftCueForSignals({
+    required String sourceText,
+    required String replyText,
+    required String clientVoiceProfileLabel,
+    required bool usesLearnedApprovalStyle,
+  }) {
+    return _controlInboxDraftCueMessage(
+      _controlInboxDraftCueKindForSignals(
+        sourceText: sourceText,
+        replyText: replyText,
+        clientVoiceProfileLabel: clientVoiceProfileLabel,
+        usesLearnedApprovalStyle: usesLearnedApprovalStyle,
+      ),
+    );
+  }
+
+  String _controlInboxDraftCueChipLabel(_ControlInboxDraftCueKind kind) {
+    return switch (kind) {
+      _ControlInboxDraftCueKind.timing => 'Cue Timing',
+      _ControlInboxDraftCueKind.sensitive => 'Cue Sensitive',
+      _ControlInboxDraftCueKind.detail => 'Cue Detail',
+      _ControlInboxDraftCueKind.validation => 'Cue Validation',
+      _ControlInboxDraftCueKind.reassurance => 'Cue Reassurance',
+      _ControlInboxDraftCueKind.formal => 'Cue Formal',
+      _ControlInboxDraftCueKind.concise => 'Cue Concise',
+      _ControlInboxDraftCueKind.defaultReassurance => 'Cue Next Step',
+    };
+  }
+
+  IconData _controlInboxDraftCueChipIcon(_ControlInboxDraftCueKind kind) {
+    return switch (kind) {
+      _ControlInboxDraftCueKind.timing => Icons.schedule_rounded,
+      _ControlInboxDraftCueKind.sensitive => Icons.warning_amber_rounded,
+      _ControlInboxDraftCueKind.detail => Icons.help_outline_rounded,
+      _ControlInboxDraftCueKind.validation => Icons.visibility_rounded,
+      _ControlInboxDraftCueKind.reassurance => Icons.favorite_border_rounded,
+      _ControlInboxDraftCueKind.formal => Icons.business_center_rounded,
+      _ControlInboxDraftCueKind.concise => Icons.short_text_rounded,
+      _ControlInboxDraftCueKind.defaultReassurance => Icons.flag_outlined,
+    };
+  }
+
+  Color _controlInboxDraftCueChipAccent(_ControlInboxDraftCueKind kind) {
+    return switch (kind) {
+      _ControlInboxDraftCueKind.timing => const Color(0xFFF59E0B),
+      _ControlInboxDraftCueKind.sensitive => const Color(0xFFEF4444),
+      _ControlInboxDraftCueKind.detail => const Color(0xFF60A5FA),
+      _ControlInboxDraftCueKind.validation => const Color(0xFF22D3EE),
+      _ControlInboxDraftCueKind.reassurance => const Color(0xFF34D399),
+      _ControlInboxDraftCueKind.formal => const Color(0xFF4B6B8F),
+      _ControlInboxDraftCueKind.concise => const Color(0xFF8B5CF6),
+      _ControlInboxDraftCueKind.defaultReassurance => const Color(0xFF9AB1CF),
+    };
+  }
+
+  int _controlInboxDraftCuePriority(_ControlInboxDraftCueKind kind) {
+    return switch (kind) {
+      _ControlInboxDraftCueKind.sensitive => 0,
+      _ControlInboxDraftCueKind.timing => 1,
+      _ControlInboxDraftCueKind.detail => 2,
+      _ControlInboxDraftCueKind.validation => 3,
+      _ControlInboxDraftCueKind.formal => 4,
+      _ControlInboxDraftCueKind.reassurance => 5,
+      _ControlInboxDraftCueKind.concise => 6,
+      _ControlInboxDraftCueKind.defaultReassurance => 7,
+    };
+  }
+
+  List<LiveControlInboxDraft> _sortedControlInboxDrafts(
+    List<LiveControlInboxDraft> drafts,
+  ) {
+    final sorted = List<LiveControlInboxDraft>.from(drafts);
+    sorted.sort((a, b) {
+      final cueCompare = _controlInboxDraftCuePriority(
+        _controlInboxDraftCueKindForSignals(
+          sourceText: a.sourceText,
+          replyText: a.draftText,
+          clientVoiceProfileLabel: a.clientVoiceProfileLabel,
+          usesLearnedApprovalStyle: a.usesLearnedApprovalStyle,
+        ),
+      ).compareTo(
+        _controlInboxDraftCuePriority(
+          _controlInboxDraftCueKindForSignals(
+            sourceText: b.sourceText,
+            replyText: b.draftText,
+            clientVoiceProfileLabel: b.clientVoiceProfileLabel,
+            usesLearnedApprovalStyle: b.usesLearnedApprovalStyle,
+          ),
+        ),
+      );
+      if (cueCompare != 0) {
+        return cueCompare;
+      }
+      if (a.matchesSelectedScope != b.matchesSelectedScope) {
+        return a.matchesSelectedScope ? -1 : 1;
+      }
+      return b.createdAtUtc.compareTo(a.createdAtUtc);
+    });
+    return sorted;
+  }
+
+  String _controlInboxCueSummaryLabel(_ControlInboxDraftCueKind kind) {
+    return switch (kind) {
+      _ControlInboxDraftCueKind.sensitive => 'sensitive',
+      _ControlInboxDraftCueKind.timing => 'timing',
+      _ControlInboxDraftCueKind.detail => 'detail',
+      _ControlInboxDraftCueKind.validation => 'validation',
+      _ControlInboxDraftCueKind.reassurance => 'reassurance',
+      _ControlInboxDraftCueKind.formal => 'formal',
+      _ControlInboxDraftCueKind.concise => 'concise',
+      _ControlInboxDraftCueKind.defaultReassurance => 'next step',
+    };
+  }
+
+  String _controlInboxTopBarFilterLabel(_ControlInboxDraftCueKind kind) {
+    return switch (kind) {
+      _ControlInboxDraftCueKind.sensitive => 'Sensitive only',
+      _ControlInboxDraftCueKind.timing => 'Timing only',
+      _ControlInboxDraftCueKind.detail => 'Detail only',
+      _ControlInboxDraftCueKind.validation => 'Validation only',
+      _ControlInboxDraftCueKind.reassurance => 'Reassurance only',
+      _ControlInboxDraftCueKind.formal => 'Formal only',
+      _ControlInboxDraftCueKind.concise => 'Concise only',
+      _ControlInboxDraftCueKind.defaultReassurance => 'Next step only',
+    };
+  }
+
+  String _controlInboxTopBarQueueStateLabel() {
+    final filteredCueKind = _controlInboxCueOnlyKind;
+    if (filteredCueKind != null) {
+      return 'Queue ${_controlInboxTopBarFilterLabel(filteredCueKind)}';
+    }
+    if (_controlInboxPriorityOnly) {
+      return 'Queue High priority';
+    }
+    return 'Queue Full';
+  }
+
+  Color _controlInboxTopBarQueueStateForeground(
+    bool hasSensitivePriorityDraft,
+  ) {
+    final filteredCueKind = _controlInboxCueOnlyKind;
+    if (filteredCueKind != null) {
+      return _controlInboxDraftCueChipAccent(filteredCueKind);
+    }
+    if (_controlInboxPriorityOnly) {
+      return hasSensitivePriorityDraft
+          ? const Color(0xFFEF4444)
+          : const Color(0xFFF59E0B);
+    }
+    return const Color(0xFF9AB1CF);
+  }
+
+  Color _controlInboxTopBarQueueStateBackground(
+    bool hasSensitivePriorityDraft,
+  ) {
+    final filteredCueKind = _controlInboxCueOnlyKind;
+    if (filteredCueKind != null) {
+      return _controlInboxDraftCueChipAccent(
+        filteredCueKind,
+      ).withValues(alpha: 0.2);
+    }
+    if (_controlInboxPriorityOnly) {
+      return hasSensitivePriorityDraft
+          ? const Color(0x33EF4444)
+          : const Color(0x33F59E0B);
+    }
+    return const Color(0x334B6B8F);
+  }
+
+  Color _controlInboxTopBarQueueStateBorder(bool hasSensitivePriorityDraft) {
+    final filteredCueKind = _controlInboxCueOnlyKind;
+    if (filteredCueKind != null) {
+      return _controlInboxDraftCueChipAccent(
+        filteredCueKind,
+      ).withValues(alpha: 0.45);
+    }
+    if (_controlInboxPriorityOnly) {
+      return hasSensitivePriorityDraft
+          ? const Color(0x66EF4444)
+          : const Color(0x66F59E0B);
+    }
+    return const Color(0x664B6B8F);
+  }
+
+  IconData _controlInboxTopBarQueueStateIcon(bool hasSensitivePriorityDraft) {
+    final filteredCueKind = _controlInboxCueOnlyKind;
+    if (filteredCueKind != null) {
+      return _controlInboxDraftCueChipIcon(filteredCueKind);
+    }
+    if (_controlInboxPriorityOnly) {
+      return hasSensitivePriorityDraft
+          ? Icons.warning_amber_rounded
+          : Icons.priority_high_rounded;
+    }
+    return Icons.inbox_rounded;
+  }
+
+  String _controlInboxQueueStateTooltip() {
+    final filteredCueKind = _controlInboxCueOnlyKind;
+    if (filteredCueKind != null) {
+      return '${_controlInboxTopBarQueueStateLabel()} is showing only ${_controlInboxCueSummaryLabel(filteredCueKind)} replies. Tap to widen back to the high-priority queue.';
+    }
+    if (_controlInboxPriorityOnly) {
+      return 'Queue High priority is showing only sensitive and timing replies. Tap to return to the full queue.';
+    }
+    return 'Queue Full is showing every pending reply. Tap to narrow the inbox to the high-priority queue.';
+  }
+
+  List<(_ControlInboxDraftCueKind, int)> _controlInboxCueSummaryItems(
+    List<LiveControlInboxDraft> drafts,
+  ) {
+    final counts = <_ControlInboxDraftCueKind, int>{};
+    for (final draft in drafts) {
+      final kind = _controlInboxDraftCueKindForSignals(
+        sourceText: draft.sourceText,
+        replyText: draft.draftText,
+        clientVoiceProfileLabel: draft.clientVoiceProfileLabel,
+        usesLearnedApprovalStyle: draft.usesLearnedApprovalStyle,
+      );
+      counts[kind] = (counts[kind] ?? 0) + 1;
+    }
+    if (counts.isEmpty) {
+      return const <(_ControlInboxDraftCueKind, int)>[];
+    }
+    final orderedKinds = counts.keys.toList()
+      ..sort(
+        (a, b) =>
+            _controlInboxDraftCuePriority(a).compareTo(
+              _controlInboxDraftCuePriority(b),
+            ),
+      );
+    return orderedKinds
+        .map((kind) => (kind, counts[kind] ?? 0))
+        .toList(growable: false);
+  }
+
+  String _controlInboxCueSummaryText(List<LiveControlInboxDraft> drafts) {
+    final items = _controlInboxCueSummaryItems(drafts);
+    if (items.isEmpty) {
+      return '';
+    }
+    final parts = items
+        .map((item) => '${item.$2} ${_controlInboxCueSummaryLabel(item.$1)}')
+        .toList(growable: false);
+    return 'Queue shape: ${parts.join(' • ')}';
+  }
+
+  bool _isControlInboxPriorityCueKind(_ControlInboxDraftCueKind kind) {
+    return kind == _ControlInboxDraftCueKind.sensitive ||
+        kind == _ControlInboxDraftCueKind.timing;
+  }
+
+  int _controlInboxPriorityDraftCount(List<LiveControlInboxDraft> drafts) {
+    var count = 0;
+    for (final draft in drafts) {
+      final kind = _controlInboxDraftCueKindForSignals(
+        sourceText: draft.sourceText,
+        replyText: draft.draftText,
+        clientVoiceProfileLabel: draft.clientVoiceProfileLabel,
+        usesLearnedApprovalStyle: draft.usesLearnedApprovalStyle,
+      );
+      if (_isControlInboxPriorityCueKind(kind)) {
+        count += 1;
+      }
+    }
+    return count;
+  }
+
+  int _controlInboxCueKindCount(
+    List<LiveControlInboxDraft> drafts,
+    _ControlInboxDraftCueKind kind,
+  ) {
+    var count = 0;
+    for (final draft in drafts) {
+      final draftKind = _controlInboxDraftCueKindForSignals(
+        sourceText: draft.sourceText,
+        replyText: draft.draftText,
+        clientVoiceProfileLabel: draft.clientVoiceProfileLabel,
+        usesLearnedApprovalStyle: draft.usesLearnedApprovalStyle,
+      );
+      if (draftKind == kind) {
+        count += 1;
+      }
+    }
+    return count;
+  }
+
+  bool _controlInboxHasSensitivePriorityDraft(
+    List<LiveControlInboxDraft> drafts,
+  ) {
+    for (final draft in drafts) {
+      final kind = _controlInboxDraftCueKindForSignals(
+        sourceText: draft.sourceText,
+        replyText: draft.draftText,
+        clientVoiceProfileLabel: draft.clientVoiceProfileLabel,
+        usesLearnedApprovalStyle: draft.usesLearnedApprovalStyle,
+      );
+      if (kind == _ControlInboxDraftCueKind.sensitive) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  String _controlInboxDraftCue(LiveControlInboxDraft draft) {
+    return _controlInboxDraftCueMessage(
+      _controlInboxDraftCueKindForSignals(
+        sourceText: draft.sourceText,
+        replyText: draft.draftText,
+        clientVoiceProfileLabel: draft.clientVoiceProfileLabel,
+        usesLearnedApprovalStyle: draft.usesLearnedApprovalStyle,
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
+    if (widget.queueStateHintSeen) {
+      _queueStateHintSeenThisSession = true;
+    }
+    _showQueueStateHint = !_queueStateHintSeenThisSession;
     _projectFromEvents();
   }
 
   @override
   void didUpdateWidget(covariant LiveOperationsPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!oldWidget.queueStateHintSeen && widget.queueStateHintSeen) {
+      _queueStateHintSeenThisSession = true;
+      _showQueueStateHint = false;
+    } else if (oldWidget.queueStateHintSeen && !widget.queueStateHintSeen) {
+      _queueStateHintSeenThisSession = false;
+      _showQueueStateHint = true;
+    }
     if (oldWidget.events.length != widget.events.length ||
         oldWidget.sceneReviewByIntelligenceId !=
             widget.sceneReviewByIntelligenceId ||
@@ -600,91 +1274,561 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(10),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1580),
-                  child: wide
-                      ? Column(
-                          children: [
-                            if (hasScopeFocus) ...[
-                              _scopeFocusBanner(
-                                clientId: scopeClientId,
-                                siteId: scopeSiteId,
-                              ),
-                              const SizedBox(height: 10),
-                            ],
-                            if (clientCommsSnapshot != null) ...[
-                              _clientLaneWatchPanel(
-                                clientCommsSnapshot,
-                                activeIncident,
-                              ),
-                              const SizedBox(height: 10),
-                            ],
-                            if (controlInboxSnapshot != null) ...[
-                              _controlInboxPanel(controlInboxSnapshot),
-                              const SizedBox(height: 10),
-                            ],
-                            Expanded(
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+              child: LayoutBuilder(
+                builder: (context, bodyConstraints) {
+                  final canUseEmbeddedDesktopLayout =
+                      wide && bodyConstraints.maxHeight >= 1040;
+                  return Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1580),
+                      child: canUseEmbeddedDesktopLayout
+                          ? Column(
+                              children: [
+                                if (_criticalAlertIncident != null) ...[
+                                  _criticalAlertBanner(_criticalAlertIncident!),
+                                  const SizedBox(height: 10),
+                                ],
+                                _commandOverviewGrid(
+                                  clientCommsSnapshot: clientCommsSnapshot,
+                                  controlInboxSnapshot: controlInboxSnapshot,
+                                ),
+                                const SizedBox(height: 10),
+                                if (hasScopeFocus) ...[
+                                  _scopeFocusBanner(
+                                    clientId: scopeClientId,
+                                    siteId: scopeSiteId,
+                                  ),
+                                  const SizedBox(height: 10),
+                                ],
+                                if (clientCommsSnapshot != null) ...[
+                                  _clientLaneWatchPanel(
+                                    clientCommsSnapshot,
+                                    activeIncident,
+                                  ),
+                                  const SizedBox(height: 10),
+                                ],
+                                if (controlInboxSnapshot != null) ...[
+                                  _controlInboxPanel(controlInboxSnapshot),
+                                  const SizedBox(height: 10),
+                                ],
+                                Expanded(
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        flex: 3,
+                                        child: _incidentQueuePanel(
+                                          embeddedScroll: true,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        flex: 5,
+                                        child: _actionLadderPanel(
+                                          activeIncident,
+                                          embeddedScroll: true,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        flex: 4,
+                                        child: _contextAndVigilancePanel(
+                                          activeIncident,
+                                          embeddedScroll: true,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                SizedBox(
+                                  height: 208,
+                                  child: _ledgerPanel(ledger),
+                                ),
+                              ],
+                            )
+                          : SingleChildScrollView(
+                              child: Column(
                                 children: [
-                                  Expanded(
-                                    flex: 3,
-                                    child: _incidentQueuePanel(),
+                                  if (_criticalAlertIncident != null) ...[
+                                    _criticalAlertBanner(
+                                      _criticalAlertIncident!,
+                                    ),
+                                    const SizedBox(height: 10),
+                                  ],
+                                  _commandOverviewGrid(
+                                    clientCommsSnapshot: clientCommsSnapshot,
+                                    controlInboxSnapshot: controlInboxSnapshot,
                                   ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    flex: 5,
-                                    child: _actionLadderPanel(activeIncident),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    flex: 4,
-                                    child: _contextAndVigilancePanel(
+                                  const SizedBox(height: 10),
+                                  if (hasScopeFocus) ...[
+                                    _scopeFocusBanner(
+                                      clientId: scopeClientId,
+                                      siteId: scopeSiteId,
+                                    ),
+                                    const SizedBox(height: 10),
+                                  ],
+                                  if (clientCommsSnapshot != null) ...[
+                                    _clientLaneWatchPanel(
+                                      clientCommsSnapshot,
                                       activeIncident,
                                     ),
+                                    const SizedBox(height: 10),
+                                  ],
+                                  if (controlInboxSnapshot != null) ...[
+                                    _controlInboxPanel(controlInboxSnapshot),
+                                    const SizedBox(height: 10),
+                                  ],
+                                  _incidentQueuePanel(
+                                    embeddedScroll: false,
                                   ),
+                                  const SizedBox(height: 10),
+                                  _actionLadderPanel(
+                                    activeIncident,
+                                    embeddedScroll: false,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  _contextAndVigilancePanel(
+                                    activeIncident,
+                                    embeddedScroll: false,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  _ledgerPanel(ledger, embeddedScroll: false),
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 10),
-                            SizedBox(height: 208, child: _ledgerPanel(ledger)),
-                          ],
-                        )
-                      : SingleChildScrollView(
-                          child: Column(
-                            children: [
-                              if (hasScopeFocus) ...[
-                                _scopeFocusBanner(
-                                  clientId: scopeClientId,
-                                  siteId: scopeSiteId,
-                                ),
-                                const SizedBox(height: 10),
-                              ],
-                              if (clientCommsSnapshot != null) ...[
-                                _clientLaneWatchPanel(
-                                  clientCommsSnapshot,
-                                  activeIncident,
-                                ),
-                                const SizedBox(height: 10),
-                              ],
-                              if (controlInboxSnapshot != null) ...[
-                                _controlInboxPanel(controlInboxSnapshot),
-                                const SizedBox(height: 10),
-                              ],
-                              _incidentQueuePanel(),
-                              const SizedBox(height: 10),
-                              _actionLadderPanel(activeIncident),
-                              const SizedBox(height: 10),
-                              _contextAndVigilancePanel(activeIncident),
-                              const SizedBox(height: 10),
-                              _ledgerPanel(ledger, embeddedScroll: false),
-                            ],
-                          ),
-                        ),
+                    ),
+                  );
+                },
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  _IncidentRecord? get _criticalAlertIncident {
+    for (final incident in _incidents) {
+      if (incident.status != _IncidentStatus.resolved &&
+          incident.priority == _IncidentPriority.p1Critical) {
+        return incident;
+      }
+    }
+    return null;
+  }
+
+  int _visibleControlInboxDraftCount(LiveControlInboxSnapshot? snapshot) {
+    if (snapshot == null) {
+      return 0;
+    }
+    final sortedPendingDrafts = _sortedControlInboxDrafts(snapshot.pendingDrafts);
+    if (_controlInboxCueOnlyKind != null) {
+      return sortedPendingDrafts.where((draft) {
+        final kind = _controlInboxDraftCueKindForSignals(
+          sourceText: draft.sourceText,
+          replyText: draft.draftText,
+          clientVoiceProfileLabel: draft.clientVoiceProfileLabel,
+          usesLearnedApprovalStyle: draft.usesLearnedApprovalStyle,
+        );
+        return kind == _controlInboxCueOnlyKind;
+      }).length;
+    }
+    if (_controlInboxPriorityOnly) {
+      return sortedPendingDrafts.where((draft) {
+        final kind = _controlInboxDraftCueKindForSignals(
+          sourceText: draft.sourceText,
+          replyText: draft.draftText,
+          clientVoiceProfileLabel: draft.clientVoiceProfileLabel,
+          usesLearnedApprovalStyle: draft.usesLearnedApprovalStyle,
+        );
+        return _isControlInboxPriorityCueKind(kind);
+      }).length;
+    }
+    return sortedPendingDrafts.length;
+  }
+
+  int _sitesUnderWatchCount(LiveClientCommsSnapshot? clientCommsSnapshot) {
+    final liveSites = <String>{};
+    for (final incident in _incidents) {
+      if (incident.status == _IncidentStatus.resolved) {
+        continue;
+      }
+      final normalizedSiteId = incident.siteId.trim();
+      final fallbackSite = incident.site.trim();
+      if (normalizedSiteId.isNotEmpty) {
+        liveSites.add(normalizedSiteId);
+      } else if (fallbackSite.isNotEmpty) {
+        liveSites.add(fallbackSite);
+      }
+    }
+    final snapshotSiteId = clientCommsSnapshot?.siteId.trim() ?? '';
+    if (snapshotSiteId.isNotEmpty) {
+      liveSites.add(snapshotSiteId);
+    }
+    return liveSites.length;
+  }
+
+  void _focusIncidentFromBanner(_IncidentRecord incident) {
+    if (_activeIncidentId != incident.id) {
+      setState(() {
+        _activeIncidentId = incident.id;
+      });
+    }
+  }
+
+  Widget _criticalAlertBanner(_IncidentRecord incident) {
+    final statusLabel = _statusLabel(incident.status).toUpperCase();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 720;
+        final detailsButton = FilledButton(
+          key: const ValueKey('live-operations-critical-alert-view-details'),
+          onPressed: () => _focusIncidentFromBanner(incident),
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0x33EF4444),
+            foregroundColor: const Color(0xFFFFE4E4),
+            side: const BorderSide(color: Color(0x66FFB4B4)),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          child: Text(
+            'VIEW DETAILS',
+            style: GoogleFonts.inter(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.3,
+            ),
+          ),
+        );
+        return Container(
+          key: const ValueKey('live-operations-critical-alert-banner'),
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF621313), Color(0xFF7A1616)],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xAAEF4444)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x30EF4444),
+                blurRadius: 18,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+          child: compact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.warning_amber_rounded,
+                          color: Color(0xFFFFB4B4),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'CRITICAL ALERT',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFFFD6D6),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${incident.id} • ${incident.type} • ${incident.site}',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFFFF1F1),
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          '$statusLabel ${incident.timestamp}',
+                          style: GoogleFonts.robotoMono(
+                            color: const Color(0xFFFFC7C7),
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        detailsButton,
+                      ],
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Color(0xFFFFB4B4),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'CRITICAL ALERT',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFFFD6D6),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 18,
+                      margin: const EdgeInsets.symmetric(horizontal: 10),
+                      color: const Color(0x55FFD6D6),
+                    ),
+                    Expanded(
+                      child: Text(
+                        '${incident.id} • ${incident.type} • ${incident.site}',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFFFF1F1),
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      '$statusLabel ${incident.timestamp}',
+                      style: GoogleFonts.robotoMono(
+                        color: const Color(0xFFFFC7C7),
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    detailsButton,
+                  ],
+                ),
+        );
+      },
+    );
+  }
+
+  Widget _commandOverviewGrid({
+    required LiveClientCommsSnapshot? clientCommsSnapshot,
+    required LiveControlInboxSnapshot? controlInboxSnapshot,
+  }) {
+    final activeIncidentCount = _incidents
+        .where((incident) => incident.status != _IncidentStatus.resolved)
+        .length;
+    final resolvedCount = _incidents
+        .where((incident) => incident.status == _IncidentStatus.resolved)
+        .length;
+    final pendingActionCount = _visibleControlInboxDraftCount(
+      controlInboxSnapshot,
+    );
+    final activeLaneCount = clientCommsSnapshot == null ? 0 : 1;
+    final watchCount = _sitesUnderWatchCount(clientCommsSnapshot);
+    final highPriorityCount = controlInboxSnapshot == null
+        ? 0
+        : _controlInboxPriorityDraftCount(
+            _sortedControlInboxDrafts(controlInboxSnapshot.pendingDrafts),
+          );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columnCount = constraints.maxWidth < 940 ? 2 : 4;
+        final childAspectRatio = constraints.maxWidth < 520
+            ? 0.82
+            : constraints.maxWidth < 940
+            ? 1.12
+            : 1.5;
+        return GridView.count(
+          key: const ValueKey('live-operations-command-overview'),
+          crossAxisCount: columnCount,
+          childAspectRatio: childAspectRatio,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            _commandOverviewCard(
+              icon: Icons.graphic_eq_rounded,
+              iconAccent: const Color(0xFFEF4444),
+              statusLabel: 'Live',
+              statusAccent: const Color(0xFFEF4444),
+              value: '$activeIncidentCount',
+              title: 'Active Incidents',
+              footnote: resolvedCount > 0
+                  ? '$resolvedCount cleared today'
+                  : 'No cleared incidents yet',
+              footnoteIcon: Icons.trending_up_rounded,
+              footnoteAccent: const Color(0xFF34D399),
+            ),
+            _commandOverviewCard(
+              icon: Icons.schedule_rounded,
+              iconAccent: const Color(0xFFF59E0B),
+              statusLabel: 'Queue',
+              statusAccent: const Color(0xFFF59E0B),
+              value: '$pendingActionCount',
+              title: 'Pending Actions',
+              footnote: highPriorityCount > 0
+                  ? '$highPriorityCount high priority'
+                  : 'All queues clear',
+              footnoteIcon: highPriorityCount > 0
+                  ? Icons.priority_high_rounded
+                  : Icons.check_circle_rounded,
+              footnoteAccent: highPriorityCount > 0
+                  ? const Color(0xFFF87171)
+                  : const Color(0xFF34D399),
+            ),
+            _commandOverviewCard(
+              icon: Icons.chat_bubble_outline_rounded,
+              iconAccent: const Color(0xFF22D3EE),
+              statusLabel: activeLaneCount > 0 ? 'Ready' : 'Idle',
+              statusAccent: activeLaneCount > 0
+                  ? const Color(0xFF22D3EE)
+                  : const Color(0xFF4B6B8F),
+              value: '$activeLaneCount',
+              title: 'Active Lanes',
+              footnote: clientCommsSnapshot == null
+                  ? 'Lane watch unavailable'
+                  : 'Telegram ${clientCommsSnapshot.telegramHealthLabel}',
+              footnoteIcon: clientCommsSnapshot == null
+                  ? Icons.remove_circle_outline_rounded
+                  : Icons.check_circle_rounded,
+              footnoteAccent: clientCommsSnapshot == null
+                  ? const Color(0xFF9AB1CF)
+                  : _telegramHealthAccent(
+                      clientCommsSnapshot.telegramHealthLabel,
+                    ),
+            ),
+            _commandOverviewCard(
+              icon: Icons.visibility_rounded,
+              iconAccent: const Color(0xFF10B981),
+              statusLabel: watchCount > 0 ? 'Active' : 'Idle',
+              statusAccent: watchCount > 0
+                  ? const Color(0xFF10B981)
+                  : const Color(0xFF4B6B8F),
+              value: '$watchCount',
+              title: 'Sites Under Watch',
+              footnote: watchCount > 0 ? 'Full coverage' : 'Coverage idle',
+              footnoteIcon: Icons.shield_outlined,
+              footnoteAccent: watchCount > 0
+                  ? const Color(0xFF34D399)
+                  : const Color(0xFF9AB1CF),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _commandOverviewCard({
+    required IconData icon,
+    required Color iconAccent,
+    required String statusLabel,
+    required Color statusAccent,
+    required String value,
+    required String title,
+    required String footnote,
+    required IconData footnoteIcon,
+    required Color footnoteAccent,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D1117),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF21262D)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  color: iconAccent.withValues(alpha: 0.14),
+                  border: Border.all(color: iconAccent.withValues(alpha: 0.32)),
+                ),
+                child: Icon(icon, size: 20, color: iconAccent),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusAccent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  statusLabel.toUpperCase(),
+                  style: GoogleFonts.inter(
+                    color: statusAccent,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.9,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFF8FBFF),
+              fontSize: 30,
+              fontWeight: FontWeight.w900,
+              height: 0.95,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            title.toUpperCase(),
+            style: GoogleFonts.inter(
+              color: const Color(0xFFB4BDC9),
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.9,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            height: 1,
+            color: const Color(0x14FFFFFF),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Icon(footnoteIcon, size: 14, color: footnoteAccent),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  footnote,
+                  style: GoogleFonts.inter(
+                    color: footnoteAccent,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -696,6 +1840,30 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final hh = now.hour.toString().padLeft(2, '0');
     final mm = now.minute.toString().padLeft(2, '0');
     final clientCommsSnapshot = widget.clientCommsSnapshot;
+    final controlInboxSnapshot = widget.controlInboxSnapshot;
+    final sortedInboxDrafts = controlInboxSnapshot == null
+        ? const <LiveControlInboxDraft>[]
+        : _sortedControlInboxDrafts(controlInboxSnapshot.pendingDrafts);
+    final priorityDraftCount = _controlInboxPriorityDraftCount(sortedInboxDrafts);
+    final filteredReplyCount = _controlInboxCueOnlyKind == null
+        ? (_controlInboxPriorityOnly ? priorityDraftCount : 0)
+        : _controlInboxCueKindCount(
+            sortedInboxDrafts,
+            _controlInboxCueOnlyKind!,
+          );
+    final filteredCueKind = _controlInboxCueOnlyKind;
+    final hasSensitivePriorityDraft = _controlInboxHasSensitivePriorityDraft(
+      sortedInboxDrafts,
+    );
+    final priorityChipForeground = hasSensitivePriorityDraft
+        ? const Color(0xFFEF4444)
+        : const Color(0xFFF59E0B);
+    final priorityChipBackground = hasSensitivePriorityDraft
+        ? const Color(0x33EF4444)
+        : const Color(0x33F59E0B);
+    final priorityChipBorder = hasSensitivePriorityDraft
+        ? const Color(0x66EF4444)
+        : const Color(0x66F59E0B);
     final focusReference = _resolvedFocusReference;
     final hasFocusReference = focusReference.isNotEmpty;
     final focusState = _focusLinkState;
@@ -762,6 +1930,62 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   background: _clientLaneTopBarBackground(clientCommsSnapshot),
                   border: _clientLaneTopBarBorder(clientCommsSnapshot),
                 ),
+                _chip(
+                  key: const ValueKey('top-bar-queue-state-chip'),
+                  label: _controlInboxTopBarQueueStateLabel(),
+                  leadingIcon: _controlInboxTopBarQueueStateIcon(
+                    hasSensitivePriorityDraft,
+                  ),
+                  tooltipMessage: _controlInboxQueueStateTooltip(),
+                  foreground: _controlInboxTopBarQueueStateForeground(
+                    hasSensitivePriorityDraft,
+                  ),
+                  background: _controlInboxTopBarQueueStateBackground(
+                    hasSensitivePriorityDraft,
+                  ),
+                  border: _controlInboxTopBarQueueStateBorder(
+                    hasSensitivePriorityDraft,
+                  ),
+                ),
+                if (priorityDraftCount > 0)
+                  _chip(
+                    key: const ValueKey('top-bar-priority-chip'),
+                    label: hasSensitivePriorityDraft
+                        ? (priorityDraftCount == 1
+                              ? '1 Sensitive Reply'
+                              : '$priorityDraftCount Sensitive Replies')
+                        : (priorityDraftCount == 1
+                              ? '1 High-priority Reply'
+                              : '$priorityDraftCount High-priority Replies'),
+                    foreground: priorityChipForeground,
+                    background: priorityChipBackground,
+                    border: priorityChipBorder,
+                    onTap: _toggleTopBarPriorityFilter,
+                  ),
+                if (filteredCueKind != null)
+                  _chip(
+                    key: const ValueKey('top-bar-cue-filter-chip'),
+                    label: _controlInboxTopBarFilterLabel(filteredCueKind),
+                    foreground: _controlInboxDraftCueChipAccent(filteredCueKind),
+                    background: _controlInboxDraftCueChipAccent(
+                      filteredCueKind,
+                    ).withValues(alpha: 0.2),
+                    border: _controlInboxDraftCueChipAccent(
+                      filteredCueKind,
+                    ).withValues(alpha: 0.45),
+                    onTap: _cycleControlInboxTopBarCueFilter,
+                  ),
+                if (_controlInboxPriorityOnly || filteredCueKind != null)
+                  _chip(
+                    key: const ValueKey('top-bar-show-all-chip'),
+                    label: filteredReplyCount == 1
+                        ? 'Show all replies (1)'
+                        : 'Show all replies ($filteredReplyCount)',
+                    foreground: const Color(0xFFEAF4FF),
+                    background: const Color(0x334B6B8F),
+                    border: const Color(0x664B6B8F),
+                    onTap: _clearControlInboxPriorityOnly,
+                  ),
                 _chip(
                   label: '${_vigilance.length} Guards Online',
                   foreground: const Color(0xFF10B981),
@@ -835,6 +2059,69 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           ),
           const SizedBox(width: 8),
           _chip(
+            key: const ValueKey('top-bar-queue-state-chip'),
+            label: _controlInboxTopBarQueueStateLabel(),
+            leadingIcon: _controlInboxTopBarQueueStateIcon(
+              hasSensitivePriorityDraft,
+            ),
+            tooltipMessage: _controlInboxQueueStateTooltip(),
+            foreground: _controlInboxTopBarQueueStateForeground(
+              hasSensitivePriorityDraft,
+            ),
+            background: _controlInboxTopBarQueueStateBackground(
+              hasSensitivePriorityDraft,
+            ),
+            border: _controlInboxTopBarQueueStateBorder(
+              hasSensitivePriorityDraft,
+            ),
+          ),
+          if (priorityDraftCount > 0) ...[
+            const SizedBox(width: 8),
+            _chip(
+              key: const ValueKey('top-bar-priority-chip'),
+              label: hasSensitivePriorityDraft
+                  ? (priorityDraftCount == 1
+                        ? '1 Sensitive Reply'
+                        : '$priorityDraftCount Sensitive Replies')
+                  : (priorityDraftCount == 1
+                        ? '1 High-priority Reply'
+                        : '$priorityDraftCount High-priority Replies'),
+              foreground: priorityChipForeground,
+              background: priorityChipBackground,
+              border: priorityChipBorder,
+              onTap: _toggleTopBarPriorityFilter,
+            ),
+          ],
+          if (filteredCueKind != null) ...[
+            const SizedBox(width: 8),
+            _chip(
+              key: const ValueKey('top-bar-cue-filter-chip'),
+              label: _controlInboxTopBarFilterLabel(filteredCueKind),
+              foreground: _controlInboxDraftCueChipAccent(filteredCueKind),
+              background: _controlInboxDraftCueChipAccent(
+                filteredCueKind,
+              ).withValues(alpha: 0.2),
+              border: _controlInboxDraftCueChipAccent(
+                filteredCueKind,
+              ).withValues(alpha: 0.45),
+              onTap: _cycleControlInboxTopBarCueFilter,
+            ),
+          ],
+          if (_controlInboxPriorityOnly || filteredCueKind != null) ...[
+            const SizedBox(width: 8),
+            _chip(
+              key: const ValueKey('top-bar-show-all-chip'),
+              label: filteredReplyCount == 1
+                  ? 'Show all replies (1)'
+                  : 'Show all replies ($filteredReplyCount)',
+              foreground: const Color(0xFFEAF4FF),
+              background: const Color(0x334B6B8F),
+              border: const Color(0x664B6B8F),
+              onTap: _clearControlInboxPriorityOnly,
+            ),
+          ],
+          const SizedBox(width: 8),
+          _chip(
             label: '${_vigilance.length} Guards Online',
             foreground: const Color(0xFF10B981),
             background: const Color(0x3310B981),
@@ -859,6 +2146,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     LiveClientCommsSnapshot snapshot,
     _IncidentRecord? activeIncident,
   ) {
+    final cueKind = _liveClientLaneCueKind(snapshot);
     final learnedStyleBusy = _learnedStyleBusyScopeKeys.contains(
       _scopeBusyKey(snapshot.clientId, snapshot.siteId),
     );
@@ -1057,6 +2345,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 label: 'Lane voice ${snapshot.clientVoiceProfileLabel}',
                 accent: const Color(0xFF4B6B8F),
               ),
+              _commsChip(
+                icon: _controlInboxDraftCueChipIcon(cueKind),
+                label: _controlInboxDraftCueChipLabel(cueKind),
+                accent: _controlInboxDraftCueChipAccent(cueKind),
+              ),
               if (snapshot.learnedApprovalStyleCount > 0)
                 _commsChip(
                   icon: Icons.school_rounded,
@@ -1153,6 +2446,16 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               ],
             ),
           ],
+          const SizedBox(height: 8),
+          Text(
+            _liveClientLaneCue(snapshot),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9FB7D5),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              height: 1.28,
+            ),
+          ),
           if (latestClientMessage.isNotEmpty) ...[
             const SizedBox(height: 10),
             _clientCommsTextBlock(
@@ -1232,6 +2535,36 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final laneVoiceBusy = _laneVoiceBusyScopeKeys.contains(
       _scopeBusyKey(snapshot.selectedClientId, snapshot.selectedSiteId),
     );
+    final sortedPendingDrafts = _sortedControlInboxDrafts(snapshot.pendingDrafts);
+    final priorityDraftCount = _controlInboxPriorityDraftCount(
+      sortedPendingDrafts,
+    );
+    final hasSensitivePriorityDraft = _controlInboxHasSensitivePriorityDraft(
+      sortedPendingDrafts,
+    );
+    final displayedPendingDrafts = _controlInboxCueOnlyKind != null
+        ? sortedPendingDrafts.where((draft) {
+            final kind = _controlInboxDraftCueKindForSignals(
+              sourceText: draft.sourceText,
+              replyText: draft.draftText,
+              clientVoiceProfileLabel: draft.clientVoiceProfileLabel,
+              usesLearnedApprovalStyle: draft.usesLearnedApprovalStyle,
+            );
+            return kind == _controlInboxCueOnlyKind;
+          }).toList(growable: false)
+        : _controlInboxPriorityOnly
+        ? sortedPendingDrafts.where((draft) {
+            final kind = _controlInboxDraftCueKindForSignals(
+              sourceText: draft.sourceText,
+              replyText: draft.draftText,
+              clientVoiceProfileLabel: draft.clientVoiceProfileLabel,
+              usesLearnedApprovalStyle: draft.usesLearnedApprovalStyle,
+            );
+            return _isControlInboxPriorityCueKind(kind);
+          }).toList(growable: false)
+        : sortedPendingDrafts;
+    final cueSummaryItems = _controlInboxCueSummaryItems(displayedPendingDrafts);
+    final cueSummaryText = _controlInboxCueSummaryText(displayedPendingDrafts);
     final accent = _controlInboxAccent(snapshot);
     final selectedScopeLabel = _humanizeOpsScopeLabel(
       snapshot.selectedSiteId,
@@ -1243,22 +2576,24 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         ? '${snapshot.awaitingResponseCount} fresh client ask${snapshot.awaitingResponseCount == 1 ? '' : 's'} waiting for ONYX shaping'
         : 'selected lane is clear right now';
 
-    return Container(
-      key: const ValueKey('control-inbox-panel'),
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [accent.withValues(alpha: 0.15), const Color(0xFF0C1622)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return KeyedSubtree(
+      key: _controlInboxPanelGlobalKey,
+      child: Container(
+        key: const ValueKey('control-inbox-panel'),
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [accent.withValues(alpha: 0.15), const Color(0xFF0C1622)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: accent.withValues(alpha: 0.5)),
         ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: accent.withValues(alpha: 0.5)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1277,15 +2612,233 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'CONTROL INBOX',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF8FAFD4),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.0,
-                      ),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          'CONTROL INBOX',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF8FAFD4),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                        if (priorityDraftCount > 0) ...[
+                          Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              key: const ValueKey(
+                                'control-inbox-priority-badge',
+                              ),
+                              borderRadius: BorderRadius.circular(999),
+                              onTap: _toggleControlInboxPriorityOnly,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _controlInboxPriorityOnly
+                                      ? const Color(0x44F59E0B)
+                                      : const Color(0x33F59E0B),
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: _controlInboxPriorityOnly
+                                        ? const Color(0x99F59E0B)
+                                        : const Color(0x66F59E0B),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.priority_high_rounded,
+                                      size: 12,
+                                      color: Color(0xFFF59E0B),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      hasSensitivePriorityDraft
+                                          ? (priorityDraftCount == 1
+                                                ? 'Sensitive 1'
+                                                : 'Sensitive $priorityDraftCount')
+                                          : (priorityDraftCount == 1
+                                                ? 'High priority 1'
+                                                : 'High priority $priorityDraftCount'),
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFFFE1A8),
+                                        fontSize: 9.6,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                        if (_controlInboxPriorityOnly ||
+                            _controlInboxCueOnlyKind != null) ...[
+                          Container(
+                            key: const ValueKey('control-inbox-filtered-chip'),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0x334B6B8F),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: const Color(0x664B6B8F),
+                              ),
+                            ),
+                            child: Text(
+                              'Filtered ${displayedPendingDrafts.length}',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFFEAF4FF),
+                                fontSize: 9.6,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ],
+                        Tooltip(
+                          message: _controlInboxQueueStateTooltip(),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              key: const ValueKey('control-inbox-queue-state-chip'),
+                              borderRadius: BorderRadius.circular(999),
+                              onTap: _cycleControlInboxQueueStateChip,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _controlInboxTopBarQueueStateBackground(
+                                    hasSensitivePriorityDraft,
+                                  ),
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: _controlInboxTopBarQueueStateBorder(
+                                      hasSensitivePriorityDraft,
+                                    ),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      _controlInboxTopBarQueueStateIcon(
+                                        hasSensitivePriorityDraft,
+                                      ),
+                                      size: 12,
+                                      color: _controlInboxTopBarQueueStateForeground(
+                                        hasSensitivePriorityDraft,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      _controlInboxTopBarQueueStateLabel(),
+                                      style: GoogleFonts.inter(
+                                        color: _controlInboxTopBarQueueStateForeground(
+                                          hasSensitivePriorityDraft,
+                                        ),
+                                        fontSize: 9.6,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (!_showQueueStateHint)
+                          TextButton(
+                            key: const ValueKey('control-inbox-show-queue-hint'),
+                            onPressed: () {
+                              setState(() {
+                                _restoreQueueStateHint();
+                              });
+                            },
+                            style: TextButton.styleFrom(
+                              foregroundColor: const Color(0xFFBAE6FD),
+                              padding: EdgeInsets.zero,
+                              minimumSize: const Size(0, 0),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: Text(
+                              'Show tip again',
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
+                    if (_showQueueStateHint) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        key: const ValueKey('control-inbox-queue-hint'),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0x1438BDF8),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0x5538BDF8)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(top: 1),
+                              child: Icon(
+                                Icons.lightbulb_outline_rounded,
+                                size: 14,
+                                color: Color(0xFF7DD3FC),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Tip: tap the queue chip to move between full and high-priority views. Long press it for a quick explanation of the current mode.',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFFD9F4FF),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.32,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            TextButton(
+                              onPressed: _dismissQueueStateHint,
+                              style: TextButton.styleFrom(
+                                foregroundColor: const Color(0xFFBAE6FD),
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(0, 0),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                'Hide tip',
+                                style: GoogleFonts.inter(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 3),
                     Text(
                       snapshot.pendingApprovalCount > 0
@@ -1390,6 +2943,106 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 ),
             ],
           ),
+          if (cueSummaryItems.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Semantics(
+              label: cueSummaryText,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Queue shape',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFA9BFD9),
+                      fontSize: 10.2,
+                      fontWeight: FontWeight.w700,
+                      height: 1.28,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final item in cueSummaryItems)
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            key: ValueKey(
+                              'control-inbox-summary-pill-${_controlInboxCueSummaryLabel(item.$1)}',
+                            ),
+                            borderRadius: BorderRadius.circular(999),
+                            onTap: () => _toggleControlInboxCueOnlyKind(item.$1),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: (_controlInboxCueOnlyKind == item.$1
+                                        ? _controlInboxDraftCueChipAccent(item.$1)
+                                        : _controlInboxDraftCueChipAccent(item.$1)
+                                    )
+                                    .withValues(
+                                      alpha: _controlInboxCueOnlyKind == item.$1
+                                          ? 0.26
+                                          : 0.16,
+                                    ),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: _controlInboxDraftCueChipAccent(
+                                    item.$1,
+                                  ).withValues(
+                                    alpha: _controlInboxCueOnlyKind == item.$1
+                                        ? 0.74
+                                        : 0.48,
+                                  ),
+                                ),
+                              ),
+                              child: Text(
+                                '${item.$2} ${_controlInboxCueSummaryLabel(item.$1)}',
+                                style: GoogleFonts.inter(
+                                  color: _controlInboxDraftCueChipAccent(
+                                    item.$1,
+                                  ),
+                                  fontSize: 9.8,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            if (_controlInboxCueOnlyKind != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Showing ${_controlInboxCueSummaryLabel(_controlInboxCueOnlyKind!)} only. Tap the same pill again or use Show all replies to return to the full queue.',
+                style: GoogleFonts.inter(
+                  color: _controlInboxDraftCueChipAccent(
+                    _controlInboxCueOnlyKind!,
+                  ),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  height: 1.28,
+                ),
+              ),
+            ] else if (_controlInboxPriorityOnly) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Showing high-priority only. Tap the badge again to return to the full queue.',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFFFE1A8),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  height: 1.28,
+                ),
+              ),
+            ],
+          ],
           if (widget.onSetLaneVoiceProfileForScope != null) ...[
             const SizedBox(height: 8),
             Wrap(
@@ -1479,13 +3132,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             )
           else
             Column(
-              children: snapshot.pendingDrafts
+              children: displayedPendingDrafts
                   .take(3)
                   .map(_controlInboxDraftCard)
                   .toList(growable: false),
             ),
           if (snapshot.liveClientAsks.isNotEmpty) ...[
-            if (snapshot.pendingDrafts.isNotEmpty) const SizedBox(height: 4),
+            if (displayedPendingDrafts.isNotEmpty) const SizedBox(height: 4),
             Text(
               'LIVE CLIENT ASKS',
               style: GoogleFonts.inter(
@@ -1517,7 +3170,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               ),
             ),
           ],
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1635,6 +3289,12 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final accent = draft.matchesSelectedScope
         ? const Color(0xFF22D3EE)
         : const Color(0xFFF59E0B);
+    final cueKind = _controlInboxDraftCueKindForSignals(
+      sourceText: draft.sourceText,
+      replyText: draft.draftText,
+      clientVoiceProfileLabel: draft.clientVoiceProfileLabel,
+      usesLearnedApprovalStyle: draft.usesLearnedApprovalStyle,
+    );
     final scopeLabel = _humanizeOpsScopeLabel(
       draft.siteId,
       fallback: draft.siteId,
@@ -1693,6 +3353,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     label: 'Voice ${draft.clientVoiceProfileLabel}',
                     accent: const Color(0xFF4B6B8F),
                   ),
+                  _commsChip(
+                    icon: _controlInboxDraftCueChipIcon(cueKind),
+                    label: _controlInboxDraftCueChipLabel(cueKind),
+                    accent: _controlInboxDraftCueChipAccent(cueKind),
+                  ),
                   if (draft.clientVoiceProfileLabel.trim().toLowerCase() !=
                       'auto')
                     _commsChip(
@@ -1723,6 +3388,16 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             text: draft.draftText.trim(),
             borderColor: accent,
             textColor: const Color(0xFFEAF4FF),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            _controlInboxDraftCue(draft),
+            style: GoogleFonts.inter(
+              color: const Color(0xFFB7CAE3),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              height: 1.32,
+            ),
           ),
           if (draft.usesLearnedApprovalStyle) ...[
             const SizedBox(height: 7),
@@ -1843,8 +3518,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
   }
 
-  Widget _incidentQueuePanel() {
-    final wide = allowEmbeddedPanelScroll(context);
+  Widget _incidentQueuePanel({required bool embeddedScroll}) {
+    final wide = embeddedScroll;
     Widget incidentTile(int index) {
       final incident = _incidents[index];
       final priority = _priorityStyle(incident.priority);
@@ -2098,9 +3773,12 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
   }
 
-  Widget _actionLadderPanel(_IncidentRecord? activeIncident) {
+  Widget _actionLadderPanel(
+    _IncidentRecord? activeIncident, {
+    required bool embeddedScroll,
+  }) {
     final steps = _ladderStepsFor(activeIncident);
-    final wide = allowEmbeddedPanelScroll(context);
+    final wide = embeddedScroll;
     Widget stepTile(int index) {
       final step = steps[index];
       final isActive = step.status == _LadderStepStatus.active;
@@ -2326,8 +4004,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
   }
 
-  Widget _contextAndVigilancePanel(_IncidentRecord? activeIncident) {
-    final wide = allowEmbeddedPanelScroll(context);
+  Widget _contextAndVigilancePanel(
+    _IncidentRecord? activeIncident, {
+    required bool embeddedScroll,
+  }) {
+    final wide = embeddedScroll;
     if (!wide) {
       return Column(
         children: [
@@ -2339,10 +4020,19 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 _contextTabs(),
                 const SizedBox(height: 8),
                 _activeTab == _ContextTab.details
-                    ? _detailsTab(activeIncident)
+                    ? _detailsTab(
+                        activeIncident,
+                        embeddedScroll: false,
+                      )
                     : _activeTab == _ContextTab.voip
-                    ? _voipTab(activeIncident)
-                    : _visualTab(activeIncident),
+                    ? _voipTab(
+                        activeIncident,
+                        embeddedScroll: false,
+                      )
+                    : _visualTab(
+                        activeIncident,
+                        embeddedScroll: false,
+                      ),
               ],
             ),
           ),
@@ -2350,7 +4040,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           _panel(
             title: 'Guard Vigilance',
             subtitle: 'Decay sparkline tracking and escalation posture',
-            child: _vigilancePanel(),
+            child: _vigilancePanel(embeddedScroll: false),
           ),
         ],
       );
@@ -2368,10 +4058,19 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 const SizedBox(height: 8),
                 Expanded(
                   child: _activeTab == _ContextTab.details
-                      ? _detailsTab(activeIncident)
+                      ? _detailsTab(
+                          activeIncident,
+                          embeddedScroll: true,
+                        )
                       : _activeTab == _ContextTab.voip
-                      ? _voipTab(activeIncident)
-                      : _visualTab(activeIncident),
+                      ? _voipTab(
+                          activeIncident,
+                          embeddedScroll: true,
+                        )
+                      : _visualTab(
+                          activeIncident,
+                          embeddedScroll: true,
+                        ),
                 ),
               ],
             ),
@@ -2383,15 +4082,18 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           child: _panel(
             title: 'Guard Vigilance',
             subtitle: 'Decay sparkline tracking and escalation posture',
-            child: _vigilancePanel(),
+            child: _vigilancePanel(embeddedScroll: true),
           ),
         ),
       ],
     );
   }
 
-  Widget _detailsTab(_IncidentRecord? incident) {
-    final wide = allowEmbeddedPanelScroll(context);
+  Widget _detailsTab(
+    _IncidentRecord? incident, {
+    required bool embeddedScroll,
+  }) {
+    final wide = embeddedScroll;
     if (incident == null) {
       return _muted('Select an incident from the queue.');
     }
@@ -2569,6 +4271,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     _IncidentRecord incident,
     LiveClientCommsSnapshot snapshot,
   ) {
+    final cueKind = _liveClientLaneCueKind(snapshot);
     final learnedStyleBusy = _learnedStyleBusyScopeKeys.contains(
       _scopeBusyKey(snapshot.clientId, snapshot.siteId),
     );
@@ -2744,6 +4447,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 label: 'Push ${snapshot.pushSyncStatusLabel.toUpperCase()}',
                 accent: _pushSyncAccent(snapshot.pushSyncStatusLabel),
               ),
+              _commsChip(
+                icon: _controlInboxDraftCueChipIcon(cueKind),
+                label: _controlInboxDraftCueChipLabel(cueKind),
+                accent: _controlInboxDraftCueChipAccent(cueKind),
+              ),
               if (snapshot.learnedApprovalStyleCount > 0)
                 _commsChip(
                   icon: Icons.school_rounded,
@@ -2816,6 +4524,16 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               ],
             ),
           ],
+          const SizedBox(height: 7),
+          Text(
+            _liveClientLaneCue(snapshot),
+            style: GoogleFonts.inter(
+              color: const Color(0xFFA9BFD9),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              height: 1.28,
+            ),
+          ),
           const SizedBox(height: 8),
           _clientCommsTextBlock(
             label: 'Latest Client Message',
@@ -4169,8 +5887,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
   }
 
-  Widget _voipTab(_IncidentRecord? incident) {
-    final wide = allowEmbeddedPanelScroll(context);
+  Widget _voipTab(
+    _IncidentRecord? incident, {
+    required bool embeddedScroll,
+  }) {
+    final wide = embeddedScroll;
     if (incident == null) {
       return _muted('No live call transcript for this lane yet.');
     }
@@ -4306,7 +6027,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
   }
 
-  Widget _visualTab(_IncidentRecord? incident) {
+  Widget _visualTab(
+    _IncidentRecord? incident, {
+    required bool embeddedScroll,
+  }) {
     if (incident == null) {
       return _muted('No camera comparison is ready for this lane yet.');
     }
@@ -4438,8 +6162,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
   }
 
-  Widget _vigilancePanel() {
-    final wide = allowEmbeddedPanelScroll(context);
+  Widget _vigilancePanel({required bool embeddedScroll}) {
+    final wide = embeddedScroll;
     Widget vigilanceTile(int index) {
       final guard = _vigilance[index];
       final statusColor = guard.decayLevel <= 75
@@ -4842,21 +6566,49 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     required Color foreground,
     required Color background,
     required Color border,
+    IconData? leadingIcon,
+    String? tooltipMessage,
+    VoidCallback? onTap,
+    Key? key,
   }) {
-    return Container(
+    Widget child = Container(
+      key: key,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
         color: background,
         border: Border.all(color: border),
       ),
-      child: Text(
-        label,
-        style: GoogleFonts.inter(
-          color: foreground,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (leadingIcon != null) ...[
+            Icon(leadingIcon, size: 13, color: foreground),
+            const SizedBox(width: 6),
+          ],
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: foreground,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+    if ((tooltipMessage ?? '').trim().isNotEmpty) {
+      child = Tooltip(message: tooltipMessage!.trim(), child: child);
+    }
+    if (onTap == null) {
+      return child;
+    }
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: child,
       ),
     );
   }
@@ -4981,37 +6733,64 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           ),
           content: SizedBox(
             width: 520,
-            child: TextField(
-              controller: controller,
-              minLines: 5,
-              maxLines: 9,
-              style: GoogleFonts.inter(
-                color: const Color(0xFFEAF4FF),
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-              ),
-              decoration: InputDecoration(
-                hintText: 'Shape the final client-facing wording here.',
-                hintStyle: GoogleFonts.inter(
-                  color: const Color(0xFF8EA4C2),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: controller,
+                  builder: (context, value, child) {
+                    return Text(
+                      _controlInboxDraftCueForSignals(
+                        sourceText: draft.sourceText,
+                        replyText: value.text,
+                        clientVoiceProfileLabel: draft.clientVoiceProfileLabel,
+                        usesLearnedApprovalStyle:
+                            draft.usesLearnedApprovalStyle,
+                      ),
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFB7CAE3),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        height: 1.32,
+                      ),
+                    );
+                  },
                 ),
-                filled: true,
-                fillColor: const Color(0xFF111D2A),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF35506F)),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: controller,
+                  minLines: 5,
+                  maxLines: 9,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFEAF4FF),
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Shape the final client-facing wording here.',
+                    hintStyle: GoogleFonts.inter(
+                      color: const Color(0xFF8EA4C2),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    filled: true,
+                    fillColor: const Color(0xFF111D2A),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF35506F)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF35506F)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF4B6B8F)),
+                    ),
+                  ),
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF35506F)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF4B6B8F)),
-                ),
-              ),
+              ],
             ),
           ),
           actions: [

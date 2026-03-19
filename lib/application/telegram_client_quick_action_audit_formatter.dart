@@ -17,25 +17,32 @@ class TelegramClientQuickActionAuditFormatter {
     }
     return switch (action) {
       TelegramClientQuickAction.statusFull => _fullStatusPreview(lines),
-      TelegramClientQuickAction.sleepCheck => lines.take(7).join(' | '),
-      TelegramClientQuickAction.status => lines.take(8).join(' | '),
+      TelegramClientQuickAction.sleepCheck => lines.take(8).join(' | '),
+      TelegramClientQuickAction.status => lines.take(10).join(' | '),
     };
   }
 
   String _fullStatusPreview(List<String> lines) {
     const statusPrefixes = <String>[
+      'Current status',
+      'What we see now',
+      'Next',
+      'Monitoring is ',
+      'Remote monitoring is ',
       'Monitoring:',
-      'Window:',
-      'Reviewed activity:',
+      'Watch window:',
+      'Items reviewed:',
+      'Latest signal:',
       'Latest activity source:',
-      'Latest posture:',
-      'Current assessment:',
-      'Current site narrative:',
-      'Latest review summary:',
-      'Latest decision:',
-      'Open follow-up actions:',
-      'Monitoring availability:',
-      'Last reviewed at:',
+      'Current posture:',
+      'Assessment:',
+      'Summary:',
+      'Review note:',
+      'Current decision:',
+      'Next step:',
+      'Open follow-ups:',
+      'Remote watch:',
+      'Last check:',
     ];
     final selected = <String>[];
     for (final line in lines) {
@@ -46,7 +53,7 @@ class TelegramClientQuickActionAuditFormatter {
         continue;
       }
       selected.add(line);
-      if (selected.length >= 12) {
+      if (selected.length >= 20) {
         break;
       }
     }

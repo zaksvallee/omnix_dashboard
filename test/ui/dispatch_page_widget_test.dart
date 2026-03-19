@@ -153,6 +153,29 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('dispatch page header open report uses selected dispatch', (
+    tester,
+  ) async {
+    String? openedDispatchId;
+
+    await tester.pumpWidget(
+      buildPage(
+        onGenerate: () {},
+        onIngestFeeds: () {},
+        onExecute: (_) {},
+        onOpenReportForDispatch: (dispatchId) {
+          openedDispatchId = dispatchId;
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('dispatch-open-report-button')));
+    await tester.pumpAndSettle();
+
+    expect(openedDispatchId, 'DSP-2441');
+  });
+
   testWidgets('dispatch page stays stable on landscape phone viewport', (
     tester,
   ) async {
@@ -390,13 +413,15 @@ void main() {
                   siteId: 'SITE-B',
                   siteName: 'Beta Watch',
                   endpointLabel: '192.168.8.106',
-                  statusLabel: 'WATCH READY',
-                  watchLabel: 'SCHEDULED',
-                  recentEvents: 1,
+                  statusLabel: 'LIMITED WATCH',
+                  watchLabel: 'LIMITED',
+                  recentEvents: 0,
                   lastSeenLabel: '21:14 UTC',
                   freshnessLabel: 'Recent',
                   isStale: false,
-                  alertCount: 1,
+                  monitoringAvailabilityDetail:
+                      'One remote camera feed is stale.',
+                  latestIncidentReference: 'INT-BETA-1',
                 ),
               ],
             );
@@ -412,12 +437,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(persistedSelectedDispatchId, 'DSP-2442');
 
-    await tester.ensureVisible(find.text('Alerts 1'));
+    await tester.ensureVisible(find.text('Limited 1'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Alerts 1'));
+    await tester.tap(find.text('Limited 1'));
     await tester.pumpAndSettle();
-    expect(persistedDrilldown, VideoFleetWatchActionDrilldown.alerts);
-    expect(find.text('Focused watch action: Alert actions'), findsOneWidget);
+    expect(persistedDrilldown, VideoFleetWatchActionDrilldown.limited);
+    expect(
+      find.text('Focused watch action: Limited watch coverage'),
+      findsOneWidget,
+    );
 
     hostSetState(() {
       showPage = false;
@@ -430,11 +458,14 @@ void main() {
     });
     await tester.pumpAndSettle();
 
-    expect(persistedDrilldown, VideoFleetWatchActionDrilldown.alerts);
+    expect(persistedDrilldown, VideoFleetWatchActionDrilldown.limited);
     expect(persistedSelectedDispatchId, 'DSP-2442');
-    expect(find.text('Focused watch action: Alert actions'), findsOneWidget);
     expect(
-      find.text('WATCH-ONLY (1) • Watch scopes with client alert actions'),
+      find.text('Focused watch action: Limited watch coverage'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('ACTIONABLE (1) • Incident-backed limited-watch scopes'),
       findsOneWidget,
     );
   });
@@ -973,6 +1004,81 @@ void main() {
     );
     expect(find.text('Beta Watch'), findsOneWidget);
     expect(find.text('Gap MISSED START'), findsOneWidget);
+  });
+
+  testWidgets('dispatch page narrows fleet health to limited watch scopes', (
+    tester,
+  ) async {
+    VideoFleetWatchActionDrilldown? selectedDrilldown;
+
+    await tester.pumpWidget(
+      buildPage(
+        onGenerate: () {},
+        onIngestFeeds: () {},
+        fleetScopeHealth: const [
+          VideoFleetScopeHealthView(
+            clientId: 'CLIENT-A',
+            siteId: 'SITE-A',
+            siteName: 'MS Vallee Residence',
+            endpointLabel: '192.168.8.105',
+            statusLabel: 'LIMITED WATCH',
+            watchLabel: 'LIMITED',
+            recentEvents: 0,
+            lastSeenLabel: 'idle',
+            freshnessLabel: 'Idle',
+            isStale: false,
+            monitoringAvailabilityDetail: 'One remote camera feed is stale.',
+            latestIncidentReference: 'INT-VALLEE-1',
+          ),
+          VideoFleetScopeHealthView(
+            clientId: 'CLIENT-B',
+            siteId: 'SITE-B',
+            siteName: 'Sandton Tower',
+            endpointLabel: '192.168.8.106',
+            statusLabel: 'LIVE',
+            watchLabel: 'ACTIVE',
+            recentEvents: 1,
+            lastSeenLabel: '21:14 UTC',
+            freshnessLabel: 'Fresh',
+            isStale: false,
+            latestIncidentReference: 'INT-TOWER-1',
+          ),
+        ],
+        onWatchActionDrilldownChanged: (value) {
+          selectedDrilldown = value;
+        },
+        onExecute: (_) {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Limited 1'), findsOneWidget);
+    await tester.ensureVisible(find.text('Limited 1'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Limited 1'));
+    await tester.pumpAndSettle();
+
+    expect(selectedDrilldown, VideoFleetWatchActionDrilldown.limited);
+    expect(
+      find.text('Focused watch action: Limited watch coverage'),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Showing fleet scopes where remote monitoring is active but limited.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text('ACTIONABLE (1) • Incident-backed limited-watch scopes'),
+      findsOneWidget,
+    );
+    expect(find.text('MS Vallee Residence'), findsOneWidget);
+    expect(find.text('Sandton Tower'), findsNothing);
+    expect(
+      find.textContaining('One remote camera feed is stale.'),
+      findsWidgets,
+    );
   });
 
   testWidgets('dispatch page shows suppressed scene review panel', (

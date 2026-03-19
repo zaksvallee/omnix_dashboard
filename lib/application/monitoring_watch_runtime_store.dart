@@ -8,6 +8,7 @@ class MonitoringWatchRuntimeState {
   final int escalationCount;
   final int suppressedCount;
   final bool monitoringAvailable;
+  final String monitoringAvailabilityDetail;
   final int unresolvedActionCount;
   final String latestSceneReviewSourceLabel;
   final String latestSceneReviewPostureLabel;
@@ -34,6 +35,7 @@ class MonitoringWatchRuntimeState {
     this.escalationCount = 0,
     this.suppressedCount = 0,
     this.monitoringAvailable = true,
+    this.monitoringAvailabilityDetail = '',
     this.unresolvedActionCount = 0,
     this.latestSceneReviewSourceLabel = '',
     this.latestSceneReviewPostureLabel = '',
@@ -61,6 +63,7 @@ class MonitoringWatchRuntimeState {
     int? escalationCount,
     int? suppressedCount,
     bool? monitoringAvailable,
+    String? monitoringAvailabilityDetail,
     int? unresolvedActionCount,
     String? latestSceneReviewSourceLabel,
     String? latestSceneReviewPostureLabel,
@@ -88,6 +91,8 @@ class MonitoringWatchRuntimeState {
       escalationCount: escalationCount ?? this.escalationCount,
       suppressedCount: suppressedCount ?? this.suppressedCount,
       monitoringAvailable: monitoringAvailable ?? this.monitoringAvailable,
+      monitoringAvailabilityDetail:
+          monitoringAvailabilityDetail ?? this.monitoringAvailabilityDetail,
       unresolvedActionCount:
           unresolvedActionCount ?? this.unresolvedActionCount,
       latestSceneReviewSourceLabel:
@@ -166,15 +171,13 @@ class MonitoringWatchRuntimeStore {
         escalationCount: _readInt(map['escalation_count']),
         suppressedCount: _readInt(map['suppressed_count']),
         monitoringAvailable: map['monitoring_available'] != false,
+        monitoringAvailabilityDetail:
+            (map['monitoring_availability_detail'] ?? '').toString().trim(),
         unresolvedActionCount: _readInt(map['unresolved_action_count']),
-        latestSceneReviewSourceLabel: (map['latest_scene_review_source_label'] ??
-                '')
-            .toString()
-            .trim(),
+        latestSceneReviewSourceLabel:
+            (map['latest_scene_review_source_label'] ?? '').toString().trim(),
         latestSceneReviewPostureLabel:
-            (map['latest_scene_review_posture_label'] ?? '')
-                .toString()
-                .trim(),
+            (map['latest_scene_review_posture_label'] ?? '').toString().trim(),
         latestSceneReviewSummary: (map['latest_scene_review_summary'] ?? '')
             .toString()
             .trim(),
@@ -185,26 +188,20 @@ class MonitoringWatchRuntimeStore {
             .toString()
             .trim(),
         latestSceneReviewUpdatedAtUtc: DateTime.tryParse(
-          (map['latest_scene_review_updated_at_utc'] ?? '')
-              .toString()
-              .trim(),
+          (map['latest_scene_review_updated_at_utc'] ?? '').toString().trim(),
         )?.toUtc(),
         latestClientDecisionLabel: (map['latest_client_decision_label'] ?? '')
             .toString()
             .trim(),
         latestClientDecisionSummary:
-            (map['latest_client_decision_summary'] ?? '')
-                .toString()
-                .trim(),
+            (map['latest_client_decision_summary'] ?? '').toString().trim(),
         latestClientDecisionAtUtc: DateTime.tryParse(
           (map['latest_client_decision_at_utc'] ?? '').toString().trim(),
         )?.toUtc(),
         latestClientNotificationLabel:
             (map['latest_client_notification_label'] ?? '').toString().trim(),
         latestClientNotificationSummary:
-            (map['latest_client_notification_summary'] ?? '')
-                .toString()
-                .trim(),
+            (map['latest_client_notification_summary'] ?? '').toString().trim(),
         latestClientNotificationAtUtc: DateTime.tryParse(
           (map['latest_client_notification_at_utc'] ?? '').toString().trim(),
         )?.toUtc(),
@@ -362,8 +359,10 @@ class MonitoringWatchRuntimeStore {
         'escalation_count': runtime.escalationCount,
         'suppressed_count': runtime.suppressedCount,
         'monitoring_available': runtime.monitoringAvailable,
+        'monitoring_availability_detail': runtime.monitoringAvailabilityDetail,
         'unresolved_action_count': runtime.unresolvedActionCount,
-        'latest_scene_review_source_label': runtime.latestSceneReviewSourceLabel,
+        'latest_scene_review_source_label':
+            runtime.latestSceneReviewSourceLabel,
         'latest_scene_review_posture_label':
             runtime.latestSceneReviewPostureLabel,
         'latest_scene_review_summary': runtime.latestSceneReviewSummary,

@@ -139,9 +139,9 @@ class VehicleVisitLedgerProjector {
     }.toList(growable: false)..sort();
 
     for (final scopeKey in scopeKeys) {
-      final scopedEvents =
-          (vehicleEventsByScope[scopeKey] ?? const <IntelligenceReceived>[])
-            ..sort((a, b) => a.occurredAt.compareTo(b.occurredAt));
+      final scopedEvents = List<IntelligenceReceived>.from(
+        vehicleEventsByScope[scopeKey] ?? const <IntelligenceReceived>[],
+      )..sort((a, b) => a.occurredAt.compareTo(b.occurredAt));
       final visits = _buildVisits(scopedEvents, visitMergeGap);
       output[scopeKey] = VehicleVisitLedgerSnapshot(
         visits: visits,

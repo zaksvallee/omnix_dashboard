@@ -1,4 +1,6 @@
 class VideoFleetScopeRuntimeState {
+  final bool monitoringAvailable;
+  final String? monitoringAvailabilityDetail;
   final String? operatorOutcomeLabel;
   final String? lastRecoveryLabel;
   final String? latestSceneReviewLabel;
@@ -16,6 +18,8 @@ class VideoFleetScopeRuntimeState {
   final List<String> suppressedHistory;
 
   const VideoFleetScopeRuntimeState({
+    this.monitoringAvailable = true,
+    this.monitoringAvailabilityDetail,
     this.operatorOutcomeLabel,
     this.lastRecoveryLabel,
     this.latestSceneReviewLabel,

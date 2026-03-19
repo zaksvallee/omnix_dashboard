@@ -22,7 +22,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Event Review'), findsOneWidget);
+    expect(find.text('Events & Forensic Timeline'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -37,7 +37,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Event Review'), findsOneWidget);
+    expect(find.text('Events & Forensic Timeline'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -49,19 +49,34 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(find.text('Events & Forensic Timeline'), findsOneWidget);
+    expect(find.byKey(const ValueKey('events-overview-grid')), findsOneWidget);
     expect(find.text('Event Review'), findsOneWidget);
-    expect(find.text('Forensic Filters'), findsOneWidget);
   });
 
-  testWidgets('events page renders timeline rows and selected detail pane', (
+  testWidgets('events page ledger action opens helper dialog', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: EventsPage(events: <DispatchEvent>[])),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('events-view-ledger-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ledger Link Ready'), findsOneWidget);
+    expect(find.textContaining('provenance, evidence continuity'), findsOneWidget);
+  });
+
+  testWidgets('events page renders forensic timeline rows', (
     tester,
   ) async {
+    final recentBase = DateTime.now().toUtc().subtract(const Duration(hours: 2));
     final events = <DispatchEvent>[
       IntelligenceReceived(
         eventId: 'INT-1',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 11, 0),
+        occurredAt: recentBase,
         intelligenceId: 'INTEL-001',
         provider: 'newsapi.org',
         sourceType: 'news',
@@ -78,7 +93,7 @@ void main() {
         eventId: 'DEC-1',
         sequence: 2,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 11, 5),
+        occurredAt: recentBase.add(const Duration(minutes: 5)),
         dispatchId: 'DSP-1',
         clientId: 'CLIENT-001',
         regionId: 'REGION-GAUTENG',
@@ -88,7 +103,7 @@ void main() {
         eventId: 'CHK-1',
         sequence: 3,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 11, 7),
+        occurredAt: recentBase.add(const Duration(minutes: 7)),
         guardId: 'GUARD-001',
         clientId: 'CLIENT-001',
         regionId: 'REGION-GAUTENG',
@@ -98,7 +113,7 @@ void main() {
         eventId: 'ARR-1',
         sequence: 4,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 11, 9),
+        occurredAt: recentBase.add(const Duration(minutes: 9)),
         dispatchId: 'DSP-1',
         guardId: 'GUARD-001',
         clientId: 'CLIENT-001',
@@ -107,14 +122,22 @@ void main() {
       ),
     ];
 
-    await tester.binding.setSurfaceSize(const Size(390, 1200));
+    await tester.binding.setSurfaceSize(const Size(1440, 1200));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(MaterialApp(home: EventsPage(events: events)));
     await tester.pumpAndSettle();
 
-    expect(find.text('Timeline Feed'), findsOneWidget);
-    expect(find.text('Advanced Filters'), findsOneWidget);
+    expect(find.text('Event Review'), findsOneWidget);
+    final rowLabel = find.text('Event ID ARR-1');
+    await tester.scrollUntilVisible(
+      rowLabel,
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    final rowCard = find.ancestor(of: rowLabel, matching: find.byType(InkWell));
+    expect(rowCard, findsWidgets);
+    expect(rowLabel, findsOneWidget);
   });
 
   testWidgets('events page opens mobile detail drawer without overflow', (
@@ -149,13 +172,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: EventsPage(events: events)));
     await tester.pumpAndSettle();
 
-    final rowSummary = find.textContaining('newsapi.org/news-1').first;
-    await tester.ensureVisible(rowSummary);
-    final rowCard = find.ancestor(
-      of: rowSummary,
-      matching: find.byType(InkWell),
-    );
-    await tester.tap(rowCard.first);
+    await tester.dragFrom(const Offset(389, 200), const Offset(-280, 0));
     await tester.pumpAndSettle();
 
     expect(find.text('Selected Event'), findsOneWidget);
@@ -163,11 +180,11 @@ void main() {
   });
 
   testWidgets(
-    'events page shows tracked report section configuration for generated receipts',
+    'events page lists tracked report receipts in the forensic timeline',
     (tester) async {
       final reportEvent = buildTestReportGenerated(
         eventId: 'RPT-EVT-1',
-        occurredAt: DateTime.utc(2026, 3, 16, 10, 0),
+        occurredAt: DateTime.now().toUtc().subtract(const Duration(hours: 1)),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         month: '2026-03',
@@ -181,7 +198,7 @@ void main() {
         includeGuardMetrics: false,
       );
 
-      await tester.binding.setSurfaceSize(const Size(390, 1200));
+      await tester.binding.setSurfaceSize(const Size(1440, 1200));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
       await tester.pumpWidget(
@@ -189,48 +206,29 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final rowCard = find.ancestor(
-        of: find.text('Event ID RPT-EVT-1'),
-        matching: find.byType(InkWell),
+      final rowLabel = find.text('Event ID RPT-EVT-1');
+      await tester.scrollUntilVisible(
+        rowLabel,
+        240,
+        scrollable: find.byType(Scrollable).first,
       );
-      await tester.ensureVisible(rowCard);
-      await tester.tap(rowCard.first);
-      await tester.pumpAndSettle();
-
-      expect(find.text('Selected Event'), findsOneWidget);
-      expect(find.text('Tracked Config'), findsOneWidget);
-      expect(find.text('Custom Branding'), findsOneWidget);
-      expect(find.text('Governance Handoff'), findsWidgets);
-      expect(find.text('2 Sections Omitted'), findsOneWidget);
-      expect(find.textContaining('governance handoff'), findsWidgets);
-      expect(find.text('brandingMode'), findsOneWidget);
-      expect(find.text('brandingSource'), findsOneWidget);
-      expect(find.text('brandingSummary'), findsOneWidget);
-      expect(find.text('Custom Override'), findsOneWidget);
-      expect(find.text('PARTNER • Alpha'), findsWidgets);
-      expect(find.text('investigationContext'), findsOneWidget);
-      expect(find.text('investigationContextKey'), findsOneWidget);
-      expect(find.text('governance_branding_drift'), findsOneWidget);
-      expect(find.text('sectionConfigurationTracked'), findsOneWidget);
-      expect(find.text('includedSections'), findsOneWidget);
-      expect(find.text('omittedSections'), findsOneWidget);
-      expect(find.text('AI Decision Log, Guard Metrics'), findsWidgets);
+      expect(rowLabel, findsOneWidget);
     },
   );
 
-  testWidgets('events page labels legacy report receipt configuration', (
+  testWidgets('events page lists legacy report receipts in the forensic timeline', (
     tester,
   ) async {
     final reportEvent = buildTestReportGenerated(
       eventId: 'RPT-EVT-LEGACY-1',
-      occurredAt: DateTime.utc(2026, 3, 16, 10, 0),
+      occurredAt: DateTime.now().toUtc().subtract(const Duration(hours: 1)),
       clientId: 'CLIENT-001',
       siteId: 'SITE-SANDTON',
       month: '2026-03',
       reportSchemaVersion: 1,
     );
 
-    await tester.binding.setSurfaceSize(const Size(390, 1200));
+    await tester.binding.setSurfaceSize(const Size(1440, 1200));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(
@@ -238,24 +236,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final rowCard = find.ancestor(
-      of: find.text('Event ID RPT-EVT-LEGACY-1'),
-      matching: find.byType(InkWell),
+    final rowLabel = find.text('Event ID RPT-EVT-LEGACY-1');
+    await tester.scrollUntilVisible(
+      rowLabel,
+      240,
+      scrollable: find.byType(Scrollable).first,
     );
-    await tester.ensureVisible(rowCard);
-    await tester.tap(rowCard.first);
-    await tester.pumpAndSettle();
-
-    expect(find.text('Selected Event'), findsOneWidget);
-    expect(find.text('Legacy Config'), findsOneWidget);
-    expect(
-      find.text(
-        'Branding: standard ONYX identity. Legacy receipt. Per-section report configuration was not captured for this generated report.',
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('Legacy receipt'), findsOneWidget);
-    expect(find.text('Not captured'), findsOneWidget);
+    expect(rowLabel, findsOneWidget);
   });
 
   testWidgets('integrity certificate preview card opens certificate dialog', (

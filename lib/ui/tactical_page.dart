@@ -339,6 +339,12 @@ class TacticalPage extends StatelessWidget {
         final suppressedEntries = _suppressedFleetReviewEntries(
           visibleFleetScopeHealth,
         );
+        final headerDispatchAction = _headerDispatchAction(
+          visibleFleetScopeHealth: visibleFleetScopeHealth,
+          focusReference: focusReference,
+          scopeClientId: scopeClientId,
+          scopeSiteId: scopeSiteId,
+        );
         final showSuppressedPrimary =
             activeWatchActionDrilldown ==
                 VideoFleetWatchActionDrilldown.filtered &&
@@ -414,6 +420,36 @@ class TacticalPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _heroHeader(
+                      dispatchAction: headerDispatchAction,
+                      visibleFleetScopeHealth: visibleFleetScopeHealth,
+                    ),
+                    const SizedBox(height: 12),
+                    if (sosAlerts > 0) ...[
+                      _tacticalAlertBanner(
+                        key: const ValueKey('tactical-sos-banner'),
+                        icon: Icons.warning_amber_rounded,
+                        accent: const Color(0xFFEF4444),
+                        label: 'ACTIVE SOS TRIGGER',
+                        message:
+                            '$sosAlerts guard ping${sosAlerts == 1 ? '' : 's'} need immediate tactical attention',
+                        actionLabel: 'OPEN DISPATCHES',
+                        onPressed: headerDispatchAction,
+                      ),
+                      const SizedBox(height: 12),
+                    ] else if (geofenceAlerts > 0) ...[
+                      _tacticalAlertBanner(
+                        key: const ValueKey('tactical-geofence-banner'),
+                        icon: Icons.report_gmailerrorred_rounded,
+                        accent: const Color(0xFFF59E0B),
+                        label: 'GEOFENCE BREACH DETECTED',
+                        message:
+                            '$geofenceAlerts perimeter alert${geofenceAlerts == 1 ? '' : 's'} need investigation',
+                        actionLabel: 'INVESTIGATE',
+                        onPressed: headerDispatchAction,
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                     _topBar(
                       geofenceAlerts: geofenceAlerts,
                       sosAlerts: sosAlerts,
@@ -517,6 +553,333 @@ class TacticalPage extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  VoidCallback? _headerDispatchAction({
+    required List<VideoFleetScopeHealthView> visibleFleetScopeHealth,
+    required String focusReference,
+    required String scopeClientId,
+    required String scopeSiteId,
+  }) {
+    final openDispatchScope = onOpenFleetDispatchScope;
+    if (openDispatchScope == null) {
+      return null;
+    }
+    VideoFleetScopeHealthView? targetScope;
+    if (focusReference.isNotEmpty) {
+      for (final scope in visibleFleetScopeHealth) {
+        if (scope.latestIncidentReference == focusReference) {
+          targetScope = scope;
+          break;
+        }
+      }
+    }
+    targetScope ??= visibleFleetScopeHealth.firstWhere(
+      (scope) => scope.hasIncidentContext,
+      orElse: () => visibleFleetScopeHealth.isNotEmpty
+          ? visibleFleetScopeHealth.first
+          : const VideoFleetScopeHealthView(
+              clientId: '',
+              siteId: '',
+              siteName: '',
+              endpointLabel: '',
+              statusLabel: '',
+              watchLabel: '',
+              recentEvents: 0,
+              lastSeenLabel: '',
+              freshnessLabel: '',
+              isStale: false,
+            ),
+    );
+    final targetClientId = targetScope.clientId.trim().isNotEmpty
+        ? targetScope.clientId
+        : scopeClientId;
+    final targetSiteId = targetScope.siteId.trim().isNotEmpty
+        ? targetScope.siteId
+        : scopeSiteId;
+    final targetReference = targetScope.latestIncidentReference ?? focusReference;
+    if (targetClientId.trim().isEmpty || targetSiteId.trim().isEmpty) {
+      return null;
+    }
+    return () =>
+        openDispatchScope(targetClientId, targetSiteId, targetReference);
+  }
+
+  Widget _heroHeader({
+    required VoidCallback? dispatchAction,
+    required List<VideoFleetScopeHealthView> visibleFleetScopeHealth,
+  }) {
+    final limitedCount = visibleFleetScopeHealth
+        .where((scope) => scope.watchLabel == 'LIMITED')
+        .length;
+    final unavailableCount = visibleFleetScopeHealth
+        .where((scope) => scope.watchLabel == 'UNAVAILABLE')
+        .length;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 980;
+        final actionButton = OutlinedButton.icon(
+          key: const ValueKey('tactical-open-dispatches-button'),
+          onPressed: dispatchAction,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: const Color(0xFFEAF4FF),
+            side: BorderSide(
+              color: dispatchAction == null
+                  ? const Color(0xFF35506F)
+                  : const Color(0xFF4B6B8F),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          icon: const Icon(Icons.open_in_new_rounded, size: 16),
+          label: Text(
+            'Open Dispatches',
+            style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700),
+          ),
+        );
+        final titleBlock = Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF7C3AED), Color(0xFF4338CA)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x337C3AED),
+                      blurRadius: 18,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.map_rounded, size: 30, color: Colors.white),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Tactical Command',
+                      style: GoogleFonts.rajdhani(
+                        color: const Color(0xFFEAF4FF),
+                        fontSize: 30,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Fleet watch monitoring, responder tracking, and geofence verification',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF93A9C6),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _heroChip(
+                          label: '${visibleFleetScopeHealth.length} Fleet Scope${visibleFleetScopeHealth.length == 1 ? '' : 's'}',
+                          foreground: const Color(0xFF8FD1FF),
+                          background: const Color(0x1A8FD1FF),
+                          border: const Color(0x668FD1FF),
+                        ),
+                        _heroChip(
+                          label: '$limitedCount Limited Watch',
+                          foreground: limitedCount > 0
+                              ? const Color(0xFFF59E0B)
+                              : const Color(0xFF9AB1CF),
+                          background: limitedCount > 0
+                              ? const Color(0x1AF59E0B)
+                              : const Color(0x1A94A3B8),
+                          border: limitedCount > 0
+                              ? const Color(0x66F59E0B)
+                              : const Color(0x6694A3B8),
+                        ),
+                        _heroChip(
+                          label: '$unavailableCount Unavailable',
+                          foreground: unavailableCount > 0
+                              ? const Color(0xFFF87171)
+                              : const Color(0xFF9AB1CF),
+                          background: unavailableCount > 0
+                              ? const Color(0x1AF87171)
+                              : const Color(0x1A94A3B8),
+                          border: unavailableCount > 0
+                              ? const Color(0x66F87171)
+                              : const Color(0x6694A3B8),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF111722), Color(0xFF0D1117)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFF223244)),
+          ),
+          child: compact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [titleBlock]),
+                    const SizedBox(height: 14),
+                    actionButton,
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    titleBlock,
+                    const SizedBox(width: 16),
+                    actionButton,
+                  ],
+                ),
+        );
+      },
+    );
+  }
+
+  Widget _heroChip({
+    required String label,
+    required Color foreground,
+    required Color background,
+    required Color border,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: border),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          color: foreground,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+
+  Widget _tacticalAlertBanner({
+    required Key key,
+    required IconData icon,
+    required Color accent,
+    required String label,
+    required String message,
+    required String actionLabel,
+    required VoidCallback? onPressed,
+  }) {
+    return Container(
+      key: key,
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accent.withValues(alpha: 0.55)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 760;
+          final actionButton = FilledButton(
+            onPressed: onPressed,
+            style: FilledButton.styleFrom(
+              backgroundColor: accent,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: Text(
+              actionLabel,
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.3,
+              ),
+            ),
+          );
+          final textColumn = Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    color: accent,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  message,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFEAF4FF),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          );
+          return compact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(icon, color: accent),
+                        const SizedBox(width: 10),
+                        textColumn,
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    actionButton,
+                  ],
+                )
+              : Row(
+                  children: [
+                    Icon(icon, color: accent),
+                    const SizedBox(width: 10),
+                    textColumn,
+                    const SizedBox(width: 12),
+                    actionButton,
+                  ],
+                );
+        },
+      ),
     );
   }
 
@@ -786,9 +1149,18 @@ class TacticalPage extends StatelessWidget {
     final statusColor = switch (scope.statusLabel.toUpperCase()) {
       'LIVE' => const Color(0xFF86EFAC),
       'ACTIVE WATCH' => const Color(0xFF8FD1FF),
+      'LIMITED WATCH' => const Color(0xFFFBBF24),
       'WATCH READY' => const Color(0xFFFDE68A),
       _ => const Color(0xFF9AB1CF),
     };
+    final watchColor = scope.watchLabel == 'LIMITED'
+        ? const Color(0xFFFBBF24)
+        : const Color(0xFF8FD1FF);
+    final phaseColor = (scope.watchWindowStateLabel ?? '').contains('LIMITED')
+        ? const Color(0xFFFBBF24)
+        : scope.watchWindowStateLabel == 'IN WINDOW'
+        ? const Color(0xFF86EFAC)
+        : const Color(0xFFFDE68A);
     final primaryOpenFleetScope = scope.hasIncidentContext
         ? (onOpenFleetTacticalScope ?? onOpenFleetDispatchScope)
         : null;
@@ -809,6 +1181,11 @@ class TacticalPage extends StatelessWidget {
       lastSeenStyle: GoogleFonts.inter(
         color: const Color(0xFF9AB1CF),
         fontSize: 11,
+        fontWeight: FontWeight.w600,
+      ),
+      statusDetailStyle: GoogleFonts.inter(
+        color: const Color(0xFFFDE68A),
+        fontSize: 10,
         fontWeight: FontWeight.w600,
       ),
       noteStyle: GoogleFonts.inter(
@@ -856,7 +1233,7 @@ class TacticalPage extends StatelessWidget {
                 : const Color(0xFFFCA5A5),
           ),
         _topChip('Status', scope.statusLabel, statusColor),
-        _topChip('Watch', scope.watchLabel, const Color(0xFF8FD1FF)),
+        _topChip('Watch', scope.watchLabel, watchColor),
         _topChip(
           'Freshness',
           scope.freshnessLabel,
@@ -868,13 +1245,7 @@ class TacticalPage extends StatelessWidget {
         if (scope.watchWindowLabel != null)
           _topChip('Window', scope.watchWindowLabel!, const Color(0xFF86EFAC)),
         if (scope.watchWindowStateLabel != null)
-          _topChip(
-            'Phase',
-            scope.watchWindowStateLabel!,
-            scope.watchWindowStateLabel == 'IN WINDOW'
-                ? const Color(0xFF86EFAC)
-                : const Color(0xFFFDE68A),
-          ),
+          _topChip('Phase', scope.watchWindowStateLabel!, phaseColor),
         if (scope.latestRiskScore != null)
           _topChip(
             'Risk',
@@ -913,6 +1284,7 @@ class TacticalPage extends StatelessWidget {
             ),
           ),
       ],
+      statusDetailText: scope.limitedWatchStatusDetailText,
       noteText: scope.noteText,
       latestText: prominentLatestTextForWatchAction(
         scope,
@@ -943,6 +1315,19 @@ class TacticalPage extends StatelessWidget {
   }) {
     return [
       _topChip('Active', '${sections.activeCount}', const Color(0xFF8FD1FF)),
+      _topChip(
+        'Limited',
+        '${sections.limitedCount}',
+        const Color(0xFFFBBF24),
+        isActive:
+            activeWatchActionDrilldown ==
+            VideoFleetWatchActionDrilldown.limited,
+        onTap: sections.limitedCount > 0
+            ? () => onOpenWatchActionDrilldown(
+                VideoFleetWatchActionDrilldown.limited,
+              )
+            : null,
+      ),
       _topChip('Gap', '${sections.gapCount}', const Color(0xFFFCA5A5)),
       _topChip(
         'High Risk',

@@ -46,6 +46,8 @@ class VideoFleetScopeHealthProjector {
       final latestEvent = activity.latestEvent;
       final watchActive = activeWatchScopeKeys.contains(scope.scopeKey);
       final runtimeState = runtimeStateByScope[scope.scopeKey];
+      final monitoringLimited =
+          watchActive && runtimeState?.monitoringAvailable == false;
       final schedule = scheduleForScope(scope.clientId, scope.siteId);
       final scheduleSnapshot = schedule.snapshotAt(nowUtc.toLocal());
       final watchActivationGapLabel = _watchActivationGapLabel(
@@ -65,13 +67,17 @@ class VideoFleetScopeHealthProjector {
           siteId: scope.siteId,
           siteName: siteNameForScope(scope.clientId, scope.siteId),
           endpointLabel: endpointLabelForScope(scope.eventsUri),
-          statusLabel: watchActive
+          statusLabel: monitoringLimited
+              ? 'LIMITED WATCH'
+              : watchActive
               ? (lastSeenAtUtc != null &&
                         nowUtc.difference(lastSeenAtUtc).inMinutes <= 30
                     ? 'LIVE'
                     : 'ACTIVE WATCH')
               : (schedule.enabled ? 'WATCH READY' : 'STANDBY'),
-          watchLabel: watchActive
+          watchLabel: monitoringLimited
+              ? 'LIMITED'
+              : watchActive
               ? 'ACTIVE'
               : (schedule.enabled ? 'SCHEDULED' : 'OFF'),
           recentEvents: recentEvents,
@@ -84,8 +90,11 @@ class VideoFleetScopeHealthProjector {
           watchWindowStateLabel: _watchWindowStateLabel(
             schedule,
             scheduleSnapshot,
+            monitoringLimited: monitoringLimited,
           ),
           watchActivationGapLabel: watchActivationGapLabel,
+          monitoringAvailabilityDetail:
+              runtimeState?.monitoringAvailabilityDetail,
           operatorOutcomeLabel: runtimeState?.operatorOutcomeLabel,
           lastRecoveryLabel: runtimeState?.lastRecoveryLabel,
           latestSceneReviewLabel: runtimeState?.latestSceneReviewLabel,
@@ -93,14 +102,16 @@ class VideoFleetScopeHealthProjector {
           latestSceneDecisionLabel: runtimeState?.latestSceneDecisionLabel,
           latestSceneDecisionSummary: runtimeState?.latestSceneDecisionSummary,
           latestClientDecisionLabel: runtimeState?.latestClientDecisionLabel,
-          latestClientDecisionSummary: runtimeState?.latestClientDecisionSummary,
+          latestClientDecisionSummary:
+              runtimeState?.latestClientDecisionSummary,
           latestClientDecisionAtUtc: runtimeState?.latestClientDecisionAtUtc,
           alertCount: runtimeState?.alertCount ?? 0,
           repeatCount: runtimeState?.repeatCount ?? 0,
           escalationCount: runtimeState?.escalationCount ?? 0,
           suppressedCount: runtimeState?.suppressedCount ?? 0,
           actionHistory: runtimeState?.actionHistory ?? const <String>[],
-          suppressedHistory: runtimeState?.suppressedHistory ?? const <String>[],
+          suppressedHistory:
+              runtimeState?.suppressedHistory ?? const <String>[],
           latestEventLabel: latestEvent?.headline,
           latestIncidentReference: latestEvent?.intelligenceId,
           latestEventTimeLabel: latestEvent == null
@@ -123,8 +134,12 @@ class VideoFleetScopeHealthProjector {
       if (aGap != bGap) {
         return bGap.compareTo(aGap);
       }
-      final aActive = a.watchLabel == 'ACTIVE' ? 1 : 0;
-      final bActive = b.watchLabel == 'ACTIVE' ? 1 : 0;
+      final aActive = (a.watchLabel == 'ACTIVE' || a.watchLabel == 'LIMITED')
+          ? 1
+          : 0;
+      final bActive = (b.watchLabel == 'ACTIVE' || b.watchLabel == 'LIMITED')
+          ? 1
+          : 0;
       if (aActive != bActive) {
         return bActive.compareTo(aActive);
       }
@@ -177,13 +192,14 @@ class VideoFleetScopeHealthProjector {
 
   String? _watchWindowStateLabel(
     MonitoringShiftSchedule schedule,
-    MonitoringShiftScheduleSnapshot snapshot,
-  ) {
+    MonitoringShiftScheduleSnapshot snapshot, {
+    required bool monitoringLimited,
+  }) {
     if (!schedule.enabled) {
       return null;
     }
     if (snapshot.active) {
-      return 'IN WINDOW';
+      return monitoringLimited ? 'IN WINDOW • LIMITED' : 'IN WINDOW';
     }
     final next = snapshot.nextTransitionLocal;
     if (next == null) {

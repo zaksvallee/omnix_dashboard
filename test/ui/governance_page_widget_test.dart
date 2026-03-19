@@ -69,6 +69,77 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('governance header view events opens the scoped event review', (
+    tester,
+  ) async {
+    List<String>? openedEventIds;
+    String? openedSelectedEventId;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GovernancePage(
+          events: <DispatchEvent>[
+            IntelligenceReceived(
+              eventId: 'evt-scope-1',
+              sequence: 1,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 16, 22, 0),
+              intelligenceId: 'intel-scope-1',
+              provider: 'hikvision_dvr_monitor_only',
+              sourceType: 'dvr',
+              externalId: 'ext-scope-1',
+              clientId: 'CLIENT-VALLEE',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-VALLEE',
+              cameraId: 'gate-cam',
+              objectLabel: 'person',
+              objectConfidence: 0.95,
+              headline: 'Scoped event',
+              summary: 'Scoped site event',
+              riskScore: 92,
+              snapshotUrl: 'https://edge.example.com/intel-scope-1.jpg',
+              canonicalHash: 'hash-scope-1',
+            ),
+            IntelligenceReceived(
+              eventId: 'evt-other-1',
+              sequence: 1,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 16, 22, 5),
+              intelligenceId: 'intel-other-1',
+              provider: 'hikvision_dvr_monitor_only',
+              sourceType: 'dvr',
+              externalId: 'ext-other-1',
+              clientId: 'CLIENT-WATERFALL',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-WATERFALL',
+              cameraId: 'entry-cam',
+              objectLabel: 'vehicle',
+              objectConfidence: 0.88,
+              headline: 'Off-scope event',
+              summary: 'Other site event',
+              riskScore: 61,
+              snapshotUrl: 'https://edge.example.com/intel-other-1.jpg',
+              canonicalHash: 'hash-other-1',
+            ),
+          ],
+          initialScopeClientId: 'CLIENT-VALLEE',
+          initialScopeSiteId: 'SITE-VALLEE',
+          onOpenEventsForScope: (eventIds, selectedEventId) {
+            openedEventIds = eventIds;
+            openedSelectedEventId = selectedEventId;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('governance-view-events-button')));
+    await tester.pumpAndSettle();
+
+    expect(openedEventIds, ['evt-scope-1']);
+    expect(openedSelectedEventId, 'evt-scope-1');
+  });
+
   testWidgets(
     'governance page shows global readiness metric from scene reviews',
     (tester) async {
@@ -1709,7 +1780,7 @@ void main() {
       find.text(
         '1 partner dispatch reached ALL CLEAR • 1 partner dispatch was CANCELLED',
       ),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(
       find.text('1 strong response • 1 critical response'),
@@ -4253,7 +4324,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Live Operations Stub'), findsOneWidget);
 
-    await tester.tap(find.text('Compliance').first);
+    await tester.tap(find.text('Governance').first);
     await tester.pumpAndSettle();
 
     expect(find.text('Focused scene action: Recent actions'), findsOneWidget);

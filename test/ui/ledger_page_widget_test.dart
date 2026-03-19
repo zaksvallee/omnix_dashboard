@@ -24,7 +24,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Evidence Ledger'), findsOneWidget);
+    expect(find.text('Sovereign Ledger'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -45,7 +45,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Evidence Ledger'), findsOneWidget);
+    expect(find.text('Sovereign Ledger'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -63,7 +63,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('EventStore'), findsOneWidget);
+      expect(find.text('EventStore'), findsWidgets);
       expect(
         find.textContaining(
           'Run with local defines: ./scripts/run_onyx_chrome_local.sh',
@@ -72,6 +72,28 @@ void main() {
       );
     },
   );
+
+  testWidgets('ledger page events action opens helper dialog', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: LedgerPage(
+          clientId: 'CLIENT-001',
+          supabaseEnabled: false,
+          events: [],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('ledger-view-events-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Events Link Ready'), findsOneWidget);
+    expect(
+      find.textContaining('forensic timeline, selected event payloads'),
+      findsOneWidget,
+    );
+  });
 
   testWidgets(
     'ledger page shows tracked report section configuration in fallback timeline',

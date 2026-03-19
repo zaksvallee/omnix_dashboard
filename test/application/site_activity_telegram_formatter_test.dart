@@ -18,8 +18,7 @@ void main() {
       topFlaggedIdentitySummary: 'PERSON-44 flagged near gate-cam',
       topLongPresenceSummary:
           'Unknown person remained near driveway-cam for 3h 10m',
-      topGuardInteractionSummary:
-          'Guard interaction observed near gate-cam',
+      topGuardInteractionSummary: 'Guard interaction observed near gate-cam',
       evidenceEventIds: <String>['ACTIVITY-7', 'ACTIVITY-11'],
       summaryLine:
           'Signals 15 • Vehicles 6 • People 9 • Known IDs 3 • Unknown 7 • Long presence 1 • Guard interactions 1 • Flagged IDs 1',
@@ -30,15 +29,19 @@ void main() {
       siteLabel: 'Vallee Residence',
       reportDate: '2026-03-17',
       trendLabel: 'ACTIVITY RISING',
-      trendSummary: 'Unknown or flagged site activity increased against recent shifts.',
+      trendSummary:
+          'Unknown or flagged site activity increased against recent shifts.',
     );
 
-    expect(message, contains('Site Activity Truth: Vallee Residence'));
+    expect(message, contains('Site activity summary: Vallee Residence'));
     expect(message, contains('Window: 2026-03-17'));
-    expect(message, contains('15 site-activity signals observed.'));
-    expect(message, contains('6 vehicles • 9 people'));
-    expect(message, contains('3 known IDs • 7 unknown • 1 flagged IDs'));
-    expect(message, contains('1 long-presence patterns • 1 guard interactions'));
+    expect(message, contains('Signals seen: 15.'));
+    expect(message, contains('Seen: 6 vehicles • 9 people'));
+    expect(
+      message,
+      contains('Identity mix: 3 known IDs • 7 unknown • 1 flagged IDs'),
+    );
+    expect(message, contains('Patterns: 1 long stays • 1 guard interactions'));
     expect(message, contains('Flagged: PERSON-44 flagged near gate-cam'));
     expect(
       message,
@@ -46,7 +49,10 @@ void main() {
         'Long presence: Unknown person remained near driveway-cam for 3h 10m',
       ),
     );
-    expect(message, contains('Guard note: Guard interaction observed near gate-cam'));
+    expect(
+      message,
+      contains('Guard note: Guard interaction observed near gate-cam'),
+    );
     expect(
       message,
       contains(
@@ -73,15 +79,11 @@ void main() {
     );
     expect(
       operatorMessage,
-      contains(
-        'Current shift: /activityreview CLIENT-1 SITE-1 2026-03-17',
-      ),
+      contains('Current shift: /activityreview CLIENT-1 SITE-1 2026-03-17'),
     );
     expect(
       operatorMessage,
-      contains(
-        'Previous shift: /activityreview CLIENT-1 SITE-1 2026-03-16',
-      ),
+      contains('Previous shift: /activityreview CLIENT-1 SITE-1 2026-03-16'),
     );
     expect(
       operatorMessage,
@@ -105,13 +107,16 @@ void main() {
       topLongPresenceSummary: '',
       topGuardInteractionSummary: '',
       evidenceEventIds: <String>[],
-      summaryLine: 'No visitor or site-activity signals detected.',
+      summaryLine: 'No visitor or site activity signals were detected.',
     );
 
     final message = formatter.formatSummary(snapshot: snapshot);
 
-    expect(message, contains('Site Activity Truth'));
-    expect(message, contains('No visitor or site-activity signals detected.'));
+    expect(message, contains('Site activity summary'));
+    expect(
+      message,
+      contains('No visitor or site activity signals were detected.'),
+    );
   });
 
   test('formats quiet site activity telegram summary with field fallback', () {
@@ -130,7 +135,7 @@ void main() {
       topLongPresenceSummary: '',
       topGuardInteractionSummary: '',
       evidenceEventIds: <String>[],
-      summaryLine: 'No visitor or site-activity signals detected.',
+      summaryLine: 'No visitor or site activity signals were detected.',
     );
 
     final message = formatter.formatSummary(
@@ -138,24 +143,27 @@ void main() {
       siteLabel: 'MS Vallee Residence',
       reportDate: '2026-03-18',
       quietFallbackLine:
-          '3 worker or guard activity signals were observed through ONYX field telemetry.',
+          '3 guard or response-team activity signals were observed through ONYX field telemetry.',
       quietFallbackDetail:
-          'Latest field signal: A worker checkpoint scan landed at Front Yard.',
+          'Latest field signal: A guard checkpoint scan landed at Front Yard.',
     );
 
-    expect(message, contains('Site Activity Truth: MS Vallee Residence'));
+    expect(message, contains('Site activity summary: MS Vallee Residence'));
     expect(
       message,
       contains(
-        '3 worker or guard activity signals were observed through ONYX field telemetry.',
+        '3 guard or response-team activity signals were observed through ONYX field telemetry.',
       ),
     );
     expect(
       message,
       contains(
-        'Latest field signal: A worker checkpoint scan landed at Front Yard.',
+        'Latest field signal: A guard checkpoint scan landed at Front Yard.',
       ),
     );
-    expect(message, isNot(contains('No visitor or site-activity signals detected.')));
+    expect(
+      message,
+      isNot(contains('No visitor or site activity signals were detected.')),
+    );
   });
 }

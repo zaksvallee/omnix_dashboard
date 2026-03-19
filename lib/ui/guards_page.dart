@@ -395,6 +395,23 @@ class _GuardsPageState extends State<GuardsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                _heroHeader(
+                  selectedGuard: headerGuard,
+                  onDutyCount: onDutyCount,
+                ),
+                const SizedBox(height: 10),
+                _workforceSummaryBar(
+                  onDutyCount: onDutyCount,
+                  offlineCount: offlineCount,
+                  activeSiteCount: sites.length - 1,
+                ),
+                const SizedBox(height: 10),
+                _overviewGrid(
+                  selectedGuard: headerGuard,
+                  onDutyCount: onDutyCount,
+                  offlineCount: offlineCount,
+                ),
+                const SizedBox(height: 10),
                 _header(headerGuard),
                 const SizedBox(height: 10),
                 _kpis(
@@ -439,6 +456,443 @@ class _GuardsPageState extends State<GuardsPage> {
         ),
       ),
     );
+  }
+
+  Widget _heroHeader({
+    required _GuardRecord selectedGuard,
+    required int onDutyCount,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF2C1B12), Color(0xFF1B1110)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF5B3021)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 920;
+          final titleBlock = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFF97316), Color(0xFFEF4444)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.groups_rounded,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Guards & Workforce',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFF6FBFF),
+                            fontSize: compact ? 22 : 26,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Roster management, performance tracking, and operational readiness.',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF95A9C7),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _heroChip('On Duty', '$onDutyCount'),
+                  _heroChip('Focus', selectedGuard.name),
+                  _heroChip('Site', selectedGuard.siteId),
+                  _heroChip('Sync', selectedGuard.lastHeartbeat),
+                ],
+              ),
+            ],
+          );
+          final actions = Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            alignment: WrapAlignment.end,
+          children: [
+              _heroActionButton(
+                key: const ValueKey('guards-view-reports-button'),
+                icon: Icons.open_in_new,
+                label: 'View Reports',
+                accent: const Color(0xFF93C5FD),
+                onPressed: () => _openReportsForSite(context, selectedGuard),
+              ),
+            ],
+          );
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                titleBlock,
+                const SizedBox(height: 16),
+                actions,
+              ],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: titleBlock),
+              const SizedBox(width: 16),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 220),
+                child: actions,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _heroChip(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0x14000000),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0x33000000)),
+      ),
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '$label: ',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            TextSpan(
+              text: value,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFE8F1FF),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _heroActionButton({
+    required Key key,
+    required IconData icon,
+    required String label,
+    required Color accent,
+    required VoidCallback onPressed,
+  }) {
+    return FilledButton.tonalIcon(
+      key: key,
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: FilledButton.styleFrom(
+        backgroundColor: accent.withValues(alpha: 0.12),
+        foregroundColor: accent,
+        side: BorderSide(color: accent.withValues(alpha: 0.28)),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        textStyle: GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+    );
+  }
+
+  Widget _workforceSummaryBar({
+    required int onDutyCount,
+    required int offlineCount,
+    required int activeSiteCount,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF151619),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF3D2A24)),
+      ),
+      child: Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text(
+            'WORKFORCE STATUS',
+            style: GoogleFonts.inter(
+              color: const Color(0x669BB0CE),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+            ),
+          ),
+          _statusPill(
+            icon: Icons.check_circle_outline,
+            label: '$onDutyCount On Duty',
+            accent: const Color(0xFF34D399),
+          ),
+          _statusPill(
+            icon: Icons.location_city_outlined,
+            label: '$activeSiteCount Sites',
+            accent: const Color(0xFF63BDFF),
+          ),
+          _statusPill(
+            icon: Icons.wifi_off_rounded,
+            label: '$offlineCount Sync Issues',
+            accent: const Color(0xFFF6C067),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusPill({
+    required IconData icon,
+    required String label,
+    required Color accent,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: accent),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: accent,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _overviewGrid({
+    required _GuardRecord selectedGuard,
+    required int onDutyCount,
+    required int offlineCount,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 1200
+            ? 4
+            : constraints.maxWidth >= 760
+            ? 2
+            : 1;
+        final aspectRatio = columns == 4
+            ? 1.95
+            : columns == 2
+            ? 2.35
+            : 2.55;
+        return GridView.count(
+          key: const ValueKey('guards-overview-grid'),
+          crossAxisCount: columns,
+          mainAxisSpacing: 8,
+          crossAxisSpacing: 8,
+          childAspectRatio: aspectRatio,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            _overviewCard(
+              title: 'On Duty',
+              value: '$onDutyCount',
+              detail: 'Active field roster currently available across visible sites.',
+              icon: Icons.shield_outlined,
+              accent: const Color(0xFF34D399),
+            ),
+            _overviewCard(
+              title: 'Sync Issues',
+              value: '$offlineCount',
+              detail: 'Guards needing follow-up for heartbeat, sync, or device state.',
+              icon: Icons.wifi_off_rounded,
+              accent: const Color(0xFFF6C067),
+            ),
+            _overviewCard(
+              title: 'Selected Guard',
+              value: selectedGuard.employeeId,
+              detail: '${selectedGuard.name} is active in the workforce profile pane.',
+              icon: Icons.person_outline_rounded,
+              accent: const Color(0xFF63BDFF),
+            ),
+            _overviewCard(
+              title: 'Primary Site',
+              value: selectedGuard.siteId,
+              detail: '${selectedGuard.site} is the current field deployment focus.',
+              icon: Icons.location_on_outlined,
+              accent: const Color(0xFFA78BFA),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _overviewCard({
+    required String title,
+    required String value,
+    required String detail,
+    required IconData icon,
+    required Color accent,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1A2B),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF223244)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: accent, size: 20),
+              ),
+              const Spacer(),
+              Flexible(
+                child: Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                  style: GoogleFonts.robotoMono(
+                    color: const Color(0xFFF4F8FF),
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          Text(
+            title.toUpperCase(),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF93A5BF),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            detail,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFD5E1F2),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showReportsLinkDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF111827),
+          title: Text(
+            'Reports Link Ready',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFF6FBFF),
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          content: Text(
+            'Use Reports to review workforce documentation, schedule exports, and field-performance outputs tied to the selected guard or site.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFD6E2F2),
+              height: 1.45,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _openReportsForSite(BuildContext context, _GuardRecord selectedGuard) {
+    final callback = widget.onOpenGuardReportsForSite;
+    if (callback == null) {
+      _showReportsLinkDialog(context);
+      return;
+    }
+    logUiAction(
+      'guards_hero_report_opened',
+      context: <String, Object?>{
+        'site_id': selectedGuard.siteId,
+        'site_name': selectedGuard.site,
+        'guard_id': selectedGuard.id,
+      },
+    );
+    callback(selectedGuard.siteId);
   }
 
   Widget _header(_GuardRecord selectedGuard) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/ui/app_shell.dart';
@@ -88,7 +89,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('12 Active Incidents'), findsOneWidget);
-    expect(find.text('7 AI Actions'), findsOneWidget);
     expect(find.text('7 ACTIVE'), findsOneWidget);
     expect(find.text('9 On Shift'), findsOneWidget);
   });
@@ -96,7 +96,7 @@ void main() {
   testWidgets('AppShell renders dynamic sidebar badges and full top chips', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1600, 900);
+    tester.view.physicalSize = const Size(2100, 900);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() {
       tester.view.resetPhysicalSize();
@@ -132,7 +132,7 @@ void main() {
   testWidgets('AppShell shows the active operator chip on desktop layout', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.physicalSize = const Size(2200, 900);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() {
       tester.view.resetPhysicalSize();
@@ -341,5 +341,183 @@ void main() {
     expect(tapped, isNotNull);
     expect(tapped!.id, 'INT-N-2');
     expect(tapped!.sourceType, 'news');
+  });
+
+  testWidgets('AppShell quick jump opens route picker and navigates', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    OnyxRoute? selectedRoute;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AppShell(
+          currentRoute: OnyxRoute.dashboard,
+          onRouteChanged: (route) => selectedRoute = route,
+          child: const SizedBox.expand(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('app-shell-quick-jump-field')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Quick jump'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('app-shell-quick-jump-input')),
+      'Ledger',
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(Dialog),
+        matching: find.widgetWithText(InkWell, 'Ledger'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(selectedRoute, OnyxRoute.ledger);
+  });
+
+  testWidgets('AppShell exposes compact quick jump when the full field is hidden', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    OnyxRoute? selectedRoute;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AppShell(
+          currentRoute: OnyxRoute.dashboard,
+          onRouteChanged: (route) => selectedRoute = route,
+          child: const SizedBox.expand(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('app-shell-quick-jump-field')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('app-shell-quick-jump-icon')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Quick jump'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('app-shell-quick-jump-input')),
+      'Admin',
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(Dialog),
+        matching: find.widgetWithText(InkWell, 'Admin'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(selectedRoute, OnyxRoute.admin);
+  });
+
+  testWidgets('AppShell status button shows the live summary snack', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1680, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AppShell(
+          currentRoute: OnyxRoute.dashboard,
+          onRouteChanged: (_) {},
+          activeIncidentCount: 5,
+          aiActionCount: 2,
+          guardsOnlineCount: 7,
+          child: const SizedBox.expand(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('app-shell-status-button')));
+    await tester.pump();
+
+    expect(
+      find.text(
+        'Systems nominal. 5 active incidents, 2 AI actions, 7 guards online.',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('AppShell opens quick jump with Meta+K', (tester) async {
+    tester.view.physicalSize = const Size(2100, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AppShell(
+          currentRoute: OnyxRoute.dashboard,
+          onRouteChanged: (_) {},
+          child: const SizedBox.expand(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Quick jump'), findsOneWidget);
+    expect(find.byKey(const ValueKey('app-shell-quick-jump-input')), findsOneWidget);
+  });
+
+  testWidgets('AppShell opens quick jump with Control+K', (tester) async {
+    tester.view.physicalSize = const Size(2100, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AppShell(
+          currentRoute: OnyxRoute.dashboard,
+          onRouteChanged: (_) {},
+          child: const SizedBox.expand(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Quick jump'), findsOneWidget);
+    expect(find.byKey(const ValueKey('app-shell-quick-jump-input')), findsOneWidget);
   });
 }

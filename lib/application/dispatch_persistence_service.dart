@@ -28,6 +28,10 @@ class DispatchPersistenceService {
       'onyx_monitoring_identity_rule_audit_source_filter_v1';
   static const monitoringIdentityRuleAuditExpandedKey =
       'onyx_monitoring_identity_rule_audit_expanded_v1';
+  static const tacticalWatchActionDrilldownKey =
+      'onyx_tactical_watch_action_drilldown_v1';
+  static const dispatchWatchActionDrilldownKey =
+      'onyx_dispatch_watch_action_drilldown_v1';
   static const adminWatchActionDrilldownKey =
       'onyx_admin_watch_action_drilldown_v1';
   static const adminPageTabKey = 'onyx_admin_page_tab_v1';
@@ -341,6 +345,62 @@ class DispatchPersistenceService {
 
   Future<void> clearMonitoringIdentityRuleAuditExpanded() async {
     await prefs.remove(monitoringIdentityRuleAuditExpandedKey);
+  }
+
+  Future<VideoFleetWatchActionDrilldown?>
+  readTacticalWatchActionDrilldown() async {
+    final raw = prefs.getString(tacticalWatchActionDrilldownKey);
+    if (raw == null || raw.trim().isEmpty) return null;
+    final normalized = raw.trim();
+    for (final value in VideoFleetWatchActionDrilldown.values) {
+      if (value.name == normalized) {
+        return value;
+      }
+    }
+    await clearTacticalWatchActionDrilldown();
+    return null;
+  }
+
+  Future<void> saveTacticalWatchActionDrilldown(
+    VideoFleetWatchActionDrilldown? drilldown,
+  ) async {
+    if (drilldown == null) {
+      await clearTacticalWatchActionDrilldown();
+      return;
+    }
+    await prefs.setString(tacticalWatchActionDrilldownKey, drilldown.name);
+  }
+
+  Future<void> clearTacticalWatchActionDrilldown() async {
+    await prefs.remove(tacticalWatchActionDrilldownKey);
+  }
+
+  Future<VideoFleetWatchActionDrilldown?>
+  readDispatchWatchActionDrilldown() async {
+    final raw = prefs.getString(dispatchWatchActionDrilldownKey);
+    if (raw == null || raw.trim().isEmpty) return null;
+    final normalized = raw.trim();
+    for (final value in VideoFleetWatchActionDrilldown.values) {
+      if (value.name == normalized) {
+        return value;
+      }
+    }
+    await clearDispatchWatchActionDrilldown();
+    return null;
+  }
+
+  Future<void> saveDispatchWatchActionDrilldown(
+    VideoFleetWatchActionDrilldown? drilldown,
+  ) async {
+    if (drilldown == null) {
+      await clearDispatchWatchActionDrilldown();
+      return;
+    }
+    await prefs.setString(dispatchWatchActionDrilldownKey, drilldown.name);
+  }
+
+  Future<void> clearDispatchWatchActionDrilldown() async {
+    await prefs.remove(dispatchWatchActionDrilldownKey);
   }
 
   Future<VideoFleetWatchActionDrilldown?>

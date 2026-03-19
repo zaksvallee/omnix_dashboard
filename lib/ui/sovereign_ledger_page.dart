@@ -110,6 +110,13 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
             constraints: const BoxConstraints(maxWidth: 1540),
             child: ListView(
               children: [
+                _heroHeader(
+                  entries: list,
+                  selected: selected,
+                  totalEntries: list.length,
+                  verifiedEntries: verifiedEntries,
+                ),
+                const SizedBox(height: 8),
                 Text(
                   'SOVEREIGN LEDGER',
                   style: GoogleFonts.inter(
@@ -272,6 +279,234 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _heroHeader({
+    required List<_LedgerEntryView> entries,
+    required _LedgerEntryView selected,
+    required int totalEntries,
+    required int verifiedEntries,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF241238), Color(0xFF111827)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF433267)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 920;
+          final titleBlock = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFA78BFA), Color(0xFF7C3AED)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.account_tree_outlined,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Sovereign Ledger',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFF6FBFF),
+                            fontSize: compact ? 22 : 26,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Evidence continuity, verification state, and immutable event-chain review for the current focus.',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF95A9C7),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _heroChip('Integrity', _integrity.label),
+                  _heroChip('Entries', '$totalEntries'),
+                  _heroChip('Verified', '$verifiedEntries'),
+                  _heroChip(
+                    'Focus',
+                    (selected.dispatchId ?? '').trim().isNotEmpty
+                        ? selected.dispatchId!
+                        : selected.id,
+                  ),
+                ],
+              ),
+            ],
+          );
+          final actions = Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            alignment: WrapAlignment.end,
+            children: [
+              _heroActionButton(
+                key: const ValueKey('ledger-hero-view-events-button'),
+                icon: Icons.open_in_new,
+                label: 'View Events',
+                accent: const Color(0xFF93C5FD),
+                onPressed: () => _openEventsForSelectedEntry(selected),
+              ),
+              _heroActionButton(
+                key: const ValueKey('ledger-hero-verify-button'),
+                icon: Icons.verified_rounded,
+                label: 'Verify Chain',
+                accent: const Color(0xFF59D79B),
+                onPressed: () {
+                  final intact = _verifyChain(entries);
+                  setState(() {
+                    _integrity = intact
+                        ? _ChainIntegrity.intact
+                        : _ChainIntegrity.compromised;
+                  });
+                  logUiAction(
+                    'ledger.hero_verify_chain',
+                    context: {
+                      'result': intact ? 'intact' : 'compromised',
+                      'from_hero': true,
+                    },
+                  );
+                },
+              ),
+            ],
+          );
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                titleBlock,
+                const SizedBox(height: 16),
+                actions,
+              ],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: titleBlock),
+              const SizedBox(width: 16),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 320),
+                child: actions,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _heroChip(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0x14000000),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0x33000000)),
+      ),
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '$label: ',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            TextSpan(
+              text: value,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFE8F1FF),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _heroActionButton({
+    required Key key,
+    required IconData icon,
+    required String label,
+    required Color accent,
+    required VoidCallback onPressed,
+  }) {
+    return FilledButton.tonalIcon(
+      key: key,
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: FilledButton.styleFrom(
+        backgroundColor: accent.withValues(alpha: 0.12),
+        foregroundColor: accent,
+        side: BorderSide(color: accent.withValues(alpha: 0.28)),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        textStyle: GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+    );
+  }
+
+  void _openEventsForSelectedEntry(_LedgerEntryView selected) {
+    final eventId = (selected.payload['eventId'] ?? '').toString().trim();
+    if (widget.onOpenEventsForScope != null && eventId.isNotEmpty) {
+      widget.onOpenEventsForScope!(<String>[eventId], eventId);
+      logUiAction(
+        'ledger.hero_view_events',
+        context: {'entry_id': selected.id, 'event_id': eventId},
+      );
+      return;
+    }
+    logUiAction(
+      'ledger.hero_view_events',
+      context: {'entry_id': selected.id},
+    );
+    _showActionMessage(
+      'Open Event Review to inspect ${eventId.isEmpty ? selected.id : eventId}.',
     );
   }
 

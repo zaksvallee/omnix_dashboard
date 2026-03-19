@@ -41,7 +41,30 @@ enum _IdentityRuleBucket {
   allowedPlates,
 }
 
+enum _AdminCsvTarget { guards, sites, clients }
+
 enum _AdminStatus { active, inactive, suspended }
+
+const _adminLiveOpsTipResetDraftButtonKey = ValueKey(
+  'admin-reset-live-ops-queue-hint-draft-button',
+);
+const _adminLiveOpsTipResetAuditButtonKey = ValueKey(
+  'admin-reset-live-ops-queue-hint-audit-button',
+);
+const _adminExportDataButtonKey = ValueKey('admin-export-data-button');
+const _adminImportCsvButtonKey = ValueKey('admin-import-csv-button');
+const _adminLiveOpsTipResetLabel = 'Re-enable Live Ops Tip';
+const _adminLiveOpsTipResetNote =
+    'Live Ops tip only. This re-enables the queue onboarding hint in live operations and does not change Telegram voice settings.';
+const _adminLiveOpsTipResetSuccessSnack = 'Live Ops tip will show again.';
+const _adminLiveOpsTipResetFailureSnack = 'Failed to re-enable Live Ops tip.';
+
+class _AdminCsvImportRequest {
+  final _AdminCsvTarget target;
+  final String rawCsv;
+
+  const _AdminCsvImportRequest({required this.target, required this.rawCsv});
+}
 
 class _GuardAdminRow {
   final String id;
@@ -439,6 +462,11 @@ class TelegramAiPendingDraftView {
   final String clientProfileOverrideSignal;
   final int learnedRewriteCount;
   final String learnedRewriteExample;
+  final String learnedRewriteTag;
+  final int learnedRewriteApprovalCount;
+  final DateTime? learnedRewriteLastApprovedAtUtc;
+  final DateTime? learnedRewriteLastUsedAtUtc;
+  final List<TelegramAiLearnedStylePreviewView> learnedRewritePreviews;
   final bool usesLearnedApprovalStyle;
   final DateTime createdAtUtc;
 
@@ -456,8 +484,29 @@ class TelegramAiPendingDraftView {
     this.clientProfileOverrideSignal = '',
     this.learnedRewriteCount = 0,
     this.learnedRewriteExample = '',
+    this.learnedRewriteTag = '',
+    this.learnedRewriteApprovalCount = 0,
+    this.learnedRewriteLastApprovedAtUtc,
+    this.learnedRewriteLastUsedAtUtc,
+    this.learnedRewritePreviews = const <TelegramAiLearnedStylePreviewView>[],
     this.usesLearnedApprovalStyle = false,
     required this.createdAtUtc,
+  });
+}
+
+class TelegramAiLearnedStylePreviewView {
+  final String text;
+  final String operatorTag;
+  final int approvalCount;
+  final DateTime? lastApprovedAtUtc;
+  final DateTime? lastUsedAtUtc;
+
+  const TelegramAiLearnedStylePreviewView({
+    required this.text,
+    this.operatorTag = '',
+    this.approvalCount = 0,
+    this.lastApprovedAtUtc,
+    this.lastUsedAtUtc,
   });
 }
 
@@ -470,6 +519,11 @@ class ClientCommsAuditView {
   final int pendingLearnedStyleDraftCount;
   final int learnedApprovalStyleCount;
   final String learnedApprovalStyleExample;
+  final String learnedApprovalStyleTag;
+  final int learnedApprovalStyleApprovalCount;
+  final DateTime? learnedApprovalStyleLastApprovedAtUtc;
+  final DateTime? learnedApprovalStyleLastUsedAtUtc;
+  final List<TelegramAiLearnedStylePreviewView> learnedApprovalStylePreviews;
   final String latestClientAskBody;
   final DateTime? latestClientAskAtUtc;
   final String latestLaneReplyBody;
@@ -497,6 +551,12 @@ class ClientCommsAuditView {
     this.pendingLearnedStyleDraftCount = 0,
     this.learnedApprovalStyleCount = 0,
     this.learnedApprovalStyleExample = '',
+    this.learnedApprovalStyleTag = '',
+    this.learnedApprovalStyleApprovalCount = 0,
+    this.learnedApprovalStyleLastApprovedAtUtc,
+    this.learnedApprovalStyleLastUsedAtUtc,
+    this.learnedApprovalStylePreviews =
+        const <TelegramAiLearnedStylePreviewView>[],
     this.latestClientAskBody = '',
     this.latestClientAskAtUtc,
     this.latestLaneReplyBody = '',
@@ -679,6 +739,36 @@ class AdministrationPage extends StatefulWidget {
     required String siteId,
   })?
   onClearTelegramAiLearnedStyleForScope;
+  final Future<void> Function({
+    required String clientId,
+    required String siteId,
+  })?
+  onPinTelegramAiLearnedStyleForScope;
+  final Future<void> Function({
+    required String clientId,
+    required String siteId,
+  })?
+  onDemoteTelegramAiLearnedStyleForScope;
+  final Future<void> Function({
+    required String clientId,
+    required String siteId,
+    required String learnedText,
+  })?
+  onPinTelegramAiLearnedStyleEntryForScope;
+  final Future<void> Function({
+    required String clientId,
+    required String siteId,
+    required String learnedText,
+  })?
+  onDemoteTelegramAiLearnedStyleEntryForScope;
+  final Future<void> Function({
+    required String clientId,
+    required String siteId,
+    required String learnedText,
+    String? operatorTag,
+  })?
+  onTagTelegramAiLearnedStyleEntryForScope;
+  final Future<void> Function()? onResetLiveOperationsQueueHint;
   final Future<void> Function(int updateId, String draftText)?
   onUpdateTelegramAiDraftText;
   final Future<String> Function(int updateId, {String? approvedText})?
@@ -810,6 +900,12 @@ class AdministrationPage extends StatefulWidget {
     this.onSetTelegramAiApprovalRequired,
     this.onSetTelegramAiClientProfileOverride,
     this.onClearTelegramAiLearnedStyleForScope,
+    this.onPinTelegramAiLearnedStyleForScope,
+    this.onDemoteTelegramAiLearnedStyleForScope,
+    this.onPinTelegramAiLearnedStyleEntryForScope,
+    this.onDemoteTelegramAiLearnedStyleEntryForScope,
+    this.onTagTelegramAiLearnedStyleEntryForScope,
+    this.onResetLiveOperationsQueueHint,
     this.onUpdateTelegramAiDraftText,
     this.onApproveTelegramAiDraft,
     this.onRejectTelegramAiDraft,
@@ -870,6 +966,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
   Set<int> _telegramAiDraftActionBusyIds = const <int>{};
   Set<String> _telegramAiProfileBusyScopeKeys = const <String>{};
   Set<String> _telegramAiLearnedStyleBusyScopeKeys = const <String>{};
+  bool _liveOperationsQueueHintResetBusy = false;
   Set<int> _telegramAiDraftEditBusyIds = const <int>{};
   VideoFleetWatchActionDrilldown? _activeWatchActionDrilldown;
 
@@ -1183,49 +1280,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                OnyxPageHeader(
-                  title: 'System Administration',
-                  subtitle:
-                      'Manage guards, sites, clients, and system configuration',
-                  actions: [
-                    OutlinedButton.icon(
-                      onPressed: null,
-                      icon: const Icon(Icons.download_rounded, size: 16),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF8FD1FF),
-                        side: const BorderSide(color: Color(0xFF35506F)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      label: Text(
-                        'Export Data',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    FilledButton.icon(
-                      onPressed: null,
-                      icon: const Icon(Icons.upload_rounded, size: 16),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF2B5E93),
-                        foregroundColor: const Color(0xFFEAF4FF),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      label: Text(
-                        'Import CSV',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                _adminHeroHeader(),
+                const SizedBox(height: 12),
+                _adminOverviewGrid(),
                 const SizedBox(height: 12),
                 _tabBar(),
                 const SizedBox(height: 12),
@@ -1261,6 +1318,416 @@ class _AdministrationPageState extends State<AdministrationPage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _adminHeroHeader() {
+    final bridgeTone = _telegramBridgeTone();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 980;
+        final actionButtons = Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            OutlinedButton.icon(
+              key: _adminExportDataButtonKey,
+              onPressed: _openAdminExportFlow,
+              icon: const Icon(Icons.download_rounded, size: 16),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF8FD1FF),
+                side: const BorderSide(color: Color(0xFF35506F)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              label: Text(
+                'Export Data',
+                style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700),
+              ),
+            ),
+            FilledButton.icon(
+              key: _adminImportCsvButtonKey,
+              onPressed: _directorySaving ? null : _openAdminImportCsvFlow,
+              icon: const Icon(Icons.upload_rounded, size: 16),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF2B5E93),
+                foregroundColor: const Color(0xFFEAF4FF),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              label: Text(
+                'Import CSV',
+                style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        );
+
+        final titleBlock = Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF475569), Color(0xFF334155)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x33334155),
+                      blurRadius: 18,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.settings_rounded,
+                  size: 30,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Administration',
+                      style: GoogleFonts.rajdhani(
+                        color: const Color(0xFFEAF4FF),
+                        fontSize: 30,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'System configuration, AI training, and operational controls',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF93A9C6),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _adminHeaderChip(
+                          label: bridgeTone.$1,
+                          foreground: bridgeTone.$2,
+                          background: bridgeTone.$3,
+                          border: bridgeTone.$4,
+                        ),
+                        _adminHeaderChip(
+                          label: widget.supabaseReady
+                              ? 'Directory Sync Ready'
+                              : 'Directory Sync Offline',
+                          foreground: widget.supabaseReady
+                              ? const Color(0xFF34D399)
+                              : const Color(0xFFF59E0B),
+                          background: widget.supabaseReady
+                              ? const Color(0x1A34D399)
+                              : const Color(0x1AF59E0B),
+                          border: widget.supabaseReady
+                              ? const Color(0x6634D399)
+                              : const Color(0x66F59E0B),
+                        ),
+                        _adminHeaderChip(
+                          label:
+                              '${widget.telegramAiPendingDrafts.length} Pending AI Draft${widget.telegramAiPendingDrafts.length == 1 ? '' : 's'}',
+                          foreground: widget.telegramAiPendingDrafts.isNotEmpty
+                              ? const Color(0xFFF59E0B)
+                              : const Color(0xFF8FD1FF),
+                          background: widget.telegramAiPendingDrafts.isNotEmpty
+                              ? const Color(0x1AF59E0B)
+                              : const Color(0x1A8FD1FF),
+                          border: widget.telegramAiPendingDrafts.isNotEmpty
+                              ? const Color(0x66F59E0B)
+                              : const Color(0x668FD1FF),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF111722), Color(0xFF0D1117)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFF223244)),
+          ),
+          child: compact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [titleBlock],
+                    ),
+                    const SizedBox(height: 14),
+                    actionButtons,
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    titleBlock,
+                    const SizedBox(width: 16),
+                    actionButtons,
+                  ],
+                ),
+        );
+      },
+    );
+  }
+
+  Widget _adminHeaderChip({
+    required String label,
+    required Color foreground,
+    required Color background,
+    required Color border,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: border),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          color: foreground,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+
+  Widget _adminOverviewGrid() {
+    final cards = <({
+      IconData icon,
+      Color accent,
+      String status,
+      Color statusAccent,
+      String value,
+      String title,
+      String footnote,
+      IconData footnoteIcon,
+      Color footnoteAccent,
+    })>[
+      (
+        icon: Icons.shield_rounded,
+        accent: const Color(0xFFEF4444),
+        status: 'Active',
+        statusAccent: const Color(0xFFEF4444),
+        value: '${_guards.length}',
+        title: 'Employees',
+        footnote: 'Directory roster loaded',
+        footnoteIcon: Icons.verified_user_rounded,
+        footnoteAccent: const Color(0xFF34D399),
+      ),
+      (
+        icon: Icons.apartment_rounded,
+        accent: const Color(0xFFF59E0B),
+        status: 'Mapped',
+        statusAccent: const Color(0xFFF59E0B),
+        value: '${_sites.length}',
+        title: 'Sites',
+        footnote: 'Geofence coverage ready',
+        footnoteIcon: Icons.location_on_outlined,
+        footnoteAccent: const Color(0xFF8FD1FF),
+      ),
+      (
+        icon: Icons.business_center_rounded,
+        accent: const Color(0xFF22D3EE),
+        status: 'Clients',
+        statusAccent: const Color(0xFF22D3EE),
+        value: '${_clients.length}',
+        title: 'Client Accounts',
+        footnote: '${widget.clientCommsAuditViews.length} comms audits in view',
+        footnoteIcon: Icons.chat_bubble_outline_rounded,
+        footnoteAccent: const Color(0xFF22D3EE),
+      ),
+      (
+        icon: Icons.psychology_alt_rounded,
+        accent: const Color(0xFF34D399),
+        status: widget.telegramAiPendingDrafts.isNotEmpty ? 'Review' : 'Ready',
+        statusAccent: widget.telegramAiPendingDrafts.isNotEmpty
+            ? const Color(0xFFF59E0B)
+            : const Color(0xFF34D399),
+        value: '${widget.telegramAiPendingDrafts.length}',
+        title: 'Pending AI Drafts',
+        footnote: widget.clientCommsAuditViews.isNotEmpty
+            ? '${widget.clientCommsAuditViews.length} client comms lanes monitored'
+            : 'Client comms audit ready',
+        footnoteIcon: widget.telegramAiPendingDrafts.isNotEmpty
+            ? Icons.schedule_rounded
+            : Icons.check_circle_rounded,
+        footnoteAccent: widget.telegramAiPendingDrafts.isNotEmpty
+            ? const Color(0xFFF59E0B)
+            : const Color(0xFF34D399),
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columnCount = constraints.maxWidth < 920 ? 2 : 4;
+        final childAspectRatio = constraints.maxWidth < 520
+            ? 0.76
+            : constraints.maxWidth < 920
+            ? 1.18
+            : 1.4;
+        return GridView.count(
+          key: const ValueKey('admin-overview-grid'),
+          crossAxisCount: columnCount,
+          childAspectRatio: childAspectRatio,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: cards
+              .map(
+                (card) => _adminOverviewCard(
+                  icon: card.icon,
+                  iconAccent: card.accent,
+                  statusLabel: card.status,
+                  statusAccent: card.statusAccent,
+                  value: card.value,
+                  title: card.title,
+                  footnote: card.footnote,
+                  footnoteIcon: card.footnoteIcon,
+                  footnoteAccent: card.footnoteAccent,
+                ),
+              )
+              .toList(growable: false),
+        );
+      },
+    );
+  }
+
+  Widget _adminOverviewCard({
+    required IconData icon,
+    required Color iconAccent,
+    required String statusLabel,
+    required Color statusAccent,
+    required String value,
+    required String title,
+    required String footnote,
+    required IconData footnoteIcon,
+    required Color footnoteAccent,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D1117),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF21262D)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  color: iconAccent.withValues(alpha: 0.14),
+                  border: Border.all(color: iconAccent.withValues(alpha: 0.32)),
+                ),
+                child: Icon(icon, size: 20, color: iconAccent),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusAccent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  statusLabel.toUpperCase(),
+                  style: GoogleFonts.inter(
+                    color: statusAccent,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFF8FBFF),
+              fontSize: 26,
+              fontWeight: FontWeight.w900,
+              height: 0.95,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            title.toUpperCase(),
+            style: GoogleFonts.inter(
+              color: const Color(0xFFB4BDC9),
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.9,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(height: 1, color: const Color(0x14FFFFFF)),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Icon(footnoteIcon, size: 14, color: footnoteAccent),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  footnote,
+                  style: GoogleFonts.inter(
+                    color: footnoteAccent,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -2430,6 +2897,12 @@ class _AdministrationPageState extends State<AdministrationPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 900;
+        final needsStackedControls =
+            compact ||
+            constraints.maxWidth <
+                (_demoMode
+                    ? (_activeTab == _AdminTab.clients ? 1680 : 1540)
+                    : (_activeTab == _AdminTab.clients ? 1320 : 1180));
         final search = TextField(
           controller: _searchController,
           onChanged: (value) => setState(() => _query = value.trim()),
@@ -2728,7 +3201,18 @@ class _AdministrationPageState extends State<AdministrationPage> {
           ),
         );
 
-        if (compact) {
+        final controls = <Widget>[
+          statusChip,
+          bridgeChip,
+          demoChip,
+          if (_demoMode) demoProfilePicker,
+          if (_demoMode) demoScriptButton,
+          if (_demoMode) demoResetButton,
+          if (_activeTab == _AdminTab.clients) addChatLaneButton,
+          addButton,
+        ];
+
+        if (needsStackedControls) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -2737,16 +3221,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: [
-                  statusChip,
-                  bridgeChip,
-                  demoChip,
-                  if (_demoMode) demoProfilePicker,
-                  if (_demoMode) demoScriptButton,
-                  if (_demoMode) demoResetButton,
-                  if (_activeTab == _AdminTab.clients) addChatLaneButton,
-                  addButton,
-                ],
+                children: controls,
               ),
             ],
           );
@@ -2755,25 +3230,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
           children: [
             Expanded(child: search),
             const SizedBox(width: 10),
-            statusChip,
-            const SizedBox(width: 10),
-            bridgeChip,
-            const SizedBox(width: 10),
-            demoChip,
-            const SizedBox(width: 10),
-            if (_demoMode) ...[
-              demoProfilePicker,
-              const SizedBox(width: 10),
-              demoScriptButton,
-              const SizedBox(width: 10),
-              demoResetButton,
-              const SizedBox(width: 10),
+            for (var index = 0; index < controls.length; index++) ...[
+              if (index > 0) const SizedBox(width: 10),
+              controls[index],
             ],
-            if (_activeTab == _AdminTab.clients) ...[
-              addChatLaneButton,
-              const SizedBox(width: 10),
-            ],
-            addButton,
           ],
         );
       },
@@ -6290,6 +6750,97 @@ class _AdministrationPageState extends State<AdministrationPage> {
         .join(' ');
   }
 
+  bool _adminContainsAny(String text, List<String> needles) {
+    for (final needle in needles) {
+      if (text.contains(needle)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool _isResidentialTelegramAiScope({
+    required String clientId,
+    required String siteId,
+  }) {
+    final combined = '$clientId\n$siteId'.toLowerCase();
+    return _adminContainsAny(combined, const [
+      'vallee',
+      'residence',
+      'residential',
+      'estate',
+      'home',
+      'house',
+      'villa',
+    ]);
+  }
+
+  List<String> _suggestedTelegramAiLearnedStyleTags({
+    required String clientId,
+    required String siteId,
+    required String currentTag,
+    required String learnedText,
+  }) {
+    final baseTags =
+        _isResidentialTelegramAiScope(clientId: clientId, siteId: siteId)
+        ? const <String>[
+            'Warm reassurance',
+            'Camera validation',
+            'ETA crisp',
+            'Operations formal',
+          ]
+        : const <String>[
+            'Operations formal',
+            'ETA crisp',
+            'Camera validation',
+            'Warm reassurance',
+          ];
+    final signals =
+        '${currentTag.trim().toLowerCase()}\n${learnedText.trim().toLowerCase()}';
+    String? preferredTag;
+    if (_adminContainsAny(signals, const [
+      'reassurance',
+      'comfort',
+      'you are not alone',
+      'treating this as live',
+      'stay close',
+      'protective',
+    ])) {
+      preferredTag = 'Warm reassurance';
+    } else if (_adminContainsAny(signals, const [
+      'camera',
+      'daylight',
+      'visual',
+      'camera check',
+      'validation',
+    ])) {
+      preferredTag = 'Camera validation';
+    } else if (_adminContainsAny(signals, const [
+      'eta',
+      'arrival',
+      'how long',
+      'confirmed arrival',
+    ])) {
+      preferredTag = 'ETA crisp';
+    } else if (_adminContainsAny(signals, const [
+      'actively checking',
+      'operations',
+      'formal',
+      'monitoring',
+      'close review',
+      'taking this seriously',
+    ])) {
+      preferredTag = 'Operations formal';
+    }
+    if (preferredTag == null) {
+      return baseTags;
+    }
+    return <String>[
+      preferredTag,
+      ...baseTags.where((tag) => tag != preferredTag),
+    ];
+  }
+
   String _telegramAiAudienceLabel(TelegramAiPendingDraftView draft) {
     switch (draft.audience.trim().toLowerCase()) {
       case 'admin':
@@ -6430,6 +6981,399 @@ class _AdministrationPageState extends State<AdministrationPage> {
     return '${age.inDays}d ago • $hh:$mm';
   }
 
+  String _telegramAiLearnedStyleMetaLabel({
+    required int approvalCount,
+    DateTime? lastApprovedAtUtc,
+    DateTime? lastUsedAtUtc,
+  }) {
+    if (approvalCount <= 0 &&
+        lastApprovedAtUtc == null &&
+        lastUsedAtUtc == null) {
+      return '';
+    }
+    final parts = <String>[
+      approvalCount <= 1 ? 'Approved 1x' : 'Approved ${approvalCount}x',
+    ];
+    if (lastUsedAtUtc != null) {
+      parts.add('Last used ${_telegramAiAgeLabel(lastUsedAtUtc)}');
+    } else if (lastApprovedAtUtc != null) {
+      parts.add('Last approved ${_telegramAiAgeLabel(lastApprovedAtUtc)}');
+    }
+    return parts.join(' • ');
+  }
+
+  String _telegramAiLearnedStyleTagLabel(String tag) {
+    final normalized = tag.trim();
+    if (normalized.isEmpty) {
+      return '';
+    }
+    return normalized;
+  }
+
+  Widget _telegramAiLearnedStyleTagChip(String tag) {
+    final normalized = _telegramAiLearnedStyleTagLabel(tag);
+    if (normalized.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1B3148),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFF4B6B8F)),
+      ),
+      child: Text(
+        normalized,
+        style: GoogleFonts.inter(
+          color: const Color(0xFFEAF4FF),
+          fontSize: 10.2,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Future<String?> _promptTelegramAiLearnedStyleTag({
+    required String clientId,
+    required String siteId,
+    required String currentTag,
+    required String learnedText,
+    required int rank,
+  }) async {
+    final controller = TextEditingController(text: currentTag);
+    final suggestedTags = _suggestedTelegramAiLearnedStyleTags(
+      clientId: clientId,
+      siteId: siteId,
+      currentTag: currentTag,
+      learnedText: learnedText,
+    );
+    return showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF0E1620),
+          title: Text(
+            rank <= 1 ? 'Tag Top Learned Style' : 'Tag Learned Style #$rank',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF4FF),
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: controller,
+                  maxLength: 48,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFEAF4FF),
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  decoration: InputDecoration(
+                    hintText:
+                        'Warm reassurance, ETA crisp, camera validation...',
+                    helperText: 'Leave blank to clear the current tag.',
+                    hintStyle: GoogleFonts.inter(
+                      color: const Color(0xFF8EA4C2),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    helperStyle: GoogleFonts.inter(
+                      color: const Color(0xFF8EA4C2),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    filled: true,
+                    fillColor: const Color(0xFF111D2A),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF35506F)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF35506F)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF4B6B8F)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Suggested tags',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFB7CAE3),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final tag in suggestedTags)
+                      OutlinedButton(
+                        onPressed: () {
+                          controller.value = TextEditingValue(
+                            text: tag,
+                            selection: TextSelection.collapsed(
+                              offset: tag.length,
+                            ),
+                          );
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF9EDCF0),
+                          side: const BorderSide(color: Color(0xFF245B72)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                        ),
+                        child: Text(
+                          tag,
+                          style: GoogleFonts.inter(
+                            fontSize: 10.8,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF9AB1CF),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.of(context).pop(controller.text.trim()),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF245B72),
+                foregroundColor: const Color(0xFFEAF4FF),
+              ),
+              child: Text(
+                'Save Tag',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _telegramAiLearnedStyleOptionsBlock({
+    required String clientId,
+    required String siteId,
+    required List<TelegramAiLearnedStylePreviewView> previews,
+    required bool busy,
+  }) {
+    final shortlist = previews.skip(1).take(2).toList(growable: false);
+    if (shortlist.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'NEXT LEARNED OPTIONS',
+          style: GoogleFonts.inter(
+            color: const Color(0xFF8EA4C2),
+            fontSize: 9.8,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.4,
+          ),
+        ),
+        const SizedBox(height: 7),
+        ...shortlist.asMap().entries.map((entry) {
+          final rank = entry.key + 2;
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: rank == shortlist.length + 1 ? 0 : 7,
+            ),
+            child: _telegramAiLearnedStyleOptionCard(
+              clientId: clientId,
+              siteId: siteId,
+              preview: entry.value,
+              rank: rank,
+              busy: busy,
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _telegramAiLearnedStyleOptionCard({
+    required String clientId,
+    required String siteId,
+    required TelegramAiLearnedStylePreviewView preview,
+    required int rank,
+    required bool busy,
+  }) {
+    final text = preview.text.trim();
+    if (text.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final meta = _telegramAiLearnedStyleMetaLabel(
+      approvalCount: preview.approvalCount,
+      lastApprovedAtUtc: preview.lastApprovedAtUtc,
+      lastUsedAtUtc: preview.lastUsedAtUtc,
+    );
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(9),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1621),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: const Color(0xFF1D4558).withValues(alpha: 0.55),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '#$rank $text',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFD9F7FF),
+              fontSize: 10.8,
+              fontWeight: FontWeight.w600,
+              height: 1.32,
+            ),
+          ),
+          if (_telegramAiLearnedStyleTagLabel(
+            preview.operatorTag,
+          ).isNotEmpty) ...[
+            const SizedBox(height: 6),
+            _telegramAiLearnedStyleTagChip(preview.operatorTag),
+          ],
+          if (meta.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              meta,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFB7CAE3),
+                fontSize: 10.2,
+                fontWeight: FontWeight.w600,
+                height: 1.32,
+              ),
+            ),
+          ],
+          const SizedBox(height: 7),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                onPressed:
+                    widget.onPinTelegramAiLearnedStyleEntryForScope == null ||
+                        busy
+                    ? null
+                    : () => _pinTelegramAiLearnedStyleEntryForScope(
+                        clientId: clientId,
+                        siteId: siteId,
+                        learnedText: text,
+                        rank: rank,
+                      ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFD9F7FF),
+                  side: const BorderSide(color: Color(0xFF245B72)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                ),
+                icon: const Icon(Icons.north_rounded, size: 14),
+                label: Text(
+                  'Promote #$rank',
+                  style: GoogleFonts.inter(
+                    fontSize: 10.8,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed:
+                    widget.onDemoteTelegramAiLearnedStyleEntryForScope ==
+                            null ||
+                        busy
+                    ? null
+                    : () => _demoteTelegramAiLearnedStyleEntryForScope(
+                        clientId: clientId,
+                        siteId: siteId,
+                        learnedText: text,
+                        rank: rank,
+                      ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFFFD4D4),
+                  side: const BorderSide(color: Color(0xFF6F3A3A)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                ),
+                icon: const Icon(Icons.south_rounded, size: 14),
+                label: Text(
+                  'Demote #$rank',
+                  style: GoogleFonts.inter(
+                    fontSize: 10.8,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed:
+                    widget.onTagTelegramAiLearnedStyleEntryForScope == null ||
+                        busy
+                    ? null
+                    : () => _tagTelegramAiLearnedStyleEntryForScope(
+                        clientId: clientId,
+                        siteId: siteId,
+                        learnedText: text,
+                        currentTag: preview.operatorTag,
+                        rank: rank,
+                      ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF9EDCF0),
+                  side: const BorderSide(color: Color(0xFF245B72)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                ),
+                icon: const Icon(Icons.label_rounded, size: 14),
+                label: Text(
+                  'Tag #$rank',
+                  style: GoogleFonts.inter(
+                    fontSize: 10.8,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   String _telegramAiScopeHeadline(TelegramAiPendingDraftView draft) {
     final siteLabel = _humanizeOpsScopeLabel(
       draft.siteId,
@@ -6488,8 +7432,15 @@ class _AdministrationPageState extends State<AdministrationPage> {
     return tags.take(3).toList(growable: false);
   }
 
-  String _telegramAiReviewCue(TelegramAiPendingDraftView draft) {
-    final source = draft.sourceText.trim().toLowerCase();
+  String _telegramAiLaneCue({
+    required String sourceText,
+    required String replyText,
+    required String learnedTag,
+    required String learnedText,
+  }) {
+    final source = sourceText.trim().toLowerCase();
+    final learnedSignals =
+        '${learnedTag.trim().toLowerCase()}\n${learnedText.trim().toLowerCase()}';
     if (source.contains('eta') || source.contains('arrival')) {
       return 'Check that timing is not over-promised before sending.';
     }
@@ -6499,10 +7450,57 @@ class _AdministrationPageState extends State<AdministrationPage> {
         source.contains('fire')) {
       return 'High-sensitivity message. Keep the tone calm and do not imply resolution unless control confirmed it.';
     }
-    if (draft.draftText.contains('?')) {
+    if (replyText.contains('?')) {
       return 'The reply asks for one missing detail, which is good when the scope is unclear.';
     }
+    if (_adminContainsAny(learnedSignals, const [
+      'camera',
+      'daylight',
+      'visual',
+      'camera check',
+      'validation',
+    ])) {
+      return 'Keep the camera wording concrete and make sure the exact check is clear before sending.';
+    }
+    if (_adminContainsAny(learnedSignals, const [
+      'reassurance',
+      'comfort',
+      'you are not alone',
+      'treating this as live',
+      'stay close',
+      'protective',
+    ])) {
+      return 'Lead with calm reassurance first, then the next confirmed step.';
+    }
+    if (_adminContainsAny(learnedSignals, const [
+      'operations formal',
+      'actively checking',
+      'operations',
+      'formal',
+      'close review',
+      'monitoring',
+    ])) {
+      return 'Keep the wording composed and operations-grade without slipping into robotic language.';
+    }
     return 'This draft is shaped for reassurance first, then the next confirmed step.';
+  }
+
+  String _telegramAiReviewCue(TelegramAiPendingDraftView draft) {
+    return _telegramAiLaneCue(
+      sourceText: draft.sourceText,
+      replyText: draft.draftText,
+      learnedTag: draft.learnedRewriteTag,
+      learnedText: draft.learnedRewriteExample,
+    );
+  }
+
+  String _clientCommsAuditCue(ClientCommsAuditView audit) {
+    return _telegramAiLaneCue(
+      sourceText: audit.latestClientAskBody,
+      replyText: audit.latestLaneReplyBody,
+      learnedTag: audit.learnedApprovalStyleTag,
+      learnedText: audit.learnedApprovalStyleExample,
+    );
   }
 
   Widget _telegramAiInfoChip({
@@ -6995,6 +7993,69 @@ class _AdministrationPageState extends State<AdministrationPage> {
     }
   }
 
+  List<(String, String?)> _orderedTelegramAiProfileOptions({
+    required String clientId,
+    required String siteId,
+    required String currentProfileSignal,
+    required String learnedTag,
+    required String learnedText,
+  }) {
+    const autoOption = ('Auto', null);
+    const nonAutoOptions = <(String, String?)>[
+      ('Concise', 'concise-updates'),
+      ('Reassuring', 'reassurance-forward'),
+      ('Validation-heavy', 'validation-heavy'),
+    ];
+    final normalizedCurrent = currentProfileSignal.trim().toLowerCase();
+    final signals =
+        '${learnedTag.trim().toLowerCase()}\n${learnedText.trim().toLowerCase()}';
+    String? preferredSignal;
+    if (normalizedCurrent.isNotEmpty) {
+      preferredSignal = normalizedCurrent;
+    } else if (_adminContainsAny(signals, const [
+      'camera',
+      'daylight',
+      'visual',
+      'camera check',
+      'validation',
+    ])) {
+      preferredSignal = 'validation-heavy';
+    } else if (_adminContainsAny(signals, const [
+      'reassurance',
+      'comfort',
+      'you are not alone',
+      'treating this as live',
+      'stay close',
+      'protective',
+    ])) {
+      preferredSignal = 'reassurance-forward';
+    } else if (_adminContainsAny(signals, const [
+      'eta',
+      'arrival',
+      'how long',
+      'concise',
+      'brief',
+      'short',
+      'operations formal',
+      'actively checking',
+      'formal',
+    ])) {
+      preferredSignal = 'concise-updates';
+    } else if (_isResidentialTelegramAiScope(
+      clientId: clientId,
+      siteId: siteId,
+    )) {
+      preferredSignal = 'reassurance-forward';
+    }
+    final orderedNonAuto = preferredSignal == null
+        ? nonAutoOptions
+        : <(String, String?)>[
+            nonAutoOptions.firstWhere((option) => option.$2 == preferredSignal),
+            ...nonAutoOptions.where((option) => option.$2 != preferredSignal),
+          ];
+    return <(String, String?)>[autoOption, ...orderedNonAuto];
+  }
+
   Future<void> _setTelegramAiClientProfileOverride(
     TelegramAiPendingDraftView draft,
     String? profileSignal,
@@ -7079,6 +8140,273 @@ class _AdministrationPageState extends State<AdministrationPage> {
         });
       }
     }
+  }
+
+  Future<void> _pinTelegramAiLearnedStyleForScope({
+    required String clientId,
+    required String siteId,
+  }) async {
+    if (widget.onPinTelegramAiLearnedStyleForScope == null) {
+      return;
+    }
+    final scopeKey = _telegramAiProfileScopeKeyForScope(clientId, siteId);
+    if (_telegramAiLearnedStyleBusyScopeKeys.contains(scopeKey)) {
+      return;
+    }
+    setState(() {
+      _telegramAiLearnedStyleBusyScopeKeys = {
+        ..._telegramAiLearnedStyleBusyScopeKeys,
+        scopeKey,
+      };
+    });
+    try {
+      await widget.onPinTelegramAiLearnedStyleForScope!.call(
+        clientId: clientId,
+        siteId: siteId,
+      );
+      _snack('Top learned approval style pinned for this lane.');
+    } catch (_) {
+      _snack('Failed to pin learned approval style.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _telegramAiLearnedStyleBusyScopeKeys =
+              _telegramAiLearnedStyleBusyScopeKeys
+                  .where((entry) => entry != scopeKey)
+                  .toSet();
+        });
+      }
+    }
+  }
+
+  Future<void> _demoteTelegramAiLearnedStyleForScope({
+    required String clientId,
+    required String siteId,
+  }) async {
+    if (widget.onDemoteTelegramAiLearnedStyleForScope == null) {
+      return;
+    }
+    final scopeKey = _telegramAiProfileScopeKeyForScope(clientId, siteId);
+    if (_telegramAiLearnedStyleBusyScopeKeys.contains(scopeKey)) {
+      return;
+    }
+    setState(() {
+      _telegramAiLearnedStyleBusyScopeKeys = {
+        ..._telegramAiLearnedStyleBusyScopeKeys,
+        scopeKey,
+      };
+    });
+    try {
+      await widget.onDemoteTelegramAiLearnedStyleForScope!.call(
+        clientId: clientId,
+        siteId: siteId,
+      );
+      _snack('Top learned approval style demoted for this lane.');
+    } catch (_) {
+      _snack('Failed to demote learned approval style.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _telegramAiLearnedStyleBusyScopeKeys =
+              _telegramAiLearnedStyleBusyScopeKeys
+                  .where((entry) => entry != scopeKey)
+                  .toSet();
+        });
+      }
+    }
+  }
+
+  Future<void> _pinTelegramAiLearnedStyleEntryForScope({
+    required String clientId,
+    required String siteId,
+    required String learnedText,
+    required int rank,
+  }) async {
+    if (widget.onPinTelegramAiLearnedStyleEntryForScope == null) {
+      return;
+    }
+    final scopeKey = _telegramAiProfileScopeKeyForScope(clientId, siteId);
+    if (_telegramAiLearnedStyleBusyScopeKeys.contains(scopeKey)) {
+      return;
+    }
+    setState(() {
+      _telegramAiLearnedStyleBusyScopeKeys = {
+        ..._telegramAiLearnedStyleBusyScopeKeys,
+        scopeKey,
+      };
+    });
+    try {
+      await widget.onPinTelegramAiLearnedStyleEntryForScope!.call(
+        clientId: clientId,
+        siteId: siteId,
+        learnedText: learnedText,
+      );
+      _snack('Learned option #$rank promoted to top style for this lane.');
+    } catch (_) {
+      _snack('Failed to promote learned style option.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _telegramAiLearnedStyleBusyScopeKeys =
+              _telegramAiLearnedStyleBusyScopeKeys
+                  .where((entry) => entry != scopeKey)
+                  .toSet();
+        });
+      }
+    }
+  }
+
+  Future<void> _demoteTelegramAiLearnedStyleEntryForScope({
+    required String clientId,
+    required String siteId,
+    required String learnedText,
+    required int rank,
+  }) async {
+    if (widget.onDemoteTelegramAiLearnedStyleEntryForScope == null) {
+      return;
+    }
+    final scopeKey = _telegramAiProfileScopeKeyForScope(clientId, siteId);
+    if (_telegramAiLearnedStyleBusyScopeKeys.contains(scopeKey)) {
+      return;
+    }
+    setState(() {
+      _telegramAiLearnedStyleBusyScopeKeys = {
+        ..._telegramAiLearnedStyleBusyScopeKeys,
+        scopeKey,
+      };
+    });
+    try {
+      await widget.onDemoteTelegramAiLearnedStyleEntryForScope!.call(
+        clientId: clientId,
+        siteId: siteId,
+        learnedText: learnedText,
+      );
+      _snack('Learned option #$rank demoted for this lane.');
+    } catch (_) {
+      _snack('Failed to demote learned style option.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _telegramAiLearnedStyleBusyScopeKeys =
+              _telegramAiLearnedStyleBusyScopeKeys
+                  .where((entry) => entry != scopeKey)
+                  .toSet();
+        });
+      }
+    }
+  }
+
+  Future<void> _tagTelegramAiLearnedStyleEntryForScope({
+    required String clientId,
+    required String siteId,
+    required String learnedText,
+    required String currentTag,
+    required int rank,
+  }) async {
+    if (widget.onTagTelegramAiLearnedStyleEntryForScope == null) {
+      return;
+    }
+    final nextTag = await _promptTelegramAiLearnedStyleTag(
+      clientId: clientId,
+      siteId: siteId,
+      currentTag: currentTag,
+      learnedText: learnedText,
+      rank: rank,
+    );
+    if (nextTag == null) {
+      return;
+    }
+    final scopeKey = _telegramAiProfileScopeKeyForScope(clientId, siteId);
+    if (_telegramAiLearnedStyleBusyScopeKeys.contains(scopeKey)) {
+      return;
+    }
+    setState(() {
+      _telegramAiLearnedStyleBusyScopeKeys = {
+        ..._telegramAiLearnedStyleBusyScopeKeys,
+        scopeKey,
+      };
+    });
+    try {
+      await widget.onTagTelegramAiLearnedStyleEntryForScope!.call(
+        clientId: clientId,
+        siteId: siteId,
+        learnedText: learnedText,
+        operatorTag: nextTag,
+      );
+      _snack(
+        nextTag.trim().isEmpty
+            ? 'Learned style tag cleared for this lane.'
+            : 'Learned option #$rank tagged as "${nextTag.trim()}".',
+      );
+    } catch (_) {
+      _snack('Failed to update learned style tag.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _telegramAiLearnedStyleBusyScopeKeys =
+              _telegramAiLearnedStyleBusyScopeKeys
+                  .where((entry) => entry != scopeKey)
+                  .toSet();
+        });
+      }
+    }
+  }
+
+  Future<void> _resetLiveOperationsQueueHint() async {
+    if (widget.onResetLiveOperationsQueueHint == null ||
+        _liveOperationsQueueHintResetBusy) {
+      return;
+    }
+    setState(() {
+      _liveOperationsQueueHintResetBusy = true;
+    });
+    try {
+      await widget.onResetLiveOperationsQueueHint!.call();
+      _snack(_adminLiveOpsTipResetSuccessSnack);
+    } catch (_) {
+      _snack(_adminLiveOpsTipResetFailureSnack);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _liveOperationsQueueHintResetBusy = false;
+        });
+      }
+    }
+  }
+
+  Widget _buildLiveOpsTipResetButton({required bool audit}) {
+    return OutlinedButton.icon(
+      key: audit
+          ? _adminLiveOpsTipResetAuditButtonKey
+          : _adminLiveOpsTipResetDraftButtonKey,
+      onPressed:
+          widget.onResetLiveOperationsQueueHint == null ||
+              _liveOperationsQueueHintResetBusy
+          ? null
+          : _resetLiveOperationsQueueHint,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: const Color(0xFFBAE6FD),
+        side: const BorderSide(color: Color(0xFF245B72)),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      ),
+      icon: const Icon(Icons.tips_and_updates_outlined, size: 14),
+      label: Text(
+        _adminLiveOpsTipResetLabel,
+        style: GoogleFonts.inter(fontSize: 10.8, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+
+  Widget _buildLiveOpsTipResetNote() {
+    return Text(
+      _adminLiveOpsTipResetNote,
+      style: GoogleFonts.inter(
+        color: const Color(0xFF7FA1C7),
+        fontSize: 10.1,
+        fontWeight: FontWeight.w600,
+        height: 1.32,
+      ),
+    );
   }
 
   Widget _telegramAiAssistantPanel() {
@@ -7355,12 +8683,13 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             accent: const Color(0xFF67E8F9),
                             icon: Icons.psychology_alt_rounded,
                           ),
-                        for (final option in const <(String, String?)>[
-                          ('Auto', null),
-                          ('Concise', 'concise-updates'),
-                          ('Reassuring', 'reassurance-forward'),
-                          ('Validation-heavy', 'validation-heavy'),
-                        ])
+                        for (final option in _orderedTelegramAiProfileOptions(
+                          clientId: draft.clientId,
+                          siteId: draft.siteId,
+                          currentProfileSignal: profileSignal,
+                          learnedTag: draft.learnedRewriteTag,
+                          learnedText: draft.learnedRewriteExample,
+                        ))
                           OutlinedButton(
                             onPressed:
                                 (widget.onSetTelegramAiClientProfileOverride ==
@@ -7433,40 +8762,167 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     ),
                     if (draft.learnedRewriteExample.trim().isNotEmpty) ...[
                       const SizedBox(height: 7),
+                      if (_telegramAiLearnedStyleTagLabel(
+                        draft.learnedRewriteTag,
+                      ).isNotEmpty) ...[
+                        _telegramAiLearnedStyleTagChip(draft.learnedRewriteTag),
+                        const SizedBox(height: 7),
+                      ],
                       _telegramAiReviewTextBlock(
                         label: 'LEARNED APPROVAL STYLE',
                         text: draft.learnedRewriteExample.trim(),
                         borderColor: const Color(0xFF245B72),
                         textColor: const Color(0xFFD9F7FF),
                       ),
-                      const SizedBox(height: 7),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: OutlinedButton.icon(
-                          onPressed:
-                              widget.onClearTelegramAiLearnedStyleForScope ==
-                                      null ||
-                                  learnedStyleBusy
-                              ? null
-                              : () => _clearTelegramAiLearnedStyle(draft),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF9EDCF0),
-                            side: const BorderSide(color: Color(0xFF245B72)),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 8,
-                            ),
+                      if (_telegramAiLearnedStyleMetaLabel(
+                        approvalCount: draft.learnedRewriteApprovalCount,
+                        lastApprovedAtUtc:
+                            draft.learnedRewriteLastApprovedAtUtc,
+                        lastUsedAtUtc: draft.learnedRewriteLastUsedAtUtc,
+                      ).isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          _telegramAiLearnedStyleMetaLabel(
+                            approvalCount: draft.learnedRewriteApprovalCount,
+                            lastApprovedAtUtc:
+                                draft.learnedRewriteLastApprovedAtUtc,
+                            lastUsedAtUtc: draft.learnedRewriteLastUsedAtUtc,
                           ),
-                          icon: const Icon(Icons.refresh_rounded, size: 14),
-                          label: Text(
-                            'Clear Learned Style',
-                            style: GoogleFonts.inter(
-                              fontSize: 10.8,
-                              fontWeight: FontWeight.w700,
-                            ),
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFB7CAE3),
+                            fontSize: 10.2,
+                            fontWeight: FontWeight.w600,
+                            height: 1.32,
                           ),
                         ),
+                      ],
+                      if (draft.learnedRewritePreviews.length > 1) ...[
+                        const SizedBox(height: 7),
+                        _telegramAiLearnedStyleOptionsBlock(
+                          clientId: draft.clientId,
+                          siteId: draft.siteId,
+                          previews: draft.learnedRewritePreviews,
+                          busy: learnedStyleBusy,
+                        ),
+                      ],
+                      const SizedBox(height: 7),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed:
+                                widget.onPinTelegramAiLearnedStyleForScope ==
+                                        null ||
+                                    learnedStyleBusy
+                                ? null
+                                : () => _pinTelegramAiLearnedStyleForScope(
+                                    clientId: draft.clientId,
+                                    siteId: draft.siteId,
+                                  ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFD9F7FF),
+                              side: const BorderSide(color: Color(0xFF245B72)),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                            ),
+                            icon: const Icon(Icons.push_pin_rounded, size: 14),
+                            label: Text(
+                              'Pin Top Style',
+                              style: GoogleFonts.inter(
+                                fontSize: 10.8,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed:
+                                widget.onDemoteTelegramAiLearnedStyleForScope ==
+                                        null ||
+                                    learnedStyleBusy
+                                ? null
+                                : () => _demoteTelegramAiLearnedStyleForScope(
+                                    clientId: draft.clientId,
+                                    siteId: draft.siteId,
+                                  ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFFFD4D4),
+                              side: const BorderSide(color: Color(0xFF6F3A3A)),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                            ),
+                            icon: const Icon(Icons.south_rounded, size: 14),
+                            label: Text(
+                              'Demote Top Style',
+                              style: GoogleFonts.inter(
+                                fontSize: 10.8,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed:
+                                widget.onTagTelegramAiLearnedStyleEntryForScope ==
+                                        null ||
+                                    learnedStyleBusy
+                                ? null
+                                : () => _tagTelegramAiLearnedStyleEntryForScope(
+                                    clientId: draft.clientId,
+                                    siteId: draft.siteId,
+                                    learnedText: draft.learnedRewriteExample,
+                                    currentTag: draft.learnedRewriteTag,
+                                    rank: 1,
+                                  ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF9EDCF0),
+                              side: const BorderSide(color: Color(0xFF245B72)),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                            ),
+                            icon: const Icon(Icons.label_rounded, size: 14),
+                            label: Text(
+                              'Tag Top Style',
+                              style: GoogleFonts.inter(
+                                fontSize: 10.8,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          _buildLiveOpsTipResetButton(audit: false),
+                          OutlinedButton.icon(
+                            onPressed:
+                                widget.onClearTelegramAiLearnedStyleForScope ==
+                                        null ||
+                                    learnedStyleBusy
+                                ? null
+                                : () => _clearTelegramAiLearnedStyle(draft),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF9EDCF0),
+                              side: const BorderSide(color: Color(0xFF245B72)),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                            ),
+                            icon: const Icon(Icons.refresh_rounded, size: 14),
+                            label: Text(
+                              'Clear Learned Style',
+                              style: GoogleFonts.inter(
+                                fontSize: 10.8,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
+                      const SizedBox(height: 7),
+                      _buildLiveOpsTipResetNote(),
                     ],
                     if (draft.usesLearnedApprovalStyle) ...[
                       const SizedBox(height: 7),
@@ -7723,6 +9179,13 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   audit.siteId,
                 ),
               );
+              final learnedStyleBusy = _telegramAiLearnedStyleBusyScopeKeys
+                  .contains(
+                    _telegramAiProfileScopeKeyForScope(
+                      audit.clientId,
+                      audit.siteId,
+                    ),
+                  );
               return Container(
                 width: double.infinity,
                 margin: const EdgeInsets.only(bottom: 8),
@@ -7850,12 +9313,13 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             accent: const Color(0xFF67E8F9),
                             icon: Icons.psychology_alt_rounded,
                           ),
-                        for (final option in const <(String, String?)>[
-                          ('Auto', null),
-                          ('Concise', 'concise-updates'),
-                          ('Reassuring', 'reassurance-forward'),
-                          ('Validation-heavy', 'validation-heavy'),
-                        ])
+                        for (final option in _orderedTelegramAiProfileOptions(
+                          clientId: audit.clientId,
+                          siteId: audit.siteId,
+                          currentProfileSignal: profileSignal,
+                          learnedTag: audit.learnedApprovalStyleTag,
+                          learnedText: audit.learnedApprovalStyleExample,
+                        ))
                           OutlinedButton(
                             onPressed:
                                 (widget.onSetTelegramAiClientProfileOverride ==
@@ -7904,6 +9368,16 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           ),
                       ],
                     ),
+                    const SizedBox(height: 7),
+                    Text(
+                      _clientCommsAuditCue(audit),
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFB7CAE3),
+                        fontSize: 10.2,
+                        fontWeight: FontWeight.w600,
+                        height: 1.32,
+                      ),
+                    ),
                     if ((audit.latestSmsFallbackStatus ?? '')
                         .trim()
                         .isNotEmpty) ...[
@@ -7932,7 +9406,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         textColor: const Color(0xFFDCEBFF),
                       ),
                     ],
-                    if ((audit.pushSyncFailureReason ?? '').trim().isNotEmpty) ...[
+                    if ((audit.pushSyncFailureReason ?? '')
+                        .trim()
+                        .isNotEmpty) ...[
                       const SizedBox(height: 7),
                       _telegramAiReviewTextBlock(
                         label: 'LATEST PUSH DETAIL',
@@ -7999,12 +9475,148 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         .trim()
                         .isNotEmpty) ...[
                       const SizedBox(height: 7),
+                      if (_telegramAiLearnedStyleTagLabel(
+                        audit.learnedApprovalStyleTag,
+                      ).isNotEmpty) ...[
+                        _telegramAiLearnedStyleTagChip(
+                          audit.learnedApprovalStyleTag,
+                        ),
+                        const SizedBox(height: 7),
+                      ],
                       _telegramAiReviewTextBlock(
                         label: 'LEARNED APPROVAL STYLE',
                         text: audit.learnedApprovalStyleExample.trim(),
                         borderColor: const Color(0xFF245B72),
                         textColor: const Color(0xFFD9F7FF),
                       ),
+                      if (_telegramAiLearnedStyleMetaLabel(
+                        approvalCount: audit.learnedApprovalStyleApprovalCount,
+                        lastApprovedAtUtc:
+                            audit.learnedApprovalStyleLastApprovedAtUtc,
+                        lastUsedAtUtc: audit.learnedApprovalStyleLastUsedAtUtc,
+                      ).isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          _telegramAiLearnedStyleMetaLabel(
+                            approvalCount:
+                                audit.learnedApprovalStyleApprovalCount,
+                            lastApprovedAtUtc:
+                                audit.learnedApprovalStyleLastApprovedAtUtc,
+                            lastUsedAtUtc:
+                                audit.learnedApprovalStyleLastUsedAtUtc,
+                          ),
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFB7CAE3),
+                            fontSize: 10.2,
+                            fontWeight: FontWeight.w600,
+                            height: 1.32,
+                          ),
+                        ),
+                      ],
+                      if (audit.learnedApprovalStylePreviews.length > 1) ...[
+                        const SizedBox(height: 7),
+                        _telegramAiLearnedStyleOptionsBlock(
+                          clientId: audit.clientId,
+                          siteId: audit.siteId,
+                          previews: audit.learnedApprovalStylePreviews,
+                          busy: learnedStyleBusy,
+                        ),
+                      ],
+                      const SizedBox(height: 7),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed:
+                                widget.onPinTelegramAiLearnedStyleForScope ==
+                                        null ||
+                                    learnedStyleBusy
+                                ? null
+                                : () => _pinTelegramAiLearnedStyleForScope(
+                                    clientId: audit.clientId,
+                                    siteId: audit.siteId,
+                                  ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFD9F7FF),
+                              side: const BorderSide(color: Color(0xFF245B72)),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                            ),
+                            icon: const Icon(Icons.push_pin_rounded, size: 14),
+                            label: Text(
+                              'Pin Top Style',
+                              style: GoogleFonts.inter(
+                                fontSize: 10.8,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed:
+                                widget.onDemoteTelegramAiLearnedStyleForScope ==
+                                        null ||
+                                    learnedStyleBusy
+                                ? null
+                                : () => _demoteTelegramAiLearnedStyleForScope(
+                                    clientId: audit.clientId,
+                                    siteId: audit.siteId,
+                                  ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFFFD4D4),
+                              side: const BorderSide(color: Color(0xFF6F3A3A)),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                            ),
+                            icon: const Icon(Icons.south_rounded, size: 14),
+                            label: Text(
+                              'Demote Top Style',
+                              style: GoogleFonts.inter(
+                                fontSize: 10.8,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed:
+                                widget.onTagTelegramAiLearnedStyleEntryForScope ==
+                                        null ||
+                                    learnedStyleBusy
+                                ? null
+                                : () => _tagTelegramAiLearnedStyleEntryForScope(
+                                    clientId: audit.clientId,
+                                    siteId: audit.siteId,
+                                    learnedText:
+                                        audit.learnedApprovalStyleExample,
+                                    currentTag: audit.learnedApprovalStyleTag,
+                                    rank: 1,
+                                  ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF9EDCF0),
+                              side: const BorderSide(color: Color(0xFF245B72)),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                            ),
+                            icon: const Icon(Icons.label_rounded, size: 14),
+                            label: Text(
+                              'Tag Top Style',
+                              style: GoogleFonts.inter(
+                                fontSize: 10.8,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          _buildLiveOpsTipResetButton(audit: true),
+                        ],
+                      ),
+                      const SizedBox(height: 7),
+                      _buildLiveOpsTipResetNote(),
                     ],
                     if ((audit.deliveryReadinessDetail ?? '')
                         .trim()
@@ -10280,9 +11892,18 @@ class _AdministrationPageState extends State<AdministrationPage> {
     final statusColor = switch (scope.statusLabel.toUpperCase()) {
       'LIVE' => const Color(0xFF10B981),
       'ACTIVE WATCH' => const Color(0xFF22D3EE),
+      'LIMITED WATCH' => const Color(0xFFF59E0B),
       'WATCH READY' => const Color(0xFFF59E0B),
       _ => const Color(0xFF8EA4C2),
     };
+    final watchColor = scope.watchLabel == 'LIMITED'
+        ? const Color(0xFFF59E0B)
+        : const Color(0xFF67E8F9);
+    final phaseColor = (scope.watchWindowStateLabel ?? '').contains('LIMITED')
+        ? const Color(0xFFF59E0B)
+        : scope.watchWindowStateLabel == 'IN WINDOW'
+        ? const Color(0xFF86EFAC)
+        : const Color(0xFFFBBF24);
     final primaryOpenFleetScope = scope.hasIncidentContext
         ? (widget.onOpenFleetTacticalScope ?? widget.onOpenFleetDispatchScope)
         : null;
@@ -10303,6 +11924,11 @@ class _AdministrationPageState extends State<AdministrationPage> {
       lastSeenStyle: GoogleFonts.inter(
         color: const Color(0xFF9AB1CF),
         fontSize: 11,
+        fontWeight: FontWeight.w600,
+      ),
+      statusDetailStyle: GoogleFonts.inter(
+        color: const Color(0xFFFDE68A),
+        fontSize: 10,
         fontWeight: FontWeight.w600,
       ),
       noteStyle: GoogleFonts.inter(
@@ -10354,7 +11980,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 : const Color(0xFFFCA5A5),
           ),
         _fleetBadge('Status', scope.statusLabel, statusColor),
-        _fleetBadge('Watch', scope.watchLabel, const Color(0xFF67E8F9)),
+        _fleetBadge('Watch', scope.watchLabel, watchColor),
         _fleetBadge(
           'Freshness',
           scope.freshnessLabel,
@@ -10370,13 +11996,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             const Color(0xFF86EFAC),
           ),
         if (scope.watchWindowStateLabel != null)
-          _fleetBadge(
-            'Phase',
-            scope.watchWindowStateLabel!,
-            scope.watchWindowStateLabel == 'IN WINDOW'
-                ? const Color(0xFF86EFAC)
-                : const Color(0xFFFBBF24),
-          ),
+          _fleetBadge('Phase', scope.watchWindowStateLabel!, phaseColor),
         if (scope.latestRiskScore != null)
           _fleetBadge(
             'Risk',
@@ -10422,6 +12042,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             ),
           ),
       ],
+      statusDetailText: scope.limitedWatchStatusDetailText,
       noteText: scope.noteText,
       latestText: prominentLatestTextForWatchAction(
         scope,
@@ -10451,6 +12072,19 @@ class _AdministrationPageState extends State<AdministrationPage> {
   }) {
     return [
       _fleetBadge('Active', '${sections.activeCount}', const Color(0xFF67E8F9)),
+      _fleetBadge(
+        'Limited',
+        '${sections.limitedCount}',
+        const Color(0xFFF59E0B),
+        isActive:
+            _activeWatchActionDrilldown ==
+            VideoFleetWatchActionDrilldown.limited,
+        onTap: sections.limitedCount > 0
+            ? () => onOpenWatchActionDrilldown(
+                VideoFleetWatchActionDrilldown.limited,
+              )
+            : null,
+      ),
       _fleetBadge('Gap', '${sections.gapCount}', const Color(0xFFF87171)),
       _fleetBadge(
         'High Risk',
@@ -13433,6 +15067,649 @@ class _AdministrationPageState extends State<AdministrationPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _openAdminExportFlow() async {
+    final payload = _buildAdminExportPayload();
+    await Clipboard.setData(ClipboardData(text: payload.$1));
+    if (!mounted) return;
+    _snack(payload.$2);
+  }
+
+  Future<void> _openAdminImportCsvFlow() async {
+    final request = await _showAdminCsvImportDialog();
+    if (request == null) return;
+    try {
+      final importedCount = _importAdminCsv(request);
+      if (!mounted) return;
+      final noun = switch (request.target) {
+        _AdminCsvTarget.guards => 'employee',
+        _AdminCsvTarget.sites => 'site',
+        _AdminCsvTarget.clients => 'client',
+      };
+      _snack(
+        'Imported $importedCount $noun${importedCount == 1 ? '' : 's'} from CSV.',
+      );
+    } catch (error) {
+      if (!mounted) return;
+      _snack('CSV import failed: $error');
+    }
+  }
+
+  (String, String) _buildAdminExportPayload() {
+    return switch (_activeTab) {
+      _AdminTab.guards => (
+        _csvFromRows(
+          const <String>[
+            'employee_code',
+            'name',
+            'role',
+            'assigned_site',
+            'phone',
+            'email',
+            'psira_number',
+            'psira_expiry',
+            'status',
+            'certifications',
+            'shift_pattern',
+            'emergency_contact',
+          ],
+          _guards
+              .map(
+                (guard) => <String>[
+                  guard.employeeId,
+                  guard.name,
+                  guard.role,
+                  guard.assignedSite,
+                  guard.phone,
+                  guard.email,
+                  guard.psiraNumber,
+                  guard.psiraExpiry ?? '-',
+                  _adminStatusCsvLabel(guard.status),
+                  guard.certifications.join('|'),
+                  guard.shiftPattern,
+                  guard.emergencyContact,
+                ],
+              )
+              .toList(growable: false),
+        ),
+        'Employee CSV copied.',
+      ),
+      _AdminTab.sites => (
+        _csvFromRows(
+          const <String>[
+            'site_id',
+            'name',
+            'code',
+            'client_id',
+            'address',
+            'lat',
+            'lng',
+            'contact_person',
+            'contact_phone',
+            'fsk_number',
+            'geofence_radius_meters',
+            'status',
+          ],
+          _sites
+              .map(
+                (site) => <String>[
+                  site.id,
+                  site.name,
+                  site.code,
+                  site.clientId,
+                  site.address,
+                  site.lat.toString(),
+                  site.lng.toString(),
+                  site.contactPerson,
+                  site.contactPhone,
+                  site.fskNumber ?? '-',
+                  site.geofenceRadiusMeters.toString(),
+                  _adminStatusCsvLabel(site.status),
+                ],
+              )
+              .toList(growable: false),
+        ),
+        'Site CSV copied.',
+      ),
+      _AdminTab.clients => (
+        _csvFromRows(
+          const <String>[
+            'client_id',
+            'name',
+            'code',
+            'contact_person',
+            'contact_email',
+            'contact_phone',
+            'sla_tier',
+            'contract_start',
+            'contract_end',
+            'sites',
+            'status',
+          ],
+          _clients
+              .map(
+                (client) => <String>[
+                  client.id,
+                  client.name,
+                  client.code,
+                  client.contactPerson,
+                  client.contactEmail,
+                  client.contactPhone,
+                  client.slaTier,
+                  client.contractStart,
+                  client.contractEnd,
+                  client.sites.toString(),
+                  _adminStatusCsvLabel(client.status),
+                ],
+              )
+              .toList(growable: false),
+        ),
+        'Client CSV copied.',
+      ),
+      _AdminTab.system => (
+        const JsonEncoder.withIndent('  ').convert({
+          'operator_id': widget.operatorId,
+          'telegram_ai_assistant_enabled': widget.telegramAiAssistantEnabled,
+          'telegram_ai_approval_required': widget.telegramAiApprovalRequired,
+          'radio_intent_phrases_json': _radioIntentPhrasesController.text,
+          'demo_route_cues_json': _demoRouteCuesController.text,
+          'fleet_watch_scope_count': widget.fleetScopeHealth.length,
+          'pending_ai_draft_count': widget.telegramAiPendingDrafts.length,
+          'client_comms_audit_count': widget.clientCommsAuditViews.length,
+          'telegram_bridge_health_label': widget.telegramBridgeHealthLabel,
+        }),
+        'System configuration JSON copied.',
+      ),
+    };
+  }
+
+  Future<_AdminCsvImportRequest?> _showAdminCsvImportDialog() async {
+    final controller = TextEditingController();
+    var selectedTarget = _activeCsvImportTarget;
+    return showDialog<_AdminCsvImportRequest>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final helper = _adminCsvImportHelperText(selectedTarget);
+            return AlertDialog(
+              backgroundColor: const Color(0xFF111722),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(color: Color(0xFF283548)),
+              ),
+              title: Text(
+                'Import CSV',
+                style: GoogleFonts.rajdhani(
+                  color: const Color(0xFFEAF4FF),
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              content: SizedBox(
+                width: 620,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      DropdownButtonFormField<_AdminCsvTarget>(
+                        initialValue: selectedTarget,
+                        dropdownColor: const Color(0xFF111722),
+                        decoration: const InputDecoration(
+                          labelText: 'Target',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const <DropdownMenuItem<_AdminCsvTarget>>[
+                          DropdownMenuItem(
+                            value: _AdminCsvTarget.guards,
+                            child: Text('Employees'),
+                          ),
+                          DropdownMenuItem(
+                            value: _AdminCsvTarget.sites,
+                            child: Text('Sites'),
+                          ),
+                          DropdownMenuItem(
+                            value: _AdminCsvTarget.clients,
+                            child: Text('Clients'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setDialogState(() => selectedTarget = value);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        helper,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF9FB6D1),
+                          fontSize: 12,
+                          height: 1.45,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: controller,
+                        maxLines: 12,
+                        minLines: 12,
+                        style: GoogleFonts.robotoMono(
+                          color: const Color(0xFFEAF4FF),
+                          fontSize: 12,
+                        ),
+                        decoration: const InputDecoration(
+                          hintText: 'Paste CSV with a header row',
+                          border: OutlineInputBorder(),
+                          alignLabelWithHint: true,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(
+                    _AdminCsvImportRequest(
+                      target: selectedTarget,
+                      rawCsv: controller.text,
+                    ),
+                  ),
+                  child: const Text('Import'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  _AdminCsvTarget get _activeCsvImportTarget {
+    return switch (_activeTab) {
+      _AdminTab.sites => _AdminCsvTarget.sites,
+      _AdminTab.clients => _AdminCsvTarget.clients,
+      _AdminTab.guards || _AdminTab.system => _AdminCsvTarget.guards,
+    };
+  }
+
+  String _adminCsvImportHelperText(_AdminCsvTarget target) {
+    return switch (target) {
+      _AdminCsvTarget.guards =>
+        'Headers: employee_code, name, role, assigned_site, phone, email, psira_number, psira_expiry, status, certifications, shift_pattern, emergency_contact',
+      _AdminCsvTarget.sites =>
+        'Headers: site_id, name, code, client_id, address, lat, lng, contact_person, contact_phone, fsk_number, geofence_radius_meters, status',
+      _AdminCsvTarget.clients =>
+        'Headers: client_id, name, code, contact_person, contact_email, contact_phone, sla_tier, contract_start, contract_end, sites, status',
+    };
+  }
+
+  int _importAdminCsv(_AdminCsvImportRequest request) {
+    final parsed = _parseCsvTable(request.rawCsv);
+    if (parsed.isEmpty) {
+      throw const FormatException('No CSV rows found.');
+    }
+    final header = parsed.first.map(_normalizeCsvHeader).toList(growable: false);
+    if (header.isEmpty) {
+      throw const FormatException('CSV header row is missing.');
+    }
+    final bodyRows = parsed.skip(1).where((row) {
+      return row.any((cell) => cell.trim().isNotEmpty);
+    }).toList(growable: false);
+    if (bodyRows.isEmpty) {
+      throw const FormatException('Add at least one data row below the header.');
+    }
+    return switch (request.target) {
+      _AdminCsvTarget.guards => _importGuardCsvRows(header, bodyRows),
+      _AdminCsvTarget.sites => _importSiteCsvRows(header, bodyRows),
+      _AdminCsvTarget.clients => _importClientCsvRows(header, bodyRows),
+    };
+  }
+
+  int _importGuardCsvRows(List<String> header, List<List<String>> bodyRows) {
+    final imported = <_GuardAdminRow>[];
+    for (final row in bodyRows) {
+      final values = _csvRowMap(header, row);
+      final employeeCode = _csvValue(values, const [
+        'employee_code',
+        'employeeid',
+        'id',
+      ]);
+      final name = _csvValue(values, const ['name', 'full_name']);
+      if (employeeCode.isEmpty || name.isEmpty) continue;
+      imported.add(
+        _GuardAdminRow(
+          id: employeeCode,
+          name: name,
+          role: _csvValue(values, const ['role'], fallback: 'guard'),
+          employeeId: employeeCode,
+          phone: _csvValue(values, const ['phone', 'contact_phone'], fallback: '-'),
+          email: _csvValue(values, const ['email', 'contact_email'], fallback: '-'),
+          psiraNumber: _csvValue(values, const ['psira_number'], fallback: '-'),
+          psiraExpiry: _emptyToNull(
+            _csvValue(values, const ['psira_expiry'], fallback: ''),
+          ),
+          certifications: _csvListValue(values, const ['certifications']),
+          assignedSite: _csvValue(values, const ['assigned_site', 'site_id']),
+          shiftPattern: _csvValue(
+            values,
+            const ['shift_pattern'],
+            fallback: 'Unassigned',
+          ),
+          emergencyContact: _csvValue(
+            values,
+            const ['emergency_contact'],
+            fallback: '-',
+          ),
+          status: _adminStatusFromCsv(
+            _csvValue(values, const ['status'], fallback: 'active'),
+          ),
+        ),
+      );
+    }
+    if (imported.isEmpty) {
+      throw const FormatException(
+        'CSV did not include any employee rows with employee_code and name.',
+      );
+    }
+    setState(() {
+      _guards = _mergeById<_GuardAdminRow>(
+        existing: _guards,
+        incoming: imported,
+        idFor: (row) => row.id,
+      );
+      _directorySyncMessage =
+          'Imported ${imported.length} employee row(s) from CSV.';
+    });
+    return imported.length;
+  }
+
+  int _importSiteCsvRows(List<String> header, List<List<String>> bodyRows) {
+    final imported = <_SiteAdminRow>[];
+    for (final row in bodyRows) {
+      final values = _csvRowMap(header, row);
+      final siteId = _csvValue(values, const ['site_id', 'id']);
+      final siteName = _csvValue(values, const ['name', 'site_name']);
+      if (siteId.isEmpty || siteName.isEmpty) continue;
+      imported.add(
+        _SiteAdminRow(
+          id: siteId,
+          name: siteName,
+          code: _csvValue(values, const ['code', 'site_code'], fallback: siteId),
+          clientId: _csvValue(values, const ['client_id'], fallback: 'UNASSIGNED'),
+          address: _csvValue(values, const ['address'], fallback: '-'),
+          lat: _csvDouble(values, const ['lat', 'latitude']),
+          lng: _csvDouble(values, const ['lng', 'longitude']),
+          contactPerson: _csvValue(
+            values,
+            const ['contact_person'],
+            fallback: '-',
+          ),
+          contactPhone: _csvValue(
+            values,
+            const ['contact_phone'],
+            fallback: '-',
+          ),
+          fskNumber: _emptyToNull(_csvValue(values, const ['fsk_number'])),
+          geofenceRadiusMeters: _csvInt(
+            values,
+            const ['geofence_radius_meters'],
+            fallback: 300,
+          ),
+          status: _adminStatusFromCsv(
+            _csvValue(values, const ['status'], fallback: 'active'),
+          ),
+        ),
+      );
+    }
+    if (imported.isEmpty) {
+      throw const FormatException(
+        'CSV did not include any site rows with site_id and name.',
+      );
+    }
+    setState(() {
+      final mergedSites = _mergeById<_SiteAdminRow>(
+        existing: _sites,
+        incoming: imported,
+        idFor: (row) => row.id,
+      );
+      _sites = mergedSites;
+      _clients = _recomputeClientSiteCounts(_clients, mergedSites);
+      _directorySyncMessage = 'Imported ${imported.length} site row(s) from CSV.';
+    });
+    return imported.length;
+  }
+
+  int _importClientCsvRows(List<String> header, List<List<String>> bodyRows) {
+    final imported = <_ClientAdminRow>[];
+    for (final row in bodyRows) {
+      final values = _csvRowMap(header, row);
+      final clientId = _csvValue(values, const ['client_id', 'id']);
+      final name = _csvValue(values, const ['name', 'legal_name']);
+      if (clientId.isEmpty || name.isEmpty) continue;
+      imported.add(
+        _ClientAdminRow(
+          id: clientId,
+          name: name,
+          code: _csvValue(values, const ['code'], fallback: clientId),
+          contactPerson: _csvValue(
+            values,
+            const ['contact_person'],
+            fallback: '-',
+          ),
+          contactEmail: _csvValue(
+            values,
+            const ['contact_email'],
+            fallback: '-',
+          ),
+          contactPhone: _csvValue(
+            values,
+            const ['contact_phone'],
+            fallback: '-',
+          ),
+          slaTier: _csvValue(values, const ['sla_tier'], fallback: 'gold'),
+          contractStart: _csvValue(
+            values,
+            const ['contract_start'],
+            fallback: '-',
+          ),
+          contractEnd: _csvValue(values, const ['contract_end'], fallback: '-'),
+          sites: _csvInt(values, const ['sites'], fallback: 0),
+          status: _adminStatusFromCsv(
+            _csvValue(values, const ['status'], fallback: 'active'),
+          ),
+        ),
+      );
+    }
+    if (imported.isEmpty) {
+      throw const FormatException(
+        'CSV did not include any client rows with client_id and name.',
+      );
+    }
+    setState(() {
+      final mergedClients = _mergeById<_ClientAdminRow>(
+        existing: _clients,
+        incoming: imported,
+        idFor: (row) => row.id,
+      );
+      _clients = _recomputeClientSiteCounts(mergedClients, _sites);
+      _directorySyncMessage =
+          'Imported ${imported.length} client row(s) from CSV.';
+    });
+    return imported.length;
+  }
+
+  List<T> _mergeById<T>({
+    required List<T> existing,
+    required List<T> incoming,
+    required String Function(T row) idFor,
+  }) {
+    final merged = <String, T>{
+      for (final row in existing) idFor(row): row,
+      for (final row in incoming) idFor(row): row,
+    };
+    return merged.values.toList(growable: false);
+  }
+
+  List<_ClientAdminRow> _recomputeClientSiteCounts(
+    List<_ClientAdminRow> clients,
+    List<_SiteAdminRow> sites,
+  ) {
+    final counts = <String, int>{};
+    for (final site in sites) {
+      counts.update(site.clientId, (value) => value + 1, ifAbsent: () => 1);
+    }
+    return clients
+        .map(
+          (client) => _ClientAdminRow(
+            id: client.id,
+            name: client.name,
+            code: client.code,
+            contactPerson: client.contactPerson,
+            contactEmail: client.contactEmail,
+            contactPhone: client.contactPhone,
+            slaTier: client.slaTier,
+            contractStart: client.contractStart,
+            contractEnd: client.contractEnd,
+            sites: counts[client.id] ?? client.sites,
+            status: client.status,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Map<String, String> _csvRowMap(List<String> header, List<String> row) {
+    final map = <String, String>{};
+    for (var index = 0; index < header.length; index++) {
+      map[header[index]] = index < row.length ? row[index].trim() : '';
+    }
+    return map;
+  }
+
+  String _csvValue(
+    Map<String, String> values,
+    List<String> aliases, {
+    String fallback = '',
+  }) {
+    for (final alias in aliases) {
+      final normalized = _normalizeCsvHeader(alias);
+      final value = values[normalized];
+      if (value != null && value.trim().isNotEmpty) {
+        return value.trim();
+      }
+    }
+    return fallback;
+  }
+
+  List<String> _csvListValue(Map<String, String> values, List<String> aliases) {
+    final raw = _csvValue(values, aliases);
+    if (raw.isEmpty) return const <String>[];
+    return raw
+        .split(RegExp(r'[|;]'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  int _csvInt(
+    Map<String, String> values,
+    List<String> aliases, {
+    required int fallback,
+  }) {
+    final raw = _csvValue(values, aliases);
+    return int.tryParse(raw) ?? fallback;
+  }
+
+  double _csvDouble(Map<String, String> values, List<String> aliases) {
+    final raw = _csvValue(values, aliases);
+    return double.tryParse(raw) ?? 0;
+  }
+
+  String _normalizeCsvHeader(String value) {
+    return value.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_');
+  }
+
+  List<List<String>> _parseCsvTable(String raw) {
+    final rows = <List<String>>[];
+    final currentRow = <String>[];
+    var currentCell = StringBuffer();
+    var inQuotes = false;
+    for (var index = 0; index < raw.length; index++) {
+      final char = raw[index];
+      if (char == '"') {
+        if (inQuotes && index + 1 < raw.length && raw[index + 1] == '"') {
+          currentCell.write('"');
+          index++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+        continue;
+      }
+      if (!inQuotes && char == ',') {
+        currentRow.add(currentCell.toString());
+        currentCell = StringBuffer();
+        continue;
+      }
+      if (!inQuotes && (char == '\n' || char == '\r')) {
+        if (char == '\r' && index + 1 < raw.length && raw[index + 1] == '\n') {
+          index++;
+        }
+        currentRow.add(currentCell.toString());
+        currentCell = StringBuffer();
+        rows.add(List<String>.from(currentRow));
+        currentRow.clear();
+        continue;
+      }
+      currentCell.write(char);
+    }
+    if (currentCell.length > 0 || currentRow.isNotEmpty) {
+      currentRow.add(currentCell.toString());
+      rows.add(List<String>.from(currentRow));
+    }
+    return rows
+        .where((row) => row.any((cell) => cell.trim().isNotEmpty))
+        .toList(growable: false);
+  }
+
+  String _csvFromRows(List<String> header, List<List<String>> rows) {
+    final buffer = StringBuffer()..writeln(header.map(_csvEscape).join(','));
+    for (final row in rows) {
+      buffer.writeln(row.map(_csvEscape).join(','));
+    }
+    return buffer.toString().trimRight();
+  }
+
+  String _csvEscape(String value) {
+    final needsQuotes =
+        value.contains(',') || value.contains('"') || value.contains('\n');
+    if (!needsQuotes) return value;
+    return '"${value.replaceAll('"', '""')}"';
+  }
+
+  String _adminStatusCsvLabel(_AdminStatus status) {
+    return switch (status) {
+      _AdminStatus.active => 'active',
+      _AdminStatus.inactive => 'inactive',
+      _AdminStatus.suspended => 'suspended',
+    };
+  }
+
+  _AdminStatus _adminStatusFromCsv(String raw) {
+    return switch (raw.trim().toLowerCase()) {
+      'inactive' => _AdminStatus.inactive,
+      'suspended' => _AdminStatus.suspended,
+      _ => _AdminStatus.active,
+    };
+  }
+
+  String? _emptyToNull(String value) {
+    final trimmed = value.trim();
+    return trimmed.isEmpty || trimmed == '-' ? null : trimmed;
   }
 
   String _resolvedInitialRadioIntentPhrasesJson() {

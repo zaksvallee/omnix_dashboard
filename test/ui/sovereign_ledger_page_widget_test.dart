@@ -13,6 +13,59 @@ import '../fixtures/report_test_receipt.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  testWidgets('sovereign ledger hero view events opens selected entry scope', (
+    tester,
+  ) async {
+    List<String>? openedEventIds;
+    String? openedSelectedEventId;
+
+    final events = <DispatchEvent>[
+      IntelligenceReceived(
+        eventId: 'INT-LEDGER-HERO-1',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 14, 21, 14),
+        intelligenceId: 'INTEL-LEDGER-HERO-1',
+        provider: 'hikvision_dvr_monitor_only',
+        sourceType: 'dvr',
+        externalId: 'ext-hero-1',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        cameraId: 'channel-1',
+        objectLabel: 'person',
+        objectConfidence: 0.94,
+        headline: 'Boundary alert',
+        summary: 'Person detected near line crossing.',
+        riskScore: 94,
+        evidenceRecordHash: 'evidence-hero-1',
+        canonicalHash: 'hash-hero-1',
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SovereignLedgerPage(
+          clientId: 'CLIENT-001',
+          events: events,
+          onOpenEventsForScope: (eventIds, selectedEventId) {
+            openedEventIds = eventIds;
+            openedSelectedEventId = selectedEventId;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sovereign Ledger'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('ledger-hero-view-events-button')));
+    await tester.pumpAndSettle();
+
+    expect(openedEventIds, equals(const ['INT-LEDGER-HERO-1']));
+    expect(openedSelectedEventId, 'INT-LEDGER-HERO-1');
+  });
+
   testWidgets('sovereign ledger export actions are interactive', (
     tester,
   ) async {

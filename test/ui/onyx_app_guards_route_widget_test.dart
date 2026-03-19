@@ -4,7 +4,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:omnix_dashboard/application/dispatch_persistence_service.dart';
 import 'package:omnix_dashboard/main.dart';
+import 'package:omnix_dashboard/ui/admin_page.dart';
 import 'package:omnix_dashboard/ui/app_shell.dart';
+import 'package:omnix_dashboard/ui/client_intelligence_reports_page.dart';
+import 'package:omnix_dashboard/ui/clients_page.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -45,7 +48,7 @@ void main() {
       expect(openedClientId, 'CLIENT-MS-VALLEE');
       expect(openedSiteId, isNotEmpty);
       expect(openedRoom, isEmpty);
-      expect(find.textContaining('Client Operations'), findsOneWidget);
+      expect(find.byType(ClientsPage), findsOneWidget);
     },
   );
 
@@ -90,4 +93,49 @@ void main() {
       );
     },
   );
+
+  testWidgets('onyx app opens reports from guards hero action', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      OnyxApp(
+        supabaseReady: false,
+        initialRouteOverride: OnyxRoute.guards,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('guards-view-reports-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ClientIntelligenceReportsPage), findsOneWidget);
+  });
+
+  testWidgets('onyx app opens admin guards tab from guards schedule action', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      OnyxApp(
+        supabaseReady: false,
+        initialRouteOverride: OnyxRoute.guards,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final manageScheduleButton = find.widgetWithText(
+      FilledButton,
+      'Manage Schedule',
+    );
+    await tester.ensureVisible(manageScheduleButton);
+    await tester.tap(manageScheduleButton);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AdministrationPage), findsOneWidget);
+    expect(find.text('Administration Console'), findsOneWidget);
+    expect(find.text('Employees'), findsWidgets);
+  });
 }

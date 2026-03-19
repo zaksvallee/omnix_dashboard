@@ -13,6 +13,9 @@ void main() {
   test(
     'phase 1 pilot flow ingests frigate event with evidence and ops visibility',
     () async {
+      final eventTime = DateTime.now().toUtc().subtract(
+        const Duration(minutes: 2),
+      );
       final client = MockClient((request) async {
         final url = request.url.toString();
         if (url == 'https://edge.example.com/api/events') {
@@ -24,7 +27,7 @@ void main() {
     "label": "person",
     "entered_zones": ["north_gate"],
     "top_score": 0.96,
-    "start_time": "2026-03-13T08:15:00Z",
+    "start_time": "${eventTime.toIso8601String()}",
     "has_snapshot": true,
     "has_clip": true
   }
@@ -93,6 +96,9 @@ void main() {
   test(
     'phase 1 pilot flow recovers from transient outage without silent data loss',
     () async {
+      final recoveredEventTime = DateTime.now().toUtc().subtract(
+        const Duration(minutes: 2),
+      );
       var eventPolls = 0;
       var snapshotHeads = 0;
       var clipHeads = 0;
@@ -111,7 +117,7 @@ void main() {
     "label": "vehicle",
     "entered_zones": ["north_gate"],
     "top_score": 0.91,
-    "start_time": "2026-03-13T08:18:00Z",
+    "start_time": "${recoveredEventTime.toIso8601String()}",
     "has_snapshot": true,
     "has_clip": true
   }

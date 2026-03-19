@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:async';
 
@@ -18,6 +19,188 @@ enum OnyxRoute {
   ledger,
   reports,
   admin,
+}
+
+String _appShellRouteLabel(OnyxRoute route) {
+  return switch (route) {
+    OnyxRoute.dashboard => 'Live Operations',
+    OnyxRoute.aiQueue => 'AI Queue',
+    OnyxRoute.tactical => 'Tactical',
+    OnyxRoute.governance => 'Governance',
+    OnyxRoute.clients => 'Clients',
+    OnyxRoute.sites => 'Sites',
+    OnyxRoute.guards => 'Guards',
+    OnyxRoute.dispatches => 'Dispatches',
+    OnyxRoute.events => 'Events',
+    OnyxRoute.ledger => 'Ledger',
+    OnyxRoute.reports => 'Reports',
+    OnyxRoute.admin => 'Admin',
+  };
+}
+
+Future<void> _showAppShellQuickJumpDialog({
+  required BuildContext context,
+  required OnyxRoute currentRoute,
+  required ValueChanged<OnyxRoute> onRouteChanged,
+}) async {
+  final routes = <({OnyxRoute route, String label})>[
+    (route: OnyxRoute.dashboard, label: 'Live Operations'),
+    (route: OnyxRoute.aiQueue, label: 'AI Queue'),
+    (route: OnyxRoute.tactical, label: 'Tactical'),
+    (route: OnyxRoute.governance, label: 'Governance'),
+    (route: OnyxRoute.clients, label: 'Clients'),
+    (route: OnyxRoute.sites, label: 'Sites'),
+    (route: OnyxRoute.guards, label: 'Guards'),
+    (route: OnyxRoute.dispatches, label: 'Dispatches'),
+    (route: OnyxRoute.events, label: 'Events'),
+    (route: OnyxRoute.ledger, label: 'Ledger'),
+    (route: OnyxRoute.reports, label: 'Reports'),
+    (route: OnyxRoute.admin, label: 'Admin'),
+  ];
+  final selection = await showDialog<OnyxRoute>(
+    context: context,
+    builder: (dialogContext) {
+      final queryNotifier = ValueNotifier<String>('');
+      return Dialog(
+        backgroundColor: const Color(0xFF101722),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: const BorderSide(color: Color(0xFF233244)),
+        ),
+        child: SizedBox(
+          width: 420,
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: ValueListenableBuilder<String>(
+              valueListenable: queryNotifier,
+              builder: (context, query, _) {
+                final normalizedQuery = query.trim().toLowerCase();
+                final filtered = routes.where((entry) {
+                  if (normalizedQuery.isEmpty) return true;
+                  return entry.label.toLowerCase().contains(normalizedQuery);
+                }).toList(growable: false);
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Quick jump',
+                      style: GoogleFonts.rajdhani(
+                        color: const Color(0xFFEAF4FF),
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      key: const ValueKey('app-shell-quick-jump-input'),
+                      autofocus: true,
+                      onChanged: (value) => queryNotifier.value = value,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFEAF4FF),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Search routes',
+                        prefixIcon: const Icon(
+                          Icons.search_rounded,
+                          color: Color(0xFF7D93B3),
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFF0A0F17),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF253548),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF253548),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF22D3EE),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Flexible(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 320),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: filtered.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 6),
+                          itemBuilder: (context, index) {
+                            final entry = filtered[index];
+                            final active = entry.route == currentRoute;
+                            return InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () =>
+                                  Navigator.of(dialogContext).pop(entry.route),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: active
+                                      ? const Color(0x1A22D3EE)
+                                      : const Color(0xFF0B1119),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: active
+                                        ? const Color(0x8822D3EE)
+                                        : const Color(0xFF223244),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        entry.label,
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFFEAF4FF),
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                    if (active)
+                                      Text(
+                                        'Current',
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFF67E8F9),
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      );
+    },
+  );
+  if (selection != null && selection != currentRoute) {
+    onRouteChanged(selection);
+  }
 }
 
 class OnyxIntelTickerItem {
@@ -83,6 +266,32 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   bool _sidebarOpen = true;
 
+  Widget _wrapShellShortcuts({
+    required BuildContext context,
+    required Widget child,
+  }) {
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        const SingleActivator(LogicalKeyboardKey.keyK, meta: true):
+            () => _showAppShellQuickJumpDialog(
+                  context: context,
+                  currentRoute: widget.currentRoute,
+                  onRouteChanged: widget.onRouteChanged,
+                ),
+        const SingleActivator(LogicalKeyboardKey.keyK, control: true):
+            () => _showAppShellQuickJumpDialog(
+                  context: context,
+                  currentRoute: widget.currentRoute,
+                  onRouteChanged: widget.onRouteChanged,
+                ),
+      },
+      child: Focus(
+        autofocus: true,
+        child: child,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -90,7 +299,9 @@ class _AppShellState extends State<AppShell> {
         final handsetLayout = isHandsetLayout(context);
         final mobileLayout = constraints.maxWidth < 980 || handsetLayout;
         if (mobileLayout) {
-          return Scaffold(
+          return _wrapShellShortcuts(
+            context: context,
+            child: Scaffold(
             backgroundColor: const Color(0xFF0C1220),
             drawer: Drawer(
               width: constraints.maxWidth < 420
@@ -161,11 +372,14 @@ class _AppShellState extends State<AppShell> {
                 ),
               ],
             ),
+          ),
           );
         }
 
         const sidebarWidth = 252.0;
-        return Scaffold(
+        return _wrapShellShortcuts(
+          context: context,
+          child: Scaffold(
           backgroundColor: const Color(0xFF0C1220),
           body: Row(
             children: [
@@ -199,6 +413,7 @@ class _AppShellState extends State<AppShell> {
                         aiActionCount: widget.aiActionCount,
                         guardsOnlineCount: widget.guardsOnlineCount,
                         operatorLabel: widget.operatorLabel,
+                        onRouteChanged: widget.onRouteChanged,
                         demoAutopilotStatusLabel:
                             widget.demoAutopilotStatusLabel,
                         onStopDemoAutopilot: widget.onStopDemoAutopilot,
@@ -225,6 +440,7 @@ class _AppShellState extends State<AppShell> {
               ),
             ],
           ),
+        ),
         );
       },
     );
@@ -237,6 +453,7 @@ class _ShellTopBar extends StatelessWidget {
   final int aiActionCount;
   final int guardsOnlineCount;
   final String operatorLabel;
+  final ValueChanged<OnyxRoute> onRouteChanged;
   final String demoAutopilotStatusLabel;
   final VoidCallback? onStopDemoAutopilot;
   final VoidCallback? onSkipDemoAutopilot;
@@ -251,6 +468,7 @@ class _ShellTopBar extends StatelessWidget {
     required this.aiActionCount,
     required this.guardsOnlineCount,
     required this.operatorLabel,
+    required this.onRouteChanged,
     this.demoAutopilotStatusLabel = '',
     this.onStopDemoAutopilot,
     this.onSkipDemoAutopilot,
@@ -260,22 +478,7 @@ class _ShellTopBar extends StatelessWidget {
     required this.onToggleSidebar,
   });
 
-  String _routeLabel() {
-    return switch (currentRoute) {
-      OnyxRoute.dashboard => 'Live Operations',
-      OnyxRoute.aiQueue => 'AI Queue',
-      OnyxRoute.tactical => 'Tactical Map',
-      OnyxRoute.governance => 'Governance',
-      OnyxRoute.clients => 'Clients',
-      OnyxRoute.sites => 'Sites',
-      OnyxRoute.guards => 'Guards',
-      OnyxRoute.dispatches => 'Dispatches',
-      OnyxRoute.events => 'Events',
-      OnyxRoute.ledger => 'Sovereign Ledger',
-      OnyxRoute.reports => 'Reports',
-      OnyxRoute.admin => 'Administration',
-    };
-  }
+  String _routeLabel() => _appShellRouteLabel(currentRoute);
 
   String _timeLabel() {
     final now = DateTime.now();
@@ -303,18 +506,28 @@ class _ShellTopBar extends StatelessWidget {
         builder: (context, constraints) {
           final showAutopilot = demoAutopilotStatusLabel.trim().isNotEmpty;
           final showAiChip =
-              constraints.maxWidth >= (showAutopilot ? 1180 : 1080);
+              constraints.maxWidth >= (showAutopilot ? 1880 : 1220);
           final showGuardChip =
-              constraints.maxWidth >= (showAutopilot ? 1460 : 1240);
-          final showOperatorChip = constraints.maxWidth >= 1160;
+              constraints.maxWidth >= (showAutopilot ? 1880 : 1460);
+          final showOperatorChip =
+              constraints.maxWidth >= (showAutopilot ? 1880 : 1840);
           final showExtendedAutopilotControls = constraints.maxWidth >= 1460;
           final showCompactAutopilotControls =
               showAutopilot && !showExtendedAutopilotControls;
+          final showQuickJump =
+              constraints.maxWidth >= (showAutopilot ? 1920 : 1120);
+          final showWindowLabel =
+              constraints.maxWidth >= (showAutopilot ? 1880 : 1320);
           final autopilotChipWidth = showExtendedAutopilotControls
               ? 320.0
               : constraints.maxWidth >= 1280
               ? 240.0
               : 180.0;
+          final quickJumpWidth = constraints.maxWidth >= 1480
+              ? 320.0
+              : constraints.maxWidth >= 1320
+              ? 250.0
+              : 220.0;
 
           return Row(
             children: [
@@ -349,33 +562,70 @@ class _ShellTopBar extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(width: 10),
-              Container(width: 1, height: 16, color: const Color(0x22FFFFFF)),
-              const SizedBox(width: 10),
-              Text(
-                windowLabel,
-                style: GoogleFonts.inter(
-                  color: isCombatWindow
-                      ? const Color(0xFFF59E0B)
-                      : const Color(0xFF8FB3DD),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  _routeLabel(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+              if (showWindowLabel) ...[
+                const SizedBox(width: 10),
+                Container(width: 1, height: 16, color: const Color(0x22FFFFFF)),
+                const SizedBox(width: 10),
+                Text(
+                  windowLabel,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF9AB3D2),
+                    color: isCombatWindow
+                        ? const Color(0xFFF59E0B)
+                        : const Color(0xFF8FB3DD),
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    letterSpacing: 0.4,
                   ),
                 ),
+                const SizedBox(width: 12),
+              ],
+              if (showQuickJump) ...[
+                SizedBox(
+                  width: quickJumpWidth,
+                  child: _QuickJumpField(
+                    currentRouteLabel: _routeLabel(),
+                    onOpen: () => _showQuickJumpDialog(context),
+                  ),
+                ),
+                const SizedBox(width: 12),
+              ] else ...[
+                _TopBarActionIcon(
+                  buttonKey: const ValueKey('app-shell-quick-jump-icon'),
+                  onPressed: () => _showQuickJumpDialog(context),
+                  icon: Icons.search_rounded,
+                  foregroundColor: const Color(0xFFBFDBFE),
+                  borderColor: const Color(0xFF35506F),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _routeLabel(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF9AB3D2),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+              ],
+              _TopChip(
+                label: 'SYSTEMS NOMINAL',
+                foreground: const Color(0xFF34D399),
+                background: const Color(0x1A10B981),
+                border: const Color(0x4010B981),
               ),
+              const SizedBox(width: 8),
+              _TopBarActionIcon(
+                buttonKey: const ValueKey('app-shell-status-button'),
+                onPressed: () => _showShellStatusSnack(context),
+                icon: Icons.notifications_none_rounded,
+                foregroundColor: const Color(0xFFC7D2FE),
+                borderColor: const Color(0xFF35506F),
+              ),
+              const SizedBox(width: 8),
               if (showOperatorChip && operatorLabel.trim().isNotEmpty) ...[
                 _TopChip(
                   label: 'OPERATOR • $operatorLabel',
@@ -505,6 +755,123 @@ class _ShellTopBar extends StatelessWidget {
       ),
     );
   }
+
+  void _showShellStatusSnack(BuildContext context) {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    messenger?.hideCurrentSnackBar();
+    messenger?.showSnackBar(
+      SnackBar(
+        content: Text(
+          'Systems nominal. ${activeIncidentCount.toString()} active incidents, $aiActionCount AI actions, $guardsOnlineCount guards online.',
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Future<void> _showQuickJumpDialog(BuildContext context) {
+    return _showAppShellQuickJumpDialog(
+      context: context,
+      currentRoute: currentRoute,
+      onRouteChanged: onRouteChanged,
+    );
+  }
+}
+
+class _QuickJumpField extends StatelessWidget {
+  final String currentRouteLabel;
+  final VoidCallback onOpen;
+
+  const _QuickJumpField({
+    required this.currentRouteLabel,
+    required this.onOpen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFF0A0F17),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        key: const ValueKey('app-shell-quick-jump-field'),
+        onTap: onOpen,
+        borderRadius: BorderRadius.circular(12),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final showRouteLabel = constraints.maxWidth >= 240;
+            final showShortcutBadge = constraints.maxWidth >= 270;
+            return Container(
+              height: 38,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF233244)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.search_rounded,
+                    size: 18,
+                    color: Color(0xFF7D93B3),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Quick jump...',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        color: const Color(0x66FFFFFF),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  if (showRouteLabel) ...[
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        currentRouteLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFB8CCE8),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (showShortcutBadge) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0x141C3C57),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0x333B82F6)),
+                      ),
+                      child: Text(
+                        'Cmd K',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF8FB3DD),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
 }
 
 class _NavItemModel {
@@ -577,7 +944,7 @@ class _Sidebar extends StatelessWidget {
             route: OnyxRoute.dispatches,
           ),
           _NavItemModel(
-            label: 'Tactical Map',
+            label: 'Tactical',
             icon: Icons.map_rounded,
             route: OnyxRoute.tactical,
             badge: tacticalSosAlerts > 0 ? tacticalSosAlerts : null,
@@ -614,7 +981,7 @@ class _Sidebar extends StatelessWidget {
         title: 'GOVERNANCE',
         items: [
           _NavItemModel(
-            label: 'Compliance',
+            label: 'Governance',
             icon: Icons.shield_rounded,
             route: OnyxRoute.governance,
             badge: complianceIssuesCount > 0 ? complianceIssuesCount : null,
@@ -626,7 +993,7 @@ class _Sidebar extends StatelessWidget {
         title: 'EVIDENCE',
         items: [
           _NavItemModel(
-            label: 'Sovereign Ledger',
+            label: 'Ledger',
             icon: Icons.verified_user_rounded,
             route: OnyxRoute.ledger,
           ),
@@ -641,7 +1008,7 @@ class _Sidebar extends StatelessWidget {
         title: 'SYSTEM',
         items: [
           _NavItemModel(
-            label: 'Administration',
+            label: 'Admin',
             icon: Icons.settings_rounded,
             route: OnyxRoute.admin,
           ),
@@ -679,28 +1046,34 @@ class _Sidebar extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'ONYX',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFFE7F0FF),
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.2,
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'ONYX',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFE7F0FF),
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.2,
+                        ),
                       ),
-                    ),
-                    Text(
-                      'Sovereign Platform',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF8CA6CC),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
+                      Text(
+                        'Sovereign Platform',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF8CA6CC),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -888,6 +1261,8 @@ class _Sidebar extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.inter(
                   color: isActive
                       ? const Color(0xFFE6F2FF)
@@ -962,12 +1337,14 @@ class _TopChip extends StatelessWidget {
 }
 
 class _TopBarActionIcon extends StatelessWidget {
+  final Key? buttonKey;
   final VoidCallback onPressed;
   final IconData icon;
   final Color foregroundColor;
   final Color borderColor;
 
   const _TopBarActionIcon({
+    this.buttonKey,
     required this.onPressed,
     required this.icon,
     required this.foregroundColor,
@@ -977,6 +1354,7 @@ class _TopBarActionIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OutlinedButton(
+      key: buttonKey,
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
         minimumSize: const Size(34, 32),

@@ -13,6 +13,7 @@ TELEGRAM_WATCH_ENABLED="off"
 DVR_PROXY_PORT="9081"
 DVR_PROXY_ENABLED="auto"
 EFFECTIVE_CONFIG_FILE=""
+TEMP_PROXY_CONFIG_FILE=""
 
 usage() {
   cat <<'USAGE'
@@ -94,6 +95,9 @@ cleanup() {
   if [[ -n "${APP_PID:-}" ]]; then
     kill "$APP_PID" 2>/dev/null || true
   fi
+  if [[ -n "${TEMP_PROXY_CONFIG_FILE:-}" ]]; then
+    rm -f "$TEMP_PROXY_CONFIG_FILE" 2>/dev/null || true
+  fi
   wait 2>/dev/null || true
   exit "$code"
 }
@@ -158,8 +162,9 @@ echo "  log file: $LOG_FILE"
 echo "  telegram watcher: $TELEGRAM_WATCH_ENABLED"
 
 if [[ "$(should_enable_dvr_proxy)" == "1" ]]; then
-  EFFECTIVE_CONFIG_FILE="tmp/telegram_quick_action_live_proxy_config.json"
-  mkdir -p "$(dirname "$EFFECTIVE_CONFIG_FILE")"
+  mkdir -p tmp
+  TEMP_PROXY_CONFIG_FILE="$(mktemp tmp/telegram_quick_action_live_proxy_config.XXXXXX.local.json)"
+  EFFECTIVE_CONFIG_FILE="$TEMP_PROXY_CONFIG_FILE"
   build_proxy_config "$EFFECTIVE_CONFIG_FILE" >/dev/null
   echo "  dvr proxy: on (port $DVR_PROXY_PORT)"
   python3 scripts/onyx_dvr_cors_proxy.py \

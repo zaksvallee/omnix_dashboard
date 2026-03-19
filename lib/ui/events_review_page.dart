@@ -345,6 +345,14 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             constraints: const BoxConstraints(maxWidth: 1540),
             child: ListView(
               children: [
+                _heroHeader(
+                  visibleEvents: visibleEvents,
+                  totalEvents: totalEvents,
+                  latestSequence: latestSequence,
+                  selected: selected,
+                  openGovernanceAction: openGovernanceAction,
+                ),
+                const SizedBox(height: 8),
                 Text(
                   'EVENT REVIEW',
                   style: GoogleFonts.inter(
@@ -1875,6 +1883,205 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _heroHeader({
+    required int visibleEvents,
+    required int totalEvents,
+    required String latestSequence,
+    required DispatchEvent? selected,
+    required VoidCallback? openGovernanceAction,
+  }) {
+    final selectedLabel = selected == null
+        ? 'None'
+        : selected.eventId;
+    final openLedgerAction = selected == null || widget.onOpenLedger == null
+        ? null
+        : () => widget.onOpenLedger!(selected.eventId);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1E1A32), Color(0xFF0F1728)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF3B355E)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 920;
+          final titleBlock = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFF97316), Color(0xFFEF4444)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.timeline_rounded,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Events & Forensic Timeline',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFF6FBFF),
+                            fontSize: compact ? 22 : 26,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Scoped forensic review, governance drill-ins, and ledger-backed event continuity.',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF95A9C7),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _heroChip('Visible', '$visibleEvents of $totalEvents'),
+                  _heroChip('Latest', latestSequence),
+                  _heroChip('Selected', selectedLabel),
+                  _heroChip('Filters', _activeFilter),
+                ],
+              ),
+            ],
+          );
+          final actions = Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            alignment: WrapAlignment.end,
+            children: [
+              _heroActionButton(
+                key: const ValueKey('events-routed-view-governance-button'),
+                icon: Icons.open_in_new,
+                label: 'View Governance',
+                accent: const Color(0xFF93C5FD),
+                onPressed: openGovernanceAction,
+              ),
+              _heroActionButton(
+                key: const ValueKey('events-routed-view-ledger-button'),
+                icon: Icons.account_tree_outlined,
+                label: 'View Ledger',
+                accent: const Color(0xFFA78BFA),
+                onPressed: openLedgerAction,
+              ),
+            ],
+          );
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                titleBlock,
+                const SizedBox(height: 16),
+                actions,
+              ],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: titleBlock),
+              const SizedBox(width: 16),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 340),
+                child: actions,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _heroChip(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0x14000000),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0x33000000)),
+      ),
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '$label: ',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            TextSpan(
+              text: value,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFE8F1FF),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _heroActionButton({
+    required Key key,
+    required IconData icon,
+    required String label,
+    required Color accent,
+    required VoidCallback? onPressed,
+  }) {
+    return FilledButton.tonalIcon(
+      key: key,
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: FilledButton.styleFrom(
+        backgroundColor: accent.withValues(alpha: 0.12),
+        foregroundColor: accent,
+        disabledBackgroundColor: const Color(0x12000000),
+        disabledForegroundColor: const Color(0x667A8CA8),
+        side: BorderSide(color: accent.withValues(alpha: 0.28)),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        textStyle: GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }

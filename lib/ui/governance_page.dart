@@ -21,12 +21,18 @@ import '../application/synthetic_promotion_summary_formatter.dart';
 import '../application/text_share_service.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
+import '../domain/events/execution_completed.dart';
 import '../domain/events/execution_denied.dart';
+import '../domain/events/guard_checked_in.dart';
+import '../domain/events/incident_closed.dart';
+import '../domain/events/intelligence_received.dart';
 import '../domain/events/listener_alarm_advisory_recorded.dart';
 import '../domain/events/listener_alarm_feed_cycle_recorded.dart';
 import '../domain/events/listener_alarm_parity_cycle_recorded.dart';
 import '../domain/events/partner_dispatch_status_declared.dart';
+import '../domain/events/patrol_completed.dart';
 import '../domain/events/report_generated.dart';
+import '../domain/events/response_arrived.dart';
 import '../domain/events/vehicle_visit_review_recorded.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
@@ -883,6 +889,18 @@ class _GovernancePageState extends State<GovernancePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                _heroHeader(
+                  report: report,
+                  complianceCritical: complianceCritical,
+                  readiness: readiness,
+                ),
+                const SizedBox(height: 12),
+                _overviewGrid(
+                  report: report,
+                  complianceCritical: complianceCritical,
+                  complianceTotal: compliance.length,
+                ),
+                const SizedBox(height: 12),
                 _topBar(
                   complianceCritical: complianceCritical,
                   readiness: readiness,
@@ -930,6 +948,97 @@ class _GovernancePageState extends State<GovernancePage> {
         ),
       ),
     );
+  }
+
+  List<DispatchEvent> _visibleGovernanceEvents() {
+    return widget.events.where((event) {
+      final scope = _eventScope(event);
+      if (scope == null) {
+        return !_hasScopeFocus;
+      }
+      if (_hasScopeFocus) {
+        if (scope.clientId != _scopeClientId) {
+          return false;
+        }
+        if (_scopeSiteId != null && scope.siteId != _scopeSiteId) {
+          return false;
+        }
+      }
+      return true;
+    }).toList(growable: false);
+  }
+
+  ({String clientId, String siteId})? _eventScope(DispatchEvent event) {
+    return switch (event) {
+      DecisionCreated(:final clientId, :final siteId) => (
+        clientId: clientId.trim(),
+        siteId: siteId.trim(),
+      ),
+      ExecutionCompleted(:final clientId, :final siteId) => (
+        clientId: clientId.trim(),
+        siteId: siteId.trim(),
+      ),
+      ExecutionDenied(:final clientId, :final siteId) => (
+        clientId: clientId.trim(),
+        siteId: siteId.trim(),
+      ),
+      GuardCheckedIn(:final clientId, :final siteId) => (
+        clientId: clientId.trim(),
+        siteId: siteId.trim(),
+      ),
+      IncidentClosed(:final clientId, :final siteId) => (
+        clientId: clientId.trim(),
+        siteId: siteId.trim(),
+      ),
+      IntelligenceReceived(:final clientId, :final siteId) => (
+        clientId: clientId.trim(),
+        siteId: siteId.trim(),
+      ),
+      ListenerAlarmAdvisoryRecorded(:final clientId, :final siteId) => (
+        clientId: clientId.trim(),
+        siteId: siteId.trim(),
+      ),
+      PartnerDispatchStatusDeclared(:final clientId, :final siteId) => (
+        clientId: clientId.trim(),
+        siteId: siteId.trim(),
+      ),
+      PatrolCompleted(:final clientId, :final siteId) => (
+        clientId: clientId.trim(),
+        siteId: siteId.trim(),
+      ),
+      ReportGenerated(:final clientId, :final siteId) => (
+        clientId: clientId.trim(),
+        siteId: siteId.trim(),
+      ),
+      ResponseArrived(:final clientId, :final siteId) => (
+        clientId: clientId.trim(),
+        siteId: siteId.trim(),
+      ),
+      VehicleVisitReviewRecorded(:final clientId, :final siteId) => (
+        clientId: clientId.trim(),
+        siteId: siteId.trim(),
+      ),
+      _ => null,
+    };
+  }
+
+  void _openGovernanceEventsReview() {
+    final callback = widget.onOpenEventsForScope;
+    if (callback == null) {
+      return;
+    }
+    final eventIds = <String>[];
+    for (final event in _visibleGovernanceEvents()) {
+      final eventId = event.eventId.trim();
+      if (eventId.isEmpty || eventIds.contains(eventId)) {
+        continue;
+      }
+      eventIds.add(eventId);
+    }
+    if (eventIds.isEmpty) {
+      return;
+    }
+    callback(eventIds, eventIds.first);
   }
 
   Future<void> _generateMorningReport() async {
@@ -995,6 +1104,364 @@ class _GovernancePageState extends State<GovernancePage> {
           ),
         ),
         backgroundColor: background,
+      ),
+    );
+  }
+
+  Widget _heroHeader({
+    required _GovernanceReportView report,
+    required int complianceCritical,
+    required int readiness,
+  }) {
+    final visibleEvents = _visibleGovernanceEvents();
+    final viewEventsEnabled =
+        widget.onOpenEventsForScope != null && visibleEvents.isNotEmpty;
+    final generateEnabled = widget.onGenerateMorningSovereignReport != null;
+    final reportViewLabel = _hasHistoricalReportFocus
+        ? 'Historical'
+        : 'Morning Sovereign';
+    final scopeLabel = _hasScopeFocus
+        ? (_scopeSiteId == null
+              ? '${_scopeClientId!} / ALL SITES'
+              : '${_scopeClientId!} / ${_scopeSiteId!}')
+        : 'GLOBAL READINESS';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF122237), Color(0xFF0C1727)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF223244)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 940;
+          final titleBlock = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF10B981), Color(0xFF14B8A6)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.verified_user_outlined,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Governance & Compliance',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFF6FBFF),
+                            fontSize: compact ? 22 : 26,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Sovereign reporting, readiness monitoring, and evidence compliance.',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF95A9C7),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _heroChip('Report View', reportViewLabel),
+                  _heroChip('Scope', scopeLabel),
+                  _heroChip('Readiness', '$readiness%'),
+                  _heroChip(
+                    'Blockers',
+                    complianceCritical.toString(),
+                    accent: complianceCritical > 0
+                        ? const Color(0xFFF97316)
+                        : const Color(0xFF34D399),
+                  ),
+                  _heroChip(
+                    'Evidence',
+                    report.hashVerified ? 'Ledger Verified' : 'Verification Gap',
+                    accent: report.hashVerified
+                        ? const Color(0xFF2DD4BF)
+                        : const Color(0xFFF97316),
+                  ),
+                ],
+              ),
+            ],
+          );
+          final actions = Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            alignment: WrapAlignment.end,
+            children: [
+              _heroActionButton(
+                key: const ValueKey('governance-view-events-button'),
+                icon: Icons.open_in_new,
+                label: 'View Events',
+                onPressed: viewEventsEnabled ? _openGovernanceEventsReview : null,
+                accent: const Color(0xFF7DD3FC),
+              ),
+              _heroActionButton(
+                key: const ValueKey('governance-generate-report-button'),
+                icon: Icons.description_outlined,
+                label: _generatingMorningReport ? 'Generating...' : 'Generate Report',
+                onPressed: generateEnabled && !_generatingMorningReport
+                    ? _generateMorningReport
+                    : null,
+                accent: const Color(0xFF34D399),
+              ),
+            ],
+          );
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                titleBlock,
+                const SizedBox(height: 16),
+                actions,
+              ],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: titleBlock),
+              const SizedBox(width: 16),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 320),
+                child: actions,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _heroChip(String label, String value, {Color? accent}) {
+    final resolvedAccent = accent ?? const Color(0xFFE8F1FF);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0x14000000),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0x33000000)),
+      ),
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '$label: ',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            TextSpan(
+              text: value,
+              style: GoogleFonts.inter(
+                color: resolvedAccent,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _heroActionButton({
+    required Key key,
+    required IconData icon,
+    required String label,
+    required VoidCallback? onPressed,
+    required Color accent,
+  }) {
+    return FilledButton.tonalIcon(
+      key: key,
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: FilledButton.styleFrom(
+        backgroundColor: accent.withValues(alpha: 0.12),
+        foregroundColor: accent,
+        disabledBackgroundColor: const Color(0x12000000),
+        disabledForegroundColor: const Color(0x667A8CA8),
+        side: BorderSide(color: accent.withValues(alpha: 0.28)),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        textStyle: GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+    );
+  }
+
+  Widget _overviewGrid({
+    required _GovernanceReportView report,
+    required int complianceCritical,
+    required int complianceTotal,
+  }) {
+    final cards = <Widget>[
+      _overviewCard(
+        title: 'Readiness Blockers',
+        value: '$complianceCritical',
+        detail: complianceCritical == 1
+            ? '1 blocker needs resolution'
+            : '$complianceCritical blockers need resolution',
+        accent: complianceCritical > 0
+            ? const Color(0xFFF97316)
+            : const Color(0xFF34D399),
+        icon: Icons.warning_amber_rounded,
+      ),
+      _overviewCard(
+        title: 'Partner Chains',
+        value: '${report.partnerDispatchChains.length}',
+        detail: report.partnerWorkflowHeadline.trim().isNotEmpty
+            ? report.partnerWorkflowHeadline
+            : 'Partner dispatch progression is ready for review',
+        accent: const Color(0xFF60A5FA),
+        icon: Icons.hub_outlined,
+      ),
+      _overviewCard(
+        title: 'Generated Reports',
+        value: '${report.generatedReports}',
+        detail: report.receiptPolicySummary.trim().isNotEmpty
+            ? report.receiptPolicySummary
+            : 'Morning sovereign receipts are ready for verification',
+        accent: const Color(0xFF2DD4BF),
+        icon: Icons.description_outlined,
+      ),
+      _overviewCard(
+        title: 'Compliance Scope',
+        value: '$complianceTotal',
+        detail: report.hashVerified
+            ? 'Ledger verified with ${report.totalEvents} tracked events'
+            : 'Evidence verification requires manual follow-up',
+        accent: report.hashVerified
+            ? const Color(0xFFA78BFA)
+            : const Color(0xFFF97316),
+        icon: Icons.fact_check_outlined,
+      ),
+    ];
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 1200
+            ? 4
+            : constraints.maxWidth >= 760
+            ? 2
+            : 1;
+        final aspectRatio = columns == 4
+            ? 1.9
+            : columns == 2
+            ? 2.45
+            : 2.45;
+        return GridView.count(
+          key: const ValueKey('governance-overview-grid'),
+          crossAxisCount: columns,
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: aspectRatio,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: cards,
+        );
+      },
+    );
+  }
+
+  Widget _overviewCard({
+    required String title,
+    required String value,
+    required String detail,
+    required Color accent,
+    required IconData icon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1A2B),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF223244)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: accent, size: 20),
+              ),
+              const Spacer(),
+              Text(
+                value,
+                style: GoogleFonts.robotoMono(
+                  color: const Color(0xFFF4F8FF),
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          Text(
+            title.toUpperCase(),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF93A5BF),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            detail,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFD5E1F2),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+        ],
       ),
     );
   }

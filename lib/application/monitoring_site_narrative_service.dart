@@ -45,7 +45,11 @@ class MonitoringSiteNarrativeService {
     final objectCameras = <String, Set<String>>{};
     for (final event in sortedEvents) {
       final objectLabel = _normalizeObjectLabel(event);
-      objectCounts.update(objectLabel, (existing) => existing + 1, ifAbsent: () => 1);
+      objectCounts.update(
+        objectLabel,
+        (existing) => existing + 1,
+        ifAbsent: () => 1,
+      );
       final cameraLabel = cameraLabelForId(event.cameraId);
       objectCameras.update(
         objectLabel,
@@ -80,17 +84,6 @@ class MonitoringSiteNarrativeService {
       return null;
     }
 
-    final latestReview = sortedEvents
-        .map(
-          (event) => sceneReviewsByIntelligenceId[event.intelligenceId.trim()],
-        )
-        .whereType<MonitoringSceneReviewRecord>()
-        .toList(growable: false)
-      ..sort(
-        (left, right) => right.reviewedAtUtc.compareTo(left.reviewedAtUtc),
-      );
-    final latestReviewRecord = latestReview.isEmpty ? null : latestReview.first;
-
     final personCount = objectCounts['person'] ?? 0;
     final personCameraCount = objectCameras['person']?.length ?? 0;
     final totalCameraCount = objectCameras.values
@@ -103,62 +96,48 @@ class MonitoringSiteNarrativeService {
         : _locationLikeSources(fieldActivity.activeSources);
 
     String assessment = 'multi-camera site activity under review';
-    final supportClauses = <String>[];
+    String? supportLine;
     final hasDistributedFieldZones = fieldSources.length >= 2;
     final mentionsYardCoverage =
         fieldSources.any((source) => source.toLowerCase().contains('front')) &&
         fieldSources.any((source) => source.toLowerCase().contains('back'));
     if (personCount >= 2 && personCameraCount >= 2 && fieldActivity != null) {
       assessment = mentionsYardCoverage
-          ? 'likely routine field work across front and back yard'
-          : 'likely routine distributed field activity';
-      supportClauses.add(
-        'The movement is spread across the property and overlaps with active worker or guard telemetry, which is more consistent with routine field activity than a single fixed intrusion point.',
-      );
-      if (hasDistributedFieldZones) {
-        supportClauses.add(
-          'Field telemetry is also active at ${_joinLabels(fieldSources)}, which matches distributed worker movement across the site rather than one fixed point.',
-        );
-        if (mentionsYardCoverage) {
-          supportClauses.add(
-            'Taken together, the current pattern is consistent with routine field work moving between Front Yard and Back Yard.',
-          );
-        }
+          ? 'likely routine on-site team activity across front and back yard'
+          : 'likely routine on-site team activity';
+      if (mentionsYardCoverage) {
+        supportLine =
+            'This overlaps with on-site team activity across Front Yard and Back Yard, so it looks routine.';
+      } else if (hasDistributedFieldZones) {
+        supportLine =
+            'This overlaps with on-site team activity at ${_joinLabels(fieldSources)}, so it looks routine.';
+      } else {
+        supportLine =
+            'This overlaps with on-site team activity, so it looks routine.';
       }
     } else if (personCount >= 2 && personCameraCount >= 2) {
       assessment = 'distributed movement across multiple cameras';
-      supportClauses.add(
-        'The movement is spread across multiple cameras rather than holding on one fixed point.',
-      );
+      supportLine =
+          'The movement is spread across multiple cameras rather than one fixed point.';
     } else if (vehicleCount > 0 && personCount > 0 && totalCameraCount >= 2) {
       assessment = 'broad mixed site activity under review';
-      supportClauses.add(
-        'The current pattern mixes people and vehicle movement across the site, so ONYX is treating it as broad site activity under review.',
-      );
+      supportLine =
+          'People and vehicle movement are both active across the site.';
     }
 
     if (fieldActivity != null &&
         fieldActivity.latestSummary.trim().isNotEmpty &&
-        fieldSources.length < 2) {
-      supportClauses.add('Field telemetry also reports ${_lowercaseSentence(fieldActivity.latestSummary)}');
-    }
-
-    if (latestReviewRecord != null) {
-      final posture = latestReviewRecord.postureLabel.trim();
-      final decision = latestReviewRecord.decisionLabel.trim();
-      if (posture.isNotEmpty) {
-        supportClauses.add('Latest AI posture: $posture.');
-      }
-      if (decision.isNotEmpty) {
-        supportClauses.add('Latest control decision: ${_lowercaseSentence(latestReviewRecord.decisionSummary.isEmpty ? decision : latestReviewRecord.decisionSummary)}');
-      }
+        fieldSources.length < 2 &&
+        supportLine == null) {
+      supportLine =
+          'On-site team activity was also reported: ${_lowercaseSentence(fieldActivity.latestSummary)}';
     }
 
     final latestAtLocal = sortedEvents.first.occurredAt.toLocal();
     final body = StringBuffer()
-      ..write('Recent ONYX review saw ${_joinClauses(leadingClauses)}. ');
-    if (supportClauses.isNotEmpty) {
-      body.write('${supportClauses.join(' ')} ');
+      ..write('Recent camera review saw ${_joinClauses(leadingClauses)}. ');
+    if (supportLine != null && supportLine.trim().isNotEmpty) {
+      body.write('$supportLine ');
     }
     body.write('Latest signal landed at ${_timeLabel(latestAtLocal)}.');
     return MonitoringSiteNarrativeSnapshot(
@@ -246,7 +225,9 @@ class MonitoringSiteNarrativeService {
     if (trimmed.isEmpty) {
       return trimmed;
     }
-    final normalized = trimmed.endsWith('.') ? trimmed.substring(0, trimmed.length - 1) : trimmed;
+    final normalized = trimmed.endsWith('.')
+        ? trimmed.substring(0, trimmed.length - 1)
+        : trimmed;
     return '${normalized[0].toLowerCase()}${normalized.substring(1)}.';
   }
 }

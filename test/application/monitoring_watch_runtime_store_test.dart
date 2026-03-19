@@ -20,6 +20,7 @@ void main() {
             '10:04 UTC • Camera 1 • Monitoring Alert • Client alert sent because vehicle activity was detected and confidence remained medium.',
           ],
           'monitoring_available': false,
+          'monitoring_availability_detail': 'One remote camera feed is stale.',
           'unresolved_action_count': '4',
         },
         'CLIENT-B|SITE-B': <String, Object?>{'started_at_utc': ''},
@@ -36,17 +37,18 @@ void main() {
       expect(runtime.escalationCount, 3);
       expect(runtime.suppressedCount, 2);
       expect(runtime.monitoringAvailable, isFalse);
+      expect(
+        runtime.monitoringAvailabilityDetail,
+        'One remote camera feed is stale.',
+      );
       expect(runtime.unresolvedActionCount, 4);
       expect(runtime.latestSceneReviewSourceLabel, isEmpty);
       expect(runtime.latestSceneReviewSummary, isEmpty);
       expect(runtime.latestSceneDecisionLabel, isEmpty);
       expect(runtime.latestSceneDecisionSummary, isEmpty);
-      expect(
-        runtime.actionHistory,
-        [
-          '10:04 UTC • Camera 1 • Monitoring Alert • Client alert sent because vehicle activity was detected and confidence remained medium.',
-        ],
-      );
+      expect(runtime.actionHistory, [
+        '10:04 UTC • Camera 1 • Monitoring Alert • Client alert sent because vehicle activity was detected and confidence remained medium.',
+      ]);
       expect(runtime.suppressedHistory, isEmpty);
     });
 
@@ -65,6 +67,7 @@ void main() {
             '10:04 UTC • Camera 1 • Monitoring Alert • Client alert sent because vehicle activity was detected and confidence remained medium.',
           ],
           monitoringAvailable: false,
+          monitoringAvailabilityDetail: 'One remote camera feed is stale.',
           unresolvedActionCount: 4,
         ),
       });
@@ -110,20 +113,14 @@ void main() {
       expect(updated.alertCount, 2);
       expect(updated.repeatCount, 3);
       expect(updated.escalationCount, 2);
-      expect(
-        updated.actionHistory,
-        [
-          '10:05 UTC • Camera 3 • Escalation Candidate • Escalated for urgent review because person activity was detected and confidence remained high.',
-          '10:01 UTC • Camera 1 • Repeat Activity • Repeat activity update sent because vehicle activity repeated.',
-        ],
-      );
+      expect(updated.actionHistory, [
+        '10:05 UTC • Camera 3 • Escalation Candidate • Escalated for urgent review because person activity was detected and confidence remained high.',
+        '10:01 UTC • Camera 1 • Repeat Activity • Repeat activity update sent because vehicle activity repeated.',
+      ]);
       expect(updated.suppressedCount, 4);
-      expect(
-        updated.suppressedHistory,
-        [
-          '10:05 UTC • Camera 3 • Escalated for urgent review because person activity was detected and confidence remained high.',
-        ],
-      );
+      expect(updated.suppressedHistory, [
+        '10:05 UTC • Camera 3 • Escalated for urgent review because person activity was detected and confidence remained high.',
+      ]);
       expect(updated.latestSceneReviewSourceLabel, 'openai:gpt-4.1-mini');
       expect(updated.latestSceneReviewPostureLabel, 'escalation candidate');
       expect(updated.latestSceneDecisionLabel, 'Escalation Candidate');
@@ -147,7 +144,8 @@ void main() {
           'started_at_utc': '2026-03-14T10:00:00.000Z',
           'latest_scene_review_source_label': 'openai:gpt-4.1-mini',
           'latest_scene_review_posture_label': 'repeat monitored activity',
-          'latest_scene_review_summary': 'Vehicle remains in the approach lane.',
+          'latest_scene_review_summary':
+              'Vehicle remains in the approach lane.',
           'latest_scene_decision_label': 'Repeat Activity',
           'latest_scene_decision_summary':
               'Repeat activity update sent because vehicle activity was detected and the activity repeated.',
@@ -191,18 +189,12 @@ void main() {
       expect(runtime.alertCount, 1);
       expect(runtime.repeatCount, 2);
       expect(runtime.suppressedCount, 1);
-      expect(
-        runtime.actionHistory,
-        [
-          '10:04 UTC • Camera 2 • Repeat Activity • Repeat activity update sent because vehicle activity was detected and the activity repeated.',
-        ],
-      );
-      expect(
-        runtime.suppressedHistory,
-        [
-          '10:05 UTC • Camera 2 • Suppressed because the activity remained below the client notification threshold.',
-        ],
-      );
+      expect(runtime.actionHistory, [
+        '10:04 UTC • Camera 2 • Repeat Activity • Repeat activity update sent because vehicle activity was detected and the activity repeated.',
+      ]);
+      expect(runtime.suppressedHistory, [
+        '10:05 UTC • Camera 2 • Suppressed because the activity remained below the client notification threshold.',
+      ]);
       expect(
         runtime.latestSceneDecisionSummary,
         contains('Repeat activity update sent'),
@@ -269,14 +261,11 @@ void main() {
         sceneReviewRecordedAtUtc: DateTime.utc(2026, 3, 14, 10, 4),
       );
 
-      expect(
-        runtime.actionHistory,
-        [
-          '10:04 UTC • Camera 4 • Monitoring Alert • Client alert issued from watch review.',
-          '10:03 UTC • Camera 3 • Escalation Candidate • Escalated for urgent watch review.',
-          '10:02 UTC • Camera 2 • Repeat Activity • Repeat activity update issued from watch review.',
-        ],
-      );
+      expect(runtime.actionHistory, [
+        '10:04 UTC • Camera 4 • Monitoring Alert • Client alert issued from watch review.',
+        '10:03 UTC • Camera 3 • Escalation Candidate • Escalated for urgent watch review.',
+        '10:02 UTC • Camera 2 • Repeat Activity • Repeat activity update issued from watch review.',
+      ]);
     });
   });
 }

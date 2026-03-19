@@ -99,6 +99,13 @@ class _ClientsPageState extends State<ClientsPage> {
     final pendingAsks = rows
         .where((row) => row.type == _FeedType.update)
         .length;
+    final telegramBlocked = _pushSyncStatus.toLowerCase().contains('blocked');
+    final smsFallbackActive = _pushSyncStatus.toLowerCase().contains(
+      'fallback',
+    );
+    final voipReady = _backendProbeStatus.toLowerCase().contains('voip');
+    final pushNeedsReview = _pushSyncStatus.toLowerCase().contains('retry') ||
+        _pushSyncStatus.toLowerCase().contains('review');
 
     return OnyxPageScaffold(
       child: Padding(
@@ -108,11 +115,23 @@ class _ClientsPageState extends State<ClientsPage> {
             constraints: const BoxConstraints(maxWidth: 1540),
             child: ListView(
               children: [
-                OnyxPageHeader(
-                  title:
-                      'Client Operations — ${currentClient.code} / ${currentSite.code}',
-                  subtitle:
-                      'Push alerts, estate rooms, incident visibility, and direct client communications.',
+                _heroHeader(
+                  currentClient: currentClient,
+                  currentSite: currentSite,
+                  unreadAlerts: unreadAlerts,
+                  pendingAsks: pendingAsks,
+                  directUpdates: directUpdates,
+                ),
+                const SizedBox(height: 8),
+                _commsOverviewGrid(
+                  telegramBlocked: telegramBlocked,
+                  smsFallbackActive: smsFallbackActive,
+                  voipReady: voipReady,
+                  pushNeedsReview: pushNeedsReview,
+                  pendingAsks: pendingAsks,
+                  directUpdates: directUpdates,
+                  activeIncidents: activeIncidents,
+                  backendProbeStatus: _backendProbeStatus,
                 ),
                 const SizedBox(height: 8),
                 LayoutBuilder(
@@ -349,6 +368,450 @@ class _ClientsPageState extends State<ClientsPage> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _heroHeader({
+    required _ClientOption currentClient,
+    required _SiteOption currentSite,
+    required int unreadAlerts,
+    required int pendingAsks,
+    required int directUpdates,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 980;
+        final chips = Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _heroChip(
+              label: currentClient.code,
+              foreground: const Color(0xFF8FD1FF),
+              background: const Color(0x1A8FD1FF),
+              border: const Color(0x668FD1FF),
+            ),
+            _heroChip(
+              label: currentSite.code,
+              foreground: const Color(0xFF22D3EE),
+              background: const Color(0x1A22D3EE),
+              border: const Color(0x6622D3EE),
+            ),
+            _heroChip(
+              label: '$pendingAsks Pending Ask${pendingAsks == 1 ? '' : 's'}',
+              foreground: pendingAsks > 0
+                  ? const Color(0xFFF59E0B)
+                  : const Color(0xFF9AB1CF),
+              background: pendingAsks > 0
+                  ? const Color(0x1AF59E0B)
+                  : const Color(0x1A94A3B8),
+              border: pendingAsks > 0
+                  ? const Color(0x66F59E0B)
+                  : const Color(0x6694A3B8),
+            ),
+            _heroChip(
+              label: '$unreadAlerts Unread Alert${unreadAlerts == 1 ? '' : 's'}',
+              foreground: unreadAlerts > 0
+                  ? const Color(0xFFF87171)
+                  : const Color(0xFF9AB1CF),
+              background: unreadAlerts > 0
+                  ? const Color(0x1AF87171)
+                  : const Color(0x1A94A3B8),
+              border: unreadAlerts > 0
+                  ? const Color(0x66F87171)
+                  : const Color(0x6694A3B8),
+            ),
+          ],
+        );
+        final titleBlock = Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF2563EB), Color(0xFF0891B2)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x332563EB),
+                      blurRadius: 18,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.business_center_rounded,
+                  size: 30,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Client Communications',
+                      style: GoogleFonts.rajdhani(
+                        color: const Color(0xFFEAF4FF),
+                        fontSize: 30,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Lane management, incident visibility, and direct client notification status.',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF93A9C6),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    chips,
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+        final snapshotCard = Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0D1117),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFF223244)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Lane Snapshot',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFEAF4FF),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '${currentClient.name} • ${currentSite.name}',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF9BB0CE),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '$directUpdates total updates in the visible incident feed',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF8FD1FF),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        );
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF111722), Color(0xFF0D1117)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFF223244)),
+          ),
+          child: compact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [titleBlock]),
+                    const SizedBox(height: 14),
+                    snapshotCard,
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    titleBlock,
+                    const SizedBox(width: 16),
+                    SizedBox(width: 260, child: snapshotCard),
+                  ],
+                ),
+        );
+      },
+    );
+  }
+
+  Widget _heroChip({
+    required String label,
+    required Color foreground,
+    required Color background,
+    required Color border,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: border),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          color: foreground,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+
+  Widget _commsOverviewGrid({
+    required bool telegramBlocked,
+    required bool smsFallbackActive,
+    required bool voipReady,
+    required bool pushNeedsReview,
+    required int pendingAsks,
+    required int directUpdates,
+    required int activeIncidents,
+    required String backendProbeStatus,
+  }) {
+    final cards = <({
+      IconData icon,
+      Color accent,
+      String status,
+      Color statusAccent,
+      String value,
+      String title,
+      String footnote,
+      IconData footnoteIcon,
+      Color footnoteAccent,
+    })>[
+      (
+        icon: Icons.telegram_rounded,
+        accent: telegramBlocked
+            ? const Color(0xFFF87171)
+            : const Color(0xFF22D3EE),
+        status: telegramBlocked ? 'Blocked' : 'Ready',
+        statusAccent: telegramBlocked
+            ? const Color(0xFFF87171)
+            : const Color(0xFF22D3EE),
+        value: telegramBlocked ? 'Blocked' : 'Ready',
+        title: 'Telegram',
+        footnote: telegramBlocked
+            ? 'Fallback routing required'
+            : 'Primary client lane active',
+        footnoteIcon: telegramBlocked
+            ? Icons.warning_amber_rounded
+            : Icons.check_circle_rounded,
+        footnoteAccent: telegramBlocked
+            ? const Color(0xFFF59E0B)
+            : const Color(0xFF34D399),
+      ),
+      (
+        icon: Icons.sms_rounded,
+        accent: smsFallbackActive
+            ? const Color(0xFFF59E0B)
+            : const Color(0xFF8FD1FF),
+        status: smsFallbackActive ? 'Fallback' : 'Idle',
+        statusAccent: smsFallbackActive
+            ? const Color(0xFFF59E0B)
+            : const Color(0xFF8FD1FF),
+        value: smsFallbackActive ? 'Active' : 'Standby',
+        title: 'SMS',
+        footnote: smsFallbackActive
+            ? 'Client comms shifted to SMS'
+            : 'SMS fallback available',
+        footnoteIcon: smsFallbackActive
+            ? Icons.phone_iphone_rounded
+            : Icons.mark_chat_read_rounded,
+        footnoteAccent: smsFallbackActive
+            ? const Color(0xFFF59E0B)
+            : const Color(0xFF8FD1FF),
+      ),
+      (
+        icon: Icons.phone_forwarded_rounded,
+        accent: voipReady
+            ? const Color(0xFF34D399)
+            : const Color(0xFFC084FC),
+        status: voipReady ? 'Ready' : 'Staging',
+        statusAccent: voipReady
+            ? const Color(0xFF34D399)
+            : const Color(0xFFC084FC),
+        value: voipReady ? 'Ready' : 'Staging',
+        title: 'VoIP',
+        footnote: voipReady ? 'Escalation route armed' : 'Voice stage warming up',
+        footnoteIcon: voipReady
+            ? Icons.call_rounded
+            : Icons.more_time_rounded,
+        footnoteAccent: voipReady
+            ? const Color(0xFF34D399)
+            : const Color(0xFFC084FC),
+      ),
+      (
+        icon: Icons.cloud_sync_rounded,
+        accent: pushNeedsReview
+            ? const Color(0xFFF59E0B)
+            : const Color(0xFF10B981),
+        status: pushNeedsReview ? 'Review' : 'Healthy',
+        statusAccent: pushNeedsReview
+            ? const Color(0xFFF59E0B)
+            : const Color(0xFF10B981),
+        value: '$pendingAsks',
+        title: 'Pending Drafts',
+        footnote: 'Backend probe: $backendProbeStatus',
+        footnoteIcon: pushNeedsReview
+            ? Icons.priority_high_rounded
+            : Icons.check_circle_rounded,
+        footnoteAccent: pushNeedsReview
+            ? const Color(0xFFF59E0B)
+            : const Color(0xFF10B981),
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columnCount = constraints.maxWidth < 920 ? 2 : 4;
+        final childAspectRatio = constraints.maxWidth < 520
+            ? 0.76
+            : constraints.maxWidth < 920
+            ? 1.08
+            : 1.38;
+        return GridView.count(
+          key: const ValueKey('clients-comms-overview-grid'),
+          crossAxisCount: columnCount,
+          childAspectRatio: childAspectRatio,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: cards
+              .map(
+                (card) => _commsOverviewCard(
+                  icon: card.icon,
+                  iconAccent: card.accent,
+                  statusLabel: card.status,
+                  statusAccent: card.statusAccent,
+                  value: card.value,
+                  title: card.title,
+                  footnote: card.footnote,
+                  footnoteIcon: card.footnoteIcon,
+                  footnoteAccent: card.footnoteAccent,
+                ),
+              )
+              .toList(growable: false),
+        );
+      },
+    );
+  }
+
+  Widget _commsOverviewCard({
+    required IconData icon,
+    required Color iconAccent,
+    required String statusLabel,
+    required Color statusAccent,
+    required String value,
+    required String title,
+    required String footnote,
+    required IconData footnoteIcon,
+    required Color footnoteAccent,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1A2B),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF223244)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: iconAccent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: iconAccent, size: 20),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusAccent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  statusLabel.toUpperCase(),
+                  style: GoogleFonts.inter(
+                    color: statusAccent,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFF8FBFF),
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              height: 0.95,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            title.toUpperCase(),
+            style: GoogleFonts.inter(
+              color: const Color(0xFFB4BDC9),
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.9,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(height: 1, color: const Color(0x14FFFFFF)),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Icon(footnoteIcon, size: 14, color: footnoteAccent),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  footnote,
+                  style: GoogleFonts.inter(
+                    color: footnoteAccent,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
